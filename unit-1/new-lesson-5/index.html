@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mission Control Retro Burn Landing</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <section class="card">
+      <div class="topbar">
+        <div class="topbar-left">
+          <button class="btn" id="show-walkthrough">Guide</button>
+          <h1 class="lab-name">Rocket Launch Lab</h1>
+        </div>
+        <div class="stage-tabs top-stage-tabs">
+          <button class="stage-tab active stage-1" data-stage="1">Burn Walkthrough</button>
+          <button class="stage-tab stage-2" data-stage="2">Coast Walkthrough</button>
+          <button class="stage-tab stage-3" data-stage="3">Apex Verification</button>
+          <button class="stage-tab stage-4" data-stage="4">Investigation Mode</button>
+        </div>
+        <div class="toolbar topbar-right">
+          <div class="score-badge" id="score-badge">Score: --</div>
+          <span class="badge" id="badge-target" style="font-size:0.75rem;opacity:0.7;margin-left:6px;">Target apex --</span>
+          <button class="btn" id="toggle-coach-btn">Hint</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="layout">
+      <div class="stack">
+        <section class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span>Flight View</span>
+              <button class="btn" id="retry-btn">Retry Flight</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="flight-view">
+  <div class="altitude-rail">
+    <div class="ticks">
+      <span id="tick-0">0 m</span>
+      <span id="tick-1">0</span>
+      <span id="tick-2">0</span>
+      <span id="tick-3">0</span>
+      <span id="tick-4">0</span>
+    </div>
+  </div>
+
+  <div class="altitude-guides" aria-hidden="true">
+    <div class="guide-line guide-1"></div>
+    <div class="guide-line guide-2"></div>
+    <div class="guide-line guide-3"></div>
+    <div class="guide-line guide-4"></div>
+    <div class="guide-line guide-5"></div>
+  </div>
+
+  <div class="sky-haze" aria-hidden="true"></div>
+  <div class="horizon-glow" aria-hidden="true"></div>
+  <div class="ground"></div>
+  <div class="ground-ridge" aria-hidden="true"></div>
+  <div class="pad-shadow" aria-hidden="true"></div>
+  <div class="pad-legs" aria-hidden="true">
+    <div class="pad-leg"></div>
+    <div class="pad-leg"></div>
+    <div class="pad-leg-cross"></div>
+  </div>
+  <div class="pad"></div>
+  <div class="pad-centerline" aria-hidden="true"></div>
+  <div class="pad-lights" aria-hidden="true">
+    <span></span><span></span><span></span><span></span><span></span><span></span>
+  </div>
+  <div class="pad-label">Landing Pad</div>
+
+  <div class="dust-cloud" id="dust-cloud" aria-hidden="true">
+    <span></span><span></span><span></span><span></span><span></span><span></span>
+  </div>
+
+  <div class="timer-chip">
+    <div class="label">Timer</div>
+    <div class="value" id="timer-display">0.00 s</div>
+  </div>
+
+  <!-- NEW: Freeze-frame annotation overlay (stage transitions) -->
+  <div class="freeze-annotation hidden" id="freeze-annotation">
+    <div class="freeze-title" id="freeze-title">Burn cutoff!</div>
+    <div class="freeze-sub" id="freeze-sub"></div>
+  </div>
+
+  <div class="flight-right-panel">
+    <div class="flight-info-chip">
+      <div class="label">Timer</div>
+      <div class="value" id="flight-timer-display">0.00 s</div>
+    </div>
+    <div class="flight-info-chip">
+      <div class="label">Altitude</div>
+      <div class="value" id="flight-altitude-display">0.0 m</div>
+    </div>
+    <div class="flight-info-chip" id="flight-drag-chip">
+      <div class="label">Attitude</div>
+      <div class="value" id="flight-drag-mode">Upright</div>
+      <div class="flight-info-sub" id="flight-drag-sub">Ballistic descent</div>
+    </div>
+    <div class="flight-values-section hidden" id="flight-values-section">
+      <div class="section-label">Kinematics</div>
+      <div class="value-stack">
+        <div class="value-card"><div class="mini-label">Δy</div><div class="value" id="flight-value-dy">0.0 m</div></div>
+        <div class="value-card"><div class="mini-label">v₀</div><div class="value" id="flight-value-v0">0.0 m/s</div></div>
+        <div class="value-card"><div class="mini-label">v</div><div class="value" id="flight-value-v">0.0 m/s</div></div>
+        <div class="value-card"><div class="mini-label">a</div><div class="value" id="flight-value-a">0.0 m/s²</div></div>
+        <div class="value-card"><div class="mini-label">t</div><div class="value" id="flight-value-t">0.00 s</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="action-wrap">
+    <button id="attitude-btn" class="btn attitude-btn hidden" type="button">Turn Sideways</button>
+    <button id="action-btn" class="btn round green">Launch Burn</button>
+  </div>
+  <div id="flight-stage-text" class="section-label" style="text-align:center; margin-top:8px;">Ready for launch</div>
+
+  <div class="minimap" id="minimap">
+    <div class="minimap-label">ALT</div>
+    <div class="minimap-track">
+      <div class="minimap-ground"></div>
+      <div class="minimap-target" id="minimap-target"></div>
+      <div class="minimap-predicted-burn" id="minimap-predicted-burn"></div>
+      <div class="minimap-apex-marker" id="minimap-apex"></div>
+      <div class="minimap-burn-marker" id="minimap-burn-marker"></div>
+      <div class="minimap-retro-marker" id="minimap-retro-marker"></div>
+      <div class="minimap-ship" id="minimap-ship">
+        <div class="minimap-ship-nose"></div>
+        <div class="minimap-ship-body"></div>
+        <div class="minimap-ship-flame" id="minimap-flame"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="minimap-stage-bands" aria-hidden="true">
+    <div class="stage-band-col up">
+      <div class="mini-stage-band sky" id="miniband-s1"></div>
+      <div class="mini-stage-band violet" id="miniband-s2"></div>
+    </div>
+    <div class="stage-band-col down">
+      <div class="mini-stage-band red" id="miniband-s3"></div>
+      <div class="mini-stage-band emerald" id="miniband-s4"></div>
+    </div>
+  </div>
+
+  <div class="minimap-height-label" id="minimap-height-label"></div>
+  <div class="minimap-marker-chip apex" id="minimap-apex-chip"></div>
+  <div class="minimap-marker-chip burn" id="minimap-burn-chip"></div>
+  <div class="minimap-marker-chip retro" id="minimap-retro-chip"></div>
+  <div class="minimap-marker-chip predicted" id="minimap-predicted-chip"></div>
+
+  <div class="rocket-wrap" id="rocket-wrap">
+    <div class="rocket-stack">
+      <div class="rocket-glow" aria-hidden="true"></div>
+
+      <!-- NEW: Velocity & acceleration vector arrows -->
+      <div class="vector-arrow v-velocity hidden" id="vec-velocity">
+        <div class="vector-line"></div>
+        <div class="vector-head"></div>
+        <div class="vector-label">v</div>
+      </div>
+      <div class="vector-arrow v-accel hidden" id="vec-accel">
+        <div class="vector-line"></div>
+        <div class="vector-head"></div>
+        <div class="vector-label">a</div>
+      </div>
+<div class="rocket-vessel">
+      <div id="rocket-flame" class="flame powered hidden">
+        <div class="flame-core"></div>
+        <div class="flame-mid"></div>
+        <div class="flame-outer"></div>
+        <div class="exhaust-particles" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+      <div class="attitude-thrusters" aria-hidden="true">
+        <div class="attitude-thruster left">
+          <div class="attitude-thruster-pod"></div>
+          <div class="attitude-thruster-flame"></div>
+        </div>
+        <div class="attitude-thruster right">
+          <div class="attitude-thruster-pod"></div>
+          <div class="attitude-thruster-flame"></div>
+        </div>
+      </div>
+      <div class="rocket-body">
+        <div class="rocket-nose-cap" aria-hidden="true"></div>
+        <div class="rocket-nose-highlight"></div>
+        <div class="rocket-stripe-top" aria-hidden="true"></div>
+        <div class="rocket-window-ring"></div>
+        <div class="rocket-window">
+          <div class="window-glare"></div>
+        </div>
+        <div class="rocket-logo" aria-hidden="true">&#9650;</div>
+        <div class="rocket-panel"></div>
+        <div class="rocket-rivets" aria-hidden="true">
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <div class="rocket-band"></div>
+        <div class="rocket-stripe-btm" aria-hidden="true"></div>
+        <div class="rocket-base"></div>
+        <div class="rocket-nozzle">
+          <div class="nozzle-inner"></div>
+        </div>
+      </div>
+      <div class="fins">
+        <div class="fin-left"></div>
+        <div class="fin-right"></div>
+      </div>
+      <div class="landing-legs" aria-hidden="true">
+        <div class="leg leg-l"></div>
+        <div class="leg leg-r"></div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+</div>
+
+            <div class="equation-strip" id="equation-strip">
+              <span class="eq-label" id="eq-label">Ready</span>
+              <span class="eq-body" id="eq-body">Lock in your answers and press Launch</span>
+            </div>
+
+            <div class="instrument-grid hidden" id="instrument-grid" style="margin-top:16px;">
+              <div class="instrument">
+                <div class="instrument-label">Timer</div>
+                <div class="instrument-value" id="inst-timer">0.00 s</div>
+              </div>
+              <div class="instrument">
+                <div class="instrument-label">Altitude</div>
+                <div class="instrument-value" id="inst-altitude">0.0 m</div>
+                <div class="instrument-sub" id="inst-altitude-sub">Scale max 180 m</div>
+              </div>
+              <div class="instrument">
+                <div class="instrument-label">Velocity</div>
+                <div class="instrument-value" id="inst-velocity">0.0 m/s</div>
+              </div>
+              <div class="instrument">
+                <div class="instrument-label">Acceleration</div>
+                <div class="instrument-value" id="inst-acceleration">0.0 m/s&sup2;</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="stack">
+        <section class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span>Mission Brief</span>
+              <div class="mission-brief-head-tools">
+                <div class="badge brief-target-chip" id="brief-target-chip">Target apex --</div>
+                <button class="btn" id="new-mission-btn">New Mission</button>
+              </div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="brief-shell">
+              <div class="brief-grid">
+                <div style="display:grid; gap:10px;">
+                  <div class="section-label" style="margin-bottom:4px;">Kinematics Values</div>
+                  <div class="kinematics-col-headers">
+                    <div></div>
+                    <div class="mini-label" style="text-align:center;">&Delta;y</div>
+                    <div class="mini-label" style="text-align:center;">v₀</div>
+                    <div class="mini-label" style="text-align:center;">v</div>
+                    <div class="mini-label" style="text-align:center;">a</div>
+                    <div class="mini-label" style="text-align:center;">t</div>
+                  </div>
+                  <div class="stage-kin-row" id="stage-val-row-1">
+                    <div class="stage-val-label sky">Stage 1 Burn</div>
+                    <div class="value-card"><div class="value" id="value-dy">?</div></div>
+                    <div class="value-card"><div class="value" id="value-v0">?</div></div>
+                    <div class="value-card"><div class="value" id="value-v">?</div></div>
+                    <div class="value-card"><div class="value" id="value-a">?</div></div>
+                    <div class="value-card"><div class="value" id="value-t">?</div></div>
+                  </div>
+                  <div class="stage-kin-row hidden" id="stage-val-row-2">
+                    <div class="stage-val-label violet">Stage 2 Coast</div>
+                    <div class="value-card"><div class="value" id="value-dy-s2">?</div></div>
+                    <div class="value-card"><div class="value" id="value-v0-s2">?</div></div>
+                    <div class="value-card"><div class="value" id="value-v-s2">?</div></div>
+                    <div class="value-card"><div class="value" id="value-a-s2">?</div></div>
+                    <div class="value-card"><div class="value" id="value-t-s2">?</div></div>
+                  </div>
+                  <div class="stage-kin-row hidden" id="stage-val-row-3">
+                    <div class="stage-val-label red">Stage 3 Fall</div>
+                    <div class="value-card"><div class="value" id="value-dy-s3">?</div></div>
+                    <div class="value-card"><div class="value" id="value-v0-s3">?</div></div>
+                    <div class="value-card"><div class="value" id="value-v-s3">?</div></div>
+                    <div class="value-card"><div class="value" id="value-a-s3">?</div></div>
+                    <div class="value-card"><div class="value" id="value-t-s3">?</div></div>
+                  </div>
+                  <div class="stage-kin-row hidden" id="stage-val-row-4">
+                    <div class="stage-val-label emerald">Stage 4 Retro</div>
+                    <div class="value-card"><div class="value" id="value-dy-s4">?</div></div>
+                    <div class="value-card"><div class="value" id="value-v0-s4">?</div></div>
+                    <div class="value-card"><div class="value" id="value-v-s4">?</div></div>
+                    <div class="value-card"><div class="value" id="value-a-s4">?</div></div>
+                    <div class="value-card"><div class="value" id="value-t-s4">?</div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="question-card" class="calc-card sky" style="margin-top:16px;">
+              <div class="calc-title" id="question-card-title">Stage 1 Walkthrough &mdash; Burn Phase</div>
+              <div class="calc-prompt" id="question-card-prompt">Use the same givens to solve both burn height and burnout velocity before moving to the coast phase.</div>
+              <div id="question-card-content"></div>
+            </div>
+
+            <div id="finished-card" class="finished-card hidden" style="margin-top:16px;">
+              <div class="section-label" style="margin-bottom:12px;">Mission Results</div>
+              <div class="chip-grid">
+                <div class="data-chip"><div class="chip-label">Burn time</div><div class="value" id="finished-entered-burn">--</div></div>
+                <div class="data-chip"><div class="chip-label">Burn score</div><div class="value" id="finished-burn-score">--</div></div>
+                <div class="data-chip"><div class="chip-label">Engine accel</div><div class="value" id="finished-entered-retro">--</div></div>
+                <div class="data-chip"><div class="chip-label">Retro score</div><div class="value" id="finished-retro-score">--</div></div>
+                <div class="data-chip"><div class="chip-label">Landing speed</div><div class="value" id="finished-landing-speed">--</div></div>
+                <div class="data-chip"><div class="chip-label">Landing score</div><div class="value" id="finished-landing-score">--</div></div>
+                <div class="data-chip"><div class="chip-label">Mission result</div><div class="value" id="finished-mission-result">--</div></div>
+                <div class="data-chip"><div class="chip-label">Total score</div><div class="value" id="finished-total-score">--</div></div>
+              </div>
+              <div class="section-label" style="margin-top:16px; margin-bottom:12px;">Recorded Flight Data</div>
+              <div class="chip-grid">
+                <div class="data-chip"><div class="chip-label">Actual burn time</div><div class="value" id="finished-actual-burn-time">--</div></div>
+                <div class="data-chip"><div class="chip-label">Burn cutoff height</div><div class="value" id="finished-actual-burn-height">--</div></div>
+                <div class="data-chip"><div class="chip-label">Burn cutoff velocity</div><div class="value" id="finished-actual-burn-velocity">--</div></div>
+                <div class="data-chip"><div class="chip-label">Max height</div><div class="value" id="finished-actual-max-height">--</div></div>
+                <div class="data-chip"><div class="chip-label">Retro start time</div><div class="value" id="finished-actual-retro-time">--</div></div>
+                <div class="data-chip"><div class="chip-label">Retro start height</div><div class="value" id="finished-actual-retro-height">--</div></div>
+                <div class="data-chip"><div class="chip-label">Retro start velocity</div><div class="value" id="finished-actual-retro-velocity">--</div></div>
+                <div class="data-chip"><div class="chip-label">Landing velocity</div><div class="value" id="finished-actual-landing-velocity">--</div></div>
+                <div class="data-chip"><div class="chip-label">Total retro burn</div><div class="value" id="finished-actual-retro-burn">--</div></div>
+                <div class="data-chip"><div class="chip-label">Total flight time</div><div class="value" id="finished-actual-total-time">--</div></div>
+              </div>
+              <div class="section-label" style="margin-top:16px; margin-bottom:12px;">After Your Test Run</div>
+              <div class="coach-block">
+                <ul class="answer-list">
+                  <li>How high did the rocket go?</li>
+                  <li>What was the landing velocity?</li>
+                  <li>Was the landing safe?</li>
+                  <li>Did you start retro burn too early or too late, and what burn time would make that same retro start produce a perfect landing?</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card hidden" id="coach-card">
+          <div class="card-header">
+            <div class="card-title"><span>Coach Mode</span></div>
+          </div>
+          <div class="card-body">
+            <div class="chip-grid" style="margin-bottom:14px;">
+              <div class="data-chip"><div class="chip-label">Target apex</div><div class="value" id="chip-target">0 m</div></div>
+              <div class="data-chip"><div class="chip-label">Landing limit</div><div class="value" id="chip-landing-limit">&plusmn;2 m/s</div></div>
+              <div class="data-chip"><div class="chip-label">Gravity</div><div class="value" id="chip-gravity">-10 m/s&sup2;</div></div>
+              <div class="data-chip"><div class="chip-label">Burn accel</div><div class="value" id="chip-burn-accel">+20 m/s&sup2;</div></div>
+            </div>
+            <div id="coach-step-hint" class="coach-block"></div>
+            <div style="padding-top:10px;">
+              <ul class="answer-list">
+                <li id="coach-burn-answer">Burn cutoff time: solve Stage 1 first</li>
+                <li id="coach-retro-answer">Recorded flight data appears after you run an investigation</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+
+    <div class="walkthrough-overlay hidden" id="walkthrough-overlay">
+      <div class="walkthrough-panel">
+        <div class="walk-step-label" id="walk-step-label">Step 1 of 5</div>
+        <div class="walk-title" id="walk-title"></div>
+        <div class="walk-body" id="walk-body"></div>
+        <div class="walk-nav">
+          <button class="btn" id="walk-prev-btn" disabled>Back</button>
+          <div class="walk-dots" id="walk-dots"></div>
+          <button class="btn" id="walk-next-btn">Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="scorm-wrapper.js"></script>
+  <script src="sim.js"></script>
+</body>
+</html>

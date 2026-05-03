@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Motion Graphs Lab – Mail Carrier Mystery</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    :root {
+      --ok: #22c55e;
+      --bad: #ef4444;
+      --warn: #f59e0b;
+      --radius: 1.25rem;
+      --card-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04);
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; background: #f1f5f9; color: #1e293b; }
+    canvas { touch-action: none; }
+    .hidden { display: none !important; }
+    ::selection { background: #bfdbfe; color: #1e3a5f; }
+    ::-webkit-scrollbar { width: 7px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    .start-overlay {
+      position: fixed; inset: 0; z-index: 60;
+      background: linear-gradient(135deg, rgba(15,23,42,0.95), rgba(30,58,138,0.92));
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(12px);
+    }
+    .walkthrough-overlay {
+      position: fixed; inset: 0; z-index: 50;
+      background: rgba(15,23,42,0.5);
+      display: flex; align-items: flex-start; justify-content: center;
+      backdrop-filter: blur(4px); padding: 24px; padding-top: 80px;
+    }
+    .walk-dot { width: 10px; height: 10px; border-radius: 999px; background: #cbd5e1; transition: background 0.2s; }
+    .walk-dot.active { background: #3b82f6; }
+    .walk-body .eq {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-weight: 700; background: rgba(59,130,246,0.08);
+      padding: 2px 8px; border-radius: 6px; color: #1e293b;
+    }
+    .tab-btn {
+      flex: 1; padding: 14px 12px; text-align: center;
+      font-weight: 700; font-size: 0.9rem; letter-spacing: -0.01em;
+      border-bottom: 3px solid transparent;
+      color: #94a3b8; cursor: pointer; transition: all 0.2s;
+      background: none; border-top: none; border-left: none; border-right: none;
+    }
+    .tab-btn:hover { color: #475569; background: #f8fafc; }
+    .tab-btn.active { color: #2563eb; border-bottom-color: #2563eb; background: #eff6ff; }
+    .house-btn:hover, .house-btn:focus-visible { transform: scale(1.1) translateY(-5px); }
+    .house-btn:focus-visible { outline: 3px solid #3b82f6; outline-offset: 2px; border-radius: 8px; }
+    .house-btn { transition: all 0.2s ease; cursor: pointer; }
+    .moving .wheel { animation: spin 0.5s linear infinite; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-5px); }
+      40%, 80% { transform: translateX(5px); }
+    }
+    .assess-container { max-width: 1200px; margin: 0 auto; }
+    .question-nav { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+    .question-nav select {
+      flex: 1; min-width: 220px; padding: 10px 14px;
+      border: 1px solid #e2e8f0; border-radius: var(--radius);
+      font-size: 0.9rem; font-weight: 600; background: white;
+      color: #1e293b; box-shadow: var(--card-shadow); transition: all 0.2s; cursor: pointer;
+    }
+    .question-nav select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59,130,246,0.12); }
+    .question-nav button {
+      padding: 10px 18px; border-radius: var(--radius);
+      border: 1px solid #e2e8f0; background: white;
+      font-weight: 700; cursor: pointer; transition: all 0.15s;
+      box-shadow: var(--card-shadow); color: #334155;
+    }
+    .question-nav button:hover { background: #f1f5f9; border-color: #cbd5e1; transform: translateY(-1px); }
+    .question-nav button:active { transform: translateY(0); }
+    .q-header {
+      background: white; border: 1px solid #e2e8f0;
+      border-radius: var(--radius); padding: 20px 24px; margin-bottom: 20px;
+      box-shadow: var(--card-shadow); position: relative; overflow: hidden;
+    }
+    .q-header::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, #3b82f6, #8b5cf6, #6366f1);
+    }
+    .brief-shell {
+      padding: 6px 10px;
+      border-bottom: 1px solid #dbeafe;
+      background:
+        linear-gradient(90deg, rgba(239,246,255,0.98), rgba(248,250,252,0.98)),
+        linear-gradient(135deg, #dbeafe, #dcfce7);
+    }
+    .practice-hints-panel {
+      padding: 14px 18px;
+      border-bottom: 1px solid #dbeafe;
+      background: #eff6ff;
+    }
+    .practice-hints-panel.hidden { display: none !important; }
+    .practice-hints-panel .hint-chip {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid #bfdbfe;
+      background: white;
+      border-radius: 999px;
+      padding: 6px 12px;
+      color: #475569;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+    .completion-shell {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 22px 24px;
+      border-bottom: 1px solid #bbf7d0;
+      background: linear-gradient(90deg, #ecfdf5, #f8fafc);
+    }
+    .completion-shell.hidden { display: none !important; }
+    .completion-kicker {
+      font-size: 0.72rem;
+      font-weight: 900;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #047857;
+    }
+    .completion-submit {
+      background: #16a34a;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 10px 22px rgba(22,163,74,0.22);
+      transition: transform 0.15s, background 0.15s;
+    }
+    .completion-submit:hover { background: #15803d; transform: translateY(-1px); }
+    @media (max-width: 760px) {
+      .completion-shell {
+        flex-direction: column;
+        align-items: stretch;
+      }
+    }
+    .mode-chip {
+      padding: 7px 12px; border-radius: 12px; border: none;
+      background: transparent; color: #cbd5e1; font-weight: 800;
+      font-size: 0.85rem; cursor: pointer; transition: all 0.2s; letter-spacing: -0.01em;
+    }
+    .mode-chip:hover { color: white; background: rgba(255,255,255,0.08); }
+    .mode-chip.active { background: white; color: #0f172a; box-shadow: 0 8px 24px rgba(15,23,42,0.16); }
+    .mode-panel-title {
+      font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em;
+      text-transform: uppercase; color: #64748b; margin-bottom: 12px;
+    }
+    .sim-player-card {
+      background: white; border-radius: var(--radius); overflow: hidden;
+      border: 1px solid #e2e8f0; box-shadow: 0 4px 24px rgba(0,0,0,0.06); margin-bottom: 20px;
+    }
+    .sim-player-header {
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: white; padding: 14px 20px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .sim-player-header .title-group { display: flex; align-items: center; gap: 10px; }
+    .sim-player-header .title-group span { font-weight: 800; font-size: 0.9rem; letter-spacing: -0.01em; }
+    .sim-player-header .controls-group { display: flex; align-items: center; gap: 10px; }
+    .sim-time-badge {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.8rem; font-weight: 600; color: #94a3b8;
+      background: rgba(255,255,255,0.06); padding: 6px 12px; border-radius: 10px;
+    }
+    .sim-play-btn {
+      background: linear-gradient(135deg, #3b82f6, #6366f1); border: none;
+      color: white; padding: 8px 20px; border-radius: 12px;
+      font-weight: 700; font-size: 0.85rem; cursor: pointer;
+      transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+    }
+    .sim-play-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(59,130,246,0.35); }
+    .sim-play-btn:active { transform: translateY(0); }
+    .sim-reset-btn {
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
+      color: #cbd5e1; padding: 8px 14px; border-radius: 12px;
+      font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.15s;
+    }
+    .sim-reset-btn:hover { background: rgba(255,255,255,0.14); color: white; }
+    .sim-stage {
+      position: relative; width: 100%; height: 224px;
+      background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 60%, #bae6fd 100%);
+      overflow: hidden; border-bottom: 5px solid #334155;
+    }
+    .stage-playback-controls {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 35;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 8px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+    }
+    .sim-road {
+      position: absolute; bottom: 0; width: 100%; height: 56px;
+      background: linear-gradient(180deg, #475569, #334155);
+      display: flex; flex-direction: column; justify-content: center;
+    }
+    .sim-road-line { width: 100%; border-top: 3px dashed #fbbf24; }
+    .sim-road-markers {
+      position: absolute; bottom: 4px; width: 100%; height: 14px;
+      color: rgba(255,255,255,0.95); font-weight: 800; font-size: 10px;
+      letter-spacing: 0.05em; z-index: 10; user-select: none;
+      text-shadow: 0 1px 2px rgba(15,23,42,0.85);
+    }
+    .sim-road-markers span {
+      position: absolute;
+      bottom: 0;
+      left: var(--marker-x);
+      transform: translateX(-50%);
+      white-space: nowrap;
+      line-height: 1;
+    }
+    .sim-road-markers span:first-child { transform: translateX(0); }
+    .sim-road-markers span:last-child { transform: translateX(-100%); }
+    .sim-graphs-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 0;
+      width: 100%;
+      background: #f8fafc;
+    }
+    .sim-graph-panel { min-width: 0; display: flex; flex-direction: column; }
+    #posContainer {
+      grid-column: 1;
+      border-right: 1px solid #e2e8f0;
+    }
+    #velContainer {
+      grid-column: 2;
+    }
+    .sim-graph-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 16px; font-weight: 700; font-size: 0.82rem;
+      color: #475569; background: #f1f5f9; border-top: 1px solid #e2e8f0;
+    }
+    .sim-graph-canvas-wrap { position: relative; width: 100%; aspect-ratio: 3 / 2; }
+    .sim-graph-canvas-wrap canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; }
+    @media (max-width: 900px) {
+      .sim-graphs-row { grid-template-columns: 1fr; }
+      #posContainer,
+      #velContainer {
+        grid-column: 1;
+        border-right: none;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      #velContainer { border-bottom: none; }
+    }
+    .action-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+    .action-bar button {
+      padding: 10px 22px; border-radius: var(--radius); border: none;
+      font-weight: 700; cursor: pointer; transition: all 0.2s;
+      font-size: 0.88rem; display: flex; align-items: center; gap: 6px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #3b82f6, #6366f1); color: white;
+      box-shadow: 0 2px 12px rgba(59,130,246,0.25);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(59,130,246,0.35); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-secondary { background: #e2e8f0; color: #334155; }
+    .btn-secondary:hover { background: #cbd5e1; }
+    .btn-warn {
+      background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #78350f;
+      box-shadow: 0 2px 12px rgba(245,158,11,0.2);
+    }
+    .btn-warn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(245,158,11,0.3); }
+    .btn-danger { background: #fecaca; color: #991b1b; }
+    .btn-danger:hover { background: #fca5a5; }
+    .assessment-toolbar {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      flex-wrap: wrap;
+      border: 1px solid #e2e8f0;
+      background: rgba(255,255,255,0.72);
+      border-radius: 8px;
+      padding: 6px;
+    }
+    .assessment-nav-group,
+    .assessment-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .assessment-answer-group {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+      flex: 1 1 360px;
+      min-width: 260px;
+      flex-wrap: wrap;
+    }
+    .assessment-answer-group #response-area {
+      flex: 0 1 auto;
+      min-width: 0;
+    }
+    .assessment-answer-group .choice-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 6px;
+    }
+    .assessment-answer-group .choice-item {
+      padding: 6px 8px;
+      border-radius: 8px;
+    }
+    .assessment-answer-group .choice-item:hover {
+      transform: none;
+    }
+    .assessment-answer-group .response-input {
+      width: 180px;
+      max-width: 180px;
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 1rem;
+    }
+    .assessment-answer-group .completion-shell {
+      flex: 1 1 100%;
+      padding: 10px 12px;
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      background: linear-gradient(90deg, #ecfdf5, #f8fafc);
+    }
+    .assessment-answer-group .completion-shell h2 {
+      font-size: 0.95rem;
+      margin: 0;
+    }
+    .assessment-answer-group .completion-shell p {
+      margin-bottom: 0;
+    }
+    .assessment-answer-group .completion-submit {
+      padding: 10px 14px;
+      white-space: nowrap;
+    }
+    .assessment-actions .btn-primary,
+    .assessment-actions .btn-warn {
+      border: none;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 0.88rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      white-space: nowrap;
+    }
+    .assessment-feedback-panel {
+      padding: 6px 10px;
+      border-bottom: 1px solid #e2e8f0;
+      background: #f8fafc;
+    }
+    .assessment-feedback-panel.hidden { display: none !important; }
+    .assessment-feedback-panel .feedback-summary:empty,
+    .assessment-feedback-panel #feedback-list:empty,
+    .assessment-feedback-panel #response-help:empty {
+      display: none;
+    }
+    .response-card {
+      background: white; border: 1px solid #dbeafe;
+      border-radius: var(--radius); padding: 20px 24px; margin-bottom: 20px;
+      box-shadow: var(--card-shadow);
+    }
+    .response-input {
+      width: 100%; max-width: 280px; padding: 12px 16px;
+      border: 2px solid #93c5fd; border-radius: 14px;
+      font-size: 1.1rem; font-weight: 700; color: #1e293b;
+      outline: none; transition: all 0.2s; background: #f8fafc;
+    }
+    .response-input:focus { border-color: #3b82f6; background: white; box-shadow: 0 0 0 4px rgba(59,130,246,0.1); }
+    .choice-list { display: flex; flex-direction: column; gap: 8px; }
+    .choice-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 12px 16px; background: #f8fafc;
+      border: 1px solid #e2e8f0; border-radius: 14px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .choice-item:hover { background: #eff6ff; border-color: #93c5fd; transform: translateX(4px); }
+    .choice-item input[type="radio"] { margin-top: 4px; accent-color: #3b82f6; width: 18px; height: 18px; }
+    .choice-item span { font-size: 0.9rem; color: #334155; line-height: 1.5; font-weight: 500; }
+    .graph-choice-container {
+      grid-column: 1 / -1;
+      width: 100%;
+      padding: 14px;
+      background: #f8fafc;
+    }
+    .graph-choice-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .graph-choice-item {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px;
+      background: #ffffff;
+      border: 2px solid #dbeafe;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, transform 0.15s;
+    }
+    .graph-choice-item:hover {
+      background: #eff6ff;
+      border-color: #60a5fa;
+      transform: translateY(-1px);
+    }
+    .graph-choice-item:has(input:checked) {
+      background: #dcfce7;
+      border-color: #22c55e;
+    }
+    .graph-choice-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.84rem;
+      font-weight: 800;
+      color: #1e293b;
+    }
+    .graph-choice-label input {
+      accent-color: #16a34a;
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
+    }
+    .graph-choice-canvas-wrap {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      overflow: hidden;
+      background: #ffffff;
+    }
+    .graph-choice-canvas-wrap canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    @media (max-width: 900px) {
+      .graph-choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 520px) {
+      .graph-choice-grid { grid-template-columns: 1fr; }
+    }
+    .feedback-section {
+      background: white; border: 1px solid #e2e8f0;
+      border-radius: var(--radius); padding: 20px 24px; margin-bottom: 20px;
+      box-shadow: var(--card-shadow);
+    }
+    .feedback-summary {
+      font-weight: 700; font-size: 1rem; margin-bottom: 10px;
+      padding: 10px 16px; border-radius: 12px;
+      background: #f1f5f9; color: #475569;
+    }
+    .feedback-summary.good { background: #dcfce7; color: #166534; }
+    .feedback-summary.mid { background: #fef9c3; color: #854d0e; }
+    .feedback-summary.bad { background: #fecaca; color: #991b1b; }
+    .feedback-section ul {
+      list-style: disc; padding-left: 22px;
+      font-size: 0.88rem; color: #475569; line-height: 1.8;
+    }
+    .attempt-history {
+      background: white; border: 1px solid #e2e8f0;
+      border-radius: var(--radius); padding: 20px 24px; margin-bottom: 28px;
+      box-shadow: var(--card-shadow);
+    }
+    .attempt-history h3 {
+      font-size: 0.9rem; font-weight: 800; color: #334155;
+      margin: 0 0 12px; text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .attempt-item {
+      background: #f8fafc; border: 1px solid #e2e8f0;
+      border-radius: 12px; padding: 12px 16px; margin-bottom: 8px;
+      transition: all 0.15s;
+    }
+    .attempt-item:hover { background: #f1f5f9; }
+    .attempt-top { display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 700; }
+    .attempt-meta { font-size: 0.75rem; color: #94a3b8; white-space: pre-wrap; margin-top: 4px; }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-100 relative">
+  <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+    <div class="absolute -top-40 -right-40 w-96 h-96 bg-blue-200 rounded-full opacity-20 blur-3xl"></div>
+    <div class="absolute top-1/2 -left-48 w-80 h-80 bg-indigo-200 rounded-full opacity-15 blur-3xl"></div>
+    <div class="absolute -bottom-32 right-1/3 w-72 h-72 bg-purple-200 rounded-full opacity-15 blur-3xl"></div>
+  </div>
+
+  <div id="start-overlay" class="start-overlay">
+    <div class="bg-white rounded-3xl p-10 max-w-md w-full text-center shadow-2xl border border-slate-200/50 relative overflow-hidden">
+      <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+      <div class="text-5xl mb-5">&#128202;</div>
+      <h1 class="text-3xl font-extrabold text-slate-900 mb-2 tracking-tight">Motion Graphs Lab</h1>
+      <p class="text-slate-500 font-medium text-sm mb-6">Analyze position &amp; velocity graphs to solve delivery mysteries</p>
+      <button id="start-btn" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3.5 rounded-2xl transition-all text-lg shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 active:scale-[0.98]">
+        Start Lab
+      </button>
+    </div>
+  </div>
+
+  <div id="walkthrough-overlay" class="walkthrough-overlay hidden">
+    <div class="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl border border-slate-200/50 relative overflow-hidden">
+      <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+      <div class="text-xs uppercase tracking-wider text-slate-400 font-bold mb-2" id="walk-step-label">Step 1 of 4</div>
+      <h2 class="text-xl font-extrabold text-slate-800 mb-3" id="walk-title"></h2>
+      <div class="text-slate-600 leading-relaxed mb-6 text-[0.92rem]" id="walk-body"></div>
+      <div class="flex justify-between items-center">
+        <button id="walk-prev" class="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 rounded-xl font-bold text-sm transition" disabled>Back</button>
+        <div class="flex gap-2" id="walk-dots"></div>
+        <button id="walk-next" class="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold text-sm transition shadow-md shadow-blue-500/20">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="app" class="hidden relative z-10">
+
+    <div id="practice-section" class="p-1 md:p-2">
+      <div class="max-w-6xl mx-auto w-full bg-white rounded-3xl shadow-sm overflow-hidden flex flex-col border border-slate-200" style="box-shadow: var(--card-shadow);">
+
+        <div class="bg-gradient-to-r from-slate-900 to-slate-800 text-white px-3 py-2">
+          <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-3">
+                <button id="show-walkthrough" class="text-sm bg-white/10 hover:bg-white/15 backdrop-blur px-3 py-1.5 rounded-xl transition font-semibold border border-white/10">Guide</button>
+                <span class="text-lg font-extrabold tracking-tight">Motion Graphs Lab</span>
+                <span class="text-xs bg-blue-500/20 text-blue-300 px-3 py-1.5 rounded-full font-bold border border-blue-400/20" id="top-bar-score">Score: &mdash;%</span>
+                <span class="text-xs text-slate-400 font-medium" id="overall-score-display"></span>
+              </div>
+            </div>
+            <div class="inline-flex w-full items-center gap-1 bg-white/10 p-1 rounded-2xl border border-white/10 sm:w-[360px] lg:w-[420px]">
+              <button id="mode-practice-btn" class="mode-chip active flex-1">Practice</button>
+              <button id="mode-assessment-btn" class="mode-chip flex-1">Assessment</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="practice-brief-shell" class="brief-shell">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div id="practice-controls" class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white/70 p-1.5 flex-wrap">
+              <select id="scenarioSelect" class="bg-white text-slate-800 text-sm rounded-lg px-3 py-1.5 outline-none border border-slate-300 focus:border-blue-400 font-semibold">
+                </select>
+              <button id="practice-hint-btn" class="bg-white hover:bg-slate-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg text-sm font-black transition">
+                Show Hints
+              </button>
+            </div>
+            <div id="assessment-top-controls" class="hidden w-full">
+              <div class="assessment-toolbar">
+                <div class="assessment-nav-group">
+                  <button id="prev-question" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 px-3 py-1.5 rounded-lg text-sm font-bold transition">&larr; Prev</button>
+                  <select id="question-select" class="bg-white text-slate-800 text-sm rounded-lg px-3 py-1.5 outline-none border border-slate-300 focus:border-blue-400 font-semibold min-w-[220px]"></select>
+                  <button id="next-question" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 px-3 py-1.5 rounded-lg text-sm font-bold transition">Next &rarr;</button>
+                </div>
+                <div class="assessment-answer-group">
+                  <div id="response-area"></div>
+                  <div id="response-card"></div>
+                  <div class="assessment-actions">
+                    <button id="check-answer" class="btn-primary">&#10003; Submit Answer</button>
+                    <button id="hint-btn" class="btn-warn hidden">&#128161; Hint (&frac12; credit)</button>
+                  </div>
+                  <div id="completion-card" class="completion-shell hidden">
+                    <div class="min-w-0">
+                      <p class="completion-kicker">Lab Complete</p>
+                      <h2 class="mt-1 text-xl font-black text-slate-900 tracking-tight">All 15 questions answered</h2>
+                      <p class="mt-1 text-sm text-slate-600">Overall score: <span id="final-score-display" class="font-black text-emerald-700">--</span></p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="sim-stage" class="sim-stage">
+          <div class="stage-playback-controls">
+            <button id="playBtn" class="sim-play-btn">&#9654; Play</button>
+            <button id="resetBtn" class="sim-reset-btn">&#8634;</button>
+          </div>
+          <div class="sim-road">
+            <div class="sim-road-line"></div>
+          </div>
+          <div class="sim-road-markers">
+            <span style="--marker-x: 0%;">0m</span><span style="--marker-x: 14.285714%;">10m</span><span style="--marker-x: 28.571429%;">20m</span><span style="--marker-x: 42.857143%;">30m</span><span style="--marker-x: 57.142857%;">40m</span><span style="--marker-x: 71.428571%;">50m</span><span style="--marker-x: 85.714286%;">60m</span><span style="--marker-x: 100%;">70m</span>
+          </div>
+          <div id="housesContainer" class="absolute bottom-12 w-full h-32"></div>
+          
+          <div id="standalonePackage" class="absolute w-5 h-5 bg-yellow-600 border border-yellow-800 rounded-sm opacity-0 hidden transition-all duration-500 flex items-center justify-center shadow-md z-20" style="bottom:94px;left:-100px;">
+            <div class="w-full h-[2px] bg-yellow-800 opacity-50"></div>
+          </div>
+          <div id="standalonePackage2" class="absolute w-5 h-5 bg-orange-600 border border-orange-800 rounded-sm opacity-0 hidden transition-all duration-500 flex items-center justify-center shadow-md z-20" style="bottom:94px;left:-100px;">
+            <div class="w-full h-[2px] bg-orange-800 opacity-50"></div>
+          </div>
+
+          <div id="suspectA" class="absolute bottom-3 w-8 h-10 flex flex-col items-center justify-end z-30 transition-transform" style="display:none;left:-100px;">
+            <div id="suspectAPackage" class="absolute top-2 right-[-8px] w-4 h-4 bg-yellow-600 border border-yellow-800 rounded-sm hidden shadow-sm z-40"><div class="w-full h-[1px] mt-1.5 bg-yellow-800 opacity-50"></div></div>
+            <div class="w-4 h-4 bg-green-500 border-2 border-slate-800 rounded-full z-10 -mb-1 shadow-sm"></div>
+            <div class="w-6 h-6 bg-green-500 border-2 border-slate-800 rounded-t-xl flex items-center justify-center text-white text-[10px] font-bold shadow-md">A</div>
+          </div>
+          <div id="suspectB" class="absolute bottom-3 w-8 h-10 flex flex-col items-center justify-end z-30 transition-transform" style="display:none;left:-100px;">
+            <div id="suspectBPackage" class="absolute top-2 right-[-8px] w-4 h-4 bg-yellow-600 border border-yellow-800 rounded-sm hidden shadow-sm z-40"><div class="w-full h-[1px] mt-1.5 bg-yellow-800 opacity-50"></div></div>
+            <div class="w-4 h-4 bg-purple-500 border-2 border-slate-800 rounded-full z-10 -mb-1 shadow-sm"></div>
+            <div class="w-6 h-6 bg-purple-500 border-2 border-slate-800 rounded-t-xl flex items-center justify-center text-white text-[10px] font-bold shadow-md">B</div>
+          </div>
+          
+          <div id="truck" class="absolute bottom-7 w-24 h-16 z-20 truck-body" style="left:0%;transform:translateX(-50%);">
+            <div class="relative w-full h-full transition-transform">
+              <div id="truckBodyBg" class="absolute bottom-2 left-0 w-[68%] h-11 bg-gradient-to-b from-white to-slate-100 border-2 border-blue-800 rounded-l-lg rounded-tr-sm flex items-start justify-center pt-1 font-bold text-blue-800 text-xs shadow-lg transition-all duration-300">
+                <span id="truckText" class="tracking-wider">US MAIL</span>
+                <div class="absolute bottom-1 left-[-2px] w-1 h-3 bg-red-500 border border-red-700 rounded-r-sm"></div>
+              </div>
+              <div id="truckCabBg" class="absolute bottom-2 right-0 w-[35%] h-9 bg-gradient-to-b from-blue-700 to-blue-900 rounded-tr-xl rounded-br-md border-2 border-blue-800 transition-all duration-300 shadow-md">
+                <div class="absolute top-1 right-1 w-4 h-4 bg-sky-200 border border-blue-900 rounded-tr-lg rounded-bl-sm opacity-80"></div>
+                <div class="absolute bottom-1 right-[-2px] w-1.5 h-2 bg-yellow-300 border border-yellow-500 rounded-l-sm shadow-[3px_0_5px_rgba(253,224,71,0.6)]"></div>
+              </div>
+              <div class="absolute bottom-0 left-2 w-7 h-7 bg-slate-800 rounded-full border-[3px] border-slate-300 wheel shadow-sm flex items-center justify-center"><div class="w-2.5 h-2.5 bg-slate-400 rounded-full"></div></div>
+              <div class="absolute bottom-0 right-1 w-7 h-7 bg-slate-800 rounded-full border-[3px] border-slate-300 wheel shadow-sm flex items-center justify-center"><div class="w-2.5 h-2.5 bg-slate-400 rounded-full"></div></div>
+            </div>
+          </div>
+
+          <div id="truck2" class="absolute bottom-7 w-24 h-16 z-20 truck-body hidden" style="left:0%;transform:translateX(-50%);">
+            <div class="relative w-full h-full transition-transform">
+              <div class="absolute bottom-2 left-0 w-[68%] h-11 bg-gradient-to-b from-slate-700 to-slate-800 border-2 border-slate-900 rounded-l-lg rounded-tr-sm flex items-start justify-center pt-1 font-bold text-slate-300 text-xs shadow-lg">
+                <span class="tracking-widest italic lowercase">express</span>
+              </div>
+              <div class="absolute bottom-2 right-0 w-[35%] h-9 bg-gradient-to-b from-slate-800 to-slate-900 rounded-tr-xl rounded-br-md border-2 border-slate-950 shadow-md">
+                <div class="absolute top-1 right-1 w-4 h-4 bg-sky-200 border border-slate-700 rounded-tr-lg rounded-bl-sm opacity-80"></div>
+              </div>
+              <div class="absolute bottom-0 left-2 w-7 h-7 bg-slate-800 rounded-full border-[3px] border-slate-300 wheel flex items-center justify-center"><div class="w-2.5 h-2.5 bg-slate-400 rounded-full"></div></div>
+              <div class="absolute bottom-0 right-1 w-7 h-7 bg-slate-800 rounded-full border-[3px] border-slate-300 wheel flex items-center justify-center"><div class="w-2.5 h-2.5 bg-slate-400 rounded-full"></div></div>
+            </div>
+          </div>
+
+        </div>
+
+        <div id="assessmentDirectionsWrapper" class="hidden bg-blue-100 py-1 border-b border-blue-300 transition-colors duration-300">
+          <div id="assessmentDirectionsBanner" class="text-blue-800 text-center font-semibold text-lg">&nbsp;</div>
+        </div>
+
+        <div id="assessment-feedback-panel" class="assessment-feedback-panel hidden">
+          <p id="response-help" class="text-sm text-blue-700 font-semibold" style="display:none"></p>
+          <p id="feedback-summary" class="feedback-summary"></p>
+          <ul id="feedback-list" class="list-disc pl-5 text-sm text-slate-600 leading-relaxed"></ul>
+        </div>
+
+        <div id="practice-brief-clues" class="practice-hints-panel hidden"></div>
+
+        <div id="feedbackBannerWrapper" class="bg-yellow-100 py-1 border-b border-yellow-200">
+          <div id="feedbackBanner" class="text-yellow-800 text-center font-semibold text-lg">&nbsp;</div>
+          <div id="suspectControls" class="mt-2 flex justify-center gap-4 hidden">
+            <button id="guessA" class="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg transition-all active:scale-95">Accuse Suspect A</button>
+            <button id="guessB" class="bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg transition-all active:scale-95">Accuse Suspect B</button>
+          </div>
+        </div>
+
+        <div id="sim-graphs-row" class="sim-graphs-row">
+          <div id="posContainer" class="sim-graph-panel">
+            <div class="sim-graph-canvas-wrap">
+              <canvas id="posCanvas"></canvas>
+            </div>
+            <div class="sim-graph-header">
+              <span>Position vs. Time</span>
+              <span id="posReadout" class="text-blue-600 font-mono text-xs">x = 0.0 m</span>
+            </div>
+          </div>
+          <div id="velContainer" class="sim-graph-panel">
+            <div class="sim-graph-canvas-wrap">
+              <canvas id="velCanvas"></canvas>
+            </div>
+            <div class="sim-graph-header">
+              <span>Velocity vs. Time</span>
+              <span id="velReadout" class="text-red-600 font-mono text-xs">v = 0.0 m/s</span>
+            </div>
+          </div>
+          <div id="graph-choice-container" class="graph-choice-container hidden">
+            <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p class="text-[0.72rem] font-extrabold uppercase tracking-[0.12em] text-blue-700">Graph Match</p>
+                <h3 class="text-base font-extrabold text-slate-800">Which graph matches the truck?</h3>
+              </div>
+              <p class="text-xs font-semibold text-slate-500">Select one graph, then submit.</p>
+            </div>
+            <div id="graph-choice-grid" class="graph-choice-grid"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="scorm-wrapper.js"></script>
+  <script src="sim.js"></script>
+</body>
+</html>

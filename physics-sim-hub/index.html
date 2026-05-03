@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physics Simulation Hub</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gifshot/0.3.2/gifshot.min.js"></script>
+    <script src="https://unpkg.com/canvas2svg@1.0.16/canvas2svg.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+                    },
+                    borderRadius: {
+                        '4xl': '2rem',
+                    },
+                    animation: {
+                        'gradient': 'gradient 6s ease infinite',
+                        'fade-in': 'fadeIn 0.5s ease-out',
+                        'slide-up': 'slideUp 0.4s ease-out',
+                    },
+                    keyframes: {
+                        gradient: {
+                            '0%, 100%': { backgroundPosition: '0% 50%' },
+                            '50%': { backgroundPosition: '100% 50%' },
+                        },
+                        fadeIn: {
+                            from: { opacity: '0' },
+                            to: { opacity: '1' },
+                        },
+                        slideUp: {
+                            from: { opacity: '0', transform: 'translateY(12px)' },
+                            to: { opacity: '1', transform: 'translateY(0)' },
+                        },
+                    },
+                },
+            },
+        }
+    </script>
+
+    <style>
+        :root {
+            --surface-0: #f0f2f5;
+            --surface-1: #ffffff;
+            --surface-2: #f8f9fb;
+            --border: #e4e7ec;
+            --border-subtle: #eef0f4;
+            --text-primary: #111827;
+            --text-secondary: #4b5563;
+            --text-muted: #9ca3af;
+            --accent: #4f46e5;
+            --accent-light: #eef2ff;
+            --accent-hover: #4338ca;
+            --success: #059669;
+            --success-light: #ecfdf5;
+        }
+
+        * { box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--surface-0);
+            color: var(--text-primary);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 99px; }
+        ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+        @supports (scrollbar-width: thin) {
+            * { scrollbar-width: thin; scrollbar-color: #d1d5db transparent; }
+        }
+
+        /* Card hover lift */
+        .card {
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            border-radius: 1.25rem;
+            transition: box-shadow 0.25s ease, transform 0.25s ease;
+        }
+        .card:hover {
+            box-shadow: 0 8px 30px -8px rgba(0,0,0,0.08);
+        }
+
+        /* Controls overrides for injected SimulationGifMaker.js elements */
+        #controls h3 {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 700;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-subtle);
+            padding-bottom: 0.5rem;
+            margin-top: 1.25rem;
+            margin-bottom: 0.75rem;
+        }
+        #controls h3:first-child { margin-top: 0; }
+
+        #controls label {
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+
+        #controls input[type="number"],
+        #controls select {
+            width: 100%;
+            background: var(--surface-2) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 0.625rem !important;
+            padding: 0.5rem 0.75rem !important;
+            font-size: 0.85rem !important;
+            font-weight: 500;
+            color: var(--text-primary) !important;
+            transition: border-color 0.15s, box-shadow 0.15s !important;
+        }
+        #controls input[type="number"]:focus,
+        #controls select:focus {
+            outline: none !important;
+            border-color: var(--accent) !important;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12) !important;
+            background: var(--surface-1) !important;
+        }
+        #controls input[type="checkbox"] {
+            width: 1.125rem;
+            height: 1.125rem;
+            accent-color: var(--accent);
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        /* Button base refinements */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-weight: 650;
+            font-size: 0.85rem;
+            padding: 0.625rem 1.25rem;
+            border-radius: 0.75rem;
+            transition: all 0.15s ease;
+            cursor: pointer;
+            border: none;
+            line-height: 1.25;
+        }
+        .btn:active { transform: scale(0.97); }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            box-shadow: 0 4px 14px -2px rgba(79, 70, 229, 0.35);
+        }
+
+        .btn-dark {
+            background: var(--text-primary);
+            color: #fff;
+        }
+        .btn-dark:hover {
+            background: #1f2937;
+            box-shadow: 0 4px 14px -2px rgba(17, 24, 39, 0.3);
+        }
+
+        .btn-outline {
+            background: var(--surface-1);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+        .btn-outline:hover {
+            background: var(--surface-2);
+            border-color: #d1d5db;
+        }
+
+        /* Canvas viewport chrome */
+        .viewport-chrome {
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            border-radius: 1.25rem;
+            overflow: hidden;
+        }
+        .viewport-titlebar {
+            height: 2.75rem;
+            background: var(--surface-2);
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            padding: 0 1rem;
+            gap: 0.5rem;
+        }
+        .viewport-dot {
+            width: 0.625rem;
+            height: 0.625rem;
+            border-radius: 50%;
+        }
+
+        /* Gradient accent bar */
+        .accent-bar {
+            height: 3px;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6, #a78bfa);
+            background-size: 200% 200%;
+            animation: gradient 6s ease infinite;
+        }
+
+        /* Status indicator pulse */
+        .status-dot {
+            position: relative;
+            width: 0.5rem;
+            height: 0.5rem;
+        }
+        .status-dot::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: var(--success);
+            animation: ping 2s cubic-bezier(0,0,0.2,1) infinite;
+        }
+        .status-dot::after {
+            content: '';
+            position: relative;
+            display: block;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: var(--success);
+        }
+        @keyframes ping {
+            75%, 100% { transform: scale(2.2); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen flex flex-col relative overflow-x-hidden selection:bg-indigo-100 selection:text-indigo-900">
+
+    <!-- Ambient background blobs -->
+    <div class="fixed top-[-15%] left-[-10%] w-[45%] h-[45%] rounded-full bg-indigo-300/[0.07] blur-[100px] pointer-events-none"></div>
+    <div class="fixed bottom-[-5%] right-[-8%] w-[35%] h-[35%] rounded-full bg-violet-300/[0.06] blur-[90px] pointer-events-none"></div>
+
+    <!-- Navigation -->
+    <header class="w-full bg-white/70 backdrop-blur-xl border-b border-gray-200/60 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-5 h-14 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4"/><path d="M12 16V8"/></svg>
+                </div>
+                <h1 class="text-base font-extrabold tracking-tight text-gray-900">
+                    Physics<span class="font-medium text-gray-400">Hub</span>
+                </h1>
+            </div>
+            <span class="text-[0.65rem] font-bold text-gray-400 uppercase tracking-[0.15em] bg-gray-100 px-2.5 py-1 rounded-md">
+                v2.0
+            </span>
+        </div>
+    </header>
+
+    <main class="flex-1 w-full max-w-7xl mx-auto px-5 py-6 md:py-8 flex flex-col gap-5 relative z-10">
+
+        <!-- Module Selector -->
+        <section class="card p-5 md:p-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 relative animate-fade-in">
+            <div class="accent-bar absolute top-0 left-0 w-full rounded-t-[1.25rem]"></div>
+            <div class="pt-1">
+                <h2 class="text-xl font-extrabold tracking-tight text-gray-900 mb-1">Module Selector</h2>
+                <p class="text-sm text-gray-500 font-medium">Choose a scenario to configure parameters and generate diagrams.</p>
+            </div>
+            <div class="w-full lg:w-auto min-w-[280px]">
+                <div class="relative group">
+                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-indigo-500 group-hover:text-indigo-600 transition-colors">
+                        <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    </div>
+                    <select id="problemSelector" class="block w-full pl-10 pr-9 py-2.5 text-sm font-semibold text-gray-800 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 appearance-none cursor-pointer transition-all">
+                        <!-- Populated by JavaScript -->
+                    </select>
+                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400">
+                        <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Workspace Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 animate-slide-up">
+
+            <!-- Controls Panel -->
+            <div class="lg:col-span-4 flex flex-col">
+                <div class="card p-5 md:p-6 h-full">
+                    <div class="flex items-center gap-2.5 mb-5 pb-3 border-b border-gray-100">
+                        <div class="p-1.5 bg-indigo-50 rounded-lg text-indigo-600">
+                            <svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </div>
+                        <h2 class="text-sm font-bold text-gray-800 tracking-tight">Parameters</h2>
+                    </div>
+                    <div id="controls" class="space-y-1"></div>
+                </div>
+            </div>
+
+            <!-- Canvas & Actions -->
+            <div class="lg:col-span-8 flex flex-col gap-5">
+
+                <!-- Viewport -->
+                <div class="viewport-chrome">
+                    <div class="viewport-titlebar">
+                        <div class="flex gap-1.5 mr-3">
+                            <div class="viewport-dot bg-red-400"></div>
+                            <div class="viewport-dot bg-amber-400"></div>
+                            <div class="viewport-dot bg-green-400"></div>
+                        </div>
+                        <span id="canvasTitle" class="text-[0.6rem] font-bold text-gray-400 uppercase tracking-[0.12em] px-2.5 py-0.5 bg-white rounded border border-gray-200">
+                            Simulation Output
+                        </span>
+                    </div>
+                    <div class="p-3 bg-gray-50/60 flex justify-center items-center">
+                        <canvas id="simCanvas" width="650" height="350" class="w-full max-w-full rounded-lg bg-white border border-gray-100"></canvas>
+                    </div>
+                </div>
+
+                <!-- Action Bar -->
+                <div class="card p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div class="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto">
+
+                        <button id="playBtn" class="btn btn-dark w-full sm:w-auto">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                            Play Preview
+                        </button>
+
+                        <button id="exportBtn" class="btn btn-primary w-full sm:w-auto">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Generate GIF
+                        </button>
+
+                        <button id="exportSvgBtn" class="btn btn-outline w-full sm:w-auto">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 12h10"/></svg>
+                            Save SVG
+                        </button>
+
+                        <button id="vectorBtn" class="btn btn-outline w-full sm:w-auto" style="border-color:#c7d2fe; color:#4f46e5;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="14 5 19 5 19 10"/></svg>
+                            Vectors
+                        </button>
+
+                    </div>
+
+                    <div class="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-100">
+                        <div class="status-dot"></div>
+                        <span id="status" class="font-semibold text-xs text-gray-500 tracking-wide ml-1">Ready</span>
+                    </div>
+                </div>
+
+                <!-- Export Output -->
+                <div id="outputContainer" class="hidden card p-5 md:p-6 border-emerald-200 relative overflow-hidden transition-all duration-500">
+                    <div class="accent-bar absolute top-0 left-0 w-full" style="background: linear-gradient(90deg, #059669, #10b981, #34d399);"></div>
+                    <div class="flex flex-col sm:flex-row justify-between sm:items-end mb-5 gap-2 pt-1">
+                        <div>
+                            <h3 class="font-extrabold text-gray-900 text-base flex items-center gap-2">
+                                <svg class="text-emerald-500 w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                Render Complete
+                            </h3>
+                            <p class="text-xs font-medium text-gray-500 mt-1">Right-click the image and select <span class="text-gray-700 font-bold">"Save Image As..."</span></p>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-xl border border-gray-200 flex justify-center">
+                        <img id="outputGif" alt="Generated GIF" class="max-w-full rounded-lg shadow-sm border border-gray-100" />
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+</body>
+</html>

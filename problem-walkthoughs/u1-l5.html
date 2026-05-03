@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Physics: Vertical Motion</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --text-main: #1f2937;
+            --text-muted: #4b5563;
+            --bg-main: #f8fafc;
+            --bg-card: #ffffff;
+            --border: #e2e8f0;
+            --accent: #8b5cf6;
+            --accel-color: #9333ea;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            line-height: 1.5;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 1100px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1.1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* --- Panel Styles --- */
+        .panel {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: var(--text-main);
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 8px;
+        }
+
+        /* --- Simulation Canvas Area --- */
+        .simulation-container {
+            position: relative;
+            height: 500px;
+            background: linear-gradient(to bottom, #dbeafe, #eff6ff 60%, #f1f5f9);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .ground {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 40px;
+            background: #9ca3af;
+            border-top: 4px solid #6b7280;
+        }
+
+        .ball {
+            position: absolute;
+            left: 65%; /* Start position */
+            transform: translateX(-50%);
+            width: 24px;
+            height: 24px;
+            background: #f97316;
+            border-radius: 50%;
+            box-shadow: inset -3px -3px 0 rgba(0,0,0,0.15), 0 4px 6px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+
+        /* Velocity Vector Arrow */
+        .vector-arrow {
+            position: absolute;
+            left: 50%;
+            width: 4px;
+            background: var(--primary);
+            transform: translateX(-50%);
+            border-radius: 2px;
+            transform-origin: bottom center;
+            bottom: 100%;
+        }
+
+        .vector-arrow::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+        }
+
+        .vector-up {
+            background: var(--primary);
+            bottom: 100%;
+            transform-origin: bottom center;
+        }
+        .vector-up::after {
+            top: -6px;
+            border-bottom: 6px solid var(--primary);
+        }
+
+        .vector-down {
+            background: var(--danger);
+            top: 100%;
+            transform-origin: top center;
+        }
+        .vector-down::after {
+            bottom: -6px;
+            border-top: 6px solid var(--danger);
+        }
+
+        /* Acceleration Indicator */
+        .accel-indicator {
+            position: absolute;
+            left: 40px; 
+            top: 60%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.5s;
+            z-index: 5;
+        }
+        
+        .chevron {
+            width: 16px;
+            height: 16px;
+            border-right: 4px solid var(--accel-color);
+            border-bottom: 4px solid var(--accel-color);
+            transform: rotate(45deg);
+            margin: -4px 0;
+            animation: chevron-move 1.5s infinite;
+        }
+        
+        .chevron:nth-child(1) { animation-delay: 0s; }
+        .chevron:nth-child(2) { animation-delay: 0.2s; }
+        .chevron:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes chevron-move {
+            0% { opacity: 0; transform: translateY(-10px) rotate(45deg); }
+            50% { opacity: 1; transform: translateY(0px) rotate(45deg); }
+            100% { opacity: 0; transform: translateY(10px) rotate(45deg); }
+        }
+
+        .accel-label {
+            margin-top: 12px;
+            color: var(--accel-color);
+            font-weight: 700;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            background: rgba(255,255,255,0.8);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        /* Height Marker Line */
+        .height-marker {
+            position: absolute;
+            left: 60%;
+            width: 35%;
+            opacity: 0;
+            transition: opacity 0.5s;
+            z-index: 2;
+        }
+        .hm-line {
+            border-top: 2px solid #64748b;
+            width: 100%;
+        }
+        
+        /* Distance Measure Marker */
+        .dy-marker {
+            position: absolute;
+            left: 88%;
+            bottom: 40px;
+            border-left: 2px dashed #64748b;
+            opacity: 0;
+            transition: opacity 0.5s;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+        }
+        .dy-marker::before, .dy-marker::after {
+            content: '';
+            position: absolute;
+            left: -6px;
+            width: 10px;
+            border-top: 2px solid #64748b;
+        }
+        .dy-marker::before { top: 0; }
+        .dy-marker::after { bottom: 0; }
+        .dy-label {
+            margin-left: 8px;
+            font-weight: 700;
+            color: #475569;
+            background: rgba(255,255,255,0.8);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        /* Ghost Vector Trace */
+        .ghost-vector {
+            position: absolute;
+            left: 65%;
+            width: 4px;
+            background: var(--primary);
+            transform: translateX(-50%);
+            border-radius: 2px;
+            transform-origin: bottom center;
+            bottom: 40px; /* GROUND_PX */
+            opacity: 0;
+            transition: opacity 0.5s;
+            z-index: 4;
+        }
+        .ghost-vector::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: -6px;
+            transform: translateX(-50%);
+            border-bottom: 6px solid var(--primary);
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+        }
+
+        /* Time & Velocity Markers */
+        .t-marker {
+            position: absolute;
+            opacity: 0;
+            transition: opacity 0.5s;
+            z-index: 5;
+            color: var(--primary);
+            font-weight: 700;
+            background: rgba(255,255,255,0.9);
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--primary);
+            font-size: 0.9rem;
+        }
+        #t-up-marker { left: 52%; top: 35%; }
+        #t-down-marker { left: 78%; top: 35%; }
+
+        .v0-marker {
+            position: absolute;
+            left: calc(65% - 95px);
+            bottom: 60px;
+            opacity: 0;
+            transition: opacity 0.5s;
+            z-index: 5;
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 0.95rem;
+        }
+
+        .vf-marker {
+            position: absolute;
+            left: calc(75% + 15px);
+            bottom: 15px;
+            opacity: 0;
+            transition: opacity 0.5s;
+            z-index: 5;
+            color: var(--danger);
+            font-weight: 700;
+            font-size: 0.95rem;
+        }
+
+        /* Simulation HUDs */
+        .sim-hud {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border: 1px solid var(--border);
+            z-index: 5;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .sim-hud.bottom-left {
+            top: auto;
+            bottom: 52px; /* Just above the ground */
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        .hud-value { 
+            font-family: monospace; 
+            color: var(--primary); 
+            display: inline-block; /* allows scale transforms */
+        }
+
+        @keyframes hud-flash-anim {
+            0% { background-color: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 4px; box-shadow: 0 0 10px #fde047; transform: scale(1.15); }
+            40% { background-color: #fef08a; color: #854d0e; padding: 2px 6px; border-radius: 4px; box-shadow: 0 0 15px #fde047; transform: scale(1.15); }
+            100% { background-color: transparent; color: var(--primary); padding: 0; border-radius: 0; box-shadow: none; transform: scale(1); }
+        }
+
+        .hud-flash {
+            animation: hud-flash-anim 1.5s ease-out forwards;
+        }
+
+        /* --- Interactive Steps Area --- */
+        .step-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            flex-grow: 1;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .instruction {
+            font-size: 1.05rem;
+            color: var(--text-main);
+            margin-bottom: 8px;
+        }
+
+        .equation-box {
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-muted);
+        }
+        
+        /* Multiple Choice Styles */
+        .mc-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .mc-option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1.05rem;
+            font-weight: 500;
+        }
+
+        .mc-option:hover {
+            border-color: var(--primary);
+            background: #eff6ff;
+        }
+
+        .mc-option input[type="radio"] {
+            transform: scale(1.2);
+            cursor: pointer;
+        }
+
+        /* Number Input Styles */
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #fffbeb;
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid #fde68a;
+            flex-wrap: wrap;
+        }
+
+        .input-group label {
+            font-weight: 600;
+            color: #92400e;
+        }
+
+        input[type="number"] {
+            padding: 8px 12px;
+            border: 2px solid #fbbf24;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            width: 100px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="number"]:focus {
+            border-color: var(--primary);
+        }
+
+        .unit {
+            font-weight: bold;
+            color: var(--text-muted);
+        }
+
+        .action-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-top: 8px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        .btn-primary:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--border);
+            color: var(--text-muted);
+        }
+
+        .btn-outline:hover {
+            background: var(--border);
+        }
+
+        .feedback {
+            font-weight: bold;
+            font-size: 0.95rem;
+            min-height: 24px;
+            display: flex;
+            align-items: center;
+        }
+
+        .feedback.success { color: var(--success); }
+        .feedback.error { color: var(--danger); }
+
+        .hint-box {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #166534;
+            margin-top: 8px;
+            display: none;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-top: auto;
+            padding-top: 24px;
+        }
+
+        .controls-left {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* Walkthrough Button Special Style */
+        .btn-walkthrough {
+            background: #e0e7ff;
+            color: #4338ca;
+            border: 2px solid #c7d2fe;
+        }
+        .btn-walkthrough:hover {
+            background: #c7d2fe;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Visual Panel -->
+    <div class="panel">
+        <h2 class="panel-title">Motion Simulation</h2>
+        <div class="simulation-container">
+            <div class="sim-hud">
+                <div>v<sub>0</sub> = <span id="hud-v0" class="hud-value"></span></div>
+                <div>v<sub>top</sub> = <span id="hud-vtop" class="hud-value">?</span></div>
+                <div>&Delta;y<sub>max</sub> = <span id="hud-hmax" class="hud-value">?</span></div>
+                <div>a = <span id="hud-a" class="hud-value">?</span></div>
+                <div>t<sub>up</sub> = <span id="hud-tup" class="hud-value">?</span></div>
+            </div>
+            
+            <div class="sim-hud bottom-left" id="hud-bottom">
+                <div>t<sub>total</sub> = <span id="hud-ttotal" class="hud-value">?</span></div>
+                <div>v<sub>f</sub> = <span id="hud-vf" class="hud-value">?</span></div>
+            </div>
+            
+            <div class="dy-marker" id="dy-marker">
+                <div class="dy-label">&Delta;y</div>
+            </div>
+
+            <div class="height-marker" id="height-marker">
+                <div class="hm-line"></div>
+            </div>
+            
+            <div class="accel-indicator" id="accel-arrow">
+                <div class="chevron"></div>
+                <div class="chevron"></div>
+                <div class="chevron"></div>
+                <span class="accel-label" id="accel-label">a = -9.8 m/s&sup2;</span>
+            </div>
+
+            <!-- Path Timeline Markers -->
+            <div class="t-marker" id="t-up-marker">t<sub>up</sub> = <span id="t-up-val"></span></div>
+            <div class="t-marker" id="t-down-marker">t<sub>down</sub> = <span id="t-down-val"></span></div>
+            
+            <div class="ghost-vector" id="ghost-vector"></div>
+            <div class="v0-marker" id="v0-marker">v<sub>0</sub> = <span id="v0-val"></span></div>
+            <div class="vf-marker" id="vf-marker">v<sub>f</sub> = <span id="vf-val"></span></div>
+            
+            <div class="ground"></div>
+            <div class="ball" id="ball">
+                <div class="vector-arrow" id="vector-arrow"></div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 16px; text-align: center;">
+            <button id="btn-play" class="btn btn-primary" style="display: none; width: 100%;">
+                ▶ Play Simulation
+            </button>
+        </div>
+    </div>
+
+    <!-- Interactive Panel -->
+    <div class="panel">
+        <h2 class="panel-title" id="problem-title">Problem Setup</h2>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress"></div>
+        </div>
+
+        <div class="step-container">
+            <div id="instruction" class="instruction">
+                <!-- Content generated via JS -->
+            </div>
+
+            <div id="equation-container" class="equation-box" style="display: none;">
+                <!-- Equation generated via JS -->
+            </div>
+            
+            <div id="mc-container" class="mc-group" style="display: none;">
+                <!-- Multiple Choice Radio Buttons -->
+            </div>
+
+            <div id="input-container" class="input-group" style="display: none;">
+                <label id="input-label">Answer:</label>
+                <input type="number" id="user-input" step="any" placeholder="?">
+                <span id="input-unit" class="unit"></span>
+            </div>
+            
+            <div class="action-row">
+                <button id="btn-check" class="btn btn-primary" style="display: none;">Check Answer</button>
+                <div id="feedback" class="feedback"></div>
+            </div>
+            
+            <button id="btn-hint" class="btn btn-outline" style="align-self: flex-start; display: none;">Show Hint</button>
+            <div id="hint-box" class="hint-box"></div>
+        </div>
+
+        <div class="controls">
+            <div class="controls-left">
+                <button id="btn-prev" class="btn btn-outline" disabled>← Previous</button>
+                <button id="btn-walkthrough" class="btn btn-walkthrough">🚀 Walkthrough</button>
+            </div>
+            <button id="btn-next" class="btn btn-primary" disabled>Next Step →</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    /**
+     * PHYSICS ENGINE & STATE
+     * We randomize the initial velocity to make the problem replayable.
+     */
+    const randomV0 = Math.floor(Math.random() * 16) + 15; 
+    
+    const physics = {
+        v0: randomV0,
+        a: -9.8,
+        v_top: 0,
+        t_up: Number(Math.abs(0 - randomV0) / 9.8).toFixed(2),
+        h_max: Number((randomV0 * (randomV0 / 9.8)) + (0.5 * -9.8 * Math.pow(randomV0 / 9.8, 2))).toFixed(2),
+        t_total: Number((Math.abs(0 - randomV0) / 9.8) * 2).toFixed(2),
+        v_ground: -randomV0
+    };
+
+    // Application State
+    let currentStepIndex = 0;
+    let unlockedSteps = 0; 
+    let isWalkthroughActive = false; // State for automated walkthrough
+
+    /**
+     * LESSON STEPS CONFIGURATION
+     */
+    const steps = [
+        {
+            title: "1. The Scenario & Setup",
+            instruction: `A ball is launched straight up into the air from the ground with an initial velocity of <b>${physics.v0} m/s</b>. What is the acceleration of the ball?`,
+            equation: "",
+            expectedValue: physics.a,
+            unit: "m/s<sup>2</sup>",
+            label: "a =",
+            hint: "Let's define \"up\" as the positive direction. What is the acceleration acting on the ball? (Remember gravity pulls downwards at 9.8 m/s²).",
+            successMsg: "Gravity always pulls downward."
+        },
+        {
+            title: "2. The Highest Point",
+            instruction: "Great. Now, think about the exact moment the ball reaches its maximum height before it starts falling back down. What is its velocity at that exact instant?",
+            equation: "",
+            expectedValue: physics.v_top,
+            unit: "m/s",
+            label: "v<sub>top</sub> =",
+            hint: "If it's still moving up, it hasn't reached the top. If it's moving down, it's already past the top. What number is exactly between positive and negative?",
+            successMsg: "The velocity is exactly zero at the peak."
+        },
+        {
+            title: "3. Choose the Equation",
+            instruction: "We need to find the time it takes to reach the top.<br><br>Which kinematic equation should we use?",
+            type: "multiple_choice",
+            options: [
+                { text: "v<sub>f</sub> = v<sub>0</sub> + at", correct: true },
+                { text: "&Delta;y = v<sub>0</sub>t + &frac12;at<sup>2</sup>", correct: false },
+                { text: "v<sub>f</sub><sup>2</sup> = v<sub>0</sub><sup>2</sup> + 2a&Delta;y", correct: false }
+            ],
+            hint: "Look at the variables we already know (v<sub>0</sub>, v<sub>f</sub>, a). Pick the equation that uses those known variables to find time (t).",
+            successMsg: "Perfect! We have v_f, v_0, and a."
+        },
+        {
+            title: "4. Calculate Time to the Top",
+            instruction: `Now plug the known numbers into the equation you just selected:<br><b>v<sub>f</sub> = v<sub>0</sub> + at</b>`,
+            equation: "0 = " + physics.v0 + " + (-9.8)t<sub>up</sub>",
+            expectedValue: Number(physics.t_up),
+            unit: "s",
+            label: "t<sub>up</sub> =",
+            hint: `Move ${physics.v0} to the left side of the equation and divide by -9.8.`,
+            successMsg: "Time to top calculated."
+        },
+        {
+            title: "5. Choose Equation for Height",
+            instruction: "Let's find out how high it goes! To avoid relying on a calculated number (which might have rounding errors), let's use an equation that only relies on our original given variables: <b>v<sub>0</sub></b>, <b>v<sub>f</sub></b>, and <b>a</b>.<br><br>Which equation should we use to find displacement (&Delta;y)?",
+            type: "multiple_choice",
+            options: [
+                { text: "v<sub>f</sub> = v<sub>0</sub> + at", correct: false },
+                { text: "&Delta;y = v<sub>0</sub>t + &frac12;at<sup>2</sup>", correct: false },
+                { text: "v<sub>f</sub><sup>2</sup> = v<sub>0</sub><sup>2</sup> + 2a&Delta;y", correct: true }
+            ],
+            hint: "We want to find displacement (&Delta;y) without using time (t). Choose the equation that does not have a 't' in it.",
+            successMsg: "Perfect! This equation avoids using our calculated time."
+        },
+        {
+            title: "6. Calculate Maximum Height",
+            instruction: `Now plug the known numbers into the equation you just selected:<br><b>v<sub>f</sub><sup>2</sup> = v<sub>0</sub><sup>2</sup> + 2a&Delta;y</b>`,
+            equation: "0<sup>2</sup> = " + physics.v0 + "<sup>2</sup> + 2(-9.8)&Delta;y",
+            expectedValue: Number(physics.h_max),
+            unit: "m",
+            label: "h<sub>max</sub> =",
+            hint: `Square ${physics.v0}, move it to the left side of the equation (it becomes negative), then divide by -19.6.`,
+            successMsg: "Maximum height calculated."
+        },
+        {
+            title: "7. Total Time (Symmetry)",
+            instruction: "Because the ball launches from the ground and lands on the ground, the trip is symmetrical. The time it takes to go up is equal to the time it takes to come down. <br><br>What is the total time the ball is in the air?",
+            equation: "t<sub>total</sub> = 2t<sub>up</sub>",
+            expectedValue: Number(physics.t_total),
+            unit: "s",
+            label: "t<sub>total</sub> =",
+            hint: `Because of symmetry, the time it takes to go UP (t<sub>up</sub> = ${physics.t_up} s) is exactly the same as the time it takes to come DOWN (t<sub>down</sub> = ${physics.t_up} s). Just add them together!`,
+            successMsg: "Symmetry doubles the time."
+        },
+        {
+            title: "8. Landing Velocity",
+            instruction: "Finally, what is the velocity of the ball the instant before it hits the ground? Think about the symmetry of the path.",
+            equation: "v<sub>f</sub> = v<sub>0</sub> + at<sub>total</sub>",
+            expectedValue: physics.v_ground,
+            unit: "m/s",
+            label: "v<sub>ground</sub> =",
+            hint: `Because of symmetry, it hits the ground with the exact same speed it was launched with (v<sub>0</sub> = ${physics.v0} m/s). But since it is moving DOWNWARD, the velocity must be negative!`,
+            successMsg: "Landing velocity is equal and opposite."
+        },
+        {
+            title: "9. Summary & Simulation",
+            instruction: "Excellent! You've solved the complete kinematic profile for this projectile. <br><br>Click the <b>Play Simulation</b> button on the left to watch the physics in action. Notice how the velocity arrow (vector) shrinks as it goes up, vanishes at the top, and grows as it falls downward.",
+            type: "info"
+        }
+    ];
+
+    /**
+     * DOM ELEMENTS
+     */
+    const elements = {
+        title: document.getElementById('problem-title'),
+        progress: document.getElementById('progress'),
+        instruction: document.getElementById('instruction'),
+        equationContainer: document.getElementById('equation-container'),
+        mcContainer: document.getElementById('mc-container'),
+        inputContainer: document.getElementById('input-container'),
+        inputLabel: document.getElementById('input-label'),
+        userInput: document.getElementById('user-input'),
+        inputUnit: document.getElementById('input-unit'),
+        btnCheck: document.getElementById('btn-check'),
+        feedback: document.getElementById('feedback'),
+        btnPrev: document.getElementById('btn-prev'),
+        btnNext: document.getElementById('btn-next'),
+        btnWalkthrough: document.getElementById('btn-walkthrough'),
+        btnHint: document.getElementById('btn-hint'),
+        hintBox: document.getElementById('hint-box'),
+        btnPlay: document.getElementById('btn-play'),
+        
+        // Simulation elements
+        ball: document.getElementById('ball'),
+        vectorArrow: document.getElementById('vector-arrow'),
+        ghostVector: document.getElementById('ghost-vector'),
+        accelArrow: document.getElementById('accel-arrow'),
+        accelLabel: document.getElementById('accel-label'),
+        dyMarker: document.getElementById('dy-marker'),
+        heightMarker: document.getElementById('height-marker'),
+        
+        // Time & Velocity path markers
+        tUpMarker: document.getElementById('t-up-marker'),
+        tDownMarker: document.getElementById('t-down-marker'),
+        v0Marker: document.getElementById('v0-marker'),
+        vfMarker: document.getElementById('vf-marker'),
+        tUpVal: document.getElementById('t-up-val'),
+        tDownVal: document.getElementById('t-down-val'),
+        v0Val: document.getElementById('v0-val'),
+        vfVal: document.getElementById('vf-val'),
+
+        // HUD elements
+        hudV0: document.getElementById('hud-v0'),
+        hudA: document.getElementById('hud-a'),
+        hudVtop: document.getElementById('hud-vtop'),
+        hudTup: document.getElementById('hud-tup'),
+        hudHmax: document.getElementById('hud-hmax'),
+        hudBottom: document.getElementById('hud-bottom'),
+        hudTtotal: document.getElementById('hud-ttotal'),
+        hudVf: document.getElementById('hud-vf')
+    };
+
+    /**
+     * HUD UPDATE LOGIC
+     */
+    function updateHUD() {
+        elements.hudV0.innerHTML = `${physics.v0} m/s`;
+        elements.hudA.innerHTML = (unlockedSteps > 0 || currentStepIndex > 0) ? `${physics.a} m/s&sup2;` : '?';
+        elements.hudVtop.innerHTML = (unlockedSteps > 1 || currentStepIndex > 1) ? `${physics.v_top} m/s` : '?';
+        elements.hudTup.innerHTML = (unlockedSteps > 3 || currentStepIndex > 3) ? `${physics.t_up} s` : '?';
+        elements.hudHmax.innerHTML = (unlockedSteps > 5 || currentStepIndex > 5) ? `${physics.h_max} m` : '?';
+        
+        // Show bottom HUD after step 6 (index 5)
+        if (unlockedSteps > 5 || currentStepIndex > 5) {
+            elements.hudBottom.style.opacity = '1';
+        } else {
+            elements.hudBottom.style.opacity = '0';
+        }
+
+        elements.hudTtotal.innerHTML = (unlockedSteps > 6 || currentStepIndex > 6) ? `${physics.t_total} s` : '?';
+        elements.hudVf.innerHTML = (unlockedSteps > 7 || currentStepIndex > 7) ? `${physics.v_ground} m/s` : '?';
+    }
+
+    function flashHUD(el) {
+        if (!el) return;
+        el.classList.remove('hud-flash');
+        void el.offsetWidth; // trigger reflow to restart animation
+        el.classList.add('hud-flash');
+    }
+
+    /**
+     * STEP RENDERING ENGINE
+     */
+    function renderStep() {
+        const step = steps[currentStepIndex];
+        
+        elements.title.textContent = step.title;
+        elements.progress.style.width = `${((currentStepIndex) / (steps.length - 1)) * 100}%`;
+        elements.instruction.innerHTML = step.instruction;
+        
+        if (step.equation) {
+            elements.equationContainer.style.display = 'block';
+            elements.equationContainer.innerHTML = step.equation;
+        } else {
+            elements.equationContainer.style.display = 'none';
+        }
+
+        elements.inputContainer.style.display = 'none';
+        elements.mcContainer.style.display = 'none';
+        elements.btnCheck.style.display = 'none';
+        elements.btnPlay.style.display = 'none';
+
+        if (step.type === "info") {
+            elements.btnNext.disabled = false;
+            elements.btnPlay.style.display = 'block';
+            elements.feedback.textContent = "";
+        } else if (step.type === "multiple_choice") {
+            elements.mcContainer.style.display = 'flex';
+            elements.btnCheck.style.display = 'block';
+            elements.mcContainer.innerHTML = '';
+            
+            step.options.forEach((opt, idx) => {
+                const label = document.createElement('label');
+                label.className = 'mc-option';
+                
+                const radio = document.createElement('input');
+                radio.type = 'radio';
+                radio.name = 'mc-answer';
+                radio.value = idx;
+                
+                if (unlockedSteps > currentStepIndex) {
+                    radio.disabled = true;
+                    if (opt.correct) radio.checked = true;
+                }
+
+                label.appendChild(radio);
+                const span = document.createElement('span');
+                span.innerHTML = opt.text;
+                label.appendChild(span);
+                elements.mcContainer.appendChild(label);
+            });
+
+            if (unlockedSteps > currentStepIndex) {
+                elements.btnCheck.disabled = true;
+                elements.btnNext.disabled = false;
+                elements.feedback.textContent = "✓ Solved";
+                elements.feedback.className = "feedback success";
+            } else {
+                elements.btnCheck.disabled = false;
+                elements.btnNext.disabled = true;
+                elements.feedback.textContent = "";
+            }
+        } else {
+            elements.inputContainer.style.display = 'flex';
+            elements.btnCheck.style.display = 'block';
+            elements.inputLabel.innerHTML = step.label;
+            elements.inputUnit.innerHTML = step.unit;
+            elements.userInput.value = '';
+            
+            if (unlockedSteps > currentStepIndex) {
+                elements.userInput.value = step.expectedValue;
+                elements.userInput.disabled = true;
+                elements.btnCheck.disabled = true;
+                elements.btnNext.disabled = false;
+                elements.feedback.textContent = "✓ Solved";
+                elements.feedback.className = "feedback success";
+            } else {
+                elements.userInput.disabled = false;
+                elements.btnCheck.disabled = false;
+                elements.btnNext.disabled = true;
+                elements.feedback.textContent = "";
+            }
+        }
+
+        elements.hintBox.style.display = 'none';
+        if (step.hint && unlockedSteps <= currentStepIndex) {
+            elements.btnHint.style.display = 'block';
+            elements.hintBox.innerHTML = step.hint;
+            elements.btnHint.textContent = "Show Hint";
+        } else {
+            elements.btnHint.style.display = 'none';
+        }
+
+        elements.btnPrev.disabled = currentStepIndex === 0;
+        
+        resetSimulation(); 
+    }
+
+    /**
+     * AUTOMATED WALKTHROUGH LOGIC
+     */
+    function executeWalkthroughStep() {
+        if (!isWalkthroughActive) return;
+        
+        const step = steps[currentStepIndex];
+
+        // If step is already unlocked, quickly skip to next
+        if (unlockedSteps > currentStepIndex) {
+            if (currentStepIndex < steps.length - 1) {
+                currentStepIndex++;
+                renderStep();
+                setTimeout(executeWalkthroughStep, 800);
+            } else {
+                cancelWalkthrough();
+            }
+            return;
+        }
+
+        // Programmatically answer the step based on type
+        if (step.type === "multiple_choice") {
+            const correctIdx = step.options.findIndex(o => o.correct);
+            const radios = document.querySelectorAll('input[name="mc-answer"]');
+            if (radios[correctIdx]) radios[correctIdx].checked = true;
+            // Short pause to show user what was selected before checking
+            setTimeout(() => elements.btnCheck.click(), 600);
+            
+        } else if (step.type !== "info") {
+            elements.userInput.value = step.expectedValue;
+            // Short pause to show user what was typed before checking
+            setTimeout(() => elements.btnCheck.click(), 600);
+            
+        } else {
+            // Reached the final summary/info step
+            cancelWalkthrough();
+            setTimeout(() => elements.btnPlay.click(), 800);
+        }
+    }
+
+    function cancelWalkthrough() {
+        if (isWalkthroughActive) {
+            isWalkthroughActive = false;
+            elements.btnWalkthrough.innerHTML = "🚀 Walkthrough";
+            elements.btnWalkthrough.style.background = "";
+            elements.btnWalkthrough.style.color = "";
+            elements.btnWalkthrough.style.borderColor = "";
+        }
+    }
+
+    elements.btnWalkthrough.addEventListener('click', () => {
+        if (isWalkthroughActive) {
+            cancelWalkthrough(); // Toggle off
+        } else {
+            isWalkthroughActive = true;
+            elements.btnWalkthrough.innerHTML = "⏹ Stop Walkthrough";
+            elements.btnWalkthrough.style.background = "#fee2e2";
+            elements.btnWalkthrough.style.color = "#b91c1c";
+            elements.btnWalkthrough.style.borderColor = "#fecaca";
+            executeWalkthroughStep();
+        }
+    });
+
+    /**
+     * SUCCESS AUTOMATION & ANIMATIONS
+     */
+    function handleSuccess() {
+        const step = steps[currentStepIndex];
+        
+        elements.feedback.textContent = "✓ Correct! " + (step.successMsg || "");
+        elements.feedback.className = "feedback success";
+        
+        // Disable inputs immediately
+        elements.btnCheck.disabled = true;
+        if(elements.userInput) elements.userInput.disabled = true;
+        document.querySelectorAll('input[name="mc-answer"]').forEach(r => r.disabled = true);
+        
+        // Disable navigation during animation sequence
+        elements.btnNext.disabled = true; 
+        elements.btnPrev.disabled = true;
+
+        if (unlockedSteps === currentStepIndex) {
+            unlockedSteps++;
+        }
+
+        updateHUD();
+
+        const waitThenNext = (ms) => setTimeout(autoNext, ms);
+
+        // Specific trigger events based on the step we just solved
+        if (currentStepIndex === 0) {
+            // Step 1 done: Show Acceleration Arrow
+            flashHUD(elements.hudA);
+            elements.accelArrow.style.opacity = '1';
+            waitThenNext(2500);
+
+        } else if (currentStepIndex === 1) {
+            // Step 2 done: Ball flies to the top
+            flashHUD(elements.hudVtop);
+            playSimulationTo(physics.t_up, () => waitThenNext(1500));
+
+        } else if (currentStepIndex === 2) {
+            // Step 3 done: Chose equation
+            elements.heightMarker.style.bottom = `${GROUND_PX + (physics.h_max * pixelsPerMeter)}px`;
+            elements.heightMarker.style.opacity = '1';
+            
+            elements.dyMarker.style.height = `${physics.h_max * pixelsPerMeter}px`;
+            elements.dyMarker.style.opacity = '1';
+            waitThenNext(2000);
+
+        } else if (currentStepIndex === 3) {
+            // Step 4 done: Calculated Time to top
+            flashHUD(elements.hudTup);
+            waitThenNext(1500);
+
+        } else if (currentStepIndex === 4) {
+            // Step 5 done: Chose equation for Max Height
+            waitThenNext(1500);
+
+        } else if (currentStepIndex === 5) {
+            // Step 6 done: Calculated Max height
+            flashHUD(elements.hudHmax);
+            playSimulationTo(physics.t_up, () => {
+                waitThenNext(3000);
+            });
+
+        } else if (currentStepIndex === 6) {
+            // Step 7 done: Total time calculated
+            flashHUD(elements.hudTtotal);
+            playSimulationTo(physics.t_total, () => {
+                elements.tUpMarker.style.opacity = '1';
+                elements.tUpVal.innerHTML = `${physics.t_up} s`;
+                elements.tDownMarker.style.opacity = '1';
+                elements.tDownVal.innerHTML = `${physics.t_up} s`;
+                waitThenNext(2500);
+            });
+
+        } else if (currentStepIndex === 7) {
+            // Step 8 done: Landing velocity
+            flashHUD(elements.hudVf);
+            elements.v0Marker.style.opacity = '1';
+            elements.v0Val.innerHTML = `${physics.v0} m/s`;
+            playSimulationTo(physics.t_total, () => {
+                elements.vfMarker.style.opacity = '1';
+                elements.vfVal.innerHTML = `${physics.v_ground} m/s`;
+                waitThenNext(2500);
+            });
+        }
+    }
+
+    function autoNext() {
+        if (currentStepIndex < steps.length - 1) {
+            currentStepIndex++;
+            renderStep();
+            
+            // If automated walkthrough is running, trigger next solve after brief pause
+            if (isWalkthroughActive) {
+                setTimeout(executeWalkthroughStep, 2000); // 2 seconds to read the new text
+            }
+        } else {
+            // Reached the end
+            cancelWalkthrough();
+        }
+    }
+
+    /**
+     * ANSWER CHECKING LOGIC
+     */
+    elements.btnCheck.addEventListener('click', () => {
+        const step = steps[currentStepIndex];
+        
+        if (step.type === "multiple_choice") {
+            const selected = document.querySelector('input[name="mc-answer"]:checked');
+            if (!selected) {
+                elements.feedback.textContent = "Please select an option.";
+                elements.feedback.className = "feedback error";
+                return;
+            }
+            
+            const optIdx = parseInt(selected.value);
+            if (step.options[optIdx].correct) {
+                handleSuccess();
+            } else {
+                elements.feedback.textContent = "✗ Incorrect. Read the hint and try again.";
+                elements.feedback.className = "feedback error";
+            }
+            return;
+        }
+
+        const userVal = parseFloat(elements.userInput.value);
+        if (isNaN(userVal)) {
+            elements.feedback.textContent = "Please enter a number.";
+            elements.feedback.className = "feedback error";
+            return;
+        }
+
+        const expected = step.expectedValue;
+        if (Math.abs(userVal - expected) <= 0.05) {
+            handleSuccess();
+        } else {
+            elements.feedback.textContent = "✗ Not quite. Check your math or sign (+/-).";
+            elements.feedback.className = "feedback error";
+        }
+    });
+
+    /**
+     * NAVIGATION & HINTS
+     */
+    elements.btnNext.addEventListener('click', () => {
+        cancelWalkthrough();
+        if (currentStepIndex < steps.length - 1) {
+            currentStepIndex++;
+            renderStep();
+        }
+    });
+
+    elements.btnPrev.addEventListener('click', () => {
+        cancelWalkthrough();
+        if (currentStepIndex > 0) {
+            currentStepIndex--;
+            renderStep();
+        }
+    });
+
+    // If user starts typing manually, cancel automation to not interrupt them
+    elements.userInput.addEventListener('input', cancelWalkthrough);
+
+    elements.btnHint.addEventListener('click', () => {
+        const isHidden = elements.hintBox.style.display === 'none';
+        elements.hintBox.style.display = isHidden ? 'block' : 'none';
+        elements.btnHint.textContent = isHidden ? "Hide Hint" : "Show Hint";
+    });
+
+    elements.userInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !elements.btnCheck.disabled) {
+            elements.btnCheck.click();
+        }
+    });
+
+    /**
+     * PHYSICS ANIMATION ENGINE
+     */
+    let animationId = null;
+    let simStartTime = null;
+    let isPlaying = false;
+    let targetSimTime = 0;
+    let onSimComplete = null;
+    
+    const GROUND_PX = 40; 
+    const BALL_RADIUS = 12; 
+    const MAX_CANVAS_HEIGHT = 500;
+    let pixelsPerMeter = (MAX_CANVAS_HEIGHT - GROUND_PX - BALL_RADIUS - 40) / physics.h_max;
+
+    function resetSimulation() {
+        cancelAnimationFrame(animationId);
+        isPlaying = false;
+        elements.btnPlay.textContent = "▶ Play Simulation";
+        
+        elements.ball.style.bottom = `${GROUND_PX}px`;
+        elements.ball.style.left = `65%`;
+        elements.vectorArrow.style.height = `${physics.v0 * 3}px`;
+        elements.vectorArrow.className = "vector-arrow vector-up";
+        elements.vectorArrow.style.opacity = "1";
+        
+        updateHUD();
+
+        // Inject dynamic acceleration value
+        elements.accelLabel.innerHTML = `a = ${physics.a} m/s&sup2;`;
+
+        // Persistent UI visibility states
+        elements.accelArrow.style.opacity = (unlockedSteps > 0 || currentStepIndex > 0) ? '1' : '0';
+        
+        if (unlockedSteps > 2 || currentStepIndex > 2) {
+            elements.heightMarker.style.bottom = `${GROUND_PX + (physics.h_max * pixelsPerMeter)}px`;
+            elements.heightMarker.style.opacity = '1';
+            elements.dyMarker.style.height = `${physics.h_max * pixelsPerMeter}px`;
+            elements.dyMarker.style.opacity = '1';
+        } else {
+            elements.heightMarker.style.opacity = '0';
+            elements.dyMarker.style.opacity = '0';
+        }
+
+        // Hide/Show Time Markers specifically for Step 7 (Index 6)
+        if (currentStepIndex === 6 && unlockedSteps >= 6 && !isPlaying) {
+            elements.tUpMarker.style.opacity = '1';
+            elements.tUpVal.innerHTML = `${physics.t_up} s`;
+            elements.tDownMarker.style.opacity = '1';
+            elements.tDownVal.innerHTML = `${physics.t_up} s`;
+        } else {
+            elements.tUpMarker.style.opacity = '0';
+            elements.tDownMarker.style.opacity = '0';
+        }
+
+        // Hide/Show initial and final velocity markers for Step 8+ (Index >= 7)
+        if (currentStepIndex >= 7) {
+            elements.ghostVector.style.height = `${physics.v0 * 3}px`;
+            elements.ghostVector.style.opacity = '0.3';
+            elements.v0Marker.style.opacity = '1';
+            elements.v0Val.innerHTML = `${physics.v0} m/s`;
+            
+            if (unlockedSteps > 7 && !isPlaying) {
+                elements.vfMarker.style.opacity = '1';
+                elements.vfVal.innerHTML = `${physics.v_ground} m/s`;
+            } else {
+                elements.vfMarker.style.opacity = '0';
+            }
+        } else {
+            elements.ghostVector.style.opacity = '0';
+            elements.v0Marker.style.opacity = '0';
+            elements.vfMarker.style.opacity = '0';
+        }
+    }
+
+    function playSimulationTo(endTime, callback) {
+        resetSimulation();
+        simStartTime = null;
+        isPlaying = true;
+        targetSimTime = parseFloat(endTime);
+        onSimComplete = callback;
+        animationId = requestAnimationFrame(simLoop);
+    }
+
+    function simLoop(timestamp) {
+        if (!simStartTime) simStartTime = timestamp;
+        
+        let elapsedReal = (timestamp - simStartTime) / 1000;
+        let t = elapsedReal * 1.5; // 1.5x sim speed
+        
+        let reachedTarget = false;
+        if (t >= targetSimTime) {
+            t = targetSimTime;
+            reachedTarget = true;
+        }
+
+        // Parabola Math
+        let progress = t / physics.t_total;
+        let current_x = 65 + (progress * 10); // shifts from 65% to 75% width
+        let current_y = (physics.v0 * t) + (0.5 * physics.a * Math.pow(t, 2));
+        let current_v = physics.v0 + (physics.a * t);
+
+        let bottomPx = GROUND_PX + (current_y * pixelsPerMeter);
+        elements.ball.style.left = `${current_x}%`;
+        elements.ball.style.bottom = `${bottomPx}px`;
+
+        let vectorLength = Math.abs(current_v) * 3; 
+        elements.vectorArrow.style.height = `${vectorLength}px`;
+        
+        if (current_v >= 0) {
+            elements.vectorArrow.className = "vector-arrow vector-up";
+        } else {
+            elements.vectorArrow.className = "vector-arrow vector-down";
+        }
+        elements.vectorArrow.style.opacity = vectorLength < 2 ? "0" : "1";
+
+        if (reachedTarget) {
+            isPlaying = false;
+            if (onSimComplete) onSimComplete();
+        } else {
+            animationId = requestAnimationFrame(simLoop);
+        }
+    }
+
+    elements.btnPlay.addEventListener('click', () => {
+        if (isPlaying) return;
+        playSimulationTo(physics.t_total, () => {
+            elements.btnPlay.textContent = "↻ Replay Simulation";
+            if (currentStepIndex === 8) {
+                elements.vfMarker.style.opacity = '1';
+            }
+        });
+        elements.btnPlay.textContent = "Playing...";
+    });
+
+    // Initialize App
+    renderStep();
+
+</script>
+</body>
+</html>

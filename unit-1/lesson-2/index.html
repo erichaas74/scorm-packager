@@ -1,0 +1,1940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>City Blocks Challenge</title>
+  <script src="scorm-wrapper.js"></script>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --panel: #ffffff;
+      --road: #1f1f23; /* Even darker asphalt */
+      --grid: #b7c1d1;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --start: #16a34a;
+      --player: #2563eb;
+      --trail: #f59e0b;
+      --disp: #dc2626;
+      --goal: #7c3aed;
+      --good: #15803d;
+      --bad: #b91c1c;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .app {
+      display: block;
+      min-height: 100vh;
+      padding: 18px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 1.7rem;
+    }
+
+    h2 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+    }
+
+    p {
+      line-height: 1.45;
+      margin: 8px 0;
+    }
+
+    .muted { color: var(--muted); }
+
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 14px 0 18px;
+    }
+
+    .stat {
+      background: #f8fafc;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .stat-label {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .stat-value {
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+
+    .goal-card {
+      border: 2px dashed #d1d5db;
+      border-radius: 16px;
+      padding: 14px;
+      background: #fcfcff;
+      margin-bottom: 16px;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, 64px);
+      gap: 8px;
+      justify-content: center;
+      margin: 14px 0;
+    }
+
+    .secondary-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(110px, 1fr));
+      gap: 14px;
+      margin-top: 10px;
+      width: min(760px, 100%);
+      margin-left: auto;
+    }
+
+    .secondary-row button {
+      background: #f3f4f6;
+      color: #374151;
+      min-height: 48px;
+      font-size: 0.95rem;
+      border: none;
+      border-radius: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.08s ease, background 0.15s ease;
+    }
+    
+    .secondary-row button:hover { background: #e5e7eb; }
+    .secondary-row button:active { transform: scale(0.98); }
+
+    .stage {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .canvas-wrap {
+      position: relative;
+      width: 100%;
+      max-width: none;
+    }
+
+    /* D-Pad Upgrades */
+    .canvas-dpad {
+      position: absolute;
+      right: 24px;
+      bottom: 24px;
+      background: rgba(30, 41, 59, 0.85); /* Dark slate background */
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(71, 85, 105, 0.5); /* Darker border */
+      border-radius: 50%;
+      padding: 14px;
+      box-shadow: 0 12px 36px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.1);
+    }
+
+    .dpad-grid {
+      display: grid;
+      grid-template-columns: 52px 52px 52px;
+      grid-template-rows: 52px 52px 52px;
+      gap: 4px;
+      align-items: center;
+      justify-items: center;
+    }
+
+    .dpad-grid button {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #e2e8f0; /* Lighter button background */
+      color: #475569; /* Darker icon */
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.2), inset 0 -3px 0 rgba(0,0,0,0.1);
+      transition: all 0.1s ease;
+      min-height: unset;
+      border-radius: 12px;
+    }
+
+    .dpad-grid button:hover {
+      background: #f8fafc; /* Brightest on hover */
+      color: #0f172a; /* High contrast icon on hover */
+      transform: translateY(-1px);
+    }
+
+    .dpad-grid button:active {
+      transform: translateY(2px);
+      box-shadow: 0 0px 0px rgba(0,0,0,0), inset 0 3px 5px rgba(0,0,0,0.2);
+      background: #cbd5e1; /* Deepen background on press */
+    }
+
+    .dpad-grid button[data-dir="N"] { grid-column: 2; grid-row: 1; border-bottom-left-radius: 4px; border-bottom-right-radius: 4px; }
+    .dpad-grid button[data-dir="W"] { grid-column: 1; grid-row: 2; border-top-right-radius: 4px; border-bottom-right-radius: 4px; }
+    .dpad-grid button[data-dir="E"] { grid-column: 3; grid-row: 2; border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
+    .dpad-grid button[data-dir="S"] { grid-column: 2; grid-row: 3; border-top-left-radius: 4px; border-top-right-radius: 4px; }
+
+    .dpad-center {
+      grid-column: 2;
+      grid-row: 2;
+      width: 28px;
+      height: 28px;
+      background: #cbd5e1; /* Match active deep state */
+      border-radius: 50%;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: center;
+      flex-wrap: wrap;
+      background: var(--panel);
+      border-radius: 18px;
+      padding: 14px 18px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    }
+
+    .status { font-weight: 700; }
+    .status.good { color: var(--good); }
+    .status.bad { color: var(--bad); }
+
+    .secondary-row button.complete-ready {
+      background: #dcfce7;
+      color: #166534;
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+      animation: pulseReady 0.9s ease-in-out infinite alternate;
+    }
+
+    @keyframes pulseReady {
+      from { transform: scale(1); }
+      to { transform: scale(1.04); }
+    }
+
+    canvas {
+      width: 100%;
+      max-width: none;
+      height: auto;
+      background: #8792a1; /* Frame edge color */
+      border-radius: 22px;
+      box-shadow: 0 14px 30px rgba(0,0,0,0.15);
+      display: block;
+    }
+
+    .hint {
+      background: #fff7ed;
+      color: #9a3412;
+      border: 1px solid #fed7aa;
+      border-radius: 14px;
+      padding: 10px 12px;
+      font-size: 0.95rem;
+    }
+
+    .start-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      color: #f3f4f6;
+    }
+    .start-overlay h1 {
+      font-size: 36px;
+      margin-bottom: 24px;
+    }
+    .start-overlay button {
+      font-size: 22px;
+      padding: 16px 48px;
+    }
+    .hidden { display: none !important; }
+
+    .walkthrough-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1100;
+      background: rgba(15, 23, 42, 0.72);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .walkthrough-panel {
+      width: min(100%, 640px);
+      background: #ffffff;
+      border-radius: 22px;
+      padding: 24px;
+      box-shadow: 0 24px 50px rgba(0,0,0,0.25);
+    }
+
+    .walk-step-label {
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+
+    .walk-title {
+      font-size: 1.35rem;
+      font-weight: 800;
+      margin-bottom: 10px;
+      color: #0f172a;
+    }
+
+    .walk-body {
+      color: #475569;
+      line-height: 1.65;
+      margin-bottom: 18px;
+    }
+
+    .walk-body .eq {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-weight: 700;
+      background: rgba(37, 99, 235, 0.1);
+      padding: 2px 7px;
+      border-radius: 6px;
+      color: #1e3a8a;
+    }
+
+    .walk-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .walk-dots {
+      display: flex;
+      gap: 8px;
+    }
+
+    .walk-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #cbd5e1;
+    }
+
+    .walk-dot.active {
+      background: #2563eb;
+    }
+
+    @media (max-width: 980px) {
+      .app { grid-template-columns: 1fr; }
+      canvas { max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div id="startOverlay" class="start-overlay">
+    <h1>City Blocks Challenge</h1>
+    <p style="margin-bottom:16px;font-size:1.1rem;">Distance vs Displacement</p>
+    <button id="beginBtn">Start</button>
+  </div>
+  <div class="app hidden" id="mainContent">
+    <main class="stage">
+      <div class="topbar panel">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button id="show-walkthrough">Guide</button>
+          <strong>Distance and displacement city challenge</strong>
+        </div>
+        <div class="status" id="statusText"></div>
+        <div class="secondary-row" style="margin-top:0;">
+          <button id="undoBtn">Undo</button>
+          <button id="resetBtn">Reset</button>
+          <button id="showExampleBtn">Example</button>
+          <button id="nextLevelBtn">Next Level</button>
+        </div>
+      </div>
+      <div class="hint panel" id="hintBox" style="margin:0;">
+        Try making some turns. A good solution uses extra movement that cancels out but still adds to total distance.
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="gameCanvas" width="1200" height="800"></canvas>
+        <div class="canvas-dpad" aria-label="Movement controls">
+          <div class="dpad-grid">
+            <button data-dir="N" aria-label="Move North">
+              <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+            </button>
+            <button data-dir="W" aria-label="Move West">
+              <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <div class="dpad-center"></div>
+            <button data-dir="E" aria-label="Move East">
+              <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+            <button data-dir="S" aria-label="Move South">
+              <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="walkthrough-overlay" class="walkthrough-overlay hidden">
+    <div class="walkthrough-panel">
+      <div class="walk-step-label" id="walk-step-label">Step 1 of 4</div>
+      <div class="walk-title" id="walk-title"></div>
+      <div class="walk-body" id="walk-body"></div>
+      <div class="walk-nav">
+        <button id="walk-prev-btn" disabled>Back</button>
+        <div class="walk-dots" id="walk-dots"></div>
+        <button id="walk-next-btn">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var canvas = document.getElementById('gameCanvas');
+    var ctx = canvas.getContext('2d');
+
+    // --- PHASE 4: OFFSCREEN CANVAS SETUP ---
+    var staticCanvas = document.createElement('canvas');
+    var staticCtx = staticCanvas.getContext('2d');
+    var isCityCached = false;
+
+    var statusText = document.getElementById('statusText');
+    var hintBox = document.getElementById('hintBox');
+    var nextLevelBtn = document.getElementById('nextLevelBtn');
+    var beginBtn = document.getElementById('beginBtn');
+    var startOverlay = document.getElementById('startOverlay');
+    var mainContent = document.getElementById('mainContent');
+    var walkthroughOverlay = document.getElementById('walkthrough-overlay');
+    var showWalkthroughBtn = document.getElementById('show-walkthrough');
+    var walkStepLabel = document.getElementById('walk-step-label');
+    var walkTitle = document.getElementById('walk-title');
+    var walkBody = document.getElementById('walk-body');
+    var walkPrevBtn = document.getElementById('walk-prev-btn');
+    var walkNextBtn = document.getElementById('walk-next-btn');
+    var walkDots = document.getElementById('walk-dots');
+    var WALK_STEPS = [
+      {
+        title: 'Read the mission',
+        body: 'Each level gives you a <b>target distance</b> and a <b>target displacement</b>. Your route must satisfy <b>both</b> values at the same time.'
+      },
+      {
+        title: 'Build a route',
+        body: 'Use the D-pad or keyboard controls to move block by block. <b>Distance</b> is the total path length. <b>Displacement</b> is the straight-line distance from the start to your final location.'
+      },
+      {
+        title: 'Use turns strategically',
+        body: 'Extra movement can raise distance without changing the final displacement much. Try cancelling motion like <span class="eq">north then south</span> or <span class="eq">east then west</span>.'
+      },
+      {
+        title: 'Check and advance',
+        body: 'When both values match the target, the level is complete and <b>Next Level</b> lights up. Use <b>Example</b> if you get stuck, then solve the next challenge.'
+      }
+    ];
+    var walkStep = 0;
+
+    function renderWalkthrough() {
+      var step = WALK_STEPS[walkStep];
+      walkStepLabel.textContent = 'Step ' + (walkStep + 1) + ' of ' + WALK_STEPS.length;
+      walkTitle.textContent = step.title;
+      walkBody.innerHTML = step.body;
+      walkPrevBtn.disabled = walkStep === 0;
+      walkNextBtn.textContent = walkStep === WALK_STEPS.length - 1 ? 'Close' : 'Next';
+      walkDots.innerHTML = '';
+      WALK_STEPS.forEach(function(_, index) {
+        var dot = document.createElement('div');
+        dot.className = 'walk-dot' + (index === walkStep ? ' active' : '');
+        walkDots.appendChild(dot);
+      });
+    }
+
+    function openWalkthrough() {
+      walkStep = 0;
+      renderWalkthrough();
+      walkthroughOverlay.classList.remove('hidden');
+    }
+
+    function closeWalkthrough() {
+      walkthroughOverlay.classList.add('hidden');
+    }
+
+    // SCORM tracking
+    var levelsCompleted = [];
+    var bestScore = 0;
+
+    // --- PHASE 1: CONFIGURATION ---
+    var CONFIG = {
+      cols: 7,
+      rows: 7,
+      cell: 98,
+      offsetX: 50,
+      offsetY: 65,
+      buildingStyles: [
+        { front: '#e0e0e0', side: '#bdbdbd', roof: '#9e9e9e', win: '#64b5f6' }, // White/Grey Office
+        { front: '#ef5350', side: '#c62828', roof: '#b71c1c', win: '#ffffff' }, // Red Firehouse
+        { front: '#ffb74d', side: '#f57c00', roof: '#607d8b', win: '#e1f5fe' }, // Orange Shop
+        { front: '#4dd0e1', side: '#00acc1', roof: '#00838f', win: '#ffffff' }, // Cyan
+        { front: '#ba68c8', side: '#8e24aa', roof: '#4a148c', win: '#fff59d' }, // Purple
+        { front: '#81c784', side: '#388e3c', roof: '#1b5e20', win: '#e8f5e9' }  // Green
+      ]
+    };
+
+    var COLS = CONFIG.cols;
+    var ROWS = CONFIG.rows;
+    var CELL = CONFIG.cell;
+    var OFFSET_X = CONFIG.offsetX;
+    var OFFSET_Y = CONFIG.offsetY;
+
+    var start = { x: 2, y: 3 };
+    var levels = [
+      { distance: 6, displacement: 2, example: ['E', 'E', 'N', 'S', 'N', 'S'] },
+      { distance: 8, displacement: 4, example: ['E', 'E', 'E', 'E', 'N', 'S', 'N', 'S'] },
+      { distance: 8, displacement: 0, example: ['E', 'E', 'W', 'W', 'N', 'S', 'N', 'S'] },
+      { distance: 9, displacement: 5, example: ['E', 'E', 'E', 'E', 'E', 'N', 'S', 'N', 'S'] },
+      { distance: 10, displacement: 6, example: ['E', 'E', 'E', 'E', 'E', 'E', 'N', 'S', 'N', 'S'] }
+    ];
+
+    // Blueprint for the city map
+    var cityLayout = [
+      { x: 0, y: 0, w: 1, h: 1, type: 'bldg', style: 0 },
+      { x: 1, y: 0, w: 1, h: 2, type: 'bldg', style: 1 },
+      { x: 2, y: 0, w: 2, h: 2, type: 'park' },           
+      { x: 4, y: 0, w: 2, h: 1, type: 'school' }, 
+
+      { x: 0, y: 1, w: 1, h: 1, type: 'bldg', style: 3 },
+      { x: 4, y: 1, w: 1, h: 1, type: 'bldg', style: 4 },
+      { x: 5, y: 1, w: 1, h: 2, type: 'bldg', style: 5 }, 
+
+      { x: 0, y: 2, w: 2, h: 1, type: 'hospital' }, 
+      { x: 2, y: 2, w: 1, h: 1, type: 'bldg', style: 1 },
+      { x: 3, y: 2, w: 1, h: 2, type: 'burger_joint' }, 
+      { x: 4, y: 2, w: 1, h: 1, type: 'bldg', style: 3 },
+
+      { x: 0, y: 3, w: 1, h: 2, type: 'bldg', style: 4 }, 
+      { x: 1, y: 3, w: 3, h: 2, type: 'zoo' }, 
+      { x: 4, y: 3, w: 2, h: 1, type: 'bldg', style: 0 }, 
+
+      { x: 4, y: 4, w: 1, h: 2, type: 'bldg', style: 2 }, 
+      { x: 5, y: 4, w: 1, h: 1, type: 'bldg', style: 3 },
+
+      { x: 0, y: 5, w: 1, h: 1, type: 'bldg', style: 4 },
+      { x: 1, y: 5, w: 2, h: 1, type: 'post_office' }, 
+      { x: 3, y: 5, w: 1, h: 1, type: 'bldg', style: 0 },
+      { x: 5, y: 5, w: 1, h: 1, type: 'bldg', style: 1 },
+    ];
+
+    // Compute all lots (buildings, parks, and empty grass plots)
+    var allLots = [];
+    function computeLots() {
+      allLots = [];
+      var covered = [];
+      var r, c;
+      for (r = 0; r < ROWS-1; r++) {
+        covered[r] = [];
+        for (c = 0; c < COLS-1; c++) {
+          covered[r][c] = false;
+        }
+      }
+      
+      cityLayout.forEach(function(item) {
+        allLots.push(item);
+        for(var rr=item.y; rr<item.y+item.h; rr++){
+          for(var cc=item.x; cc<item.x+item.w; cc++){
+            if(rr < ROWS-1 && cc < COLS-1) covered[rr][cc] = true;
+          }
+        }
+      });
+
+      for(r=0; r<ROWS-1; r++){
+        for(c=0; c<COLS-1; c++){
+          if(!covered[r][c]){
+            allLots.push({x: c, y: r, w: 1, h: 1, type: 'empty'});
+          }
+        }
+      }
+
+      // Sort with Painter's Algorithm for Pseudo-3D Oblique Projection (Top-to-Bottom, Left-to-Right)
+      allLots.sort(function(a, b) {
+        if (a.y === b.y) return b.x - a.x;
+        return a.y - b.y;
+      });
+    }
+    computeLots();
+
+    // --- PHASE 3: GAME STATE MANAGEMENT ---
+    var GameState = {
+      currentLevelIndex: 0,
+      player: { x: start.x, y: start.y },
+      path: [{ x: start.x, y: start.y }],
+      moves: [],
+      displayedDistance: 0,
+      displayedDisplacement: 0,
+      animationFrame: null,
+      levelJustCompleted: false,
+
+      getCurrentLevel() { return levels[this.currentLevelIndex]; },
+      getDistance() { return this.moves.length; },
+      getDisplacementBlocks() {
+        var dx = this.player.x - start.x;
+        var dy = this.player.y - start.y;
+        return Math.sqrt(dx * dx + dy * dy);
+      }
+    };
+
+    // Checks if an internal road is covered by a multi-block building
+    function isRoadMissing(c, r, dir) {
+      return cityLayout.some(function(item) {
+        if (dir === 'H') {
+          return item.x <= c && (item.x + item.w) > c && item.y < r && (item.y + item.h) > r;
+        } else if (dir === 'V') {
+          return item.y <= r && (item.y + item.h) > r && item.x < c && (item.x + item.w) > c;
+        }
+        return false;
+      });
+    }
+
+    function applyLevelText() {
+      nextLevelBtn.textContent = GameState.currentLevelIndex === levels.length - 1 ? 'Play Again' : 'Next Level';
+    }
+
+    function resetGame() {
+      GameState.player = { x: start.x, y: start.y };
+      GameState.path = [{ x: start.x, y: start.y }];
+      GameState.moves = [];
+      GameState.levelJustCompleted = false;
+      nextLevelBtn.classList.remove('complete-ready');
+      animateStatsToTargets(true);
+      updateUI();
+      draw();
+    }
+
+    function loadLevel(index) {
+      GameState.currentLevelIndex = (index + levels.length) % levels.length;
+      applyLevelText();
+      resetGame();
+    }
+
+    function move(dir) {
+      var next = { x: GameState.player.x, y: GameState.player.y };
+      if (dir === 'N') next.y -= 1;
+      if (dir === 'S') next.y += 1;
+      if (dir === 'E') next.x += 1;
+      if (dir === 'W') next.x -= 1;
+
+      if (next.x < 0 || next.x >= COLS || next.y < 0 || next.y >= ROWS) {
+        statusText.textContent = 'You hit the edge of the city.';
+        statusText.className = 'status bad';
+        return;
+      }
+
+      var blocked = false;
+      if (dir === 'N' && isRoadMissing(next.x, next.y, 'V')) blocked = true;
+      if (dir === 'S' && isRoadMissing(GameState.player.x, GameState.player.y, 'V')) blocked = true;
+      if (dir === 'E' && isRoadMissing(GameState.player.x, GameState.player.y, 'H')) blocked = true;
+      if (dir === 'W' && isRoadMissing(next.x, next.y, 'H')) blocked = true;
+
+      if (blocked) {
+        statusText.textContent = 'Path blocked by a large structure.';
+        statusText.className = 'status bad';
+        return;
+      }
+
+      GameState.player = next;
+      GameState.path.push({ x: GameState.player.x, y: GameState.player.y });
+      GameState.moves.push(dir);
+      animateStatsToTargets();
+      updateUI();
+      draw();
+    }
+
+    function undoMove() {
+      if (!GameState.moves.length) return;
+      GameState.moves.pop();
+      GameState.path.pop();
+      var last = GameState.path[GameState.path.length - 1];
+      GameState.player = { x: last.x, y: last.y };
+      animateStatsToTargets();
+      updateUI();
+      draw();
+    }
+
+    function runExample() {
+      resetGame();
+      var example = GameState.getCurrentLevel().example;
+      var i = 0;
+      var timer = setInterval(function() {
+        if (i >= example.length) {
+          clearInterval(timer);
+          return;
+        }
+        move(example[i]);
+        i++;
+      }, 320);
+    }
+
+    function nextLevel() {
+      loadLevel(GameState.currentLevelIndex + 1);
+    }
+
+    function formatStatValue(value) {
+      return Number.isInteger(value) ? String(value) : value.toFixed(1);
+    }
+
+    function animateStatsToTargets(immediate) {
+      if (immediate === undefined) immediate = false;
+      var startDistance = GameState.displayedDistance;
+      var startDisplacement = GameState.displayedDisplacement;
+      var targetDistance = GameState.getDistance();
+      var targetDisplacement = GameState.getDisplacementBlocks();
+
+      if (GameState.animationFrame) {
+        cancelAnimationFrame(GameState.animationFrame);
+        GameState.animationFrame = null;
+      }
+
+      if (immediate) {
+        GameState.displayedDistance = targetDistance;
+        GameState.displayedDisplacement = targetDisplacement;
+        draw();
+        return;
+      }
+
+      var startTime = performance.now();
+      var duration = 260;
+
+      function step(now) {
+        var progress = Math.min((now - startTime) / duration, 1);
+        var eased = 1 - Math.pow(1 - progress, 3);
+        GameState.displayedDistance = startDistance + (targetDistance - startDistance) * eased;
+        GameState.displayedDisplacement = startDisplacement + (targetDisplacement - startDisplacement) * eased;
+        draw();
+
+        if (progress < 1) {
+          GameState.animationFrame = requestAnimationFrame(step);
+        } else {
+          GameState.displayedDistance = targetDistance;
+          GameState.displayedDisplacement = targetDisplacement;
+          GameState.animationFrame = null;
+          draw();
+        }
+      }
+      GameState.animationFrame = requestAnimationFrame(step);
+    }
+
+    function updateUI() {
+      var level = GameState.getCurrentLevel();
+      var distance = GameState.getDistance();
+      var displacement = GameState.getDisplacementBlocks();
+      var success = distance === level.distance && Math.abs(displacement - level.displacement) < 0.001;
+
+      GameState.levelJustCompleted = success;
+      nextLevelBtn.classList.toggle('complete-ready', success);
+
+      if (success) {
+        // SCORM: record this level as completed
+        if (levelsCompleted.indexOf(GameState.currentLevelIndex) === -1) {
+          levelsCompleted.push(GameState.currentLevelIndex);
+          var score = Math.round((levelsCompleted.length / levels.length) * 100);
+          if (score > bestScore) bestScore = score;
+          if (typeof SCORM !== 'undefined') {
+            SCORM.setScore(bestScore, 0, 100);
+            SCORM.setStatus(bestScore >= 80 ? 'passed' : 'failed');
+            SCORM.commit();
+            saveSuspendData();
+          }
+        }
+        var finalLevel = GameState.currentLevelIndex === levels.length - 1;
+        statusText.textContent = finalLevel
+          ? 'All levels complete. Press Play Again to start over.'
+          : 'Level ' + (GameState.currentLevelIndex + 1) + ' complete. Press Next Level.';
+        statusText.className = 'status good';
+        hintBox.textContent = finalLevel
+          ? 'Nice work. You finished every distance and displacement challenge.'
+          : 'Nice job. This route matches the mission. Press Next Level for a new target.';
+      } else if (distance > level.distance) {
+        statusText.textContent = '';
+        statusText.className = 'status';
+        hintBox.textContent = 'You went farther than the target distance. Try using undo to remove a move.';
+      } else {
+        statusText.textContent = '';
+        statusText.className = 'status';
+        hintBox.textContent = 'A strong strategy is to move away from the start, then add turns that cancel each other out.';
+      }
+    }
+
+    function toPixel(node) {
+      return { x: OFFSET_X + node.x * CELL, y: OFFSET_Y + node.y * CELL };
+    }
+
+    function drawCityBackground() {
+      // Grass background border
+      ctx.fillStyle = '#8bc34a'; // Vibrant green grass
+      ctx.fillRect(0, 0, canvas.width / 1.2, canvas.height / 1.2);
+
+      // Draw Blacktop Roads
+      for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+          var p = toPixel({ x: c, y: r });
+
+          ctx.strokeStyle = 'var(--road)';
+          ctx.lineWidth = 44;
+          ctx.lineCap = 'round';
+
+          // Horizontal Blacktop
+          if (c < COLS - 1 && !isRoadMissing(c, r, 'H')) {
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p.x + CELL, p.y);
+            ctx.stroke();
+          }
+
+          // Vertical Blacktop
+          if (r < ROWS - 1 && !isRoadMissing(c, r, 'V')) {
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p.x, p.y + CELL);
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Draw Dashed Lines
+      for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+          var p = toPixel({ x: c, y: r });
+
+          // Horizontal Dashes
+          if (c < COLS - 1 && !isRoadMissing(c, r, 'H')) {
+            ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'butt';
+            ctx.setLineDash([12, 12]);
+            ctx.beginPath();
+            ctx.moveTo(p.x + 22, p.y);
+            ctx.lineTo(p.x + CELL - 22, p.y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+
+          // Vertical Dashes
+          if (r < ROWS - 1 && !isRoadMissing(c, r, 'V')) {
+            ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'butt';
+            ctx.setLineDash([12, 12]);
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y + 22);
+            ctx.lineTo(p.x, p.y + CELL - 22);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        }
+      }
+    }
+
+    function draw3DTree(x, y, scale = 1) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
+      
+      // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.beginPath(); ctx.ellipse(4, 4, 10, 5, 0, 0, Math.PI*2); ctx.fill();
+      
+      // Trunk
+      ctx.fillStyle = '#5d4037';
+      ctx.fillRect(-2, -12, 4, 14);
+      
+      // Leaves Shadow Layer
+      ctx.fillStyle = '#2e7d32';
+      ctx.beginPath(); ctx.arc(2, -14, 12, 0, Math.PI*2); ctx.fill();
+      
+      // Leaves Mid Layer
+      ctx.fillStyle = '#4caf50';
+      ctx.beginPath(); ctx.arc(-1, -17, 11, 0, Math.PI*2); ctx.fill();
+      
+      // Leaves Highlight
+      ctx.fillStyle = '#81c784';
+      ctx.beginPath(); ctx.arc(-4, -20, 6, 0, Math.PI*2); ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawAllLotsAndStructures() {
+      // Pass 1: Draw Ground Bases (Solves Z-sorting overlap glitches)
+      allLots.forEach(function(item) {
+        var lotX = OFFSET_X + item.x * CELL + 22;
+        var lotY = OFFSET_Y + item.y * CELL + 22;
+        var lotW = item.w * CELL - 44;
+        var lotH = item.h * CELL - 44;
+
+        // Concrete Sidewalk Base
+        ctx.fillStyle = '#e2e8f0'; // Lighter gray
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(lotX, lotY, lotW, lotH, 8);
+        else ctx.rect(lotX, lotY, lotW, lotH);
+        ctx.fill();
+        ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 1; ctx.stroke();
+
+        // Grass Lot Top
+        var pad = 6; 
+        var innerX = lotX + pad;
+        var innerY = lotY + pad;
+        var innerW = lotW - pad * 2;
+        var innerH = lotH - pad * 2;
+
+        ctx.fillStyle = '#9ccc65';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(innerX, innerY, innerW, innerH, 4);
+        else ctx.rect(innerX, innerY, innerW, innerH); 
+        ctx.fill();
+        
+        // Ground-level dispatcher
+        if (item.type === 'park') drawParkGround(innerX, innerY, innerW, innerH);
+        else if (item.type === 'zoo') drawZooGround(innerX, innerY, innerW, innerH);
+        else if (item.type === 'burger_joint') drawBurgerJointGround(innerX, innerY, innerW, innerH);
+        else if (item.type === 'school') drawSchoolGround(innerX, innerY, innerW, innerH);
+        else if (item.type === 'post_office') drawPostOfficeGround(innerX, innerY, innerW, innerH);
+      });
+
+      // Pass 2: Draw 3D Structures
+      allLots.forEach(function(item) {
+        var lotX = OFFSET_X + item.x * CELL + 22;
+        var lotY = OFFSET_Y + item.y * CELL + 22;
+        var lotW = item.w * CELL - 44;
+        var lotH = item.h * CELL - 44;
+        var pad = 6; 
+        var innerX = lotX + pad;
+        var innerY = lotY + pad;
+        var innerW = lotW - pad * 2;
+        var innerH = lotH - pad * 2;
+
+        // Structure Dispatcher
+        if (item.type === 'park') drawParkStructures(innerX, innerY, innerW, innerH);
+        else if (item.type === 'empty') drawEmptyLotStructures(innerX, innerY, innerW, innerH);
+        else if (item.type === 'hospital') drawHospital(innerX, innerY, innerW, innerH, item.w, item.h);
+        else if (item.type === 'zoo') drawZooStructures(innerX, innerY, innerW, innerH);
+        else if (item.type === 'burger_joint') drawBurgerJointStructures(innerX, innerY, innerW, innerH);
+        else if (item.type === 'school') drawSchoolStructures(innerX, innerY, innerW, innerH, item.w, item.h);
+        else if (item.type === 'post_office') drawPostOfficeStructures(innerX, innerY, innerW, innerH);
+        else if (item.w === 1 && item.h === 2) drawTallTower(innerX, innerY, innerW, innerH, item.style);
+        else drawBuilding3D(innerX, innerY, innerW, innerH, item.style, item.w, item.h);
+      });
+    }
+
+    function drawPostOfficeGround(bx, by, bw, bh) {
+      // Concrete loading dock drive on the right side
+      ctx.fillStyle = '#a8a29e';
+      ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(bx + bw - 44, by + 4, 40, bh - 8, 4);
+      else ctx.rect(bx + bw - 44, by + 4, 40, bh - 8);
+      ctx.fill();
+    }
+
+    function drawPostOfficeStructures(bx, by, bw, bh) {
+      var H = 26; // Noticeably shorter than standard buildings
+      var dx = 16, dy = -16;
+      var frontX = bx + 4, frontY = by + bh - 4, bWidth = bw - dx - 8;
+
+      // Base Structure
+      draw3DPrism(frontX, frontY, bWidth, H, H, dx, dy, { front: '#f8fafc', side: '#cbd5e1', roof: '#94a3b8' });
+
+      // Blue Trim around top edge
+      ctx.fillStyle = '#0284c7';
+      ctx.beginPath();
+      ctx.moveTo(frontX, frontY - H);
+      ctx.lineTo(frontX + bWidth, frontY - H);
+      ctx.lineTo(frontX + bWidth, frontY - H + 6);
+      ctx.lineTo(frontX, frontY - H + 6);
+      ctx.fill();
+      
+      // Side blue trim
+      ctx.beginPath();
+      ctx.moveTo(frontX + bWidth, frontY - H);
+      ctx.lineTo(frontX + bWidth + dx, frontY + dy - H);
+      ctx.lineTo(frontX + bWidth + dx, frontY + dy - H + 6);
+      ctx.lineTo(frontX + bWidth, frontY - H + 6);
+      ctx.fill();
+
+      // Front Doors (Glass Double Doors)
+      ctx.fillStyle = '#e0f2fe';
+      ctx.fillRect(frontX + 16, frontY - 16, 14, 16);
+      ctx.strokeStyle = '#0369a1'; ctx.lineWidth = 1.5;
+      ctx.strokeRect(frontX + 16, frontY - 16, 14, 16);
+      ctx.beginPath(); ctx.moveTo(frontX + 23, frontY - 16); ctx.lineTo(frontX + 23, frontY); ctx.stroke();
+
+      // Signage
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 9px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('POST OFFICE', frontX + 40, frontY - H + 14);
+
+      // Windows
+      ctx.fillStyle = '#e0f2fe';
+      ctx.fillRect(frontX + 36, frontY - 12, 16, 8);
+      ctx.strokeRect(frontX + 36, frontY - 12, 16, 8);
+      
+      ctx.fillRect(frontX + 58, frontY - 12, 16, 8);
+      ctx.strokeRect(frontX + 58, frontY - 12, 16, 8);
+
+      // Loading Dock Garage (Right Side)
+      ctx.fillStyle = '#64748b';
+      ctx.fillRect(frontX + bWidth - 28, frontY - 20, 22, 20);
+      ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+      for(var i=1; i<5; i++) {
+        ctx.beginPath();
+        ctx.moveTo(frontX + bWidth - 28, frontY - 20 + i*4);
+        ctx.lineTo(frontX + bWidth - 6, frontY - 20 + i*4);
+        ctx.stroke();
+      }
+
+      // Blue Collection Boxes out front
+      ctx.fillStyle = '#0284c7';
+      // Box 1
+      ctx.fillRect(frontX + 4, frontY - 6, 6, 8);
+      ctx.beginPath(); ctx.arc(frontX + 7, frontY - 6, 3, Math.PI, 0); ctx.fill();
+      // Box 2
+      ctx.fillRect(frontX + 12, frontY - 4, 6, 8); 
+      ctx.beginPath(); ctx.arc(frontX + 15, frontY - 4, 3, Math.PI, 0); ctx.fill();
+      
+      // White logo dots on boxes
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(frontX + 5, frontY - 3, 4, 2);
+      ctx.fillRect(frontX + 13, frontY - 1, 4, 2);
+    }
+
+    function drawBurgerJointGround(bx, by, bw, bh) {
+      // Drive-thru pavement occupying the bottom half
+      ctx.fillStyle = '#a8a29e'; 
+      ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(bx + 4, by + bh/2 - 14, bw - 8, bh/2 + 8, 12);
+      else ctx.rect(bx + 4, by + bh/2 - 14, bw - 8, bh/2 + 8);
+      ctx.fill();
+
+      // Parking stripes
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
+      for(var i=0; i<3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(bx + 12 + i*10, by + bh - 6);
+        ctx.lineTo(bx + 12 + i*10, by + bh - 16);
+        ctx.stroke();
+      }
+
+      // Grass island inside the drive-thru loop
+      ctx.fillStyle = '#9ccc65';
+      ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(bx + 20, by + bh/2 + 2, bw - 40, bh/2 - 12, 6);
+      else ctx.rect(bx + 20, by + bh/2 + 2, bw - 40, bh/2 - 12);
+      ctx.fill();
+    }
+
+    function drawSchoolGround(bx, by, bw, bh) {
+      // Playground removed
+    }
+
+    function drawSchoolStructures(bx, by, bw, bh, gridW, gridH) {
+      var H = 38;
+      var dx = 16, dy = -16;
+      var frontX = bx + 4, frontY = by + bh - 4, bWidth = bw - dx - 8;
+      
+      draw3DPrism(frontX, frontY, bWidth, H, H, dx, dy, { front: '#c62828', side: '#b71c1c', roof: '#374151' });
+
+      // Center entrance block
+      var centerW = 34;
+      var centerX = frontX + bWidth/2 - centerW/2;
+      
+      // White Columns
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(centerX + 2, frontY - H + 12, 6, H - 12);
+      ctx.fillRect(centerX + centerW - 8, frontY - H + 12, 6, H - 12);
+      
+      // Pediment (Triangle above door)
+      ctx.fillStyle = '#e2e8f0';
+      ctx.beginPath();
+      ctx.moveTo(centerX - 4, frontY - H + 12);
+      ctx.lineTo(centerX + centerW + 4, frontY - H + 12);
+      ctx.lineTo(centerX + centerW/2, frontY - H - 4);
+      ctx.fill();
+
+      // Clock
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(centerX + centerW/2, frontY - H + 5, 4, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(centerX + centerW/2, frontY - H + 5); ctx.lineTo(centerX + centerW/2, frontY - H + 3); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(centerX + centerW/2, frontY - H + 5); ctx.lineTo(centerX + centerW/2 + 2, frontY - H + 5); ctx.stroke();
+
+      // Double doors
+      ctx.fillStyle = '#4e342e';
+      ctx.fillRect(centerX + 11, frontY - 14, 12, 14);
+      ctx.fillStyle = '#8d6e63';
+      ctx.fillRect(centerX + 11, frontY - 14, 5, 14);
+
+      // Windows
+      ctx.fillStyle = '#81d4fa';
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#f8fafc'; // white frames
+      
+      var winW = 12, winH = 10;
+      // Left side windows (2x2 grid)
+      for(var r=0; r<2; r++) {
+          for(var c=0; c<2; c++) {
+              var wx = frontX + 8 + c*20;
+              var wy = frontY - H + 14 + r*14;
+              ctx.fillRect(wx, wy, winW, winH);
+              ctx.strokeRect(wx, wy, winW, winH);
+          }
+      }
+      // Right side windows (2x2 grid)
+      for(var r=0; r<2; r++) {
+          for(var c=0; c<2; c++) {
+              var wx = centerX + centerW + 8 + c*20;
+              var wy = frontY - H + 14 + r*14;
+              ctx.fillRect(wx, wy, winW, winH);
+              ctx.strokeRect(wx, wy, winW, winH);
+          }
+      }
+
+      // Flagpole
+      ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(frontX + bWidth - 10, frontY - H); ctx.lineTo(frontX + bWidth - 10, frontY - H - 25); ctx.stroke();
+      // Flag
+      ctx.fillStyle = '#1e40af';
+      ctx.fillRect(frontX + bWidth - 10, frontY - H - 25, 12, 8);
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(frontX + bWidth - 10, frontY - H - 25, 6, 4);
+    }
+
+    function drawEmptyLotStructures(bx, by, bw, bh) {
+      // Just sprinkle some small trees
+      draw3DTree(bx + bw*0.25, by + bh*0.25, 0.8);
+      draw3DTree(bx + bw*0.75, by + bh*0.75, 0.9);
+    }
+
+    function drawParkGround(bx, by, bw, bh) {
+      // Dirt crossing paths
+      ctx.fillStyle = '#eaddcf'; 
+      ctx.fillRect(bx + bw / 2 - 10, by, 20, bh);
+      ctx.fillRect(bx, by + bh / 2 - 10, bw, 20);
+
+      // Center pond
+      ctx.fillStyle = '#29b6f6';
+      ctx.beginPath();
+      ctx.ellipse(bx + bw / 2, by + bh / 2, 28, 22, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#0288d1'; ctx.lineWidth = 2; ctx.stroke();
+      
+      // Add water highlights
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.beginPath(); ctx.ellipse(bx + bw/2 - 6, by + bh/2 - 4, 12, 4, -0.2, 0, Math.PI * 2); ctx.fill();
+    }
+
+    function drawParkStructures(bx, by, bw, bh) {
+      // Trees scattered
+      draw3DTree(bx + bw * 0.15, by + bh * 0.2, 1.2);
+      draw3DTree(bx + bw * 0.3, by + bh * 0.1, 1);
+      draw3DTree(bx + bw * 0.8, by + bh * 0.25, 1.3);
+      draw3DTree(bx + bw * 0.85, by + bh * 0.1, 0.9);
+      
+      draw3DTree(bx + bw * 0.2, by + bh * 0.8, 1.1);
+      draw3DTree(bx + bw * 0.1, by + bh * 0.9, 0.8);
+      draw3DTree(bx + bw * 0.75, by + bh * 0.85, 1.4);
+    }
+
+    function drawZooGround(bx, by, bw, bh) {
+      // Outer path loop
+      ctx.fillStyle = '#eaddcf'; // Sand/dirt path
+      ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(bx + 10, by + 10, bw - 20, bh - 20, 12);
+      else ctx.rect(bx + 10, by + 10, bw - 20, bh - 20);
+      ctx.fill();
+
+      // Inner grass island
+      ctx.fillStyle = '#8bc34a';
+      ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(bx + 26, by + 26, bw - 52, bh - 52, 8);
+      else ctx.rect(bx + 26, by + 26, bw - 52, bh - 52);
+      ctx.fill();
+
+      // Water enclosure (left side)
+      ctx.fillStyle = '#29b6f6';
+      ctx.beginPath();
+      ctx.ellipse(bx + bw*0.25, by + bh/2, 22, 30, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = '#0288d1'; ctx.lineWidth = 2; ctx.stroke();
+      
+      // Water highlight
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.beginPath(); ctx.ellipse(bx + bw*0.25 - 6, by + bh/2 - 8, 6, 12, -0.2, 0, Math.PI*2); ctx.fill();
+
+      // Dirt enclosure (right side)
+      ctx.fillStyle = '#a1887f';
+      ctx.beginPath();
+      ctx.ellipse(bx + bw*0.75, by + bh/2, 22, 30, 0, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    function drawZooStructures(bx, by, bw, bh) {
+      // Hippo in water
+      ctx.fillStyle = '#78909c';
+      ctx.beginPath(); ctx.arc(bx + bw*0.25 + 5, by + bh/2 + 8, 6, 0, Math.PI*2); ctx.fill();
+      
+      // Fences around dirt enclosure
+      ctx.strokeStyle = '#5d4037';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath(); ctx.ellipse(bx + bw*0.75, by + bh/2, 25, 33, 0, 0, Math.PI*2); ctx.stroke();
+      ctx.setLineDash([]);
+      
+      // Lions in dirt enclosure
+      ctx.fillStyle = '#ffb300';
+      ctx.fillRect(bx + bw*0.75 - 5, by + bh/2 - 3, 10, 6);
+
+      // Entrance Gate (bottom middle)
+      ctx.fillStyle = '#5d4037';
+      ctx.fillRect(bx + bw/2 - 26, by + bh - 14, 8, 18); // Left pillar
+      ctx.fillRect(bx + bw/2 + 18, by + bh - 14, 8, 18); // Right pillar
+      ctx.fillStyle = '#795548';
+      ctx.fillRect(bx + bw/2 - 30, by + bh - 22, 60, 14); // Top arch
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 13px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('ZOO', bx + bw/2, by + bh - 15);
+
+      // Trees - spread out for wider layout
+      draw3DTree(bx + 16, by + 16, 1.2);
+      draw3DTree(bx + bw - 16, by + 16, 1.0);
+      draw3DTree(bx + 16, by + bh - 16, 0.9);
+      draw3DTree(bx + bw*0.5, by + 36, 1.4);
+      draw3DTree(bx + bw*0.4, by + bh - 30, 1.1);
+      draw3DTree(bx + bw*0.6, by + bh - 36, 1.0);
+    }
+
+    // --- PHASE 2: UNIFIED 3D PRISM RENDERER ---
+    function draw3DPrism(frontX, frontY, bWidth, H_front, H_back, dx, dy, style) {
+      // 1. Drop Shadow cast on ground
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.beginPath();
+      ctx.moveTo(frontX, frontY);
+      ctx.lineTo(frontX + bWidth + 8, frontY);
+      ctx.lineTo(frontX + bWidth + dx + 8, frontY + dy - 4);
+      ctx.lineTo(frontX + dx - 2, frontY + dy - 4);
+      ctx.closePath();
+      ctx.fill();
+
+      // 2. Right Side Wall
+      ctx.fillStyle = style.side;
+      ctx.beginPath();
+      ctx.moveTo(frontX + bWidth, frontY);
+      ctx.lineTo(frontX + bWidth + dx, frontY + dy);
+      ctx.lineTo(frontX + bWidth + dx, frontY + dy - H_back);
+      ctx.lineTo(frontX + bWidth, frontY - H_front);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1; ctx.stroke();
+
+      // 3. Front Wall
+      ctx.fillStyle = style.front;
+      ctx.beginPath();
+      ctx.moveTo(frontX, frontY);
+      ctx.lineTo(frontX + bWidth, frontY);
+      ctx.lineTo(frontX + bWidth, frontY - H_front);
+      ctx.lineTo(frontX, frontY - H_front);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.stroke();
+
+      // 4. Flat Roof Base
+      ctx.fillStyle = style.roof;
+      ctx.beginPath();
+      ctx.moveTo(frontX, frontY - H_front);
+      ctx.lineTo(frontX + bWidth, frontY - H_front);
+      ctx.lineTo(frontX + bWidth + dx, frontY + dy - H_back);
+      ctx.lineTo(frontX + dx, frontY + dy - H_back);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.stroke();
+      
+      // 5. Roof Inner Shadow/Parapet Detail
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      ctx.beginPath();
+      ctx.moveTo(frontX + 2, frontY - H_front + 2);
+      ctx.lineTo(frontX + bWidth - 2, frontY - H_front + 2);
+      ctx.lineTo(frontX + bWidth + dx - 2, frontY + dy - H_back + 2);
+      ctx.lineTo(frontX + dx + 2, frontY + dy - H_back + 2);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawBurgerJointStructures(bx, by, bw, bh) {
+      var H = 24; 
+      var dx = 12; 
+      var dy = -12; 
+      var frontX = bx + 6;
+      var frontY = by + bh/2 - 6; // Sit perfectly in the top half
+      var bWidth = bw - dx - 12; 
+
+      // Draw Unified Base Structure (Retro colors: White/Red)
+      draw3DPrism(frontX, frontY, bWidth, H, H, dx, dy, { front: '#f8fafc', side: '#e2e8f0', roof: '#ef4444' });
+
+      // Checkered trim at the top
+      for(var i=0; i<bWidth/4; i++) {
+         ctx.fillStyle = (i%2===0) ? '#ef4444' : '#ffffff';
+         ctx.fillRect(frontX + i*4, frontY - H, 4, 4);
+      }
+
+      // Drive-thru window on side (sheared)
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.moveTo(frontX + bWidth + 4, frontY - 8 + 4*(dy/dx));
+      ctx.lineTo(frontX + bWidth + 8, frontY - 8 + 8*(dy/dx));
+      ctx.lineTo(frontX + bWidth + 8, frontY - 14 + 8*(dy/dx));
+      ctx.lineTo(frontX + bWidth + 4, frontY - 14 + 4*(dy/dx));
+      ctx.fill();
+
+      // Awning on side window
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.moveTo(frontX + bWidth + 2, frontY - 14 + 2*(dy/dx));
+      ctx.lineTo(frontX + bWidth + 10, frontY - 14 + 10*(dy/dx));
+      ctx.lineTo(frontX + bWidth + 10, frontY - 17 + 10*(dy/dx));
+      ctx.lineTo(frontX + bWidth + 2, frontY - 17 + 2*(dy/dx));
+      ctx.fill();
+
+      // Front Windows
+      ctx.fillStyle = '#81d4fa';
+      ctx.fillRect(frontX + 6, frontY - 14, 18, 10);
+      ctx.strokeStyle = '#94a3b8'; ctx.strokeRect(frontX + 6, frontY - 14, 18, 10);
+      
+      // Door
+      ctx.fillStyle = '#4e342e';
+      ctx.fillRect(frontX + bWidth - 14, frontY - 16, 10, 16);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(frontX + bWidth - 12, frontY - 14, 6, 6);
+
+      // Red/White striped Awning over front window
+      for(var i=0; i<5; i++) {
+        ctx.fillStyle = (i%2===0) ? '#ef4444' : '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(frontX + 4 + i*4, frontY - 14);
+        ctx.lineTo(frontX + 8 + i*4, frontY - 14);
+        ctx.lineTo(frontX + 6 + i*4, frontY - 19);
+        ctx.lineTo(frontX + 2 + i*4, frontY - 19);
+        ctx.fill();
+      }
+
+      // Awesome Burger Sign
+      var signX = bx + bw - 14;
+      var signY = by + bh - 12;
+      
+      // Pole
+      ctx.fillStyle = '#9ca3af'; 
+      ctx.fillRect(signX - 2, signY - 30, 4, 30); 
+      
+      // Top Bun
+      ctx.fillStyle = '#f59e0b'; // golden brown
+      ctx.beginPath(); ctx.arc(signX, signY - 30, 12, Math.PI, 0); ctx.fill();
+      
+      // Sesame seeds
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(signX-5, signY-36, 2, 2);
+      ctx.fillRect(signX+2, signY-38, 2, 2);
+      ctx.fillRect(signX+6, signY-34, 2, 2);
+
+      // Lettuce
+      ctx.fillStyle = '#4ade80';
+      ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(signX - 13, signY - 29, 26, 4, 2);
+      else ctx.rect(signX - 13, signY - 29, 26, 4);
+      ctx.fill();
+      
+      // Patty
+      ctx.fillStyle = '#5d4037'; // dark brown
+      ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(signX - 12, signY - 25, 24, 6, 2);
+      else ctx.rect(signX - 12, signY - 25, 24, 6);
+      ctx.fill();
+
+      // Bottom Bun
+      ctx.fillStyle = '#f59e0b';
+      ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(signX - 11, signY - 19, 22, 5, 4);
+      else ctx.rect(signX - 11, signY - 19, 22, 5);
+      ctx.fill();
+    }
+
+    function drawHospital(bx, by, lotW, lotH, gridW, gridH) {
+      var isLarge = gridW >= 2 || gridH >= 2;
+      var H = isLarge ? 50 : 34;
+      var dx = isLarge ? 16 : 10;
+      var dy = isLarge ? -16 : -10;
+      var frontX = bx + 4;
+      var frontY = by + lotH - 4;
+      var bWidth = lotW - dx - 8; 
+
+      // Draw Unified Base Structure
+      draw3DPrism(frontX, frontY, bWidth, H, H, dx, dy, { front: '#ffffff', side: '#e0e0e0', roof: '#f5f5f5' });
+
+      // Windows
+      var cols = gridW >= 2 ? 5 : 3;
+      var rows = isLarge ? 3 : 2;
+      var gapX = gridW >= 2 ? 6 : 4;
+      var gapY = 5;
+      var winW = (bWidth - (cols + 1) * gapX) / cols;
+      var winH = (H - (rows + 1) * gapY) / rows;
+      
+      ctx.fillStyle = '#81d4fa';
+      for (var r = 0; r < rows; r++) {
+        for (var c = 0; c < cols; c++) {
+          if (r === rows - 1 && c === Math.floor(cols / 2)) continue; // Leave gap for door
+          if (r === 0 && c === Math.floor(cols / 2)) continue; // Leave gap for Red Cross
+          var wx = frontX + gapX + c * (winW + gapX);
+          var wy = frontY - H + gapY + r * (winH + gapY); 
+          ctx.fillRect(wx, wy, winW, winH);
+          ctx.strokeStyle = 'rgba(0,0,0,0.1)'; ctx.strokeRect(wx, wy, winW, winH);
+        }
+      }
+
+      // Ambulance Bay Door
+      var dc = Math.floor(cols / 2);
+      var dw = winW + gapX; 
+      var dHeight = winH + gapY;
+      var doorX = frontX + gapX + dc * (winW + gapX) - gapX / 2;
+      var doorY = frontY - dHeight;
+      ctx.fillStyle = '#ef5350';
+      ctx.fillRect(doorX, doorY, dw, dHeight);
+      ctx.fillStyle = '#424242';
+      ctx.fillRect(doorX + 2, doorY + 2, dw - 4, dHeight - 2);
+
+      // Red Cross
+      ctx.fillStyle = '#e53935';
+      var crossSize = 14;
+      var crossX = frontX + gapX + dc * (winW + gapX) + winW/2;
+      var crossY = frontY - H + gapY + winH/2;
+      ctx.fillRect(crossX - crossSize/2, crossY - 4, crossSize, 8);
+      ctx.fillRect(crossX - 4, crossY - crossSize/2, 8, crossSize);
+
+      // Helipad on Roof
+      ctx.fillStyle = '#546e7a';
+      var cx = frontX + bWidth * 0.5 + dx * 0.5;
+      var cy = frontY - H + dy * 0.5;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 18, 12, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 14px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('H', cx, cy + 1);
+    }
+
+    function drawTallTower(bx, by, lotW, lotH, styleIdx) {
+      var style = CONFIG.buildingStyles[styleIdx % CONFIG.buildingStyles.length];
+      var H = 118; 
+      var dx = 14; 
+      var dy = -14; 
+      var frontX = bx + 3;
+      var frontY = by + lotH - 3;
+      var bWidth = lotW - dx - 6; 
+
+      // Draw Unified Base Structure
+      draw3DPrism(frontX, frontY, bWidth, H, H, dx, dy, style);
+
+      // Windows (Grid going up)
+      var cols = 3; 
+      var rows = 10; 
+      var gapX = 6; 
+      var gapY = 5;
+      var winW = (bWidth - (cols + 1) * gapX) / cols;
+      var winH = (H - (rows + 1) * gapY) / rows;
+
+      ctx.fillStyle = style.win;
+      for (var r = 0; r < rows; r++) {
+        for (var c = 0; c < cols; c++) {
+          if (r === rows - 1 && c === 1) continue; // Leave 1-col gap in the center for the door
+          var wx = frontX + gapX + c * (winW + gapX);
+          var wy = frontY - H + gapY + r * (winH + gapY);
+          ctx.fillRect(wx, wy, winW, winH);
+          ctx.strokeStyle = 'rgba(0,0,0,0.1)'; ctx.strokeRect(wx, wy, winW, winH);
+        }
+      }
+
+      // Door
+      var dw = winW + gapX;
+      var dHeight = winH + gapY;
+      var doorX = frontX + gapX + 1 * (winW + gapX) - gapX / 2;
+      var doorY = frontY - dHeight;
+      ctx.fillStyle = '#4e342e';
+      ctx.fillRect(doorX, doorY, dw, dHeight);
+
+      // Roof HVAC units
+      ctx.fillStyle = '#cfd8dc';
+      var cx = frontX + bWidth * 0.5 + dx * 0.5;
+      var cy = frontY - H + dy * 0.5;
+      ctx.fillRect(cx - 10, cy - 6, 12, 8);
+      ctx.fillRect(cx + 4, cy - 4, 8, 8);
+
+      ctx.fillStyle = '#90a4ae';
+      ctx.beginPath(); ctx.arc(cx - 4, cy - 2, 3, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx + 8, cy, 2.5, 0, Math.PI*2); ctx.fill();
+    }
+
+    function drawBuilding3D(bx, by, lotW, lotH, styleIdx, gridW, gridH) {
+      var style = CONFIG.buildingStyles[styleIdx % CONFIG.buildingStyles.length];
+      var isLarge = gridW >= 2 || gridH >= 2;
+      var H = isLarge ? 50 : 34;
+      var dx = isLarge ? 16 : 10;
+      var dy = isLarge ? -16 : -10;
+      var frontX = bx + 4;
+      var frontY = by + lotH - 4;
+      var bWidth = lotW - dx - 8; 
+
+      // Draw Unified Base Structure
+      draw3DPrism(frontX, frontY, bWidth, H, H, dx, dy, style);
+
+      // Windows
+      var cols = gridW >= 2 ? 5 : 3;
+      var rows = isLarge ? 3 : 2;
+      var gapX = gridW >= 2 ? 6 : 4;
+      var gapY = 5;
+      var winW = (bWidth - (cols + 1) * gapX) / cols;
+      var winH = (H - (rows + 1) * gapY) / rows;
+      
+      ctx.fillStyle = style.win;
+      for (var r = 0; r < rows; r++) {
+        for (var c = 0; c < cols; c++) {
+          if (r === rows - 1 && c === Math.floor(cols / 2)) continue; // gap for door
+          var wx = frontX + gapX + c * (winW + gapX);
+          var wy = frontY - H + gapY + r * (winH + gapY); 
+          ctx.fillRect(wx, wy, winW, winH);
+          ctx.strokeStyle = 'rgba(0,0,0,0.1)'; ctx.strokeRect(wx, wy, winW, winH);
+        }
+      }
+
+      // Door
+      var dc = Math.floor(cols / 2);
+      var dw = winW + gapX; 
+      var dHeight = winH + gapY;
+      var doorX = frontX + gapX + dc * (winW + gapX) - gapX / 2;
+      var doorY = frontY - dHeight;
+      ctx.fillStyle = '#4e342e';
+      ctx.fillRect(doorX, doorY, dw, dHeight);
+
+      // AC unit on roof
+      ctx.fillStyle = '#cfd8dc';
+      var cx = frontX + bWidth * 0.6 + dx * 0.5;
+      var cy = frontY - H + dy * 0.5;
+      ctx.fillRect(cx - 5, cy - 4, 10, 6);
+      ctx.fillStyle = '#b0bec5';
+      ctx.beginPath();
+      ctx.moveTo(cx - 5, cy - 4); ctx.lineTo(cx + 5, cy - 4);
+      ctx.lineTo(cx + 8, cy - 7); ctx.lineTo(cx - 2, cy - 7);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#90a4ae';
+      ctx.beginPath();
+      ctx.moveTo(cx + 5, cy + 2); ctx.lineTo(cx + 5, cy - 4);
+      ctx.lineTo(cx + 8, cy - 7); ctx.lineTo(cx + 8, cy - 1);
+      ctx.closePath(); ctx.fill();
+    }
+
+    function drawTrail() {
+      if (GameState.path.length < 2) return;
+      ctx.save();
+      
+      // Outer glow for holographic look
+      ctx.shadowColor = '#f59e0b';
+      ctx.shadowBlur = 12;
+      
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.setLineDash([8, 12]);
+      
+      ctx.beginPath();
+      var first = toPixel(GameState.path[0]);
+      ctx.moveTo(first.x, first.y);
+      for (var i = 1; i < GameState.path.length; i++) {
+        var p = toPixel(GameState.path[i]);
+        ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawDisplacementArrow() {
+      if (GameState.player.x === start.x && GameState.player.y === start.y) return;
+      var a = toPixel(start);
+      var b = toPixel(GameState.player);
+      
+      ctx.save();
+      ctx.shadowColor = '#dc2626';
+      ctx.shadowBlur = 15;
+      drawArrow(a.x, a.y, b.x, b.y, '#dc2626', 6);
+      ctx.restore();
+    }
+
+    function drawArrow(x1, y1, x2, y2, color, width) {
+      var angle = Math.atan2(y2 - y1, x2 - x1);
+      var headLength = 22;
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - headLength * Math.cos(angle - Math.PI / 6), y2 - headLength * Math.sin(angle - Math.PI / 6));
+      ctx.lineTo(x2 - headLength * Math.cos(angle + Math.PI / 6), y2 - headLength * Math.sin(angle + Math.PI / 6));
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawMarkers() {
+      var s = toPixel(start);
+      var p = toPixel(GameState.player);
+
+      ctx.save();
+      // Drop shadows make markers "float" above the pseudo-3D city
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetY = 6;
+
+      // Start Marker
+      ctx.fillStyle = '#16a34a';
+      ctx.beginPath(); ctx.arc(s.x, s.y, 18, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowColor = 'transparent'; // Turn off shadow for text
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 14px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('S', s.x, s.y + 5);
+
+      // Player Marker
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      ctx.fillStyle = '#3b82f6';
+      ctx.beginPath(); ctx.arc(p.x, p.y, 20, 0, Math.PI * 2); ctx.fill();
+      
+      // Player Core Glow
+      ctx.shadowColor = 'transparent';
+      ctx.fillStyle = '#93c5fd';
+      ctx.beginPath(); ctx.arc(p.x, p.y, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+    function drawTopLabels() {
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 22px Arial';
+      ctx.textAlign = 'left';
+      ctx.shadowColor = 'rgba(0,0,0,0.6)';
+      ctx.shadowBlur = 8;
+      ctx.fillText('Distance Path vs. Displacement Arrow', 30, 35);
+      ctx.shadowColor = 'transparent';
+    }
+
+    function drawGoalBadge() {
+      var level = GameState.getCurrentLevel();
+      var x = canvas.width - 250;
+      var y = 172;
+      var w = 230;
+      var h = 96;
+      
+      ctx.fillStyle = 'rgba(255,255,255,0.96)';
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = '#ddd6fe';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, w, h);
+      ctx.fillStyle = '#5b21b6';
+      ctx.font = 'bold 16px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillText('Level ' + (GameState.currentLevelIndex + 1), x + 20, y + 24);
+      ctx.font = '14px Arial';
+      ctx.fillStyle = '#1f2937';
+      ctx.fillText('Distance = ' + level.distance + ' blocks', x + 20, y + 50);
+      ctx.fillText('Displacement = ' + level.displacement + ' blocks', x + 20, y + 72);
+    }
+
+    function drawStatCards() {
+      var cardX = canvas.width - 250;
+      var cardW = 230;
+      var cardH = 88;
+      drawStatCard(cardX, 284, cardW, cardH, 'Distance', formatStatValue(GameState.displayedDistance), 'blocks', '#f59e0b', '#fff7ed');
+      drawStatCard(cardX, 388, cardW, cardH, 'Displacement', formatStatValue(GameState.displayedDisplacement), 'blocks', '#dc2626', '#fef2f2');
+    }
+
+    function drawStatCard(x, y, w, h, label, value, unit, accent, fill) {
+      ctx.fillStyle = fill;
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, w, h);
+
+      ctx.fillStyle = accent;
+      ctx.fillRect(x, y, 10, h);
+
+      ctx.fillStyle = '#374151';
+      ctx.font = 'bold 15px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillText(label, x + 24, y + 24);
+
+      ctx.fillStyle = '#111827';
+      ctx.font = 'bold 34px Arial';
+      ctx.fillText(value, x + 24, y + 58);
+
+      ctx.fillStyle = '#6b7280';
+      ctx.font = '13px Arial';
+      ctx.fillText(unit, x + 24, y + 76);
+    }
+
+    function drawLegendItem(x, y, type) {
+      ctx.save();
+      ctx.font = '13px Arial';
+      ctx.fillStyle = '#374151';
+      ctx.textAlign = 'left';
+
+      if (type === 'trail') {
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 4;
+        ctx.setLineDash([5, 10]);
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 28, y); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillText('Distance path traveled', x + 40, y + 4);
+      } else if (type === 'disp') {
+        drawArrow(x, y, x + 28, y, '#dc2626', 3);
+        ctx.fillText('Displacement arrow', x + 40, y + 4);
+      } else if (type === 'start') {
+        ctx.fillStyle = '#16a34a';
+        ctx.beginPath(); ctx.arc(x + 14, y, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 9px Arial'; ctx.textAlign = 'center'; ctx.fillText('S', x + 14, y + 3);
+        ctx.font = '13px Arial'; ctx.fillStyle = '#374151'; ctx.textAlign = 'left'; ctx.fillText('Start point', x + 40, y + 4);
+      } else if (type === 'player') {
+        ctx.fillStyle = '#3b82f6';
+        ctx.beginPath(); ctx.arc(x + 14, y, 8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#374151'; ctx.font = '13px Arial'; ctx.textAlign = 'left'; ctx.fillText('Current position', x + 40, y + 4);
+      }
+
+      ctx.restore();
+    }
+
+    function drawCanvasLegend() {
+      var x = canvas.width - 250;
+      var y = 24;
+      var w = 230;
+      var h = 132;
+
+      ctx.fillStyle = 'rgba(255,255,255,0.96)';
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = '#d1d5db';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, w, h);
+
+      ctx.fillStyle = '#111827';
+      ctx.font = 'bold 15px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillText('Key', x + 20, y + 24);
+
+      drawLegendItem(x + 22, y + 44, 'trail');
+      drawLegendItem(x + 22, y + 70, 'disp');
+      drawLegendItem(x + 22, y + 96, 'start');
+      drawLegendItem(x + 22, y + 122, 'player');
+    }
+
+    function drawCompletionBanner() {
+      if (!GameState.levelJustCompleted) return;
+
+      var isFinalLevel = GameState.currentLevelIndex === levels.length - 1;
+      var boxW = 460;
+      var boxH = 130;
+      var x = canvas.width / 2 - boxW / 2;
+      var y = 140;
+
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.3)';
+      ctx.shadowBlur = 20;
+      ctx.shadowOffsetY = 10;
+      ctx.fillStyle = 'rgba(22, 163, 74, 0.98)';
+      ctx.fillRect(x, y, boxW, boxH);
+      ctx.strokeStyle = '#bbf7d0';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(x, y, boxW, boxH);
+      ctx.shadowColor = 'transparent';
+
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 36px Arial';
+      ctx.fillText(isFinalLevel ? 'All Levels Complete!' : 'Level Complete!', canvas.width / 2, y + 50);
+
+      ctx.font = 'bold 20px Arial';
+      ctx.fillText(isFinalLevel ? 'Press Play Again to restart' : 'Press Next Level to continue', canvas.width / 2, y + 90);
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+      ctx.lineWidth = 4;
+      for (var i = 0; i < 7; i++) {
+        var sx = x + 30 + i * 66;
+        ctx.beginPath();
+        ctx.moveTo(sx, y - 20);
+        ctx.lineTo(sx + 20, y + 10);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // --- PHASE 4: OFFSCREEN CANVAS CACHING ---
+    function cacheStaticCity() {
+      staticCanvas.width = canvas.width;
+      staticCanvas.height = canvas.height;
+      var originalCtx = ctx;
+      ctx = staticCtx; // Temporarily route all drawing to the cached canvas
+
+      ctx.save();
+      ctx.scale(1.2, 1.2);
+      drawCityBackground();
+      drawAllLotsAndStructures();
+      ctx.restore();
+
+      ctx = originalCtx; // Restore main canvas context
+      isCityCached = true;
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (!isCityCached) {
+        cacheStaticCity();
+      }
+      
+      // 1. Blast the cached static 3D city onto the screen instantly (massive performance boost)
+      ctx.drawImage(staticCanvas, 0, 0);
+
+      // 2. Draw dynamic elements (trail, player) scaled up over the city
+      ctx.save();
+      ctx.scale(1.2, 1.2);
+      drawTrail();
+      drawDisplacementArrow();
+      drawMarkers();
+      ctx.restore();
+      
+      // 3. UI Overlays (Unscaled so they stay crisp on the right)
+      drawTopLabels();
+      drawGoalBadge();
+      drawStatCards();
+      drawCanvasLegend();
+      drawCompletionBanner();
+    }
+
+    // SCORM suspend data
+    function saveSuspendData() {
+      if (typeof SCORM === 'undefined') return;
+      var data = JSON.stringify({ levelsCompleted: levelsCompleted, bestScore: bestScore });
+      SCORM.setValue('cmi.suspend_data', data);
+      SCORM.commit();
+    }
+
+    function loadSuspendData() {
+      if (typeof SCORM === 'undefined') return;
+      var raw = SCORM.getValue('cmi.suspend_data');
+      if (raw) {
+        try {
+          var parsed = JSON.parse(raw);
+          levelsCompleted = parsed.levelsCompleted || [];
+          bestScore = parsed.bestScore || 0;
+        } catch (e) { /* ignore */ }
+      }
+    }
+
+    // Event listeners
+    document.addEventListener('copy', function(e) { e.preventDefault(); });
+
+    window.addEventListener('load', function() {
+      if (typeof SCORM !== 'undefined') {
+        SCORM.initialize();
+      }
+      loadSuspendData();
+    });
+
+    beginBtn.addEventListener('click', function() {
+      startOverlay.classList.add('hidden');
+      mainContent.classList.remove('hidden');
+    });
+
+    showWalkthroughBtn.addEventListener('click', openWalkthrough);
+    walkPrevBtn.addEventListener('click', function() {
+      if (walkStep > 0) {
+        walkStep--;
+        renderWalkthrough();
+      }
+    });
+    walkNextBtn.addEventListener('click', function() {
+      if (walkStep >= WALK_STEPS.length - 1) closeWalkthrough();
+      else {
+        walkStep++;
+        renderWalkthrough();
+      }
+    });
+    walkthroughOverlay.addEventListener('click', function(e) {
+      if (e.target === walkthroughOverlay) closeWalkthrough();
+    });
+
+    var dpadBtns = document.querySelectorAll('[data-dir]');
+    for (var i = 0; i < dpadBtns.length; i++) {
+      (function(btn) {
+        btn.addEventListener('click', function() { move(btn.dataset.dir); });
+      })(dpadBtns[i]);
+    }
+
+    document.getElementById('resetBtn').addEventListener('click', resetGame);
+    document.getElementById('undoBtn').addEventListener('click', undoMove);
+    document.getElementById('showExampleBtn').addEventListener('click', runExample);
+    nextLevelBtn.addEventListener('click', nextLevel);
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'ArrowUp') move('N');
+      if (e.key === 'ArrowDown') move('S');
+      if (e.key === 'ArrowLeft') move('W');
+      if (e.key === 'ArrowRight') move('E');
+      if (e.key.toLowerCase() === 'r') resetGame();
+      if (e.key.toLowerCase() === 'u') undoMove();
+      if (e.key.toLowerCase() === 'n') nextLevel();
+    });
+
+    window.addEventListener('beforeunload', function() {
+      if (typeof SCORM !== 'undefined') {
+        SCORM.setScore(bestScore, 0, 100);
+        SCORM.setStatus(bestScore >= 80 ? 'passed' : 'failed');
+        SCORM.commit();
+        SCORM.finish();
+      }
+    });
+
+    document.fonts.ready.then(function() {
+        loadLevel(0);
+    });
+    
+  </script>
+</body>
+</html>
