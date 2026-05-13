@@ -320,9 +320,13 @@
 
     /* ===== Display Helpers ===== */
     function getViewportMaxHeight() {
-      var padded = Math.max(appState.mission.targetHeight, appState.mission.apexHeight) * 1.15;
-      var rounded = Math.ceil(padded / 30) * 30;
-      return Math.max(180, rounded);
+      var target = appState.mission.targetHeight;
+      return Math.max(90, target / 0.82);
+    }
+
+    function getMinimapScale(viewportMaxHeight) {
+      var trackedHeight = Math.max(appState.flightView.height, appState.flightView.maxHeightSeen, appState.mission.targetHeight);
+      return Math.max(viewportMaxHeight, trackedHeight * 1.08);
     }
 
     function getAltitudeTicks(viewportMaxHeight) {
@@ -357,14 +361,14 @@
 
       if (stage === 1) {
         return {
-          title: 'Stage 1 ΓÇö Burn phase',
+          title: 'Stage 1 - Burn phase',
           tone: 'sky',
           description: 'Burn phase knowns/unknowns: known v0 = 0, known burn acceleration, known burn time. Solve both burn height and burnout velocity.',
           values: [
-            { label: '╬öy', value: appState.burnLocked ? mission.burnoutHeight.toFixed(1) + ' m (╬öy1)' : '?' },
-            { label: 'vΓéÇ', value: '0.0 m/s' },
+            { label: 'dy', value: appState.burnLocked ? mission.burnoutHeight.toFixed(1) + ' m (dy1)' : '?' },
+            { label: 'v0', value: '0.0 m/s' },
             { label: 'v', value: appState.burnLocked ? '+' + mission.burnoutVelocity.toFixed(1) + ' m/s' : '?' },
-            { label: 'a', value: '+' + mission.burnAccel.toFixed(1) + ' m/s┬▓' },
+            { label: 'a', value: '+' + mission.burnAccel.toFixed(1) + ' m/s^2' },
             { label: 't', value: mission.burnTime.toFixed(2) + ' s' },
           ],
         };
@@ -372,14 +376,14 @@
 
       if (stage === 2) {
         return {
-          title: 'Stage 2 ΓÇö Coast phase',
+          title: 'Stage 2 - Coast phase',
           tone: 'violet',
           description: 'Coast phase knowns/unknowns: known v0 from burnout, known a = -10, final v = 0 at apex, solve for coast height.',
           values: [
-            { label: '╬öy', value: appState.coastSubC.done ? mission.coastHeight.toFixed(1) + ' m (╬öy2)' : '?' },
-            { label: 'vΓéÇ', value: appState.burnLocked ? '+' + mission.burnoutVelocity.toFixed(1) + ' m/s' : '?' },
+            { label: 'dy', value: appState.coastSubC.done ? mission.coastHeight.toFixed(1) + ' m (dy2)' : '?' },
+            { label: 'v0', value: appState.burnLocked ? '+' + mission.burnoutVelocity.toFixed(1) + ' m/s' : '?' },
             { label: 'v', value: '0.0 m/s (at apex)' },
-            { label: 'a', value: mission.gravity.toFixed(1) + ' m/s┬▓' },
+            { label: 'a', value: mission.gravity.toFixed(1) + ' m/s^2' },
             { label: 't', value: appState.coastSubC.done ? mission.timeToApexFromBurnout.toFixed(2) + ' s' : '?' },
           ],
         };
@@ -387,12 +391,12 @@
 
       if (stage === 3) {
         return {
-          title: 'Stage 3 ΓÇö Apex verification',
+          title: 'Stage 3 - Apex verification',
           tone: 'red',
           description: 'Combine the burn and coast displacements to predict the apex, then launch the verification run and compare it with the measured max height.',
           values: [
-            { label: '╬öy', value: appState.coastSubD.done ? mission.apexHeight.toFixed(1) + ' m (y_apex)' : '?' },
-            { label: 'vΓéÇ', value: '0.0 m/s' },
+            { label: 'dy', value: appState.coastSubD.done ? mission.apexHeight.toFixed(1) + ' m (y_apex)' : '?' },
+            { label: 'v0', value: '0.0 m/s' },
             { label: 'v', value: '0.0 m/s (at apex)' },
             { label: 'a', value: 'derived from stages 1 + 2' },
             { label: 't', value: 'launch to verify' },
@@ -401,16 +405,16 @@
       }
 
       return {
-        title: 'Stage 4 ΓÇö Investigation mode',
+        title: 'Stage 4 - Investigation mode',
         tone: 'emerald',
         description: challenge && challenge.type === 'landing'
           ? 'Landing challenge: match the planned burn timing and retro window, then finish with a safe touchdown.'
           : 'Apex challenge: time your burn cutoff to hit the target apex, then compare the recorded result with the challenge goal.',
         values: [
-          { label: '╬öy', value: 'ΓêÆ' + mission.retroHeight.toFixed(1) + ' m' },
-          { label: 'vΓéÇ', value: 'ΓêÆ' + mission.descentSpeedAtRetro.toFixed(1) + ' m/s' },
+          { label: 'dy', value: '<= ' + mission.retroHeight.toFixed(1) + ' m' },
+          { label: 'v0', value: '<= ' + mission.descentSpeedAtRetro.toFixed(1) + ' m/s' },
           { label: 'v', value: '0.0 m/s' },
-          { label: 'a', value: '+' + mission.retroAccel.toFixed(1) + ' m/s┬▓' },
+          { label: 'a', value: '+' + mission.retroAccel.toFixed(1) + ' m/s^2' },
           { label: 't', value: mission.retroBurnDuration.toFixed(2) + ' s' },
         ],
       };
@@ -1046,12 +1050,12 @@
       var mission = appState.mission;
       if (stage === 'powered') {
         el.eqLabel.textContent = 'Burn Phase';
-        el.eqBody.innerHTML = 'Use <span class="eq">╬öy = 1/2at┬▓</span> and <span class="eq">v = at</span> with <span class="eq">a = ' + mission.burnAccel.toFixed(1) + ' m/s┬▓</span>.';
+        el.eqBody.innerHTML = 'Use <span class="eq">dy = 1/2at^2</span> and <span class="eq">v = at</span> with <span class="eq">a = ' + mission.burnAccel.toFixed(1) + ' m/s^2</span>.';
         return;
       }
       if (stage === 'coast') {
         el.eqLabel.textContent = 'Coast Phase';
-        el.eqBody.innerHTML = 'Use <span class="eq">v┬▓ = v0┬▓ + 2a╬öy</span> with <span class="eq">a = -10 m/s┬▓</span> to solve the climb to apex.';
+        el.eqBody.innerHTML = 'Use <span class="eq">v^2 = v0^2 + 2ady</span> with <span class="eq">a = -10 m/s^2</span> to solve the climb to apex.';
         return;
       }
       if (stage === 'descent' || stage === 'retro') {
@@ -1069,7 +1073,7 @@
         el.eqBody.innerHTML = 'Use the burnout velocity from Stage 1 and solve the additional coast height.';
       } else if (appState.briefStage === 3) {
         el.eqLabel.textContent = 'Apex Verification';
-        el.eqBody.innerHTML = 'Add <span class="eq">╬öy1 + ╬öy2</span>, predict the apex, then launch the verification run.';
+        el.eqBody.innerHTML = 'Add <span class="eq">dy1 + dy2</span>, predict the apex, then launch the verification run.';
       } else {
         el.eqLabel.textContent = 'Investigation';
         el.eqBody.innerHTML = 'Run your own trials and use the recorded flight data to compare planned and measured results.';
@@ -1089,13 +1093,17 @@
       accelArrow.classList.toggle('hidden', !showVectors);
       if (!showVectors) return;
 
-      var velocityMagnitude = Math.min(90, 20 + Math.abs(velocity) * 1.3);
-      var accelMagnitude = Math.min(90, 20 + Math.abs(acceleration) * 3.5);
+      var velocityMagnitude = Math.min(180, (20 + Math.abs(velocity) * 1.3) * 2);
+      var accelMagnitude = Math.min(180, (20 + Math.abs(acceleration) * 3.5) * 2);
 
-      velocityArrow.style.height = velocityMagnitude.toFixed(0) + 'px';
-      accelArrow.style.height = accelMagnitude.toFixed(0) + 'px';
-      velocityArrow.style.transform = velocity >= 0 ? 'translateX(-50%) rotate(0deg)' : 'translateX(-50%) rotate(180deg)';
-      accelArrow.style.transform = acceleration >= 0 ? 'translateX(-50%) rotate(0deg)' : 'translateX(-50%) rotate(180deg)';
+      velocityArrow.style.setProperty('--vec-len', velocityMagnitude.toFixed(0) + 'px');
+      accelArrow.style.setProperty('--vec-len', accelMagnitude.toFixed(0) + 'px');
+      velocityArrow.classList.toggle('up', velocity >= 0);
+      velocityArrow.classList.toggle('down', velocity < 0);
+      accelArrow.classList.toggle('up', acceleration >= 0);
+      accelArrow.classList.toggle('down', acceleration < 0);
+      velocityArrow.style.transform = 'translateX(-50%)';
+      accelArrow.style.transform = 'translateX(-50%)';
       velocityArrow.style.opacity = Math.abs(velocity) < 0.1 ? '0.35' : '';
       accelArrow.style.opacity = Math.abs(acceleration) < 0.1 ? '0.35' : '';
     }
@@ -1389,10 +1397,11 @@
     }
 
     function retryFlight() {
-      if (!appState.l4Done) return;
+      if (appState.briefStage < 4 || appState.flightView.isRunning || appState.levelDemoResult !== null) return;
       stopLoop();
       el.dustCloud.classList.remove('active', 'crash');
       resetRocketAttitudeState();
+      if (appState.challenge) appState.challenge.result = null;
       appState.simulation = { ...DEFAULT_SIMULATION_STATE };
       appState.flightView = { ...DEFAULT_FLIGHT_VIEW };
       appState.finishedMetrics = null;
@@ -2096,8 +2105,7 @@
       /* --- Minimap update --- */
       var mmTrackEl = el.minimap.querySelector('.minimap-track');
       var mmTrackH = mmTrackEl ? mmTrackEl.clientHeight - 10 : 200;
-      var mmScale = mission.targetHeight * 2.0;
-      if (fv.maxHeightSeen > mmScale) mmScale = fv.maxHeightSeen * 1.1;
+      var mmScale = getMinimapScale(viewportMax);
 
       function setMiniBand(bandEl, startH, endH) {
         if (!bandEl || !Number.isFinite(startH) || !Number.isFinite(endH) || mmScale <= 0) return;

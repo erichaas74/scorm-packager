@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unit 1 Lesson 4 - Reaction Time Lab</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:"Segoe UI",Tahoma,sans-serif;background:#0f172a;color:#e2e8f0}
+.shell{display:grid;grid-template-rows:auto 1fr;height:100%}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 16px;border-bottom:1px solid rgba(148,163,184,.2);background:linear-gradient(180deg,#0b1220 0%,#111c32 100%)}
+.title{font-size:14px;font-weight:700;letter-spacing:.02em}
+.topbar-controls{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:flex-end}
+.status{font-size:12px;color:#cbd5e1}
+.status strong{color:#facc15}
+.toggle{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:#cbd5e1;cursor:pointer;user-select:none}
+.toggle input{accent-color:#facc15}
+.frame-wrap{position:relative;min-height:0}
+iframe{display:block;width:100%;height:100%;border:0;background:#020617}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(2,6,23,.7);backdrop-filter:blur(4px);transition:opacity .2s ease}
+.overlay.hidden{opacity:0;pointer-events:none}
+.card{width:min(92vw,520px);padding:24px;border:1px solid rgba(148,163,184,.22);border-radius:20px;background:rgba(15,23,42,.96);box-shadow:0 20px 50px rgba(0,0,0,.35)}
+.card h1{margin:0 0 10px;font-size:24px;line-height:1.15}
+.card p{margin:0 0 14px;color:#cbd5e1;line-height:1.55}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:11px 16px;border-radius:999px;border:1px solid rgba(148,163,184,.25);background:#1e293b;color:#e2e8f0;text-decoration:none;font-weight:700;cursor:pointer}
+.btn.primary{background:#facc15;border-color:#facc15;color:#111827}
+.hint{font-size:12px;color:#94a3b8}
+@media (max-width: 700px){
+  .topbar{align-items:flex-start;flex-direction:column}
+  .card{padding:20px}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <div class="title">Unit 1 Lesson 4: Reaction Time Lab</div>
+    <div class="topbar-controls">
+      <label class="toggle" for="autofill-toggle"><input type="checkbox" id="autofill-toggle"> Test autofill</label>
+      <div class="status">Buzz status: <strong id="shell-status">Loading</strong></div>
+    </div>
+  </div>
+  <div class="frame-wrap">
+    <iframe id="lab-frame" title="Reaction Time Lab" allow="autoplay; fullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+    <div id="loading-overlay" class="overlay">
+      <div class="card">
+        <h1>Loading hosted lab</h1>
+        <p>This SCORM shell loads the live Netlify version inside Buzz and keeps completion plus resume data in SCORM.</p>
+        <div class="actions">
+          <a id="open-hosted-link" class="btn primary" target="_blank" rel="noopener" href="https://haas-u1-l4-reaction-lab.netlify.app/">Open hosted lab in new tab</a>
+        </div>
+        <p class="hint">If your LMS blocks the iframe, open the hosted link once to verify the deployment.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(global) {
+  'use strict';
+
+  var _api = null;
+  var _initialized = false;
+  var _finished = false;
+
+  function _findAPIInFrameTree(win) {
+    var depth = 0;
+    try {
+      while (win.API == null && win.parent != null && win.parent !== win) {
+        depth += 1;
+        if (depth > 7) return null;
+        win = win.parent;
+      }
+      return win.API || null;
+    } catch (e) {
+      console.warn('[SCORM] Cross-origin frame access blocked at depth', depth);
+      return null;
+    }
+  }
+
+  function _discoverAPI() {
+    if (_api) return _api;
+    _api = _findAPIInFrameTree(global);
+    if (!_api && global.opener) {
+      try {
+        _api = _findAPIInFrameTree(global.opener);
+      } catch (e) {
+        console.warn('[SCORM] Opener window access blocked.');
+      }
+    }
+    if (!_api) console.warn('[SCORM] LMS API not found – running in standalone mode.');
+    return _api;
+  }
+
+  function _isTrue(result) {
+    if (result === true || result === 1) return true;
+    if (typeof result === 'string') return result.toLowerCase() === 'true';
+    return false;
+  }
+
+  function _reportLastError(api, action, element) {
+    if (!api || !api.LMSGetLastError) return false;
+    var code = String(api.LMSGetLastError() || '0');
+    if (code === '0') return false;
+    var message = api.LMSGetErrorString ? api.LMSGetErrorString(code) : '';
+    var diagnostic = api.LMSGetDiagnostic ? api.LMSGetDiagnostic(code) : '';
+    console.error('[SCORM] ' + action + ' failed.', 'element:', element || '-', 'code:', code, 'message:', message || '-', 'diagnostic:', diagnostic || '-');
+    return true;
+  }
+
+  function _ensureInitialized(api) {
+    if (_initialized) return true;
+    var result = api.LMSInitialize('');
+    if (!_isTrue(result)) {
+      _reportLastError(api, 'LMSInitialize');
+      return false;
+    }
+    _initialized = true;
+    _finished = false;
+    return true;
+  }
+
+  function initialize() {
+    var api = _discoverAPI();
+    if (!api) return false;
+    return _ensureInitialized(api);
+  }
+
+  function getValue(element) {
+    var api = _discoverAPI();
+    if (!api) return '';
+    if (!_ensureInitialized(api)) return '';
+    var value = api.LMSGetValue(element);
+    _reportLastError(api, 'LMSGetValue', element);
+    return value;
+  }
+
+  function setValue(element, value) {
+    var api = _discoverAPI();
+    if (!api) return false;
+    if (!_ensureInitialized(api)) return false;
+    var result = api.LMSSetValue(element, String(value));
+    if (!_isTrue(result)) {
+      _reportLastError(api, 'LMSSetValue', element);
+      return false;
+    }
+    _reportLastError(api, 'LMSSetValue', element);
+    return true;
+  }
+
+  function commit() {
+    var api = _discoverAPI();
+    if (!api) return false;
+    if (!_ensureInitialized(api)) return false;
+    var result = api.LMSCommit('');
+    if (!_isTrue(result)) {
+      _reportLastError(api, 'LMSCommit');
+      return false;
+    }
+    _reportLastError(api, 'LMSCommit');
+    return true;
+  }
+
+  function finish() {
+    var api = _discoverAPI();
+    if (!api) return false;
+    if (_finished || !_initialized) return true;
+    var commitResult = api.LMSCommit('');
+    if (!_isTrue(commitResult)) _reportLastError(api, 'LMSCommit');
+    var result = api.LMSFinish('');
+    if (!_isTrue(result)) {
+      _reportLastError(api, 'LMSFinish');
+      return false;
+    }
+    _initialized = false;
+    _finished = true;
+    return true;
+  }
+
+  function setStatus(status) {
+    var valid = ['passed', 'failed', 'completed', 'incomplete', 'browsed', 'not attempted'];
+    if (valid.indexOf(status) === -1) console.warn('[SCORM] setStatus received unexpected value:', status);
+    setValue('cmi.core.lesson_status', status);
+    commit();
+  }
+
+  global.addEventListener('load', function() {
+    initialize();
+  });
+
+  global.addEventListener('beforeunload', function() {
+    if (_initialized) finish();
+  });
+
+  global.SCORM = {
+    initialize: initialize,
+    finish: finish,
+    commit: commit,
+    getValue: getValue,
+    setValue: setValue,
+    setStatus: setStatus
+  };
+}(window));
+</script>
+<script>
+(function(global) {
+  'use strict';
+
+  var EMBED_URL = 'https://haas-u1-l4-reaction-lab.netlify.app/';
+  var EMBED_ORIGIN = 'https://haas-u1-l4-reaction-lab.netlify.app';
+  var CHANNEL = 'reaction-time-lab';
+  var HOST_SOURCE = 'reaction-time-lab-host';
+  var SHELL_SOURCE = 'reaction-time-lab-shell';
+  var AUTOFILL_KEY = 'reaction-lab-test-autofill';
+
+  var shellState = {
+    suspendData: '',
+    lessonStatus: 'incomplete'
+  };
+
+  var iframeEl = null;
+  var overlayEl = null;
+  var statusEl = null;
+  var toggleEl = null;
+  var openLinkEl = null;
+
+  function searchFlagEnabled(name) {
+    try {
+      var value = new URLSearchParams(global.location.search || '').get(name);
+      if (value === null) return false;
+      value = String(value).toLowerCase();
+      return value === '' || value === '1' || value === 'true' || value === 'yes' || value === 'on';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function isAutofillEnabled() {
+    if (searchFlagEnabled('autofill')) return true;
+    try {
+      return global.localStorage.getItem(AUTOFILL_KEY) === '1';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function setAutofillEnabled(enabled) {
+    try {
+      global.localStorage.setItem(AUTOFILL_KEY, enabled ? '1' : '0');
+    } catch (e) {}
+  }
+
+  function getEmbedUrl() {
+    return EMBED_URL + (isAutofillEnabled() ? '?autofill=1' : '');
+  }
+
+  function readScormState() {
+    if (typeof SCORM === 'undefined') return;
+    shellState.suspendData = SCORM.getValue('cmi.suspend_data') || '';
+    shellState.lessonStatus = SCORM.getValue('cmi.core.lesson_status') || 'incomplete';
+  }
+
+  function writeSuspendData(payload) {
+    shellState.suspendData = payload || '';
+    if (typeof SCORM === 'undefined') return;
+    SCORM.setValue('cmi.suspend_data', shellState.suspendData);
+    SCORM.commit();
+  }
+
+  function writeLessonStatus(status) {
+    shellState.lessonStatus = status || 'incomplete';
+    if (typeof SCORM !== 'undefined') {
+      SCORM.setStatus(shellState.lessonStatus);
+      SCORM.commit();
+    }
+    renderStatus();
+  }
+
+  function clearScormState() {
+    shellState.suspendData = '';
+    shellState.lessonStatus = 'incomplete';
+    if (typeof SCORM !== 'undefined') {
+      SCORM.setValue('cmi.suspend_data', '');
+      SCORM.setValue('cmi.core.score.raw', '');
+      SCORM.setValue('cmi.core.score.min', '');
+      SCORM.setValue('cmi.core.score.max', '');
+      SCORM.setStatus('incomplete');
+      SCORM.commit();
+    }
+    renderStatus();
+  }
+
+  function renderStatus() {
+    if (!statusEl) return;
+    var text = shellState.lessonStatus || 'incomplete';
+    statusEl.textContent = text.charAt(0).toUpperCase() + text.slice(1);
+  }
+
+  function reloadEmbed() {
+    if (!iframeEl) return;
+    if (overlayEl) overlayEl.classList.remove('hidden');
+    if (openLinkEl) openLinkEl.href = getEmbedUrl();
+    iframeEl.src = getEmbedUrl();
+  }
+
+  function respondToLaunchRequest(requestId) {
+    if (!iframeEl || !iframeEl.contentWindow) return;
+    iframeEl.contentWindow.postMessage({
+      channel: CHANNEL,
+      source: SHELL_SOURCE,
+      type: 'launch-data',
+      requestId: requestId || '',
+      payload: {
+        suspendData: shellState.suspendData,
+        lessonStatus: shellState.lessonStatus
+      }
+    }, EMBED_ORIGIN);
+  }
+
+  function handleMessage(event) {
+    if (event.origin !== EMBED_ORIGIN) return;
+    if (!iframeEl || event.source !== iframeEl.contentWindow) return;
+
+    var data = event.data;
+    if (!data || data.channel !== CHANNEL || data.source !== HOST_SOURCE) return;
+
+    switch (data.type) {
+      case 'launch-request':
+        respondToLaunchRequest(data.requestId);
+        break;
+      case 'set-suspend-data':
+        writeSuspendData(data.payload && data.payload.suspendData);
+        break;
+      case 'set-status':
+        writeLessonStatus(data.payload && data.payload.lessonStatus);
+        break;
+      case 'clear-state':
+        clearScormState();
+        break;
+      case 'submitted':
+        writeLessonStatus('completed');
+        break;
+    }
+  }
+
+  function init() {
+    iframeEl = document.getElementById('lab-frame');
+    overlayEl = document.getElementById('loading-overlay');
+    statusEl = document.getElementById('shell-status');
+    toggleEl = document.getElementById('autofill-toggle');
+    openLinkEl = document.getElementById('open-hosted-link');
+
+    readScormState();
+    renderStatus();
+
+    if (toggleEl) {
+      toggleEl.checked = isAutofillEnabled();
+      toggleEl.addEventListener('change', function() {
+        setAutofillEnabled(toggleEl.checked);
+        reloadEmbed();
+      });
+    }
+
+    reloadEmbed();
+    iframeEl.addEventListener('load', function() {
+      overlayEl.classList.add('hidden');
+    });
+
+    global.addEventListener('message', handleMessage);
+  }
+
+  global.addEventListener('load', init);
+}(window));
+</script>
+</body>
+</html>

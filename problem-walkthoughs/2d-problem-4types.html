@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2D Kinematics Diagram Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Pulsating keyframes for the acceleration arrow */
+    @keyframes accelPulse {
+      0%, 100% { opacity: 0.15; }
+      50% { opacity: 1; }
+    }
+  </style>
+</head>
+<body class="flex h-screen w-full bg-slate-50 font-sans text-slate-800">
+
+  <!-- Control Panel (Left Sidebar) -->
+  <div class="w-96 bg-white border-r border-slate-200 shadow-sm flex flex-col z-10 overflow-hidden">
+    <div class="p-6 border-b border-slate-100 bg-slate-50 flex items-center gap-3">
+      <!-- Settings Icon -->
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"/><path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/><path d="M12 2v2"/><path d="M12 22v-2"/><path d="m17 20.66-1-1.73"/><path d="M11 10.27 7 3.34"/><path d="m20.66 17-1.73-1"/><path d="m3.34 7 1.73 1"/><path d="M14 12h8"/><path d="M2 12h2"/><path d="m20.66 7-1.73 1"/><path d="m3.34 17 1.73-1"/><path d="m17 3.34-1 1.73"/><path d="m11 13.73-4 6.93"/></svg>
+      <h1 class="text-xl font-bold text-slate-800">2D Kinematics</h1>
+    </div>
+
+    <div class="p-6 overflow-y-auto flex-1">
+      
+      <!-- Animation Toggle -->
+      <div class="mb-8">
+        <label class="block text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Animation</label>
+        <div class="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-lg">
+          <button data-action="animation" data-val="false" class="flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all">Static</button>
+          <button data-action="animation" data-val="true" class="flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all">Animated</button>
+        </div>
+      </div>
+
+      <!-- Motion Type Selection -->
+      <div class="mb-8">
+        <label class="block text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Launch Scenario</label>
+        <div class="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-lg">
+          <button data-action="motion" data-val="flat" class="flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all">Flat Ground</button>
+          <button data-action="motion" data-val="higher" class="flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all">Higher Landing</button>
+          <button data-action="motion" data-val="lower" class="flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all">Lower Landing</button>
+          <button data-action="motion" data-val="drop" class="flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all">Moving Drop</button>
+        </div>
+      </div>
+
+      <!-- Object Type Selection -->
+      <div class="mb-8">
+        <label class="block text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Object Type</label>
+        <div class="grid grid-cols-3 gap-2 bg-slate-100 p-1 rounded-lg">
+          <button data-action="object" data-val="block" class="flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all capitalize">block</button>
+          <button data-action="object" data-val="ball" class="flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all capitalize">ball</button>
+          <button data-action="object" data-val="person" class="flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all capitalize">person</button>
+        </div>
+      </div>
+
+      <!-- Ruler Style Toggle -->
+      <div class="mb-8">
+        <label class="block text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Ruler Style</label>
+        <div class="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-lg">
+          <button data-action="ruler" data-val="simple" class="flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all">Simple</button>
+          <button data-action="ruler" data-val="detailed" class="flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all">Detailed</button>
+        </div>
+      </div>
+
+      <!-- Variables List -->
+      <div class="space-y-4">
+        <label class="block text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">Variables</label>
+        <div id="variables-container" class="space-y-4">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Canvas Area (Right Side) -->
+  <div class="flex-1 flex items-center justify-center p-8 bg-slate-200/50">
+    <div class="w-full max-w-5xl aspect-[4/3] bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden relative" id="svg-container">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+
+  <script>
+    // Icons
+    const eyeIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`;
+    const eyeOffIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>`;
+
+    // Global State for 2D Motion
+    let state = {
+      motionType: 'flat', 
+      objectType: 'ball', 
+      isAnimated: false,
+      rulerStyle: 'detailed',
+      vars: {
+        dx: { show: true, val: '200', unit: 'm', unknown: false, label: 'Horizontal Dist (Δx)' },
+        dy: { show: true, val: '50', unit: 'm', unknown: false, label: 'Vertical Dist (Δy)' },
+        v0: { show: true, val: '30', unit: 'm/s', unknown: false, label: 'Initial Velocity (v0)' },
+        theta: { show: true, val: '45', unit: '°', unknown: false, label: 'Launch Angle (θ)' },
+        v: { show: true, val: '', unit: 'm/s', unknown: true, label: 'Final Velocity (v)' },
+        a: { show: true, val: '-9.8', unit: 'm/s²', unknown: false, label: 'Acceleration (a)' },
+        t: { show: false, val: '4.5', unit: 's', unknown: false, label: 'Time (t)' }
+      }
+    };
+
+    function updateState(key, value) {
+      state[key] = value;
+      if (state.motionType === 'drop') {
+        state.vars.theta.val = '0';
+      }
+      updateButtonsUI();
+      updateVarsUI();
+      drawSVG();
+    }
+
+    function updateVar(key, field, value) {
+      state.vars[key][field] = value;
+      if (state.motionType === 'drop' && key === 'theta') {
+        state.vars.theta.val = '0';
+      }
+      updateVarsUI();
+      drawSVG();
+    }
+
+    function init() {
+      buildVariablesUI();
+      setupButtonListeners();
+      updateButtonsUI();
+      updateVarsUI();
+      drawSVG();
+    }
+
+    function setupButtonListeners() {
+      document.querySelectorAll('button[data-action]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const action = btn.dataset.action;
+          const val = btn.dataset.val;
+          if (action === 'animation') updateState('isAnimated', val === 'true');
+          if (action === 'motion') updateState('motionType', val);
+          if (action === 'object') updateState('objectType', val);
+          if (action === 'ruler') updateState('rulerStyle', val);
+        });
+      });
+    }
+
+    function updateButtonsUI() {
+      document.querySelectorAll('button[data-action]').forEach(btn => {
+        const action = btn.dataset.action;
+        const val = btn.dataset.val;
+        let isActive = false;
+
+        if (action === 'animation') isActive = state.isAnimated === (val === 'true');
+        if (action === 'motion') isActive = state.motionType === val;
+        if (action === 'object') isActive = state.objectType === val;
+        if (action === 'ruler') isActive = state.rulerStyle === val;
+
+        if (isActive) {
+          btn.className = `flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all capitalize bg-white shadow-sm text-blue-600`;
+        } else {
+          btn.className = `flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all capitalize text-slate-500 hover:text-slate-700`;
+        }
+      });
+    }
+
+    function buildVariablesUI() {
+      const container = document.getElementById('variables-container');
+      container.innerHTML = '';
+
+      Object.keys(state.vars).forEach(key => {
+        const data = state.vars[key];
+        
+        const wrapper = document.createElement('div');
+        wrapper.id = `var-wrapper-${key}`;
+        wrapper.className = `border rounded-xl p-4 transition-colors`;
+
+        wrapper.innerHTML = `
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <button id="var-show-${key}" class="p-1 rounded-md hover:bg-slate-100"></button>
+              <span id="var-label-${key}" class="font-semibold text-sm"></span>
+            </div>
+            <label id="var-unk-label-${key}" class="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" id="var-unknown-${key}" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+              Unknown (?)
+            </label>
+          </div>
+          <div id="var-inputs-${key}" class="flex gap-2">
+            <input type="text" id="var-val-${key}" placeholder="Value" class="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:text-slate-400" />
+            <input type="text" id="var-unit-${key}" placeholder="Unit" class="w-16 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:text-slate-400" />
+          </div>
+        `;
+        container.appendChild(wrapper);
+
+        document.getElementById(`var-show-${key}`).addEventListener('click', () => updateVar(key, 'show', !state.vars[key].show));
+        document.getElementById(`var-unknown-${key}`).addEventListener('change', (e) => updateVar(key, 'unknown', e.target.checked));
+        document.getElementById(`var-val-${key}`).addEventListener('input', (e) => updateVar(key, 'val', e.target.value));
+        document.getElementById(`var-unit-${key}`).addEventListener('input', (e) => updateVar(key, 'unit', e.target.value));
+      });
+    }
+
+    function updateVarsUI() {
+      if (state.motionType === 'flat') {
+        state.vars.dy.label = 'Max Height (H_max)';
+      } else {
+        state.vars.dy.label = 'Vertical Dist (Δy)';
+      }
+
+      Object.keys(state.vars).forEach(key => {
+        const data = state.vars[key];
+        const wrapper = document.getElementById(`var-wrapper-${key}`);
+        const showBtn = document.getElementById(`var-show-${key}`);
+        const label = document.getElementById(`var-label-${key}`);
+        const unkLabel = document.getElementById(`var-unk-label-${key}`);
+        const unkCheck = document.getElementById(`var-unknown-${key}`);
+        const inputs = document.getElementById(`var-inputs-${key}`);
+        const valInput = document.getElementById(`var-val-${key}`);
+        const unitInput = document.getElementById(`var-unit-${key}`);
+
+        wrapper.className = `border rounded-xl p-4 transition-colors ${data.show ? 'bg-white border-blue-200 shadow-sm' : 'bg-slate-50 border-slate-200'}`;
+        showBtn.className = `p-1 rounded-md hover:bg-slate-100 ${data.show ? 'text-blue-600' : 'text-slate-400'}`;
+        showBtn.innerHTML = data.show ? eyeIcon : eyeOffIcon;
+        
+        label.textContent = data.label;
+        label.className = `font-semibold text-sm ${data.show ? 'text-slate-800' : 'text-slate-400'}`;
+        
+        unkLabel.className = `flex items-center gap-2 text-sm cursor-pointer ${data.unknown ? 'text-blue-600 font-medium' : 'text-slate-500'}`;
+        unkCheck.checked = data.unknown;
+
+        inputs.style.display = data.show ? 'flex' : 'none';
+        
+        if (valInput.value !== data.val) valInput.value = data.val;
+        if (unitInput.value !== data.unit) unitInput.value = data.unit;
+        
+        valInput.disabled = data.unknown || (state.motionType === 'drop' && key === 'theta');
+        unitInput.disabled = data.unknown;
+      });
+    }
+
+    function formatVarName(key) {
+      if (key === 'dx') return `<tspan><tspan font-style="normal">Δ</tspan><tspan font-style="italic">x</tspan></tspan>`;
+      if (key === 'dy') {
+        if (state.motionType === 'flat') return `<tspan><tspan font-style="italic">H</tspan><tspan font-style="normal" dy="4" font-size="0.75em">max</tspan><tspan dy="-4"></tspan></tspan>`;
+        return `<tspan><tspan font-style="normal">Δ</tspan><tspan font-style="italic">y</tspan></tspan>`;
+      }
+      if (key === 'v0') return `<tspan><tspan font-style="italic">v</tspan><tspan font-style="normal" dy="4" font-size="0.75em">0</tspan><tspan dy="-4"></tspan></tspan>`;
+      if (key === 'theta') return `<tspan font-style="normal">&theta;</tspan>`;
+      return `<tspan font-style="italic">${key}</tspan>`;
+    }
+
+    function getLabelText(data) {
+      if (data.unknown) return "?";
+      return `${data.val} ${data.unit}`;
+    }
+
+    function RenderObject(x, y, type, opacity) {
+      const mainColor = "#64748b";
+      const strokeColor = "#334155";
+      
+      if (type === 'ball') {
+        const ballColor = "#ea580c"; 
+        const ballStroke = "#9a3412"; 
+        const seamColor = "#431407"; 
+        return `
+          <g transform="translate(${x}, ${y})" opacity="${opacity}">
+            <circle cx="0" cy="0" r="20" fill="${ballColor}" stroke="${ballStroke}" stroke-width="2" />
+            <path d="M -8 -12 A 12 12 0 0 1 8 -12 A 14 14 0 0 0 -8 -12 Z" fill="#ffffff" opacity="0.3" />
+            <path d="M 0 -20 L 0 20 M -20 0 L 20 0" fill="none" stroke="${seamColor}" stroke-width="1.5" opacity="0.7" />
+            <path d="M -14 -14 Q -5 0 -14 14 M 14 -14 Q 5 0 14 14" fill="none" stroke="${seamColor}" stroke-width="1.5" opacity="0.7" />
+          </g>
+        `;
+      }
+      
+      if (type === 'person') {
+        return `
+          <g transform="translate(${x}, ${y - 5})" opacity="${opacity}">
+            <circle cx="0" cy="-18" r="7" fill="${mainColor}" stroke="${strokeColor}" stroke-width="2" />
+            <rect x="-5" y="-10" width="10" height="18" rx="4" fill="${mainColor}" stroke="${strokeColor}" stroke-width="2" />
+            <path d="M -5 -6 Q -14 -2 -12 8" fill="none" stroke="${mainColor}" stroke-width="5" stroke-linecap="round" />
+            <path d="M 5 -6 Q 14 -2 12 8" fill="none" stroke="${mainColor}" stroke-width="5" stroke-linecap="round" />
+            <path d="M -2 7 L -6 24" fill="none" stroke="${mainColor}" stroke-width="5" stroke-linecap="round" />
+            <path d="M 2 7 L 6 24" fill="none" stroke="${mainColor}" stroke-width="5" stroke-linecap="round" />
+          </g>
+        `;
+      }
+
+      if (type === 'plane') {
+        return `
+          <g transform="translate(${x}, ${y})" opacity="${opacity}">
+            <path d="M -35 0 C -15 -12, 15 -12, 35 0 L 45 5 L 35 10 C 15 15, -15 15, -35 5 Z" fill="${mainColor}" stroke="${strokeColor}" stroke-width="2"/>
+            <path d="M -30 0 L -45 -20 L -25 -5" fill="${mainColor}" stroke="${strokeColor}" stroke-width="2"/>
+            <path d="M -5 5 L 10 30 L 25 5" fill="${mainColor}" stroke="${strokeColor}" stroke-width="2"/>
+            <path d="M 5 -3 L 20 -25 L 30 -3" fill="${mainColor}" stroke="${strokeColor}" stroke-width="2" opacity="0.6"/>
+          </g>
+        `;
+      }
+
+      return `
+        <g transform="translate(${x - 20}, ${y - 20})" opacity="${opacity}">
+          <rect width="40" height="40" rx="3" fill="${mainColor}" stroke="${strokeColor}" stroke-width="2" />
+          <rect x="4" y="4" width="32" height="32" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.3" />
+          <line x1="4" y1="4" x2="36" y2="36" stroke="#ffffff" stroke-width="1.5" opacity="0.3" />
+          <line x1="36" y1="4" x2="4" y2="36" stroke="#ffffff" stroke-width="1.5" opacity="0.3" />
+        </g>
+      `;
+    }
+
+    function AngleArrow(startX, startY, angleDeg, color, varKey, data, showArc, arcData, isAccel, isAnimated) {
+      const length = isAccel ? 80 : 70;
+      const angleRad = angleDeg * Math.PI / 180;
+      const endX = startX + length * Math.cos(angleRad);
+      const endY = startY + length * Math.sin(angleRad);
+
+      const midX = (startX + endX) / 2;
+      const midY = (startY + endY) / 2;
+
+      const perpAngle = angleRad - Math.PI / 2;
+      let labelDist = 30;
+      if (isAccel) labelDist = 45;
+      
+      let textX = midX + labelDist * Math.cos(perpAngle);
+      let textY = midY + labelDist * Math.sin(perpAngle);
+
+      if (isAccel) {
+        textX = midX + 80;
+        textY = midY;
+      }
+
+      let innerSvg = '';
+
+      if (isAccel) {
+        const heads = [0.2, 0.5, 0.8].map((t, i) => ({
+          x: startX + (endX - startX) * t,
+          y: startY + (endY - startY) * t,
+          scale: 0.7 + (i * 0.4),
+          delay: i * 0.3
+        }));
+        const headsSvg = heads.map((h, i) => `
+          <g transform="translate(${h.x}, ${h.y}) rotate(${angleDeg + 90}) scale(${h.scale})">
+            <path d="M -6 -8 L 8 0 L -6 8 Z" fill="${color}" style="${isAnimated ? `animation: accelPulse 1.5s infinite; animation-delay: ${h.delay}s;` : `opacity: 1;`}" />
+          </g>
+        `).join('');
+        
+        innerSvg = `
+          <line x1="${startX}" y1="${startY}" x2="${endX}" y2="${endY}" stroke="${color}" stroke-width="2" stroke-dasharray="3 3" opacity="0.4" />
+          ${headsSvg}
+        `;
+      } else {
+        const markerId = `head-${color.replace('#', '')}`;
+        innerSvg = `<line x1="${startX}" y1="${startY}" x2="${endX}" y2="${endY}" stroke="${color}" stroke-width="3" marker-end="url(#${markerId})" />`;
+      }
+
+      let arcSvg = "";
+      if (showArc && arcData && arcData.show) {
+         const r = 40;
+         const arcStartX = startX + r;
+         const arcStartY = startY;
+         const arcEndX = startX + r * Math.cos(angleRad);
+         const arcEndY = startY + r * Math.sin(angleRad);
+         const sweep = angleDeg < 0 ? 0 : 1;
+         
+         arcSvg += `<line x1="${startX}" y1="${startY}" x2="${startX + r + 20}" y2="${startY}" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 4"/>`;
+         
+         if (angleDeg !== 0) {
+           arcSvg += `
+             <path d="M ${arcStartX} ${arcStartY} A ${r} ${r} 0 0 ${sweep} ${arcEndX} ${arcEndY}" fill="none" stroke="${color}" stroke-width="2" />
+             <text x="${startX + r + 25}" y="${startY - 15}" fill="${color}" font-size="16" font-weight="bold" font-family="serif" text-anchor="middle">&theta; = ${getLabelText(arcData)}</text>
+           `;
+         }
+      }
+
+      return `
+        <g>
+          ${arcSvg}
+          ${innerSvg}
+          <text x="${textX}" y="${textY}" fill="${color}" font-size="20" font-weight="bold" text-anchor="middle" dominant-baseline="middle" font-family="serif">
+            ${formatVarName(varKey)} = ${getLabelText(data)}
+          </text>
+        </g>
+      `;
+    }
+
+    function RulerGraphic(startX, startY, endX, endY, data, style, varKey) {
+      const isHoriz = Math.abs(startY - endY) < 1;
+      const length = isHoriz ? Math.abs(endX - startX) : Math.abs(endY - startY);
+      
+      let textX, textY, rot;
+      if (isHoriz) {
+        textX = (startX + endX) / 2;
+        textY = startY + 25;
+        rot = 0;
+      } else {
+        textX = startX - 25;
+        textY = (startY + endY) / 2;
+        rot = -90;
+
+        if (state.motionType === 'lower' && varKey === 'dy') {
+          textX = startX + 65; 
+          rot = 0; 
+        }
+      }
+
+      if (style === 'detailed') {
+        const parsedVal = parseFloat(data.val);
+        const isValidVal = !isNaN(parsedVal) && !data.unknown && Math.abs(parsedVal) > 0;
+        
+        if (isValidVal) {
+          const maxVal = Math.abs(parsedVal);
+          let bestStep = 10;
+          if (maxVal >= 250) bestStep = 100;
+          else if (maxVal >= 100) bestStep = 50;
+          else if (maxVal >= 50) bestStep = 25;
+          else bestStep = 10;
+
+          let ticksSvg = '';
+          const dirX = isHoriz ? (endX > startX ? 1 : -1) : 0;
+          const dirY = isHoriz ? 0 : (endY > startY ? 1 : -1);
+
+          for (let val = 0; val <= maxVal; val += (bestStep / 5)) {
+            const cleanVal = Math.round(val * 10000) / 10000;
+            if (cleanVal > maxVal + 0.0001) break;
+
+            const isMajor = Math.abs(cleanVal % bestStep) < 0.001 || Math.abs((cleanVal % bestStep) - bestStep) < 0.001;
+            const pixelDist = (cleanVal / maxVal) * length;
+            
+            const cx = startX + dirX * pixelDist;
+            const cy = startY + dirY * pixelDist;
+            const tickLength = isMajor ? 12 : 6;
+
+            if (isHoriz) {
+              ticksSvg += `<line x1="${cx}" y1="${cy - 10}" x2="${cx}" y2="${cy - 10 + tickLength}" stroke="#ca8a04" stroke-width="${isMajor ? 2 : 1}" />`;
+              if (isMajor) {
+                ticksSvg += `<text x="${cx}" y="${cy + 7}" fill="#a16207" font-size="10" font-weight="bold" text-anchor="middle">${cleanVal}</text>`;
+              }
+            } else {
+              ticksSvg += `<line x1="${cx + 10 - tickLength}" y1="${cy}" x2="${cx + 10}" y2="${cy}" stroke="#ca8a04" stroke-width="${isMajor ? 2 : 1}" />`;
+              if (isMajor) {
+                ticksSvg += `<text x="${cx - 2}" y="${cy}" fill="#a16207" font-size="10" font-weight="bold" text-anchor="middle" transform="rotate(-90, ${cx - 2}, ${cy})">${cleanVal}</text>`;
+              }
+            }
+          }
+
+          const minX = isHoriz ? Math.min(startX, endX) : startX - 10;
+          const minY = isHoriz ? startY - 10 : Math.min(startY, endY);
+          const rWidth = isHoriz ? length : 20;
+          const rHeight = isHoriz ? 20 : length;
+
+          return `
+            <g>
+              <rect x="${minX}" y="${minY}" width="${rWidth}" height="${rHeight}" fill="#fef08a" stroke="#ca8a04" stroke-width="2" rx="2" />
+              ${ticksSvg}
+              <text x="${textX}" y="${textY}" transform="rotate(${rot}, ${textX}, ${textY})" fill="#374151" font-size="20" font-weight="bold" text-anchor="middle" dominant-baseline="middle" font-family="serif" stroke="none">
+                ${formatVarName(varKey)} = ${getLabelText(data)}
+              </text>
+            </g>
+          `;
+        }
+      }
+
+      return `
+        <g stroke="#4b5563" stroke-width="2">
+          <line x1="${startX}" y1="${startY}" x2="${endX}" y2="${endY}" stroke-dasharray="6 6" />
+          ${isHoriz ? `<line x1="${startX}" y1="${startY-15}" x2="${startX}" y2="${startY+15}" /><line x1="${endX}" y1="${endY-15}" x2="${endX}" y2="${endY+15}" />` : `<line x1="${startX-15}" y1="${startY}" x2="${startX+15}" y2="${startY}" /><line x1="${endX-15}" y1="${endY}" x2="${endX+15}" y2="${endY}" />`}
+          <text x="${textX}" y="${textY}" transform="rotate(${rot}, ${textX}, ${textY})" fill="#374151" font-size="20" font-weight="bold" text-anchor="middle" dominant-baseline="middle" font-family="serif" stroke="none">
+            ${formatVarName(varKey)} = ${getLabelText(data)}
+          </text>
+        </g>
+      `;
+    }
+
+    function StopwatchGraphic(x, y, data) {
+      const text = data.unknown ? 't = ?' : `t = ${data.val} ${data.unit}`;
+      const charWidth = 9.5;
+      const textWidth = Math.max(80, text.length * charWidth);
+      const boxWidth = textWidth + 30;
+      const innerWidth = textWidth + 10;
+      const leftBtnX = -boxWidth / 2 + 10;
+      const rightBtnX = boxWidth / 2 - 24;
+
+      return `
+        <g transform="translate(${x}, ${y})">
+          <rect x="${leftBtnX}" y="-24" width="14" height="10" rx="3" fill="#ef4444" stroke="#000000" stroke-width="2" />
+          <rect x="${rightBtnX}" y="-24" width="14" height="10" rx="3" fill="#3b82f6" stroke="#000000" stroke-width="2" />
+          <rect x="${-boxWidth / 2}" y="-20" width="${boxWidth}" height="40" rx="8" fill="#ffffff" stroke="#000000" stroke-width="3" />
+          <rect x="${-innerWidth / 2}" y="-12" width="${innerWidth}" height="24" rx="4" fill="#f8fafc" stroke="#000000" stroke-width="2"/>
+          <text x="0" y="1" fill="#000000" font-size="16" font-weight="bold" text-anchor="middle" dominant-baseline="middle" font-family="monospace" letter-spacing="1">
+            ${text}
+          </text>
+        </g>
+      `;
+    }
+
+    function drawSVG() {
+      let startX, startY, endX, endY;
+      let terrainSvg = '';
+      
+      if (state.motionType === 'flat') {
+        startX = 150; startY = 450;
+        endX = 650; endY = 450;
+        terrainSvg = `<path d="M 0 450 L 800 450 L 800 600 L 0 600 Z" fill="#bbf7d0" stroke="#22c55e" stroke-width="4" />`;
+      } else if (state.motionType === 'higher') {
+        startX = 150; startY = 450;
+        endX = 650; endY = 300;
+        terrainSvg = `<path d="M 0 450 L 550 450 L 550 300 L 800 300 L 800 600 L 0 600 Z" fill="#bbf7d0" stroke="#22c55e" stroke-width="4" stroke-linejoin="round" />`;
+      } else if (state.motionType === 'lower') {
+        startX = 150; startY = 250;
+        endX = 650; endY = 500;
+        terrainSvg = `<path d="M 0 250 L 180 250 L 180 500 L 800 500 L 800 600 L 0 600 Z" fill="#bbf7d0" stroke="#22c55e" stroke-width="4" stroke-linejoin="round" />`;
+      } else if (state.motionType === 'drop') {
+        startX = 150; startY = 150;
+        endX = 650; endY = 500;
+        terrainSvg = `<path d="M 0 500 L 800 500 L 800 600 L 0 600 Z" fill="#bbf7d0" stroke="#22c55e" stroke-width="4" />`;
+      }
+
+      let thetaVal = state.motionType === 'drop' ? 0 : parseFloat(state.vars.theta.val);
+      if (isNaN(thetaVal)) thetaVal = 0;
+
+      let minThetaRad = Math.atan2(startY - endY, endX - startX);
+      let minThetaDeg = minThetaRad * 180 / Math.PI;
+
+      let visualTheta = thetaVal;
+      if (state.motionType !== 'drop') {
+        if (visualTheta <= minThetaDeg) visualTheta = minThetaDeg + 2; 
+        if (visualTheta > 89) visualTheta = 89;
+      }
+
+      let thetaRad = visualTheta * Math.PI / 180;
+      
+      let ctrlX = (startX + endX) / 2;
+      let ctrlY = startY - Math.tan(thetaRad) * (ctrlX - startX);
+      
+      let v0Angle = -visualTheta;
+      let vFinalX = endX - ctrlX;
+      let vFinalY = endY - ctrlY;
+      let vAngle = Math.atan2(vFinalY, vFinalX) * 180 / Math.PI;
+
+      let t_peak = (startY - ctrlY) / (startY - 2 * ctrlY + endY);
+      let peakX = startX;
+      let peakY = startY;
+      
+      if (t_peak > 0 && t_peak < 1) {
+        peakX = Math.pow(1 - t_peak, 2) * startX + 2 * (1 - t_peak) * t_peak * ctrlX + Math.pow(t_peak, 2) * endX;
+        peakY = Math.pow(1 - t_peak, 2) * startY + 2 * (1 - t_peak) * t_peak * ctrlY + Math.pow(t_peak, 2) * endY;
+      } else {
+        if (t_peak <= 0) { peakX = startX; peakY = startY; }
+        else { peakX = endX; peakY = endY; }
+      }
+
+      let svgContent = `
+        <defs>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#bae6fd" stroke-width="1"/>
+          </pattern>
+          <marker id="head-2563eb" orient="auto" markerWidth="6" markerHeight="8" refX="5" refY="4">
+            <path d="M0,0 V8 L6,4 Z" fill="#2563eb" />
+          </marker>
+        </defs>
+        <rect width="100%" height="100%" fill="#e0f2fe" />
+        <rect width="100%" height="100%" fill="url(#grid)" />
+        ${terrainSvg}
+      `;
+
+      const pathData = `M ${startX} ${startY} Q ${ctrlX} ${ctrlY} ${endX} ${endY}`;
+      svgContent += `<path d="${pathData}" fill="none" stroke="#94a3b8" stroke-width="2" stroke-dasharray="8 8" />`;
+
+      if (state.motionType === 'drop') {
+         svgContent += RenderObject(startX, startY - 25, 'plane', "0.15");
+         svgContent += `<line x1="${startX}" y1="${startY-25}" x2="${endX}" y2="${startY-25}" stroke="#94a3b8" stroke-dasharray="4 4" stroke-width="1.5" />`;
+      }
+      
+      if (state.motionType !== 'drop' && t_peak > 0 && t_peak < 1) {
+        svgContent += RenderObject(peakX, peakY, state.objectType, "0.15");
+      }
+      
+      svgContent += RenderObject(startX, startY, state.objectType, state.isAnimated ? "0.3" : "1");
+      svgContent += RenderObject(endX, endY, state.objectType, "0.3");
+
+      if (state.isAnimated) {
+        if (state.motionType === 'drop') {
+          const approachX = -100;
+          const planeEndX = endX + 150;
+          const totalDistX = planeEndX - approachX;
+          const t1 = (startX - approachX) / totalDistX; 
+          const t2 = (endX - approachX) / totalDistX;   
+          const d1 = startX - approachX;
+          const dx = endX - startX;
+          const dy = endY - startY;
+          const d2 = Math.sqrt(dx*dx + dy*dy) * 1.1; 
+          const L = d1 + d2;
+          const planePath = `M ${approachX},${startY - 25} L ${planeEndX},${startY - 25}`;
+          const objectPath = `M ${approachX},${startY} L ${startX},${startY} Q ${ctrlX},${ctrlY} ${endX},${endY}`;
+
+          svgContent += `
+            <g>
+              <animateMotion dur="4s" repeatCount="indefinite" path="${planePath}" calcMode="linear"
+                keyTimes="0; ${t1}; ${t2}; 1" 
+                keyPoints="0; ${(startX-approachX)/totalDistX}; ${(endX-approachX)/totalDistX}; 1" />
+              ${RenderObject(0, 0, 'plane', "1")}
+            </g>
+            <g>
+              <animateMotion dur="4s" repeatCount="indefinite" path="${objectPath}" calcMode="linear"
+                keyTimes="0; ${t1}; ${t2}; 1"
+                keyPoints="0; ${d1/L}; 1; 1" />
+              <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;${t2};${t2};1" dur="4s" repeatCount="indefinite" />
+              ${RenderObject(0, 0, state.objectType, "1")}
+            </g>
+          `;
+        } else {
+          svgContent += `
+            <g>
+              <animateMotion dur="2.5s" repeatCount="indefinite" path="${pathData}" />
+              ${RenderObject(0, 0, state.objectType, "1")}
+            </g>
+          `;
+        }
+      }
+
+      if (state.vars.dx.show) {
+        let rulerY = 550;
+        svgContent += RulerGraphic(startX, rulerY, endX, rulerY, state.vars.dx, state.rulerStyle, 'dx');
+        svgContent += `
+          <line x1="${startX}" y1="${startY + 20}" x2="${startX}" y2="${rulerY - 10}" stroke="#94a3b8" stroke-dasharray="4 4" stroke-width="1.5" />
+          <line x1="${endX}" y1="${endY + 20}" x2="${endX}" y2="${rulerY - 10}" stroke="#94a3b8" stroke-dasharray="4 4" stroke-width="1.5" />
+        `;
+      }
+
+      if (state.vars.dy.show) {
+        if (state.motionType === 'flat') {
+          svgContent += RulerGraphic(peakX, startY, peakX, peakY, state.vars.dy, state.rulerStyle, 'dy');
+        } else if (state.motionType === 'higher') {
+          svgContent += RulerGraphic(550, startY, 550, endY, state.vars.dy, state.rulerStyle, 'dy');
+          svgContent += `<line x1="${startX}" y1="${startY}" x2="${550}" y2="${startY}" stroke="#94a3b8" stroke-dasharray="4 4" stroke-width="1.5" />`;
+        } else if (state.motionType === 'lower') {
+          svgContent += RulerGraphic(210, startY, 210, endY, state.vars.dy, state.rulerStyle, 'dy');
+          svgContent += `<line x1="${startX}" y1="${startY}" x2="${210}" y2="${startY}" stroke="#94a3b8" stroke-dasharray="4 4" stroke-width="1.5" />`;
+        } else if (state.motionType === 'drop') {
+          svgContent += RulerGraphic(100, startY, 100, endY, state.vars.dy, state.rulerStyle, 'dy');
+          svgContent += `<line x1="${100}" y1="${startY}" x2="${startX}" y2="${startY}" stroke="#94a3b8" stroke-dasharray="4 4" stroke-width="1.5" />`;
+        }
+      }
+
+      if (state.vars.v0.show) {
+        svgContent += AngleArrow(startX, startY, v0Angle, "#2563eb", "v0", state.vars.v0, true, state.vars.theta, false, state.isAnimated);
+      }
+      if (state.vars.v.show) {
+        svgContent += AngleArrow(endX, endY, vAngle, "#2563eb", "v", state.vars.v, false, null, false, state.isAnimated);
+      }
+      if (state.vars.a.show) {
+        let ax, ay;
+        if (state.motionType === 'drop') {
+          // Moved to the right side of the diagram and vertically centered between plane and ground
+          ax = endX + 50; 
+          ay = (startY + endY) / 2; 
+        } else {
+          ax = peakX;
+          ay = Math.max(40, peakY - 160); 
+        }
+        svgContent += AngleArrow(ax, ay, 90, "#ea580c", "a", state.vars.a, false, null, true, state.isAnimated);
+      }
+      if (state.vars.t.show) {
+        const timeX = endX + 80;
+        const timeY = endY - 60;
+        svgContent += StopwatchGraphic(timeX, timeY, state.vars.t);
+      }
+
+      const container = document.getElementById('svg-container');
+      container.innerHTML = `<svg viewBox="0 0 800 600" class="w-full h-full" xmlns="http://www.w3.org/2000/svg">${svgContent}</svg>`;
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

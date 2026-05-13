@@ -12,8 +12,9 @@
 
 'use strict';
 
-const archiver = require('archiver');
+const childProcess = require('child_process');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 // ─── Argument validation ─────────────────────────────────────────────────────
@@ -51,45 +52,77 @@ const lessonManifest = path.join(folderPath, 'imsmanifest.xml');
 const manifestToUse  = fs.existsSync(lessonManifest) ? lessonManifest : manifestSrc;
 console.log(`  manifest: ${fs.existsSync(lessonManifest) ? folderName + '/imsmanifest.xml' : 'root imsmanifest.xml (no lesson-specific found)'}`);
 
+if (process.platform !== 'win32') {
+  console.error('Error: package-sim.js now uses built-in Windows PowerShell ZIP support.');
+  console.error('Run this script on Windows, or add a platform-specific ZIP implementation for your environment.');
+  process.exit(1);
+}
+
 // ─── Create ZIP ──────────────────────────────────────────────────────────────
 
 const outputZipName = `${folderName}.zip`;
 const outputZipPath = path.resolve(outputZipName);
-const output = fs.createWriteStream(outputZipPath);
+const SCORM_ASSETS = ['scorm-wrapper.js', 'imsmanifest.xml'];
 
-const archive = archiver('zip', { zlib: { level: 9 } });
-
-output.on('close', () => {
-  const kb = (archive.pointer() / 1024).toFixed(1);
-  console.log(`✓  Packaged "${folderName}" → ${outputZipName}  (${kb} KB)`);
-});
-
-archive.on('warning', (err) => {
-  if (err.code === 'ENOENT') {
-    console.warn('Warning:', err.message);
-  } else {
-    throw err;
+function copyDirectoryFiltered(sourceDir, targetDir) {
+  fs.mkdirSync(targetDir, { recursive: true });
+  const entries = fs.readdirSync(sourceDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (SCORM_ASSETS.indexOf(entry.name) !== -1) continue;
+    const sourcePath = path.join(sourceDir, entry.name);
+    const targetPath = path.join(targetDir, entry.name);
+    if (entry.isDirectory()) {
+      copyDirectoryFiltered(sourcePath, targetPath);
+    } else if (entry.isFile()) {
+      fs.copyFileSync(sourcePath, targetPath);
+    }
   }
-});
+}
 
-archive.on('error', (err) => {
+function zipWithPowerShell(sourceDir, destinationZip) {
+  const escapedSource = sourceDir.replace(/'/g, "''");
+  const escapedZip = destinationZip.replace(/'/g, "''");
+  const script = [
+    "$ErrorActionPreference = 'Stop'",
+    `$sourceDir = '${escapedSource}'`,
+    `$destinationZip = '${escapedZip}'`,
+    "if (Test-Path -LiteralPath $destinationZip) { Remove-Item -LiteralPath $destinationZip -Force }",
+    "$items = Get-ChildItem -LiteralPath $sourceDir -Force",
+    "if (-not $items) { throw 'No files found to package.' }",
+    "$items | Compress-Archive -DestinationPath $destinationZip -Force"
+  ].join('; ');
+
+  const result = childProcess.spawnSync(
+    'powershell.exe',
+    ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', script],
+    { encoding: 'utf8' }
+  );
+
+  if (result.status !== 0) {
+    const stderr = (result.stderr || '').trim();
+    const stdout = (result.stdout || '').trim();
+    throw new Error(stderr || stdout || 'PowerShell ZIP packaging failed.');
+  }
+}
+
+const stagingRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'scorm-packager-'));
+const stagingDir = path.join(stagingRoot, 'package');
+
+try {
+  copyDirectoryFiltered(folderPath, stagingDir);
+  fs.copyFileSync(wrapperSrc, path.join(stagingDir, 'scorm-wrapper.js'));
+  fs.copyFileSync(manifestToUse, path.join(stagingDir, 'imsmanifest.xml'));
+  zipWithPowerShell(stagingDir, outputZipPath);
+
+  const kb = (fs.statSync(outputZipPath).size / 1024).toFixed(1);
+  console.log(`✓  Packaged "${folderName}" → ${outputZipName}  (${kb} KB)`);
+} catch (err) {
   console.error('Archive error:', err.message);
-  process.exit(1);
-});
+  process.exitCode = 1;
+} finally {
+  fs.rmSync(stagingRoot, { recursive: true, force: true });
+}
 
-archive.pipe(output);
-
-// Add the simulation folder contents at the root of the ZIP.
-// Exclude local dev copies of the shared SCORM files — the master copies
-// injected below always take precedence, preventing duplicate ZIP entries.
-var SCORM_ASSETS = ['scorm-wrapper.js', 'imsmanifest.xml'];
-archive.directory(folderPath, false, function (entry) {
-  if (SCORM_ASSETS.indexOf(entry.name) !== -1) return false;
-  return entry;
-});
-
-// Inject SCORM files at ZIP root — lesson manifest takes priority over root template
-archive.file(wrapperSrc,   { name: 'scorm-wrapper.js' });
-archive.file(manifestToUse, { name: 'imsmanifest.xml'  });
-
-archive.finalize();
+if (process.exitCode) {
+  process.exit(process.exitCode);
+}

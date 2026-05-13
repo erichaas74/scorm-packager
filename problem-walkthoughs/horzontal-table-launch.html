@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rise Custom Block: Dropped vs Horizontally Launched</title>
+
+  <style>
+    /*
+      RISE 360 CUSTOM BLOCK
+      Topic: Horizontal projectile motion hook
+      Format: Single-file HTML/CSS/JS
+      Libraries: None
+      Scope: All CSS and JS are scoped inside .rise-projectile-hook
+    */
+
+    .rise-projectile-hook {
+      --rph-blue: #28609f;
+      --rph-blue-dark: #163f6d;
+      --rph-blue-soft: #eff6ff;
+      --rph-bg: #28609F;
+      --rph-card: #ffffff;
+      --rph-text: #1f2937;
+      --rph-muted: #64748b;
+      --rph-border: #dbe3ef;
+      --rph-success: #0f766e;
+      --rph-error: #b45309;
+      --rph-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+
+      width: 100%;
+      max-width: 1260px;
+      margin: 0 auto;
+      padding: clamp(7px, 1.25vw, 12px);
+      border-radius: 24px;
+      background: var(--rph-bg);
+      color: var(--rph-text);
+      font-family: Arial, Helvetica, sans-serif;
+      box-sizing: border-box;
+    }
+
+    .rise-projectile-hook,
+    .rise-projectile-hook * {
+      box-sizing: border-box;
+    }
+
+    .rise-projectile-hook button {
+      font-family: inherit;
+    }
+
+    .rph-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .rph-lab-card {
+      background: var(--rph-card);
+      border: 1px solid var(--rph-border);
+      border-radius: 22px;
+      box-shadow: var(--rph-shadow);
+      overflow: hidden;
+    }
+
+    
+    .rph-lab-scene {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 2 / 1;
+      height: auto;
+      overflow: hidden;
+      background: linear-gradient(#edf5fb 0 86.5%, rgba(71, 85, 105, 0.16) 86.5% 100%);
+    }
+
+    /* Subtle background grid to make motion easier to judge */
+    .rph-lab-scene::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(15, 23, 42, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(15, 23, 42, 0.045) 1px, transparent 1px);
+      background-size: 48px 48px;
+      opacity: 0.45;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .rph-board {
+      position: absolute;
+      left: 1%;
+      top: 2%;
+      width: 38%;
+      min-height: 56px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: #dbeafe;
+      border: 2px solid #94a3b8;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      line-height: 1.15;
+      font-weight: 800;
+      font-size: 1.15rem;
+      overflow-wrap: anywhere;
+      z-index: 1;
+    }
+
+    /* Ground line */
+    .rph-ground-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 13.5%;
+      border-top: 2px solid rgba(71, 85, 105, 0.28);
+      z-index: 1;
+    }
+
+    /* Table on left: enlarged and shifted farther left for a stronger launch scene */
+    .rph-table-top {
+      position: absolute;
+      left: 3.5%;
+      top: 55%;
+      width: 30%;
+      height: 7.5%;
+      border-radius: 8px;
+      background: #8b5a2b;
+      box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.18), 0 6px 12px rgba(15, 23, 42, 0.15);
+      z-index: 5;
+    }
+
+    .rph-table-top::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 18%;
+      border-top: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    .rph-table-leg-left,
+    .rph-table-leg-right {
+      position: absolute;
+      top: 62.5%;
+      width: 2.6%;
+      height: 24%;
+      background: #6b4423;
+      border-radius: 0 0 6px 6px;
+      z-index: 4;
+    }
+
+    .rph-table-leg-left { left: 6.5%; }
+    .rph-table-leg-right { left: 27.5%; }
+
+    .rph-scene-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 7;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    .rph-flight-path {
+      fill: none;
+      stroke: rgba(40, 96, 159, 0.72);
+      stroke-width: 3;
+      stroke-dasharray: 9 8;
+      stroke-linecap: round;
+      opacity: 0;
+      transition: opacity 0.18s ease;
+    }
+
+    .rph-ball {
+      position: absolute;
+      width: clamp(30px, 3.5vw, 42px);
+      height: clamp(30px, 3.5vw, 42px);
+      border-radius: 50%;
+      overflow: hidden;
+      border: 2px solid rgba(15, 23, 42, 0.3);
+      box-shadow: 0 4px 8px rgba(15, 23, 42, 0.16);
+      z-index: 9;
+      will-change: left, top, transform;
+      transform: rotate(0deg);
+      backface-visibility: hidden;
+    }
+
+    /* Orange rolling ball. The white curved stripes make rotation visible. */
+    .rph-launch-ball {
+      left: 4.5%;
+      top: 31.2%;
+      background:
+        radial-gradient(circle at 34% 30%, rgba(255, 244, 214, 0.42) 0 10%, rgba(255, 244, 214, 0.12) 10% 18%, transparent 18%),
+        radial-gradient(circle at 50% 50%, #f0b53c 0%, #dd8f18 62%, #9a5b10 100%);
+    }
+
+    .rph-ghost-ball {
+      left: 4.5%;
+      top: 31.2%;
+      z-index: 8;
+      opacity: 0;
+      visibility: hidden;
+      background:
+        radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.82) 0 14%, rgba(255, 247, 237, 0.78) 14% 22%, transparent 22%),
+        radial-gradient(circle at 50% 50%, rgba(251, 191, 36, 0.88) 0%, rgba(245, 158, 11, 0.72) 60%, rgba(180, 83, 9, 0.56) 100%);
+      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.1);
+    }
+
+    /* Green dropped ball, different color so students can track it easily. */
+    .rph-drop-ball {
+      left: 30.5%;
+      top: 50.2%;
+      background:
+        radial-gradient(circle at 34% 30%, rgba(232, 255, 240, 0.38) 0 10%, rgba(232, 255, 240, 0.12) 10% 18%, transparent 18%),
+        radial-gradient(circle at 50% 50%, #48cc76 0%, #23ae57 62%, #16653a 100%);
+    }
+
+    .rph-preview-ball {
+      opacity: 0;
+      pointer-events: none;
+      z-index: 10;
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.9), 0 6px 14px rgba(15, 23, 42, 0.18);
+      transition: opacity 0.14s ease;
+    }
+
+    .rph-preview-ball.rph-show-preview {
+      opacity: 0.82;
+    }
+
+    .rph-preview-ball.rph-preview-short {
+      opacity: 0.52;
+      transform: scale(0.94);
+    }
+
+    /* Visible ball design: stripes rotate with the launched ball. */
+    .rph-ball::before {
+      content: "";
+      position: absolute;
+      inset: 7%;
+      border-radius: 50%;
+      background:
+        conic-gradient(
+          from 0deg,
+          rgba(255, 248, 237, 0.42) 0 20deg,
+          transparent 20deg 152deg,
+          rgba(255, 248, 237, 0.34) 152deg 172deg,
+          transparent 172deg 304deg,
+          rgba(255, 248, 237, 0.3) 304deg 324deg,
+          transparent 324deg 360deg
+        );
+      opacity: 0.72;
+    }
+
+    .rph-ball::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 28%;
+      height: 28%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.16);
+      box-shadow: 0 0 0 1px rgba(255, 248, 237, 0.34);
+    }
+
+    .rph-pause-banner {
+      position: absolute;
+      right: 1%;
+      top: 3%;
+      width: min(640px, 60%);
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.96);
+      border: 2px solid rgba(40, 96, 159, 0.22);
+      color: #0f172a;
+      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 20;
+    }
+
+    .rph-motion-trail {
+      position: absolute;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: rgba(40, 96, 159, 0.22);
+      z-index: 7;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .rph-impact-ring {
+      position: absolute;
+      width: 34px;
+      height: 12px;
+      border-radius: 50%;
+      border: 3px solid rgba(40, 96, 159, 0.55);
+      opacity: 0;
+      transform: scale(0.55);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      z-index: 8;
+    }
+
+    .rph-impact-ring.rph-show-impact {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .rph-impact-launch { left: 65.5%; top: 82.5%; }
+    .rph-impact-drop { left: 27%; top: 82.5%; }
+
+    .rph-stage-box {
+      border: 2px dashed var(--rph-border);
+      border-radius: 18px;
+      padding: 16px;
+      background: #f8fafc;
+      margin: 0;
+    }
+
+    .rph-stage-box h3 {
+      margin: 0 0 8px;
+      color: var(--rph-blue-dark);
+      font-size: clamp(1.08rem, 1.8vw, 1.25rem);
+    }
+
+    .rph-stage-box p {
+      margin: 0;
+      color: var(--rph-muted);
+      line-height: 1.45;
+      font-size: 0.98rem;
+    }
+
+    .rph-prediction-options {
+      display: none;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin: 0;
+      width: 100%;
+    }
+
+    .rph-choice-btn,
+    .rph-primary-btn {
+      border: none;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-weight: 800;
+      cursor: pointer;
+      font-size: 0.76rem;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .rph-choice-btn {
+      min-height: 54px;
+      background: var(--rph-blue-soft);
+      color: var(--rph-blue-dark);
+      border: 1px solid #bfdbfe;
+      text-align: left;
+    }
+
+    .rph-choice-btn:hover,
+    .rph-choice-btn:focus-visible,
+    .rph-primary-btn:hover,
+    .rph-primary-btn:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.14);
+      outline: 3px solid rgba(40, 96, 159, 0.25);
+    }
+
+    .rph-choice-btn.rph-selected {
+      background: var(--rph-blue);
+      color: white;
+      border-color: var(--rph-blue);
+    }
+
+    .rph-button-row {
+      position: absolute;
+      left: 8%;
+      bottom: 2%;
+      z-index: 21;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      justify-content: flex-start;
+    }
+
+    .rph-primary-btn {
+      background: var(--rph-blue);
+      color: white;
+    }
+
+    .rph-primary-btn:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+      opacity: 0.8;
+    }
+
+    .rph-feedback-card {
+      display: none;
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 14px;
+      border-left: 6px solid var(--rph-blue);
+      background: var(--rph-blue-soft);
+      color: #0f172a;
+      line-height: 1.45;
+    }
+
+    .rph-feedback-card strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--rph-blue-dark);
+    }
+
+    .rph-feedback-card.rph-correct {
+      border-left-color: var(--rph-success);
+      background: #ecfdf5;
+    }
+
+    .rph-feedback-card.rph-incorrect {
+      border-left-color: var(--rph-error);
+      background: #fff7ed;
+    }
+
+    .rph-helper-text {
+      min-height: 1.2em;
+      color: var(--rph-muted);
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .rph-helper-text.rph-warning {
+      color: var(--rph-error);
+    }
+
+    @media (max-width: 760px) {
+      .rph-lab-scene {
+        aspect-ratio: 4 / 3;
+        height: auto;
+        min-height: 330px;
+      }
+
+      .rph-board {
+        width: 38%;
+        min-height: 64px;
+        top: 6%;
+        padding: 8px 10px;
+      }
+
+      .rph-pause-banner {
+        right: 3%;
+        left: auto;
+        top: 5%;
+        bottom: auto;
+        transform: none;
+        width: min(460px, 62%);
+      }
+
+      .rph-button-row {
+        left: 4%;
+        right: 4%;
+        bottom: 4%;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .rise-projectile-hook * {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <section class="rise-projectile-hook" aria-label="Dropped versus horizontally launched projectile interaction">
+    <main class="rph-layout">
+      <section class="rph-lab-card">
+        <div class="rph-lab-scene" data-rph-scene>
+          <div class="rph-board">Horizontal Launch Versus Vertical Motion</div>
+          <div class="rph-ground-line"></div>
+          
+
+          <div class="rph-table-top"></div>
+          <div class="rph-table-leg-left"></div>
+          <div class="rph-table-leg-right"></div>
+
+          <svg class="rph-scene-svg" data-rph-scene-svg aria-hidden="true">
+            <path id="rampFill" fill="#8b5a2b" stroke="none"></path>
+            <path id="rampSurface" fill="none" stroke="#333333" stroke-width="4" stroke-linecap="round"></path>
+            <path id="rollGuide" fill="none" stroke="none"></path>
+            <path class="rph-flight-path" data-rph-flight-path></path>
+          </svg>
+
+         
+          <div class="rph-motion-trail" data-rph-trail style="left: 12%; top: 47%;"></div>
+          <div class="rph-motion-trail" data-rph-trail style="left: 18%; top: 54%;"></div>
+          <div class="rph-motion-trail" data-rph-trail style="left: 25%; top: 54%;"></div>
+          <div class="rph-motion-trail" data-rph-trail style="left: 38%; top: 62%;"></div>
+          <div class="rph-motion-trail" data-rph-trail style="left: 50%; top: 70%;"></div>
+
+          <div class="rph-impact-ring rph-impact-launch" data-rph-impact-launch></div>
+          <div class="rph-impact-ring rph-impact-drop" data-rph-impact-drop></div>
+
+          <div class="rph-ball rph-ghost-ball" data-rph-ghost-ball aria-hidden="true"></div>
+          <div class="rph-ball rph-launch-ball rph-preview-ball" data-rph-preview-launch aria-hidden="true"></div>
+          <div class="rph-ball rph-drop-ball rph-preview-ball" data-rph-preview-drop aria-hidden="true"></div>
+          <div class="rph-ball rph-launch-ball" data-rph-launch-ball aria-label="Ramp-launched ball"></div>
+          <div class="rph-ball rph-drop-ball" data-rph-drop-ball aria-label="Dropped ball"></div>
+
+          
+
+          <div class="rph-pause-banner" data-rph-pause-banner>
+                      <div class="rph-stage-box" data-rph-stage-content aria-live="polite">
+                        <h3>Watch the Setup</h3>
+                        <p>Click start. When the orange ball leaves the edge the second ball drops.</p>
+                      </div>
+
+                      <div class="rph-prediction-options" data-rph-options aria-label="Prediction choices">
+                        <button class="rph-choice-btn" type="button" data-rph-choice="drop">The dropped ball</button>
+                        <button class="rph-choice-btn" type="button" data-rph-choice="launch">The launched ball</button>
+                        <button class="rph-choice-btn" type="button" data-rph-choice="same">The same time</button>
+                      </div>
+
+                      <div class="rph-feedback-card" data-rph-feedback-card aria-live="polite"></div>
+          </div>
+
+          <div class="rph-button-row">
+            <button class="rph-primary-btn" type="button" data-rph-main-button>Start Setup</button>
+            <span class="rph-helper-text" data-rph-helper-text></span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+  </section>
+
+  <script>
+    (() => {
+      const root = document.currentScript.previousElementSibling;
+      if (!root || !root.classList.contains('rise-projectile-hook')) return;
+
+      const stageContent = root.querySelector('[data-rph-stage-content]');
+      const options = root.querySelector('[data-rph-options]');
+      const choiceButtons = Array.from(root.querySelectorAll('[data-rph-choice]'));
+      const feedbackCard = root.querySelector('[data-rph-feedback-card]');
+      const mainButton = root.querySelector('[data-rph-main-button]');
+      const helperText = root.querySelector('[data-rph-helper-text]');
+      const ghostBall = root.querySelector('[data-rph-ghost-ball]');
+      const previewLaunchBall = root.querySelector('[data-rph-preview-launch]');
+      const previewDropBall = root.querySelector('[data-rph-preview-drop]');
+      const launchBall = root.querySelector('[data-rph-launch-ball]');
+      const dropBall = root.querySelector('[data-rph-drop-ball]');
+      const pauseBanner = root.querySelector('[data-rph-pause-banner]');
+      const trails = Array.from(root.querySelectorAll('[data-rph-trail]'));
+      const impactLaunch = root.querySelector('[data-rph-impact-launch]');
+      const impactDrop = root.querySelector('[data-rph-impact-drop]');
+      const scene = root.querySelector('[data-rph-scene]');
+      const groundLine = root.querySelector('.rph-ground-line');
+      const tableTop = root.querySelector('.rph-table-top');
+      const sceneSvg = root.querySelector('[data-rph-scene-svg]');
+      const rampFill = root.querySelector('#rampFill');
+      const rampSurface = root.querySelector('#rampSurface');
+      const rollGuide = root.querySelector('#rollGuide');
+      const trajectoryPath = root.querySelector('[data-rph-flight-path]');
+
+      let state = 'setup';
+      let selectedChoice = null;
+      let isAnimating = false;
+      let activeAnimationFrame = null;
+      let animationToken = 0;
+
+      const motionTimings = {
+        roll: 1810,
+        launchPreview: 260,
+        fullFlight: 1500
+      };
+
+      const rampSamples = 48;
+
+      function getSceneMetrics() {
+        const sceneRect = scene.getBoundingClientRect();
+        const tableRect = tableTop.getBoundingClientRect();
+        const ballRadius = launchBall.offsetWidth / 2;
+        const tableTopY = tableRect.top - sceneRect.top;
+        const tableLeftX = tableRect.left - sceneRect.left;
+        const tableRightX = tableRect.right - sceneRect.left;
+        const rampTop = {
+          x: Math.max(ballRadius * 1.15, tableLeftX + sceneRect.width * 0.01),
+          y: tableTopY - sceneRect.height * 0.25
+        };
+        const rampControl = {
+          x: tableLeftX + sceneRect.width * 0.02,
+          y: tableTopY
+        };
+        const rampEnd = {
+          x: tableLeftX + sceneRect.width * 0.12,
+          y: tableTopY
+        };
+        const tableEdgeSurfaceX = tableRightX - ballRadius * 0.35;
+
+        return {
+          sceneRect,
+          ballRadius,
+          rampTop,
+          rampControl,
+          rampEnd,
+          tableEdgeSurfaceX
+        };
+      }
+
+      function sampleQuadraticPoint(start, control, end, t) {
+        const inverseT = 1 - t;
+        return {
+          x: inverseT * inverseT * start.x + 2 * inverseT * t * control.x + t * t * end.x,
+          y: inverseT * inverseT * start.y + 2 * inverseT * t * control.y + t * t * end.y
+        };
+      }
+
+      function drawRamp() {
+        const metrics = getSceneMetrics();
+        const { sceneRect, ballRadius, rampTop, rampControl, rampEnd, tableEdgeSurfaceX } = metrics;
+        const fillBackX = rampTop.x - Math.max(ballRadius * 0.2, 2);
+        const fillTopDropY = rampTop.y + Math.max(ballRadius * 0.8, 10);
+
+        sceneSvg.setAttribute('viewBox', `0 0 ${sceneRect.width} ${sceneRect.height}`);
+
+        const rampPoints = [rampTop];
+        let surfacePath = `M ${rampTop.x.toFixed(2)} ${rampTop.y.toFixed(2)} `;
+
+        for (let i = 1; i <= rampSamples; i++) {
+          const t = i / rampSamples;
+          const rampPoint = sampleQuadraticPoint(rampTop, rampControl, rampEnd, t);
+          rampPoints.push(rampPoint);
+          const pointCommand = `L ${rampPoint.x.toFixed(2)} ${rampPoint.y.toFixed(2)} `;
+          surfacePath += pointCommand;
+        }
+
+        let fillPath = `M ${rampPoints[0].x.toFixed(2)} ${rampPoints[0].y.toFixed(2)} `;
+        for (let i = 1; i < rampPoints.length; i++) {
+          fillPath += `L ${rampPoints[i].x.toFixed(2)} ${rampPoints[i].y.toFixed(2)} `;
+        }
+        fillPath += `L ${fillBackX.toFixed(2)} ${rampEnd.y.toFixed(2)} `;
+        fillPath += `L ${fillBackX.toFixed(2)} ${fillTopDropY.toFixed(2)} `;
+        fillPath += 'Z';
+
+        rampFill.setAttribute('d', fillPath);
+        rampSurface.setAttribute('d', surfacePath);
+        rollGuide.setAttribute('d', `${surfacePath}L ${tableEdgeSurfaceX.toFixed(2)} ${rampEnd.y.toFixed(2)}`);
+      }
+
+      function cancelActiveAnimation() {
+        animationToken += 1;
+        if (activeAnimationFrame) {
+          clearTimeout(activeAnimationFrame);
+          activeAnimationFrame = null;
+        }
+      }
+
+      function animateMotion(duration, onFrame, easing = (value) => value) {
+        const token = ++animationToken;
+        return new Promise((resolve) => {
+          const startedAt = performance.now();
+
+          const frame = () => {
+            if (token !== animationToken) return;
+
+            const rawProgress = Math.min(1, (performance.now() - startedAt) / duration);
+            onFrame(easing(rawProgress), rawProgress);
+
+            if (rawProgress < 1) {
+              activeAnimationFrame = setTimeout(frame, 16);
+              return;
+            }
+
+            activeAnimationFrame = null;
+            resolve();
+          };
+
+          activeAnimationFrame = setTimeout(frame, 16);
+        });
+      }
+
+      function setBallPosition(ball, x, y, rotationDeg = 0) {
+        const radius = ball.offsetWidth / 2;
+        ball.style.transition = 'none';
+        ball.style.left = `${x - radius}px`;
+        ball.style.top = `${y - radius}px`;
+        ball.style.transform = `rotate(${rotationDeg}deg)`;
+      }
+
+      function setPreviewBall(ball, position, isShort = false) {
+        setBallPosition(ball, position.x, position.y, 0);
+        ball.classList.toggle('rph-show-preview', true);
+        ball.classList.toggle('rph-preview-short', isShort);
+      }
+
+      function clearHoverPreview() {
+        previewLaunchBall.classList.remove('rph-show-preview', 'rph-preview-short');
+        previewDropBall.classList.remove('rph-show-preview', 'rph-preview-short');
+      }
+
+      function getPathOffsetPoint(path, length, offset) {
+        const totalLength = path.getTotalLength();
+        const clampedLength = Math.max(0, Math.min(totalLength, length));
+        const sampleOffset = Math.min(8, totalLength * 0.01);
+        const prevPoint = path.getPointAtLength(Math.max(0, clampedLength - sampleOffset));
+        const nextPoint = path.getPointAtLength(Math.min(totalLength, clampedLength + sampleOffset));
+        const dx = nextPoint.x - prevPoint.x;
+        const dy = nextPoint.y - prevPoint.y;
+        const magnitude = Math.hypot(dx, dy) || 1;
+        const normalX = dy / magnitude;
+        const normalY = -dx / magnitude;
+        const point = path.getPointAtLength(clampedLength);
+
+        return {
+          x: point.x + normalX * offset,
+          y: point.y + normalY * offset
+        };
+      }
+
+      function getLayout() {
+        const { sceneRect, ballRadius } = getSceneMetrics();
+        const groundRect = groundLine.getBoundingClientRect();
+        const rollLength = rollGuide.getTotalLength();
+        const rollStartLength = rollLength * 0.065;
+        const rampStart = getPathOffsetPoint(rollGuide, rollStartLength, ballRadius);
+        const rollEnd = getPathOffsetPoint(rollGuide, Math.max(0, rollLength - 1), ballRadius);
+        const launchOrigin = {
+          x: rollEnd.x,
+          y: rollEnd.y + 1
+        };
+        const dropOrigin = {
+          x: launchOrigin.x - ballRadius * 0.45,
+          y: launchOrigin.y
+        };
+        const groundY = (groundRect.top - sceneRect.top) - ballRadius;
+        const flightDurationSec = motionTimings.fullFlight / 1000;
+        const launchImpactX = sceneRect.width * 0.88;
+        const vx = (launchImpactX - launchOrigin.x) / flightDurationSec;
+        const ay = (2 * (groundY - launchOrigin.y)) / (flightDurationSec * flightDurationSec);
+
+        return {
+          sceneRect,
+          rollLength,
+          rollStartLength,
+          rampStart,
+          launchOrigin,
+          dropOrigin,
+          groundY,
+          flightDurationSec,
+          vx,
+          ay,
+          launchImpact: {
+            x: launchImpactX,
+            y: groundY
+          },
+          dropImpact: {
+            x: dropOrigin.x,
+            y: groundY
+          }
+        };
+      }
+
+      function launchPosition(layout, timeSec) {
+        return {
+          x: layout.launchOrigin.x + layout.vx * timeSec,
+          y: layout.launchOrigin.y + 0.5 * layout.ay * timeSec * timeSec
+        };
+      }
+
+      function ghostPosition(layout, timeSec) {
+        return {
+          x: layout.launchOrigin.x + layout.vx * timeSec,
+          y: layout.launchOrigin.y
+        };
+      }
+
+      function dropPosition(layout, timeSec) {
+        return {
+          x: layout.dropOrigin.x,
+          y: layout.dropOrigin.y + 0.5 * layout.ay * timeSec * timeSec
+        };
+      }
+
+      function showHoverPreview(choice) {
+        if (state !== 'question' || isAnimating) return;
+
+        const layout = getLayout();
+        const shortTime = layout.flightDurationSec * 0.9;
+        const launchShort = launchPosition(layout, shortTime);
+        const dropShort = dropPosition(layout, shortTime);
+
+        clearHoverPreview();
+
+        if (choice === 'drop') {
+          setPreviewBall(previewDropBall, layout.dropImpact, false);
+          setPreviewBall(previewLaunchBall, launchShort, true);
+          return;
+        }
+
+        if (choice === 'launch') {
+          setPreviewBall(previewLaunchBall, layout.launchImpact, false);
+          setPreviewBall(previewDropBall, dropShort, true);
+          return;
+        }
+
+        if (choice === 'same') {
+          setPreviewBall(previewLaunchBall, layout.launchImpact, false);
+          setPreviewBall(previewDropBall, layout.dropImpact, false);
+        }
+      }
+
+      function updateTrajectoryGuide(layout) {
+        const samples = 22;
+        let path = `M ${layout.launchOrigin.x.toFixed(2)} ${layout.launchOrigin.y.toFixed(2)}`;
+
+        for (let i = 1; i <= samples; i++) {
+          const point = launchPosition(layout, layout.flightDurationSec * (i / samples));
+          path += ` L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
+        }
+
+        trajectoryPath.setAttribute('d', path);
+      }
+
+      function setTrajectoryVisible(visible) {
+        trajectoryPath.style.opacity = visible ? '1' : '0';
+      }
+
+      function setTrails(visible, layout = null, minTimeSec = 0) {
+        if (!visible || !layout) {
+          trails.forEach((trail) => {
+            trail.style.opacity = '0';
+          });
+          return;
+        }
+
+        const usableTime = Math.max(minTimeSec, 0.12);
+        trails.forEach((trail, index) => {
+          const sampleTime = usableTime + (layout.flightDurationSec - usableTime) * ((index + 1) / (trails.length + 1));
+          const point = launchPosition(layout, sampleTime);
+          trail.style.left = `${point.x - 4.5}px`;
+          trail.style.top = `${point.y - 4.5}px`;
+          trail.style.opacity = String(Math.max(0.22, 0.72 - index * 0.09));
+        });
+      }
+
+      function setImpact(visible, layout = null) {
+        if (layout) {
+          impactLaunch.style.left = `${layout.launchImpact.x - 17}px`;
+          impactLaunch.style.top = `${layout.launchImpact.y - 4}px`;
+          impactDrop.style.left = `${layout.dropImpact.x - 17}px`;
+          impactDrop.style.top = `${layout.dropImpact.y - 4}px`;
+        }
+
+        impactLaunch.classList.toggle('rph-show-impact', visible);
+        impactDrop.classList.toggle('rph-show-impact', visible);
+      }
+
+      function easeInSine(value) {
+        return 1 - Math.cos((value * Math.PI) / 2);
+      }
+
+      function clearSelection() {
+        selectedChoice = null;
+        choiceButtons.forEach((button) => {
+          button.classList.remove('rph-selected');
+          button.setAttribute('aria-pressed', 'false');
+        });
+      }
+
+      function showOptions(show) {
+        options.style.display = show ? 'grid' : 'none';
+      }
+
+      function showFeedback(html, type) {
+        if (!html) {
+          feedbackCard.style.display = 'none';
+          feedbackCard.className = 'rph-feedback-card';
+          feedbackCard.innerHTML = '';
+          return;
+        }
+
+        feedbackCard.style.display = 'block';
+        feedbackCard.className = `rph-feedback-card ${type === 'correct' ? 'rph-correct' : 'rph-incorrect'}`;
+        feedbackCard.innerHTML = html;
+      }
+
+      function setHelper(message = '', warning = false) {
+        helperText.textContent = message;
+        helperText.classList.toggle('rph-warning', warning);
+      }
+
+      function setControlsDisabled(disabled) {
+        isAnimating = disabled;
+        mainButton.disabled = disabled;
+        choiceButtons.forEach((button) => {
+          button.disabled = disabled;
+        });
+      }
+
+      function resetMotion() {
+        cancelActiveAnimation();
+        setControlsDisabled(false);
+        drawRamp();
+        const layout = getLayout();
+        updateTrajectoryGuide(layout);
+        setTrajectoryVisible(false);
+        setBallPosition(ghostBall, layout.rampStart.x, layout.rampStart.y, 0);
+        setBallPosition(launchBall, layout.rampStart.x, layout.rampStart.y, 0);
+        setBallPosition(dropBall, layout.dropOrigin.x, layout.dropOrigin.y, 0);
+        clearHoverPreview();
+        setTrails(false, layout);
+        setImpact(false, layout);
+      }
+
+      function setState(nextState) {
+        state = nextState;
+        setHelper('');
+
+        if (state === 'setup') {
+          stageContent.innerHTML = `
+            <h3>Watch the Setup</h3>
+            <p>Click start. </p>
+          `;
+          mainButton.textContent = 'Start Setup';
+          showOptions(false);
+          showFeedback('', '');
+          clearSelection();
+          resetMotion();
+        }
+
+        if (state === 'question') {
+          stageContent.innerHTML = `
+            <h3>Stop and Predict</h3>
+            <p>The launched ball has just left the table edge.  Which ball will hit the ground first?</p>
+          `;
+          mainButton.textContent = 'Replay';
+          mainButton.disabled = false;
+          showOptions(true);
+          showFeedback('', '');
+          setTrajectoryVisible(true);
+        }
+
+        if (state === 'reveal') {
+          stageContent.innerHTML = `
+            <h3>Reveal</h3>
+            <p></p>
+          `;
+          mainButton.textContent = 'Playing...';
+          showOptions(false);
+          showFeedback('', '');
+          setTrajectoryVisible(true);
+        }
+
+        if (state === 'done') {
+          stageContent.innerHTML = `
+            <h3>Result</h3>
+            <p>They hit the ground at the same time.</p>
+          `;
+          mainButton.textContent = 'Try Again';
+          mainButton.disabled = false;
+          setTrajectoryVisible(true);
+
+          const isCorrect = selectedChoice === 'same';
+          if (isCorrect) {
+            showFeedback(`
+              <strong>Correct — they hit at the same time.</strong>
+              The launched ball travels along a parabola, but its horizontal speed does not change how long gravity takes to pull it down.
+            `, 'correct');
+          } else {
+            showFeedback(`
+              <strong>Not quite — they hit at the same time.</strong>
+              The dotted projectile path shows extra sideways motion only. Both balls share the same vertical acceleration and the same fall time.
+            `, 'incorrect');
+          }
+        }
+      }
+
+      function getRollMotion(layout, progress) {
+        const ballRadius = launchBall.offsetWidth / 2;
+        const traveledLength = layout.rollStartLength + (layout.rollLength - layout.rollStartLength) * easeInSine(progress);
+        const basePosition = getPathOffsetPoint(rollGuide, traveledLength, ballRadius);
+        const circumference = Math.max(1, 2 * Math.PI * ballRadius);
+        return {
+          x: basePosition.x,
+          y: basePosition.y,
+          rotationDeg: (traveledLength / circumference) * 360
+        };
+      }
+
+      function getGhostRollMotion(layout, progress) {
+        const ballRadius = launchBall.offsetWidth / 2;
+        const traveledLength = layout.rollStartLength + (layout.rollLength - layout.rollStartLength) * easeInSine(progress);
+        const basePosition = getPathOffsetPoint(rollGuide, traveledLength, ballRadius);
+        const circumference = Math.max(1, 2 * Math.PI * ballRadius);
+        return {
+          x: basePosition.x,
+          y: basePosition.y,
+          rotationDeg: (traveledLength / circumference) * 360
+        };
+      }
+
+      async function playSetupToPause() {
+        if (isAnimating) return;
+
+        resetMotion();
+        setControlsDisabled(true);
+        mainButton.textContent = 'Playing setup...';
+        setHelper('Watch the orange ball follow the ramp and roll to the edge.');
+
+        const layout = getLayout();
+        const previewTimeSec = motionTimings.launchPreview / 1000;
+        await animateMotion(motionTimings.roll, (progress) => {
+          const ghostRollMotion = getGhostRollMotion(layout, progress);
+          const rollMotion = getRollMotion(layout, progress);
+          setBallPosition(ghostBall, ghostRollMotion.x, ghostRollMotion.y, ghostRollMotion.rotationDeg);
+          setBallPosition(launchBall, rollMotion.x, rollMotion.y, rollMotion.rotationDeg);
+        });
+
+        updateTrajectoryGuide(layout);
+        setTrajectoryVisible(true);
+
+        await animateMotion(motionTimings.launchPreview, (progress) => {
+          const currentTime = previewTimeSec * progress;
+          const ghost = ghostPosition(layout, currentTime);
+          const launched = launchPosition(layout, currentTime);
+          const dropped = dropPosition(layout, currentTime);
+          setBallPosition(ghostBall, ghost.x, ghost.y, 0);
+          setBallPosition(launchBall, launched.x, launched.y, 460 + progress * 120);
+          setBallPosition(dropBall, dropped.x, dropped.y, 0);
+          setTrails(true, layout, currentTime);
+        });
+
+        setControlsDisabled(false);
+        setState('question');
+      }
+
+      async function revealRestOfMotion() {
+        if (isAnimating) return;
+
+        setState('reveal');
+        setControlsDisabled(true);
+        setHelper('Now the orange ball follows the dotted flight path.');
+
+        const layout = getLayout();
+        const previewTimeSec = motionTimings.launchPreview / 1000;
+        const remainingDuration = motionTimings.fullFlight - motionTimings.launchPreview;
+        const remainingFlightSec = layout.flightDurationSec - previewTimeSec;
+
+        await animateMotion(remainingDuration, (progress) => {
+          const currentTime = previewTimeSec + remainingFlightSec * progress;
+          const ghost = ghostPosition(layout, currentTime);
+          const launched = launchPosition(layout, currentTime);
+          const dropped = dropPosition(layout, currentTime);
+          setBallPosition(ghostBall, ghost.x, ghost.y, 0);
+          setBallPosition(launchBall, launched.x, launched.y, 580 + progress * 430);
+          setBallPosition(dropBall, dropped.x, dropped.y, 0);
+          setTrails(true, layout, currentTime);
+        });
+
+        setBallPosition(ghostBall, layout.launchImpact.x, layout.launchOrigin.y, 0);
+        setBallPosition(launchBall, layout.launchImpact.x, layout.launchImpact.y, 0);
+        setBallPosition(dropBall, layout.dropImpact.x, layout.dropImpact.y, 0);
+
+        setImpact(true, layout);
+        setHelper('Impact at the same time.');
+        setControlsDisabled(false);
+        setState('done');
+      }
+
+      choiceButtons.forEach((button) => {
+        button.setAttribute('aria-pressed', 'false');
+        button.addEventListener('mouseenter', () => {
+          showHoverPreview(button.dataset.rphChoice);
+        });
+        button.addEventListener('mouseleave', () => {
+          clearHoverPreview();
+        });
+        button.addEventListener('focus', () => {
+          showHoverPreview(button.dataset.rphChoice);
+        });
+        button.addEventListener('blur', () => {
+          clearHoverPreview();
+        });
+        button.addEventListener('click', async () => {
+          if (isAnimating) return;
+
+          selectedChoice = button.dataset.rphChoice;
+          choiceButtons.forEach((choice) => {
+            choice.classList.remove('rph-selected');
+            choice.setAttribute('aria-pressed', 'false');
+          });
+          button.classList.add('rph-selected');
+          button.setAttribute('aria-pressed', 'true');
+          mainButton.disabled = false;
+          clearHoverPreview();
+
+          if (state === 'question') {
+            setHelper('Prediction saved.');
+            await revealRestOfMotion();
+            return;
+          }
+
+          setHelper('Prediction saved.');
+        });
+      });
+
+      mainButton.addEventListener('click', async () => {
+        if (state === 'setup') {
+          await playSetupToPause();
+          return;
+        }
+
+        if (state === 'question') {
+          setState('setup');
+          await playSetupToPause();
+          return;
+        }
+
+        if (state === 'done') {
+          setState('setup');
+        }
+      });
+
+      window.addEventListener('resize', () => {
+        setState('setup');
+      });
+
+      drawRamp();
+      setState('setup');
+    })();
+  </script>
+</body>
+</html>

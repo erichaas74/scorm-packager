@@ -1,0 +1,1627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Airplane Drop: Dual View</title>
+  <style>
+    :root {
+      --blue: #28609f;
+      --blue-dark: #163f6d;
+      --blue-soft: #eff6ff;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #64748b;
+      --border: #dbe3ef;
+      --ok: #0f766e;
+      --warn: #b45309;
+      --shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+      --sky: #e4f5ff;
+      --sky-deep: #b9ddf4;
+      --grass: #88b36a;
+      --grass-dark: #5d8d4c;
+      --pkg: #9a4f1e;
+      --pkg-dark: #5f2f13;
+      --path-good: #2563eb;
+      --path-muted: #758aa2;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #f2f6fb;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--text);
+    }
+
+    body {
+      padding: 20px;
+    }
+
+    .airdrop {
+      width: min(1260px, 100%);
+      margin: 0 auto;
+      padding: 10px;
+      border-radius: 24px;
+      background: var(--blue);
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .scene {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 2 / 1;
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, #d5efff 0%, var(--sky) 46%, #f6fbff 100%);
+    }
+
+    .scene::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(15, 23, 42, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(15, 23, 42, 0.045) 1px, transparent 1px);
+      background-size: 48px 48px;
+      opacity: 0.22;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .sky-clouds {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      opacity: 0.82;
+      background:
+        radial-gradient(ellipse at 14% 18%, rgba(255,255,255,0.9) 0 26px, transparent 27px),
+        radial-gradient(ellipse at 18% 16%, rgba(255,255,255,0.82) 0 34px, transparent 35px),
+        radial-gradient(ellipse at 22% 19%, rgba(255,255,255,0.72) 0 24px, transparent 25px),
+        radial-gradient(ellipse at 74% 14%, rgba(255,255,255,0.78) 0 25px, transparent 26px),
+        radial-gradient(ellipse at 78% 12%, rgba(255,255,255,0.7) 0 34px, transparent 35px),
+        radial-gradient(ellipse at 83% 15%, rgba(255,255,255,0.68) 0 23px, transparent 24px);
+      filter: drop-shadow(0 8px 14px rgba(37, 99, 235, 0.08));
+    }
+
+    .top-view,
+    .side-view {
+      position: absolute;
+      left: 0;
+      right: 0;
+    }
+
+    .top-view {
+      top: 4%;
+      height: 25%;
+      border-bottom: 2px solid rgba(71, 85, 105, 0.2);
+      z-index: 3;
+      overflow: hidden;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,0.38), rgba(255,255,255,0.12)),
+        repeating-linear-gradient(90deg, rgba(40,96,159,0.12) 0 2px, transparent 2px 58px),
+        linear-gradient(180deg, rgba(232, 244, 255, 0.86), rgba(219, 236, 248, 0.72));
+      box-shadow: 0 10px 22px rgba(40, 96, 159, 0.08);
+    }
+
+    .top-view::before {
+      content: "Top view";
+      position: absolute;
+      left: 1.6%;
+      top: 8%;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.92);
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      color: var(--blue-dark);
+      font-size: 0.82rem;
+      font-weight: 800;
+      z-index: 12;
+    }
+
+    .top-track {
+      position: absolute;
+      left: 4%;
+      right: 4%;
+      top: 54%;
+      border-top: 3px dashed rgba(40, 96, 159, 0.34);
+      z-index: 1;
+    }
+
+    .top-ghosts,
+    .side-ghosts {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    /* --- PLANE CONTAINER STYLES --- */
+    .top-plane,
+    .top-plane-ghost,
+    .side-plane,
+    .side-plane-preview {
+      position: absolute;
+      width: 132px;
+      height: 95px;
+      z-index: 6;
+      pointer-events: none;
+    }
+
+    .side-plane,
+    .side-plane-preview {
+      width: 162px;
+      height: 69px;
+    }
+
+    .top-plane-ghost {
+      opacity: 0.26;
+    }
+    
+    .top-plane svg, 
+    .top-plane-ghost svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .side-plane svg, 
+    .side-plane-preview svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      transform: scaleX(-1);
+    }
+
+    /* --- PACKAGE STYLES --- */
+    .top-package,
+    .top-package-ghost,
+    .side-package {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.28), transparent 40%),
+        linear-gradient(135deg, #c9823a 0 50%, var(--pkg) 51% 100%);
+      border: 2px solid var(--pkg-dark);
+      box-shadow: 0 4px 8px rgba(15, 23, 42, 0.22);
+      z-index: 7;
+      pointer-events: none;
+    }
+
+    .top-package::before,
+    .top-package-ghost::before,
+    .side-package::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: -2px;
+      bottom: -2px;
+      width: 2px;
+      background: rgba(255, 236, 190, 0.82);
+      transform: translateX(-50%);
+    }
+
+    .top-package::after,
+    .top-package-ghost::after,
+    .side-package::after {
+      content: "";
+      position: absolute;
+      left: -2px;
+      right: -2px;
+      top: 50%;
+      height: 2px;
+      background: rgba(255, 236, 190, 0.82);
+      transform: translateY(-50%);
+    }
+
+    .top-package-ghost {
+      opacity: 0.4;
+    }
+
+    .top-guide {
+      position: absolute;
+      width: 2px;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(15, 23, 42, 0.32) 0 6px,
+        transparent 6px 11px
+      );
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .side-view {
+      top: 30%;
+      bottom: 0;
+      z-index: 3;
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, rgba(229, 246, 255, 0.92) 0 66%, rgba(255,255,255,0.72) 86%, transparent 86%),
+        linear-gradient(180deg, transparent 0 84%, rgba(164, 191, 126, 0.42) 84% 100%);
+    }
+
+    .side-view::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 14%;
+      background:
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0 3px, transparent 3px 44px),
+        linear-gradient(180deg, var(--grass) 0%, var(--grass-dark) 100%);
+      border-top: 1px solid rgba(49, 90, 45, 0.28);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .side-view::before {
+      content: "Side view";
+      position: absolute;
+      left: 1.6%;
+      top: 3%;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.92);
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      color: var(--blue-dark);
+      font-size: 0.82rem;
+      font-weight: 800;
+      z-index: 12;
+    }
+
+    .ground-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 14%;
+      border-top: 3px solid rgba(67, 102, 56, 0.58);
+      box-shadow: 0 -1px 0 rgba(255,255,255,0.55);
+      z-index: 2;
+    }
+
+    .impact-ring {
+      position: absolute;
+      width: 42px;
+      height: 15px;
+      border-radius: 50%;
+      border: 3px solid rgba(37, 99, 235, 0.58);
+      opacity: 0;
+      transform: scale(0.55);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      z-index: 9;
+    }
+
+    .impact-ring::before,
+    .impact-ring::after {
+      content: "";
+      position: absolute;
+      top: 4px;
+      width: 20px;
+      height: 8px;
+      border-top: 3px solid rgba(154, 79, 30, 0.5);
+      border-radius: 50%;
+    }
+
+    .impact-ring::before {
+      left: -22px;
+      transform: rotate(-14deg);
+    }
+
+    .impact-ring::after {
+      right: -22px;
+      transform: rotate(14deg);
+    }
+
+    .impact-ring.show {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .top-impact {
+      height: 34px;
+      z-index: 4;
+    }
+
+    .align-line {
+      position: absolute;
+      width: 4px;
+      border-radius: 999px;
+      background:
+        repeating-linear-gradient(
+          to bottom,
+          rgba(22, 63, 109, 0.66) 0 10px,
+          rgba(22, 63, 109, 0.08) 10px 18px
+        );
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
+      opacity: 0;
+      z-index: 8;
+      transition: opacity 0.2s ease;
+      pointer-events: none;
+    }
+
+    .align-line.show { opacity: 1; }
+
+    .side-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 4;
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    .path {
+      fill: none;
+      stroke: var(--path-good);
+      stroke-width: 4;
+      stroke-dasharray: 9 8;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      filter: drop-shadow(0 3px 3px rgba(37, 99, 235, 0.18));
+    }
+
+    .path.show { opacity: 1; }
+
+    .path-label,
+    .plane-label {
+      position: absolute;
+      transform: translateX(-50%);
+      padding: 6px 14px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 2px solid #bfdbfe;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: var(--blue-dark);
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.15s ease;
+      z-index: 20;
+      text-align: center;
+      white-space: nowrap;
+      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
+      font-family: inherit;
+    }
+
+    .path-label.show,
+    .plane-label.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .path-label:hover,
+    .path-label.hover,
+    .path-label:focus-visible,
+    .plane-label:hover,
+    .plane-label.hover,
+    .plane-label:focus-visible {
+      background: var(--blue-soft);
+      border-color: var(--blue);
+      transform: translateX(-50%) translateY(-2px);
+      box-shadow: 0 6px 14px rgba(40, 96, 159, 0.2);
+      outline: none;
+    }
+
+    .path-label.selected,
+    .plane-label.selected {
+      background: var(--blue);
+      color: white;
+      border-color: var(--blue);
+    }
+
+    .path-group {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .path-group.show {
+      opacity: 1;
+    }
+    .path-group.show .path-hitbox {
+      pointer-events: auto;
+      cursor: pointer;
+    }
+    .path-line {
+      fill: none;
+      stroke: var(--path-muted);
+      stroke-width: 3;
+      stroke-dasharray: 6 6;
+      transition: stroke 0.2s ease, stroke-width 0.2s ease;
+    }
+
+    .path-line[data-path-id="curved"] {
+      stroke: rgba(37, 99, 235, 0.72);
+      stroke-width: 4;
+    }
+
+    .path-line[data-path-id="straight"],
+    .path-line[data-path-id="angled"] {
+      opacity: 0.72;
+    }
+    .path-line[data-path-id="angled"] {
+      stroke-dasharray: 2 8;
+      stroke-linecap: round;
+    }
+    .path-hitbox {
+      fill: none;
+      stroke: transparent;
+      stroke-width: 34;
+    }
+    .path-group:hover .path-line,
+    .path-group.hover .path-line {
+      stroke: var(--warn);
+      stroke-width: 5;
+      stroke-dasharray: none;
+      filter: drop-shadow(0 3px 4px rgba(180, 83, 9, 0.24));
+    }
+
+    .package-shadow {
+      position: absolute;
+      width: 40px;
+      height: 12px;
+      border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(15, 23, 42, 0.24), rgba(15, 23, 42, 0) 70%);
+      transform: translate(-50%, -50%) scale(0.45);
+      opacity: 0;
+      transition: opacity 0.18s ease;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .package-shadow.show {
+      opacity: 1;
+    }
+
+    .drop-anim-pkg {
+      display: none;
+      pointer-events: auto;
+      cursor: pointer;
+      transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+      z-index: 8;
+    }
+    .drop-anim-pkg.show {
+      display: block;
+    }
+    .drop-anim-pkg.hover {
+      border-color: #fff;
+      box-shadow: 0 0 12px var(--warn);
+      background: var(--warn);
+      transform: scale(1.3);
+    }
+
+    .preview-plane {
+      opacity: 0;
+      pointer-events: none;
+      z-index: 10;
+      transition: opacity 0.2s ease, filter 0.2s ease, transform 0.2s ease;
+      cursor: pointer;
+    }
+    
+    .preview-plane.show {
+      opacity: 0.35;
+      pointer-events: auto;
+      filter: grayscale(0.6);
+    }
+    
+    .preview-plane.hover {
+      opacity: 0.8;
+      filter: grayscale(0) drop-shadow(0 4px 10px rgba(40,96,159,0.3));
+      transform: translateY(-2px);
+    }
+    
+    .preview-plane.selected {
+      opacity: 1;
+      filter: grayscale(0) drop-shadow(0 4px 12px rgba(40,96,159,0.5));
+    }
+
+    .prompt {
+      position: absolute;
+      left: 2%;
+      bottom: 21%;
+      width: min(340px, 32%);
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.96);
+      border: 2px solid rgba(40, 96, 159, 0.22);
+      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 30;
+    }
+
+    .prompt-title {
+      margin: 0;
+      color: var(--blue-dark);
+      font-size: 1.05rem;
+      display: none;
+    }
+
+    .main-btn {
+      border: none;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-weight: 800;
+      cursor: pointer;
+      font-size: 0.78rem;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+      font-family: inherit;
+      background: var(--blue);
+      color: white;
+    }
+
+    .main-btn:hover,
+    .main-btn:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.14);
+      outline: 3px solid rgba(40, 96, 159, 0.25);
+    }
+
+    .feedback {
+      display: none;
+      margin-top: 4px;
+      padding: 14px;
+      border-radius: 14px;
+      border-left: 6px solid var(--blue);
+      background: var(--blue-soft);
+      color: #0f172a;
+      line-height: 1.45;
+    }
+
+    .feedback strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--blue-dark);
+    }
+
+    .feedback.ok {
+      border-left-color: var(--ok);
+      background: #ecfdf5;
+    }
+
+    .feedback.bad {
+      border-left-color: var(--warn);
+      background: #fff7ed;
+    }
+
+    .bottom-panel {
+      padding: 16px 24px;
+      background: #f8fafc;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .directions {
+      flex: 1;
+    }
+
+    .directions h3 {
+      margin: 0 0 6px;
+      color: var(--blue-dark);
+      font-size: clamp(1.05rem, 1.7vw, 1.2rem);
+    }
+
+    .directions p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 0.96rem;
+    }
+
+    .controls-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-shrink: 0;
+    }
+
+    .main-btn:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+      opacity: 0.82;
+    }
+
+    .helper {
+      min-height: 1.2em;
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    @media (max-width: 760px) {
+      body { padding: 12px; }
+      .scene { aspect-ratio: 4 / 3; min-height: 520px; }
+      .top-view { top: 4%; height: 25%; }
+      .side-view { top: 30%; }
+      .prompt {
+        width: min(360px, 86%);
+        left: 3%;
+        bottom: 21%;
+      }
+      .bottom-panel {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 16px;
+      }
+      .controls-right {
+        width: 100%;
+        justify-content: flex-end;
+      }
+    }
+  </style>
+</head>
+<body>
+  <section class="airdrop">
+    <div class="card">
+      <div class="scene" data-scene>
+        <div class="sky-clouds" aria-hidden="true"></div>
+        
+        <!-- TOP VIEW AREA -->
+        <div class="top-view" data-top-view>
+          <div class="top-track"></div>
+          <div class="top-ghosts" data-top-ghosts></div>
+          <div class="top-guide" data-top-guide></div>
+          <div class="impact-ring top-impact" data-top-impact></div>
+          
+          <div class="top-plane" data-plane-top>
+            <svg viewBox="0 0 140 100" xmlns="http://www.w3.org/2000/svg">
+              <path d="M 22 30 L 34 30 L 34 70 L 22 70 C 16 70 16 30 22 30 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="1.5" />
+              <rect x="64" y="14" width="22" height="72" rx="4" fill="#dc2626" stroke="#7f1d1d" stroke-width="1.5" />
+              <path d="M 20 50 C 20 44 35 44 60 44 L 105 45 C 110 45 115 47 115 50 C 115 53 110 55 105 55 L 60 56 C 35 56 20 56 20 50 Z" fill="#fbbf24" stroke="#b45309" stroke-width="1.5" />
+              <path d="M 103 44 L 115 46 C 118 46 118 54 115 54 L 103 56 Z" fill="#64748b" stroke="#334155" stroke-width="1.5"/>
+              <path d="M 98 10 L 98 90 C 98 92 96 94 94 94 L 74 94 C 72 94 70 92 70 90 L 70 62 C 80 62 84 56 84 50 C 84 44 80 38 70 38 L 70 10 C 70 8 72 6 74 6 L 94 6 C 96 6 98 8 98 10 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="1.5" />
+              <ellipse cx="62" cy="50" rx="6" ry="4.5" fill="#1e293b" />
+              <path d="M 70 46 Q 72 50 70 54" fill="none" stroke="#94a3b8" stroke-width="2" />
+              <rect x="116" y="20" width="2" height="60" rx="1" fill="#334155" />
+              <ellipse cx="117" cy="50" rx="3" ry="4" fill="#1e293b" />
+            </svg>
+          </div>
+          
+          <div class="top-package" data-package-top></div>
+        </div>
+
+        <!-- SIDE VIEW AREA -->
+        <div class="side-view" data-side-view>
+          <div class="ground-line" data-ground></div>
+          <div class="package-shadow" data-package-shadow></div>
+          <svg class="side-svg" data-side-svg aria-hidden="true">
+            <g class="path-group" data-path-group="straight">
+              <path class="path-line" data-path-id="straight"></path>
+              <path class="path-hitbox" data-path-id="straight"></path>
+            </g>
+            <g class="path-group" data-path-group="angled">
+              <path class="path-line" data-path-id="angled"></path>
+              <path class="path-hitbox" data-path-id="angled"></path>
+            </g>
+            <g class="path-group" data-path-group="curved">
+              <path class="path-line" data-path-id="curved"></path>
+              <path class="path-hitbox" data-path-id="curved"></path>
+            </g>
+            <path class="path" data-path></path>
+          </svg>
+          <div class="side-ghosts" data-side-ghosts></div>
+          <div class="align-line" data-align></div>
+          <div class="impact-ring" data-impact></div>
+          
+          <div class="side-plane" data-plane-side>
+            <svg viewBox="0 0 140 60" xmlns="http://www.w3.org/2000/svg">
+              <ellipse cx="10" cy="30" rx="3" ry="20" fill="rgba(0,0,0,0.1)" />
+              <path d="M 8 12 Q 12 12 10 30 Q 8 48 10 48 Q 6 48 8 30 Z" fill="#334155" />
+              <rect x="10" y="26" width="6" height="8" rx="2" fill="#475569" />
+              <rect x="16" y="22" width="10" height="16" rx="2" fill="#64748b" />
+              <line x1="20" y1="22" x2="20" y2="38" stroke="#334155" stroke-width="2" />
+              <path d="M 26 22 L 50 22 C 60 22 80 25 100 27 L 130 26 L 134 29 L 130 32 C 100 36 60 38 26 38 Z" fill="#fbbf24" stroke="#b45309" stroke-width="1.5" />
+              <path d="M 65 24 C 65 18 72 18 75 25 Z" fill="#f8fafc" />
+              <path d="M 63 24 Q 65 20 68 20" fill="none" stroke="#334155" stroke-width="1.5" stroke-linecap="round" />
+              <path d="M 118 26 C 120 10 134 10 134 26 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="1.5" />
+              <path d="M 120 16 L 132 16 M 119 21 L 133 21" fill="none" stroke="#1e293b" stroke-width="2" />
+              <ellipse cx="126" cy="28" rx="10" ry="3" fill="#fbbf24" stroke="#b45309" stroke-width="1" />
+              <line x1="38" y1="10" x2="44" y2="35" stroke="#334155" stroke-width="1.5" />
+              <line x1="58" y1="10" x2="52" y2="35" stroke="#334155" stroke-width="1.5" />
+              <line x1="44" y1="35" x2="58" y2="10" stroke="#334155" stroke-width="1" stroke-dasharray="2 1" />
+              <path d="M 35 34 L 65 34 L 60 38 L 32 38 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="1" />
+              <path d="M 30 10 L 70 10 L 65 14 L 26 14 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="1.5" />
+              <line x1="40" y1="38" x2="35" y2="48" stroke="#334155" stroke-width="2" />
+              <line x1="46" y1="38" x2="35" y2="48" stroke="#334155" stroke-width="1.5" />
+              <circle cx="35" cy="48" r="5" fill="#1e293b" />
+              <circle cx="35" cy="48" r="2" fill="#fbbf24" />
+              <line x1="124" y1="32" x2="124" y2="38" stroke="#334155" stroke-width="1.5" />
+              <circle cx="124" cy="38" r="2" fill="#1e293b" />
+            </svg>
+          </div>
+          
+          <div class="side-plane preview-plane" data-preview-plane="behind">
+            <svg viewBox="0 0 140 60" xmlns="http://www.w3.org/2000/svg">
+              <ellipse cx="10" cy="30" rx="3" ry="20" fill="rgba(0,0,0,0.1)" />
+              <path d="M 8 12 Q 12 12 10 30 Q 8 48 10 48 Q 6 48 8 30 Z" fill="#334155" />
+              <rect x="10" y="26" width="6" height="8" rx="2" fill="#475569" />
+              <rect x="16" y="22" width="10" height="16" rx="2" fill="#64748b" />
+              <line x1="20" y1="22" x2="20" y2="38" stroke="#334155" stroke-width="2" />
+              <path d="M 26 22 L 50 22 C 60 22 80 25 100 27 L 130 26 L 134 29 L 130 32 C 100 36 60 38 26 38 Z" fill="#fbbf24" stroke="#b45309" stroke-width="1.5" />
+              <path d="M 65 24 C 65 18 72 18 75 25 Z" fill="#f8fafc" />
+              <path d="M 63 24 Q 65 20 68 20" fill="none" stroke="#334155" stroke-width="1.5" stroke-linecap="round" />
+              <path d="M 118 26 C 120 10 134 10 134 26 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="1.5" />
+              <path d="M 120 16 L 132 16 M 119 21 L 133 21" fill="none" stroke="#1e293b" stroke-width="2" />
+              <ellipse cx="126" cy="28" rx="10" ry="3" fill="#fbbf24" stroke="#b45309" stroke-width="1" />
+              <line x1="38" y1="10" x2="44" y2="35" stroke="#334155" stroke-width="1.5" />
+              <line x1="58" y1="10" x2="52" y2="35" stroke="#334155" stroke-width="1.5" />
+              <line x1="44" y1="35" x2="58" y2="10" stroke="#334155" stroke-width="1" stroke-dasharray="2 1" />
+              <path d="M 35 34 L 65 34 L 60 38 L 32 38 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="1" />
+              <path d="M 30 10 L 70 10 L 65 14 L 26 14 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="1.5" />
+              <line x1="40" y1="38" x2="35" y2="48" stroke="#334155" stroke-width="2" />
+              <line x1="46" y1="38" x2="35" y2="48" stroke="#334155" stroke-width="1.5" />
+              <circle cx="35" cy="48" r="5" fill="#1e293b" />
+              <circle cx="35" cy="48" r="2" fill="#fbbf24" />
+              <line x1="124" y1="32" x2="124" y2="38" stroke="#334155" stroke-width="1.5" />
+              <circle cx="124" cy="38" r="2" fill="#1e293b" />
+            </svg>
+          </div>
+          
+          <div class="side-plane preview-plane" data-preview-plane="above">
+            <svg viewBox="0 0 140 60" xmlns="http://www.w3.org/2000/svg">
+              <ellipse cx="10" cy="30" rx="3" ry="20" fill="rgba(0,0,0,0.1)" />
+              <path d="M 8 12 Q 12 12 10 30 Q 8 48 10 48 Q 6 48 8 30 Z" fill="#334155" />
+              <rect x="10" y="26" width="6" height="8" rx="2" fill="#475569" />
+              <rect x="16" y="22" width="10" height="16" rx="2" fill="#64748b" />
+              <line x1="20" y1="22" x2="20" y2="38" stroke="#334155" stroke-width="2" />
+              <path d="M 26 22 L 50 22 C 60 22 80 25 100 27 L 130 26 L 134 29 L 130 32 C 100 36 60 38 26 38 Z" fill="#fbbf24" stroke="#b45309" stroke-width="1.5" />
+              <path d="M 65 24 C 65 18 72 18 75 25 Z" fill="#f8fafc" />
+              <path d="M 63 24 Q 65 20 68 20" fill="none" stroke="#334155" stroke-width="1.5" stroke-linecap="round" />
+              <path d="M 118 26 C 120 10 134 10 134 26 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="1.5" />
+              <path d="M 120 16 L 132 16 M 119 21 L 133 21" fill="none" stroke="#1e293b" stroke-width="2" />
+              <ellipse cx="126" cy="28" rx="10" ry="3" fill="#fbbf24" stroke="#b45309" stroke-width="1" />
+              <line x1="38" y1="10" x2="44" y2="35" stroke="#334155" stroke-width="1.5" />
+              <line x1="58" y1="10" x2="52" y2="35" stroke="#334155" stroke-width="1.5" />
+              <line x1="44" y1="35" x2="58" y2="10" stroke="#334155" stroke-width="1" stroke-dasharray="2 1" />
+              <path d="M 35 34 L 65 34 L 60 38 L 32 38 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="1" />
+              <path d="M 30 10 L 70 10 L 65 14 L 26 14 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="1.5" />
+              <line x1="40" y1="38" x2="35" y2="48" stroke="#334155" stroke-width="2" />
+              <line x1="46" y1="38" x2="35" y2="48" stroke="#334155" stroke-width="1.5" />
+              <circle cx="35" cy="48" r="5" fill="#1e293b" />
+              <circle cx="35" cy="48" r="2" fill="#fbbf24" />
+              <line x1="124" y1="32" x2="124" y2="38" stroke="#334155" stroke-width="1.5" />
+              <circle cx="124" cy="38" r="2" fill="#1e293b" />
+            </svg>
+          </div>
+          
+          <div class="side-plane preview-plane" data-preview-plane="ahead">
+            <svg viewBox="0 0 140 60" xmlns="http://www.w3.org/2000/svg">
+              <ellipse cx="10" cy="30" rx="3" ry="20" fill="rgba(0,0,0,0.1)" />
+              <path d="M 8 12 Q 12 12 10 30 Q 8 48 10 48 Q 6 48 8 30 Z" fill="#334155" />
+              <rect x="10" y="26" width="6" height="8" rx="2" fill="#475569" />
+              <rect x="16" y="22" width="10" height="16" rx="2" fill="#64748b" />
+              <line x1="20" y1="22" x2="20" y2="38" stroke="#334155" stroke-width="2" />
+              <path d="M 26 22 L 50 22 C 60 22 80 25 100 27 L 130 26 L 134 29 L 130 32 C 100 36 60 38 26 38 Z" fill="#fbbf24" stroke="#b45309" stroke-width="1.5" />
+              <path d="M 65 24 C 65 18 72 18 75 25 Z" fill="#f8fafc" />
+              <path d="M 63 24 Q 65 20 68 20" fill="none" stroke="#334155" stroke-width="1.5" stroke-linecap="round" />
+              <path d="M 118 26 C 120 10 134 10 134 26 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="1.5" />
+              <path d="M 120 16 L 132 16 M 119 21 L 133 21" fill="none" stroke="#1e293b" stroke-width="2" />
+              <ellipse cx="126" cy="28" rx="10" ry="3" fill="#fbbf24" stroke="#b45309" stroke-width="1" />
+              <line x1="38" y1="10" x2="44" y2="35" stroke="#334155" stroke-width="1.5" />
+              <line x1="58" y1="10" x2="52" y2="35" stroke="#334155" stroke-width="1.5" />
+              <line x1="44" y1="35" x2="58" y2="10" stroke="#334155" stroke-width="1" stroke-dasharray="2 1" />
+              <path d="M 35 34 L 65 34 L 60 38 L 32 38 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="1" />
+              <path d="M 30 10 L 70 10 L 65 14 L 26 14 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="1.5" />
+              <line x1="40" y1="38" x2="35" y2="48" stroke="#334155" stroke-width="2" />
+              <line x1="46" y1="38" x2="35" y2="48" stroke="#334155" stroke-width="1.5" />
+              <circle cx="35" cy="48" r="5" fill="#1e293b" />
+              <circle cx="35" cy="48" r="2" fill="#fbbf24" />
+              <line x1="124" y1="32" x2="124" y2="38" stroke="#334155" stroke-width="1.5" />
+              <circle cx="124" cy="38" r="2" fill="#1e293b" />
+            </svg>
+          </div>
+          
+          <div class="side-package drop-anim-pkg" data-anim-pkg="straight"></div>
+          <div class="side-package drop-anim-pkg" data-anim-pkg="angled"></div>
+          <div class="side-package drop-anim-pkg" data-anim-pkg="curved"></div>
+          <div class="side-package" data-package-side></div>
+
+          <button class="path-label" data-path-label="straight" type="button">Straight</button>
+          <button class="path-label" data-path-label="angled" type="button">Diagonal</button>
+          <button class="path-label" data-path-label="curved" type="button">Curved</button>
+          
+          <button class="plane-label" data-plane-label="behind" type="button">Behind</button>
+          <button class="plane-label" data-plane-label="above" type="button">Directly Above</button>
+          <button class="plane-label" data-plane-label="ahead" type="button">Ahead</button>
+        </div>
+
+        <div class="prompt" data-prompt>
+          <h3 class="prompt-title" data-prompt-title></h3>
+          <div class="feedback" data-feedback aria-live="polite"></div>
+        </div>
+      </div>
+
+      <div class="bottom-panel">
+        <div class="directions" data-stage aria-live="polite">
+          <h3>Watch the Setup</h3>
+          <p>Click start. The plane moves in both views. The package is released, and then you will predict where the plane will be when the package lands.</p>
+        </div>
+
+        <div class="controls-right">
+          <span class="helper" data-helper></span>
+          <button class="main-btn" type="button" data-main>Start Setup</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    (() => {
+      const root = document.querySelector('.airdrop');
+      const scene = root.querySelector('[data-scene]');
+      const topView = root.querySelector('[data-top-view]');
+      const sideView = root.querySelector('[data-side-view]');
+      const planeTop = root.querySelector('[data-plane-top]');
+      const pkgTop = root.querySelector('[data-package-top]');
+      const planeSide = root.querySelector('[data-plane-side]');
+      const pkgSide = root.querySelector('[data-package-side]');
+      const topGhosts = root.querySelector('[data-top-ghosts]');
+      const sideGhosts = root.querySelector('[data-side-ghosts]');
+      const topGuide = root.querySelector('[data-top-guide]');
+      const ground = root.querySelector('[data-ground]');
+      const align = root.querySelector('[data-align]');
+      const impact = root.querySelector('[data-impact]');
+      const topImpact = root.querySelector('[data-top-impact]');
+      const pkgShadow = root.querySelector('[data-package-shadow]');
+      const stage = root.querySelector('[data-stage]');
+      const promptBox = root.querySelector('[data-prompt]');
+      const promptTitle = root.querySelector('[data-prompt-title]');
+      const pathButtons = Array.from(root.querySelectorAll('[data-path-label]'));
+      const planeLabels = Array.from(root.querySelectorAll('[data-plane-label]'));
+      const feedback = root.querySelector('[data-feedback]');
+      const helper = root.querySelector('[data-helper]');
+      const mainBtn = root.querySelector('[data-main]');
+      const sideSvg = root.querySelector('[data-side-svg]');
+      const path = root.querySelector('[data-path]');
+
+      const planeTopMarkup = `
+        <svg viewBox="0 0 140 100" xmlns="http://www.w3.org/2000/svg">
+          <path d="M 22 30 L 34 30 L 34 70 L 22 70 C 16 70 16 30 22 30 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="1.5" />
+          <rect x="64" y="14" width="22" height="72" rx="4" fill="#dc2626" stroke="#7f1d1d" stroke-width="1.5" />
+          <path d="M 20 50 C 20 44 35 44 60 44 L 105 45 C 110 45 115 47 115 50 C 115 53 110 55 105 55 L 60 56 C 35 56 20 56 20 50 Z" fill="#fbbf24" stroke="#b45309" stroke-width="1.5" />
+          <path d="M 103 44 L 115 46 C 118 46 118 54 115 54 L 103 56 Z" fill="#64748b" stroke="#334155" stroke-width="1.5"/>
+          <path d="M 98 10 L 98 90 C 98 92 96 94 94 94 L 74 94 C 72 94 70 92 70 90 L 70 62 C 80 62 84 56 84 50 C 84 44 80 38 70 38 L 70 10 C 70 8 72 6 74 6 L 94 6 C 96 6 98 8 98 10 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="1.5" />
+          <ellipse cx="62" cy="50" rx="6" ry="4.5" fill="#1e293b" />
+          <path d="M 70 46 Q 72 50 70 54" fill="none" stroke="#94a3b8" stroke-width="2" />
+          <rect x="116" y="20" width="2" height="60" rx="1" fill="#334155" />
+          <ellipse cx="117" cy="50" rx="3" ry="4" fill="#1e293b" />
+        </svg>`;
+
+      let state = 'setup';
+      let isAnimating = false;
+      let selectedPath = null;
+      let selectedPlane = null;
+      let rafToken = 0;
+      let ghostIndex = 0;
+      let pathAnimToken = 0;
+      let autoAdvanceTimer = null;
+
+      const timings = {
+        setup: 1200,
+        flight: 2200
+      };
+
+      function metrics() {
+        const sceneRect = scene.getBoundingClientRect();
+        const topRect = topView.getBoundingClientRect();
+        const sideRect = sideView.getBoundingClientRect();
+        const groundRect = ground.getBoundingClientRect();
+        const topPlaneW = planeTop.offsetWidth;
+        const topPlaneH = planeTop.offsetHeight;
+        const sidePlaneW = planeSide.offsetWidth;
+        const sidePlaneH = planeSide.offsetHeight;
+        const pkgSideR = pkgSide.offsetWidth / 2;
+        const pkgTopR = pkgTop.offsetWidth / 2;
+        const topPkgOffset = topPlaneW * (32 / 88);
+        const topGuideOffset = topPlaneW * (43 / 88);
+        const topImpactOffset = topPlaneW * 0.5;
+        const sidePkgOffset = sidePlaneW * 0.5;
+
+        const topStartX = topRect.width * 0.08;
+        const topReleaseX = topRect.width * 0.32;
+        const topY = topRect.height * 0.54 - topPlaneH / 2;
+        const topPkgY = topRect.height * 0.24 - pkgTopR;
+
+        const sideStartX = sideRect.width * 0.08;
+        const sideReleaseX = sideRect.width * 0.32;
+        const sideY = sideRect.height * 0.18;
+        const pkgReleaseY = sideY + sidePlaneH * 0.72;
+        const groundY = (groundRect.top - sideRect.top) - pkgSideR;
+        const flightHeight = groundY - pkgReleaseY;
+        const tFlight = timings.flight / 1000;
+        const g = (2 * flightHeight) / (tFlight * tFlight);
+        const vx = (sideRect.width * 0.38) / tFlight;
+        const sideImpactX = sideReleaseX + vx * tFlight;
+        const topImpactX = topReleaseX + (topRect.width * 0.38);
+
+        return {
+          sceneRect,
+          topRect,
+          sideRect,
+          topPlaneW,
+          topPlaneH,
+          sidePlaneW,
+          sidePlaneH,
+          pkgSideR,
+          pkgTopR,
+          topPkgOffset,
+          topGuideOffset,
+          topImpactOffset,
+          sidePkgOffset,
+          topStartX,
+          topReleaseX,
+          topY,
+          topPkgY,
+          sideStartX,
+          sideReleaseX,
+          sideY,
+          pkgReleaseY,
+          groundY,
+          flightHeight,
+          tFlight,
+          g,
+          vx,
+          sideImpactX,
+          topImpactX
+        };
+      }
+
+      function setTopPlane(x, y) {
+        const m = metrics();
+        planeTop.style.left = `${x}px`;
+        planeTop.style.top = `${y}px`;
+        pkgTop.style.left = `${x + m.topPkgOffset}px`;
+        pkgTop.style.top = `${m.topPkgY}px`;
+      }
+
+      function setTopPlaneAndDot(x) {
+        const m = metrics();
+        planeTop.style.left = `${x}px`;
+        planeTop.style.top = `${m.topY}px`;
+        pkgTop.style.left = `${x + m.topPkgOffset}px`;
+        pkgTop.style.top = `${m.topPkgY}px`;
+        topGuide.style.left = `${x + m.topGuideOffset}px`;
+        topGuide.style.top = `${m.topPkgY + m.pkgTopR * 2}px`;
+        topGuide.style.height = `${m.topY + m.topPlaneH * 0.5 - (m.topPkgY + m.pkgTopR * 2)}px`;
+      }
+
+      function setSidePlane(x, y) {
+        planeSide.style.left = `${x}px`;
+        planeSide.style.top = `${y}px`;
+      }
+
+      function setSidePackage(x, y) {
+        pkgSide.style.left = `${x - metrics().pkgSideR}px`;
+        pkgSide.style.top = `${y - metrics().pkgSideR}px`;
+      }
+
+      function setPackageShadow(show, x = 0, groundY = 0, progress = 0) {
+        if (!pkgShadow) return;
+        const scale = 0.42 + Math.min(1, Math.max(0, progress)) * 0.9;
+        pkgShadow.style.left = `${x}px`;
+        pkgShadow.style.top = `${groundY + 14}px`;
+        pkgShadow.style.transform = `translate(-50%, -50%) scale(${scale.toFixed(2)})`;
+        pkgShadow.classList.toggle('show', !!show);
+      }
+
+      function sidePackagePos(m, t) {
+        return {
+          x: m.sideReleaseX + m.sidePkgOffset + m.vx * t,
+          y: m.pkgReleaseY + 0.5 * m.g * t * t
+        };
+      }
+
+      function clearGhosts() {
+        topGhosts.innerHTML = '';
+        sideGhosts.innerHTML = '';
+        ghostIndex = 0;
+      }
+
+      function addTopGhost(x, opacity, scale = 1) {
+        const m = metrics();
+        const ghost = document.createElement('div');
+        ghost.className = 'top-plane-ghost';
+        ghost.innerHTML = planeTopMarkup;
+        ghost.style.left = `${x}px`;
+        ghost.style.top = `${m.topY}px`;
+        ghost.style.opacity = opacity;
+        topGhosts.appendChild(ghost);
+
+        const dot = document.createElement('div');
+        dot.className = 'top-package-ghost';
+        dot.style.left = `${x + m.topPkgOffset}px`;
+        dot.style.top = `${m.topPkgY}px`;
+        dot.style.opacity = opacity + 0.08;
+        dot.style.transform = `scale(${scale})`;
+        topGhosts.appendChild(dot);
+      }
+
+      function addSideGhost(x, y, opacity) {
+        const dot = document.createElement('div');
+        dot.className = 'top-package-ghost';
+        dot.style.left = `${x - 12}px`;
+        dot.style.top = `${y - 12}px`;
+        dot.style.opacity = opacity;
+        sideGhosts.appendChild(dot);
+      }
+
+      function updateInteractivePaths() {
+        const m = metrics();
+        const startX = m.sideReleaseX + m.sidePkgOffset;
+        const middleEndX = startX + (m.vx * m.tFlight) / 2;
+        const finalEndX = startX + m.vx * m.tFlight;
+        
+        const dStraight = `M ${startX.toFixed(2)} ${m.pkgReleaseY.toFixed(2)} L ${startX.toFixed(2)} ${m.groundY.toFixed(2)}`;
+        root.querySelectorAll('[data-path-id="straight"]').forEach(p => p.setAttribute('d', dStraight));
+        
+        const dAngled = `M ${startX.toFixed(2)} ${m.pkgReleaseY.toFixed(2)} L ${middleEndX.toFixed(2)} ${m.groundY.toFixed(2)}`;
+        root.querySelectorAll('[data-path-id="angled"]').forEach(p => p.setAttribute('d', dAngled));
+        
+        let dCurved = `M ${startX.toFixed(2)} ${m.pkgReleaseY.toFixed(2)}`;
+        for (let i = 1; i <= 22; i++) {
+          const p = sidePackagePos(m, m.tFlight * (i / 22));
+          dCurved += ` L ${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+        }
+        root.querySelectorAll('[data-path-id="curved"]').forEach(p => p.setAttribute('d', dCurved));
+
+        const pathLabelY = m.groundY + 36;
+
+        const lStraight = root.querySelector('[data-path-label="straight"]');
+        if(lStraight) { lStraight.style.left = `${startX}px`; lStraight.style.top = `${pathLabelY}px`; }
+
+        const lAngled = root.querySelector('[data-path-label="angled"]');
+        if(lAngled) { lAngled.style.left = `${middleEndX}px`; lAngled.style.top = `${pathLabelY}px`; }
+
+        const lCurved = root.querySelector('[data-path-label="curved"]');
+        if(lCurved) { lCurved.style.left = `${finalEndX}px`; lCurved.style.top = `${pathLabelY}px`; }
+      }
+
+      function updatePath(type = 'curved') {
+        const m = metrics();
+        sideSvg.setAttribute('viewBox', `0 0 ${m.sideRect.width} ${m.sideRect.height}`);
+        const startX = m.sideReleaseX + m.sidePkgOffset;
+        let d = `M ${startX.toFixed(2)} ${m.pkgReleaseY.toFixed(2)}`;
+        
+        if (type === 'straight') {
+          d += ` L ${startX.toFixed(2)} ${m.groundY.toFixed(2)}`;
+          path.style.strokeDasharray = '';
+        } else if (type === 'angled') {
+          const middleEndX = startX + (m.vx * m.tFlight) / 2;
+          d += ` L ${middleEndX.toFixed(2)} ${m.groundY.toFixed(2)}`;
+          path.style.strokeDasharray = '2 8';
+          path.style.strokeLinecap = 'round';
+        } else {
+          for (let i = 1; i <= 22; i++) {
+            const p = sidePackagePos(m, m.tFlight * (i / 22));
+            d += ` L ${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+          }
+          path.style.strokeDasharray = '';
+          path.style.strokeLinecap = '';
+        }
+        path.setAttribute('d', d);
+      }
+
+      function clearPreviewPlanes() {
+        root.querySelectorAll('.preview-plane').forEach(p => {
+          p.classList.remove('show', 'hover', 'selected');
+        });
+        root.querySelectorAll('.plane-label').forEach(p => {
+          p.classList.remove('show', 'hover', 'selected');
+        });
+      }
+
+      function highlightPlaneChoice(choice, active) {
+        root.querySelectorAll('.preview-plane').forEach(p => {
+          if (p.dataset.previewPlane === choice) p.classList.toggle('hover', active);
+        });
+        planeLabels.forEach(b => {
+          if (b.dataset.planeLabel === choice) b.classList.toggle('hover', active);
+        });
+      }
+
+      function highlightChoicePath(choice, active) {
+        root.querySelectorAll('.path-group').forEach(g => {
+          if (g.dataset.pathGroup === choice) g.classList.toggle('hover', active);
+        });
+        root.querySelectorAll('.drop-anim-pkg').forEach(pkg => {
+          if (pkg.dataset.animPkg === choice) pkg.classList.toggle('hover', active);
+        });
+        root.querySelectorAll('.path-label').forEach(lbl => {
+          if (lbl.dataset.pathLabel === choice) lbl.classList.toggle('hover', active);
+        });
+      }
+
+      function animatePathsOnce(token, startTime) {
+        if (token !== pathAnimToken) return;
+        
+        const m = metrics();
+        const startX = m.sideReleaseX + m.sidePkgOffset;
+        const duration = 1200; 
+        const now = performance.now();
+        let p = Math.min(1, (now - startTime) / duration);
+        
+        const t = p * m.tFlight;
+        
+        const r = m.pkgSideR;
+        const setPkg = (id, x, y) => {
+          const el = root.querySelector(`[data-anim-pkg="${id}"]`);
+          if (el) {
+            el.style.left = `${x - r}px`;
+            el.style.top = `${y - r}px`;
+          }
+        };
+        
+        setPkg('straight', startX, m.pkgReleaseY + 0.5 * m.g * t * t);
+        setPkg('angled', startX + (m.vx * t) / 2, m.pkgReleaseY + m.flightHeight * p);
+        setPkg('curved', startX + m.vx * t, m.pkgReleaseY + 0.5 * m.g * t * t);
+        
+        if (p < 1) {
+          requestAnimationFrame(() => animatePathsOnce(token, startTime));
+        }
+      }
+
+      function setFeedback(html = '', type = '') {
+        if (!html) {
+          feedback.style.display = 'none';
+          feedback.className = 'feedback';
+          feedback.innerHTML = '';
+          return;
+        }
+        feedback.style.display = 'block';
+        feedback.className = `feedback ${type}`;
+        feedback.innerHTML = html;
+      }
+
+      function setDisabled(disabled) {
+        isAnimating = disabled;
+        mainBtn.disabled = disabled;
+        pathButtons.forEach(btn => btn.disabled = disabled);
+        planeLabels.forEach(btn => btn.disabled = disabled);
+      }
+
+      function showImpact(show, x, y) {
+        impact.style.left = `${x - 21}px`;
+        impact.style.top = `${y - 7}px`;
+        impact.classList.toggle('show', !!show);
+      }
+
+      function showTopImpact(show, x, y) {
+        if (!topImpact) return;
+        topImpact.style.left = `${x - 21}px`;
+        topImpact.style.top = `${y - 17}px`;
+        topImpact.classList.toggle('show', !!show);
+      }
+
+      function showAlign(show, x, y1, y2) {
+        align.style.left = `${x - 2}px`;
+        align.style.top = `${y1}px`;
+        align.style.height = `${Math.max(0, y2 - y1)}px`;
+        align.classList.toggle('show', !!show);
+      }
+
+      function resetScene() {
+        rafToken += 1;
+        pathAnimToken += 1;
+        clearTimeout(autoAdvanceTimer);
+        clearGhosts();
+        clearPreviewPlanes();
+        setDisabled(false);
+        setFeedback();
+        path.classList.remove('show');
+        root.querySelectorAll('.path-group').forEach(p => p.classList.remove('show'));
+        root.querySelectorAll('.drop-anim-pkg').forEach(p => p.classList.remove('show'));
+        root.querySelectorAll('.path-label').forEach(p => p.classList.remove('show', 'selected', 'hover'));
+        pkgSide.style.display = '';
+
+        planeSide.style.opacity = '';
+        planeTop.style.opacity = '';
+        pkgTop.style.opacity = '';
+        pkgTop.style.transform = '';
+
+        showImpact(false, 0, 0);
+        showTopImpact(false, 0, 0);
+        showAlign(false, 0, 0, 0);
+        setPackageShadow(false);
+        const m = metrics();
+        updatePath('curved');
+        planeTop.style.display = '';
+        pkgTop.style.display = '';
+        topGuide.style.display = '';
+        setTopPlaneAndDot(m.topStartX);
+        setSidePlane(m.sideStartX, m.sideY);
+        setSidePackage(m.sideStartX + m.sidePkgOffset, m.pkgReleaseY);
+      }
+
+      function clearSelection() {
+        selectedPath = null;
+        selectedPlane = null;
+        pathButtons.forEach(btn => btn.classList.remove('selected'));
+        planeLabels.forEach(btn => btn.classList.remove('selected'));
+      }
+
+      function setState(next) {
+        state = next;
+        if (state === 'setup') {
+          stage.innerHTML = `
+            <h3>Watch the Setup</h3>
+            <p>Click start. The plane moves in both views. The package will be released, and then you will predict its path and the airplane's location.</p>`;
+          mainBtn.textContent = 'Start Setup';
+          promptTitle.style.display = 'none';
+          promptBox.style.display = 'none';
+          clearSelection();
+          setFeedback();
+          resetScene();
+          return;
+        }
+        if (state === 'question_path') {
+          stage.innerHTML = `
+            <h3>Predict the Path</h3>
+            <p>The package has just been released. Make your choice below.</p>`;
+          promptTitle.textContent = "Which path will it take to the ground?";
+          promptTitle.style.display = 'block';
+          promptBox.style.display = 'flex';
+          mainBtn.textContent = 'Replay Setup';
+          path.classList.remove('show');
+          
+          updateInteractivePaths();
+          root.querySelectorAll('.path-group').forEach(p => p.classList.add('show'));
+          pkgSide.style.display = 'none';
+          root.querySelectorAll('.drop-anim-pkg').forEach(p => p.classList.add('show'));
+          root.querySelectorAll('.path-label').forEach(p => p.classList.add('show'));
+          
+          pathAnimToken++;
+          const startTime = performance.now();
+          requestAnimationFrame(() => animatePathsOnce(pathAnimToken, startTime));
+          return;
+        }
+        if (state === 'reveal_path') {
+          stage.innerHTML = `
+            <h3>Path Result</h3>
+            <p>Watch the package's actual path.</p>`;
+          mainBtn.textContent = 'Continuing...';
+          promptTitle.style.display = 'none';
+          promptBox.style.display = 'flex';
+          
+          const pathOk = selectedPath === 'curved';
+          if (pathOk) {
+            setFeedback(`<strong>Correct!</strong> The package maintains the forward speed it had while in the airplane, causing it to follow a curved, parabolic path to the ground.`, 'ok');
+          } else {
+            setFeedback(`<strong>Not quite.</strong> The package maintains the forward speed it had while in the airplane, causing it to follow a curved, parabolic path instead of a straight line.`, 'bad');
+          }
+          return;
+        }
+        if (state === 'question_plane') {
+          stage.innerHTML = `
+            <h3>Predict Plane Location</h3>
+            <p>Now, make your choice for the airplane's location.</p>`;
+          promptTitle.textContent = "Where will the airplane be when the package lands?";
+          promptTitle.style.display = 'block';
+          promptBox.style.display = 'flex';
+          mainBtn.textContent = 'Replay Setup';
+          
+          playQuestionPlaneSetup();
+          return;
+        }
+        if (state === 'reveal') {
+          stage.innerHTML = `
+            <h3>Reveal</h3>
+            <p>Watch both views. The top strip leaves behind airplane snapshots at equal time intervals.</p>`;
+          mainBtn.textContent = 'Playing...';
+          promptTitle.style.display = 'none';
+          promptBox.style.display = 'none';
+          updatePath('curved');
+          path.classList.add('show');
+          return;
+        }
+        if (state === 'done') {
+          const planeOk = selectedPlane === 'above';
+          
+          stage.innerHTML = `
+            <h3>Final Result</h3>
+            <p>Review the complete motion.</p>`;
+          mainBtn.textContent = 'Try Again';
+          promptTitle.style.display = 'none';
+          promptBox.style.display = 'flex';
+          
+          let msg = '';
+          if (planeOk) {
+            msg = `<strong>Correct!</strong> Because the package keeps the airplane's horizontal speed, they stay aligned horizontally, and the plane remains directly above it.`;
+            setFeedback(msg, 'ok');
+          } else {
+            msg = `<strong>Not quite.</strong> Because the package keeps the airplane's horizontal speed, they stay aligned horizontally, and the airplane remains directly above the package.`;
+            setFeedback(msg, 'bad');
+          }
+        }
+      }
+
+      function animate(duration, onFrame) {
+        const token = ++rafToken;
+        return new Promise(resolve => {
+          const start = performance.now();
+          function frame(now) {
+            if (token !== rafToken) return;
+            const p = Math.min(1, (now - start) / duration);
+            onFrame(p);
+            if (p < 1) requestAnimationFrame(frame);
+            else resolve();
+          }
+          requestAnimationFrame(frame);
+        });
+      }
+
+      async function playSetup() {
+        if (isAnimating) return;
+        resetScene();
+        setDisabled(true);
+        const m = metrics();
+        await animate(timings.setup, p => {
+          const eased = 1 - Math.cos((p * Math.PI) / 2);
+          const topX = m.topStartX + (m.topReleaseX - m.topStartX) * eased;
+          const sideX = m.sideStartX + (m.sideReleaseX - m.sideStartX) * eased;
+          setTopPlaneAndDot(topX);
+          setSidePlane(sideX, m.sideY);
+          setSidePackage(sideX + m.sidePkgOffset, m.pkgReleaseY);
+        });
+        setDisabled(false);
+        setState('question_path');
+      }
+
+      async function playPathReveal() {
+        setDisabled(true);
+        planeSide.style.opacity = '0';
+        planeTop.style.opacity = '0';
+        pkgTop.style.opacity = '0';
+
+        updatePath('curved');
+        path.classList.add('show');
+
+        const m = metrics();
+        await animate(timings.flight, p => {
+          const t = m.tFlight * p;
+          const pkg = sidePackagePos(m, t);
+          setSidePackage(pkg.x, pkg.y);
+          setPackageShadow(true, pkg.x, m.groundY, p);
+        });
+      }
+
+      async function playQuestionPlaneSetup() {
+        if (isAnimating) return;
+        setDisabled(true);
+        clearGhosts();
+        clearPreviewPlanes();
+        showImpact(false, 0, 0);
+        showAlign(false, 0, 0, 0);
+        setPackageShadow(false);
+        setFeedback('');
+
+        const m = metrics();
+        updatePath('curved');
+        path.classList.add('show');
+
+        planeSide.style.opacity = '1';
+        planeTop.style.opacity = '1';
+        pkgTop.style.opacity = '1';
+
+        // 1. Plane approaches from left
+        await animate(timings.setup, p => {
+          const eased = 1 - Math.cos((p * Math.PI) / 2);
+          const topX = m.topStartX + (m.topReleaseX - m.topStartX) * eased;
+          const sideX = m.sideStartX + (m.sideReleaseX - m.sideStartX) * eased;
+          setTopPlaneAndDot(topX);
+          setSidePlane(sideX, m.sideY);
+          setSidePackage(sideX + m.sidePkgOffset, m.pkgReleaseY);
+        });
+
+        // 2. Stop plane at drop spot, ball drops
+        await animate(timings.flight, p => {
+          const t = m.tFlight * p;
+          const pkg = sidePackagePos(m, t);
+          setSidePackage(pkg.x, pkg.y);
+          setPackageShadow(true, pkg.x, m.groundY, p);
+          pkgTop.style.transform = `scale(${1 - p * 0.65})`;
+        });
+
+        // 3. Ball lands, show 3 possible locations
+        planeSide.style.opacity = '0';
+        planeTop.style.opacity = '0';
+        pkgTop.style.opacity = '0';
+
+        const dx = m.sideRect.width * 0.16;
+        const landingX = sidePackagePos(m, m.tFlight).x;
+        const abovePlaneLeft = landingX - m.sidePkgOffset;
+
+        const pBehind = root.querySelector('[data-preview-plane="behind"]');
+        const pAbove = root.querySelector('[data-preview-plane="above"]');
+        const pAhead = root.querySelector('[data-preview-plane="ahead"]');
+
+        if(pBehind) { pBehind.style.left = `${abovePlaneLeft - dx}px`; pBehind.style.top = `${m.sideY}px`; pBehind.classList.add('show'); }
+        if(pAbove) { pAbove.style.left = `${abovePlaneLeft}px`; pAbove.style.top = `${m.sideY}px`; pAbove.classList.add('show'); }
+        if(pAhead) { pAhead.style.left = `${abovePlaneLeft + dx}px`; pAhead.style.top = `${m.sideY}px`; pAhead.classList.add('show'); }
+
+        const lBehind = root.querySelector('[data-plane-label="behind"]');
+        const lAbove = root.querySelector('[data-plane-label="above"]');
+        const lAhead = root.querySelector('[data-plane-label="ahead"]');
+        const labelY = Math.max(10, m.sideY - 45);
+
+        if(lBehind) { lBehind.style.left = `${landingX - dx}px`; lBehind.style.top = `${labelY}px`; lBehind.classList.add('show'); }
+        if(lAbove) { lAbove.style.left = `${landingX}px`; lAbove.style.top = `${labelY}px`; lAbove.classList.add('show'); }
+        if(lAhead) { lAhead.style.left = `${landingX + dx}px`; lAhead.style.top = `${labelY}px`; lAhead.classList.add('show'); }
+
+        setDisabled(false);
+      }
+
+      async function revealMotion() {
+        if (isAnimating) return;
+        clearPreviewPlanes();
+        setState('reveal');
+        setDisabled(true);
+        setFeedback();
+
+        planeSide.style.opacity = '';
+        planeTop.style.opacity = '';
+        pkgTop.style.opacity = '';
+
+        const m = metrics();
+        const sampleTimes = [0.25, 0.5, 0.75, 1.0, 1.25, 1.55, 1.85].map(v => Math.min(v, m.tFlight - 0.05));
+        ghostIndex = 0;
+        await animate(timings.flight, p => {
+          const t = m.tFlight * p;
+          const sidePlaneX = m.sideReleaseX + m.vx * t;
+          const topPlaneX = m.topReleaseX + (m.topImpactX - m.topReleaseX) * p;
+          const pkg = sidePackagePos(m, t);
+          const currentScale = 1 - p * 0.65;
+
+          setTopPlaneAndDot(topPlaneX);
+          setSidePlane(sidePlaneX, m.sideY);
+          setSidePackage(pkg.x, pkg.y);
+          setPackageShadow(true, pkg.x, m.groundY, p);
+          pkgTop.style.transform = `scale(${currentScale})`;
+
+          while (ghostIndex < sampleTimes.length && t >= sampleTimes[ghostIndex]) {
+            const tp = sampleTimes[ghostIndex] / m.tFlight;
+            const gx = m.topReleaseX + (m.topImpactX - m.topReleaseX) * tp;
+            const ghostScale = 1 - tp * 0.65;
+            addTopGhost(gx, 0.18 + ghostIndex * 0.08, ghostScale);
+            const sideGhost = sidePackagePos(m, sampleTimes[ghostIndex]);
+            addSideGhost(sideGhost.x, sideGhost.y, 0.2 + ghostIndex * 0.08);
+            ghostIndex += 1;
+          }
+        });
+
+        const finalPkg = sidePackagePos(m, m.tFlight);
+        setTopPlaneAndDot(m.topImpactX);
+        setSidePlane(m.sideReleaseX + m.vx * m.tFlight, m.sideY);
+        setSidePackage(finalPkg.x, finalPkg.y);
+        setPackageShadow(true, finalPkg.x, m.groundY, 1);
+        showImpact(true, finalPkg.x, finalPkg.y + 6);
+        showTopImpact(true, m.topImpactX + m.topImpactOffset, m.topPkgY + 12);
+        showAlign(true, finalPkg.x, m.sideY + 26, finalPkg.y - 8);
+        setDisabled(false);
+        setState('done');
+      }
+
+      function handlePathSelection(choice) {
+        if (isAnimating || state !== 'question_path') return;
+        selectedPath = choice;
+        pathButtons.forEach(b => {
+          b.classList.remove('selected');
+          if(b.dataset.pathLabel === choice) b.classList.add('selected');
+        });
+        pathAnimToken++;
+        root.querySelectorAll('.drop-anim-pkg').forEach(p => p.classList.remove('show'));
+        root.querySelectorAll('.path-group').forEach(p => p.classList.remove('show'));
+        root.querySelectorAll('.path-label').forEach(p => p.classList.remove('show'));
+        pkgSide.style.display = '';
+        
+        setState('reveal_path');
+        playPathReveal().then(() => {
+          autoAdvanceTimer = setTimeout(() => {
+            if (state === 'reveal_path') {
+              setDisabled(false);
+              setState('question_plane');
+            }
+          }, 2000);
+        });
+      }
+
+      async function handlePlaneSelection(choice) {
+        if (isAnimating || state !== 'question_plane') return;
+        selectedPlane = choice;
+        
+        planeLabels.forEach(b => {
+          b.classList.remove('selected');
+          if (b.dataset.planeLabel === choice) b.classList.add('selected');
+        });
+        
+        root.querySelectorAll('.preview-plane').forEach(p => {
+          p.classList.remove('selected');
+          if (p.dataset.previewPlane === choice) p.classList.add('selected');
+        });
+
+        await revealMotion();
+      }
+
+      pathButtons.forEach(btn => {
+        const choice = btn.dataset.pathLabel;
+        btn.addEventListener('mouseenter', () => {
+          if (state !== 'question_path' || isAnimating) return;
+          highlightChoicePath(choice, true);
+        });
+        btn.addEventListener('mouseleave', () => {
+          if (state !== 'question_path' || isAnimating) return;
+          highlightChoicePath(choice, false);
+        });
+        btn.addEventListener('focus', () => {
+          if (state !== 'question_path' || isAnimating) return;
+          highlightChoicePath(choice, true);
+        });
+        btn.addEventListener('blur', () => {
+          if (state !== 'question_path' || isAnimating) return;
+          highlightChoicePath(choice, false);
+        });
+        btn.addEventListener('click', () => {
+          if (isAnimating || state !== 'question_path') return;
+          handlePathSelection(choice);
+        });
+      });
+
+      ['behind', 'above', 'ahead'].forEach(choice => {
+        const p = root.querySelector(`[data-preview-plane="${choice}"]`);
+        if(p) {
+          p.addEventListener('mouseenter', () => highlightPlaneChoice(choice, true));
+          p.addEventListener('mouseleave', () => highlightPlaneChoice(choice, false));
+          p.addEventListener('click', () => handlePlaneSelection(choice));
+        }
+      });
+
+      planeLabels.forEach(btn => {
+        const choice = btn.dataset.planeLabel;
+        btn.addEventListener('mouseenter', () => highlightPlaneChoice(choice, true));
+        btn.addEventListener('mouseleave', () => highlightPlaneChoice(choice, false));
+        btn.addEventListener('focus', () => highlightPlaneChoice(choice, true));
+        btn.addEventListener('blur', () => highlightPlaneChoice(choice, false));
+        btn.addEventListener('click', () => handlePlaneSelection(choice));
+      });
+
+      mainBtn.addEventListener('click', async () => {
+        if (state === 'setup' || state === 'question_path' || state === 'question_plane') {
+          setState('setup');
+          await playSetup();
+          return;
+        }
+        if (state === 'reveal_path') {
+          clearTimeout(autoAdvanceTimer);
+          setState('question_plane');
+          return;
+        }
+        if (state === 'done') {
+          setState('setup');
+        }
+      });
+
+      window.addEventListener('resize', () => setState('setup'));
+
+      setState('setup');
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Physics Simulation: Projectile Time of Flight</title>
+  <style>
+    /* Base reset and styling */
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: #e2e8f0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    *, *:before, *:after { box-sizing: inherit; }
+
+    .app-container {
+      width: 100%;
+      max-width: 1000px;
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header / Question Area */
+    .header {
+      background: #1e293b;
+      color: #f8fafc;
+      padding: 20px 24px;
+      position: relative;
+    }
+    .header h1 {
+      margin: 0 0 10px 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .progress-badge {
+      background: #0ea5e9;
+      color: white;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: bold;
+    }
+    .header p {
+      margin: 0;
+      font-size: 1rem;
+      line-height: 1.5;
+      color: #cbd5e1;
+    }
+
+    /* Simulation Scene */
+    .scene-wrapper {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 2.2 / 1; /* Wide aspect ratio for distance */
+      background: linear-gradient(to bottom, #bae6fd 0%, #e0f2fe 70%, #7dd3fc 100%);
+      overflow: hidden;
+      border-bottom: 4px solid #0369a1;
+      transition: opacity 0.3s;
+    }
+
+    /* Water background */
+    .water {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 18%;
+      background: linear-gradient(to bottom, #0284c7 0%, #0369a1 100%);
+      z-index: 10;
+    }
+
+    /* Ship Styles */
+    .ship {
+      position: absolute;
+      bottom: 12%; /* Rest on the water */
+      z-index: 15;
+      transform: translateX(-50%);
+    }
+
+    .battleship {
+      width: 180px;
+      left: 15%;
+    }
+
+    .enemy-ship {
+      width: 100px;
+    }
+    
+    .ship-a { left: 55%; }
+    .ship-b { left: 90%; }
+
+    /* Ship Labels */
+    .ship-label {
+      position: absolute;
+      top: -25px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,0.8);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 0.85rem;
+      color: #0f172a;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    /* SVG Overlay for Paths */
+    .overlay-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 20;
+      pointer-events: none;
+    }
+    .trajectory {
+      fill: none;
+      stroke: #0f172a;
+      stroke-width: 2.5;
+      opacity: 0.7;
+      transition: d 0.5s ease-in-out;
+    }
+    .trajectory.active {
+      stroke-width: 3;
+      opacity: 1;
+    }
+
+    /* Projectiles (Shells) */
+    .shell {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: #000;
+      border-radius: 50%;
+      z-index: 25;
+      transform: translate(-50%, -50%);
+      opacity: 0;
+    }
+
+    /* Explosions */
+    .explosion {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      background: radial-gradient(circle, #fde047 10%, #ea580c 40%, transparent 70%);
+      border-radius: 50%;
+      z-index: 30;
+      transform: translate(-50%, -50%) scale(0);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .explosion.boom {
+      animation: goBoom 0.6s ease-out forwards;
+    }
+    @keyframes goBoom {
+      0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; }
+      50% { transform: translate(-50%, -50%) scale(2); opacity: 0.8; }
+      100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+    }
+
+    /* Interactive Controls */
+    .controls-wrapper {
+      padding: 20px 24px;
+      background: #f8fafc;
+    }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .option-btn {
+      padding: 14px;
+      background: #fff;
+      border: 2px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #334155;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    .option-btn:hover:not(:disabled) {
+      border-color: #94a3b8;
+      background: #f1f5f9;
+    }
+    .option-btn.selected {
+      border-color: #0284c7;
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+    .option-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .option-btn.correct-highlight {
+      border-color: #22c55e;
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .action-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .fire-btn {
+      padding: 14px 32px;
+      background: #dc2626;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(220, 38, 38, 0.2);
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .fire-btn.next-btn {
+      background: #0ea5e9;
+      box-shadow: 0 4px 6px rgba(14, 165, 233, 0.2);
+    }
+    .fire-btn.next-btn:hover:not(:disabled) {
+      background: #0284c7;
+      box-shadow: 0 6px 10px rgba(14, 165, 233, 0.3);
+    }
+    .fire-btn:hover:not(:disabled):not(.next-btn) {
+      background: #b91c1c;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 10px rgba(220, 38, 38, 0.3);
+    }
+    .fire-btn:disabled {
+      background: #94a3b8;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    /* Feedback Box */
+    .feedback {
+      flex: 1;
+      margin-left: 20px;
+      padding: 14px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      display: none;
+      animation: fadeIn 0.4s ease-in;
+    }
+    .feedback.correct {
+      background: #dcfce7;
+      border: 2px solid #22c55e;
+      color: #166534;
+      display: block;
+    }
+    .feedback.incorrect {
+      background: #fee2e2;
+      border: 2px solid #ef4444;
+      color: #991b1b;
+      display: block;
+    }
+    .feedback strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 1.05rem;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .scene-wrapper { aspect-ratio: 1.5 / 1; }
+      .options-grid { grid-template-columns: 1fr; }
+      .action-row { flex-direction: column; gap: 16px; align-items: stretch; }
+      .feedback { margin-left: 0; }
+      .ship-label { font-size: 0.75rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <div class="header">
+    <h1>
+      Physics Conceptual Challenge
+      <span class="progress-badge" id="progress-text">Question 1 of 3</span>
+    </h1>
+    <p id="scenario-desc">A battleship simultaneously fires two shells at enemy ships. Based on the parabolic trajectories shown, which ship gets hit first?</p>
+  </div>
+
+  <div class="scene-wrapper" id="scene">
+    <div class="water"></div>
+
+    <!-- Battleship -->
+    <div class="ship battleship" id="ship-origin">
+      <svg viewBox="0 0 200 100" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+        <!-- Lower Hull (dark grey) -->
+        <path d="M 30 90 L 160 90 L 185 60 L 15 60 Z" fill="#334155"/>
+        <!-- Main Hull -->
+        <path d="M 15 60 L 185 60 L 195 45 L 8 45 Z" fill="#64748b"/>
+        <path d="M 8 45 L 195 45 L 190 40 L 8 40 Z" fill="#475569"/>
+        <!-- Main Superstructure -->
+        <path d="M 35 40 L 125 40 L 120 25 L 45 25 Z" fill="#94a3b8"/>
+        <!-- Bridge -->
+        <path d="M 50 25 L 105 25 L 100 12 L 55 12 Z" fill="#cbd5e1"/>
+        <!-- Bridge Windows -->
+        <rect x="60" y="15" width="6" height="5" fill="#0f172a"/>
+        <rect x="72" y="15" width="6" height="5" fill="#0f172a"/>
+        <rect x="84" y="15" width="6" height="5" fill="#0f172a"/>
+        <rect x="96" y="15" width="6" height="5" fill="#0f172a"/>
+        <!-- Radome and Mast -->
+        <circle cx="78" cy="7" r="6" fill="#f8fafc"/> 
+        <line x1="95" y1="12" x2="95" y2="0" stroke="#475569" stroke-width="2"/>
+        <line x1="90" y1="4" x2="100" y2="4" stroke="#475569" stroke-width="2"/>
+        
+        <!-- Turret 1 (Back/Higher) -->
+        <path d="M 125 40 L 145 40 L 140 32 L 128 32 Z" fill="#94a3b8"/>
+        <!-- Barrel 1 -->
+        <line x1="135" y1="36" x2="165" y2="30" stroke="#334155" stroke-width="4" stroke-linecap="round"/>
+        
+        <!-- Turret 2 (Front/Lower) -->
+        <path d="M 140 45 L 160 45 L 155 37 L 143 37 Z" fill="#94a3b8"/>
+        <!-- Barrel 2 -->
+        <line x1="150" y1="41" x2="185" y2="35" stroke="#334155" stroke-width="4" stroke-linecap="round"/>
+
+        <!-- Aft Deck details -->
+        <line x1="15" y1="42" x2="30" y2="42" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="3,2"/>
+      </svg>
+    </div>
+
+    <!-- Target Ship A -->
+    <div class="ship enemy-ship ship-a" id="ship-a">
+      <div class="ship-label">Ship A</div>
+      <svg viewBox="0 0 120 70" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+        <!-- Lower Hull -->
+        <path d="M 25 60 L 85 60 L 105 40 L 15 40 Z" fill="#44403c"/>
+        <!-- Main Hull -->
+        <path d="M 15 40 L 105 40 L 115 25 L 8 25 Z" fill="#78716c"/>
+        <path d="M 8 25 L 115 25 L 112 22 L 8 22 Z" fill="#57534e"/>
+        <!-- Cabin -->
+        <path d="M 25 22 L 75 22 L 70 10 L 30 10 Z" fill="#a8a29e"/>
+        <!-- Windows -->
+        <rect x="35" y="14" width="6" height="5" fill="#1c1917"/>
+        <rect x="45" y="14" width="6" height="5" fill="#1c1917"/>
+        <rect x="55" y="14" width="6" height="5" fill="#1c1917"/>
+        <!-- Mast & Radar -->
+        <line x1="60" y1="10" x2="60" y2="0" stroke="#57534e" stroke-width="2"/>
+        <line x1="56" y1="4" x2="64" y2="2" stroke="#57534e" stroke-width="2"/>
+        <!-- Small Turret front -->
+        <path d="M 85 22 L 95 22 L 92 18 L 88 18 Z" fill="#a8a29e"/>
+        <line x1="92" y1="20" x2="105" y2="18" stroke="#44403c" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <!-- Target Ship B -->
+    <div class="ship enemy-ship ship-b" id="ship-b">
+      <div class="ship-label">Ship B</div>
+      <svg viewBox="0 0 120 70" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+        <!-- Lower Hull -->
+        <path d="M 25 60 L 85 60 L 105 40 L 15 40 Z" fill="#44403c"/>
+        <!-- Main Hull -->
+        <path d="M 15 40 L 105 40 L 115 25 L 8 25 Z" fill="#78716c"/>
+        <path d="M 8 25 L 115 25 L 112 22 L 8 22 Z" fill="#57534e"/>
+        <!-- Cabin -->
+        <path d="M 25 22 L 75 22 L 70 10 L 30 10 Z" fill="#a8a29e"/>
+        <!-- Windows -->
+        <rect x="35" y="14" width="6" height="5" fill="#1c1917"/>
+        <rect x="45" y="14" width="6" height="5" fill="#1c1917"/>
+        <rect x="55" y="14" width="6" height="5" fill="#1c1917"/>
+        <!-- Mast & Radar -->
+        <line x1="60" y1="10" x2="60" y2="0" stroke="#57534e" stroke-width="2"/>
+        <line x1="56" y1="4" x2="64" y2="2" stroke="#57534e" stroke-width="2"/>
+        <!-- Small Turret front -->
+        <path d="M 85 22 L 95 22 L 92 18 L 88 18 Z" fill="#a8a29e"/>
+        <line x1="92" y1="20" x2="105" y2="18" stroke="#44403c" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <!-- SVG for static paths -->
+    <svg class="overlay-svg" id="trajectory-svg">
+      <path class="trajectory" id="path-a"></path>
+      <path class="trajectory" id="path-b"></path>
+    </svg>
+
+    <!-- Projectiles -->
+    <div class="shell" id="shell-a"></div>
+    <div class="shell" id="shell-b"></div>
+
+    <!-- Explosions -->
+    <div class="explosion" id="exp-a"></div>
+    <div class="explosion" id="exp-b"></div>
+  </div>
+
+  <div class="controls-wrapper">
+    <div class="options-grid" id="options">
+      <button class="option-btn" data-answer="1">1. Ship A</button>
+      <button class="option-btn" data-answer="2">2. Both at the same time</button>
+      <button class="option-btn" data-answer="3">3. Ship B</button>
+      <button class="option-btn" data-answer="4">4. Need more information</button>
+    </div>
+    
+    <div class="action-row">
+      <button class="fire-btn" id="btn-fire" disabled>Select an Answer to Fire</button>
+      <div class="feedback" id="feedback-box"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // Elements
+  const scene = document.getElementById('scene');
+  const pathA = document.getElementById('path-a');
+  const pathB = document.getElementById('path-b');
+  const shellA = document.getElementById('shell-a');
+  const shellB = document.getElementById('shell-b');
+  const expA = document.getElementById('exp-a');
+  const expB = document.getElementById('exp-b');
+  const fireBtn = document.getElementById('btn-fire');
+  const optionBtns = document.querySelectorAll('.option-btn');
+  const feedbackBox = document.getElementById('feedback-box');
+  const progressText = document.getElementById('progress-text');
+  const scenarioDesc = document.getElementById('scenario-desc');
+
+  // Physics Logic Constants
+  let layout = {};
+  let isAnimating = false;
+  let selectedAnswer = null;
+
+  // Scenarios Definition
+  const scenarios = [
+    {
+      id: 0,
+      hRatioA: 0.65, // High
+      hRatioB: 0.25, // Low
+      correct: "3", // Ship B
+      desc: "A battleship simultaneously fires two shells at enemy ships. Based on the parabolic trajectories shown, which ship gets hit first?",
+      feedbackCorrect: "<strong>Correct! Ship B gets hit first.</strong> The time of flight of a projectile depends <em>solely</em> on its maximum height. Because the shell heading to Ship B has a lower arc, it spends less time in the air and arrives first, even though it travels further horizontally!",
+      feedbackIncorrect: "<strong>Not quite. Look closely at the animations!</strong> Ship B actually gets hit first. The time of flight is determined <em>only</em> by the maximum height. Since the shell hitting Ship A goes much higher, it spends significantly more time traveling up and down."
+    },
+    {
+      id: 1,
+      hRatioA: 0.45, // Same
+      hRatioB: 0.45, // Same
+      correct: "2", // Both
+      desc: "The battleship adjusts its cannons. Now, both shells reach the exact same maximum height. Which ship gets hit first in this scenario?",
+      feedbackCorrect: "<strong>Correct! They hit at the exact same time.</strong> Since both shells reach the identical maximum height, they must have the same initial vertical velocity. Therefore, their time of flight is completely identical!",
+      feedbackIncorrect: "<strong>Not quite. Watch the animations again!</strong> They hit at the exact same time. Both shells reach the exact same maximum height, meaning they spend the exact same amount of time traveling up and coming down."
+    },
+    {
+      id: 2,
+      hRatioA: 0.25, // Low
+      hRatioB: 0.65, // High
+      correct: "1", // Ship A
+      desc: "Final scenario: The battleship fires again. This time, the shell heading to Ship B goes much higher. Which ship gets hit first?",
+      feedbackCorrect: "<strong>Correct! Ship A gets hit first.</strong> Even though Ship A is closer horizontally, what matters for flight time is the vertical distance. Its shell doesn't go as high, so it returns to the water much sooner.",
+      feedbackIncorrect: "<strong>Not quite. Watch the animations!</strong> Ship A gets hit first. The shell hitting Ship A has a much lower maximum height. Because it doesn't travel as far vertically, it spends less time in the air."
+    }
+  ];
+
+  let currentScenarioIndex = 0;
+
+  // Handle Option Selection
+  optionBtns.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      if (isAnimating) return;
+      
+      // Update UI selection
+      optionBtns.forEach(b => b.classList.remove('selected'));
+      e.target.classList.add('selected');
+      
+      // State & Button update
+      selectedAnswer = e.target.getAttribute('data-answer');
+      
+      if (!fireBtn.classList.contains('next-btn')) {
+        fireBtn.disabled = false;
+        fireBtn.textContent = "Fire & Test Physics!";
+      }
+      
+      // Hide previous feedback if they change answer before firing
+      feedbackBox.className = "feedback";
+      feedbackBox.innerHTML = "";
+    });
+  });
+
+  function loadScenario(index) {
+    currentScenarioIndex = index;
+    const s = scenarios[index];
+    
+    // Update UI Text
+    progressText.textContent = `Question ${index + 1} of 3`;
+    scenarioDesc.textContent = s.desc;
+    
+    // Reset Buttons
+    optionBtns.forEach(btn => {
+      btn.classList.remove('selected', 'correct-highlight');
+      btn.disabled = false;
+    });
+    selectedAnswer = null;
+    
+    fireBtn.className = "fire-btn";
+    fireBtn.textContent = "Select an Answer to Fire";
+    fireBtn.disabled = true;
+    
+    feedbackBox.style.display = 'none';
+    expA.classList.remove('boom');
+    expB.classList.remove('boom');
+    shellA.style.opacity = 0;
+    shellB.style.opacity = 0;
+
+    calculateLayout();
+  }
+
+  // Calculate layout coordinates based on dynamic container size & current scenario
+  function calculateLayout() {
+    const rect = scene.getBoundingClientRect();
+    const scenario = scenarios[currentScenarioIndex];
+    
+    // Origin (Precisely aligned to the tip of the battleship's guns)
+    const startX = rect.width * 0.15 + 68; 
+    const startY = rect.height * 0.88 - 61; 
+
+    // Targets (Enemy ships roughly center and aligned to their deck)
+    const targetAX = rect.width * 0.55;
+    const targetBX = rect.width * 0.90;
+    const targetY = rect.height * 0.88 - 40; // Deck level
+
+    // Physics parameters
+    const g = 1500; 
+
+    // Heights dynamically based on scenario
+    const heightA = rect.height * scenario.hRatioA; 
+    const heightB = rect.height * scenario.hRatioB; 
+
+    const v0yA = Math.sqrt(2 * g * heightA);
+    const v0yB = Math.sqrt(2 * g * heightB);
+
+    // Total time of flight: t = 2 * v0y / g 
+    const calcTime = (v0y) => {
+      const a = -0.5 * g;
+      const b = v0y;
+      const c = startY - targetY; 
+      return (-b - Math.sqrt(b*b - 4*a*c)) / (2*a);
+    };
+
+    const timeA = calcTime(v0yA);
+    const timeB = calcTime(v0yB);
+
+    const v0xA = (targetAX - startX) / timeA;
+    const v0xB = (targetBX - startX) / timeB;
+
+    layout = {
+      startX, startY, targetY, targetAX, targetBX,
+      g, v0yA, v0yB, v0xA, v0xB, timeA, timeB
+    };
+
+    drawPaths();
+  }
+
+  // Draw static SVG paths
+  function drawPaths() {
+    const steps = 40;
+    
+    // Path A
+    let dA = `M ${layout.startX} ${layout.startY}`;
+    for (let i = 1; i <= steps; i++) {
+      const t = layout.timeA * (i / steps);
+      const x = layout.startX + layout.v0xA * t;
+      const y = layout.startY - (layout.v0yA * t - 0.5 * layout.g * t * t);
+      dA += ` L ${x} ${y}`;
+    }
+    pathA.setAttribute('d', dA);
+
+    // Path B
+    let dB = `M ${layout.startX} ${layout.startY}`;
+    for (let i = 1; i <= steps; i++) {
+      const t = layout.timeB * (i / steps);
+      const x = layout.startX + layout.v0xB * t;
+      const y = layout.startY - (layout.v0yB * t - 0.5 * layout.g * t * t);
+      dB += ` L ${x} ${y}`;
+    }
+    pathB.setAttribute('d', dB);
+  }
+
+  // Animation helper
+  function animate(durationMs, renderCallback) {
+    return new Promise(resolve => {
+      const start = performance.now();
+      function step(now) {
+        let progress = (now - start) / durationMs;
+        if (progress > 1) progress = 1;
+        renderCallback(progress);
+        if (progress < 1) {
+          requestAnimationFrame(step);
+        } else {
+          resolve();
+        }
+      }
+      requestAnimationFrame(step);
+    });
+  }
+
+  // Launch interaction
+  async function fireCannons() {
+    isAnimating = true;
+    fireBtn.disabled = true;
+    optionBtns.forEach(btn => btn.disabled = true);
+    
+    // Reset explosives & shell opacities
+    expA.classList.remove('boom');
+    expB.classList.remove('boom');
+    shellA.style.opacity = 1;
+    shellB.style.opacity = 1;
+
+    // Hide feedback during flight
+    feedbackBox.style.display = 'none';
+
+    const timeScale = 1200; 
+
+    const durationA = layout.timeA * timeScale;
+    const durationB = layout.timeB * timeScale;
+    
+    const animA = animate(durationA, (p) => {
+      const t = layout.timeA * p;
+      const x = layout.startX + layout.v0xA * t;
+      const y = layout.startY - (layout.v0yA * t - 0.5 * layout.g * t * t);
+      shellA.style.left = `${x}px`;
+      shellA.style.top = `${y}px`;
+      
+      if (p === 1) {
+        shellA.style.opacity = 0;
+        expA.style.left = `${x}px`;
+        expA.style.top = `${y}px`;
+        expA.classList.add('boom');
+      }
+    });
+
+    const animB = animate(durationB, (p) => {
+      const t = layout.timeB * p;
+      const x = layout.startX + layout.v0xB * t;
+      const y = layout.startY - (layout.v0yB * t - 0.5 * layout.g * t * t);
+      shellB.style.left = `${x}px`;
+      shellB.style.top = `${y}px`;
+
+      if (p === 1) {
+        shellB.style.opacity = 0;
+        expB.style.left = `${x}px`;
+        expB.style.top = `${y}px`;
+        expB.classList.add('boom');
+      }
+    });
+
+    await Promise.all([animA, animB]);
+    
+    showFeedback();
+    
+    isAnimating = false;
+    
+    // Transition to Next state
+    if (currentScenarioIndex < scenarios.length - 1) {
+      fireBtn.className = "fire-btn next-btn";
+      fireBtn.textContent = "Next Question ➔";
+    } else {
+      fireBtn.className = "fire-btn next-btn";
+      fireBtn.textContent = "Restart Challenge ↺";
+    }
+    fireBtn.disabled = false;
+  }
+
+  function showFeedback() {
+    const s = scenarios[currentScenarioIndex];
+    const isCorrect = selectedAnswer === s.correct;
+    
+    if (isCorrect) {
+      feedbackBox.className = "feedback correct";
+      feedbackBox.innerHTML = s.feedbackCorrect;
+    } else {
+      feedbackBox.className = "feedback incorrect";
+      feedbackBox.innerHTML = s.feedbackIncorrect;
+      
+      // Highlight the correct answer
+      optionBtns.forEach(btn => {
+        if (btn.getAttribute('data-answer') === s.correct) {
+          btn.classList.add('correct-highlight');
+        }
+      });
+    }
+  }
+
+  // Initialization
+  window.addEventListener('resize', () => {
+    if(!isAnimating) {
+      calculateLayout();
+      shellA.style.opacity = 0;
+      shellB.style.opacity = 0;
+    }
+  });
+
+  fireBtn.addEventListener('click', () => {
+    if (isAnimating) return;
+    
+    // Check if we are in "Next" state
+    if (fireBtn.classList.contains('next-btn')) {
+      if (currentScenarioIndex < scenarios.length - 1) {
+        loadScenario(currentScenarioIndex + 1);
+      } else {
+        loadScenario(0); // Restart
+      }
+      return;
+    }
+
+    fireCannons();
+  });
+
+  // Start the first scenario on load
+  loadScenario(0);
+
+})();
+</script>
+
+</body>
+</html>

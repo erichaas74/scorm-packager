@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relative Motion: Crossing a River</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for sliders to look a bit nicer */
+        input[type=range] {
+            accent-color: #3b82f6; /* Tailwind blue-500 */
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans h-screen flex flex-col md:flex-row overflow-hidden">
+
+    <!-- Control Panel -->
+    <div class="w-full md:w-80 bg-slate-800 p-6 flex flex-col gap-6 shadow-xl z-10 overflow-y-auto border-b md:border-b-0 md:border-r border-slate-700">
+        <div>
+            <h1 class="text-2xl font-bold text-cyan-300 mb-1">River Rescue</h1>
+            <p class="text-sm text-slate-400">Progress from a clean crossing to debris, then finish with the baby rescue.</p>
+            <div class="mt-4 grid grid-cols-3 gap-2">
+                <button id="level1Btn" class="rounded-lg border border-cyan-400/50 bg-cyan-500/15 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200 transition-colors">Level 1</button>
+                <button id="level2Btn" class="rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-300 transition-colors">Level 2</button>
+                <button id="level3Btn" class="rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-300 transition-colors">Level 3</button>
+            </div>
+        </div>
+
+        <div class="rounded-xl border border-cyan-500/20 bg-slate-900/80 p-4 shadow-lg">
+            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">Mission Status</p>
+            <h2 id="missionTitle" class="mt-2 text-lg font-bold text-white">Mission Briefing</h2>
+            <p id="missionText" class="mt-2 text-sm leading-6 text-slate-300">Swim across the current, rescue the baby on the far bank, then return to the launch dock before you run out of stamina.</p>
+            <div class="mt-3 flex items-center justify-between rounded-lg bg-slate-800 px-3 py-2 text-xs text-slate-300">
+                <span class="uppercase tracking-[0.2em]">Rating</span>
+                <span id="missionStars" class="font-mono text-amber-300">☆☆☆</span>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex flex-col gap-5">
+            <!-- Swim Speed -->
+            <div class="flex flex-col gap-1">
+                <div class="flex justify-between">
+                    <label class="text-sm font-medium">Swim Speed (relative to water)</label>
+                    <span id="boatSpeedVal" class="text-sm text-blue-300 font-mono">5.0 m/s</span>
+                </div>
+                <input type="range" id="boatSpeed" min="0" max="20" step="0.5" value="5" class="w-full">
+            </div>
+
+            <!-- Heading -->
+            <div class="flex flex-col gap-1">
+                <div class="flex justify-between">
+                    <label class="text-sm font-medium">Swim Heading (&theta;)</label>
+                    <span id="boatAngleVal" class="text-sm text-blue-300 font-mono">0&deg;</span>
+                </div>
+                <input type="range" id="boatAngle" min="-85" max="85" step="1" value="0" class="w-full">
+                <p class="text-xs text-slate-500 mt-1">0&deg; aims straight across. Negative angles point upstream.</p>
+            </div>
+
+            <!-- River Speed -->
+            <div class="flex flex-col gap-1">
+                <div class="flex justify-between">
+                    <label class="text-sm font-medium">River Current Speed</label>
+                    <span id="riverSpeedVal" class="text-sm text-blue-300 font-mono">3.0 m/s</span>
+                </div>
+                <input type="range" id="riverSpeed" min="0" max="15" step="0.5" value="3" class="w-full">
+            </div>
+
+            <!-- River Width -->
+            <div class="flex flex-col gap-1">
+                <div class="flex justify-between">
+                    <label class="text-sm font-medium">River Width</label>
+                    <span id="riverWidthVal" class="text-sm text-blue-300 font-mono">50 m</span>
+                </div>
+                <input type="range" id="riverWidth" min="20" max="200" step="5" value="50" class="w-full">
+            </div>
+            
+            <!-- Toggles -->
+            <div class="flex flex-col gap-1 mt-2">
+                <label class="text-sm font-medium">Hint Overlay</label>
+                <select id="vectorDisplay" class="bg-slate-700 text-white text-sm rounded p-2 border border-slate-600 outline-none w-full">
+                    <option value="none">No Hint</option>
+                    <option value="addition" selected>Full Vector Addition</option>
+                    <option value="components">Resultant Components</option>
+                    <option value="addition_y">Drift Decomposition</option>
+                </select>
+                <p id="vectorHintText" class="text-xs text-slate-500 mt-1">Use the hint overlay to preview the velocity addition before you launch.</p>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="grid grid-cols-2 gap-3 mt-2">
+            <button id="btnPlayPause" class="bg-blue-600 hover:bg-blue-500 text-white py-2 px-4 rounded font-medium transition-colors">
+                Start Mission
+            </button>
+            <button id="btnReset" class="bg-slate-700 hover:bg-slate-600 text-white py-2 px-4 rounded font-medium transition-colors">
+                Reset Mission
+            </button>
+        </div>
+
+        <!-- Telemetry Data -->
+        <div class="bg-slate-900 rounded p-4 mt-auto border border-slate-700">
+            <h3 class="text-sm uppercase tracking-wider text-slate-500 mb-3 font-semibold">Mission Telemetry</h3>
+            
+            <div class="grid grid-cols-2 gap-y-2 text-sm">
+                <div class="text-slate-400">Phase:</div>
+                <div class="text-right font-mono" id="statPhase">Setup</div>
+
+                <div class="text-slate-400">Time:</div>
+                <div class="text-right font-mono" id="statTime">0.00 s</div>
+                
+                <div class="text-slate-400">Ground Speed:</div>
+                <div class="text-right font-mono text-green-400" id="statResVel">0.00 m/s</div>
+
+                <div class="text-slate-400">Stamina Left:</div>
+                <div class="text-right font-mono text-amber-300" id="statStamina">0 m</div>
+
+                <div class="text-slate-400">Distance to Goal:</div>
+                <div class="text-right font-mono" id="statGoal">0.0 m</div>
+                
+                <div class="text-slate-400">Downstream Drift:</div>
+                <div class="text-right font-mono" id="statDrift">0.0 m</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Simulation Canvas Container -->
+    <div class="flex-1 relative bg-slate-950 w-full h-full">
+        <canvas id="simCanvas" class="w-full h-full cursor-crosshair"></canvas>
+        
+        <!-- Legend Overlay -->
+        <div id="legendOverlay" class="absolute top-4 right-4 bg-slate-900/80 p-3 rounded border border-slate-700 text-xs backdrop-blur-sm pointer-events-none hidden md:block transition-opacity duration-200">
+            <div id="legendAddition">
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="w-4 h-0.5 bg-red-500"></div> <span>Swim Vel (relative to water)</span>
+                </div>
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="w-4 h-0.5 bg-blue-400"></div> <span>River Current</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-0.5 bg-green-500"></div> <span>Ground Velocity</span>
+                </div>
+            </div>
+            <div id="legendComponents" class="hidden">
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="w-4 h-0.5 bg-green-500"></div> <span>Ground Velocity</span>
+                </div>
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="w-4 h-0.5 bg-orange-500"></div> <span>X Component (Across)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-0.5 bg-purple-500"></div> <span>Y Component (Drift)</span>
+                </div>
+            </div>
+            <div id="legendAdditionY" class="hidden">
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="w-4 h-0.5 bg-fuchsia-500"></div> <span>Boat Y Component</span>
+                </div>
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="w-4 h-0.5 bg-blue-400"></div> <span>River Vel (Y only)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-0.5 bg-purple-500"></div> <span>Resultant Y (Drift)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // Elements
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Inputs
+    const inputs = {
+        boatSpeed: document.getElementById('boatSpeed'),
+        boatAngle: document.getElementById('boatAngle'),
+        riverSpeed: document.getElementById('riverSpeed'),
+        riverWidth: document.getElementById('riverWidth'),
+        vectorDisplay: document.getElementById('vectorDisplay')
+    };
+    
+    // Labels
+    const labels = {
+        boatSpeed: document.getElementById('boatSpeedVal'),
+        boatAngle: document.getElementById('boatAngleVal'),
+        riverSpeed: document.getElementById('riverSpeedVal'),
+        riverWidth: document.getElementById('riverWidthVal')
+    };
+
+    // Stats
+    const stats = {
+        phase: document.getElementById('statPhase'),
+        time: document.getElementById('statTime'),
+        groundVel: document.getElementById('statResVel'),
+        stamina: document.getElementById('statStamina'),
+        goal: document.getElementById('statGoal'),
+        drift: document.getElementById('statDrift')
+    };
+
+    // Buttons
+    const btnPlayPause = document.getElementById('btnPlayPause');
+    const btnReset = document.getElementById('btnReset');
+    const missionTitle = document.getElementById('missionTitle');
+    const missionText = document.getElementById('missionText');
+    const missionStars = document.getElementById('missionStars');
+    const vectorHintText = document.getElementById('vectorHintText');
+    const levelButtons = {
+        1: document.getElementById('level1Btn'),
+        2: document.getElementById('level2Btn'),
+        3: document.getElementById('level3Btn')
+    };
+
+    // Legends
+    const legendOverlay = document.getElementById('legendOverlay');
+    const legendAddition = document.getElementById('legendAddition');
+    const legendComponents = document.getElementById('legendComponents');
+    const legendAdditionY = document.getElementById('legendAdditionY');
+
+    // State Variables
+    let isPlaying = false;
+    let lastTime = 0;
+    
+    let physicsState = {
+        time: 0,
+        x: 0,
+        y: 0,
+        trail: []
+    };
+
+    function createMissionState() {
+        return {
+            level: 1,
+            phase: 'setup',
+            baby: { x: 0, y: 0, radius: 4.5, rescued: false },
+            returnZone: { x: 0, y: 0, radius: 5.5 },
+            obstacles: [],
+            staminaMax: 0,
+            staminaLeft: 0,
+            hits: 0,
+            stars: 0,
+            message: 'Plan the outbound swim. Rescue the baby, then get back to the launch zone before your stamina runs out.'
+        };
+    }
+
+    let missionState = createMissionState();
+    let currentLevel = 1;
+
+    const LEVEL_CONFIGS = {
+        1: {
+            heading: 'Level 1: Straight Crossing',
+            intro: 'No debris yet. Aim for the finish ring on the far bank.',
+            startMessage: 'Reach the finish ring on the far bank. This level has no obstacles.',
+            successTitle: 'Crossing Complete',
+            successMessage: stamina => `Level 1 clear. You reached the far bank with ${stamina.toFixed(1)} m of stamina left.`,
+            target: 'finish',
+            hasReturnTrip: false,
+            obstacles: params => []
+        },
+        2: {
+            heading: 'Level 2: Debris Run',
+            intro: 'Now one debris log blocks the clean line. Reach the same finish ring without clipping it twice.',
+            startMessage: 'Reach the finish ring and avoid the debris log in midstream.',
+            successTitle: 'Debris Cleared',
+            successMessage: stamina => `Level 2 clear. You slipped past the debris with ${stamina.toFixed(1)} m of stamina left.`,
+            target: 'finish',
+            hasReturnTrip: false,
+            obstacles: params => [
+                { x: params.width * 0.56, y: Math.max(4, params.width * 0.08), radius: 5.2, rotation: 0.2, hit: false }
+            ]
+        },
+        3: {
+            heading: 'Level 3: Baby Rescue',
+            intro: 'Rescue the baby on the far bank, then fight the current back to the launch zone.',
+            startMessage: 'Swim to the baby on the far bank, then carry the baby back to the launch zone.',
+            successTitle: 'Baby Saved',
+            successMessage: stamina => `Baby saved. You made it home with ${stamina.toFixed(1)} m of stamina left.`,
+            target: 'baby',
+            hasReturnTrip: true,
+            obstacles: params => []
+        }
+    };
+
+    // Derived Parameters
+    let params = {
+        vBoat: 5,
+        effectiveBoatSpeed: 5,
+        angleDeg: 0,
+        angleRad: 0,
+        vRiver: 3,
+        width: 50,
+        vResultantX: 0,
+        vResultantY: 0,
+        vResultantMag: 0
+    };
+
+    // Rendering Scale
+    let scale = 10; // pixels per meter (will dynamically update)
+    let originX = 0;
+    let originY = 0;
+
+    // Background River Particles (for visual flow)
+    let waterParticles = [];
+
+    function initWaterParticles() {
+        waterParticles = [];
+        for (let i = 0; i < 150; i++) {
+            waterParticles.push({
+                x: Math.random(), // 0 to 1 relative to river width
+                y: Math.random() * 2000, // Large Y space
+                length: 5 + Math.random() * 15,
+                speedOffset: 0.8 + Math.random() * 0.4
+            });
+        }
+    }
+
+    function resizeCanvas() {
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+        updateScale();
+        draw();
+    }
+
+    function updateScale() {
+        // We want the river width + some padding to fit horizontally
+        // Let river width take up 40% of the screen width
+        const desiredCanvasWidthForRiver = canvas.width * 0.4;
+        scale = desiredCanvasWidthForRiver / params.width;
+        
+        // Define origin (starting point of the boat)
+        originX = canvas.width * 0.15; // 15% from the left
+        originY = canvas.height * 0.15; // 15% from the top
+    }
+
+    function getTargetPoint() {
+        return missionState.baby.rescued ? missionState.returnZone : missionState.baby;
+    }
+
+    function getLevelConfig() {
+        return LEVEL_CONFIGS[currentLevel];
+    }
+
+    function applyLevelButtonStyles() {
+        Object.entries(levelButtons).forEach(([level, button]) => {
+            const isActive = Number(level) === currentLevel;
+            button.className = 'rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition-colors';
+            if (isActive) {
+                button.classList.add('border-cyan-400/50', 'bg-cyan-500/15', 'text-cyan-200');
+            } else {
+                button.classList.add('border-slate-600', 'bg-slate-800', 'text-slate-300', 'hover:border-slate-500', 'hover:bg-slate-700');
+            }
+        });
+    }
+
+    function updateLevelHintText() {
+        if (currentLevel === 1) {
+            vectorHintText.innerText = 'Use the hint overlay to line up a clean crossing to the far-bank finish ring.';
+        } else if (currentLevel === 2) {
+            vectorHintText.innerText = 'Use the hint overlay to bend around the debris and still reach the finish ring.';
+        } else {
+            vectorHintText.innerText = 'Carrying the baby cuts your effective swim speed on the return trip.';
+        }
+    }
+
+    function getDistanceToGoal() {
+        const target = getTargetPoint();
+        return Math.hypot(target.x - physicsState.x, target.y - physicsState.y);
+    }
+
+    function getPhaseLabel() {
+        const phaseLabels = {
+            setup: 'Setup',
+            outbound: 'Outbound',
+            rescued: 'Rescued',
+            return: 'Return',
+            success: 'Saved',
+            fail: 'Failed'
+        };
+        return phaseLabels[missionState.phase] || 'Setup';
+    }
+
+    function applyInputState(input, disabled) {
+        input.disabled = disabled;
+        input.classList.toggle('opacity-50', disabled);
+        input.classList.toggle('cursor-not-allowed', disabled);
+    }
+
+    function updateControlAvailability() {
+        const missionLocked = missionState.phase !== 'setup';
+        const activeSwim = isPlaying || missionState.phase === 'success' || missionState.phase === 'fail';
+
+        applyInputState(inputs.boatSpeed, activeSwim);
+        applyInputState(inputs.boatAngle, activeSwim);
+        applyInputState(inputs.riverSpeed, missionLocked);
+        applyInputState(inputs.riverWidth, missionLocked);
+    }
+
+    function updateMissionUI() {
+        const levelConfig = getLevelConfig();
+
+        if (missionState.phase === 'setup' || missionState.phase === 'outbound') {
+            missionTitle.innerText = levelConfig.heading;
+            missionText.innerText = missionState.message;
+        } else if (missionState.phase === 'rescued' || missionState.phase === 'return') {
+            missionTitle.innerText = 'Return Swim';
+            missionText.innerText = missionState.message;
+        } else if (missionState.phase === 'success') {
+            missionTitle.innerText = levelConfig.successTitle;
+            missionText.innerText = missionState.message;
+        } else {
+            missionTitle.innerText = 'Mission Failed';
+            missionText.innerText = missionState.message;
+        }
+
+        missionStars.innerText = missionState.phase === 'success'
+            ? '★'.repeat(missionState.stars) + '☆'.repeat(3 - missionState.stars)
+            : '☆☆☆';
+    }
+
+    function updateButtonState() {
+        btnPlayPause.className = 'text-white py-2 px-4 rounded font-medium transition-colors';
+
+        if (missionState.phase === 'success' || missionState.phase === 'fail') {
+            btnPlayPause.innerText = 'Play Again';
+            btnPlayPause.classList.add('bg-emerald-600', 'hover:bg-emerald-500');
+            return;
+        }
+
+        if (isPlaying) {
+            btnPlayPause.innerText = 'Pause';
+            btnPlayPause.classList.add('bg-amber-600', 'hover:bg-amber-500');
+            return;
+        }
+
+        if (missionState.phase === 'rescued') {
+            btnPlayPause.innerText = 'Begin Return';
+            btnPlayPause.classList.add('bg-blue-600', 'hover:bg-blue-500');
+            return;
+        }
+
+        if (physicsState.time > 0) {
+            btnPlayPause.innerText = 'Resume';
+            btnPlayPause.classList.add('bg-blue-600', 'hover:bg-blue-500');
+            return;
+        }
+
+        btnPlayPause.innerText = currentLevel === 3 ? 'Start Rescue' : `Start Level ${currentLevel}`;
+        btnPlayPause.classList.add('bg-blue-600', 'hover:bg-blue-500');
+    }
+
+    function configureMission() {
+        const levelConfig = getLevelConfig();
+        const babyY = params.width * 0.72 + 16;
+        missionState.phase = 'setup';
+        missionState.level = currentLevel;
+        missionState.baby = {
+            x: params.width,
+            y: levelConfig.target === 'baby' ? babyY : 0,
+            radius: levelConfig.target === 'baby' ? 4.5 : 5.5,
+            rescued: false
+        };
+        missionState.returnZone = {
+            x: 0,
+            y: 0,
+            radius: 5.5
+        };
+        missionState.obstacles = levelConfig.obstacles(params);
+        missionState.staminaMax = Math.round(params.width * 2.8 + 40);
+        missionState.staminaLeft = missionState.staminaMax;
+        missionState.hits = 0;
+        missionState.stars = 0;
+        missionState.message = levelConfig.intro;
+        updateLevelHintText();
+    }
+
+    function failMission(message) {
+        isPlaying = false;
+        missionState.phase = 'fail';
+        missionState.message = message;
+        updateButtonState();
+        updateMissionUI();
+        updateControlAvailability();
+        updateTelemetry();
+    }
+
+    function completeMission() {
+        const levelConfig = getLevelConfig();
+        isPlaying = false;
+        missionState.phase = 'success';
+        missionState.stars = 1;
+        if (missionState.hits === 0) {
+            missionState.stars += 1;
+        }
+        if (missionState.staminaLeft >= missionState.staminaMax * 0.35) {
+            missionState.stars += 1;
+        }
+        missionState.message = levelConfig.successMessage(missionState.staminaLeft);
+        updateButtonState();
+        updateMissionUI();
+        updateControlAvailability();
+        updateTelemetry();
+    }
+
+    function checkObstacleHits() {
+        for (const obstacle of missionState.obstacles) {
+            if (obstacle.hit) continue;
+
+            const distance = Math.hypot(physicsState.x - obstacle.x, physicsState.y - obstacle.y);
+            if (distance <= obstacle.radius + 1.2) {
+                obstacle.hit = true;
+                missionState.hits += 1;
+                missionState.staminaLeft = Math.max(0, missionState.staminaLeft - 18);
+
+                if (missionState.hits >= 2) {
+                    failMission('Too many debris hits. The rescue failed.');
+                    return true;
+                }
+
+                missionState.message = 'You clipped debris and lost stamina. One more hit ends the mission.';
+                updateMissionUI();
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    function readInputs() {
+        params.vBoat = parseFloat(inputs.boatSpeed.value);
+        params.angleDeg = parseFloat(inputs.boatAngle.value);
+        params.angleRad = params.angleDeg * (Math.PI / 180);
+        params.vRiver = parseFloat(inputs.riverSpeed.value);
+        params.width = parseFloat(inputs.riverWidth.value);
+        params.effectiveBoatSpeed = currentLevel === 3 && missionState.baby.rescued ? params.vBoat * 0.72 : params.vBoat;
+
+        labels.boatSpeed.innerText = params.vBoat.toFixed(1) + " m/s";
+        labels.boatAngle.innerText = params.angleDeg + "°";
+        labels.riverSpeed.innerText = params.vRiver.toFixed(1) + " m/s";
+        labels.riverWidth.innerText = params.width.toFixed(0) + " m";
+
+        // Calculate Resultant Velocity
+        // Boat relative to water: Vx = vBoat * cos(theta), Vy = vBoat * sin(theta)
+        // Water relative to ground: Vx = 0, Vy = vRiver
+        // Boat relative to ground = sum of above
+        params.vResultantX = params.effectiveBoatSpeed * Math.cos(params.angleRad);
+        params.vResultantY = params.effectiveBoatSpeed * Math.sin(params.angleRad) + params.vRiver;
+        params.vResultantMag = Math.sqrt(Math.pow(params.vResultantX, 2) + Math.pow(params.vResultantY, 2));
+
+        stats.groundVel.innerText = params.vResultantMag.toFixed(2) + " m/s";
+        
+        // Update Legend Visibility
+        const vecMode = inputs.vectorDisplay.value;
+        if (vecMode === 'none') {
+            legendOverlay.classList.add('opacity-0');
+        } else {
+            legendOverlay.classList.remove('opacity-0');
+            legendAddition.classList.add('hidden');
+            legendComponents.classList.add('hidden');
+            legendAdditionY.classList.add('hidden');
+            
+            if (vecMode === 'addition') {
+                legendAddition.classList.remove('hidden');
+            } else if (vecMode === 'components') {
+                legendComponents.classList.remove('hidden');
+            } else if (vecMode === 'addition_y') {
+                legendAdditionY.classList.remove('hidden');
+            }
+        }
+        
+        if (!isPlaying) {
+            updateScale();
+            draw();
+            updateTelemetry();
+        }
+    }
+
+    function resetSimulation() {
+        isPlaying = false;
+        missionState = createMissionState();
+        
+        physicsState.time = 0;
+        physicsState.x = 0;
+        physicsState.y = 0;
+        physicsState.trail = [];
+        
+        lastTime = performance.now();
+        initWaterParticles();
+        readInputs();
+        configureMission();
+        readInputs();
+        updateMissionUI();
+        updateButtonState();
+        updateControlAvailability();
+        draw();
+        updateTelemetry();
+    }
+
+    function togglePlayPause() {
+        if (missionState.phase === 'success' || missionState.phase === 'fail') {
+            resetSimulation();
+            return;
+        }
+
+        if (missionState.phase === 'setup') {
+            missionState.phase = 'outbound';
+            missionState.message = getLevelConfig().startMessage;
+            isPlaying = true;
+        } else if (missionState.phase === 'rescued') {
+            missionState.phase = 'return';
+            missionState.message = 'Baby secured. Set a return heading and get back to the launch zone.';
+            isPlaying = true;
+        } else {
+            isPlaying = !isPlaying;
+        }
+
+        updateMissionUI();
+        updateButtonState();
+        updateControlAvailability();
+        updateTelemetry();
+
+        if (isPlaying) {
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        }
+    }
+
+    function updateTelemetry() {
+        stats.phase.innerText = getPhaseLabel();
+        stats.time.innerText = physicsState.time.toFixed(2) + " s";
+        stats.groundVel.innerText = params.vResultantMag.toFixed(2) + " m/s";
+        stats.stamina.innerText = missionState.staminaLeft.toFixed(1) + " m";
+        stats.goal.innerText = getDistanceToGoal().toFixed(1) + " m";
+        stats.drift.innerText = physicsState.y.toFixed(1) + " m";
+    }
+
+    function gameLoop(timestamp) {
+        if (!isPlaying) return;
+
+        const deltaTime = (timestamp - lastTime) / 1000; // in seconds
+        lastTime = timestamp;
+
+        // Ensure we don't jump too far if tab was inactive
+        if (deltaTime < 0.1) {
+            updatePhysics(deltaTime);
+            updateTelemetry();
+        }
+
+        draw();
+
+        if (isPlaying) {
+            requestAnimationFrame(gameLoop);
+        }
+    }
+
+    function updatePhysics(dt) {
+        if (missionState.phase === 'setup' || missionState.phase === 'rescued' || missionState.phase === 'success' || missionState.phase === 'fail') return;
+
+        physicsState.time += dt;
+        const stepX = params.vResultantX * dt;
+        const stepY = params.vResultantY * dt;
+        physicsState.x += stepX;
+        physicsState.y += stepY;
+        missionState.staminaLeft = Math.max(0, missionState.staminaLeft - Math.hypot(stepX, stepY));
+
+        if (missionState.staminaLeft <= 0) {
+            failMission('You ran out of stamina before completing the rescue.');
+            return;
+        }
+
+        // Save trail
+        // Only save every few frames to avoid massive arrays
+        if (physicsState.trail.length === 0 || 
+            Math.hypot(physicsState.x - physicsState.trail[physicsState.trail.length-1].x, 
+                       physicsState.y - physicsState.trail[physicsState.trail.length-1].y) > 0.5) {
+            physicsState.trail.push({x: physicsState.x, y: physicsState.y});
+        }
+
+        if (checkObstacleHits()) {
+            return;
+        }
+
+        if (!missionState.baby.rescued) {
+            if (Math.hypot(physicsState.x - missionState.baby.x, physicsState.y - missionState.baby.y) <= missionState.baby.radius) {
+                missionState.baby.rescued = true;
+                if (currentLevel === 3) {
+                    missionState.phase = 'rescued';
+                    missionState.message = 'Baby rescued! Choose a return heading and launch the swim home.';
+                    isPlaying = false;
+                    readInputs();
+                    updateMissionUI();
+                    updateButtonState();
+                    updateControlAvailability();
+                    updateTelemetry();
+                } else {
+                    completeMission();
+                }
+                return;
+            }
+
+            if (physicsState.x > params.width + 8) {
+                failMission(currentLevel === 3
+                    ? 'You drifted past the baby before reaching the rescue point.'
+                    : 'You missed the finish ring on the far bank.');
+            }
+        } else if (currentLevel === 3 && missionState.phase === 'return') {
+            if (Math.hypot(physicsState.x - missionState.returnZone.x, physicsState.y - missionState.returnZone.y) <= missionState.returnZone.radius) {
+                completeMission();
+                return;
+            }
+
+            if (physicsState.x < -10) {
+                failMission('You missed the launch zone on the way back.');
+            }
+        }
+    }
+
+    function drawBaby() {
+        if (currentLevel !== 3 || missionState.baby.rescued) return;
+
+        const babyX = originX + missionState.baby.x * scale;
+        const babyY = originY + missionState.baby.y * scale;
+        const outerRadius = missionState.baby.radius * scale;
+
+        ctx.beginPath();
+        ctx.arc(babyX, babyY, outerRadius, 0, Math.PI * 2);
+        ctx.fillStyle = '#fb7185';
+        ctx.fill();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#fef3c7';
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(babyX, babyY, outerRadius + 8, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(253, 224, 71, 0.45)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = '#fff1f2';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Baby', babyX, babyY - outerRadius - 12);
+    }
+
+    function drawFinishZone() {
+        if (currentLevel === 3 || missionState.baby.rescued) return;
+
+        const finishX = originX + missionState.baby.x * scale;
+        const finishY = originY + missionState.baby.y * scale;
+        const radius = missionState.baby.radius * scale;
+
+        ctx.beginPath();
+        ctx.arc(finishX, finishY, radius, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(34, 197, 94, 0.18)';
+        ctx.fill();
+        ctx.strokeStyle = '#22c55e';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([6, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = '#dcfce7';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Finish', finishX, finishY - radius - 12);
+    }
+
+    function drawReturnZone() {
+        if (currentLevel !== 3) return;
+
+        const zoneX = originX + missionState.returnZone.x * scale;
+        const zoneY = originY + missionState.returnZone.y * scale;
+        const radius = missionState.returnZone.radius * scale;
+
+        ctx.beginPath();
+        ctx.arc(zoneX, zoneY, radius, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(34, 197, 94, 0.18)';
+        ctx.fill();
+        ctx.strokeStyle = '#22c55e';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([5, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = '#dcfce7';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('Launch Zone', zoneX + 10, zoneY - 12);
+    }
+
+    function drawObstacles() {
+        missionState.obstacles.forEach(obstacle => {
+            const obstacleX = originX + obstacle.x * scale;
+            const obstacleY = originY + obstacle.y * scale;
+            ctx.save();
+            ctx.translate(obstacleX, obstacleY);
+            ctx.rotate(obstacle.rotation);
+            ctx.fillStyle = obstacle.hit ? '#7f1d1d' : '#92400e';
+            ctx.strokeStyle = obstacle.hit ? '#fecaca' : '#451a03';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, obstacle.radius * scale, obstacle.radius * scale * 0.42, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+            ctx.beginPath();
+            ctx.moveTo(-obstacle.radius * scale * 0.55, -2);
+            ctx.lineTo(obstacle.radius * scale * 0.55, 2);
+            ctx.stroke();
+            ctx.restore();
+        });
+    }
+
+    function drawMissionBanner() {
+        const bannerWidth = Math.min(380, canvas.width - 36);
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+        ctx.fillRect(18, 18, bannerWidth, 78);
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.45)';
+        ctx.strokeRect(18, 18, bannerWidth, 78);
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = 'bold 13px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(`Phase: ${getPhaseLabel()}`, 32, 42);
+        ctx.font = '12px sans-serif';
+        ctx.fillStyle = '#cbd5e1';
+        ctx.fillText(missionState.message, 32, 66, bannerWidth - 28);
+    }
+
+    function drawArrow(fromX, fromY, toX, toY, color, width = 2) {
+        const dx = toX - fromX;
+        const dy = toY - fromY;
+        
+        // Don't attempt to draw zero-length vectors
+        if (Math.abs(dx) < 0.1 && Math.abs(dy) < 0.1) return;
+
+        const headlen = 10;
+        const angle = Math.atan2(dy, dx);
+        
+        ctx.beginPath();
+        ctx.moveTo(fromX, fromY);
+        ctx.lineTo(toX, toY);
+        ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+        ctx.moveTo(toX, toY);
+        ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.stroke();
+    }
+
+    function draw() {
+        // Clear screen
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Calculate visual boundaries
+        const riverLeft = originX;
+        const riverRight = originX + (params.width * scale);
+
+        // 1. Draw River Water Background
+        ctx.fillStyle = '#0f172a'; // Match body background
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.fillStyle = '#1e3a8a'; // Deep blue water
+        ctx.fillRect(riverLeft, 0, riverRight - riverLeft, canvas.height);
+
+        // 2. Draw Flow Particles
+        ctx.strokeStyle = 'rgba(96, 165, 250, 0.3)'; // Light blue flow lines
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        
+        // Advance particles visually if playing
+        const visualRiverSpeed = isPlaying ? params.vRiver * 2 : 0; 
+
+        for (let i = 0; i < waterParticles.length; i++) {
+            let p = waterParticles[i];
+            
+            if (isPlaying) {
+                p.y += visualRiverSpeed * p.speedOffset;
+                if (p.y > canvas.height) {
+                    p.y = -20;
+                    p.x = Math.random();
+                }
+            }
+
+            let px = riverLeft + p.x * (params.width * scale);
+            let py = p.y;
+            
+            // Only draw if within height bounds
+            if (py > -50 && py < canvas.height + 50) {
+                ctx.moveTo(px, py);
+                ctx.lineTo(px, py + p.length);
+            }
+        }
+        ctx.stroke();
+
+        // 3. Draw Banks
+        ctx.fillStyle = '#166534'; // Green banks
+        ctx.fillRect(0, 0, riverLeft, canvas.height); // Left bank
+        ctx.fillRect(riverRight, 0, canvas.width - riverRight, canvas.height); // Right bank
+
+        // Draw bank borders
+        ctx.strokeStyle = '#fcd34d'; // Sand/border color
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(riverLeft, 0); ctx.lineTo(riverLeft, canvas.height);
+        ctx.moveTo(riverRight, 0); ctx.lineTo(riverRight, canvas.height);
+        ctx.stroke();
+
+        // Distance markers on the left bank
+        ctx.fillStyle = '#cbd5e1';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'right';
+        for(let i=0; i<1000; i+=20) {
+            let markerY = originY + (i * scale);
+            if (markerY > canvas.height) break;
+            ctx.fillText(i + 'm', riverLeft - 10, markerY + 4);
+            ctx.beginPath();
+            ctx.moveTo(riverLeft - 6, markerY);
+            ctx.lineTo(riverLeft, markerY);
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+
+        // Width dimension arrow
+        if (!isPlaying && physicsState.time === 0) {
+            ctx.beginPath();
+            ctx.moveTo(riverLeft, originY - 30);
+            ctx.lineTo(riverRight, originY - 30);
+            ctx.strokeStyle = '#94a3b8';
+            ctx.setLineDash([5, 5]);
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = '#94a3b8';
+            ctx.textAlign = 'center';
+            ctx.fillText(params.width.toFixed(0) + ' m Width', riverLeft + (riverRight - riverLeft) / 2, originY - 35);
+        }
+
+        // 4. Draw Rescue Targets
+        drawReturnZone();
+        drawFinishZone();
+        drawBaby();
+        drawObstacles();
+
+        // 5. Draw Trail
+        if (physicsState.trail.length > 0) {
+            ctx.beginPath();
+            ctx.moveTo(originX + physicsState.trail[0].x * scale, originY + physicsState.trail[0].y * scale);
+            for (let i = 1; i < physicsState.trail.length; i++) {
+                ctx.lineTo(originX + physicsState.trail[i].x * scale, originY + physicsState.trail[i].y * scale);
+            }
+            // Line to current position
+            ctx.lineTo(originX + physicsState.x * scale, originY + physicsState.y * scale);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // 6. Draw Swimmer
+        const bX = originX + physicsState.x * scale;
+        const bY = originY + physicsState.y * scale;
+
+        // Boat Shape
+        ctx.save();
+        ctx.translate(bX, bY);
+        
+        // Rotate boat to face the steering direction (angle relative to water)
+        ctx.rotate(params.angleRad);
+
+        // Draw swimmer marker
+        const carryingBaby = currentLevel === 3 && missionState.baby.rescued;
+        ctx.fillStyle = carryingBaby ? '#f59e0b' : '#22c55e';
+        ctx.strokeStyle = carryingBaby ? '#b45309' : '#14532d';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(15, 0); // nose
+        ctx.lineTo(-10, -8); // left back
+        ctx.lineTo(-10, 8); // right back
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        if (carryingBaby) {
+            ctx.fillStyle = '#fbcfe8';
+            ctx.beginPath();
+            ctx.arc(-2, -10, 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+
+        // 7. Draw Vectors
+        const vecMode = inputs.vectorDisplay.value;
+        if (vecMode !== 'none') {
+            const vecScale = 5; // Multiplier to make vectors visible
+            
+            const resx = params.vResultantX * vecScale;
+            const resy = params.vResultantY * vecScale;
+
+            if (vecMode === 'addition') {
+                // Boat Vector (Red) - V relative to water
+                const vbx = params.effectiveBoatSpeed * Math.cos(params.angleRad) * vecScale;
+                const vby = params.effectiveBoatSpeed * Math.sin(params.angleRad) * vecScale;
+                drawArrow(bX, bY, bX + vbx, bY + vby, '#ef4444', 3);
+
+                // River Vector (Blue) - Starts from end of Boat Vector to show addition
+                const vrx = 0;
+                const vry = params.vRiver * vecScale;
+                drawArrow(bX + vbx, bY + vby, bX + vbx + vrx, bY + vby + vry, '#60a5fa', 3);
+
+                // Resultant Vector (Green) - From origin to end
+                drawArrow(bX, bY, bX + resx, bY + resy, '#22c55e', 3);
+            } else if (vecMode === 'components') {
+                // X Component (Orange)
+                drawArrow(bX, bY, bX + resx, bY, '#f97316', 3);
+                
+                // Y Component (Purple)
+                // Starts at the end of X component
+                drawArrow(bX + resx, bY, bX + resx, bY + resy, '#a855f7', 3);
+
+                // Resultant Vector (Green)
+                drawArrow(bX, bY, bX + resx, bY + resy, '#22c55e', 3);
+            } else if (vecMode === 'addition_y') {
+                const vby = params.effectiveBoatSpeed * Math.sin(params.angleRad) * vecScale;
+                const vry = params.vRiver * vecScale;
+                
+                // Offset horizontally to see them clearly separated from the boat
+                const offsetX1 = 30; // Right side (Addition)
+                const offsetX2 = -30; // Left side (Resultant)
+
+                // Boat Y Component (Fuchsia)
+                drawArrow(bX + offsetX1, bY, bX + offsetX1, bY + vby, '#d946ef', 3);
+                
+                // River Velocity (Blue) added head-to-tail
+                drawArrow(bX + offsetX1, bY + vby, bX + offsetX1, bY + vby + vry, '#60a5fa', 3);
+
+                // Resultant Y (Purple)
+                drawArrow(bX + offsetX2, bY, bX + offsetX2, bY + resy, '#a855f7', 3);
+                
+                // Dotted reference lines to connect the heights
+                ctx.beginPath();
+                ctx.moveTo(bX + offsetX2, bY);
+                ctx.lineTo(bX + offsetX1, bY);
+                ctx.moveTo(bX + offsetX2, bY + resy);
+                ctx.lineTo(bX + offsetX1, bY + resy);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.setLineDash([4, 4]);
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+
+        drawMissionBanner();
+        
+        // Optional: Draw target projection line if paused at start
+        if (!isPlaying && physicsState.time === 0) {
+            if (params.vResultantX > 0) {
+                // Calculate where it will hit
+                const timeToCross = params.width / params.vResultantX;
+                const hitY = timeToCross * params.vResultantY;
+                
+                ctx.beginPath();
+                ctx.moveTo(bX, bY);
+                ctx.lineTo(originX + params.width * scale, originY + hitY * scale);
+                ctx.strokeStyle = 'rgba(34, 197, 94, 0.3)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                // Draw target X marker
+                ctx.fillStyle = '#22c55e';
+                ctx.font = '16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('X', originX + params.width * scale, originY + hitY * scale + 6);
+            }
+        }
+    }
+
+    // Event Listeners
+    window.addEventListener('resize', resizeCanvas);
+    
+    Object.values(inputs).forEach(input => {
+        input.addEventListener('input', readInputs);
+    });
+
+    btnPlayPause.addEventListener('click', togglePlayPause);
+    btnReset.addEventListener('click', resetSimulation);
+    Object.entries(levelButtons).forEach(([level, button]) => {
+        button.addEventListener('click', () => {
+            currentLevel = Number(level);
+            applyLevelButtonStyles();
+            resetSimulation();
+        });
+    });
+
+    // Initial Setup
+    initWaterParticles();
+    applyLevelButtonStyles();
+    resizeCanvas();
+    resetSimulation();
+
+</script>
+</body>
+</html>

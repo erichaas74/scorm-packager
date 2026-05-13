@@ -31,6 +31,7 @@
 
   var _api        = null;   // cached LMS API reference
   var _initialized = false;
+  var _finished = false;
 
   // ── API discovery ───────────────────────────────────────────────────────────
 
@@ -83,57 +84,90 @@
     return false;
   }
 
-  function initialize() {
-    var api = _discoverAPI();
-    if (!api) return false;
+  function _reportLastError(api, action, element) {
+    if (!api || !api.LMSGetLastError) return false;
+    var code = String(api.LMSGetLastError() || '0');
+    if (code === '0') return false;
+    var message = api.LMSGetErrorString ? api.LMSGetErrorString(code) : '';
+    var diagnostic = api.LMSGetDiagnostic ? api.LMSGetDiagnostic(code) : '';
+    console.error('[SCORM] ' + action + ' failed.', 'element:', element || '-', 'code:', code, 'message:', message || '-', 'diagnostic:', diagnostic || '-');
+    return true;
+  }
+
+  function _ensureInitialized(api) {
+    if (_initialized) return true;
 
     var result = api.LMSInitialize('');
     if (!_isTrue(result)) {
-      var err = api.LMSGetLastError ? api.LMSGetLastError() : '?';
-      console.error('[SCORM] LMSInitialize failed. Error code:', err);
+      _reportLastError(api, 'LMSInitialize');
       return false;
     }
 
     _initialized = true;
-    console.log('[SCORM] LMSInitialize – OK');
+    _finished = false;
     return true;
+  }
+
+  function initialize() {
+    var api = _discoverAPI();
+    if (!api) return false;
+    return _ensureInitialized(api);
   }
 
   function getValue(element) {
     var api = _discoverAPI();
     if (!api) return '';
-    return api.LMSGetValue(element);
+    if (!_ensureInitialized(api)) return '';
+    var value = api.LMSGetValue(element);
+    _reportLastError(api, 'LMSGetValue', element);
+    return value;
   }
 
   function setValue(element, value) {
     var api = _discoverAPI();
     if (!api) return false;
+    if (!_ensureInitialized(api)) return false;
 
     var result = api.LMSSetValue(element, String(value));
     if (!_isTrue(result)) {
-      var err = api.LMSGetLastError ? api.LMSGetLastError() : '?';
-      console.error('[SCORM] LMSSetValue failed – element:', element,
-                    '  value:', value, '  error:', err);
+      _reportLastError(api, 'LMSSetValue', element);
       return false;
     }
+
+    _reportLastError(api, 'LMSSetValue', element);
     return true;
   }
 
   function commit() {
     var api = _discoverAPI();
     if (!api) return false;
-    return _isTrue(api.LMSCommit(''));
+    if (!_ensureInitialized(api)) return false;
+    var result = api.LMSCommit('');
+    if (!_isTrue(result)) {
+      _reportLastError(api, 'LMSCommit');
+      return false;
+    }
+
+    _reportLastError(api, 'LMSCommit');
+    return true;
   }
 
   function finish() {
     var api = _discoverAPI();
     if (!api) return false;
+    if (_finished || !_initialized) return true;
 
-    api.LMSCommit('');  // flush any pending data first
+    var commitResult = api.LMSCommit('');  // flush any pending data first
+    if (!_isTrue(commitResult)) _reportLastError(api, 'LMSCommit');
     var result = api.LMSFinish('');
+    if (!_isTrue(result)) {
+      _reportLastError(api, 'LMSFinish');
+      return false;
+    }
+
     _initialized = false;
-    console.log('[SCORM] LMSFinish – OK');
-    return _isTrue(result);
+    _finished = true;
+    return true;
   }
 
   // ── Convenience helpers ─────────────────────────────────────────────────────

@@ -58,6 +58,123 @@
     osc.start(t); osc.stop(t + 0.15);
   }
 
+  function playStarterTone(freq, duration) {
+    warmAudioCtx();
+    var ctx = gunAudioCtx;
+    var t = ctx.currentTime;
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(freq, t);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.16, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + duration + 0.02);
+  }
+
+  function speakCue(text, options, onDone) {
+    options = options || {};
+    var fallbackDelay = options.fallbackDelay || 1000;
+    var speechFallbackId = null;
+    if (!('speechSynthesis' in window)) {
+      if (onDone) timerId = setTimeout(onDone, fallbackDelay);
+      return;
+    }
+    try {
+      window.speechSynthesis.cancel();
+      var completed = false;
+      var utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = options.rate || 1;
+      utterance.pitch = options.pitch || 1;
+      utterance.volume = options.volume || 1;
+      utterance.onend = utterance.onerror = function() {
+        if (completed) return;
+        completed = true;
+        if (speechFallbackId) clearTimeout(speechFallbackId);
+        if (onDone) onDone();
+      };
+      window.speechSynthesis.speak(utterance);
+      if (onDone) {
+        speechFallbackId = setTimeout(function() {
+          if (completed) return;
+          completed = true;
+          if (onDone) onDone();
+        }, fallbackDelay);
+      }
+    } catch (err) {
+      if (onDone) timerId = setTimeout(onDone, fallbackDelay);
+    }
+  }
+
+  function playStarterCue(text) {
+    if (text === 'Set') {
+      playStarterTone(620, 0.18);
+    }
+    speakCue(text, {
+      rate: text === 'On your marks' ? 1.18 : 0.88,
+      pitch: 0.82,
+      fallbackDelay: text === 'On your marks' ? 900 : 500
+    });
+  }
+
+  function playEngineRev() {
+    warmAudioCtx();
+    var ctx = gunAudioCtx;
+    var t = ctx.currentTime;
+    var duration = 2.2;
+    var master = ctx.createGain();
+    master.gain.setValueAtTime(0.0001, t);
+    master.gain.exponentialRampToValueAtTime(0.42, t + 0.08);
+    master.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+    master.connect(ctx.destination);
+
+    for (var i = 0; i < 3; i++) {
+      var osc = ctx.createOscillator();
+      osc.type = i === 0 ? 'sawtooth' : 'square';
+      osc.frequency.setValueAtTime(55 + i * 11, t);
+      osc.frequency.exponentialRampToValueAtTime(150 + i * 28, t + duration * 0.82);
+      osc.connect(master);
+      osc.start(t);
+      osc.stop(t + duration);
+    }
+
+    var thump = ctx.createOscillator();
+    thump.type = 'sine';
+    thump.frequency.setValueAtTime(42, t);
+    thump.frequency.exponentialRampToValueAtTime(88, t + duration * 0.75);
+    thump.connect(master);
+    thump.start(t);
+    thump.stop(t + duration);
+  }
+
+  function playLightBeep(isGreen) {
+    warmAudioCtx();
+    var ctx = gunAudioCtx;
+    var t = ctx.currentTime;
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(isGreen ? 880 : 520, t);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(isGreen ? 0.34 : 0.24, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + (isGreen ? 0.22 : 0.14));
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + (isGreen ? 0.24 : 0.16));
+  }
+
+  function playDragRaceIntroCue(onDone) {
+    speakCue('Drivers, start your engines', {
+      rate: 0.95,
+      pitch: 0.7,
+      fallbackDelay: 1700
+    }, onDone);
+  }
+
   function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
   function lerp(a, b, t) { return a + (b - a) * t; }
   function smoothstep(t) { return t * t * (3 - 2 * t); }
@@ -69,6 +186,7 @@
       clearInterval(lightIntervalId);
       lightIntervalId = null;
     }
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
   }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -852,68 +970,277 @@
     }
   }
 
-  // â”€â”€ Starter official figure â”€â”€
-  function drawStarter(ctx, gunFired, flashAlpha) {
-    var sx = 0, sy = 84;
+  /// ── Starter official figure ──
+function drawStarter(ctx, gunFired, flashAlpha) {
+  var sx = 0, sy = 84;
+
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Helper for rounded rectangles
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  // Ground shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.beginPath();
+  ctx.ellipse(0, 36, 18, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ======================
+  // Legs - thicker pants
+  // ======================
+  ctx.fillStyle = '#172033';
+
+  // Left leg
+  ctx.beginPath();
+  ctx.moveTo(-5, 0);
+  ctx.lineTo(-11, 20);
+  ctx.lineTo(-10, 34);
+  ctx.lineTo(-4, 34);
+  ctx.lineTo(-2, 20);
+  ctx.lineTo(2, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  // Right leg
+  ctx.beginPath();
+  ctx.moveTo(4, 0);
+  ctx.lineTo(8, 20);
+  ctx.lineTo(9, 34);
+  ctx.lineTo(15, 34);
+  ctx.lineTo(14, 20);
+  ctx.lineTo(8, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  // Pants highlight
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-7, 4);
+  ctx.lineTo(-9, 31);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(7, 4);
+  ctx.lineTo(12, 31);
+  ctx.stroke();
+
+  // Shoes
+  ctx.fillStyle = '#111';
+  roundRect(-14, 31, 13, 5, 2);
+  ctx.fill();
+
+  roundRect(5, 31, 14, 5, 2);
+  ctx.fill();
+
+  // ======================
+  // Torso / official shirt
+  // ======================
+  ctx.fillStyle = '#f3f3f3';
+  ctx.beginPath();
+  ctx.moveTo(-9, -2);
+  ctx.lineTo(9, -2);
+  ctx.lineTo(8, -23);
+  ctx.quadraticCurveTo(0, -27, -8, -23);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.strokeStyle = '#c9c9c9';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Shirt center line
+  ctx.strokeStyle = '#d4d4d4';
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(0, -23);
+  ctx.lineTo(0, -3);
+  ctx.stroke();
+
+  // Belt
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-9, -3, 18, 3);
+
+  // Small badge
+  ctx.fillStyle = '#e3c24b';
+  ctx.beginPath();
+  ctx.arc(4, -17, 1.6, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Neck
+  ctx.fillStyle = '#c98a63';
+  roundRect(-3, -27, 6, 6, 2);
+  ctx.fill();
+
+  // ======================
+  // Head and cap
+  // ======================
+  ctx.fillStyle = '#c98a63';
+  ctx.beginPath();
+  ctx.ellipse(0, -33, 7, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Simple nose/face detail
+  ctx.strokeStyle = 'rgba(80,45,30,0.35)';
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(2, -33);
+  ctx.lineTo(3, -30);
+  ctx.stroke();
+
+  // Cap
+  ctx.fillStyle = '#151526';
+  ctx.beginPath();
+  ctx.ellipse(0, -39, 8, 4, 0, Math.PI, 0);
+  ctx.fill();
+
+  ctx.fillRect(-8, -39, 16, 3);
+
+  // Cap brim
+  ctx.beginPath();
+  ctx.ellipse(5, -38, 6, 2, 0.1, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ======================
+  // Arm at side
+  // ======================
+  ctx.strokeStyle = '#c98a63';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(-8, -19);
+  ctx.quadraticCurveTo(-14, -10, -12, 2);
+  ctx.stroke();
+
+  // Hand at side
+  ctx.fillStyle = '#c98a63';
+  ctx.beginPath();
+  ctx.arc(-12, 2, 2.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ======================
+  // Raised arm holding starter pistol
+  // ======================
+  var shoulderX = 8;
+  var shoulderY = -19;
+  var elbowX = 15;
+  var elbowY = -27;
+  var handX = 18;
+  var handY = -38;
+
+  // Upper/lower arm
+  ctx.strokeStyle = '#c98a63';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(shoulderX, shoulderY);
+  ctx.quadraticCurveTo(elbowX, elbowY, handX, handY);
+  ctx.stroke();
+
+  // Hand
+  ctx.fillStyle = '#c98a63';
+  ctx.beginPath();
+  ctx.arc(handX, handY, 2.8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Starter pistol
+  ctx.save();
+  ctx.translate(handX + 1, handY - 2);
+  ctx.rotate(-0.22);
+
+  ctx.fillStyle = '#2b2b2b';
+
+  // Barrel
+  roundRect(-1, -13, 4, 13, 1);
+  ctx.fill();
+
+  // Grip
+  ctx.save();
+  ctx.rotate(0.28);
+  roundRect(-3, -1, 6, 8, 1.5);
+  ctx.fill();
+  ctx.restore();
+
+  // Trigger guard
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(1, 1, 3, 0.1, Math.PI * 1.3);
+  ctx.stroke();
+
+  ctx.restore();
+
+  // ======================
+  // Muzzle flash / smoke
+  // ======================
+  if (gunFired && flashAlpha > 0) {
     ctx.save();
-    ctx.translate(sx, sy);
 
-    // Legs
-    ctx.strokeStyle = '#1a1a2e'; ctx.lineWidth = 3; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-5, 18); ctx.lineTo(-4, 34); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(5, 18); ctx.lineTo(6, 34); ctx.stroke();
-    // Shoes
-    ctx.fillStyle = '#222';
-    ctx.fillRect(-7, 32, 6, 3); ctx.fillRect(3, 32, 6, 3);
-    // Torso
-    ctx.fillStyle = '#f0f0f0';
-    ctx.beginPath(); ctx.moveTo(-7, -2); ctx.lineTo(7, -2); ctx.lineTo(6, -22); ctx.lineTo(-6, -22); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = '#bbb'; ctx.lineWidth = 0.6; ctx.stroke();
-    // Head
-    ctx.fillStyle = '#c98a63';
-    ctx.beginPath(); ctx.arc(0, -28, 6, 0, Math.PI * 2); ctx.fill();
-    // Cap
-    ctx.fillStyle = '#1a1a2e';
-    ctx.beginPath(); ctx.ellipse(0, -32, 7, 3, -0.1, 0, Math.PI, true); ctx.fill();
-    ctx.fillRect(-7, -33, 14, 2);
+    ctx.translate(handX + 3, handY - 16);
+    ctx.rotate(-0.22);
+    ctx.globalAlpha = flashAlpha;
 
-    // Arm holding gun (raised)
-    var armEndX = 14, armEndY = -32;
-    ctx.strokeStyle = '#c98a63'; ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.moveTo(6, -18); ctx.quadraticCurveTo(12, -24, armEndX, armEndY); ctx.stroke();
-    // Gun
-    ctx.fillStyle = '#333';
-    ctx.save(); ctx.translate(armEndX, armEndY); ctx.rotate(-0.3);
-    ctx.fillRect(-1, -8, 3, 10);   // barrel
-    ctx.fillRect(-2, 0, 5, 4);     // grip
-    ctx.restore();
+    // Outer flash
+    ctx.fillStyle = '#ffdd44';
+    ctx.beginPath();
+    ctx.moveTo(0, -2);
+    ctx.lineTo(-6, -18);
+    ctx.lineTo(-1, -9);
+    ctx.lineTo(0, -24);
+    ctx.lineTo(2, -9);
+    ctx.lineTo(7, -18);
+    ctx.closePath();
+    ctx.fill();
 
-    // Muzzle flash
-    if (gunFired && flashAlpha > 0) {
-      ctx.save(); ctx.translate(armEndX, armEndY - 10); ctx.rotate(-0.3);
-      ctx.globalAlpha = flashAlpha;
-      // Flash spikes
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.moveTo(0, -3); ctx.lineTo(-4, -14); ctx.lineTo(0, -10); ctx.lineTo(4, -14); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#ffdd44';
-      ctx.beginPath();
-      ctx.moveTo(0, -2); ctx.lineTo(-6, -18); ctx.lineTo(-1, -8); ctx.lineTo(1, -8); ctx.lineTo(6, -18); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#ff6600';
-      ctx.beginPath(); ctx.arc(0, -4, 5, 0, Math.PI * 2); ctx.fill();
-      // Smoke puff
-      ctx.fillStyle = 'rgba(200,200,200,' + (flashAlpha * 0.5) + ')';
-      ctx.beginPath(); ctx.ellipse(-2, -16, 8 + (1 - flashAlpha) * 12, 5 + (1 - flashAlpha) * 6, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.restore();
-    }
+    // Inner flash
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(0, -4);
+    ctx.lineTo(-3, -14);
+    ctx.lineTo(0, -10);
+    ctx.lineTo(3, -14);
+    ctx.closePath();
+    ctx.fill();
 
-    // Other arm at side
-    ctx.strokeStyle = '#c98a63'; ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.moveTo(-6, -18); ctx.quadraticCurveTo(-10, -8, -8, 0); ctx.stroke();
+    // Orange center
+    ctx.fillStyle = '#ff7a22';
+    ctx.beginPath();
+    ctx.arc(0, -4, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Smoke puff
+    ctx.globalAlpha = flashAlpha * 0.55;
+    ctx.fillStyle = '#d8d8d8';
+    ctx.beginPath();
+    ctx.ellipse(
+      -3,
+      -21,
+      8 + (1 - flashAlpha) * 12,
+      5 + (1 - flashAlpha) * 6,
+      0,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
 
     ctx.restore();
   }
+
+  ctx.restore();
+}
 
   // â”€â”€ Signal text overlay â”€â”€
   function drawTrackSignalText(ctx, signal) {
@@ -943,7 +1270,7 @@
     if (starterWorldPx > -120 && starterWorldPx < VIRT_W + 120) {
       ctx.save(); ctx.translate(starterWorldPx, 0);
       ctx.scale(2.5, 2.5);
-      var gunFired = signal === 'BANG!' || (rc.greenTime > 0);
+      var gunFired = rc.greenTime > 0;
       var flashAlpha = 0;
       if (muzzleFlashStart > 0 && rc.now > 0) {
         var elapsed = rc.now - muzzleFlashStart;
@@ -1279,6 +1606,7 @@
     el.rulerCore = document.getElementById('ruler-core');
     el.rulerScale = document.getElementById('ruler-scale');
     el.trackSignal = document.getElementById('track-signal');
+    el.gameFooter = document.querySelector('.game-footer');
     el.sceneInstruction = document.getElementById('scene-instruction');
     el.startSequenceBtn = document.getElementById('start-sequence-btn');
     el.resetScenarioBtn = document.getElementById('reset-scenario-btn');
@@ -1777,11 +2105,10 @@
   function runLightSequence() {
     var current = 0;
     state.lightIndex = 0;
+    playLightBeep(false);
     render();
     lightIntervalId = setInterval(function() {
       current += 1;
-      state.lightIndex = current;
-      render();
       if (current === 3) {
         clearInterval(lightIntervalId);
         lightIntervalId = null;
@@ -1789,34 +2116,49 @@
         state.startTime = performance.now();
         opponentDelay = 0.20 + Math.random() * 0.15; // 0.20â€“0.35s
         state.lightIndex = 3;
+        playLightBeep(true);
         render();
+        return;
       }
+      state.lightIndex = current;
+      playLightBeep(false);
+      render();
     }, 500);
   }
 
   function startLevel2Sequence() {
-    var initDelay = Math.random() * 1000 + 500;
-    timerId = setTimeout(runLightSequence, initDelay);
+    state.trackSignal = 'DRIVERS, START YOUR ENGINES';
+    render();
+    playDragRaceIntroCue(function() {
+      timerId = setTimeout(function() {
+        state.trackSignal = '';
+        playEngineRev();
+        runLightSequence();
+      }, 1200);
+    });
   }
 
   function runTrackSequence() {
-    state.trackSignal = 'On your marks...';
+    state.trackSignal = 'ON YOUR MARKS';
+    playStarterCue('On your marks');
     render();
     timerId = setTimeout(function() {
-      state.trackSignal = 'SET...';
+      state.trackSignal = '';
+      playStarterCue('Set');
       render();
       var wait = Math.random() * 2000 + 1000;
       timerId = setTimeout(function() {
         // Fire the gun!
-        state.trackSignal = 'BANG!';
+        state.trackSignal = '';
         state.gameState = 'dropping';
         state.startTime = performance.now();
         muzzleFlashStart = performance.now();
         opponentDelay = 0.15 + Math.random() * 0.10; // 0.15â€“0.25s
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
         playGunshot();
         render();
       }, wait);
-    }, 1400);
+    }, 1000);
   }
 
   function startLevel3Sequence() {
@@ -1998,6 +2340,7 @@
     var showLevel1 = level === 1;
     el.canvas.classList.toggle('hidden', showLevel1);
     el.level1Scene.classList.toggle('hidden', !showLevel1);
+    el.level1Scene.classList.toggle('waiting', level === 1 && state.gameState === 'waiting');
     el.level1Scene.classList.toggle('dropping', level === 1 && state.gameState === 'dropping');
     if (showLevel1) {
       var rulerDropPx = 0;
@@ -2005,10 +2348,20 @@
       else if (state.distance !== null) rulerDropPx = clamp(state.visualDropCm * RULER_PX_PER_CM, 0, RULER_TOTAL_CM * RULER_PX_PER_CM);
       if (state.gameState !== 'dropping') el.level1Scene.style.setProperty('--ruler-drop', rulerDropPx.toFixed(2) + 'px');
       el.handGraphic.classList.toggle('closed', !!state.pendingTrial && state.pendingTrial.level === 1);
-      var showPrompt = state.gameState === 'idle' && !state.pendingTrial;
-      if (el.l1StartPrompt) el.l1StartPrompt.style.display = showPrompt ? '' : 'none';
+      var showPrompt = !state.pendingTrial && !levelIsComplete(1) && state.gameState !== 'dropping';
+      if (el.l1StartPrompt) {
+        el.l1StartPrompt.classList.remove('ready', 'catch');
+        if (state.gameState === 'waiting') {
+          el.l1StartPrompt.textContent = 'Get ready... the ruler is about to fall.\nKeep your cursor here, but do not click yet.';
+          el.l1StartPrompt.classList.add('ready');
+        } else {
+          el.l1StartPrompt.textContent = 'Click anywhere to begin. Once the ruler starts to fall Click Again.';
+        }
+        el.l1StartPrompt.style.display = showPrompt ? '' : 'none';
+      }
       if (el.canvasStartPrompt) el.canvasStartPrompt.style.display = 'none';
     } else {
+      el.level1Scene.classList.remove('waiting');
       el.handGraphic.classList.remove('closed');
       if (el.l1StartPrompt) el.l1StartPrompt.style.display = 'none';
       var showCanvasPrompt = state.gameState === 'idle' && !state.pendingTrial;
@@ -2019,9 +2372,12 @@
   function renderOverlays() {
     var level = state.currentLevel;
 
-    if (level === 3 && (state.gameState === 'waiting' || state.gameState === 'dropping')) {
+    if (level === 2 && state.gameState === 'waiting' && state.trackSignal) {
       el.trackSignal.textContent = state.trackSignal;
-      el.trackSignal.className = 'track-signal' + (state.trackSignal === 'SET...' ? ' set' : '') + (state.trackSignal === 'BANG!' ? ' go' : '');
+      el.trackSignal.className = 'track-signal engines';
+    } else if (level === 3 && (state.gameState === 'waiting' || state.gameState === 'dropping')) {
+      el.trackSignal.textContent = state.trackSignal;
+      el.trackSignal.className = 'track-signal' + (state.trackSignal === 'ON YOUR MARKS' ? ' marks' : '');
     } else {
       el.trackSignal.textContent = '';
       el.trackSignal.className = 'track-signal';
@@ -2103,9 +2459,16 @@
   function renderScenarioInfo() {
     var scenario = SCENARIOS[state.currentLevel];
     var recorded = state.trialsByLevel[state.currentLevel].length;
+    var canShowReset = (pendingTrialExists() || recorded > 0) && state.gameState !== 'waiting' && state.gameState !== 'dropping';
     el.scenarioSubtitle.textContent = scenario.description;
-    el.sceneInstruction.textContent = pendingTrialExists() ? 'Record or discard the captured trial before starting another one.' : (recorded >= REQUIRED_TRIALS ? 'This scenario already has 3 recorded trials.' : 'Click the scene or press Space to begin Trial ' + (recorded + 1) + '.');
+    el.sceneInstruction.textContent = '';
+    el.sceneInstruction.hidden = true;
+    el.startSequenceBtn.hidden = true;
     el.startSequenceBtn.disabled = pendingTrialExists() || recorded >= REQUIRED_TRIALS || state.gameState === 'waiting' || state.gameState === 'dropping';
+    el.resetScenarioBtn.hidden = !canShowReset;
+    el.resetScenarioBtn.disabled = !canShowReset;
+    el.resetScenarioBtn.textContent = 'Reset';
+    if (el.gameFooter) el.gameFooter.classList.toggle('show-reset', canShowReset);
 
     for (var i = 0; i < el.scenarioBtns.length; i++) {
       var btn = el.scenarioBtns[i];

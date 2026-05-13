@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Moving Cart: Vertical Launch</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #eef4fa;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .rise-cart-hook {
+      --rch-blue: #28609f;
+      --rch-blue-dark: #163f6d;
+      --rch-blue-soft: #eff6ff;
+      --rch-bg: #28609f;
+      --rch-card: #ffffff;
+      --rch-text: #1f2937;
+      --rch-muted: #64748b;
+      --rch-border: #dbe3ef;
+      --rch-success: #0f766e;
+      --rch-success-soft: #ecfdf5;
+      --rch-error: #b91c1c;
+      --rch-error-soft: #fef2f2;
+      --rch-barrier-soft: #fca5a5;
+      --rch-barrier-border: #b91c1c;
+      --rch-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+
+      width: min(1260px, 100%);
+      margin: 20px auto;
+      padding: clamp(7px, 1.25vw, 12px);
+      border-radius: 24px;
+      background: var(--rch-bg);
+      color: var(--rch-text);
+      font-family: Arial, Helvetica, sans-serif;
+      box-sizing: border-box;
+    }
+
+    .rise-cart-hook,
+    .rise-cart-hook * {
+      box-sizing: border-box;
+    }
+
+    .rise-cart-hook [hidden] {
+      display: none !important;
+    }
+
+    .rise-cart-hook button {
+      font-family: inherit;
+    }
+
+    .rch-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .rch-lab-card {
+      background: var(--rch-card);
+      border: 1px solid var(--rch-border);
+      border-radius: 22px;
+      box-shadow: var(--rch-shadow);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .rch-lab-scene {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 2 / 1;
+      overflow: hidden;
+      background: linear-gradient(#edf5fb 0 86.5%, rgba(71, 85, 105, 0.16) 86.5% 100%);
+    }
+
+    .rch-lab-scene::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(15, 23, 42, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(15, 23, 42, 0.045) 1px, transparent 1px);
+      background-size: 48px 48px;
+      opacity: 0.45;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .rch-board {
+      position: absolute;
+      left: 1%;
+      top: 2%;
+      width: 38%;
+      min-height: 56px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: #dbeafe;
+      border: 2px solid #94a3b8;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      line-height: 1.15;
+      font-weight: 800;
+      font-size: 1.12rem;
+      overflow-wrap: anywhere;
+      z-index: 2;
+    }
+
+    .rch-ground-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 13.5%;
+      border-top: 2px solid rgba(71, 85, 105, 0.28);
+      z-index: 1;
+    }
+
+    .rch-track {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 7.6%;
+      height: 6%;
+      background: linear-gradient(to bottom, #7c8a97, #566473);
+      box-shadow: inset 0 2px 0 rgba(255,255,255,0.15), inset 0 -3px 0 rgba(0,0,0,0.16);
+      z-index: 1;
+    }
+
+    .rch-track::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 42%;
+      border-top: 2px dashed rgba(255,255,255,0.22);
+    }
+
+    .rch-barrier {
+      position: absolute;
+      left: 12%;
+      bottom: 13.5%;
+      width: clamp(18px, 2vw, 24px);
+      height: 17%;
+      border: 2px solid rgba(15, 23, 42, 0.28);
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      background: linear-gradient(to bottom, var(--rch-barrier-soft), #dc2626);
+      border-color: rgba(127, 29, 29, 0.75);
+      box-shadow: 0 8px 14px rgba(15, 23, 42, 0.14);
+      z-index: 8;
+      will-change: transform;
+      transition: opacity 0.2s ease;
+    }
+
+    .rch-barrier.rch-hidden {
+      opacity: 0;
+    }
+
+    .rch-barrier::before {
+      content: "";
+      position: absolute;
+      left: -35%;
+      right: -35%;
+      top: -10%;
+      height: 14%;
+      border-radius: 999px;
+      background: #ef4444;
+      border: 2px solid rgba(127, 29, 29, 0.65);
+    }
+
+    .rch-cloud,
+    .rch-cloud::before,
+    .rch-cloud::after {
+      position: absolute;
+      background: rgba(255,255,255,0.78);
+      border-radius: 999px;
+    }
+
+    .rch-cloud { height: 6%; width: 10%; z-index: 1; }
+    .rch-cloud::before,
+    .rch-cloud::after { content: ""; }
+    .rch-cloud::before { width: 48%; height: 120%; left: 12%; top: -42%; }
+    .rch-cloud::after { width: 44%; height: 105%; right: 10%; top: -28%; }
+    .rch-cloud-1 { left: 47%; top: 10%; }
+    .rch-cloud-2 { left: 79%; top: 17%; transform: scale(0.78); }
+
+    .rch-scene-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 4;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    .rch-flight-path,
+    .rch-align-line {
+      fill: none;
+      stroke-linecap: round;
+      opacity: 0;
+      transition: opacity 0.18s ease;
+    }
+
+    .rch-visible {
+      opacity: 1;
+    }
+
+    .rch-flight-path {
+      stroke: rgba(40, 96, 159, 0.72);
+      stroke-width: 3;
+      stroke-dasharray: 9 8;
+    }
+
+    .rch-align-line {
+      stroke: rgba(15, 23, 42, 0.34);
+      stroke-width: 2;
+      stroke-dasharray: 7 6;
+    }
+
+    .rch-cart {
+      position: absolute;
+      left: 12%;
+      top: 70.5%;
+      width: 20%;
+      height: 16%;
+      z-index: 7;
+      will-change: transform;
+    }
+
+    .rch-cart-body {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 18%;
+      height: 52%;
+      border-radius: 14px 16px 12px 12px;
+      background: linear-gradient(to bottom, var(--rch-blue), var(--rch-blue));
+      border: 2px solid rgba(15, 23, 42, 0.18);
+      box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.15), 0 7px 12px rgba(15, 23, 42, 0.12);
+    }
+
+    .rch-cart-top {
+      position: absolute;
+      left: 14%;
+      top: 10%;
+      width: 42%;
+      height: 20%;
+      border-radius: 8px 8px 2px 2px;
+      background: rgba(255,255,255,0.62);
+      border: 2px solid rgba(15, 23, 42, 0.12);
+    }
+
+    .rch-cart-wheel,
+    .rch-cart-wheel::before {
+      position: absolute;
+      border-radius: 50%;
+    }
+
+    .rch-cart-wheel {
+      bottom: 0;
+      width: 18%;
+      aspect-ratio: 1;
+      background: #1f2937;
+      box-shadow: inset 0 0 0 4px #475569;
+    }
+
+    .rch-cart-wheel::before {
+      content: "";
+      left: 50%;
+      top: 50%;
+      width: 28%;
+      height: 28%;
+      transform: translate(-50%, -50%);
+      background: #cbd5e1;
+    }
+
+    .rch-wheel-left { left: 12%; }
+    .rch-wheel-right { right: 12%; }
+
+    .rch-cup {
+      position: absolute;
+      left: 55%;
+      top: calc(-40% - clamp(13px, 1.5vw, 19px));
+      width: 28%;
+      height: 56%;
+      border: 3px solid #0f172a;
+      border-top-width: 4px;
+      border-bottom-left-radius: 8px 12px;
+      border-bottom-right-radius: 8px 12px;
+      background: linear-gradient(to bottom, #e2e8f0, #cbd5e1);
+      clip-path: polygon(12% 0%, 88% 0%, 78% 100%, 22% 100%);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.55);
+    }
+
+    .rch-launch-guide {
+      position: absolute;
+      left: 68.5%;
+      top: -68%;
+      width: 3px;
+      height: 106%;
+      background: rgba(15, 23, 42, 0.18);
+      border-radius: 999px;
+    }
+
+    .rch-preview-cart {
+      opacity: 0;
+      pointer-events: none;
+      filter: saturate(0.6) brightness(1.06);
+      transition: opacity 0.14s ease;
+    }
+
+    .rch-preview-cart.rch-show-preview {
+      opacity: 0.72;
+    }
+
+    .rch-ball {
+      position: absolute;
+      width: clamp(26px, 3vw, 38px);
+      height: clamp(26px, 3vw, 38px);
+      border-radius: 50%;
+      overflow: hidden;
+      border: 2px solid rgba(15, 23, 42, 0.3);
+      box-shadow: 0 4px 8px rgba(15, 23, 42, 0.16);
+      z-index: 9;
+      will-change: left, top, transform;
+      transform: rotate(0deg);
+      backface-visibility: hidden;
+      background:
+        radial-gradient(circle at 34% 30%, rgba(255, 244, 214, 0.42) 0 10%, rgba(255, 244, 214, 0.12) 10% 18%, transparent 18%),
+        radial-gradient(circle at 50% 50%, #f0b53c 0%, #dd8f18 62%, #9a5b10 100%);
+    }
+
+    .rch-ball::before {
+      content: "";
+      position: absolute;
+      inset: 7%;
+      border-radius: 50%;
+      background:
+        conic-gradient(
+          from 0deg,
+          rgba(255, 248, 237, 0.42) 0 20deg,
+          transparent 20deg 152deg,
+          rgba(255, 248, 237, 0.34) 152deg 172deg,
+          transparent 172deg 304deg,
+          rgba(255, 248, 237, 0.3) 304deg 324deg,
+          transparent 324deg 360deg
+        );
+      opacity: 0.72;
+    }
+
+    .rch-ball::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 28%;
+      height: 28%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.16);
+      box-shadow: 0 0 0 1px rgba(255, 248, 237, 0.34);
+    }
+
+    .rch-preview-ball {
+      opacity: 0;
+      pointer-events: none;
+      z-index: 10;
+      box-shadow: 0 0 0 3px rgba(255,255,255,0.9), 0 6px 14px rgba(15,23,42,0.18);
+      transition: opacity 0.14s ease;
+    }
+
+    .rch-preview-ball.rch-show-preview { opacity: 0.82; }
+
+    .rch-impact-ring {
+      position: absolute;
+      width: 34px;
+      height: 12px;
+      border-radius: 50%;
+      border: 3px solid rgba(40, 96, 159, 0.55);
+      opacity: 0;
+      transform: scale(0.55);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      z-index: 8;
+    }
+
+    .rch-impact-ring.rch-show-impact {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .rch-pause-banner {
+      position: absolute;
+      right: 1%;
+      top: 2%;
+      width: 30%;
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.96);
+      border: 2px solid rgba(40, 96, 159, 0.22);
+      color: #0f172a;
+      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 20;
+    }
+
+    .rch-stage-box {
+      border: 2px dashed var(--rch-border);
+      border-radius: 18px;
+      padding: 16px;
+      background: #f8fafc;
+      margin: 0;
+    }
+
+    .rch-stage-box h3 {
+      margin: 0 0 8px;
+      color: var(--rch-blue-dark);
+      font-size: clamp(1.08rem, 1.8vw, 1.25rem);
+    }
+
+    .rch-stage-box p {
+      margin: 0;
+      color: var(--rch-muted);
+      line-height: 1.45;
+      font-size: 0.98rem;
+    }
+
+    .rch-stage-box.rch-result-correct {
+      border-color: rgba(15, 118, 110, 0.3);
+      background: var(--rch-success-soft);
+    }
+
+    .rch-stage-box.rch-result-correct h3,
+    .rch-stage-box.rch-result-correct p {
+      color: var(--rch-success);
+    }
+
+    .rch-stage-box.rch-result-incorrect {
+      border-color: rgba(185, 28, 28, 0.24);
+      background: var(--rch-error-soft);
+    }
+
+    .rch-stage-box.rch-result-incorrect h3,
+    .rch-stage-box.rch-result-incorrect p {
+      color: var(--rch-error);
+    }
+
+    .rch-prediction-options {
+      position: absolute;
+      right: 5%;
+      bottom: 0%;
+      width: 38%;
+      z-index: 22;
+      justify-content: flex-end;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .rch-choice-btn,
+    .rch-primary-btn {
+      border: none;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-weight: 800;
+      cursor: pointer;
+      font-size: 0.77rem;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .rch-choice-btn {
+      min-height: 56px;
+      background: var(--rch-blue-soft);
+      color: var(--rch-blue-dark);
+      border: 1px solid #bfdbfe;
+      text-align: left;
+    }
+
+    .rch-choice-btn:hover,
+    .rch-choice-btn:focus-visible,
+    .rch-primary-btn:hover,
+    .rch-primary-btn:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.14);
+      outline: 3px solid rgba(40, 96, 159, 0.25);
+    }
+
+    .rch-choice-btn.rch-selected {
+      background: var(--rch-blue);
+      color: white;
+      border-color: var(--rch-blue);
+    }
+
+    .rch-primary-btn {
+      background: var(--rch-blue);
+      color: white;
+    }
+
+    .rch-primary-btn:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+      opacity: 0.8;
+    }
+
+    .rch-button-row {
+      position: absolute;
+      left: 12%;
+      bottom: -3.65%;
+      width: 20%;
+      z-index: 22;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .rch-feedback-card {
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 14px;
+      border-left: 6px solid var(--rch-blue);
+      background: var(--rch-blue-soft);
+      color: #0f172a;
+      line-height: 1.45;
+    }
+
+    .rch-feedback-card.rch-correct {
+      border-left-color: var(--rch-success);
+      background: var(--rch-success-soft);
+      color: var(--rch-success);
+    }
+
+    .rch-feedback-card.rch-incorrect {
+      border-left-color: var(--rch-error);
+      background: var(--rch-error-soft);
+      color: var(--rch-error);
+    }
+
+    .rch-helper-text {
+      min-height: 1.2em;
+      color: var(--rch-muted);
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .rch-helper-text.rch-warning { color: var(--rch-error); }
+
+    @media (max-width: 760px) {
+      .rch-lab-scene {
+        aspect-ratio: 4 / 3;
+        min-height: 330px;
+      }
+
+      .rch-board {
+        width: 42%;
+        min-height: 64px;
+        top: 6%;
+        padding: 8px 10px;
+      }
+
+      .rch-pause-banner {
+        right: 2%;
+        top: 4%;
+        width: min(460px, 40%);
+      }
+
+      .rch-prediction-options {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .rise-cart-hook * {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <section class="rise-cart-hook" aria-label="Moving cart launches a ball vertically">
+    <main class="rch-layout">
+      <section class="rch-lab-card">
+        <div class="rch-lab-scene" data-rch-scene>
+          <div class="rch-board">Moving Cart: Where Does the Ball Land?</div>
+          <div class="rch-cloud rch-cloud-1"></div>
+          <div class="rch-cloud rch-cloud-2"></div>
+          <div class="rch-ground-line"></div>
+          <div class="rch-track"></div>
+
+          <svg class="rch-scene-svg" data-rch-scene-svg aria-hidden="true">
+            <path class="rch-flight-path" data-rch-flight-path></path>
+            <path class="rch-align-line" data-rch-align-line></path>
+          </svg>
+
+          <div class="rch-barrier" data-rch-barrier aria-hidden="true"></div>
+
+          <div class="rch-cart" data-rch-cart aria-hidden="true">
+            <div class="rch-cart-top"></div>
+            <div class="rch-cart-body"></div>
+            <div class="rch-launch-guide"></div>
+            <div class="rch-cup" data-rch-cup></div>
+            <div class="rch-cart-wheel rch-wheel-left"></div>
+            <div class="rch-cart-wheel rch-wheel-right"></div>
+          </div>
+
+          <div class="rch-cart rch-preview-cart" data-rch-preview-cart aria-hidden="true">
+            <div class="rch-cart-top"></div>
+            <div class="rch-cart-body"></div>
+            <div class="rch-launch-guide"></div>
+            <div class="rch-cup"></div>
+            <div class="rch-cart-wheel rch-wheel-left"></div>
+            <div class="rch-cart-wheel rch-wheel-right"></div>
+          </div>
+
+          <div class="rch-impact-ring" data-rch-impact-ring></div>
+
+          <div class="rch-ball rch-preview-ball" data-rch-preview-ball aria-hidden="true"></div>
+          <div class="rch-ball" data-rch-ball aria-label="Launched ball"></div>
+
+          <div class="rch-button-row">
+            <button class="rch-primary-btn" type="button" data-rch-main-button>Start Setup</button>
+            <span class="rch-helper-text" data-rch-helper-text></span>
+          </div>
+
+          <div class="rch-pause-banner" data-rch-pause-banner>
+            <div class="rch-stage-box" data-rch-stage-content aria-live="polite">
+               <p>Click start. The cart moves at a constant speed and launches the ball straight up from the cup.</p>
+            </div>
+
+            <div class="rch-feedback-card" data-rch-feedback-card aria-live="polite" hidden></div>
+          </div>
+
+          <div class="rch-prediction-options" data-rch-options aria-label="Prediction choices" hidden>
+            <button class="rch-choice-btn" type="button" data-rch-choice="behind">Before the ball</button>
+            <button class="rch-choice-btn" type="button" data-rch-choice="cup">Right at the ball</button>
+            <button class="rch-choice-btn" type="button" data-rch-choice="front">In front of the ball</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </section>
+
+  <script>
+    (() => {
+      const root = document.querySelector('.rise-cart-hook');
+      if (!root) return;
+
+      const ui = {
+        scene: root.querySelector('[data-rch-scene]'),
+        sceneSvg: root.querySelector('[data-rch-scene-svg]'),
+        flightPath: root.querySelector('[data-rch-flight-path]'),
+        alignLine: root.querySelector('[data-rch-align-line]'),
+        barrier: root.querySelector('[data-rch-barrier]'),
+        cart: root.querySelector('[data-rch-cart]'),
+        previewCart: root.querySelector('[data-rch-preview-cart]'),
+        cup: root.querySelector('[data-rch-cup]'),
+        ball: root.querySelector('[data-rch-ball]'),
+        previewBall: root.querySelector('[data-rch-preview-ball]'),
+        impactRing: root.querySelector('[data-rch-impact-ring]'),
+        stageContent: root.querySelector('[data-rch-stage-content]'),
+        options: root.querySelector('[data-rch-options]'),
+        feedbackCard: root.querySelector('[data-rch-feedback-card]'),
+        mainButton: root.querySelector('[data-rch-main-button]'),
+        helperText: root.querySelector('[data-rch-helper-text]'),
+        groundLine: root.querySelector('.rch-ground-line')
+      };
+      const choiceButtons = Array.from(root.querySelectorAll('[data-rch-choice]'));
+
+      let state = 'setup';
+      let selectedChoice = null;
+      let isAnimating = false;
+      let animationToken = 0;
+      let layout = null;
+
+      const timings = {
+        cartStart: 620,
+        fullFlight: 2600
+      };
+
+      const stageCopy = {
+        setup: {
+          title: 'Watch the Setup',
+          text: 'Click start. The cart moves at a constant speed and launches the ball straight up from the cup.',
+          button: 'Start Setup'
+        },
+        question: {
+          title: 'Stop and Predict',
+          text: 'Where will the cart be when the ball lands?',
+          button: 'Replay'
+        },
+        reveal: {
+          title: 'Reveal',
+          text: 'The cart keeps moving, so the ball falls back into the cup.',
+          button: 'Playing...'
+        },
+        done: {
+          title: 'Result',
+          text: 'The ball lands back in the cup.',
+          button: 'Try Again'
+        }
+      };
+
+      const feedbackCopy = {
+        correct: 'If the cart keeps its horizontal motion, the ball stays aligned and drops back into the cup.',
+        incorrect: 'You can see the independence of motion: the cart keeps moving and the ball falls back into the cup.'
+      };
+
+      function setCartOffset(offsetPx, target = ui.cart) {
+        target.style.transform = `translateX(${offsetPx}px)`;
+      }
+
+      function setBarrierOffset(offsetPx) {
+        ui.barrier.style.transform = `translateX(${offsetPx}px)`;
+      }
+
+      function setBarrierVisible(visible) {
+        ui.barrier.classList.toggle('rch-hidden', !visible);
+      }
+
+      function setLineVisible(line, visible) {
+        line.classList.toggle('rch-visible', visible);
+      }
+
+      function setStage(key) {
+        const { title, text, button } = stageCopy[key];
+        ui.stageContent.classList.remove('rch-result-correct', 'rch-result-incorrect');
+        ui.stageContent.innerHTML = `<h3>${title}</h3><p>${text}</p>`;
+        ui.mainButton.textContent = button;
+      }
+
+      function setResultTone(type = '') {
+        ui.stageContent.classList.remove('rch-result-correct', 'rch-result-incorrect');
+        if (type) {
+          ui.stageContent.classList.add(type === 'correct' ? 'rch-result-correct' : 'rch-result-incorrect');
+        }
+      }
+
+      function measureLayout() {
+        setCartOffset(0);
+        setCartOffset(0, ui.previewCart);
+
+        const sceneRect = ui.scene.getBoundingClientRect();
+        const cupRect = ui.cup.getBoundingClientRect();
+        const groundRect = ui.groundLine.getBoundingClientRect();
+        const ballRadius = ui.ball.offsetWidth / 2;
+        const cartWidth = ui.cart.offsetWidth;
+        const barrierWidth = ui.barrier.offsetWidth;
+
+        const cupBaseCenter = {
+          x: (cupRect.left - sceneRect.left) + cupRect.width / 2,
+          y: (cupRect.top - sceneRect.top) + cupRect.height * 0.33
+        };
+        const preLaunchTravel = sceneRect.width * 0.08;
+        const targetLandingX = sceneRect.width * 0.75;
+        const postLaunchTravel = targetLandingX - (cupBaseCenter.x + preLaunchTravel);
+        const totalCartTravel = preLaunchTravel + postLaunchTravel;
+
+        const launchY = cupBaseCenter.y + (ballRadius * 0.75);
+        const groundY = (groundRect.top - sceneRect.top) - ballRadius;
+
+        const tFlight = timings.fullFlight / 1000;
+        const vx = postLaunchTravel / tFlight;
+        const riseHeight = sceneRect.height * 0.5;
+        const g = (8 * riseHeight) / (tFlight * tFlight);
+        const vy0 = (g * tFlight) / 2;
+        const cartStopTime = tFlight * 0.2;
+        const pauseCartOffset = preLaunchTravel + (vx * cartStopTime);
+        const barrierOffset = pauseCartOffset + cartWidth - (barrierWidth * 0.32);
+
+        return {
+          sceneRect,
+          ballRadius,
+          cartWidth,
+          cupBaseCenter,
+          preLaunchTravel,
+          cartTravel: totalCartTravel,
+          pauseCartOffset,
+          barrierOffset,
+          launchOrigin: { x: cupBaseCenter.x + preLaunchTravel, y: launchY },
+          groundY,
+          vx,
+          g,
+          vy0,
+          tFlight,
+          cartStopTime
+        };
+      }
+
+      function ballPosition(layout, timeSec) {
+        return {
+          x: layout.launchOrigin.x + layout.vx * timeSec,
+          y: layout.launchOrigin.y - layout.vy0 * timeSec + 0.5 * layout.g * timeSec * timeSec
+        };
+      }
+
+      function cupPosition(layout, cartOffsetPx) {
+        return {
+          x: layout.cupBaseCenter.x + cartOffsetPx,
+          y: layout.launchOrigin.y + layout.ballRadius * 0.18
+        };
+      }
+
+      function setBallPosition(targetBall, x, y, rotationDeg = 0) {
+        const radius = targetBall.offsetWidth / 2;
+        targetBall.style.left = `${x - radius}px`;
+        targetBall.style.top = `${y - radius}px`;
+        targetBall.style.transform = `rotate(${rotationDeg}deg)`;
+      }
+
+      function updateGuidePath(layout) {
+        ui.sceneSvg.setAttribute('viewBox', `0 0 ${layout.sceneRect.width} ${layout.sceneRect.height}`);
+        let path = `M ${layout.launchOrigin.x.toFixed(2)} ${layout.launchOrigin.y.toFixed(2)}`;
+        for (let i = 1; i <= 22; i++) {
+          const p = ballPosition(layout, layout.tFlight * (i / 22));
+          path += ` L ${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+        }
+        ui.flightPath.setAttribute('d', path);
+        const finalCup = cupPosition(layout, layout.cartTravel);
+        const lineTop = layout.launchOrigin.y - (layout.sceneRect.height * 0.18);
+        ui.alignLine.setAttribute('d', `M ${finalCup.x.toFixed(2)} ${lineTop.toFixed(2)} L ${finalCup.x.toFixed(2)} ${(finalCup.y + layout.ballRadius * 1.1).toFixed(2)}`);
+      }
+
+      function setGuideVisible(visible) {
+        setLineVisible(ui.flightPath, visible);
+      }
+
+      function setAlignVisible(visible) {
+        setLineVisible(ui.alignLine, visible);
+      }
+
+      function setImpact(visible, x = 0, y = 0) {
+        ui.impactRing.style.left = `${x - 17}px`;
+        ui.impactRing.style.top = `${y - 4}px`;
+        ui.impactRing.classList.toggle('rch-show-impact', !!visible);
+      }
+
+      function clearPreview() {
+        ui.previewBall.classList.remove('rch-show-preview');
+        ui.previewCart.classList.remove('rch-show-preview');
+      }
+
+      function showPreview(choice) {
+        if (state !== 'question' || isAnimating) return;
+        const currentLayout = layout || measureLayout();
+        const offsetMap = {
+          behind: -currentLayout.sceneRect.width * 0.105,
+          cup: 0,
+          front: currentLayout.sceneRect.width * 0.105
+        };
+
+        setCartOffset(currentLayout.cartTravel + (offsetMap[choice] || 0), ui.previewCart);
+        ui.previewBall.classList.add('rch-show-preview');
+        ui.previewCart.classList.add('rch-show-preview');
+      }
+
+      function setHelper(message = '', warning = false) {
+        ui.helperText.textContent = message;
+        ui.helperText.classList.toggle('rch-warning', warning);
+      }
+
+      function showOptions(show) {
+        ui.options.hidden = !show;
+      }
+
+      function clearSelection() {
+        selectedChoice = null;
+        choiceButtons.forEach((button) => {
+          button.classList.remove('rch-selected');
+          button.setAttribute('aria-pressed', 'false');
+        });
+      }
+
+      function showFeedback(type = '') {
+        if (!type) {
+          ui.feedbackCard.hidden = true;
+          ui.feedbackCard.className = 'rch-feedback-card';
+          ui.feedbackCard.textContent = '';
+          return;
+        }
+
+        ui.feedbackCard.hidden = false;
+        ui.feedbackCard.className = `rch-feedback-card ${type === 'correct' ? 'rch-correct' : 'rch-incorrect'}`;
+        ui.feedbackCard.textContent = feedbackCopy[type];
+      }
+
+      function setControlsDisabled(disabled) {
+        isAnimating = disabled;
+        ui.mainButton.disabled = disabled;
+        choiceButtons.forEach((button) => {
+          button.disabled = disabled;
+        });
+      }
+
+      function animateMotion(duration, onFrame, easing = (value) => value) {
+        const token = ++animationToken;
+        return new Promise((resolve) => {
+          const startedAt = performance.now();
+          const frame = (now) => {
+            if (token !== animationToken) return;
+            const raw = Math.min(1, (now - startedAt) / duration);
+            onFrame(easing(raw), raw);
+            if (raw < 1) {
+              requestAnimationFrame(frame);
+            } else {
+              resolve();
+            }
+          };
+          requestAnimationFrame(frame);
+        });
+      }
+
+      function resetMotion(showBarrier = true) {
+        animationToken += 1;
+        setControlsDisabled(false);
+        layout = measureLayout();
+        updateGuidePath(layout);
+        setGuideVisible(false);
+        setAlignVisible(false);
+        setBarrierVisible(showBarrier);
+        setBarrierOffset(layout.barrierOffset);
+        setCartOffset(0);
+        setCartOffset(0, ui.previewCart);
+        const restingCup = cupPosition(layout, 0);
+        setBallPosition(ui.ball, restingCup.x, restingCup.y, 0);
+        const finalCup = cupPosition(layout, layout.cartTravel);
+        setBallPosition(ui.previewBall, finalCup.x, finalCup.y - layout.ballRadius * 0.18, 0);
+        clearPreview();
+        setImpact(false, finalCup.x, finalCup.y + layout.ballRadius * 0.15);
+      }
+
+      function renderQuestionState(currentLayout) {
+        const landedBall = cupPosition(currentLayout, currentLayout.cartTravel);
+        setGuideVisible(true);
+        setBarrierVisible(true);
+        setBallPosition(ui.ball, landedBall.x, landedBall.y - currentLayout.ballRadius * 0.18, 0);
+        setBallPosition(ui.previewBall, landedBall.x, landedBall.y - currentLayout.ballRadius * 0.18, 0);
+        setCartOffset(currentLayout.pauseCartOffset);
+      }
+
+      function renderDoneState(currentLayout) {
+        const resultType = selectedChoice === 'cup' ? 'correct' : 'incorrect';
+        setGuideVisible(true);
+        setAlignVisible(true);
+        setBarrierVisible(false);
+        setCartOffset(currentLayout.cartTravel);
+        setResultTone(resultType);
+        showFeedback(resultType);
+      }
+
+      function setState(nextState) {
+        state = nextState;
+        setHelper('');
+        const currentLayout = layout || measureLayout();
+
+        setStage(nextState);
+
+        if (nextState === 'setup') {
+          showOptions(false);
+          showFeedback();
+          clearSelection();
+          resetMotion();
+          return;
+        }
+
+        if (nextState === 'question') {
+          ui.mainButton.disabled = false;
+          showOptions(true);
+          showFeedback();
+          renderQuestionState(currentLayout);
+          return;
+        }
+
+        if (nextState === 'reveal') {
+          showOptions(false);
+          showFeedback();
+          setGuideVisible(true);
+          setBarrierVisible(false);
+          return;
+        }
+
+        if (nextState === 'done') {
+          ui.mainButton.disabled = false;
+          showOptions(false);
+          renderDoneState(currentLayout);
+        }
+      }
+
+      async function runLaunch(cartTravelTime) {
+        const currentLayout = layout;
+
+        await animateMotion(timings.cartStart, (progress) => {
+          const eased = 1 - Math.cos((progress * Math.PI) / 2);
+          const cartOffset = currentLayout.preLaunchTravel * eased;
+          setCartOffset(cartOffset);
+          const cupPos = cupPosition(currentLayout, cartOffset);
+          setBallPosition(ui.ball, cupPos.x, cupPos.y, 0);
+        });
+
+        setGuideVisible(true);
+
+        await animateMotion(timings.fullFlight, (progress) => {
+          const t = currentLayout.tFlight * progress;
+          const pos = ballPosition(currentLayout, t);
+          setCartOffset(currentLayout.preLaunchTravel + (currentLayout.vx * Math.min(t, cartTravelTime)));
+          setBallPosition(ui.ball, pos.x, pos.y, progress * 280);
+        });
+
+        return currentLayout;
+      }
+
+      async function playSetupToPause() {
+        if (isAnimating) return;
+
+        resetMotion();
+        setControlsDisabled(true);
+        await runLaunch(layout.cartStopTime);
+        setControlsDisabled(false);
+        setState('question');
+      }
+
+      async function revealRestOfMotion() {
+        if (isAnimating) return;
+
+        resetMotion(false);
+        setState('reveal');
+        setControlsDisabled(true);
+        const currentLayout = await runLaunch(layout.tFlight);
+
+        const finalCup = cupPosition(currentLayout, currentLayout.cartTravel);
+        setCartOffset(currentLayout.cartTravel);
+        setBallPosition(ui.ball, finalCup.x, finalCup.y - currentLayout.ballRadius * 0.18, 0);
+        setImpact(true, finalCup.x, finalCup.y + currentLayout.ballRadius * 0.15);
+        setControlsDisabled(false);
+        setState('done');
+      }
+
+      choiceButtons.forEach((button) => {
+        button.setAttribute('aria-pressed', 'false');
+        button.addEventListener('mouseenter', () => showPreview(button.dataset.rchChoice));
+        button.addEventListener('mouseleave', clearPreview);
+        button.addEventListener('focus', () => showPreview(button.dataset.rchChoice));
+        button.addEventListener('blur', clearPreview);
+        button.addEventListener('click', async () => {
+          if (isAnimating) return;
+          selectedChoice = button.dataset.rchChoice;
+          choiceButtons.forEach((choice) => {
+            choice.classList.remove('rch-selected');
+            choice.setAttribute('aria-pressed', 'false');
+          });
+          button.classList.add('rch-selected');
+          button.setAttribute('aria-pressed', 'true');
+          clearPreview();
+          setHelper('Prediction saved.');
+          await revealRestOfMotion();
+        });
+      });
+
+      ui.mainButton.addEventListener('click', async () => {
+        if (state === 'setup') {
+          await playSetupToPause();
+          return;
+        }
+        if (state === 'question') {
+          setState('setup');
+          await playSetupToPause();
+          return;
+        }
+        if (state === 'done') {
+          setState('setup');
+        }
+      });
+
+      window.addEventListener('resize', () => {
+        setState('setup');
+      });
+
+      setState('setup');
+    })();
+  </script>
+</body>
+</html>

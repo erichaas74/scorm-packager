@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galileo's Ship Kinematics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: black;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Fixed height container for Rise compatibility -->
+    <div class="w-full h-full relative mx-auto overflow-hidden bg-slate-900" style="height: 620px; max-width: 1000px;">
+        <canvas id="simCanvas"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const SCALE = 30; 
+        const GRAVITY = 9.81;
+
+        let viewMode = 'dock';
+        
+        const state = {
+            phase: 'idle', // idle, moving, falling, landed, question
+            shipX: 0,
+            shipVx: 0,
+            simTime: 0,
+            ball: { x: 0, y: 0, vx: 0, vy: 0 },
+            trace: [],
+            lastTime: performance.now(),
+            lastTraceTime: 0,
+            dropActualTime: 0,
+            deckY: 0,
+            waterLevel: 0,
+            dropY: 0,
+            redBoatStartX: 0,
+            landedSimTime: 0,
+            isReplay: false,
+            showTrace: false,
+            feedbackMessage: '',
+            hoverRegion: null,
+            hoverPath: null,
+            isCorrect: false
+        };
+
+        function getInitialLayout() {
+            const width = canvas.width;
+            return {
+                shipStartX: width * 0.22,
+                redBoatStartX: width * 0.86,
+                shipVx: width * 0.3
+            };
+        }
+
+        function handleResize() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            
+            state.waterLevel = canvas.height * 0.64;
+            state.deckY = state.waterLevel - 52; 
+            state.dropY = state.waterLevel - 324; 
+
+            if (state.phase === 'idle') {
+                resetSimulation('dock');
+            }
+        }
+
+        function getDockWorldX() {
+            return canvas.width * 0.5;
+        }
+
+        function getDockScale() {
+            return 1.44;
+        }
+
+        function getInteractiveRegions() {
+            if (state.phase === 'question') {
+                return []; // In question phase, path interactions are handled separately
+            }
+
+            const cameraX = getCameraX();
+            const dockScale = getDockScale();
+            return [
+                {
+                    id: 'ship',
+                    x: (state.shipX + 8) - cameraX,
+                    y: state.waterLevel - 120,
+                    width: 430,
+                    height: 340
+                },
+                {
+                    id: 'redShip',
+                    x: getOpposingBoatX() - cameraX,
+                    y: state.waterLevel + 24,
+                    width: 220,
+                    height: 200
+                },
+                {
+                    id: 'dock',
+                    x: getDockWorldX() - cameraX,
+                    y: canvas.height - 110,
+                    width: Math.round(240 * dockScale),
+                    height: Math.round(120 * dockScale)
+                }
+            ];
+        }
+
+        function findInteractiveRegion(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+            return getInteractiveRegions().find(region => {
+                const halfWidth = region.width / 2;
+                const halfHeight = region.height / 2;
+                return x >= region.x - halfWidth && x <= region.x + halfWidth && y >= region.y - halfHeight && y <= region.y + halfHeight;
+            });
+        }
+
+        // --- Distance helpers for line hovering ---
+        function dist2(v, w) { return Math.pow(v.x - w.x, 2) + Math.pow(v.y - w.y, 2); }
+        function distToSegmentSquared(p, v, w) {
+            let l2 = dist2(v, w);
+            if (l2 === 0) return dist2(p, v);
+            let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+            t = Math.max(0, Math.min(1, t));
+            return dist2(p, { x: v.x + t * (w.x - v.x), y: v.y + t * (w.y - v.y) });
+        }
+
+        function getObserverRelativeX(tracePoint, type) {
+            if (!tracePoint) return 0;
+            if (type === 'ship') return tracePoint.shipRelX;
+            if (type === 'redShip') return tracePoint.redShipRelX;
+            return tracePoint.worldX;
+        }
+
+        function getObserverPathOffset(tracePoint, type) {
+            if (!state.trace.length) return 0;
+            return getObserverRelativeX(tracePoint, type) - getObserverRelativeX(state.trace[0], type);
+        }
+
+        function getQuestionPathScale() {
+            if (!state.trace.length) return 1;
+            let minOffset = 0;
+            let maxOffset = 0;
+
+            for (const type of ['ship', 'dock', 'redShip']) {
+                for (const point of state.trace) {
+                    const offset = getObserverPathOffset(point, type);
+                    minOffset = Math.min(minOffset, offset);
+                    maxOffset = Math.max(maxOffset, offset);
+                }
+            }
+
+            const span = Math.max(1, maxOffset - minOffset);
+            const availableWidth = Math.min(canvas.width * 0.62, 560);
+            return Math.min(0.85, availableWidth / span);
+        }
+
+        function getQuestionPathOriginX() {
+            if (!state.trace.length) return canvas.width * 0.36;
+            let minOffset = 0;
+            let maxOffset = 0;
+
+            for (const type of ['ship', 'dock', 'redShip']) {
+                for (const point of state.trace) {
+                    const offset = getObserverPathOffset(point, type);
+                    minOffset = Math.min(minOffset, offset);
+                    maxOffset = Math.max(maxOffset, offset);
+                }
+            }
+
+            const scale = getQuestionPathScale();
+            const centerX = canvas.width * 0.52;
+            return centerX - ((minOffset + maxOffset) * scale * 0.5);
+        }
+
+        // Project the same recorded fall into each observer's frame of reference.
+        // The x coordinate is the ball's position relative to that observer:
+        // ship = x_ball - x_ship, dock = x_ball, red boat = x_ball - x_redBoat.
+        function getPathPoints(type) {
+            if (state.trace.length === 0) return [];
+
+            const originX = getQuestionPathOriginX();
+            const scale = getQuestionPathScale();
+
+            return state.trace.map(p => {
+                const offset = getObserverPathOffset(p, type);
+                return { x: originX + (offset * scale), y: p.y };
+            });
+        }
+
+        function getClosestPath(clientX, clientY) {
+            if (state.trace.length === 0) return null;
+
+            let closestDistSq = Infinity;
+            let closestPath = null;
+            
+            // Check the exact shapes plotted by the physics engine, mapped to the screen
+            for (let type of ['ship', 'dock', 'redShip']) {
+                const points = getPathPoints(type);
+                let minDistSqForPath = Infinity;
+                
+                // Check distance against the exact path curve line segments
+                for (let i = 0; i < points.length - 1; i++) {
+                    const p1 = points[i];
+                    const p2 = points[i+1];
+                    
+                    const dSq = distToSegmentSquared({x: clientX, y: clientY}, {x: p1.x, y: p1.y}, {x: p2.x, y: p2.y});
+                    if (dSq < minDistSqForPath) minDistSqForPath = dSq;
+                }
+                
+                // Also check the end circle target area
+                const lastP = points[points.length - 1];
+                const endDistSq = dist2({x: clientX, y: clientY}, {x: lastP.x, y: lastP.y});
+                if (endDistSq < minDistSqForPath) minDistSqForPath = endDistSq;
+
+                if (minDistSqForPath < 900 && minDistSqForPath < closestDistSq) { // 30px hit radius squared
+                    closestDistSq = minDistSqForPath;
+                    closestPath = type;
+                }
+            }
+            return closestPath;
+        }
+
+        function handleAnswer(choice) {
+            // The paths literally correspond to the frames. If they pick the dock's path while in dock view, they're correct.
+            const isCorrect = (choice === viewMode);
+            state.isCorrect = isCorrect;
+            
+            let statusText = isCorrect ? "Correct!" : "Not quite.";
+            let explanation = "";
+            
+            if (viewMode === 'ship') {
+                explanation = "From the ship, the observer moves with the ball, so it drops straight down.";
+            } else if (viewMode === 'dock') {
+                explanation = "From the dock, the ball keeps its forward momentum from the ship, creating a forward curve.";
+            } else if (viewMode === 'redShip') {
+                explanation = "From the red boat moving left, the ball's forward curve appears even wider!";
+            }
+
+            state.feedbackMessage = `${statusText} ${explanation}`;
+            startSimulation(viewMode, true);
+        }
+
+        function handleSceneClick(event) {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            if (state.phase === 'question') {
+                const choice = getClosestPath(x, y);
+                if (choice) handleAnswer(choice);
+                return;
+            }
+
+            const region = findInteractiveRegion(event.clientX, event.clientY);
+            if (!region) return;
+
+            // Prevent interacting/restarting while a simulation is actively running
+            if (state.phase !== 'idle') return;
+
+            if (region.id === 'ship') startSimulation('ship');
+            if (region.id === 'redShip') startSimulation('redShip');
+            if (region.id === 'dock') startSimulation('dock');
+        }
+
+        function handleScenePointerMove(event) {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            if (state.phase === 'question') {
+                const hoveredPath = getClosestPath(x, y);
+                state.hoverPath = hoveredPath;
+                canvas.style.cursor = hoveredPath ? 'pointer' : 'default';
+                return;
+            }
+
+            const region = findInteractiveRegion(event.clientX, event.clientY);
+            canvas.style.cursor = region ? 'pointer' : 'default';
+            state.hoverRegion = region ? region.id : null;
+        }
+
+        function getShipVelocityForMode(mode, layout) {
+            return layout.shipVx;
+        }
+
+        function startSimulation(mode, isReplay = false) {
+            const layout = getInitialLayout();
+
+            viewMode = mode;
+            state.phase = 'moving';
+            state.simTime = 0;
+            state.shipX = layout.shipStartX;
+            state.shipVx = getShipVelocityForMode(mode, layout);
+            state.redBoatStartX = layout.redBoatStartX;
+            state.landedSimTime = 0;
+            
+            state.ball.vx = 0;
+            state.ball.vy = 0;
+            state.trace = [];
+            state.lastTraceTime = 0;
+            state.hoverPath = null;
+            
+            state.isReplay = isReplay;
+            state.showTrace = isReplay;
+            if (!isReplay) {
+                state.feedbackMessage = '';
+                state.isCorrect = false;
+            }
+        }
+
+        function resetSimulation(mode = 'dock') {
+            const layout = getInitialLayout();
+
+            viewMode = mode;
+            state.phase = 'idle';
+            state.simTime = 0;
+            state.shipX = layout.shipStartX;
+            state.shipVx = getShipVelocityForMode(mode, layout);
+            state.redBoatStartX = layout.redBoatStartX;
+            state.landedSimTime = 0;
+            
+            state.ball.vx = 0;
+            state.ball.vy = 0;
+            state.ball.x = state.shipX + 8;
+            state.ball.y = state.dropY;
+            state.trace = [];
+            state.isReplay = false;
+            state.showTrace = false;
+            state.hoverPath = null;
+        }
+
+        function getOpposingBoatX() {
+            let opposingBoatX = state.redBoatStartX;
+            if (state.phase !== 'idle') {
+                opposingBoatX -= state.simTime * (canvas.width * 0.12);
+            }
+            return opposingBoatX;
+        }
+
+        function getCameraX() {
+            if (viewMode === 'dock') return 0;
+            if (viewMode === 'redShip') return getOpposingBoatX() - (canvas.width * 0.5);
+            return state.shipX - (canvas.width * 0.5);
+        }
+
+        canvas.addEventListener('click', handleSceneClick);
+        canvas.addEventListener('mousemove', handleScenePointerMove);
+        canvas.addEventListener('mouseleave', () => {
+            canvas.style.cursor = 'default';
+        });
+        window.addEventListener('resize', handleResize);
+
+        function drawShip(ctx, x, y) {
+            ctx.save();
+            // Adjusted y-offset by 20px so the hull touches the water line
+            ctx.translate(x - 200, y - 380); 
+            ctx.scale(0.8, 0.8);
+            ctx.translate(0, 100);
+
+            ctx.strokeStyle = '#78716c';
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(40, 220); ctx.lineTo(222, -50); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(450, 350); ctx.lineTo(222, -50); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(222, -50); ctx.lineTo(350, 70); ctx.stroke();
+
+            ctx.fillStyle = '#29160a';
+            ctx.fillRect(110, 70, 12, 280);
+            ctx.fillRect(216, -50, 14, 400);
+            ctx.fillRect(344, 70, 12, 280);
+
+            const sailGrad = ctx.createLinearGradient(0, 0, 500, 550);
+            sailGrad.addColorStop(0, '#ffffff');
+            sailGrad.addColorStop(1, '#e2e8f0');
+            ctx.fillStyle = sailGrad;
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 2;
+
+            const drawSail = (x1, y1, x2, y2, cx1, cy1, x3, y3, x4, y4, cx2, cy2) => {
+                ctx.beginPath();
+                ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+                ctx.quadraticCurveTo(cx1, cy1, x3, y3);
+                ctx.lineTo(x4, y4);
+                ctx.quadraticCurveTo(cx2, cy2, x1, y1);
+                ctx.fill(); ctx.stroke();
+            };
+
+            drawSail(76, 60, 156, 60, 166, 95, 156, 130, 76, 130, 66, 95);
+            drawSail(66, 140, 166, 140, 176, 180, 166, 220, 66, 220, 56, 180);
+            drawSail(173, 30, 273, 30, 283, 60, 273, 90, 173, 90, 163, 60);
+            drawSail(153, 100, 293, 100, 303, 155, 293, 210, 153, 210, 143, 155);
+            drawSail(310, 80, 390, 80, 400, 115, 390, 150, 310, 150, 300, 115);
+            drawSail(290, 160, 410, 160, 420, 200, 410, 240, 290, 240, 280, 200);
+
+            ctx.fillStyle = '#4a2c19';
+            ctx.strokeStyle = '#24140b';
+            ctx.beginPath(); ctx.moveTo(198, 10); ctx.lineTo(248, 10); ctx.lineTo(238, 30); ctx.lineTo(208, 30); ctx.closePath(); ctx.fill(); ctx.stroke();
+
+            const hullGrad = ctx.createLinearGradient(0, 200, 0, 380);
+            hullGrad.addColorStop(0, '#4a2c19');
+            hullGrad.addColorStop(1, '#24140b');
+            ctx.fillStyle = hullGrad;
+            ctx.strokeStyle = '#1c1109';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(30, 220); ctx.lineTo(100, 220); ctx.lineTo(100, 255); ctx.lineTo(180, 255); ctx.lineTo(180, 290);
+            ctx.lineTo(470, 290); ctx.quadraticCurveTo(480, 310, 430, 380); ctx.lineTo(100, 380); ctx.quadraticCurveTo(20, 330, 30, 220);
+            ctx.fill(); ctx.stroke();
+
+            ctx.fillStyle = '#6b3a1e';
+            ctx.strokeStyle = '#29160a';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(20, 220); ctx.lineTo(100, 220); ctx.lineTo(100, 255); ctx.lineTo(180, 255); ctx.lineTo(180, 290);
+            ctx.lineTo(480, 290); ctx.lineTo(460, 315); ctx.lineTo(180, 315); ctx.lineTo(180, 280); ctx.lineTo(100, 280);
+            ctx.lineTo(100, 245); ctx.lineTo(35, 245); ctx.closePath();
+            ctx.fill(); ctx.stroke();
+
+            ctx.strokeStyle = '#3d2111';
+            ctx.beginPath(); ctx.moveTo(30, 235); ctx.lineTo(95, 235); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(32, 265); ctx.lineTo(175, 265); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(35, 300); ctx.lineTo(465, 300); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(50, 330); ctx.lineTo(445, 330); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(70, 355); ctx.lineTo(430, 355); ctx.stroke();
+
+            ctx.fillStyle = '#fde047';
+            ctx.strokeStyle = '#b45309';
+            const drawWindow = (wx, wy) => {
+                ctx.beginPath();
+                if (ctx.roundRect) ctx.roundRect(wx, wy, 12, 20, 3);
+                else ctx.rect(wx, wy, 12, 20);
+                ctx.fill(); ctx.stroke();
+            };
+            drawWindow(45, 250); drawWindow(70, 250); drawWindow(110, 280); drawWindow(135, 280);
+
+            ctx.fillStyle = '#000000';
+            ctx.strokeStyle = '#b45309';
+            ctx.lineWidth = 3;
+            [120, 200, 280, 360].forEach(gx => {
+                ctx.beginPath(); ctx.arc(gx, 340, 12, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+            });
+
+            ctx.restore();
+        }
+
+        function drawGalileo(ctx, x, y) {
+            ctx.save();
+            // Adjusted y-offset by 20px match new ship depth
+            ctx.translate(x - 32, y - 335); 
+            ctx.scale(0.4, 0.4);
+
+            ctx.fillStyle = 'rgba(0,0,0,0.4)';
+            ctx.beginPath(); ctx.ellipse(50, 145, 25, 5, 0, 0, Math.PI*2); ctx.fill();
+
+            ctx.strokeStyle = '#334155'; ctx.lineWidth = 12; ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(45, 60); ctx.lineTo(20, 90); ctx.stroke();
+
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillRect(35, 100, 10, 40);
+            ctx.fillRect(55, 100, 10, 40);
+
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath(); ctx.moveTo(30, 145); ctx.lineTo(45, 145); ctx.lineTo(45, 135); ctx.lineTo(35, 135); ctx.closePath(); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(50, 145); ctx.lineTo(65, 145); ctx.lineTo(65, 135); ctx.lineTo(55, 135); ctx.closePath(); ctx.fill();
+
+            ctx.fillStyle = '#475569'; ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(30, 40); ctx.lineTo(70, 40); ctx.lineTo(80, 110); ctx.lineTo(20, 110); ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#64748b';
+            ctx.beginPath(); ctx.moveTo(40, 40); ctx.lineTo(60, 40); ctx.lineTo(65, 105); ctx.lineTo(35, 105); ctx.closePath(); ctx.fill();
+
+            ctx.fillStyle = '#f8fafc'; ctx.strokeStyle = '#cbd5e1';
+            ctx.beginPath(); ctx.moveTo(25, 35); ctx.quadraticCurveTo(50, 55, 75, 35); ctx.quadraticCurveTo(50, 20, 25, 35); ctx.fill(); ctx.stroke();
+
+            // Detailed Head and Face
+            ctx.fillStyle = '#ffdbac'; // Skin tone
+            ctx.beginPath(); ctx.arc(50, 18, 14, 0, Math.PI*2); ctx.fill(); // Face base
+            
+            // Nose
+            ctx.beginPath(); ctx.moveTo(60, 12); ctx.lineTo(68, 18); ctx.lineTo(62, 22); ctx.fill();
+            
+            // Eye
+            ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.ellipse(57, 14, 3.5, 2.5, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#451a03'; // Pupil
+            ctx.beginPath(); ctx.arc(58, 14, 1.5, 0, Math.PI*2); ctx.fill();
+            
+            // Eyebrow
+            ctx.strokeStyle = '#a8a29e'; ctx.lineWidth = 1.5; ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(53, 10); ctx.quadraticCurveTo(56, 9, 61, 11); ctx.stroke();
+            
+            // Ear
+            ctx.fillStyle = '#fca5a5';
+            ctx.beginPath(); ctx.ellipse(43, 18, 3, 4.5, 0.2, 0, Math.PI*2); ctx.fill();
+            
+            // Mouth
+            ctx.strokeStyle = '#b91c1c'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(59, 25); ctx.quadraticCurveTo(62, 26, 64, 24); ctx.stroke();
+
+            // Hair and Beard
+            ctx.fillStyle = '#e7e5e4';
+            
+            // Mustache
+            ctx.beginPath(); ctx.moveTo(60, 22); ctx.quadraticCurveTo(66, 21, 68, 25); ctx.quadraticCurveTo(64, 24, 60, 22); ctx.fill();
+            
+            // Beard
+            ctx.beginPath(); ctx.moveTo(54, 27); ctx.lineTo(64, 27); ctx.quadraticCurveTo(66, 40, 58, 44); ctx.quadraticCurveTo(52, 38, 54, 27); ctx.fill();
+            
+            // Hair
+            ctx.beginPath();
+            ctx.moveTo(50, 4); 
+            ctx.quadraticCurveTo(45, -2, 35, 4); 
+            ctx.quadraticCurveTo(25, -2, 28, 18); 
+            ctx.quadraticCurveTo(26, 35, 38, 36); 
+            ctx.quadraticCurveTo(45, 30, 42, 22); 
+            ctx.quadraticCurveTo(38, 15, 50, 4); 
+            ctx.fill();
+            
+            // Top Hair Tuft
+            ctx.beginPath(); ctx.moveTo(40, 4); ctx.quadraticCurveTo(38, -6, 46, -4); ctx.quadraticCurveTo(42, -2, 40, 4); ctx.fill();
+
+            ctx.strokeStyle = '#475569'; ctx.lineWidth = 12; ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(55, 55); ctx.lineTo(100, 55); ctx.stroke();
+
+            ctx.fillStyle = '#ffdbac'; ctx.beginPath(); ctx.arc(106, 55, 7, 0, Math.PI*2); ctx.fill();
+
+            ctx.restore();
+        }
+
+        /**
+         * Draws a detailed human figure with 17th-century style clothing.
+         */
+        function drawObserverPerson(ctx, x, y, scale = 1, outfitColor = '#991b1b') {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(scale, scale);
+
+            // Boots
+            ctx.fillStyle = '#1c1917';
+            ctx.beginPath(); ctx.ellipse(-4, 26, 5, 3, 0, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(5, 26, 5, 3, 0, 0, Math.PI*2); ctx.fill();
+
+            // Legs / Breeches
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(-6, 12, 5, 14);
+            ctx.fillRect(2, 12, 5, 14);
+
+            // Tunic / Torso
+            ctx.fillStyle = outfitColor;
+            ctx.beginPath();
+            ctx.moveTo(-8, 14);
+            ctx.lineTo(8, 14);
+            ctx.lineTo(10, -5);
+            ctx.lineTo(-10, -5);
+            ctx.closePath();
+            ctx.fill();
+
+            // Belt
+            ctx.fillStyle = '#000';
+            ctx.fillRect(-9, 5, 18, 3);
+
+            // Arms
+            ctx.strokeStyle = outfitColor;
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'round';
+            // Arm watching/pointing
+            ctx.beginPath();
+            ctx.moveTo(-7, 0);
+            ctx.lineTo(-15, 8);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(7, 0);
+            ctx.lineTo(12, 10);
+            ctx.stroke();
+
+            // Head and Face
+            ctx.fillStyle = '#ffdbac'; // Skin tone
+            ctx.beginPath();
+            ctx.arc(0, -18, 9, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Hair/Beard (Galileo-style)
+            ctx.fillStyle = '#4b5563';
+            ctx.beginPath();
+            ctx.arc(0, -22, 10, Math.PI, 0); // Top hair
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(-9, -18);
+            ctx.quadraticCurveTo(0, -5, 9, -18); // Beard
+            ctx.stroke();
+
+            // Hat (Renaissance Cap)
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.ellipse(0, -25, 12, 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(0, -27, 6, Math.PI, 0);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        /**
+         * Draws a wooden small boat with a colored man and directional triangular sail.
+         */
+        function drawSmallBoat(ctx, x, y, direction, scale, hullColors) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(direction * scale, scale);
+
+            const primaryColor = hullColors[0];
+
+            // 1. Water Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.15)';
+            ctx.beginPath(); 
+            ctx.ellipse(0, 15, 40, 5, 0, 0, Math.PI * 2); 
+            ctx.fill();
+
+            // 2. Back Hull (Far side wall with old angled shape)
+            const backWoodGrad = ctx.createLinearGradient(0, -10, 0, 15);
+            backWoodGrad.addColorStop(0, '#5e3219'); // Darker wood for distance/shadow
+            backWoodGrad.addColorStop(1, '#2b1509');
+            ctx.fillStyle = backWoodGrad;
+            ctx.strokeStyle = '#2b1509';
+            ctx.lineWidth = 1.5 / scale;
+            
+            ctx.beginPath();
+            ctx.moveTo(-33, -8); // Stern top (back)
+            ctx.lineTo(27, -8);  // Bow top flat part (old angled style)
+            ctx.lineTo(45, 0);   // Pointy bow forward
+            ctx.lineTo(22, 13);  // Bow bottom
+            ctx.lineTo(-27, 13); // Stern bottom
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Gunwale (Railing) for Back Hull
+            ctx.strokeStyle = '#1a0c04';
+            ctx.lineWidth = 2.5 / scale;
+            ctx.beginPath();
+            ctx.moveTo(-33, -8);
+            ctx.lineTo(27, -8);
+            ctx.lineTo(45, 0);
+            ctx.stroke();
+
+            // 3. The Detailed Colored Observer
+            // Drawn BEFORE the front hull so their legs are covered by the side wall.
+            // Adjusted y to -4 so their body is nestled perfectly between the two hulls.
+            drawObserverPerson(ctx, -22, -4, 0.5, primaryColor);
+
+            // 4. Wooden Hull (Foreground Side Wall lower and horizontal)
+            const woodGrad = ctx.createLinearGradient(0, -5, 0, 15);
+            woodGrad.addColorStop(0, '#a16238'); // Lighter wood
+            woodGrad.addColorStop(1, '#5e3219'); // Darker wood
+            ctx.fillStyle = woodGrad;
+            ctx.strokeStyle = '#381c0d';
+            ctx.lineWidth = 1.5 / scale;
+            
+            ctx.beginPath();
+            ctx.moveTo(-35, 2);  // Stern top (lower and horizontal)
+            ctx.lineTo(27, 2);   // Horizontal to bow top
+            ctx.lineTo(45, 0);   // Pointy bow forward
+            ctx.lineTo(20, 15);  // Bow bottom
+            ctx.lineTo(-25, 15); // Stern bottom
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Wood Planks (horizontal lines adjusted for new horizontal hull)
+            ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+            ctx.lineWidth = 0.8 / scale;
+            ctx.beginPath();
+            ctx.moveTo(-32, 7); ctx.lineTo(31, 7);
+            ctx.moveTo(-28, 11); ctx.lineTo(26, 11);
+            ctx.stroke();
+
+            // Gunwale (Railing) for Front Hull
+            ctx.strokeStyle = '#2d1505';
+            ctx.lineWidth = 2.5 / scale;
+            ctx.beginPath();
+            ctx.moveTo(-35, 2);
+            ctx.lineTo(27, 2);
+            ctx.lineTo(45, 0);
+            ctx.stroke();
+            
+            // Rudder at stern
+            ctx.fillStyle = '#4a2c19';
+            ctx.beginPath();
+            ctx.moveTo(-35, 2);
+            ctx.lineTo(-42, 2);
+            ctx.lineTo(-40, 16);
+            ctx.lineTo(-28, 14);
+            ctx.fill(); ctx.stroke();
+            
+            // Tiller handle
+            ctx.strokeStyle = '#2d1505';
+            ctx.lineWidth = 2 / scale;
+            ctx.beginPath();
+            ctx.moveTo(-38, 0);
+            ctx.lineTo(-25, -2);
+            ctx.stroke();
+
+            // 5. The Mast
+            ctx.strokeStyle = '#381c0d';
+            ctx.lineWidth = 3.5 / scale;
+            ctx.beginPath(); 
+            ctx.moveTo(-5, -1); 
+            ctx.lineTo(-5, -55); // Taller mast
+            ctx.stroke();
+
+            // 6. Pointed Triangle Sail (Raised to the top of the mast)
+            ctx.fillStyle = '#f8fafc';
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 1.5 / scale;
+
+            ctx.beginPath();
+            ctx.moveTo(-5, -53); // Top of sail
+            ctx.lineTo(30, -35); // Pointed tip forward
+            ctx.lineTo(-5, -17); // Bottom of sail
+            ctx.closePath(); 
+            ctx.fill(); 
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function drawShipFrameBoats(ctx, cameraX, timeNow, options = {}) {
+            const { drawFollower = true, drawOpposing = true } = options;
+            const followerBoatX = state.shipX + 24;
+            const followerBoatY = state.waterLevel + 44;
+
+            const opposingBoatX = getOpposingBoatX(timeNow);
+            const opposingBoatY = state.waterLevel + 74;
+            const boatScale = 1.52;
+
+            if (drawFollower) {
+                drawSmallBoat(ctx, followerBoatX, followerBoatY, 1, boatScale, ['#22c55e', '#166534']);
+            }
+
+            if (drawOpposing) {
+                drawSmallBoat(ctx, opposingBoatX, opposingBoatY, -1, boatScale, ['#ef4444', '#991b1b']);
+            }
+        }
+
+        /**
+         * Draws a detailed dock with weathered wood textures and structural details.
+         */
+        function drawDockObserver(ctx, x, canvasHeight, options = {}) {
+            const { drawDock = true, drawPerson = true } = options;
+            const dockY = canvasHeight - 88;
+            const dockScale = getDockScale();
+
+            ctx.save();
+            ctx.translate(x, dockY);
+            ctx.scale(dockScale, dockScale);
+
+            if (drawDock) {
+            // 1. Underwater Pilings (Darker, weathered)
+            ctx.fillStyle = '#2d241e';
+            [-85, -40, 10, 60].forEach(px => {
+                // Main post
+                ctx.fillRect(px, 14, 12, 80);
+                // Cross brace
+                ctx.strokeStyle = '#2d241e';
+                ctx.lineWidth = 4;
+                ctx.beginPath(); ctx.moveTo(px - 10, 30); ctx.lineTo(px + 20, 50); ctx.stroke();
+            });
+
+            // 2. Main Dock Deck
+            const deckWidth = 220;
+            const deckHeight = 18;
+            const grad = ctx.createLinearGradient(-deckWidth/2, 0, deckWidth/2, 0);
+            grad.addColorStop(0, '#574030');
+            grad.addColorStop(0.5, '#785c48');
+            grad.addColorStop(1, '#4a3629');
+            ctx.fillStyle = grad;
+            ctx.fillRect(-deckWidth/2, 0, deckWidth, deckHeight);
+
+            // 3. Wood Grain and Plank Lines
+            ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+            ctx.lineWidth = 1;
+            for (let i = -deckWidth/2 + 10; i < deckWidth/2; i += 20) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, deckHeight);
+                ctx.stroke();
+                
+                // Nail heads
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.beginPath(); ctx.arc(i - 4, 4, 1.5, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(i - 4, deckHeight - 4, 1.5, 0, Math.PI*2); ctx.fill();
+            }
+
+            // Horizontal grain lines
+            ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+            for (let j = 4; j < deckHeight; j += 4) {
+                ctx.beginPath(); ctx.moveTo(-deckWidth/2, j); ctx.lineTo(deckWidth/2, j); ctx.stroke();
+            }
+
+            // 4. Mooring Bollard (For tying ships)
+            ctx.fillStyle = '#1c1917';
+            ctx.beginPath();
+            ctx.roundRect(80, -15, 12, 18, 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(86, -15, 10, 4, 0, 0, Math.PI*2);
+            ctx.fill();
+
+            // 5. Dock Accessories (A coiled rope)
+            ctx.strokeStyle = '#a8a29e';
+            ctx.lineWidth = 2;
+            for(let r = 0; r < 3; r++) {
+                ctx.beginPath();
+                ctx.ellipse(-70, 8, 12 - r*3, 6 - r*1.5, 0, 0, Math.PI*2);
+                ctx.stroke();
+            }
+            }
+
+            // 6. The Observer
+            if (drawPerson) {
+                drawObserverPerson(ctx, -20, -12, 0.95, '#2563eb');
+            }
+
+            ctx.restore();
+        }
+
+        /**
+         * Draws the Picture-in-Picture view from Galileo's perspective (Top-down)
+         */
+        function drawTopDownPOV(ctx, screenWidth) {
+            const boxWidth = 180;
+            const boxHeight = 220;
+            const padding = 20;
+            const x = screenWidth - boxWidth - padding;
+            const y = padding;
+
+            ctx.save();
+            ctx.translate(x, y);
+
+            // 1. Clipping Mask for the PiP window
+            ctx.beginPath();
+            ctx.roundRect(0, 0, boxWidth, boxHeight, 12);
+            ctx.clip();
+
+            // 2. Water Background
+            ctx.fillStyle = '#1e3a8a';
+            ctx.fillRect(0, 0, boxWidth, boxHeight);
+
+            // Calculate deck variables early to manage the water boundaries
+            const deckY = 30; // Moved closer to the top
+            const deckHeight = 120; // Made the boat wider
+
+            // 3. Rushing Water Effect (Moving left to indicate ship moving right)
+            let wakeOffset = 0;
+            if (state.phase !== 'idle') {
+                wakeOffset = (state.simTime * state.shipVx) % 40;
+            }
+
+            // ONLY draw water lines on the bottom of the pop-out (below the deck)
+            ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+            ctx.lineWidth = 2;
+            const waterBottomY = deckY + deckHeight;
+            for(let i = -40; i < boxWidth + 40; i += 20) {
+                ctx.beginPath();
+                ctx.moveTo(i - wakeOffset, waterBottomY);
+                ctx.lineTo(i - wakeOffset, boxHeight);
+                ctx.stroke();
+            }
+
+            // 4. Ship Deck (Top-down view)
+            ctx.fillStyle = '#6b3a1e';
+            ctx.strokeStyle = '#3d2111';
+            ctx.lineWidth = 4;
+            
+            ctx.beginPath();
+            // Draw hull shape from above spanning the entire width
+            ctx.moveTo(-10, deckY + 5); // Stern (off-screen left)
+            ctx.lineTo(boxWidth - 15, deckY); // Body top
+            ctx.quadraticCurveTo(boxWidth + 40, deckY + deckHeight/2, boxWidth - 15, deckY + deckHeight); // Pointy Bow extending past right edge
+            ctx.lineTo(-10, deckY + deckHeight - 5); // Stern bottom (off-screen left)
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Deck planks
+            ctx.strokeStyle = '#4a2c19';
+            ctx.lineWidth = 1.5;
+            for (let py = deckY + 15; py < deckY + deckHeight - 10; py += 10) {
+                ctx.beginPath();
+                ctx.moveTo(-10, py);
+                ctx.lineTo(boxWidth + 20, py);
+                ctx.stroke();
+            }
+
+            // Ropes on the deck
+            ctx.strokeStyle = '#a8a29e'; 
+            ctx.lineWidth = 1.5;
+            
+            // Rope coil 1 (Top left of deck)
+            for(let r = 0; r < 5; r++) {
+                ctx.beginPath();
+                ctx.ellipse(30, deckY + 25, 10 - r*1.5, 6 - r, 0, 0, Math.PI*2);
+                ctx.stroke();
+            }
+            // Rope coil 2 (Bottom right of deck)
+            for(let r = 0; r < 4; r++) {
+                ctx.beginPath();
+                ctx.ellipse(boxWidth - 25, deckY + deckHeight - 20, 8 - r*1.5, 5 - r, 0, 0, Math.PI*2);
+                ctx.stroke();
+            }
+
+            // 5. The Mast and The Target positions
+            const mastBaseX = boxWidth / 2 - 20; 
+            const mastBaseY = deckY + deckHeight / 2;
+
+            const targetX = mastBaseX + 50; // Shift ball/target completely to the right of the mast
+            const targetY = mastBaseY;
+            
+            // Bullseye
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(targetX, targetY, 20, 0, Math.PI*2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(targetX, targetY, 10, 0, Math.PI*2); ctx.stroke();
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath(); ctx.arc(targetX, targetY, 4, 0, Math.PI*2); ctx.fill();
+
+            // The Mast moving down (3D Perspective)
+            const mastTopX = mastBaseX - 10; // Shift left as it comes up to the camera
+            const mastTopY = mastBaseY + 5;  // Shift down slightly
+
+            // Draw shadow of the mast on the deck
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.beginPath();
+            ctx.ellipse(mastBaseX + 15, mastBaseY + 5, 25, 12, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Extrude the mast upwards (from deck to camera)
+            for (let i = 0; i <= 30; i++) {
+                let pct = i / 30; // 0 = deck level, 1 = camera level
+                let r = 8 + (pct * 22); // radius grows as it gets closer
+                let mx = mastBaseX + (mastTopX - mastBaseX) * pct;
+                let my = mastBaseY + (mastTopY - mastBaseY) * pct;
+                
+                // Cylinder shading
+                const mastGrad = ctx.createRadialGradient(mx - r*0.3, my - r*0.3, 0, mx, my, r);
+                mastGrad.addColorStop(0, '#5c3a21');
+                mastGrad.addColorStop(1, '#24140b');
+                
+                ctx.fillStyle = mastGrad;
+                ctx.beginPath();
+                ctx.arc(mx, my, r, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw wood grain lines on the top slice
+                if (i === 30) {
+                    ctx.strokeStyle = '#1c1109';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                    
+                    // Core rings
+                    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.arc(mx, my, r * 0.7, 0, Math.PI * 2); ctx.stroke();
+                    ctx.beginPath(); ctx.arc(mx, my, r * 0.4, 0, Math.PI * 2); ctx.stroke();
+                }
+            }
+
+            // 6. The Falling Ball (Scaling effect)
+            if (state.phase !== 'idle' && state.phase !== 'question' && state.ball.y > 0) {
+                // Calculate fall progress (0 = top of mast, 1 = hit deck)
+                let progress = (state.ball.y - state.dropY) / (state.deckY - state.dropY);
+                if (progress < 0) progress = 0;
+                if (progress > 1) progress = 1;
+
+                const maxRadius = 12; // Smaller ball
+                const minRadius = 4;  
+                const currentRadius = maxRadius - (progress * (maxRadius - minRadius));
+
+                // Shadow gets darker, smaller, and moves toward the ball
+                const shadowOffset = 15 * (1 - progress);
+                ctx.fillStyle = `rgba(0,0,0, ${0.2 + (progress * 0.6)})`;
+                ctx.beginPath();
+                ctx.arc(targetX + shadowOffset, targetY + shadowOffset, currentRadius * 0.8, 0, Math.PI*2);
+                ctx.fill();
+
+                ctx.fillStyle = '#fbbf24';
+                ctx.strokeStyle = '#92400e';
+                ctx.lineWidth = 2;
+                ctx.beginPath(); 
+                ctx.arc(targetX, targetY, currentRadius, 0, Math.PI * 2); 
+                ctx.fill(); 
+                ctx.stroke();
+            } else {
+                // Ball held at top (largest)
+                ctx.fillStyle = '#fbbf24';
+                ctx.strokeStyle = '#92400e';
+                ctx.lineWidth = 2;
+                ctx.beginPath(); 
+                ctx.arc(targetX, targetY, 12, 0, Math.PI * 2); 
+                ctx.fill(); 
+                ctx.stroke();
+            }
+
+            ctx.restore(); // Remove clipping mask
+
+            // 7. Outer Border and UI Panel
+            ctx.save();
+            ctx.translate(x, y);
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.roundRect(0, 0, boxWidth, boxHeight, 12);
+            ctx.stroke();
+
+            // Header bar
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+            ctx.beginPath();
+            ctx.roundRect(0, 0, boxWidth, 26, [12, 12, 0, 0]);
+            ctx.fill();
+
+            ctx.fillStyle = '#60a5fa'; // Blue text
+            ctx.font = 'bold 11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText("GALILEO'S POV", boxWidth/2, 17);
+
+            // Footer bar (to show that it falls straight down)
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+            ctx.fillRect(0, boxHeight - 24, boxWidth, 24);
+            ctx.fillStyle = '#cbd5e1';
+            ctx.font = '10px sans-serif';
+            ctx.fillText("Horizontal Velocity: 0 m/s", boxWidth/2, boxHeight - 8);
+
+            ctx.restore();
+        }
+
+        function update(timeNow) {
+            let dt = (timeNow - state.lastTime) / 1000;
+            if (dt > 0.1) dt = 0.1;
+            state.lastTime = timeNow;
+
+            const DROP_OFFSET_X = 8; 
+            const DROP_SIM_TIME = 0.5;
+
+            // Only advance physics if not idle and not paused on the question overlay
+            if (state.phase !== 'idle' && state.phase !== 'question') {
+                state.simTime += dt;
+                state.shipX += state.shipVx * dt;
+
+                if (state.phase === 'moving') {
+                    state.ball.x = state.shipX + DROP_OFFSET_X;
+                    state.ball.y = state.dropY;
+
+                    if (state.simTime >= DROP_SIM_TIME) {
+                        state.phase = 'falling';
+                        state.ball.vx = state.shipVx;
+                        state.ball.vy = 0;
+                        state.dropActualTime = state.simTime;
+                        
+                        // Push absolute start point
+                        state.trace.push({ 
+                            worldX: state.ball.x, 
+                            shipRelX: state.ball.x - state.shipX, 
+                            redShipRelX: state.ball.x - getOpposingBoatX(),
+                            y: state.ball.y,
+                            t: 0
+                        });
+                    }
+                } else if (state.phase === 'falling') {
+                    state.ball.vy += GRAVITY * SCALE * dt;
+                    state.ball.x += state.ball.vx * dt;
+                    state.ball.y += state.ball.vy * dt;
+
+                    if (state.simTime - state.lastTraceTime > 0.04) {
+                        state.trace.push({ 
+                            worldX: state.ball.x, 
+                            shipRelX: state.ball.x - state.shipX, 
+                            redShipRelX: state.ball.x - getOpposingBoatX(),
+                            y: state.ball.y,
+                            t: state.simTime - state.dropActualTime
+                        });
+                        state.lastTraceTime = state.simTime;
+                    }
+
+                    if (state.ball.y >= state.deckY) {
+                        state.ball.y = state.deckY;
+                        state.phase = 'landed';
+                        state.landedSimTime = state.simTime;
+                        state.trace.push({ 
+                            worldX: state.ball.x, 
+                            shipRelX: state.ball.x - state.shipX, 
+                            redShipRelX: state.ball.x - getOpposingBoatX(),
+                            y: state.ball.y,
+                            t: state.simTime - state.dropActualTime
+                        });
+                    }
+                } else if (state.phase === 'landed') {
+                    state.ball.x = state.shipX + DROP_OFFSET_X;
+                    
+                    if (!state.isReplay) {
+                        // Allow the ship to sail out of the way before pausing to ask the question
+                        if (state.simTime >= state.landedSimTime + 2.5) {
+                            state.phase = 'question';
+                        }
+                    } else {
+                        // When replaying with the trace line, linger then reset
+                        if (state.simTime >= state.landedSimTime + 3.0) {
+                            resetSimulation('dock');
+                        }
+                    }
+                }
+            } else if (state.phase === 'idle') {
+                state.ball.x = state.shipX + DROP_OFFSET_X;
+                state.ball.y = state.dropY;
+            }
+
+            draw();
+            requestAnimationFrame(update);
+        }
+
+        function drawDirectionsOverlay() {
+            if (state.phase !== 'idle') return; // Hide standard instructions while running/questioning
+
+            const panelWidth = Math.min(canvas.width - 40, 640);
+            const panelX = (canvas.width - panelWidth) * 0.5;
+            const text = 'Click on the dock, the main ship, or the red boat to start and choose your frame of reference.';
+            const maxTextWidth = panelWidth - 44;
+            const words = text.split(' ');
+            const lines = [];
+
+            ctx.save();
+            ctx.font = '16px sans-serif';
+
+            let currentLine = '';
+            words.forEach(word => {
+                const nextLine = currentLine ? `${currentLine} ${word}` : word;
+                if (ctx.measureText(nextLine).width > maxTextWidth && currentLine) {
+                    lines.push(currentLine);
+                    currentLine = word;
+                } else {
+                    currentLine = nextLine;
+                }
+            });
+            if (currentLine) {
+                lines.push(currentLine);
+            }
+
+            const panelHeight = Math.max(52, 28 + (lines.length * 22));
+            const panelY = canvas.height - panelHeight - 8;
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            if (ctx.roundRect) {
+                ctx.roundRect(panelX, panelY, panelWidth, panelHeight, 18);
+            } else {
+                ctx.rect(panelX, panelY, panelWidth, panelHeight);
+            }
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            lines.forEach((line, index) => {
+                const lineY = panelY + 26 + (index * 22);
+                ctx.fillText(line, canvas.width * 0.5, lineY);
+            });
+            ctx.restore();
+        }
+
+        function wrapPopupText(ctx, text, maxWidth) {
+            const words = String(text || '').split(/\s+/).filter(Boolean);
+            const lines = [];
+            let line = '';
+
+            words.forEach(word => {
+                const nextLine = line ? `${line} ${word}` : word;
+                if (ctx.measureText(nextLine).width > maxWidth && line) {
+                    lines.push(line);
+                    line = word;
+                } else {
+                    line = nextLine;
+                }
+            });
+
+            if (line) lines.push(line);
+            return lines;
+        }
+
+        function drawBottomPopup(ctx, text, options = {}) {
+            const {
+                fill = 'rgba(15, 23, 42, 0.9)',
+                stroke = '#38bdf8',
+                font = 'bold 20px sans-serif'
+            } = options;
+
+            ctx.save();
+            ctx.font = font;
+            const bannerW = Math.min(canvas.width - 40, 720);
+            const textMaxWidth = bannerW - 54;
+            const lines = wrapPopupText(ctx, text, textMaxWidth);
+            const lineHeight = 24;
+            const bannerH = Math.max(60, 28 + (lines.length * lineHeight));
+            const bannerX = (canvas.width - bannerW) / 2;
+            const bannerY = canvas.height - bannerH - 16;
+
+            ctx.fillStyle = fill;
+            ctx.strokeStyle = stroke;
+            ctx.lineWidth = 2;
+
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(bannerX, bannerY, bannerW, bannerH, 24);
+            else ctx.rect(bannerX, bannerY, bannerW, bannerH);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const firstLineY = bannerY + (bannerH / 2) - ((lines.length - 1) * lineHeight / 2);
+            lines.forEach((line, index) => {
+                ctx.fillText(line, canvas.width / 2, firstLineY + (index * lineHeight));
+            });
+            ctx.restore();
+        }
+
+        function drawQuestionBanner(ctx) {
+            if (state.phase !== 'question') return;
+            drawBottomPopup(ctx, "Which path did this observer see? Click a line to select it.", {
+                fill: 'rgba(15, 23, 42, 0.9)',
+                stroke: '#38bdf8',
+                font: 'bold 20px sans-serif'
+            });
+        }
+
+        function drawQuestionPaths(ctx) {
+            if (state.phase !== 'question' || state.trace.length === 0) return;
+
+            // Draw the exact 3 paths, but originated from the current mast location
+            for (let type of ['ship', 'dock', 'redShip']) {
+                const points = getPathPoints(type);
+                const isHovered = state.hoverPath === type;
+                
+                ctx.beginPath();
+                for (let i = 0; i < points.length; i++) {
+                    const p = points[i];
+                    if (i === 0) ctx.moveTo(p.x, p.y);
+                    else ctx.lineTo(p.x, p.y);
+                }
+                
+                ctx.shadowColor = 'rgba(0,0,0,0.6)';
+                ctx.shadowBlur = 6;
+                
+                ctx.strokeStyle = isHovered ? '#fbbf24' : 'rgba(255, 255, 255, 0.6)';
+                ctx.lineWidth = isHovered ? 6 : 4;
+                ctx.setLineDash(isHovered ? [] : [10, 8]);
+                ctx.lineCap = 'round';
+                ctx.stroke();
+                
+                ctx.setLineDash([]);
+                ctx.shadowBlur = 0;
+                
+                // End target circle
+                const lastP = points[points.length - 1];
+                
+                ctx.beginPath();
+                ctx.arc(lastP.x, lastP.y, isHovered ? 12 : 8, 0, Math.PI*2);
+                ctx.fillStyle = isHovered ? '#fbbf24' : 'rgba(255, 255, 255, 0.6)';
+                ctx.fill();
+
+                if (isHovered) {
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.font = 'bold 16px sans-serif';
+                    ctx.textAlign = 'center';
+                    let label = "Straight Down";
+                    if (type === 'dock') label = "Narrow Parabola";
+                    if (type === 'redShip') label = "Wider Parabola";
+                    ctx.fillText(label, lastP.x, lastP.y + 30);
+                }
+            }
+        }
+
+        function drawFeedbackBanner(ctx) {
+            if (!state.isReplay || !state.feedbackMessage) return;
+            drawBottomPopup(ctx, state.feedbackMessage, {
+                fill: state.isCorrect ? 'rgba(21, 128, 61, 0.95)' : 'rgba(185, 28, 28, 0.95)',
+                stroke: state.isCorrect ? '#4ade80' : '#f87171',
+                font: 'bold 18px sans-serif'
+            });
+        }
+
+        function draw() {
+            const timeNow = performance.now();
+            const cameraX = getCameraX();
+
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            skyGrad.addColorStop(0, '#0ea5e9');
+            skyGrad.addColorStop(1, '#7dd3fc');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            ctx.translate(-cameraX, 0);
+
+            // Simple Clouds
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            for (let i = -1; i < 5; i++) {
+                const cx = i * 400 + 100;
+                const cloudYOffset = i === 1 ? canvas.height * 0.2 : 0;
+                ctx.beginPath(); ctx.arc(cx, 100 + cloudYOffset, 30, 0, Math.PI*2); ctx.arc(cx + 40, 80 + cloudYOffset, 45, 0, Math.PI*2); ctx.arc(cx + 80, 100 + cloudYOffset, 30, 0, Math.PI*2); ctx.fill();
+            }
+
+            // Grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 1;
+            const gridStartX = Math.floor(cameraX / SCALE) * SCALE;
+            for (let x = gridStartX; x < gridStartX + canvas.width + SCALE; x += SCALE) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+            }
+
+            // Water
+            const waterGrad = ctx.createLinearGradient(0, state.waterLevel, 0, canvas.height);
+            waterGrad.addColorStop(0, '#1e3a8a');
+            waterGrad.addColorStop(1, '#1e1b4b');
+            ctx.fillStyle = waterGrad;
+            ctx.fillRect(cameraX, state.waterLevel, canvas.width, canvas.height - state.waterLevel);
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(cameraX, state.waterLevel); ctx.lineTo(cameraX + canvas.width, state.waterLevel); ctx.stroke();
+
+            ctx.restore();
+
+            ctx.save();
+            ctx.translate(-cameraX, 0);
+            drawDockObserver(ctx, getDockWorldX(), canvas.height, { drawPerson: false });
+            ctx.restore();
+
+            drawDirectionsOverlay();
+
+            ctx.save();
+            ctx.translate(-cameraX, 0);
+
+            // Ship and Galileo
+            drawShip(ctx, state.shipX, state.waterLevel);
+            drawGalileo(ctx, state.shipX, state.waterLevel);
+
+            if (viewMode === 'ship' || viewMode === 'dock' || viewMode === 'redShip') {
+                drawShipFrameBoats(ctx, cameraX, timeNow, { drawFollower: true, drawOpposing: true });
+            }
+
+            drawDockObserver(ctx, getDockWorldX(), canvas.height, { drawDock: false });
+
+            // True Trace (Only drawn if showTrace is true, creating the "reveal" effect)
+            if (state.trace.length > 0 && state.showTrace) {
+                ctx.beginPath();
+                const getDrawX = (p) => {
+                    if (viewMode === 'ship') return state.shipX + p.shipRelX;
+                    if (viewMode === 'redShip') return getOpposingBoatX() + p.redShipRelX;
+                    return p.worldX; // dock
+                };
+
+                ctx.moveTo(getDrawX(state.trace[0]), state.trace[0].y);
+                for (let i = 1; i < state.trace.length; i++) {
+                    ctx.lineTo(getDrawX(state.trace[i]), state.trace[i].y);
+                }
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 4;
+                ctx.setLineDash([8, 8]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.8)';
+                state.trace.forEach(p => {
+                    ctx.beginPath(); ctx.arc(getDrawX(p), p.y, 4, 0, Math.PI*2); ctx.fill();
+                });
+            }
+
+            // Ball
+            ctx.fillStyle = '#fbbf24';
+            ctx.strokeStyle = '#92400e';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.arc(state.ball.x, state.ball.y, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+            ctx.restore();
+
+            // Interactive Question Paths (drawn centered in screen space)
+            if (state.phase === 'question') {
+                drawQuestionPaths(ctx);
+            }
+            
+            // 4. Draw fixed HUD elements (PiP)
+            drawTopDownPOV(ctx, canvas.width);
+            
+            // 5. Draw UI Overlays (Questions and Feedback)
+            drawQuestionBanner(ctx);
+            drawFeedbackBanner(ctx);
+        }
+
+        handleResize();
+        resetSimulation('dock');
+        requestAnimationFrame(update);
+    </script>
+</body>
+</html>
