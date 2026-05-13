@@ -11,19 +11,20 @@
 
     body {
       margin: 0;
-      min-height: 100vh;
+      /* Removed min-height: 100vh to prevent double-scrollbars inside Articulate Rise iframes */
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #f1f5f9;
+      background: transparent; /* Transparent blends perfectly with your Rise course background */
       color: #0f172a;
-      padding: 16px;
+      padding: 8px; /* Reduced padding to maximize embed space */
     }
 
     .app {
       width: min(1100px, 100%);
       margin: 0 auto;
       background: #ffffff;
-      border-radius: 28px;
-      box-shadow: 0 20px 45px rgba(15, 23, 42, 0.16);
+      border-radius: 16px; /* Tightened radius slightly */
+      border: 6px solid #2563eb; /* Added the requested blue border */
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.1);
       padding: 16px;
     }
 
@@ -171,9 +172,22 @@
 
       const scenes = [
         {
-          title: "1. Two-sided ramp",
-          prompt: "Where will the ball rise on the right ramp?",
-          caption: "Same height on both sides",
+          title: "Experiment 1",
+          prompt: "Where will the ball rise?",
+          caption: "Where did the ball rise to when Galileo tested this ramp?",
+          rightType: "symmetric",
+          correct: "B",
+          choices: [
+            { id: "A", text: "Lower than start" },
+            { id: "B", text: "Same as start" },
+            { id: "C", text: "Higher / top" }
+          ],
+          reveal: "The ball rises to exactly the same vertical height it started from."
+        },
+        {
+          title: "Experiment 2",
+          prompt: "Where will the ball rise?",
+          caption: "Where did the ball rise to when Galileo tested this ramp?",
           rightType: "equal",
           correct: "B",
           choices: [
@@ -184,9 +198,9 @@
           reveal: "The ball rises to the same vertical height on the other side."
         },
         {
-          title: "2. Lower the angle",
-          prompt: "The right ramp is less steep. Where will the ball rise now?",
-          caption: "Lower angle, longer distance",
+          title: "Experiment 3",
+          prompt: "Where will the ball rise?",
+          caption: "Where did the ball rise to when Galileo tested this ramp?",
           rightType: "shallow",
           correct: "B",
           choices: [
@@ -197,14 +211,15 @@
           reveal: "It still reaches the same vertical height, but it travels farther along the ramp."
         },
         {
-          title: "3. Make the ramp flat",
-          prompt: "Now the right side is flat. What should happen without friction?",
-          caption: "Flat surface: inertia",
+          title: "Experiment 4",
+          prompt: "What will happen?",
+          caption: "Where did the ball go when Galileo tested this flat ramp?",
           rightType: "flat",
-          correct: "B",
+          correct: "C",
           choices: [
-            { id: "A", text: "Stops soon" },
-            { id: "B", text: "Keeps going" }
+            { id: "A", text: "Stops early" },
+            { id: "B", text: "Stops later" },
+            { id: "C", text: "Keeps going" }
           ],
           reveal: "If there were no friction, the ball would keep moving on the flat surface."
         }
@@ -279,6 +294,8 @@
         setFeedback("You chose " + choice + ". Now run the experiment.");
         updatePanel();
         draw();
+        
+        setTimeout(runExperiment, 400);
       }
 
       function runExperiment() {
@@ -352,8 +369,16 @@
         const leftX = w * 0.13;
         const valleyX = w * 0.37;
         const valleyY = h * 0.72;
-        const rightEndX = w * 0.88;
-        const rightHighX = currentScene().rightType === "equal" ? w * 0.72 : w * 0.83;
+        const rightEndX = currentScene().rightType === "flat" ? w + 20 : w * 0.88;
+        
+        let rightHighX;
+        if (currentScene().rightType === "symmetric") {
+          rightHighX = valleyX + (valleyX - leftX); // Perfectly mirrors the left side
+        } else if (currentScene().rightType === "equal") {
+          rightHighX = w * 0.72;
+        } else {
+          rightHighX = w * 0.83;
+        }
 
         return {
           w: w,
@@ -400,7 +425,7 @@
         const g = getGeometry();
         const scene = currentScene();
 
-        if (scene.rightType === "equal") {
+        if (scene.rightType === "symmetric" || scene.rightType === "equal") {
           return quadraticPoint(
             { x: g.valleyX, y: g.valleyY },
             { x: (g.valleyX + g.rightHighX) / 2, y: g.valleyY + 10 },
@@ -529,12 +554,14 @@
         const scene = currentScene();
 
         if (scene.rightType === "flat") {
-          const a = rightPathPoint(0.18);
-          const b = rightPathPoint(0.76);
+          const a = rightPathPoint(0.20);
+          const b = rightPathPoint(0.55);
+          const c = rightPathPoint(0.92);
 
           return [
-            { id: "A", label: "A", text: "Stops soon", x: a.x, y: a.y - ballR, r: 18 },
-            { id: "B", label: "B", text: "Keeps going", x: b.x, y: b.y - ballR, r: 18 }
+            { id: "A", label: "A", x: a.x, y: a.y - ballR, r: 18 },
+            { id: "B", label: "B", x: b.x, y: b.y - ballR, r: 18 },
+            { id: "C", label: "C", x: c.x, y: c.y - ballR, r: 18 }
           ];
         }
 
@@ -577,6 +604,8 @@
 
       function drawHeightLine() {
         if (currentScene().rightType === "flat") return;
+        if (sim.mode !== "reveal" && sim.mode !== "final") return;
+        
         const g = getGeometry();
         ctx.save();
         ctx.strokeStyle = "#64748b";

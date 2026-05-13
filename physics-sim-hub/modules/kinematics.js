@@ -1407,11 +1407,6 @@ export default class KinematicsModuleBase extends SimulationGifMaker {
     }
 
     roundRect(ctx, x, y, w, h, r = 6) {
-        if (ctx.roundRect) {
-            ctx.beginPath();
-            ctx.roundRect(x, y, w, h, r);
-            return;
-        }
         const radius = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
         ctx.beginPath();
         ctx.moveTo(x + radius, y);

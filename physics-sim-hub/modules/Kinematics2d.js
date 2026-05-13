@@ -1,31 +1,14 @@
 import KinematicsModuleBase from './kinematics.js';
 import * as Kinematics2dWorkAnalysis from './Kinematics2dWorkAnalysis.js';
-import {
-    buildWorkAnalysisPanel,
-    buildWorkAnalysisSequencePanel
-} from './Kinematics2dWorkAnalysisPanels.js';
-import {
-    buildInputWalkthroughPanel,
-    getStepTasks
-} from './Kinematics2dWorkAnalysisWalkthrough.js';
-import {
-    ProficiencyTracker,
-    getSkipSuggestion
-} from './proficiency.js';
-import { getEquationsForPicker, getTargetLabel, getTaskSignature } from './workAnalysis.js';
 import { drawWalkthroughOverlay } from './Kinematics2dWalkthroughOverlays.js';
 import hoverAnimationMethods from './Kinematics2dHoverAnimations.js';
 import walkthroughInteractionMethods from './Kinematics2dWalkthroughInteraction.js';
 import problemRendererMethods from './Kinematics2dProblemRenderer.js';
 import sceneRendererMethods from './Kinematics2dSceneRenderer.js';
 import uiRendererMethods from './Kinematics2dUIRenderer.js';
-import { buildGhostArrow, getDragGeometry } from './Kinematics2dVectorDecompose.js';
 
 export default class Module2DKinematics extends KinematicsModuleBase {
     constructor(canvasId) {
-        this.proficiency = new ProficiencyTracker();
-        // Skill keys that must NEVER auto-skip — the givens step is always pedagogical.
-        this.proficiencyNeverSkip = ['multi-select:givens'];
         super(canvasId, { duration: 4, fps: 30 });
 
         this.scale = 7;
@@ -33,23 +16,11 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         this.groundY = this.height - 32;
         this.airplaneReleaseFraction = 0.1;
         this.vectorBreakdownDuration = 6.2;
-        this.workWalkthroughState = this.createWorkWalkthroughState();
         this.workSequenceState = this.createWorkSequenceState();
         this.advtrajectoryCache = null;
         this._hoverRafId = null;
         this._hoverLoopToken = 0;
         this._hoverAnimStartMs = 0;
-        if (this.canvas) {
-    this.canvas.addEventListener('pointerdown', (ev) => this.onWalkthroughCanvasPointerDown(ev));
-}
-if (this.canvas) {
-    this.canvas.addEventListener('pointermove', (ev) => this.onWalkthroughCanvasPointerMove(ev));
-    this.canvas.addEventListener('pointerup', (ev) => this.onWalkthroughCanvasPointerUp(ev));
-    this.canvas.addEventListener('pointercancel', (ev) => this.onWalkthroughCanvasPointerCancel(ev));
-    // Cancel a drag if the pointer leaves the canvas — otherwise a release
-    // outside the canvas leaves the drag stuck mid-gesture.
-    this.canvas.addEventListener('pointerleave', (ev) => this.onWalkthroughCanvasPointerCancel(ev));
-}
     }
 
     init() {
@@ -195,20 +166,6 @@ if (this.canvas) {
                 },
                 accelerationOffsetX: { label: "Acceleration Offset X", type: "number", value: 0, step: 5 },
                 accelerationOffsetY: { label: "Acceleration Offset Y", type: "number", value: 0, step: 5 },
-                showWorkAnalysisPanel: { label: "Show Work Analysis Panel", type: "checkbox", value: false },
-                showWorkAnalysisSequence: { label: "Animate Work Analysis Steps", type: "checkbox", value: false },
-                workAnalysisPanelMode: {
-                    label: "Work Analysis Panel Mode",
-                    type: "select",
-                    options: ["Animated Walkthrough", "Step Walkthrough", "Input Walkthrough"],
-                    value: "Animated Walkthrough"
-                },
-                workAnalysisPlayback: {
-                    label: "Work Analysis Playback",
-                    type: "select",
-                    options: ["Panel Only", "Canvas Panel", "Canvas + Diagram Highlight"],
-                    value: "Canvas + Diagram Highlight"
-                },
                 workAnalysisStepDuration: { label: "Work Step Duration (s)", type: "number", value: 2.2, step: 0.1 }
             },
             ...this.getProblemSetupImportControls()
@@ -227,11 +184,6 @@ if (this.canvas) {
         this.inputElements.sampleProblem2d?.addEventListener('change', () => {
             this.applySampleProblem(this.inputs.sampleProblem2d, { redraw: true });
         });
-        this.inputElements.workAnalysisPanelMode?.addEventListener('change', () => {
-            this.resetWorkWalkthroughState();
-            this.drawPreview();
-        });
-
         this.updatePhysicsParameterVisibility();
         this.drawPreview();
     }
@@ -309,13 +261,9 @@ if (this.canvas) {
             accelerationPlacement: "Auto",
             accelerationOffsetX: 0,
             accelerationOffsetY: 0,
-            showWorkAnalysisPanel: false,
-            showWorkAnalysisSequence: false,
-            workAnalysisPanelMode: "Animated Walkthrough",
             workAnalysisProblemType: "Auto",
             sampleProblem2d: "Custom / None",
             problemStatement: "",
-            workAnalysisPlayback: "Canvas + Diagram Highlight",
             workAnalysisStepDuration: 2.2
         };
     }
@@ -554,11 +502,7 @@ if (this.canvas) {
             accelerationPlacement: ['accelerationlocation', 'aplace'],
             accelerationOffsetX: ['accelerationxoffset'],
             accelerationOffsetY: ['accelerationyoffset'],
-            showWorkAnalysisPanel: ['workanalysis', 'showanalysis'],
-            showWorkAnalysisSequence: ['animateworkanalysis', 'workanalysissequence', 'showworksequence'],
-            workAnalysisPanelMode: ['workanalysispanelmode', 'panelmode', 'walkthroughmode'],
             workAnalysisProblemType: ['worktype', 'problemtype', 'workanalysisproblemtype'],
-            workAnalysisPlayback: ['workanalysisplayback', 'workplaybackmode'],
             workAnalysisStepDuration: ['workstepduration', 'workanalysisduration', 'worksteptime']
         };
     }
@@ -589,14 +533,84 @@ if (this.canvas) {
             }
             if (model.breakdownDuration > 0) return model.breakdownDuration * 0.9;
         }
-        if (this.inputs?.showWorkAnalysisSequence && this.shouldDrawWorkAnalysisCanvas()) {
-            const model = this.computeProjectileModel(0);
-            if (model.workAnalysisDuration > 0) {
-                return model.breakdownDuration + (model.workAnalysisDuration * 0.9);
-            }
-        }
         if (Number.isFinite(this.inputs?.svgExportTime)) return this.inputs.svgExportTime;
         return this.config.duration;
+    }
+
+    async exportSvg() {
+        if (typeof C2S === 'undefined') {
+            document.getElementById('status').innerText = "SVG Library Error!";
+            return;
+        }
+
+        const baseModel = this.computeProjectileModel(0);
+        const problemType = this.getSelectedWorkAnalysisProblemType(baseModel);
+        const steps = this.getConfiguredWorkAnalysisSteps(baseModel, problemType);
+
+        if (!steps || !steps.length) {
+            return super.exportSvg();
+        }
+
+        const statusEl = document.getElementById('status');
+
+        const renderStepSvg = (step) => {
+            const canvasStep = this.getWalkthroughCanvasStep(step);
+            const time = this.getWalkthroughCanvasTime(step);
+            const svgCtx = new C2S(this.width, this.height);
+            if (typeof svgCtx.setLineDash !== 'function') svgCtx.setLineDash = () => {};
+            svgCtx.roundRect = function(x, y, w, h, r) {
+                const rv = Array.isArray(r) ? r[0] : (r || 0);
+                const radius = Math.min(rv, Math.abs(w) / 2, Math.abs(h) / 2);
+                this.moveTo(x + radius, y);
+                this.lineTo(x + w - radius, y);
+                this.quadraticCurveTo(x + w, y, x + w, y + radius);
+                this.lineTo(x + w, y + h - radius);
+                this.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+                this.lineTo(x + radius, y + h);
+                this.quadraticCurveTo(x, y + h, x, y + h - radius);
+                this.lineTo(x, y + radius);
+                this.quadraticCurveTo(x, y, x + radius, y);
+                this.closePath();
+            };
+            svgCtx.fillStyle = this.config.backgroundColor;
+            svgCtx.fillRect(0, 0, this.width, this.height);
+            this.isSvgExporting = true;
+            this.activeWalkthroughStep = canvasStep;
+            try {
+                this.drawFrame(svgCtx, time);
+                this.drawStepPanel(svgCtx, step);
+            } finally {
+                this.activeWalkthroughStep = null;
+                this.isSvgExporting = false;
+            }
+            return svgCtx.getSerializedSvg(true);
+        };
+
+        const downloadSvg = (svgString, filename) => {
+            const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        };
+
+        for (let i = 0; i < steps.length; i++) {
+            statusEl.innerText = `Exporting step ${i + 1} of ${steps.length}…`;
+            try {
+                const slug = this.sanitizeExportFilenamePart(steps[i].title, 'step');
+                const filename = `step-${String(i + 1).padStart(2, '0')}-${slug}.svg`;
+                downloadSvg(renderStepSvg(steps[i]), filename);
+            } catch (e) {
+                console.error(`Step ${i + 1} SVG failed:`, e);
+            }
+        }
+
+        statusEl.innerText = `Downloaded ${steps.length} step SVGs!`;
+        setTimeout(() => { statusEl.innerText = 'System Ready'; }, 2500);
     }
 
     getPlaybackDuration() {
@@ -638,27 +652,12 @@ if (this.canvas) {
         return Math.max(0.6, this.normalizeNumber(this.inputs.workAnalysisStepDuration, 2.2));
     }
 
-    shouldAnimateWorkAnalysis() {
-        return Boolean(this.inputs.showWorkAnalysisSequence);
-    }
+    shouldAnimateWorkAnalysis() { return false; }
+    shouldDrawWorkAnalysisCanvas() { return false; }
+    shouldHighlightWorkAnalysisDiagram() { return false; }
+    isWorkAnalysisLaunchComponentStep() { return false; }
+    isStepWalkthroughMode() { return false; }
 
-    shouldDrawWorkAnalysisCanvas() {
-        return this.inputs.workAnalysisPlayback === 'Canvas Panel';
-    }
-
-    shouldHighlightWorkAnalysisDiagram() {
-        return this.inputs.workAnalysisPlayback === 'Canvas + Diagram Highlight';
-    }
-
-    isWorkAnalysisLaunchComponentStep(model) {
-        if (!model?.isInWorkAnalysisSequence || !this.shouldHighlightWorkAnalysisDiagram()) return false;
-        const stepId = this.getWorkAnalysisSequenceState(model)?.step?.id;
-        return stepId === 'components' || stepId === 'reconstruct';
-    }
-
-    isStepWalkthroughMode() {
-        return this.inputs.workAnalysisPanelMode === 'Step Walkthrough';
-    }
     getMotionStopTime(tFlight, tPeak) {
         let stopTime = tFlight;
         if (this.inputs.stopAnimation === 'Max Height') {
@@ -913,13 +912,6 @@ if (this.canvas) {
         const steps = model?.workAnalysisSteps || [];
 
         if (!steps.length) return solved;
-
-        if (this.inputs.workAnalysisPanelMode === "Input Walkthrough") {
-            (this.workWalkthroughState?.completedSteps || []).forEach(index => {
-                const step = steps[index];
-                (step?.resultValues || (step?.resultValue ? [step.resultValue] : [])).forEach(valueKey => solved.add(valueKey));
-            });
-        }
 
         if (!model?.isInWorkAnalysisSequence) return solved;
 
@@ -1524,11 +1516,13 @@ if (this.canvas) {
             this.drawDropPlaneGuide(ctx, model);
         }
 
-        if (this.inputs.showDistanceMarkers && this.inputs.rulerStyle !== "None" && !model.isInVectorBreakdown) {
+        const isWAHighlight = model.isInWorkAnalysisSequence && this.shouldHighlightWorkAnalysisDiagram();
+
+        if (this.inputs.showDistanceMarkers && this.inputs.rulerStyle !== "None" && !model.isInVectorBreakdown && !isWAHighlight) {
             this.drawDistanceTools(ctx, model);
         }
 
-        if (this.inputs.showMaxHeight && overlayTime && !model.isInVectorBreakdown) {
+        if (this.inputs.showMaxHeight && overlayTime && !model.isInVectorBreakdown && !isWAHighlight) {
             this.drawMaxHeightMarker(ctx, model);
         }
 
@@ -1556,11 +1550,11 @@ if (this.canvas) {
             this.drawPoliceman(ctx, model);
         }
 
-        if (!isFinalVelocityZoom) {
+        if (!isFinalVelocityZoom && !isWAHighlight) {
             this.drawPhysicsVectors(ctx, model);
         }
 
-        if (this.inputs.showProblemLabels && overlayTime) {
+        if (this.inputs.showProblemLabels && overlayTime && !isWAHighlight) {
             this.drawProblemLabels(ctx, model);
         }
 
@@ -1644,25 +1638,6 @@ if (this.canvas) {
             this.drawProjectileWorld(ctx, model, overlayTime, isFinalVelocityZoom);
             if (this.activeWalkthroughStep) {
                 drawWalkthroughOverlay.call(this, ctx, model, this.activeWalkthroughStep);
-                if (this.activeWalkthroughStep && this.workWalkthroughState?.dragInteraction) {
-    const drag = this.workWalkthroughState.dragInteraction;
-    const tasks = getStepTasks(this.activeWalkthroughStep);
-    const task = tasks[this.workWalkthroughState.taskIndex || 0];
-    if (task?.kind === 'vector-decompose') {
-        const geometry = getDragGeometry(task, model);
-        const ghost = buildGhostArrow(geometry, drag);
-        if (ghost) {
-            ctx.save();
-            this.drawArrow(ctx, ghost.fromX, ghost.fromY, ghost.toX, ghost.toY,
-                ghost.color, 4, { headSize: 14 });
-            ctx.fillStyle = ghost.color;
-            ctx.font = 'bold 13px serif';
-            ctx.fillText(`${drag.magnitude >= 0 ? '+' : ''}${drag.magnitude.toFixed(2)} m/s`,
-                ghost.toX + 8, ghost.toY - 8);
-            ctx.restore();
-        }
-    }
-}
             }
             ctx.restore();
         }
@@ -1672,49 +1647,7 @@ if (this.canvas) {
         }
     }
 
-    syncExternalPanels({ force = false } = {}) {
-        if (!this.latestModel) {
-            this.clearModuleExtension();
-            return;
-        }
-
-        if (this.inputs.workAnalysisPanelMode === "Input Walkthrough") {
-    const state = this.getWorkWalkthroughState(steps);
-    const currentStep = steps[state.stepIndex];
-    const tasks = getStepTasks(currentStep);
-    const currentTask = tasks[state.taskIndex || 0];
-    const signature = currentTask ? getTaskSignature(currentTask) : null;
-    const skipSuggestion = getSkipSuggestion(this.proficiency, signature, {
-        never: this.proficiencyNeverSkip
-    });
-
-    this.setModuleExtensionContent(buildInputWalkthroughPanel({
-        model: this.latestModel,
-        problemType,
-        steps,
-        state: { ...state, skipSuggestion, dragInteraction: state.dragInteraction || null
- }
-    }));
-    this.bindWorkWalkthroughPanelEvents(steps);
-    return;
-}
-
-        if (!this.inputs.showWorkAnalysisPanel) {
-            this.clearModuleExtension();
-            return;
-        }
-
-        this.setModuleExtensionContent(this.buildWorkAnalysisPanel(this.latestModel));
-    }
-
-getProficiencySnapshot() {
-    return this.proficiency.snapshot();
-}
-
-resetProficiency() {
-    this.proficiency.reset();
-    this.syncExternalPanels({ force: true });
-}
+    syncExternalPanels() {}
 
     getScenarioStepX(model) {
         if (!Number.isFinite(model.endX) || model.endX <= model.startX) return model.startX;
@@ -1907,37 +1840,77 @@ resetProficiency() {
         }
 
         const visibleLines = state.step.lines.slice(0, state.lineCount);
-        const panelWidth = 286 * uiScale;
-        const panelHeight = (72 + (visibleLines.length * 18)) * uiScale;
+        const panelWidth = 326 * uiScale;
+        const panelHeight = (82 + (visibleLines.length * 20.5)) * uiScale;
         const x = 24;
         const y = this.height - panelHeight - 24;
 
         ctx.save();
         ctx.fillStyle = "rgba(255,255,255,0.95)";
         ctx.strokeStyle = "rgba(15,23,42,0.18)";
-        ctx.lineWidth = 1.2 * uiScale;
-        this.roundRectPath(ctx, x, y, panelWidth, panelHeight, 12 * uiScale);
+        ctx.lineWidth = 1.4 * uiScale;
+        this.roundRectPath(ctx, x, y, panelWidth, panelHeight, 14 * uiScale);
         ctx.fill();
         ctx.stroke();
 
         ctx.fillStyle = state.step.accent;
-        this.roundRectPath(ctx, x, y, 8 * uiScale, panelHeight, 12 * uiScale);
+        this.roundRectPath(ctx, x, y, 9 * uiScale, panelHeight, 14 * uiScale);
         ctx.fill();
 
         ctx.fillStyle = "#0f172a";
-        ctx.font = this.scaleFontString("700 13px Inter, sans-serif");
+        ctx.font = this.scaleFontString("700 15px Inter, sans-serif");
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
-        ctx.fillText(`Step ${state.stepIndex + 1}: ${state.step.title}`, x + (18 * uiScale), y + (18 * uiScale));
+        ctx.fillText(`Step ${state.stepIndex + 1}: ${state.step.title}`, x + (21 * uiScale), y + (21 * uiScale));
 
         ctx.fillStyle = "#64748b";
-        ctx.font = this.scaleFontString("600 10.4px Inter, sans-serif");
-        ctx.fillText(state.step.focusLabel, x + (18 * uiScale), y + (38 * uiScale));
+        ctx.font = this.scaleFontString("600 12px Inter, sans-serif");
+        ctx.fillText(state.step.focusLabel, x + (21 * uiScale), y + (43 * uiScale));
 
         ctx.fillStyle = "#1e293b";
-        ctx.font = this.scaleFontString("600 11px Inter, sans-serif");
+        ctx.font = this.scaleFontString("15px 'Cambria Math', 'STIX Two Math', 'Times New Roman', serif");
         visibleLines.forEach((line, index) => {
-            ctx.fillText(line, x + (18 * uiScale), y + (60 * uiScale) + (index * 18 * uiScale));
+            ctx.fillText(line, x + (21 * uiScale), y + (68 * uiScale) + (index * 20.5 * uiScale));
+        });
+        ctx.restore();
+    }
+
+    drawStepPanel(ctx, step) {
+        if (!step || !Array.isArray(step.lines) || !step.lines.length) return;
+        const uiScale = this.getCanvasTextScale();
+        const lines = step.lines;
+        const panelWidth = 342 * uiScale;
+        const panelHeight = (64 + (lines.length * 23)) * uiScale;
+        const x = 20;
+        const y = this.height - panelHeight - 20;
+
+        ctx.save();
+        ctx.fillStyle = "rgba(255,255,255,0.97)";
+        ctx.strokeStyle = "rgba(15,23,42,0.15)";
+        ctx.lineWidth = 1.1 * uiScale;
+        this.roundRectPath(ctx, x, y, panelWidth, panelHeight, 11 * uiScale);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = step.accent || '#4f46e5';
+        this.roundRectPath(ctx, x, y, 7 * uiScale, panelHeight, 11 * uiScale);
+        ctx.fill();
+
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+
+        ctx.fillStyle = "#0f172a";
+        ctx.font = this.scaleFontString("700 14px Inter, sans-serif");
+        ctx.fillText(step.title || '', x + (18 * uiScale), y + (18 * uiScale));
+
+        ctx.fillStyle = "#64748b";
+        ctx.font = this.scaleFontString("500 11.5px Inter, sans-serif");
+        ctx.fillText(step.focusLabel || '', x + (18 * uiScale), y + (39 * uiScale));
+
+        ctx.fillStyle = "#1e293b";
+        ctx.font = this.scaleFontString("15px 'Cambria Math', 'STIX Two Math', 'Times New Roman', serif");
+        lines.forEach((line, i) => {
+            ctx.fillText(line, x + (18 * uiScale), y + (59 * uiScale) + (i * 23 * uiScale));
         });
         ctx.restore();
     }
@@ -2032,27 +2005,6 @@ resetProficiency() {
                 this.drawMaxHeightMarker(ctx, model);
             }
         }
-    }
-
-    buildWorkAnalysisSequencePanel(model) {
-        const problemType = model.workAnalysisType || this.getSelectedWorkAnalysisProblemType(model);
-        const steps = model.workAnalysisSteps || this.getConfiguredWorkAnalysisSteps(model, problemType);
-        const state = this.getWorkAnalysisSequenceState(model);
-        const manualState = this.isStepWalkthroughMode() ? this.getWorkSequenceState(steps) : null;
-        return buildWorkAnalysisSequencePanel({
-            model,
-            problemType,
-            steps,
-            state,
-            manualState,
-            showStepControls: this.isStepWalkthroughMode()
-        });
-    }
-
-    buildWorkAnalysisPanel(model) {
-        const problemType = model.workAnalysisType || this.getSelectedWorkAnalysisProblemType(model);
-        const steps = model.workAnalysisSteps || this.getConfiguredWorkAnalysisSteps(model, problemType);
-        return buildWorkAnalysisPanel({ model, problemType, steps });
     }
 
     getAxisVarLabel(axis, key, model, includeValue = true) {

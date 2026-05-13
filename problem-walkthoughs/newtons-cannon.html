@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Newton's Cannon</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Custom range slider styling to match the previous React version */
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #ef4444; /* red-500 */
+            cursor: pointer;
+        }
+        input[type=range]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #ef4444;
+            cursor: pointer;
+            border: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans">
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-6xl mx-auto w-full p-4 flex items-center">
+        <!-- Canvas Area -->
+        <div class="w-full bg-slate-800 rounded-[2rem] shadow-lg p-4 flex items-center justify-center overflow-hidden min-h-[500px]">
+            <div class="relative w-full max-w-[1200px] aspect-[16/9] rounded-[1.75rem] overflow-hidden border-[6px] border-blue-500 bg-white shadow-inner">
+                <button
+                    id="clearBtn"
+                    disabled
+                    class="absolute left-4 top-4 z-10 bg-slate-800/90 hover:bg-slate-700 disabled:opacity-45 disabled:cursor-not-allowed text-white py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-lg"
+                >
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    <span id="clearBtnText" class="hidden sm:inline">Clear Trails (0)</span>
+                    <span class="sm:hidden">Clear</span>
+                </button>
+
+                <div class="absolute left-1/2 top-[40%] z-10 w-[min(42%,280px)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-slate-700 bg-slate-800/90 px-4 py-3 shadow-lg">
+                    <label class="flex justify-between gap-3 text-xs text-slate-300 mb-2">
+                        <span class="text-red-400 font-semibold">Cannon Velocity</span>
+                        <span id="speedDisplay" class="font-mono text-red-400 font-bold">2.0 km/s</span>
+                    </label>
+                    <input
+                        type="range"
+                        id="speedInput"
+                        min="2"
+                        max="10"
+                        step="0.5"
+                        value="2.0"
+                        class="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer"
+                    />
+                </div>
+
+                <button
+                    id="fireBtn"
+                    class="absolute right-4 top-4 z-10 bg-red-500 hover:bg-red-400 text-white font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-lg shadow-red-500/20"
+                >
+                    <i data-lucide="play" class="w-5 h-5 fill-current"></i>
+                    <span id="fireBtnText" class="hidden sm:inline">Fire Cannon 2.0 km/s</span>
+                    <span id="fireBtnTextMobile" class="sm:hidden">Fire 2.0</span>
+                </button>
+
+                <canvas
+                    id="simCanvas"
+                    width="1280"
+                    height="720"
+                    class="w-full h-full object-contain"
+                ></canvas>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // DOM Elements
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const speedInput = document.getElementById('speedInput');
+        const speedDisplay = document.getElementById('speedDisplay');
+        const statusBox = document.getElementById('statusBox');
+        const fireBtn = document.getElementById('fireBtn');
+        const fireBtnText = document.getElementById('fireBtnText');
+        const fireBtnTextMobile = document.getElementById('fireBtnTextMobile');
+        const clearBtn = document.getElementById('clearBtn');
+        const clearBtnText = document.getElementById('clearBtnText');
+        const earthOverlay = new Image();
+        let earthOverlayReady = false;
+        earthOverlay.onload = () => {
+            earthOverlayReady = true;
+        };
+        earthOverlay.src = '../svgEarth.svg';
+
+        // Physics Constants
+        const CANVAS_WIDTH = 1280;
+        const CANVAS_HEIGHT = 720;
+        const CX = CANVAS_WIDTH / 2;
+        const CY = CANVAS_HEIGHT / 2 + 20;
+        const GM = 20000;
+        const EARTH_R = 275;
+        const EARTH_TOP_Y = CY - EARTH_R;
+        const MOUNTAIN_BASE_Y = EARTH_TOP_Y + 10;
+        const MOUNTAIN_PEAK_Y = EARTH_TOP_Y - 30;
+        const START_X = CX;
+        const START_Y = MOUNTAIN_PEAK_Y - 12;
+        const START_RADIUS = CY - START_Y;
+
+        // Application State
+        let speed = 2.0;
+        let historyCount = 0;
+        const sim = {
+            active: false,
+            x: 0,
+            y: 0,
+            vx: 0,
+            vy: 0,
+            path: [],
+            history: [],
+            lastAngle: 0,
+            sweptAngle: 0,
+            orbits: 0
+        };
+
+        function setSpeed(value) {
+            const minSpeed = parseFloat(speedInput.min);
+            const maxSpeed = parseFloat(speedInput.max);
+            speed = Math.min(maxSpeed, Math.max(minSpeed, value));
+            speedInput.value = speed.toFixed(1);
+            speedDisplay.textContent = `${speed.toFixed(1)} km/s`;
+            fireBtnText.textContent = `Fire Cannon ${speed.toFixed(1)} km/s`;
+            fireBtnTextMobile.textContent = `Fire ${speed.toFixed(1)}`;
+        }
+
+        // Event Listeners
+        speedInput.addEventListener('input', (e) => {
+            setSpeed(parseFloat(e.target.value));
+        });
+
+        fireBtn.addEventListener('click', fire);
+        clearBtn.addEventListener('click', clearHistory);
+        setSpeed(speed);
+
+        function updateStatus(text, type) {
+            if (!statusBox) return;
+
+            statusBox.textContent = text;
+            statusBox.className = 'p-4 rounded-lg mb-4 text-center font-semibold border ';
+            
+            if (type === 'orbit') {
+                statusBox.className += 'bg-green-500/10 border-green-500/30 text-green-400';
+            } else if (type === 'crash') {
+                statusBox.className += 'bg-red-500/10 border-red-500/30 text-red-400';
+            } else if (type === 'escape') {
+                statusBox.className += 'bg-purple-500/10 border-purple-500/30 text-purple-400';
+            } else {
+                statusBox.className += 'bg-slate-700/50 border-slate-600 text-slate-300';
+            }
+        }
+
+        function updateClearBtn() {
+            historyCount = sim.history.length + (sim.path.length > 0 ? 1 : 0);
+            clearBtnText.textContent = `Clear Trails (${historyCount})`;
+            clearBtn.disabled = historyCount === 0;
+        }
+
+        function fire() {
+            const launchSpeed = speed;
+
+            // Save current active path to history if it exists
+            if (sim.active || sim.path.length > 0) {
+                if (sim.path.length > 0) sim.history.push([...sim.path]);
+            }
+
+            // Initialize new shot
+            sim.active = true;
+            sim.x = START_X;
+            sim.y = START_Y;
+            sim.vx = launchSpeed;
+            sim.vy = 0;
+            sim.path = [{ x: START_X, y: START_Y }];
+            sim.lastAngle = Math.atan2(START_Y - CY, START_X - CX);
+            sim.sweptAngle = 0;
+            sim.orbits = 0;
+            
+            updateStatus('Firing...', 'normal');
+            updateClearBtn();
+            setSpeed(launchSpeed + 1);
+        }
+
+        function clearHistory() {
+            sim.history = [];
+            sim.path = [];
+            sim.active = false;
+            updateStatus('Ready to fire', 'normal');
+            updateClearBtn();
+        }
+
+        function drawBackground() {
+            // White space
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+            // Draw Earth Base (Blue)
+            ctx.beginPath();
+            ctx.arc(CX, CY, EARTH_R, 0, Math.PI * 2);
+            ctx.fillStyle = '#1e3a8a'; // Deep blue
+            ctx.fill();
+
+            // Draw Earth SVG overlay on top of the blue circle.
+            if (earthOverlayReady) {
+                const overlayScale = 1.03;
+                const overlaySize = EARTH_R * 2 * overlayScale;
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(CX, CY, EARTH_R, 0, Math.PI * 2);
+                ctx.clip();
+                ctx.drawImage(
+                    earthOverlay,
+                    CX - overlaySize / 2,
+                    CY - overlaySize / 2,
+                    overlaySize,
+                    overlaySize
+                );
+                ctx.restore();
+            }
+
+            // Earth shading/atmosphere (Inner shadow)
+            const gradient = ctx.createRadialGradient(CX - 50, CY - 50, EARTH_R - 150, CX, CY, EARTH_R);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.2)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0.6)');
+            ctx.beginPath();
+            ctx.arc(CX, CY, EARTH_R, 0, Math.PI * 2);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+
+            // --- Upgraded Mountain ---
+            const peakY = MOUNTAIN_PEAK_Y;
+            
+            // Mountain shadow/depth (left peak)
+            ctx.beginPath();
+            ctx.moveTo(CX - 42, MOUNTAIN_BASE_Y);
+            ctx.lineTo(CX - 16, peakY + 16);
+            ctx.lineTo(CX + 8, MOUNTAIN_BASE_Y);
+            ctx.fillStyle = '#78350f'; // Darker amber/brown
+            ctx.fill();
+
+            // Main Mountain
+            ctx.beginPath();
+            ctx.moveTo(CX - 34, MOUNTAIN_BASE_Y);
+            ctx.lineTo(CX - 16, peakY + 22);
+            ctx.lineTo(CX - 8, peakY + 10); // crag
+            ctx.lineTo(CX, peakY); // peak
+            ctx.lineTo(CX + 10, peakY + 16); // crag
+            ctx.lineTo(CX + 34, MOUNTAIN_BASE_Y);
+            ctx.fillStyle = '#92400e'; // Amber-800
+            ctx.fill();
+
+            
+            // Mountain Highlight (right side)
+            ctx.beginPath();
+            ctx.moveTo(CX, peakY);
+            ctx.lineTo(CX + 10, peakY + 16);
+            ctx.lineTo(CX + 34, MOUNTAIN_BASE_Y);
+            ctx.lineTo(CX, MOUNTAIN_BASE_Y);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.fill();
+
+            // Snow Cap
+            ctx.beginPath();
+            ctx.moveTo(CX, peakY);
+            ctx.lineTo(CX - 8, peakY + 10);
+            ctx.quadraticCurveTo(CX - 4, peakY + 15, CX, peakY + 8); // jagged snow drip
+            ctx.quadraticCurveTo(CX + 5, peakY + 12, CX + 10, peakY + 16);
+            ctx.lineTo(CX, peakY);
+            ctx.fillStyle = '#f8fafc';
+            ctx.fill();
+
+            // --- Upgraded Cannon ---
+            const barrelY = START_Y;
+            
+            // Cannon Mount/Carriage
+            ctx.fillStyle = '#475569'; // Slate 600
+            ctx.beginPath();
+            ctx.moveTo(CX - 12, barrelY + 15);
+            ctx.lineTo(CX - 8, barrelY + 2);
+            ctx.lineTo(CX + 8, barrelY + 2);
+            ctx.lineTo(CX + 12, barrelY + 15);
+            ctx.fill();
+
+            // Carriage Base
+            ctx.fillStyle = '#334155'; // Slate 700
+            ctx.fillRect(CX - 16, barrelY + 11, 32, 4);
+
+            // Wheels
+            ctx.beginPath();
+            ctx.arc(CX - 10, barrelY + 12, 5, 0, Math.PI * 2);
+            ctx.arc(CX + 10, barrelY + 12, 5, 0, Math.PI * 2);
+            ctx.fillStyle = '#1e293b'; // Slate 800
+            ctx.fill();
+            ctx.strokeStyle = '#64748b'; // Slate 500
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Cannon Barrel
+            ctx.beginPath();
+            ctx.moveTo(CX - 22, barrelY - 6); // Back top
+            ctx.lineTo(CX + 15, barrelY - 4); // Front top
+            ctx.lineTo(CX + 15, barrelY + 4); // Front bottom
+            ctx.lineTo(CX - 22, barrelY + 6); // Back bottom
+            ctx.fillStyle = '#0f172a'; // Slate 900
+            ctx.fill();
+
+            // Muzzle Flare
+            ctx.beginPath();
+            ctx.moveTo(CX + 15, barrelY - 6);
+            ctx.lineTo(CX + 20, barrelY - 6);
+            ctx.lineTo(CX + 20, barrelY + 6);
+            ctx.lineTo(CX + 15, barrelY + 6);
+            ctx.fillStyle = '#1e293b';
+            ctx.fill();
+            
+            // Back Dome
+            ctx.beginPath();
+            ctx.arc(CX - 22, barrelY, 6, Math.PI / 2, Math.PI * 1.5);
+            ctx.fillStyle = '#0f172a';
+            ctx.fill();
+
+            // Barrel Metallic Highlight
+            ctx.beginPath();
+            ctx.moveTo(CX - 22, barrelY - 3);
+            ctx.lineTo(CX + 18, barrelY - 2);
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.stroke();
+        }
+        function updatePhysics() {
+            if (!sim.active) return;
+
+            const dt = 1;
+            const stepsPerFrame = 5; 
+            const sub_dt = dt / stepsPerFrame;
+
+            for (let i = 0; i < stepsPerFrame; i++) {
+                const dx = CX - sim.x;
+                const dy = CY - sim.y;
+                const distSq = dx * dx + dy * dy;
+                const dist = Math.sqrt(distSq);
+
+                // Collision with Earth
+                if (dist < EARTH_R) {
+                    sim.active = false;
+                    updateStatus('Crashed into Earth!', 'crash');
+                    updateClearBtn();
+                    return;
+                }
+
+                // Escape velocity reached
+                if (dist > Math.max(CANVAS_WIDTH, CANVAS_HEIGHT) * 2) {
+                    sim.active = false;
+                    updateStatus('Escaped Earth\'s gravity!', 'escape');
+                    updateClearBtn();
+                    return;
+                }
+
+                // Calculate Gravity
+                const a = GM / distSq;
+                const ax = a * (dx / dist);
+                const ay = a * (dy / dist);
+
+                // Update Velocity
+                sim.vx += ax * sub_dt;
+                sim.vy += ay * sub_dt;
+
+                // Update Position
+                sim.x += sim.vx * sub_dt;
+                sim.y += sim.vy * sub_dt;
+
+                // Orbit tracking
+                const currentAngle = Math.atan2(sim.y - CY, sim.x - CX);
+                let angleDiff = currentAngle - sim.lastAngle;
+                
+                // Normalize angle difference
+                if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+
+                sim.sweptAngle += angleDiff;
+                sim.lastAngle = currentAngle;
+
+                if (Math.abs(sim.sweptAngle) >= 2 * Math.PI) {
+                    sim.orbits += 1;
+                    sim.sweptAngle = 0; // Reset for next orbit
+                    updateStatus(`Stable Orbit! (${sim.orbits} completed)`, 'orbit');
+                }
+
+                // Record path (throttle to save memory)
+                if (i === 0) {
+                    sim.path.push({ x: sim.x, y: sim.y });
+                }
+            }
+        }
+
+        function draw() {
+            drawBackground();
+
+            // Draw previous trails
+            sim.history.forEach((path) => {
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                path.forEach((p, index) => {
+                    if (index === 0) ctx.moveTo(p.x, p.y);
+                    else ctx.lineTo(p.x, p.y);
+                });
+                ctx.stroke();
+            });
+            ctx.setLineDash([]); // Reset dash
+
+            // Draw current active trail
+            if (sim.path.length > 0) {
+                ctx.beginPath();
+                ctx.strokeStyle = '#ef4444'; // Red trail
+                ctx.lineWidth = 3;
+                sim.path.forEach((p, index) => {
+                    if (index === 0) ctx.moveTo(p.x, p.y);
+                    else ctx.lineTo(p.x, p.y);
+                });
+                ctx.stroke();
+            }
+
+            // Draw cannonball
+            if (sim.active || sim.path.length > 0) {
+                const pos = sim.active ? { x: sim.x, y: sim.y } : sim.path[sim.path.length - 1];
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, 6, 0, Math.PI * 2);
+                ctx.fillStyle = '#fbbf24'; // Amber
+                ctx.fill();
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+
+        // Main Loop
+        function loop() {
+            updatePhysics();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        // Start application
+        requestAnimationFrame(loop);
+    </script>
+</body>
+</html>

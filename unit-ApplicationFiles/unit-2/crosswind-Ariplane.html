@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unit 2 Lesson 1 - Crosswind Pilot Lab</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="start-screen">
+    <div class="start-card">
+      <p class="eyebrow">Unit 2 - Lesson 1</p>
+      <h1>Crosswind Pilot Lab</h1>
+      <p class="start-copy">Use vector addition across three flight checks: solve the crab angle, solve the velocity magnitude, then build a full offset-to-touchdown ground vector.</p>
+      <button id="start-lesson-btn" type="button">Start Lab</button>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
+    <header id="header">
+      <div class="header-left">
+        <div class="title-row">
+          <button type="button" class="menu-btn" id="show-walkthrough">Guide</button>
+          <div>
+            <p class="eyebrow">Unit 2 - Relative Motion</p>
+            <h1>Crosswind Pilot Lab</h1>
+          </div>
+        </div>
+        <div class="scenario-tabs" id="scenario-tabs">
+          <button type="button" class="scenario-btn active" data-level="1">
+            <span class="scenario-btn-title">1. Fly Into Wind</span>
+            <span class="scenario-btn-meta" id="scenario-meta-1">Not attempted</span>
+          </button>
+          <button type="button" class="scenario-btn" data-level="2">
+            <span class="scenario-btn-title">2. Fixed Angle</span>
+            <span class="scenario-btn-meta" id="scenario-meta-2">Locked in</span>
+          </button>
+          <button type="button" class="scenario-btn" data-level="3">
+            <span class="scenario-btn-title">3. Offset Landing</span>
+            <span class="scenario-btn-meta" id="scenario-meta-3">Locked in</span>
+          </button>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="completion-checklist" aria-live="polite">
+          <div class="completion-item" id="completion-trials-item">
+            <span class="completion-label">Flight Checks</span>
+            <span class="completion-status" id="completion-trials-status">0 / 3</span>
+          </div>
+          <div class="completion-item" id="completion-analysis-item">
+            <span class="completion-label">Analysis</span>
+            <span class="completion-status" id="completion-analysis-status">In Progress</span>
+          </div>
+        </div>
+        <button type="button" class="action-btn primary" id="submit-btn" disabled>Submit Lab</button>
+        <button type="button" class="menu-btn" id="reset-lab-btn">Reset Lab</button>
+      </div>
+    </header>
+
+    <main class="app-grid">
+      <section class="panel sim-panel">
+        <div class="sim-shell">
+          <div id="side-view-container" class="side-view">
+            <canvas id="sideCanvas" aria-label="Side view of descent profile"></canvas>
+            <div class="canvas-label">Altitude Profile</div>
+          </div>
+
+          <div id="main-view-container" class="main-view">
+            <canvas id="simCanvas" aria-label="Top-down runway approach simulator"></canvas>
+
+            <div id="controls-container" class="control-card">
+              <div>
+                <p id="activity-level-title" class="control-title">Question 1: Fly Into Wind</p>
+                <p id="activity-level-instructions" class="control-copy">Rotate the red air-velocity vector until the green ground-velocity vector stays centered on the runway.</p>
+                <p id="activity-level-givens" class="control-givens">Given: 100 kt airspeed, wind from 270 degrees at 25 kt.</p>
+              </div>
+
+              <div class="control-group" id="heading-control-group">
+                <div class="control-head">
+                  <label for="heading-slider">Air Velocity Angle</label>
+                  <span id="heading-control-status">Student controls</span>
+                </div>
+                <div class="range-row">
+                  <span>-45 deg</span>
+                  <input type="range" id="heading-slider" min="-45" max="45" step="0.5" value="0">
+                  <span>45 deg</span>
+                </div>
+                <strong id="heading-readout">0.0 deg</strong>
+              </div>
+
+              <div class="control-group" id="airspeed-control-group">
+                <div class="control-head">
+                  <label for="airspeed-slider">Air Velocity Magnitude</label>
+                  <span id="airspeed-control-status">Given value</span>
+                </div>
+                <div class="range-row">
+                  <span>80 kt</span>
+                  <input type="range" id="airspeed-slider" min="80" max="160" step="1" value="100">
+                  <span>160 kt</span>
+                </div>
+                <strong id="airspeed-readout">100 kt</strong>
+              </div>
+
+              <div class="given-grid">
+                <div>
+                  <span>Wind From</span>
+                  <strong id="wind-dir-readout">270 deg</strong>
+                </div>
+                <div>
+                  <span>Wind Speed</span>
+                  <strong id="wind-speed-readout">25 kt</strong>
+                </div>
+                <div>
+                  <span>Run Time</span>
+                  <strong>3.0 s</strong>
+                </div>
+                <div>
+                  <span>Side Target</span>
+                  <strong id="target-side-readout">0 kt</strong>
+                </div>
+                <div>
+                  <span>Forward Target</span>
+                  <strong id="target-forward-readout">Runway line</strong>
+                </div>
+              </div>
+
+              <button type="button" class="action-btn primary" id="engage-btn">Engage Simulation</button>
+            </div>
+
+            <div class="time-stack" aria-live="polite">
+              <span>Time to Landing</span>
+              <div class="time-bar"><div id="time-fill"></div></div>
+              <strong id="time-text">3.0 s</strong>
+            </div>
+
+            <div id="result-modal" class="result-modal hidden">
+              <div class="result-card">
+                <h2 id="modal-title">Flight Result</h2>
+                <p id="modal-desc">Run the approach to record a result.</p>
+                <div class="result-data">
+                  <p id="modal-airspeed">Displayed Airspeed: 100 kt</p>
+                  <p id="modal-wind">Crosswind Component: 25.0 kt</p>
+                  <p id="modal-formula">Formula: sin(theta) = Crosswind / Airspeed</p>
+                </div>
+                <button type="button" class="action-btn primary" id="retry-btn">New Calculation</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel notebook-panel">
+        <article class="card">
+          <div class="card-head-inline">
+            <div>
+              <p class="eyebrow">Mission Brief</p>
+              <h2 id="brief-title">Resolve the wind before touchdown</h2>
+            </div>
+            <div class="head-badge" id="score-display">0 pts</div>
+          </div>
+          <p class="card-copy" id="brief-copy">Use the red air-velocity vector and blue wind vector to predict the green ground-track vector. A successful approach stays on the runway centerline until touchdown.</p>
+          <div class="hint-actions">
+            <button type="button" class="menu-btn hint-toggle-btn" id="vector-hint-toggle" aria-expanded="false" aria-controls="vector-hint-panel">Show Vector Hint</button>
+          </div>
+          <div class="vector-hint-panel hidden" id="vector-hint-panel">
+            <div class="formula-box" id="equation-hint">Ground velocity = air velocity + wind velocity</div>
+            <div class="vector-breakdown-wrap">
+              <canvas id="vector-breakdown-canvas" aria-label="Vector x and y component breakdown"></canvas>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-head-inline">
+            <div>
+              <p class="eyebrow">Data Notebook</p>
+              <h2>Recorded approaches</h2>
+            </div>
+            <div class="head-badge" id="overall-progress-badge">0 / 3 cleared</div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Question</th>
+                  <th>Heading</th>
+                  <th>Airspeed</th>
+                  <th>Wind</th>
+                  <th>Error</th>
+                  <th>Result</th>
+                </tr>
+              </thead>
+              <tbody id="flight-log-body">
+                <tr><td colspan="6">Run an approach to start the notebook.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="card locked-card" id="analysis-card">
+          <div class="card-head-inline">
+            <div>
+              <p class="eyebrow">Analysis</p>
+              <h2>Explain the vector evidence</h2>
+            </div>
+            <div class="head-badge" id="analysis-lock-chip">Locked</div>
+          </div>
+          <p id="analysis-lock-text" class="card-copy">Clear all three flight checks to unlock the analysis section.</p>
+
+          <label class="field-label" for="analysis-1">1. How did the wind vector change the airplane's ground velocity?</label>
+          <textarea id="analysis-1" class="text-input analysis-input" rows="3" disabled></textarea>
+
+          <label class="field-label" for="analysis-2">2. In Question 1, why did pointing the airplane directly at the runway fail?</label>
+          <textarea id="analysis-2" class="text-input analysis-input" rows="3" disabled></textarea>
+
+          <label class="field-label" for="analysis-3">3. In Question 3, how did the offset distance and time determine the required ground vector?</label>
+          <textarea id="analysis-3" class="text-input analysis-input" rows="3" disabled></textarea>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <div id="walkthrough-overlay" class="walkthrough-overlay hidden">
+    <div class="walkthrough-card">
+      <div id="walk-step-label" class="walk-step-label">Step 1 of 4</div>
+      <h2 id="walk-title" class="walk-title">Read the runway frame</h2>
+      <div id="walk-body" class="walk-body"></div>
+      <div class="walkthrough-actions">
+        <button type="button" class="action-btn secondary" id="walk-prev-btn" disabled>Back</button>
+        <div id="walk-dots" class="walk-dots"></div>
+        <button type="button" class="action-btn primary" id="walk-next-btn">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="scorm-wrapper.js"></script>
+  <script src="sim.js"></script>
+</body>
+</html>

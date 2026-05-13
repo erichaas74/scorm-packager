@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Newton's 3rd Law Introduction</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom Animation Classes */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <!-- Main Interactive Container (Responsive for Rise 360) -->
+    <div id="simulation-container" class="w-full max-w-4xl bg-white rounded-xl border-[6px] border-blue-500 shadow-lg overflow-hidden flex flex-col" style="height: 460px;">
+        
+        <!-- The Stage (Canvas Area) -->
+        <div class="relative flex-grow bg-slate-50 overflow-hidden flex items-center justify-center border-b-4 border-slate-200">
+            <div id="scenario-progress" class="absolute top-2 left-1/2 z-30 w-max max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-full bg-white/90 px-4 py-2 text-xs md:text-sm font-semibold uppercase tracking-[0.2em] text-blue-700 shadow-md ring-2 ring-blue-200 backdrop-blur-sm">
+                <!-- Scenario progress updates here -->
+            </div>
+
+            <!-- Ice/Floor Line -->
+            <div class="absolute bottom-0 w-full h-10 bg-blue-50 border-t-2 border-blue-200"></div>
+
+            <!-- Entities Container (Absolutely positioned to perfectly sit on the 40px floor line minus 6px of SVG padding) -->
+            <div class="absolute bottom-[34px] left-1/2 transform -translate-x-1/2 w-full max-w-lg h-40 flex items-end justify-center z-10">
+                
+                <!-- Skater A (Left) -->
+                <div id="entity-a" class="absolute left-1/2 bottom-0 transform -translate-x-[250px] flex flex-col items-center transition-transform duration-[1500ms] ease-out z-10">
+                    <!-- SVG injected via JS -->
+                </div>
+
+                <!-- Force Arrows Container -->
+                <div id="force-arrows" class="absolute bottom-[140px] left-1/2 w-0 h-0 z-20 pointer-events-none">
+                    <!-- Arrows injected via JS -->
+                </div>
+
+                <!-- Skater B / Wall (Right) -->
+                <div id="entity-b" class="absolute left-1/2 bottom-0 transform translate-x-[250px] flex flex-col items-center transition-transform duration-[1500ms] ease-out z-10">
+                    <!-- SVG injected via JS -->
+                </div>
+
+            </div>
+        </div>
+
+        <!-- The Control Panel (UI Area) -->
+        <div class="h-40 bg-slate-800 p-4 flex flex-col justify-center items-center text-center text-white">
+            <h2 id="prompt-text" class="text-lg md:text-xl font-semibold mb-3 max-w-2xl min-h-[50px]">
+                <!-- Prompt text updates here -->
+            </h2>
+            
+            <div id="button-container" class="flex flex-col md:flex-row gap-2 w-full justify-center max-w-3xl">
+                <!-- Buttons dynamically generated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- INLINE SVG ASSETS ---
+        // Using SVGs directly in JS keeps the file 100% self-contained for easy embedding.
+        
+        const SVGSkaterIdleRight = (color) => `
+            <svg width="120" height="140" viewBox="0 0 120 140" xmlns="http://www.w3.org/2000/svg">
+                <!-- Back Leg & Skate -->
+                <path d="M 40 85 L 45 115" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <path d="M 37 115 L 47 115 L 53 124 L 53 126 L 35 126 Z" fill="#f1f5f9" stroke="#1e293b" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="40" cy="130" r="3.5" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+                <circle cx="49" cy="130" r="3.5" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+                
+                <!-- Body -->
+                <rect x="30" y="45" width="20" height="40" rx="8" fill="${color}" stroke="#1e293b" stroke-width="3"/>
+                <!-- Racing Stripes -->
+                <path d="M 30 55 L 50 62 M 30 65 L 50 72" stroke="#ffffff" stroke-width="4" opacity="0.4"/>
+                
+                <!-- Front Leg & Skate -->
+                <path d="M 40 85 L 35 115" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <path d="M 27 115 L 37 115 L 43 124 L 43 126 L 25 126 Z" fill="#f1f5f9" stroke="#1e293b" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="30" cy="130" r="3.5" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+                <circle cx="39" cy="130" r="3.5" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+
+                <!-- Head & Smiley -->
+                <circle cx="40" cy="25" r="14" fill="#ffedd5" stroke="#1e293b" stroke-width="3"/>
+                <circle cx="46" cy="22" r="2" fill="#1e293b"/>
+                <path d="M 44 29 Q 47 33 50 29" fill="none" stroke="#1e293b" stroke-width="2" stroke-linecap="round"/>
+
+                <!-- Arm -->
+                <circle cx="40" cy="50" r="6" fill="#1e293b"/> 
+                <path d="M 40 50 L 40 80" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <circle cx="40" cy="80" r="5" fill="${color}" stroke="#1e293b" stroke-width="2"/> 
+            </svg>
+        `;
+
+        const SVGSkaterIdleLeft = (color) => `
+            <svg width="120" height="140" viewBox="0 0 120 140" xmlns="http://www.w3.org/2000/svg">
+                <!-- Back Leg & Skate -->
+                <path d="M 80 85 L 75 115" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <path d="M 73 115 L 83 115 L 85 126 L 67 126 Z" fill="#f1f5f9" stroke="#1e293b" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="71" cy="130" r="3.5" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+                <circle cx="80" cy="130" r="3.5" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+                
+                <!-- Body -->
+                <rect x="70" y="45" width="20" height="40" rx="8" fill="${color}" stroke="#1e293b" stroke-width="3"/>
+                <path d="M 90 55 L 70 62 M 90 65 L 70 72" stroke="#ffffff" stroke-width="4" opacity="0.4"/>
+                
+                <!-- Front Leg & Skate -->
+                <path d="M 80 85 L 85 115" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <path d="M 83 115 L 93 115 L 95 126 L 77 126 Z" fill="#f1f5f9" stroke="#1e293b" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="81" cy="130" r="3.5" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+                <circle cx="90" cy="130" r="3.5" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+
+                <!-- Head & Smiley -->
+                <circle cx="80" cy="25" r="14" fill="#ffedd5" stroke="#1e293b" stroke-width="3"/>
+                <circle cx="74" cy="22" r="2" fill="#1e293b"/>
+                <path d="M 76 29 Q 73 33 70 29" fill="none" stroke="#1e293b" stroke-width="2" stroke-linecap="round"/>
+
+                <!-- Arm -->
+                <circle cx="80" cy="50" r="6" fill="#1e293b"/>
+                <path d="M 80 50 L 80 80" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <circle cx="80" cy="80" r="5" fill="${color}" stroke="#1e293b" stroke-width="2"/>
+            </svg>
+        `;
+
+        const SVGSkaterPushingRight = (color) => `
+            <svg width="120" height="140" viewBox="0 0 120 140" xmlns="http://www.w3.org/2000/svg">
+                <path d="M 40 85 L 45 115" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <path d="M 37 115 L 47 115 L 53 124 L 53 126 L 35 126 Z" fill="#f1f5f9" stroke="#1e293b" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="40" cy="130" r="3.5" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+                <circle cx="49" cy="130" r="3.5" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+                
+                <rect x="30" y="45" width="20" height="40" rx="8" fill="${color}" stroke="#1e293b" stroke-width="3"/>
+                <path d="M 30 55 L 50 62 M 30 65 L 50 72" stroke="#ffffff" stroke-width="4" opacity="0.4"/>
+                
+                <path d="M 40 85 L 35 115" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <path d="M 27 115 L 37 115 L 43 124 L 43 126 L 25 126 Z" fill="#f1f5f9" stroke="#1e293b" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="30" cy="130" r="3.5" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+                <circle cx="39" cy="130" r="3.5" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+
+                <!-- Head & Smiley -->
+                <circle cx="40" cy="25" r="14" fill="#ffedd5" stroke="#1e293b" stroke-width="3"/>
+                <circle cx="46" cy="22" r="2" fill="#1e293b"/>
+                <path d="M 44 29 Q 47 33 50 29" fill="none" stroke="#1e293b" stroke-width="2" stroke-linecap="round"/>
+
+                <!-- Arm (Pushing Right) -->
+                <circle cx="40" cy="50" r="6" fill="#1e293b"/> 
+                <path d="M 40 50 L 85 50" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <circle cx="85" cy="50" r="5" fill="${color}" stroke="#1e293b" stroke-width="2"/> 
+            </svg>
+        `;
+
+        const SVGSkaterPushingLeft = (color) => `
+            <svg width="120" height="140" viewBox="0 0 120 140" xmlns="http://www.w3.org/2000/svg">
+                <path d="M 80 85 L 75 115" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <path d="M 73 115 L 83 115 L 85 126 L 67 126 Z" fill="#f1f5f9" stroke="#1e293b" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="71" cy="130" r="3.5" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+                <circle cx="80" cy="130" r="3.5" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+                
+                <rect x="70" y="45" width="20" height="40" rx="8" fill="${color}" stroke="#1e293b" stroke-width="3"/>
+                <path d="M 90 55 L 70 62 M 90 65 L 70 72" stroke="#ffffff" stroke-width="4" opacity="0.4"/>
+                
+                <path d="M 80 85 L 85 115" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <path d="M 83 115 L 93 115 L 95 126 L 77 126 Z" fill="#f1f5f9" stroke="#1e293b" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="81" cy="130" r="3.5" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+                <circle cx="90" cy="130" r="3.5" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+
+                <!-- Head & Smiley -->
+                <circle cx="80" cy="25" r="14" fill="#ffedd5" stroke="#1e293b" stroke-width="3"/>
+                <circle cx="74" cy="22" r="2" fill="#1e293b"/>
+                <path d="M 76 29 Q 73 33 70 29" fill="none" stroke="#1e293b" stroke-width="2" stroke-linecap="round"/>
+
+                <!-- Arm (Pushing Left) -->
+                <circle cx="80" cy="50" r="6" fill="#1e293b"/>
+                <path d="M 80 50 L 35 50" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <circle cx="35" cy="50" r="5" fill="${color}" stroke="#1e293b" stroke-width="2"/>
+            </svg>
+        `;
+
+        const SVGWall = `
+            <svg class="transform -translate-y-[7px]" width="80" height="140" viewBox="0 0 80 140" xmlns="http://www.w3.org/2000/svg">
+                <!-- 3D Side Depth -->
+                <rect x="70" y="0" width="10" height="130" fill="#7f1d1d" />
+                
+                <!-- Main Brick Face -->
+                <rect x="0" y="0" width="70" height="130" fill="#b91c1c" stroke="#7f1d1d" stroke-width="3"/>
+                <!-- Bricks -->
+                <g stroke="#fca5a5" stroke-width="1.5" opacity="0.6">
+                    <path d="M0 20 L70 20 M0 40 L70 40 M0 60 L70 60 M0 80 L70 80 M0 100 L70 100 M0 120 L70 120" />
+                    <path d="M35 0 L35 20 M17 20 L17 40 M52 20 L52 40 M35 40 L35 60 M17 60 L17 80 M52 60 L52 80 M35 80 L35 100 M17 100 L17 120 M52 100 L52 120" />
+                </g>
+
+                <!-- Concrete Base (Bolted to floor) -->
+                <path d="M 0 130 L 80 130 L 80 140 L 0 140 Z" fill="#64748b" stroke="#334155" stroke-width="2"/>
+                <circle cx="15" cy="135" r="2" fill="#cbd5e1" />
+                <circle cx="40" cy="135" r="2" fill="#cbd5e1" />
+                <circle cx="65" cy="135" r="2" fill="#cbd5e1" />
+            </svg>
+        `;
+
+        const SVGWallOnWheels = `
+            <svg class="transform -translate-y-[0px]" width="80" height="140" viewBox="0 0 80 140" xmlns="http://www.w3.org/2000/svg">
+                <!-- 3D Side Depth -->
+                <rect x="70" y="0" width="10" height="120" fill="#7f1d1d" />
+                
+                <!-- Main Brick Face -->
+                <rect x="0" y="0" width="70" height="120" fill="#b91c1c" stroke="#7f1d1d" stroke-width="3"/>
+                <!-- Bricks -->
+                <g stroke="#fca5a5" stroke-width="1.5" opacity="0.6">
+                    <path d="M0 20 L70 20 M0 40 L70 40 M0 60 L70 60 M0 80 L70 80 M0 100 L70 100" />
+                    <path d="M35 0 L35 20 M17 20 L17 40 M52 20 L52 40 M35 40 L35 60 M17 60 L17 80 M52 60 L52 80 M35 80 L35 100 M17 100 L17 120 M52 100 L52 120" />
+                </g>
+
+                <!-- Steel Base -->
+                <path d="M 0 120 L 80 120 L 80 128 L 0 128 Z" fill="#94a3b8" stroke="#475569" stroke-width="2"/>
+                
+                <!-- Heavy Duty Casters (Wheels) -->
+                <!-- Left Wheel -->
+                <rect x="10" y="128" width="10" height="4" fill="#475569" />
+                <circle cx="15" cy="135" r="5" fill="#1e293b" stroke="#64748b" stroke-width="2"/>
+                <circle cx="15" cy="135" r="1.5" fill="#cbd5e1" />
+                
+                <!-- Right Wheel -->
+                <rect x="50" y="128" width="10" height="4" fill="#475569" />
+                <circle cx="55" cy="135" r="5" fill="#1e293b" stroke="#64748b" stroke-width="2"/>
+                <circle cx="55" cy="135" r="1.5" fill="#cbd5e1" />
+            </svg>
+        `;
+
+        const SVGSneakerIdleRight = (color) => `
+            <svg width="120" height="140" viewBox="0 0 120 140" xmlns="http://www.w3.org/2000/svg">
+                <!-- Back Leg & Boot -->
+                <path d="M 40 85 L 45 115" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <path d="M 37 115 L 47 115 L 55 126 L 55 130 L 35 130 Z" fill="#ffffff" stroke="#1e293b" stroke-width="2" stroke-linejoin="round"/>
+                <!-- Logo -->
+                <path d="M 40 123 Q 46 128 52 121" stroke="#ef4444" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- High Friction Tread -->
+                <path d="M 35 131 L 55 131" stroke="#1e293b" stroke-width="3"/>
+                <path d="M 36 133 L 54 133" stroke="#f59e0b" stroke-width="3" stroke-dasharray="2 2" stroke-linecap="square"/>
+                
+                <!-- Body (Casual) -->
+                <rect x="30" y="45" width="20" height="40" rx="8" fill="${color}" stroke="#1e293b" stroke-width="3"/>
+                <!-- Hoodie Pocket -->
+                <path d="M 35 70 L 45 70 L 48 80 L 32 80 Z" fill="#1e293b" opacity="0.2"/>
+                
+                <!-- Front Leg & Boot -->
+                <path d="M 40 85 L 35 115" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <path d="M 27 115 L 37 115 L 45 126 L 45 130 L 25 130 Z" fill="#ffffff" stroke="#1e293b" stroke-width="2" stroke-linejoin="round"/>
+                <!-- Logo -->
+                <path d="M 30 123 Q 36 128 42 121" stroke="#ef4444" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- High Friction Tread -->
+                <path d="M 25 131 L 45 131" stroke="#1e293b" stroke-width="3"/>
+                <path d="M 26 133 L 44 133" stroke="#f59e0b" stroke-width="3" stroke-dasharray="2 2" stroke-linecap="square"/>
+
+                <!-- Head & Smiley -->
+                <circle cx="40" cy="25" r="14" fill="#ffedd5" stroke="#1e293b" stroke-width="3"/>
+                <circle cx="46" cy="22" r="2" fill="#1e293b"/>
+                <path d="M 44 29 Q 47 33 50 29" fill="none" stroke="#1e293b" stroke-width="2" stroke-linecap="round"/>
+
+                <!-- Arm -->
+                <path d="M 40 50 L 40 80" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <circle cx="40" cy="80" r="5" fill="${color}" stroke="#1e293b" stroke-width="2"/>
+            </svg>
+        `;
+
+        const SVGSneakerIdleLeft = (color) => `
+            <svg width="120" height="140" viewBox="0 0 120 140" xmlns="http://www.w3.org/2000/svg">
+                <!-- Back Leg & Boot -->
+                <path d="M 80 85 L 75 115" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <path d="M 83 115 L 73 115 L 65 126 L 65 130 L 85 130 Z" fill="#ffffff" stroke="#1e293b" stroke-width="2" stroke-linejoin="round"/>
+                <!-- Logo -->
+                <path d="M 80 123 Q 74 128 68 121" stroke="#ef4444" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- High Friction Tread -->
+                <path d="M 65 131 L 85 131" stroke="#1e293b" stroke-width="3"/>
+                <path d="M 66 133 L 84 133" stroke="#f59e0b" stroke-width="3" stroke-dasharray="2 2" stroke-linecap="square"/>
+                
+                <!-- Body -->
+                <rect x="70" y="45" width="20" height="40" rx="8" fill="${color}" stroke="#1e293b" stroke-width="3"/>
+                <path d="M 75 70 L 85 70 L 88 80 L 72 80 Z" fill="#1e293b" opacity="0.2"/>
+                
+                <!-- Front Leg & Boot -->
+                <path d="M 80 85 L 85 115" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <path d="M 93 115 L 83 115 L 75 126 L 75 130 L 95 130 Z" fill="#ffffff" stroke="#1e293b" stroke-width="2" stroke-linejoin="round"/>
+                <!-- Logo -->
+                <path d="M 90 123 Q 84 128 78 121" stroke="#ef4444" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- High Friction Tread -->
+                <path d="M 75 131 L 95 131" stroke="#1e293b" stroke-width="3"/>
+                <path d="M 76 133 L 94 133" stroke="#f59e0b" stroke-width="3" stroke-dasharray="2 2" stroke-linecap="square"/>
+
+                <!-- Head & Smiley -->
+                <circle cx="80" cy="25" r="14" fill="#ffedd5" stroke="#1e293b" stroke-width="3"/>
+                <circle cx="74" cy="22" r="2" fill="#1e293b"/>
+                <path d="M 76 29 Q 73 33 70 29" fill="none" stroke="#1e293b" stroke-width="2" stroke-linecap="round"/>
+
+                <!-- Arm -->
+                <path d="M 80 50 L 80 80" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <circle cx="80" cy="80" r="5" fill="${color}" stroke="#1e293b" stroke-width="2"/>
+            </svg>
+        `;
+
+        const SVGSneakerPushingRight = (color) => `
+            <svg width="120" height="140" viewBox="0 0 120 140" xmlns="http://www.w3.org/2000/svg">
+                <!-- Back Leg & Boot -->
+                <path d="M 40 85 L 45 115" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <path d="M 37 115 L 47 115 L 55 126 L 55 130 L 35 130 Z" fill="#ffffff" stroke="#1e293b" stroke-width="2" stroke-linejoin="round"/>
+                <!-- Logo -->
+                <path d="M 40 123 Q 46 128 52 121" stroke="#ef4444" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- High Friction Tread -->
+                <path d="M 35 131 L 55 131" stroke="#1e293b" stroke-width="3"/>
+                <path d="M 36 133 L 54 133" stroke="#f59e0b" stroke-width="3" stroke-dasharray="2 2" stroke-linecap="square"/>
+                
+                <!-- Body -->
+                <rect x="30" y="45" width="20" height="40" rx="8" fill="${color}" stroke="#1e293b" stroke-width="3"/>
+                <path d="M 35 70 L 45 70 L 48 80 L 32 80 Z" fill="#1e293b" opacity="0.2"/>
+                
+                <!-- Front Leg & Boot -->
+                <path d="M 40 85 L 35 115" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <path d="M 27 115 L 37 115 L 45 126 L 45 130 L 25 130 Z" fill="#ffffff" stroke="#1e293b" stroke-width="2" stroke-linejoin="round"/>
+                <!-- Logo -->
+                <path d="M 30 123 Q 36 128 42 121" stroke="#ef4444" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- High Friction Tread -->
+                <path d="M 25 131 L 45 131" stroke="#1e293b" stroke-width="3"/>
+                <path d="M 26 133 L 44 133" stroke="#f59e0b" stroke-width="3" stroke-dasharray="2 2" stroke-linecap="square"/>
+
+                <!-- Head & Smiley -->
+                <circle cx="40" cy="25" r="14" fill="#ffedd5" stroke="#1e293b" stroke-width="3"/>
+                <circle cx="46" cy="22" r="2" fill="#1e293b"/>
+                <path d="M 44 29 Q 47 33 50 29" fill="none" stroke="#1e293b" stroke-width="2" stroke-linecap="round"/>
+
+                <!-- Arm (Pushing) -->
+                <path d="M 40 50 L 85 50" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <circle cx="85" cy="50" r="5" fill="${color}" stroke="#1e293b" stroke-width="2"/>
+            </svg>
+        `;
+
+        const SVGSneakerPushingLeft = (color) => `
+            <svg width="120" height="140" viewBox="0 0 120 140" xmlns="http://www.w3.org/2000/svg">
+                <!-- Back Leg & Boot -->
+                <path d="M 80 85 L 75 115" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <path d="M 83 115 L 73 115 L 65 126 L 65 130 L 85 130 Z" fill="#ffffff" stroke="#1e293b" stroke-width="2" stroke-linejoin="round"/>
+                <!-- Logo -->
+                <path d="M 80 123 Q 74 128 68 121" stroke="#ef4444" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- High Friction Tread -->
+                <path d="M 65 131 L 85 131" stroke="#1e293b" stroke-width="3"/>
+                <path d="M 66 133 L 84 133" stroke="#f59e0b" stroke-width="3" stroke-dasharray="2 2" stroke-linecap="square"/>
+                
+                <!-- Body -->
+                <rect x="70" y="45" width="20" height="40" rx="8" fill="${color}" stroke="#1e293b" stroke-width="3"/>
+                <path d="M 75 70 L 85 70 L 88 80 L 72 80 Z" fill="#1e293b" opacity="0.2"/>
+                
+                <!-- Front Leg & Boot -->
+                <path d="M 80 85 L 85 115" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <path d="M 93 115 L 83 115 L 75 126 L 75 130 L 95 130 Z" fill="#ffffff" stroke="#1e293b" stroke-width="2" stroke-linejoin="round"/>
+                <!-- Logo -->
+                <path d="M 90 123 Q 84 128 78 121" stroke="#ef4444" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- High Friction Tread -->
+                <path d="M 75 131 L 95 131" stroke="#1e293b" stroke-width="3"/>
+                <path d="M 76 133 L 94 133" stroke="#f59e0b" stroke-width="3" stroke-dasharray="2 2" stroke-linecap="square"/>
+
+                <!-- Head & Smiley -->
+                <circle cx="80" cy="25" r="14" fill="#ffedd5" stroke="#1e293b" stroke-width="3"/>
+                <circle cx="74" cy="22" r="2" fill="#1e293b"/>
+                <path d="M 76 29 Q 73 33 70 29" fill="none" stroke="#1e293b" stroke-width="2" stroke-linecap="round"/>
+
+                <!-- Arm (Pushing) -->
+                <path d="M 80 50 L 35 50" stroke="#1e293b" stroke-width="6" stroke-linecap="round"/>
+                <circle cx="35" cy="50" r="5" fill="${color}" stroke="#1e293b" stroke-width="2"/>
+            </svg>
+        `;
+
+        const SVGHeavySkaterIdleLeft = (color) => `
+            <svg width="140" height="140" viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+                <!-- Back Leg & Heavy Skate -->
+                <path d="M 90 85 L 85 115" stroke="#1e293b" stroke-width="8" stroke-linecap="round"/>
+                <path d="M 83 115 L 93 115 L 95 126 L 77 126 Z" fill="#f1f5f9" stroke="#1e293b" stroke-width="2"/>
+                <circle cx="81" cy="130" r="4" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+                <circle cx="90" cy="130" r="4" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+
+                <!-- Heavy Body (Puffer Jacket) -->
+                <rect x="65" y="45" width="50" height="40" rx="12" fill="${color}" stroke="#1e293b" stroke-width="3"/>
+                <line x1="67" y1="55" x2="113" y2="55" stroke="#1e293b" stroke-width="2" opacity="0.4"/>
+                <line x1="67" y1="65" x2="113" y2="65" stroke="#1e293b" stroke-width="2" opacity="0.4"/>
+                <line x1="67" y1="75" x2="113" y2="75" stroke="#1e293b" stroke-width="2" opacity="0.4"/>
+
+                <!-- Front Leg & Heavy Skate -->
+                <path d="M 90 85 L 95 115" stroke="#1e293b" stroke-width="8" stroke-linecap="round"/>
+                <path d="M 93 115 L 103 115 L 105 126 L 87 126 Z" fill="#f1f5f9" stroke="#1e293b" stroke-width="2"/>
+                <circle cx="91" cy="130" r="4" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+                <circle cx="100" cy="130" r="4" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+
+                <!-- Head & Smiley -->
+                <circle cx="90" cy="25" r="15" fill="#ffedd5" stroke="#1e293b" stroke-width="3"/>
+                <circle cx="84" cy="22" r="2" fill="#1e293b"/>
+                <path d="M 86 29 Q 83 33 80 29" fill="none" stroke="#1e293b" stroke-width="2" stroke-linecap="round"/>
+
+                <!-- Arm -->
+                <circle cx="90" cy="50" r="6" fill="#1e293b"/>
+                <path d="M 90 50 L 90 80" stroke="#1e293b" stroke-width="8" stroke-linecap="round"/>
+                <circle cx="90" cy="80" r="6" fill="${color}" stroke="#1e293b" stroke-width="2"/>
+            </svg>
+        `;
+
+        const SVGHeavySkaterPushingLeft = (color) => `
+            <svg width="140" height="140" viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+                <!-- Back Leg & Heavy Skate -->
+                <path d="M 90 85 L 85 115" stroke="#1e293b" stroke-width="8" stroke-linecap="round"/>
+                <path d="M 83 115 L 93 115 L 95 126 L 77 126 Z" fill="#f1f5f9" stroke="#1e293b" stroke-width="2"/>
+                <circle cx="81" cy="130" r="4" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+                <circle cx="90" cy="130" r="4" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+
+                <!-- Heavy Body (Puffer Jacket) -->
+                <rect x="65" y="45" width="50" height="40" rx="12" fill="${color}" stroke="#1e293b" stroke-width="3"/>
+                <line x1="67" y1="55" x2="113" y2="55" stroke="#1e293b" stroke-width="2" opacity="0.4"/>
+                <line x1="67" y1="65" x2="113" y2="65" stroke="#1e293b" stroke-width="2" opacity="0.4"/>
+                <line x1="67" y1="75" x2="113" y2="75" stroke="#1e293b" stroke-width="2" opacity="0.4"/>
+
+                <!-- Front Leg & Heavy Skate -->
+                <path d="M 90 85 L 95 115" stroke="#1e293b" stroke-width="8" stroke-linecap="round"/>
+                <path d="M 93 115 L 103 115 L 105 126 L 87 126 Z" fill="#f1f5f9" stroke="#1e293b" stroke-width="2"/>
+                <circle cx="91" cy="130" r="4" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+                <circle cx="100" cy="130" r="4" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
+
+                <!-- Head & Smiley -->
+                <circle cx="90" cy="25" r="15" fill="#ffedd5" stroke="#1e293b" stroke-width="3"/>
+                <circle cx="84" cy="22" r="2" fill="#1e293b"/>
+                <path d="M 86 29 Q 83 33 80 29" fill="none" stroke="#1e293b" stroke-width="2" stroke-linecap="round"/>
+
+                <!-- Arm (Pushing Left) -->
+                <circle cx="90" cy="50" r="6" fill="#1e293b"/>
+                <path d="M 90 50 L 35 50" stroke="#1e293b" stroke-width="8" stroke-linecap="round"/>
+                <circle cx="35" cy="50" r="6" fill="${color}" stroke="#1e293b" stroke-width="2"/>
+            </svg>
+        `;
+
+        const SVGArrowAction = `
+            <!-- Right Arrow (Action) -->
+            <div id="arrow-action" class="absolute bottom-0 left-0 opacity-0 transition-opacity duration-500 transform translate-x-[7px]">
+                <span class="absolute bottom-[28px] left-1/2 transform -translate-x-1/2 font-bold text-blue-500 text-lg">F</span>
+                <svg width="80" height="40" viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M 70 10 L 90 20 L 70 30 L 70 25 L 10 25 L 10 15 L 70 15 Z" fill="#3b82f6" stroke="#1e3a8a" stroke-width="2"/>
+                </svg>
+            </div>
+        `;
+
+        const SVGArrowReaction = `
+            <!-- Left Arrow (Reaction) -->
+            <div id="arrow-reaction" class="absolute bottom-0 left-0 opacity-0 transition-opacity duration-500 transform -translate-x-[87px]">
+                <span class="absolute bottom-[28px] left-1/2 transform -translate-x-1/2 font-bold text-red-500 text-lg">-F</span>
+                <svg width="80" height="40" viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M 30 10 L 10 20 L 30 30 L 30 25 L 90 25 L 90 15 L 30 15 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="2"/>
+                </svg>
+            </div>
+        `;
+
+        const SVGFrictionLeft = `
+            <!-- Friction Arrow (Left) -->
+            <div id="friction-left" class="absolute bottom-0 left-0 opacity-0 transition-opacity duration-500 transform translate-x-[15px] translate-y-[155px]">
+                <span class="absolute top-[20px] left-1/2 transform -translate-x-1/2 font-bold text-amber-600 text-sm">Friction</span>
+                <svg width="64" height="24" viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M 30 10 L 10 20 L 30 30 L 30 25 L 90 25 L 90 15 L 30 15 Z" fill="#f59e0b" stroke="#b45309" stroke-width="2"/>
+                </svg>
+            </div>
+        `;
+
+        const SVGFrictionRight = `
+            <!-- Friction Arrow (Right) -->
+            <div id="friction-right" class="absolute bottom-0 left-0 opacity-0 transition-opacity duration-500 transform -translate-x-[79px] translate-y-[155px]">
+                <span class="absolute top-[20px] left-1/2 transform -translate-x-1/2 font-bold text-amber-600 text-sm">Friction</span>
+                <svg width="64" height="24" viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M 70 10 L 90 20 L 70 30 L 70 25 L 10 25 L 10 15 L 70 15 Z" fill="#f59e0b" stroke="#b45309" stroke-width="2"/>
+                </svg>
+            </div>
+        `;
+
+        // --- DOM ELEMENTS ---
+        const entityA = document.getElementById('entity-a');
+        const entityB = document.getElementById('entity-b');
+        const forceArrows = document.getElementById('force-arrows');
+        const scenarioProgress = document.getElementById('scenario-progress');
+        const promptText = document.getElementById('prompt-text');
+        const buttonContainer = document.getElementById('button-container');
+
+        // Colors
+        const colorA = '#60a5fa'; // Blue
+        const colorB = '#34d399'; // Green
+        const colorHeavy = '#f59e0b'; // Amber
+
+        const scenarioTitles = [
+            'Skater vs Skater',
+            'Skater vs Wall',
+            'Skater vs Sneakers',
+            'Sneakers vs Wall',
+            'Skater vs Wall on Wheels',
+            'Skater vs Heavy Skater'
+        ];
+
+        const feedbackPauseMs = 3600;
+
+        // --- STATE MACHINE ---
+        let currentState = 1;
+
+        function updateScenarioProgress() {
+            const scenarioNumber = Math.ceil(currentState / 2);
+            const phaseLabel = currentState % 2 === 1 ? 'Predict' : 'Explain';
+            scenarioProgress.textContent = `Scenario ${scenarioNumber} of ${scenarioTitles.length}: ${scenarioTitles[scenarioNumber - 1]} | ${phaseLabel}`;
+        }
+
+        function renderState() {
+            // Clear buttons
+            buttonContainer.innerHTML = '';
+            updateScenarioProgress();
+
+            switch(currentState) {
+                // --- SCENARIO 1: SKATER VS SKATER ---
+                case 1: 
+                    promptText.innerText = "Watch the skaters...";
+                    
+                    entityA.className = 'absolute left-1/2 bottom-0 flex flex-col items-center transition-transform duration-[1500ms] ease-out z-10 -translate-x-[250px]';
+                    entityB.className = 'absolute left-1/2 bottom-0 flex flex-col items-center transition-transform duration-[1500ms] ease-out z-10 translate-x-[250px]';
+                    entityA.innerHTML = SVGSkaterIdleRight(colorA);
+                    entityB.innerHTML = SVGSkaterIdleLeft(colorB);
+                    forceArrows.innerHTML = SVGArrowReaction + SVGArrowAction;
+                    
+                    setTimeout(() => {
+                        entityA.classList.replace('-translate-x-[250px]', '-translate-x-[87px]');
+                        entityB.classList.replace('translate-x-[250px]', '-translate-x-[33px]');
+                    }, 100);
+
+                    setTimeout(() => {
+                        entityA.innerHTML = SVGSkaterPushingRight(colorA);
+                        entityB.innerHTML = SVGSkaterPushingLeft(colorB);
+                        document.getElementById('arrow-action').classList.replace('opacity-0', 'opacity-100');
+                        
+                        promptText.innerText = "Two skaters on roller skates meet. Blue pushes Green. What happens?";
+                        createButton("Only Green Skater moves.", () => advanceState(2));
+                        createButton("Only Blue Skater moves.", () => advanceState(2));
+                        createButton("Both move backward.", () => advanceState(2));
+                    }, 1700);
+                    break;
+
+                case 2: 
+                    promptText.innerText = "Both skaters feel equal and opposite forces, so both roll backward.";
+                    
+                    document.getElementById('arrow-reaction').classList.replace('opacity-0', 'opacity-100');
+                    
+                    setTimeout(() => {
+                        document.getElementById('arrow-action').classList.replace('opacity-100', 'opacity-0');
+                        document.getElementById('arrow-reaction').classList.replace('opacity-100', 'opacity-0');
+                        
+                        entityA.innerHTML = SVGSkaterIdleRight(colorA);
+                        entityB.innerHTML = SVGSkaterIdleLeft(colorB);
+                        
+                        entityA.classList.replace('-translate-x-[87px]', '-translate-x-[250px]');
+                        entityB.classList.replace('-translate-x-[33px]', 'translate-x-[250px]');
+                    }, 1200);
+
+                    queueAutoAdvance(3);
+                    break;
+
+                // --- SCENARIO 2: SKATER VS WALL ---
+                case 3: 
+                    promptText.innerText = "Watch closely...";
+                    
+                    entityA.className = 'absolute left-1/2 bottom-0 flex flex-col items-center transition-transform duration-[1500ms] ease-out z-10 -translate-x-[250px]';
+                    entityB.className = 'absolute left-1/2 bottom-0 flex flex-col items-center transition-transform duration-[1500ms] ease-out z-10 translate-x-[0px]'; // Wall stays put
+                    entityA.innerHTML = SVGSkaterIdleRight(colorA);
+                    entityB.innerHTML = SVGWall; 
+                    forceArrows.innerHTML = SVGArrowReaction + SVGArrowAction + SVGFrictionLeft;
+                    
+                    setTimeout(() => {
+                        entityA.classList.replace('-translate-x-[250px]', '-translate-x-[87px]');
+                    }, 100);
+
+                    setTimeout(() => {
+                        entityA.innerHTML = SVGSkaterPushingRight(colorA);
+                        document.getElementById('arrow-action').classList.replace('opacity-0', 'opacity-100');
+                        
+                        promptText.innerText = "Blue pushes a brick wall. What happens?";
+                        createButton("Nothing happens.", () => advanceState(4));
+                        createButton("The wall moves.", () => advanceState(4));
+                        createButton("Blue Skater moves back.", () => advanceState(4));
+                    }, 1700);
+                    break;
+
+                case 4: 
+                    promptText.innerText = "The wall pushes back, so the Blue Skater rolls backward.";
+                    
+                    document.getElementById('arrow-reaction').classList.replace('opacity-0', 'opacity-100');
+                    document.getElementById('friction-left').classList.replace('opacity-0', 'opacity-100');
+                    
+                    setTimeout(() => {
+                        document.getElementById('arrow-action').classList.replace('opacity-100', 'opacity-0');
+                        document.getElementById('arrow-reaction').classList.replace('opacity-100', 'opacity-0');
+                        document.getElementById('friction-left').classList.replace('opacity-100', 'opacity-0');
+                        
+                        entityA.innerHTML = SVGSkaterIdleRight(colorA);
+                        entityA.classList.replace('-translate-x-[87px]', '-translate-x-[250px]');
+                    }, 1200);
+
+                    queueAutoAdvance(5);
+                    break;
+
+                // --- SCENARIO 3: SKATER VS SNEAKERS ---
+                case 5: 
+                    promptText.innerText = "Watch closely...";
+                    
+                    entityA.className = 'absolute left-1/2 bottom-0 flex flex-col items-center transition-transform duration-[1500ms] ease-out z-10 -translate-x-[250px]';
+                    entityB.className = 'absolute left-1/2 bottom-0 flex flex-col items-center transition-transform duration-[1500ms] ease-out z-10 translate-x-[250px]';
+                    entityA.innerHTML = SVGSkaterIdleRight(colorA);
+                    entityB.innerHTML = SVGSneakerIdleLeft(colorB); 
+                    forceArrows.innerHTML = SVGArrowReaction + SVGArrowAction + SVGFrictionLeft;
+                    
+                    setTimeout(() => {
+                        entityA.classList.replace('-translate-x-[250px]', '-translate-x-[87px]');
+                        entityB.classList.replace('translate-x-[250px]', '-translate-x-[33px]');
+                    }, 100);
+
+                    setTimeout(() => {
+                        entityA.innerHTML = SVGSkaterPushingRight(colorA);
+                        entityB.innerHTML = SVGSneakerPushingLeft(colorB);
+                        document.getElementById('arrow-action').classList.replace('opacity-0', 'opacity-100');
+                        
+                        promptText.innerText = "Blue pushes a person in regular shoes. What happens?";
+                        createButton("Only Green Person moves.", () => advanceState(6));
+                        createButton("Only Blue Skater moves.", () => advanceState(6));
+                        createButton("Both move backward.", () => advanceState(6));
+                    }, 1700);
+                    break;
+
+                case 6: 
+                    promptText.innerText = "The shoes grip the floor, so Green stays put while Blue rolls back.";
+                    
+                    document.getElementById('arrow-reaction').classList.replace('opacity-0', 'opacity-100');
+                    document.getElementById('friction-left').classList.replace('opacity-0', 'opacity-100');
+                    
+                    setTimeout(() => {
+                        document.getElementById('arrow-action').classList.replace('opacity-100', 'opacity-0');
+                        document.getElementById('arrow-reaction').classList.replace('opacity-100', 'opacity-0');
+                        document.getElementById('friction-left').classList.replace('opacity-100', 'opacity-0');
+                        
+                        entityA.innerHTML = SVGSkaterIdleRight(colorA);
+                        entityB.innerHTML = SVGSneakerIdleLeft(colorB);
+                        
+                        entityA.classList.replace('-translate-x-[87px]', '-translate-x-[250px]');
+                    }, 1200);
+
+                    queueAutoAdvance(7);
+                    break;
+
+                // --- SCENARIO 4: PERSON (SNEAKERS) VS WALL ---
+                case 7: 
+                    promptText.innerText = "Watch closely...";
+                    
+                    entityA.className = 'absolute left-1/2 bottom-0 flex flex-col items-center transition-transform duration-[1500ms] ease-out z-10 -translate-x-[250px]';
+                    entityB.className = 'absolute left-1/2 bottom-0 flex flex-col items-center transition-transform duration-[1500ms] ease-out z-10 translate-x-[0px]'; // Wall stays put
+                    entityA.innerHTML = SVGSneakerIdleRight(colorA);
+                    entityB.innerHTML = SVGWall; 
+                    forceArrows.innerHTML = SVGArrowReaction + SVGArrowAction + SVGFrictionLeft + SVGFrictionRight;
+                    
+                    setTimeout(() => {
+                        entityA.classList.replace('-translate-x-[250px]', '-translate-x-[87px]');
+                    }, 100);
+
+                    setTimeout(() => {
+                        entityA.innerHTML = SVGSneakerPushingRight(colorA);
+                        document.getElementById('arrow-action').classList.replace('opacity-0', 'opacity-100');
+                        
+                        promptText.innerText = "Blue, now in regular shoes, pushes the wall. What happens?";
+                        createButton("Nothing happens.", () => advanceState(8));
+                        createButton("The wall moves.", () => advanceState(8));
+                        createButton("Blue Person moves back.", () => advanceState(8));
+                    }, 1700);
+                    break;
+
+                case 8: 
+                    promptText.innerText = "The wall pushes back, but shoe friction balances it, so nobody moves.";
+                    
+                    document.getElementById('arrow-reaction').classList.replace('opacity-0', 'opacity-100');
+                    document.getElementById('friction-left').classList.replace('opacity-0', 'opacity-100');
+                    document.getElementById('friction-right').classList.replace('opacity-0', 'opacity-100');
+                    
+                    setTimeout(() => {
+                        document.getElementById('arrow-action').classList.replace('opacity-100', 'opacity-0');
+                        document.getElementById('arrow-reaction').classList.replace('opacity-100', 'opacity-0');
+                        document.getElementById('friction-left').classList.replace('opacity-100', 'opacity-0');
+                        document.getElementById('friction-right').classList.replace('opacity-100', 'opacity-0');
+                        
+                        entityA.innerHTML = SVGSneakerIdleRight(colorA);
+                    }, 1200);
+
+                    queueAutoAdvance(9);
+                    break;
+
+                // --- SCENARIO 5: SKATER VS WALL ON WHEELS ---
+                case 9: 
+                    promptText.innerText = "Watch closely...";
+                    
+                    entityA.className = 'absolute left-1/2 bottom-0 flex flex-col items-center transition-transform duration-[1500ms] ease-out z-10 -translate-x-[250px]';
+                    entityB.className = 'absolute left-1/2 bottom-0 flex flex-col items-center transition-transform duration-[1500ms] ease-out z-10 translate-x-[250px]';
+                    entityA.innerHTML = SVGSkaterIdleRight(colorA);
+                    entityB.innerHTML = SVGWallOnWheels; 
+                    forceArrows.innerHTML = SVGArrowReaction + SVGArrowAction; // No friction arrows!
+                    
+                    setTimeout(() => {
+                        entityA.classList.replace('-translate-x-[250px]', '-translate-x-[87px]');
+                        entityB.classList.replace('translate-x-[250px]', '-translate-x-[33px]');
+                    }, 100);
+
+                    setTimeout(() => {
+                        entityA.innerHTML = SVGSkaterPushingRight(colorA);
+                        document.getElementById('arrow-action').classList.replace('opacity-0', 'opacity-100');
+                        
+                        promptText.innerText = "Blue pushes a wall on wheels. What happens?";
+                        createButton("The wall moves faster.", () => advanceState(10));
+                        createButton("Blue Skater moves faster.", () => advanceState(10));
+                        createButton("They move at same speed.", () => advanceState(10));
+                    }, 1700);
+                    break;
+
+                case 10: 
+                    promptText.innerText = "With the wall on wheels, both move, but the heavier wall speeds up less.";
+                    
+                    document.getElementById('arrow-reaction').classList.replace('opacity-0', 'opacity-100');
+                    
+                    setTimeout(() => {
+                        document.getElementById('arrow-action').classList.replace('opacity-100', 'opacity-0');
+                        document.getElementById('arrow-reaction').classList.replace('opacity-100', 'opacity-0');
+                        
+                        entityA.innerHTML = SVGSkaterIdleRight(colorA);
+                        
+                        // Skater flies back, heavy wall drifts back slowly
+                        entityA.classList.replace('-translate-x-[87px]', '-translate-x-[250px]');
+                        entityB.classList.replace('-translate-x-[33px]', 'translate-x-[40px]');
+                    }, 1200);
+
+                    queueAutoAdvance(11);
+                    break;
+
+                // --- SCENARIO 6: SKATER VS HEAVY SKATER ---
+                case 11: 
+                    promptText.innerText = "Watch closely...";
+                    
+                    entityA.className = 'absolute left-1/2 bottom-0 flex flex-col items-center transition-transform duration-[1500ms] ease-out z-10 -translate-x-[250px]';
+                    entityB.className = 'absolute left-1/2 bottom-0 flex flex-col items-center transition-transform duration-[1500ms] ease-out z-10 translate-x-[250px]';
+                    entityA.innerHTML = SVGSkaterIdleRight(colorA);
+                    entityB.innerHTML = SVGHeavySkaterIdleLeft(colorHeavy); 
+                    forceArrows.innerHTML = SVGArrowReaction + SVGArrowAction;
+                    
+                    setTimeout(() => {
+                        entityA.classList.replace('-translate-x-[250px]', '-translate-x-[87px]');
+                        entityB.classList.replace('translate-x-[250px]', '-translate-x-[33px]');
+                    }, 100);
+
+                    setTimeout(() => {
+                        entityA.innerHTML = SVGSkaterPushingRight(colorA);
+                        entityB.innerHTML = SVGHeavySkaterPushingLeft(colorHeavy);
+                        document.getElementById('arrow-action').classList.replace('opacity-0', 'opacity-100');
+                        
+                        promptText.innerText = "Blue pushes a much heavier Amber Skater. What happens?";
+                        createButton("Amber Skater moves faster.", () => advanceState(12));
+                        createButton("Blue Skater moves faster.", () => advanceState(12));
+                        createButton("They move at same speed.", () => advanceState(12));
+                    }, 1700);
+                    break;
+
+                case 12: 
+                    promptText.innerText = "The forces match, but the heavier skater accelerates less.";
+                    
+                    document.getElementById('arrow-reaction').classList.replace('opacity-0', 'opacity-100');
+                    
+                    setTimeout(() => {
+                        document.getElementById('arrow-action').classList.replace('opacity-100', 'opacity-0');
+                        document.getElementById('arrow-reaction').classList.replace('opacity-100', 'opacity-0');
+                        
+                        entityA.innerHTML = SVGSkaterIdleRight(colorA);
+                        entityB.innerHTML = SVGHeavySkaterIdleLeft(colorHeavy);
+                        
+                        // Heavy Skater glides shorter distance
+                        entityA.classList.replace('-translate-x-[87px]', '-translate-x-[250px]');
+                        entityB.classList.replace('-translate-x-[33px]', 'translate-x-[110px]');
+                    }, 1200);
+
+                    setTimeout(() => {
+                        createButton("Restart Simulation", () => advanceState(1), true);
+                    }, 3000);
+                    break;
+            }
+        }
+
+        // --- UTILS ---
+        function advanceState(newState) {
+            currentState = newState;
+            renderState();
+        }
+
+        function queueAutoAdvance(nextState) {
+            setTimeout(() => {
+                if (currentState === nextState - 1) {
+                    advanceState(nextState);
+                }
+            }, feedbackPauseMs);
+        }
+
+        function createButton(text, onClick, isPrimary = false) {
+            const btn = document.createElement('button');
+            btn.innerText = text;
+            
+            // Tailwind classes for buttons
+            const baseClasses = "px-4 py-2 text-sm md:text-base rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-md flex-1 md:flex-none fade-in";
+            const colorClasses = isPrimary 
+                ? "bg-blue-500 hover:bg-blue-400 text-white border-2 border-blue-400" 
+                : "bg-slate-700 hover:bg-slate-600 text-white border-2 border-slate-500";
+            
+            btn.className = `${baseClasses} ${colorClasses}`;
+            
+            btn.onclick = () => {
+                // Visual feedback on click before state change
+                btn.classList.add('ring-4', 'ring-blue-300');
+                setTimeout(onClick, 150);
+            };
+            buttonContainer.appendChild(btn);
+        }
+
+        // Initialize
+        renderState();
+    </script>
+</body>
+</html>

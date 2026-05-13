@@ -7,9 +7,61 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+function physicsLineToLatex(raw) {
+    let s = String(raw ?? '');
+    // Multi-char subscript compounds must come before their substrings
+    s = s.replace(/v₀ᵧ/g, 'v_{0y}');
+    s = s.replace(/v₀x/g, 'v_{0x}');
+    s = s.replace(/v₀/g, 'v_0');
+    s = s.replace(/hₘₐₓ/g, 'h_{\\max}');
+    s = s.replace(/vᵧ\(final\)/g, 'v_{y,f}');
+    s = s.replace(/v\(final\)/g, 'v_f');
+    s = s.replace(/vᵧ/g, 'v_y');
+    s = s.replace(/vₓ/g, 'v_x');
+    s = s.replace(/aᵧ/g, 'a_y');
+    s = s.replace(/aₓ/g, 'a_x');
+    // Deltas
+    s = s.replace(/Δx/g, '\\Delta x');
+    s = s.replace(/Δy/g, '\\Delta y');
+    // Fractions / exponents
+    s = s.replace(/½/g, '\\tfrac{1}{2}');
+    s = s.replace(/²/g, '^{2}');
+    s = s.replace(/³/g, '^{3}');
+    // Greek
+    s = s.replace(/θ/g, '\\theta');
+    // Operators
+    s = s.replace(/·/g, '\\cdot ');
+    s = s.replace(/\bsin\b/g, '\\sin');
+    s = s.replace(/\bcos\b/g, '\\cos');
+    s = s.replace(/\btan\b/g, '\\tan');
+    // Units — longer patterns first
+    s = s.replace(/m\/s²/g, '\\,\\mathrm{m/s^2}');
+    s = s.replace(/m\/s/g, '\\,\\mathrm{m/s}');
+    s = s.replace(/(\d) m(?=\s|$)/g, '$1\\,\\mathrm{m}');
+    s = s.replace(/(\d) s(?=\s|$)/g, '$1\\,\\mathrm{s}');
+    // Degree symbol
+    s = s.replace(/°/g, '^{\\circ}');
+    // Plain-text labels at line start ("Time = …", "Range = …", "Final speed = …")
+    s = s.replace(/^(Time|Range|Final speed|Max H|Final speed)\b/, (m) => `\\text{${m}}`);
+    return s;
+}
+
+function renderMath(text) {
+    if (typeof katex === 'undefined') return escapeHtml(text);
+    try {
+        return katex.renderToString(physicsLineToLatex(text), {
+            throwOnError: false,
+            displayMode: false,
+            strict: false
+        });
+    } catch (_) {
+        return escapeHtml(text);
+    }
+}
+
 function getVisibleLineText(line, revealProgress = 1) {
     const text = String(line ?? '');
-    if (revealProgress >= 1) return escapeHtml(text);
+    if (revealProgress >= 1) return renderMath(text);
 
     const visibleLength = Math.max(0, Math.min(text.length, Math.ceil(text.length * revealProgress)));
     return `${escapeHtml(text.slice(0, visibleLength))}<span class="module-extension__cursor"></span>`;
@@ -90,21 +142,21 @@ function renderEquationFlow(state) {
 function getStepValueEntry(key, model) {
     const dy = model.yf - model.yi;
     const entries = {
-        dx: { label: 'Δx', value: `${model.range.toFixed(2)} m` },
-        dy: { label: 'Δy', value: `${dy.toFixed(2)} m` },
-        hmax: { label: 'hₘₐₓ', value: `${(model.yPeak - model.yi).toFixed(2)} m` },
-        v0: { label: 'v₀', value: `${model.vi.toFixed(2)} m/s` },
-        v0x: { label: 'v₀x', value: `${model.vix.toFixed(2)} m/s` },
-        v0y: { label: 'v₀ᵧ', value: `${model.viy.toFixed(2)} m/s` },
-        vx: { label: 'vₓ', value: `${model.vix.toFixed(2)} m/s` },
-        vy: { label: 'vᵧ', value: `${model.finalVy.toFixed(2)} m/s` },
-        finalV: { label: 'v(final)', value: `${model.finalSpeed.toFixed(2)} m/s` },
-        theta: { label: 'θ', value: `${model.angleDeg.toFixed(1)}°` },
-        time: { label: 't', value: `${model.tFlight.toFixed(2)} s` },
-        ay: { label: 'aᵧ', value: `-${model.g.toFixed(2)} m/s²` }
+        dx:     { label: '\\Delta x',      value: `${model.range.toFixed(2)} m` },
+        dy:     { label: '\\Delta y',      value: `${dy.toFixed(2)} m` },
+        hmax:   { label: 'h_{\\max}',      value: `${(model.yPeak - model.yi).toFixed(2)} m` },
+        v0:     { label: 'v_0',            value: `${model.vi.toFixed(2)} m/s` },
+        v0x:    { label: 'v_{0x}',         value: `${model.vix.toFixed(2)} m/s` },
+        v0y:    { label: 'v_{0y}',         value: `${model.viy.toFixed(2)} m/s` },
+        vx:     { label: 'v_x',            value: `${model.vix.toFixed(2)} m/s` },
+        vy:     { label: 'v_y',            value: `${model.finalVy.toFixed(2)} m/s` },
+        finalV: { label: 'v_f',            value: `${model.finalSpeed.toFixed(2)} m/s` },
+        theta:  { label: '\\theta',        value: `${model.angleDeg.toFixed(1)}^{\\circ}` },
+        time:   { label: 't',              value: `${model.tFlight.toFixed(2)} s` },
+        ay:     { label: 'a_y',            value: `-${model.g.toFixed(2)} m/s²` }
     };
 
-    return entries[key] ? { key, ...entries[key] } : null;
+    return entries[key] ? { key, isLatex: true, ...entries[key] } : null;
 }
 
 function getStepValueEntries(step, model) {
@@ -137,9 +189,13 @@ function renderValueChip(entry, index, entries, state) {
         entry.isResult ? 'module-extension__value-chip--result' : ''
     ].filter(Boolean).join(' ');
 
+    const renderLabel = (entry.isLatex && typeof katex !== 'undefined')
+        ? katex.renderToString(entry.label, { throwOnError: false, displayMode: false })
+        : escapeHtml(entry.label);
+
     return `
         <div class="${classes}" style="--step-accent:${state.step.accent};">
-            <div class="module-extension__value-key">${escapeHtml(entry.label)}</div>
+            <div class="module-extension__value-key">${renderLabel}</div>
             <div class="module-extension__value-text">${getVisibleLineText(entry.value, revealProgress || 1)}</div>
         </div>
     `;
@@ -190,7 +246,7 @@ function renderStepCards(steps, state = null) {
                     <section class="${classes}" style="--step-accent:${step.accent};">
                         <h4 style="color:${step.accent};">${escapeHtml(step.title)}</h4>
                         <p class="module-extension__line"><strong>Focus</strong> = ${escapeHtml(step.focusLabel)}</p>
-                        ${step.lines.map(line => `<p class="module-extension__line">${escapeHtml(line)}</p>`).join('')}
+                        ${step.lines.map(line => `<p class="module-extension__line">${renderMath(line)}</p>`).join('')}
                     </section>
                 `;
             }).join('')}
@@ -292,17 +348,17 @@ export function buildWorkAnalysisPanel({ model, problemType, steps }) {
         <div class="module-extension__grid">
             <section class="module-extension__card">
                 <h4>Horizontal</h4>
-                <p class="module-extension__line"><strong>v₀x</strong> = ${model.vi.toFixed(1)} cos(${angleTerm}) = ${model.vix.toFixed(2)} m/s</p>
-                <p class="module-extension__line"><strong>aₓ</strong> = 0.00 m/s²</p>
-                <p class="module-extension__line"><strong>Δx</strong> = v₀x t = ${model.vix.toFixed(2)} × ${model.tFlight.toFixed(2)} = ${model.range.toFixed(2)} m</p>
+                <p class="module-extension__line">${renderMath(`v₀x = ${model.vi.toFixed(1)} \\cos(${model.angleDeg.toFixed(0)}^{\\circ}) = ${model.vix.toFixed(2)} m/s`)}</p>
+                <p class="module-extension__line">${renderMath(`aₓ = 0.00 m/s²`)}</p>
+                <p class="module-extension__line">${renderMath(`Δx = v₀x \\cdot t = ${model.vix.toFixed(2)} \\times ${model.tFlight.toFixed(2)} = ${model.range.toFixed(2)} m`)}</p>
             </section>
             <section class="module-extension__card">
                 <h4>Vertical</h4>
-                <p class="module-extension__line"><strong>v₀y</strong> = ${model.vi.toFixed(1)} sin(${angleTerm}) = ${model.viy.toFixed(2)} m/s</p>
-                <p class="module-extension__line"><strong>aᵧ</strong> = -${model.g.toFixed(2)} m/s²</p>
-                <p class="module-extension__line"><strong>Δy</strong> = ${dyValue.toFixed(2)} m</p>
-                <p class="module-extension__line"><strong>hₘₐₓ</strong> = ${hmaxValue.toFixed(2)} m</p>
-                <p class="module-extension__line"><strong>vᵧ(final)</strong> = ${model.finalVy.toFixed(2)} m/s</p>
+                <p class="module-extension__line">${renderMath(`v₀ᵧ = ${model.vi.toFixed(1)} \\sin(${model.angleDeg.toFixed(0)}^{\\circ}) = ${model.viy.toFixed(2)} m/s`)}</p>
+                <p class="module-extension__line">${renderMath(`aᵧ = -${model.g.toFixed(2)} m/s²`)}</p>
+                <p class="module-extension__line">${renderMath(`Δy = ${dyValue.toFixed(2)} m`)}</p>
+                <p class="module-extension__line">${renderMath(`hₘₐₓ = ${hmaxValue.toFixed(2)} m`)}</p>
+                <p class="module-extension__line">${renderMath(`vᵧ(final) = ${model.finalVy.toFixed(2)} m/s`)}</p>
             </section>
             <section class="module-extension__card">
                 <h4>Summary</h4>
