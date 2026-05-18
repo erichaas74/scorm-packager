@@ -243,11 +243,36 @@ drawLiveEquationAnimation(ctx, model, state) {
     }
 },
 
+wrapTextToWidth(ctx, text, maxWidth) {
+    const words = String(text).split(' ');
+    const lines = [];
+    let current = '';
+    for (const word of words) {
+        const test = current ? `${current} ${word}` : word;
+        if (ctx.measureText(test).width <= maxWidth) {
+            current = test;
+        } else {
+            if (current) lines.push(current);
+            current = word;
+        }
+    }
+    if (current) lines.push(current);
+    return lines.length ? lines : [''];
+},
+
 drawVectorBreakdownSolveCard(ctx, x, y, width, title, rows, accent = "#4338ca") {
     const rowHeight = 19;
-    const height = 44 + (rows.length * rowHeight);
+    const maxTextWidth = width - 36;
 
     ctx.save();
+    ctx.font = "11.2px Georgia, serif";
+    const wrappedRows = rows.map(row => ({
+        ...row,
+        lines: this.wrapTextToWidth(ctx, row.text, maxTextWidth)
+    }));
+    const totalLines = wrappedRows.reduce((sum, r) => sum + r.lines.length, 0);
+    const height = 44 + (totalLines * rowHeight);
+
     ctx.fillStyle = "rgba(255,255,255,0.95)";
     ctx.strokeStyle = "rgba(15, 23, 42, 0.14)";
     ctx.lineWidth = 1;
@@ -266,9 +291,13 @@ drawVectorBreakdownSolveCard(ctx, x, y, width, title, rows, accent = "#4338ca") 
     ctx.fillText(title, x + 18, y + 18);
 
     ctx.font = "11.2px Georgia, serif";
-    rows.forEach((row, index) => {
-        ctx.fillStyle = row.color || "#334155";
-        ctx.fillText(row.text, x + 18, y + 39 + (index * rowHeight));
+    let lineIndex = 0;
+    wrappedRows.forEach((row) => {
+        row.lines.forEach((line) => {
+            ctx.fillStyle = row.color || "#334155";
+            ctx.fillText(line, x + 18, y + 39 + (lineIndex * rowHeight));
+            lineIndex++;
+        });
     });
 
     ctx.restore();
@@ -484,15 +513,7 @@ drawFinalVelocityBreakdown(ctx, model, stage) {
         { text: "v = sqrt(vₓf^2 + vᵧf^2)" }
     ];
 
-    if (stage === 'final-zoom-camera') {
-        cardTitle = "Center impact point";
-        cardAccent = "#4338ca";
-        cardRows = [
-            { text: "The ball has completed its flight.", color: "#4338ca" },
-            { text: "Camera centers on the impact point." },
-            { text: "Final velocity vectors start at the ball center." }
-        ];
-    } else if (stage === 'final-zoom-vx') {
+    if (stage === 'final-zoom-vx') {
         cardTitle = "Step 1: vₓf";
         cardAccent = "#b91c1c";
         cardRows = [
@@ -553,24 +574,10 @@ drawFinalVelocityBreakdown(ctx, model, stage) {
         return;
     }
 
-    const cardHeight = 44 + (cardRows.length * 19);
-    const cardX = isZoom
-        ? this.clamp(this.width - cardWidth - 44, 40, this.width - cardWidth - 30)
-        : (tipX + cardWidth + 28 < this.width
-        ? tipX + 24
-        : Math.max(18, originX - cardWidth - 24));
-    const cardY = isZoom
-        ? this.clamp(86, 74, this.height - cardHeight - 28)
-        : this.clamp(Math.min(originY, tipY) - 58, 18, this.height - cardHeight - 18);
-    this.drawVectorBreakdownSolveCard(
-        ctx,
-        cardX,
-        cardY,
-        cardWidth,
-        cardTitle,
-        cardRows,
-        cardAccent
-    );
+    // Pin the card to the right edge so it never overlaps vectors or value labels.
+    const cardX = this.width - cardWidth - 20;
+    const cardY = 18;
+    this.drawVectorBreakdownSolveCard(ctx, cardX, cardY, cardWidth, cardTitle, cardRows, cardAccent);
 
     ctx.restore();
 },

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Station 4 — Transparency Test | Material Properties Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="lab.css" />
+</head>
+<body>
+<div class="page">
+
+  <div class="topbar">
+    <a class="back-btn" href="../index.html">← Grade 5</a>
+    <div class="eyebrow">Grade 5 · Science Lab</div>
+  </div>
+
+  <div id="progShell" class="shell prog-shell"></div>
+  <div class="s-nav" id="sNav"></div>
+
+  <div class="shell">
+    <div class="eyebrow">Station 4 of 6</div>
+    <h1>💡 Transparency Test</h1>
+    <p>Shine a flashlight through your material. Does light pass through? Can you see objects clearly?</p>
+    <div id="matBadge" class="mat-badge"></div>
+
+    <div class="st-grid">
+      <div class="sim-wrap">
+        <canvas id="cvs" width="370" height="270"></canvas>
+        <div class="sim-lbl">Simulation</div>
+      </div>
+      <div class="ctrls">
+        <button class="btn btn-primary" id="shineBtn" onclick="shine()">🔦 Shine Flashlight</button>
+        <button class="btn btn-secondary" onclick="resetSim()">↺ Reset</button>
+        <div class="obs">
+          <div class="fg">
+            <div class="fl">Light Result</div>
+            <div class="fv" id="obsResult">Click "Shine Flashlight" to test...</div>
+          </div>
+          <div class="fg">
+            <div class="fl">Can you see objects through it?</div>
+            <div class="fv" id="obsSee">—</div>
+          </div>
+          <div class="fg">
+            <div class="fl">Your Note</div>
+            <textarea class="fta" id="noteTA" oninput="saveStationNote(4,{note:this.value})"></textarea>
+          </div>
+        </div>
+        <button class="btn btn-green" id="recBtn" onclick="save()">Record Results ✓</button>
+      </div>
+    </div>
+
+    <div class="final-q">
+      <h3>🤔 Think About It</h3>
+      <p>Which material would be best for a window? Which would be best for blocking light completely?</p>
+    </div>
+  </div>
+
+  <div class="nav-row">
+    <a class="btn btn-secondary" href="station-3.html">← Previous</a>
+    <a class="btn btn-secondary" href="table.html">View Data Table</a>
+    <a class="btn btn-primary" href="station-5.html">Next Station →</a>
+  </div>
+
+</div>
+<script src="lab-data.js"></script>
+<script>
+const STATION = 4;
+const ANIM = {};
+let lightProg = 0;
+
+function cancelAll() { Object.values(ANIM).forEach(id => cancelAnimationFrame(id)); }
+function m() { return getMat(); }
+
+function shine() {
+  document.getElementById('shineBtn').disabled = true;
+  let p = 0;
+  function frame() {
+    p += 0.02; lightProg = Math.min(1, p);
+    draw(lightProg);
+    if (p < 1) ANIM.light = requestAnimationFrame(frame);
+    else showResult();
+  }
+  ANIM.light = requestAnimationFrame(frame);
+}
+
+function resetSim() {
+  cancelAll(); lightProg = 0;
+  document.getElementById('shineBtn').disabled = false;
+  draw(0);
+  ['obsResult', 'obsSee'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = id === 'obsResult' ? 'Click "Shine Flashlight" to test...' : '—'; el.classList.remove('rev'); }
+  });
+}
+
+function showResult() {
+  const mat = m();
+  const info = {
+    transparent: { r: '✅ Transparent — light and details pass straight through!', s: 'Yes — you can see objects clearly through it.' },
+    translucent:  { r: '🌤 Translucent — some light passes through, but details are blurry.', s: 'Partly — shapes visible but not clearly.' },
+    opaque:       { r: '⛔ Opaque — light cannot pass through at all.', s: 'No — the material blocks all light.' },
+  };
+  const i = info[mat.tr];
+  const re = document.getElementById('obsResult'), se = document.getElementById('obsSee');
+  if (re) { re.textContent = i.r; re.classList.add('rev'); }
+  if (se) { se.textContent = i.s; se.classList.add('rev'); }
+  saveStationNote(4, { transparency: mat.tr });
+}
+
+function draw(p = 0) {
+  const cv = document.getElementById('cvs'); if (!cv) return;
+  const ctx = cv.getContext('2d');
+  const W = 370, H = 270, mat = m();
+  ctx.clearRect(0, 0, W, H); ctx.fillStyle = '#0a0a1a'; ctx.fillRect(0, 0, W, H);
+
+  ctx.font = '28px serif'; ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,220,50,0.9)';
+  ctx.fillText('⭐', 300, 145);
+
+  const mx = 155, my = 60, mw = 55, mh = 150;
+  const alpha = mat.tr === 'transparent' ? 0.25 : mat.tr === 'translucent' ? 0.7 : 0.97;
+  ctx.fillStyle = mat.color; ctx.globalAlpha = alpha;
+  ctx.fillRect(mx, my, mw, mh);
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1; ctx.strokeRect(mx, my, mw, mh);
+  ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.font = '10px Instrument Sans,system-ui'; ctx.textAlign = 'center';
+  ctx.fillText(mat.name, mx + mw / 2, my + mh / 2 + 4);
+
+  const flx = 35, fly = H / 2;
+  ctx.fillStyle = '#888';
+  ctx.beginPath(); ctx.roundRect(flx - 20, fly - 10, 30, 20, 5); ctx.fill();
+  ctx.fillStyle = '#ffee88'; ctx.beginPath(); ctx.arc(flx + 10, fly, 8, 0, Math.PI * 2); ctx.fill();
+
+  if (p > 0) {
+    const ba = p * (mat.tr === 'transparent' ? 0.35 : mat.tr === 'translucent' ? 0.18 : 0.06);
+    ctx.fillStyle = `rgba(255,240,120,${ba})`;
+    ctx.beginPath();
+    ctx.moveTo(flx + 10, fly - 8); ctx.lineTo(mx, my + 20); ctx.lineTo(mx, my + mh - 20); ctx.lineTo(flx + 10, fly + 8);
+    ctx.fill();
+    if (mat.tr !== 'opaque') {
+      ctx.fillStyle = `rgba(255,240,120,${p * (mat.tr === 'transparent' ? 0.28 : 0.08)})`;
+      ctx.beginPath();
+      ctx.moveTo(mx + mw, my + 30); ctx.lineTo(W - 10, my); ctx.lineTo(W - 10, my + mh); ctx.lineTo(mx + mw, my + mh - 30);
+      ctx.fill();
+    }
+    if (mat.tr === 'transparent' && p > 0.8) {
+      ctx.font = '28px serif'; ctx.textAlign = 'center';
+      ctx.globalAlpha = p * 0.9; ctx.fillStyle = 'rgba(255,220,50,1)';
+      ctx.fillText('⭐', 300, 145); ctx.globalAlpha = 1;
+    }
+  }
+  ctx.textAlign = 'left';
+}
+
+function save() {
+  saveStationNote(4, { note: document.getElementById('noteTA').value });
+  markComplete(4);
+  renderProgress(STATION);
+  const btn = document.getElementById('recBtn');
+  btn.textContent = '✓ Recorded!'; btn.style.background = 'var(--green)';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (!getMatId()) { window.location.href = 'index.html'; return; }
+  const mat = getMat();
+  document.getElementById('matBadge').textContent = `${mat.icon} Testing: ${mat.name}`;
+  renderProgress(STATION);
+  const d = getStationData(STATION);
+  if (d.note) document.getElementById('noteTA').value = d.note;
+  if (getCompleted().includes(STATION)) {
+    const btn = document.getElementById('recBtn');
+    btn.textContent = '✓ Recorded!'; btn.style.background = 'var(--green)';
+  }
+  draw(0);
+});
+</script>
+</body>
+</html>

@@ -1,5 +1,53 @@
 import KinematicsModuleBase from './kinematics.js';
 import * as Kinematics2dWorkAnalysis from './Kinematics2dWorkAnalysis.js';
+
+// Patch a canvas2svg context so it survives font strings and roundRect usage.
+function patchC2SContext(ctx) {
+    if (typeof ctx.setLineDash !== 'function') ctx.setLineDash = () => {};
+
+    // canvas2svg emits a <rect> SVG element for roundRect instead of adding to the
+    // current path, so fill()/stroke() crash. Replace with a bezier arc path.
+    ctx.roundRect = function(x, y, w, h, r) {
+        const rv = Array.isArray(r) ? r[0] : (r || 0);
+        const radius = Math.min(rv, Math.abs(w) / 2, Math.abs(h) / 2);
+        this.moveTo(x + radius, y);
+        this.lineTo(x + w - radius, y);
+        this.quadraticCurveTo(x + w, y, x + w, y + radius);
+        this.lineTo(x + w, y + h - radius);
+        this.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+        this.lineTo(x + radius, y + h);
+        this.quadraticCurveTo(x, y + h, x, y + h - radius);
+        this.lineTo(x, y + radius);
+        this.quadraticCurveTo(x, y, x + radius, y);
+        this.closePath();
+    };
+
+    // canvas2svg's __parseFont regex only matches double-quoted font family names
+    // (character class [-,\"\sa-z]). Single-quoted names like 'Cambria Math' make
+    // the regex return null, crashing on null[1]. Normalize before every text call.
+    ['fillText', 'strokeText'].forEach((method) => {
+        const orig = ctx[method];
+        if (typeof orig !== 'function') return;
+        ctx[method] = function(text, x, y, mw) {
+            const saved = this.font;
+            if (saved && saved.includes("'")) this.font = saved.replace(/'/g, '"');
+            orig.call(this, text, x, y, mw);
+            this.font = saved;
+        };
+    });
+
+    // canvas2svg maps fillRect/strokeRect to SVG <rect> which rejects negative
+    // width/height. The real canvas spec handles negatives by flipping the rect.
+    ['fillRect', 'strokeRect', 'clearRect'].forEach((method) => {
+        const orig = ctx[method];
+        if (typeof orig !== 'function') return;
+        ctx[method] = function(x, y, w, h) {
+            if (w < 0) { x += w; w = -w; }
+            if (h < 0) { y += h; h = -h; }
+            orig.call(this, x, y, w, h);
+        };
+    });
+}
 import { drawWalkthroughOverlay } from './Kinematics2dWalkthroughOverlays.js';
 import hoverAnimationMethods from './Kinematics2dHoverAnimations.js';
 import walkthroughInteractionMethods from './Kinematics2dWalkthroughInteraction.js';
@@ -557,21 +605,7 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             const canvasStep = this.getWalkthroughCanvasStep(step);
             const time = this.getWalkthroughCanvasTime(step);
             const svgCtx = new C2S(this.width, this.height);
-            if (typeof svgCtx.setLineDash !== 'function') svgCtx.setLineDash = () => {};
-            svgCtx.roundRect = function(x, y, w, h, r) {
-                const rv = Array.isArray(r) ? r[0] : (r || 0);
-                const radius = Math.min(rv, Math.abs(w) / 2, Math.abs(h) / 2);
-                this.moveTo(x + radius, y);
-                this.lineTo(x + w - radius, y);
-                this.quadraticCurveTo(x + w, y, x + w, y + radius);
-                this.lineTo(x + w, y + h - radius);
-                this.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
-                this.lineTo(x + radius, y + h);
-                this.quadraticCurveTo(x, y + h, x, y + h - radius);
-                this.lineTo(x, y + radius);
-                this.quadraticCurveTo(x, y, x + radius, y);
-                this.closePath();
-            };
+            patchC2SContext(svgCtx);
             svgCtx.fillStyle = this.config.backgroundColor;
             svgCtx.fillRect(0, 0, this.width, this.height);
             this.isSvgExporting = true;
@@ -1320,12 +1354,11 @@ export default class Module2DKinematics extends KinematicsModuleBase {
     getVectorBreakdownStage(model) {
         if (model.isInFinalVelocityZoom && model.finalVectorDuration > 0) {
             const progress = (model.visualTime - model.finalVectorStartTime) / model.finalVectorDuration;
-            if (progress < 0.14) return 'final-zoom-camera';
-            if (progress < 0.28) return 'final-zoom-vx';
-            if (progress < 0.42) return 'final-zoom-vy';
-            if (progress < 0.58) return 'final-zoom-tail-head';
-            if (progress < 0.72) return 'final-zoom-resultant';
-            if (progress < 0.86) return 'final-zoom-speed';
+            if (progress < 0.167) return 'final-zoom-vx';
+            if (progress < 0.333) return 'final-zoom-vy';
+            if (progress < 0.500) return 'final-zoom-tail-head';
+            if (progress < 0.667) return 'final-zoom-resultant';
+            if (progress < 0.833) return 'final-zoom-speed';
             return 'final-zoom-angle';
         }
 
@@ -1841,9 +1874,17 @@ export default class Module2DKinematics extends KinematicsModuleBase {
 
         const visibleLines = state.step.lines.slice(0, state.lineCount);
         const panelWidth = 326 * uiScale;
-        const panelHeight = (82 + (visibleLines.length * 20.5)) * uiScale;
-        const x = 24;
-        const y = this.height - panelHeight - 24;
+        const maxTextWidth = panelWidth - (42 * uiScale);
+
+        // Wrap lines with the equation font so nothing escapes the card.
+        ctx.save();
+        ctx.font = this.scaleFontString("15px 'Cambria Math', 'STIX Two Math', 'Times New Roman', serif");
+        const wrappedLines = visibleLines.flatMap(line => this.wrapTextToWidth(ctx, line, maxTextWidth));
+        ctx.restore();
+
+        const panelHeight = (82 + (wrappedLines.length * 20.5)) * uiScale;
+        const x = this.width - panelWidth - 20;
+        const y = this.height - panelHeight - 20;
 
         ctx.save();
         ctx.fillStyle = "rgba(255,255,255,0.95)";
@@ -1869,7 +1910,7 @@ export default class Module2DKinematics extends KinematicsModuleBase {
 
         ctx.fillStyle = "#1e293b";
         ctx.font = this.scaleFontString("15px 'Cambria Math', 'STIX Two Math', 'Times New Roman', serif");
-        visibleLines.forEach((line, index) => {
+        wrappedLines.forEach((line, index) => {
             ctx.fillText(line, x + (21 * uiScale), y + (68 * uiScale) + (index * 20.5 * uiScale));
         });
         ctx.restore();
@@ -1878,11 +1919,17 @@ export default class Module2DKinematics extends KinematicsModuleBase {
     drawStepPanel(ctx, step) {
         if (!step || !Array.isArray(step.lines) || !step.lines.length) return;
         const uiScale = this.getCanvasTextScale();
-        const lines = step.lines;
         const panelWidth = 342 * uiScale;
-        const panelHeight = (64 + (lines.length * 23)) * uiScale;
-        const x = 20;
-        const y = this.height - panelHeight - 20;
+        const maxTextWidth = panelWidth - (36 * uiScale);
+
+        ctx.save();
+        ctx.font = this.scaleFontString("15px 'Cambria Math', 'STIX Two Math', 'Times New Roman', serif");
+        const wrappedLines = step.lines.flatMap(line => this.wrapTextToWidth(ctx, line, maxTextWidth));
+        ctx.restore();
+
+        const panelHeight = (64 + (wrappedLines.length * 23)) * uiScale;
+        const x = this.width - panelWidth - 20;
+        const y = 20;
 
         ctx.save();
         ctx.fillStyle = "rgba(255,255,255,0.97)";
@@ -1909,7 +1956,7 @@ export default class Module2DKinematics extends KinematicsModuleBase {
 
         ctx.fillStyle = "#1e293b";
         ctx.font = this.scaleFontString("15px 'Cambria Math', 'STIX Two Math', 'Times New Roman', serif");
-        lines.forEach((line, i) => {
+        wrappedLines.forEach((line, i) => {
             ctx.fillText(line, x + (18 * uiScale), y + (59 * uiScale) + (i * 23 * uiScale));
         });
         ctx.restore();

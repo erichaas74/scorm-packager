@@ -1,4 +1,43 @@
 // core/SimulationGifMaker.js
+
+function patchC2SContext(ctx) {
+    if (typeof ctx.setLineDash !== 'function') ctx.setLineDash = () => {};
+    ctx.roundRect = function(x, y, w, h, r) {
+        const rv = Array.isArray(r) ? r[0] : (r || 0);
+        const radius = Math.min(rv, Math.abs(w) / 2, Math.abs(h) / 2);
+        this.moveTo(x + radius, y);
+        this.lineTo(x + w - radius, y);
+        this.quadraticCurveTo(x + w, y, x + w, y + radius);
+        this.lineTo(x + w, y + h - radius);
+        this.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+        this.lineTo(x + radius, y + h);
+        this.quadraticCurveTo(x, y + h, x, y + h - radius);
+        this.lineTo(x, y + radius);
+        this.quadraticCurveTo(x, y, x + radius, y);
+        this.closePath();
+    };
+    ['fillText', 'strokeText'].forEach((method) => {
+        const orig = ctx[method];
+        if (typeof orig !== 'function') return;
+        ctx[method] = function(text, x, y, mw) {
+            const saved = this.font;
+            if (saved && saved.includes("'")) this.font = saved.replace(/'/g, '"');
+            orig.call(this, text, x, y, mw);
+            this.font = saved;
+        };
+    });
+
+    ['fillRect', 'strokeRect', 'clearRect'].forEach((method) => {
+        const orig = ctx[method];
+        if (typeof orig !== 'function') return;
+        ctx[method] = function(x, y, w, h) {
+            if (w < 0) { x += w; w = -w; }
+            if (h < 0) { y += h; h = -h; }
+            orig.call(this, x, y, w, h);
+        };
+    });
+}
+
 export default class SimulationGifMaker {
     constructor(canvasId, config = {}) {
         this.canvas = document.getElementById(canvasId);
@@ -364,23 +403,7 @@ export default class SimulationGifMaker {
         try {
             this.isSvgExporting = true;
             const svgContext = new C2S(this.width, this.height);
-            if (typeof svgContext.setLineDash !== 'function') {
-                svgContext.setLineDash = () => {};
-            }
-            svgContext.roundRect = function(x, y, w, h, r) {
-                const rv = Array.isArray(r) ? r[0] : (r || 0);
-                const radius = Math.min(rv, Math.abs(w) / 2, Math.abs(h) / 2);
-                this.moveTo(x + radius, y);
-                this.lineTo(x + w - radius, y);
-                this.quadraticCurveTo(x + w, y, x + w, y + radius);
-                this.lineTo(x + w, y + h - radius);
-                this.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
-                this.lineTo(x + radius, y + h);
-                this.quadraticCurveTo(x, y + h, x, y + h - radius);
-                this.lineTo(x, y + radius);
-                this.quadraticCurveTo(x, y, x + radius, y);
-                this.closePath();
-            };
+            patchC2SContext(svgContext);
             svgContext.fillStyle = this.config.backgroundColor;
             svgContext.fillRect(0, 0, this.width, this.height);
             this.drawFrame(svgContext, this.getSvgExportTime());

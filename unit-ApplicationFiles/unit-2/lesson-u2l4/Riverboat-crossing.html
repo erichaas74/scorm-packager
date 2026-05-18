@@ -129,7 +129,7 @@
 
     <!-- Simulation Canvas Container -->
     <div class="flex-1 relative bg-slate-950 w-full h-full">
-        <canvas id="simCanvas" class="w-full h-full cursor-crosshair"></canvas>
+    <canvas id="simCanvas" class="w-full h-full cursor-crosshair"></canvas>
         
         <!-- Legend Overlay -->
         <div id="legendOverlay" class="absolute top-4 right-4 bg-slate-900/80 p-3 rounded border border-slate-700 text-xs backdrop-blur-sm pointer-events-none hidden md:block transition-opacity duration-200">
@@ -169,6 +169,7 @@
         </div>
     </div>
 
+<script src="scorm-wrapper.js"></script>
 <script>
     // Elements
     const canvas = document.getElementById('simCanvas');
@@ -248,6 +249,7 @@
 
     let missionState = createMissionState();
     let currentLevel = 1;
+    const scormProgress = { completedLevels: {} };
 
     const LEVEL_CONFIGS = {
         1: {
@@ -341,6 +343,41 @@
 
     function getLevelConfig() {
         return LEVEL_CONFIGS[currentLevel];
+    }
+
+    function loadSCORMProgress() {
+        if (!window.SCORM) return;
+
+        const raw = window.SCORM.getValue('cmi.suspend_data');
+        if (!raw) return;
+
+        try {
+            const data = JSON.parse(raw);
+            if (data && data.lesson === 'unit2-lesson4' && data.completedLevels) {
+                scormProgress.completedLevels = data.completedLevels;
+            }
+        } catch (error) {
+            // Ignore older or unrelated suspend data.
+        }
+    }
+
+    function saveSCORMProgress() {
+        if (!window.SCORM) return;
+
+        const completedCount = Object.keys(scormProgress.completedLevels).length;
+        const score = Math.round((completedCount / 3) * 100);
+        window.SCORM.setValue('cmi.suspend_data', JSON.stringify({
+            lesson: 'unit2-lesson4',
+            completedLevels: scormProgress.completedLevels
+        }));
+        window.SCORM.setScore(score, 0, 100);
+        window.SCORM.setStatus(completedCount >= 3 ? 'completed' : 'incomplete');
+        window.SCORM.commit();
+    }
+
+    function markSCORMLevelComplete() {
+        scormProgress.completedLevels[currentLevel] = true;
+        saveSCORMProgress();
     }
 
     function applyLevelButtonStyles() {
@@ -502,6 +539,7 @@
         updateMissionUI();
         updateControlAvailability();
         updateTelemetry();
+        markSCORMLevelComplete();
     }
 
     function checkObstacleHits() {
@@ -1104,6 +1142,7 @@
     initWaterParticles();
     applyLevelButtonStyles();
     resizeCanvas();
+    loadSCORMProgress();
     resetSimulation();
 
 </script>

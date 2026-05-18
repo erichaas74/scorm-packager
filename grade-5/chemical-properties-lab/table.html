@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Data Table | Chemical Properties Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="lab.css" />
+</head>
+<body>
+<div class="page">
+
+  <div class="topbar">
+    <a class="back-btn" href="../index.html">← Grade 5</a>
+    <div class="eyebrow">Grade 5 · Chemical Properties Lab</div>
+  </div>
+
+  <div id="progShell" class="shell prog-shell"></div>
+  <div class="s-nav" id="sNav"></div>
+
+  <div class="shell">
+    <div class="eyebrow">Lab Results</div>
+    <h1>Data Table</h1>
+    <p>Results collected for <strong id="substName" style="color:var(--text)"></strong>. Complete all 5 stations to unlock the Design Challenge.</p>
+
+    <div class="tbl-wrap">
+      <table id="dataTable"></table>
+    </div>
+
+    <div class="btn-row mt12">
+      <a class="btn btn-secondary" id="backToLab" href="station-1.html">← Back to Lab</a>
+      <a class="btn btn-green" id="challengeLink" href="challenge.html">Design Challenge →</a>
+    </div>
+  </div>
+
+</div>
+<script src="lab-data.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  if (!getSubstId()) { window.location.href = 'index.html'; return; }
+
+  const sb = getSubst();
+  const completed = getCompleted();
+  renderProgress(0);
+
+  document.getElementById('substName').textContent = `${sb.icon} ${sb.name}`;
+
+  const lastDone = Math.max(...completed, 0);
+  document.getElementById('backToLab').href = lastDone > 0 ? `station-${lastDone}.html` : 'station-1.html';
+
+  if (completed.length < 5) {
+    const link = document.getElementById('challengeLink');
+    link.style.opacity = '.4';
+    link.style.pointerEvents = 'none';
+    link.title = 'Complete all 5 stations first';
+  }
+
+  const flameLbls = ['','Does not burn','Barely flammable','Chars when heated','Burns slowly','Burns easily'];
+  const flameLbls2 = { none:'No ignition — does not catch fire', steam:'Steams/evaporates but no open flame', chars:'Chars and darkens — no flame', burns:'Catches fire — highly flammable!' };
+  const reactLbls = { none:'No reaction at all', few:'A few small bubbles', moderate:'Moderate, steady bubbling', lots:'Lots of vigorous bubbles', extreme:'EXTREME fizzing — CO₂ explosion!' };
+
+  const rows = [
+    { prop:'🔥 Flammability Rating', st:1,
+      val:`${sb.flame}/5 — ${flameLbls[sb.flame]}` },
+    { prop:'🔥 Flame Behavior',      st:1,
+      val: flameLbls2[sb.flameResult] || sb.flameNote },
+    { prop:'🟤 Oxidizes/Rusts?',     st:2,
+      val: sb.rusts ? 'Yes — forms rust (iron oxide)' : sb.tarnishes ? 'Yes — forms tarnish/patina' : 'No — does not oxidize' },
+    { prop:'🟤 Oxidation Note',      st:2,
+      val: sb.rustNote },
+    { prop:'⚠️ Toxicity Level',      st:3,
+      val:`${sb.tox}/4 — ${sb.toxLabel}` },
+    { prop:'⚠️ Toxicity Info',       st:3,
+      val: sb.toxNote },
+    { prop:'⚗️ Reactivity Rating',   st:4,
+      val:`${sb.react}/5` },
+    { prop:'⚗️ Reaction (+ acid)',   st:4,
+      val: reactLbls[sb.reactBubbles] || sb.reactNote },
+    { prop:'🌡️ pH Value',            st:5,
+      val:`${sb.ph} — ${sb.phLabel}` },
+    { prop:'🌡️ pH Category',        st:5,
+      val: sb.ph < 7 ? 'Acid (below 7)' : sb.ph > 7 ? 'Base / Alkali (above 7)' : 'Neutral (exactly 7)' },
+  ];
+
+  let html = `<thead><tr><th>Property</th><th>Result</th><th>Station</th><th>Status</th></tr></thead><tbody>`;
+  rows.forEach(r => {
+    const done = completed.includes(r.st);
+    const status = done
+      ? `<span class="badge bg-green">✓ Recorded</span>`
+      : `<span class="badge bg-orange">Station ${r.st}</span>`;
+    html += `<tr>
+      <td>${r.prop}</td>
+      <td class="${done?'tv':'te'}">${done ? r.val : '—'}</td>
+      <td style="color:var(--muted);font-size:.78rem;"><a href="station-${r.st}.html" style="color:inherit;">Station ${r.st}</a></td>
+      <td>${status}</td>
+    </tr>`;
+  });
+  html += '</tbody>';
+  document.getElementById('dataTable').innerHTML = html;
+});
+</script>
+</body>
+</html>

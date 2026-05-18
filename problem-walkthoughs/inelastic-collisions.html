@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inelastic Collision Prediction Playground</title>
+  <style>
+    :root {
+      --navy: #172033;
+      --bg: #eef2f7;
+      --canvas-bg: #f8fbff;
+      --line: #d7deea;
+      --muted: #64748b;
+      --blue: #2563eb;
+      --blue-dark: #1d4ed8;
+      --green: #16a34a;
+      --red: #dc2626;
+      --orange: #d97706;
+      --purple: #7c3aed;
+      --panel: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--navy);
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .game {
+      width: min(1120px, 100%);
+      background: white;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+
+    .top {
+      background: var(--navy);
+      color: white;
+      padding: 14px 18px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-weight: bold;
+      align-items: center;
+    }
+
+    .top-title {
+      font-size: 18px;
+      flex: 1;
+      min-width: 220px;
+    }
+
+    .scenario-title {
+      flex: 1.2;
+      text-align: center;
+      font-size: 17px;
+      letter-spacing: 0.01em;
+      color: #e2e8f0;
+      min-width: 240px;
+    }
+
+    .top-info {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      font-size: 14px;
+      opacity: 0.95;
+      justify-content: flex-end;
+      flex: 1;
+      min-width: 220px;
+    }
+
+    #mainCanvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: var(--canvas-bg);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .panel {
+      padding: 14px 16px 18px;
+    }
+
+    #message {
+      display: none;
+      font-size: 16px;
+      margin-bottom: 10px;
+      min-height: 24px;
+      font-weight: 700;
+    }
+
+    .choices {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      width: 100%;
+      margin-bottom: 12px;
+      transition: opacity 0.25s ease;
+    }
+
+    .choices.hidden {
+      opacity: 0;
+      pointer-events: none;
+      height: 0;
+      overflow: hidden;
+      margin: 0;
+    }
+
+    .choice-card {
+      border-radius: 12px;
+      border: 3px solid #cbd5e1;
+      background: white;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.12s ease, border-color 0.12s ease, border-width 0.12s ease;
+    }
+
+    .choice-card:hover {
+      transform: translateY(-2px);
+    }
+
+    .choice-header {
+      padding: 6px 8px;
+      font-weight: bold;
+      color: white;
+      font-size: 13px;
+    }
+
+    .choice-a .choice-header,
+    .choice-b .choice-header,
+    .choice-c .choice-header {
+      background: #64748b;
+    }
+
+    .choice-canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: var(--canvas-bg);
+    }
+
+    .choice-label {
+      padding: 5px 6px 7px;
+      font-size: 12px;
+      color: #334155;
+      text-align: center;
+      font-weight: bold;
+      min-height: 27px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .correct {
+      border-width: 5px !important;
+      border-color: var(--green) !important;
+      box-shadow: 0 0 0 4px rgba(22,163,74,0.2);
+    }
+
+    .wrong {
+      border-width: 5px !important;
+      border-color: var(--red) !important;
+      box-shadow: 0 0 0 4px rgba(220,38,38,0.2);
+    }
+
+    .disabled {
+      pointer-events: none;
+      opacity: 0.92;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    button {
+      border: none;
+      border-radius: 9px;
+      padding: 9px 12px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      background: var(--blue);
+      color: white;
+    }
+
+    button:hover {
+      background: var(--blue-dark);
+    }
+
+    button.secondary {
+      background: #e2e8f0;
+      color: #172033;
+    }
+
+    button.secondary:hover {
+      background: #cbd5e1;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .result-panel {
+      margin-top: 14px;
+      border-top: 1px solid var(--line);
+      padding-top: 14px;
+    }
+
+    .result-panel.hidden {
+      display: none;
+    }
+
+    .result-banner {
+      border-radius: 10px;
+      padding: 9px 10px;
+      font-weight: 800;
+      margin-bottom: 10px;
+      background: #f1f5f9;
+    }
+
+    .result-banner.good {
+      background: #eaf8f1;
+      color: #15803d;
+      border: 1px solid #bbf7d0;
+    }
+
+    .result-banner.revise {
+      background: #fff0f0;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+    }
+
+    .math-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .math-card {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 9px;
+      background: #f8fafc;
+      font-size: 13px;
+    }
+
+    .math-card strong {
+      display: block;
+      margin-bottom: 4px;
+      color: #172033;
+    }
+
+    .math-card span {
+      color: #475569;
+      line-height: 1.35;
+    }
+
+    .equation-note {
+      margin-top: 10px;
+      color: #475569;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    @media (max-width: 780px) {
+      body {
+        padding: 10px;
+      }
+
+      .choices {
+        grid-template-columns: 1fr;
+      }
+
+      .math-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .math-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="game">
+    <div class="top">
+      <div class="top-title">Perfectly Inelastic Collision Prediction Playground</div>
+      <div class="scenario-title" id="scenarioTitle"></div>
+      <div class="top-info">
+        <div>Scenario: <span id="scenarioNum">1 / 6</span></div>
+        <div>Score: <span id="score">0</span></div>
+      </div>
+    </div>
+
+    <canvas id="mainCanvas" width="1100" height="368"></canvas>
+
+    <div class="panel">
+      <div id="message"></div>
+
+      <div class="choices hidden" id="choices">
+        <div class="choice-card choice-a" id="card0">
+          <div class="choice-header">Choice A</div>
+          <canvas class="choice-canvas" id="choiceCanvas0" width="340" height="150"></canvas>
+          <div class="choice-label" id="choiceLabel0"></div>
+        </div>
+
+        <div class="choice-card choice-b" id="card1">
+          <div class="choice-header">Choice B</div>
+          <canvas class="choice-canvas" id="choiceCanvas1" width="340" height="150"></canvas>
+          <div class="choice-label" id="choiceLabel1"></div>
+        </div>
+
+        <div class="choice-card choice-c" id="card2">
+          <div class="choice-header">Choice C</div>
+          <canvas class="choice-canvas" id="choiceCanvas2" width="340" height="150"></canvas>
+          <div class="choice-label" id="choiceLabel2"></div>
+        </div>
+      </div>
+
+      <div class="buttons">
+        <button id="startBtn">Start to Collision</button>
+        <button id="resetBtn" class="secondary">Reset Scenario</button>
+        <button id="nextBtn" class="secondary">Next Scenario</button>
+      </div>
+
+      <div id="resultPanel" class="result-panel hidden">
+        <div id="resultBanner" class="result-banner"></div>
+        <div id="resultExplanation" class="equation-note"></div>
+
+        <div class="math-grid">
+          <div class="math-card">
+            <strong>Final stuck velocity</strong>
+            <span id="finalVelocityMath"></span>
+          </div>
+          <div class="math-card">
+            <strong>Total momentum</strong>
+            <span id="momentumMath"></span>
+          </div>
+          <div class="math-card">
+            <strong>Kinetic energy</strong>
+            <span id="energyMath"></span>
+          </div>
+          <div class="math-card">
+            <strong>Energy transformed</strong>
+            <span id="energyLossMath"></span>
+          </div>
+        </div>
+
+        <div class="equation-note">
+          Perfectly inelastic collision: the carts stick together. Momentum is conserved, but kinetic energy is not conserved because some energy is transformed into heat, sound, deformation, or internal energy.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const mainCanvas = document.getElementById("mainCanvas");
+    const ctx = mainCanvas.getContext("2d");
+
+    const choiceCanvases = [
+      document.getElementById("choiceCanvas0"),
+      document.getElementById("choiceCanvas1"),
+      document.getElementById("choiceCanvas2")
+    ];
+    const choiceCtxs = choiceCanvases.map(c => c.getContext("2d"));
+
+    const cards = [
+      document.getElementById("card0"),
+      document.getElementById("card1"),
+      document.getElementById("card2")
+    ];
+    const choiceLabels = [
+      document.getElementById("choiceLabel0"),
+      document.getElementById("choiceLabel1"),
+      document.getElementById("choiceLabel2")
+    ];
+
+    const choicesEl = document.getElementById("choices");
+    const message = document.getElementById("message");
+    const scoreEl = document.getElementById("score");
+    const scenarioNum = document.getElementById("scenarioNum");
+    const scenarioTitle = document.getElementById("scenarioTitle");
+    const startBtn = document.getElementById("startBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const resultPanel = document.getElementById("resultPanel");
+    const resultBanner = document.getElementById("resultBanner");
+    const resultExplanation = document.getElementById("resultExplanation");
+    const finalVelocityMath = document.getElementById("finalVelocityMath");
+    const momentumMath = document.getElementById("momentumMath");
+    const energyMath = document.getElementById("energyMath");
+    const energyLossMath = document.getElementById("energyLossMath");
+
+    const scenarios = [
+      {
+        title: "Equal Mass Stick Together",
+        description: "Cart A moves right into identical Cart B at rest.",
+        m1: 1, u1: 3, m2: 1, u2: 0,
+        explanation: "The carts stick together, so the moving cart shares its momentum with the combined mass. The final speed is lower than Cart A's starting speed."
+      },
+      {
+        title: "Equal Mass Head-On Stick",
+        description: "Two identical carts move toward each other with equal speeds.",
+        m1: 1, u1: 2, m2: 1, u2: -2,
+        explanation: "The total momentum before collision is zero. When the carts stick, the combined object stops."
+      },
+      {
+        title: "Light Cart Hits Heavy Cart",
+        description: "A light Cart A moves right into a heavier Cart B at rest.",
+        m1: 1, u1: 4, m2: 4, u2: 0,
+        explanation: "The light cart's momentum is spread across the larger combined mass, so both carts move right slowly after sticking."
+      },
+      {
+        title: "Heavy Cart Hits Light Cart",
+        description: "A heavy Cart A moves right into a lighter Cart B at rest.",
+        m1: 4, u1: 3, m2: 1, u2: 0,
+        explanation: "The heavy cart has more momentum, so the stuck carts keep moving right with a moderate final speed."
+      },
+      {
+        title: "Rear-End Inelastic Collision",
+        description: "Cart A is behind Cart B and moving faster in the same direction.",
+        m1: 2, u1: 4, m2: 1, u2: 1,
+        explanation: "The carts stick and move together at a final speed between the two original speeds."
+      },
+      {
+        title: "Unequal Head-On Stick",
+        description: "A light Cart A moves right into a heavier Cart B moving left slowly.",
+        m1: 1, u1: 3, m2: 3, u2: -1,
+        explanation: "The rightward and leftward momenta cancel out. Since the carts stick together, the combined object stops."
+      }
+    ];
+
+    let scenarioIndex = 0;
+    let current = null;
+    let options = [];
+    let selected = -1;
+    let score = 0;
+    let stage = "setup"; // setup, movingToCollision, choose, result
+    let stageStart = 0;
+    let clock = 0;
+    let collisionData = null;
+
+    const trackY = 244;
+    const cartH = 72;
+    const beforeScale = 58;
+    const afterScale = 56;
+    const choiceScale = 26;
+
+    function inelasticFinal(m1, u1, m2, u2) {
+      return (m1 * u1 + m2 * u2) / (m1 + m2);
+    }
+
+    function elasticFinal(m1, u1, m2, u2) {
+      const v1 = ((m1 - m2) / (m1 + m2)) * u1 + ((2 * m2) / (m1 + m2)) * u2;
+      const v2 = ((2 * m1) / (m1 + m2)) * u1 + ((m2 - m1) / (m1 + m2)) * u2;
+      return { v1, v2 };
+    }
+
+    function momentum(m1, v1, m2, v2) {
+      return m1 * v1 + m2 * v2;
+    }
+
+    function kineticEnergy(m1, v1, m2, v2) {
+      return 0.5 * m1 * v1 * v1 + 0.5 * m2 * v2 * v2;
+    }
+
+    function fmt(value, digits = 2) {
+      const fixed = Math.abs(value) < 0.005 ? 0 : value;
+      return fixed.toFixed(digits);
+    }
+
+    function cartWidth(mass) {
+      return 92 + mass * 16;
+    }
+
+    function directionWord(v) {
+      if (Math.abs(v) < 0.05) return "stopped";
+      return v > 0 ? "right" : "left";
+    }
+
+    function loadScenario(index) {
+      scenarioIndex = (index + scenarios.length) % scenarios.length;
+      current = scenarios[scenarioIndex];
+      options = buildOptions(current);
+      selected = -1;
+      stage = "setup";
+      stageStart = clock;
+      collisionData = getCollisionData(current);
+
+      scenarioNum.textContent = (scenarioIndex + 1) + " / " + scenarios.length;
+      scenarioTitle.textContent = current.title;
+      message.textContent = "";
+      choicesEl.classList.add("hidden");
+      startBtn.disabled = false;
+      resultPanel.classList.add("hidden");
+      resetCards();
+      updateChoiceLabels(false);
+      drawMain();
+    }
+
+    function buildOptions(s) {
+      const vf = inelasticFinal(s.m1, s.u1, s.m2, s.u2);
+      const elastic = elasticFinal(s.m1, s.u1, s.m2, s.u2);
+      const averageSpeed = (s.u1 + s.u2) / 2;
+
+      const candidates = [
+        {
+          type: "correctStick",
+          label: "Stick together",
+          v1: vf,
+          v2: vf,
+          stuck: true,
+          correct: true
+        },
+        {
+          type: "elasticBounce",
+          label: "Bounce apart",
+          v1: elastic.v1,
+          v2: elastic.v2,
+          stuck: false,
+          correct: false
+        },
+        {
+          type: "noChange",
+          label: "No velocity change",
+          v1: s.u1,
+          v2: s.u2,
+          stuck: false,
+          correct: false
+        },
+        {
+          type: "bothStop",
+          label: "Both stop",
+          v1: 0,
+          v2: 0,
+          stuck: true,
+          correct: false
+        },
+        {
+          type: "wrongAverage",
+          label: "Simple average speed",
+          v1: averageSpeed,
+          v2: averageSpeed,
+          stuck: true,
+          correct: false
+        },
+        {
+          type: "wrongReverseStick",
+          label: "Stick and reverse",
+          v1: -vf || -1.2,
+          v2: -vf || -1.2,
+          stuck: true,
+          correct: false
+        },
+        {
+          type: "separateSlow",
+          label: "Separate slowly",
+          v1: vf - 0.8,
+          v2: vf + 0.8,
+          stuck: false,
+          correct: false
+        }
+      ];
+
+      const picked = [candidates[0]];
+      for (const candidate of candidates.slice(1)) {
+        if (picked.length >= 3) break;
+        if (!keepsCartsSeparated(candidate)) continue;
+        if (isDistinct(candidate, picked)) picked.push(candidate);
+      }
+
+      return shuffle(picked);
+    }
+
+    function keepsCartsSeparated(option) {
+      return option.v2 + 0.05 >= option.v1;
+    }
+
+    function isDistinct(candidate, picked) {
+      return picked.every(item => {
+        const distance = Math.abs(item.v1 - candidate.v1) + Math.abs(item.v2 - candidate.v2);
+        const stuckDifferent = item.stuck !== candidate.stuck ? 0.55 : 0;
+        return distance + stuckDifferent > 0.75;
+      });
+    }
+
+    function shuffle(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function getCollisionData(s) {
+      const w1 = cartWidth(s.m1);
+      const w2 = cartWidth(s.m2);
+      const collisionPoint = mainCanvas.width / 2;
+      const duration = 1.75;
+      const collisionX1 = collisionPoint - w1 / 2;
+      const collisionX2 = collisionPoint + w2 / 2;
+      const startX1 = collisionX1 - s.u1 * beforeScale * duration;
+      const startX2 = collisionX2 - s.u2 * beforeScale * duration;
+
+      return {
+        w1, w2,
+        startX1, startX2,
+        collisionX1, collisionX2,
+        collisionPoint,
+        duration
+      };
+    }
+
+    function startToCollision() {
+      if (stage !== "setup") return;
+      stage = "movingToCollision";
+      stageStart = clock;
+      startBtn.disabled = true;
+      message.textContent = "";
+    }
+
+    function resetScenario() {
+      loadScenario(scenarioIndex);
+    }
+
+    function nextScenario() {
+      loadScenario(scenarioIndex + 1);
+    }
+
+    function resetCards() {
+      cards.forEach(card => {
+        card.classList.remove("correct", "wrong", "disabled");
+      });
+    }
+
+    function updateChoiceLabels(showLabels) {
+      for (let i = 0; i < 3; i++) {
+        if (!options[i]) {
+          choiceLabels[i].textContent = "";
+          continue;
+        }
+        choiceLabels[i].textContent = `Final: A ${fmt(options[i].v1)} m/s, B ${fmt(options[i].v2)} m/s`;
+      }
+    }
+
+    function chooseCard(index) {
+      if (stage !== "choose" || selected !== -1) return;
+
+      selected = index;
+      const correctIndex = options.findIndex(o => o.correct);
+      const isCorrect = options[index].correct;
+
+      cards.forEach(card => card.classList.add("disabled"));
+      cards[correctIndex].classList.add("correct");
+
+      if (isCorrect) {
+        score += 1;
+        scoreEl.textContent = score;
+        resultBanner.textContent = "Correct prediction";
+        resultBanner.className = "result-banner good";
+      } else {
+        cards[index].classList.add("wrong");
+        resultBanner.textContent = "Prediction needs revision";
+        resultBanner.className = "result-banner revise";
+      }
+
+      updateChoiceLabels(true);
+      showMath();
+      resultPanel.classList.remove("hidden");
+      stage = "result";
+      stageStart = clock;
+      message.textContent = "";
+    }
+
+    function showMath() {
+      const s = current;
+      const vf = inelasticFinal(s.m1, s.u1, s.m2, s.u2);
+      const pBefore = momentum(s.m1, s.u1, s.m2, s.u2);
+      const pAfter = (s.m1 + s.m2) * vf;
+      const keBefore = kineticEnergy(s.m1, s.u1, s.m2, s.u2);
+      const keAfter = 0.5 * (s.m1 + s.m2) * vf * vf;
+      const energyLost = keBefore - keAfter;
+      const percentLost = keBefore > 0 ? (energyLost / keBefore) * 100 : 0;
+
+      resultExplanation.textContent = current.explanation;
+
+      finalVelocityMath.innerHTML =
+        `v<sub>f</sub> = (mA·vA + mB·vB) / (mA + mB)<br>` +
+        `v<sub>f</sub> = ${fmt(vf)} m/s ${directionWord(vf)}`;
+
+      momentumMath.innerHTML =
+        `Before: ${fmt(pBefore)} kg·m/s<br>` +
+        `After: ${fmt(pAfter)} kg·m/s`;
+
+      energyMath.innerHTML =
+        `Before: ${fmt(keBefore)} J<br>` +
+        `After: ${fmt(keAfter)} J`;
+
+      energyLossMath.innerHTML =
+        `${fmt(energyLost)} J transformed<br>` +
+        `${fmt(percentLost, 1)}% of initial KE`;
+    }
+
+    function drawMain() {
+      drawMainBackground();
+
+      if (!current) return;
+
+      const s = current;
+      const d = collisionData;
+      const vf = inelasticFinal(s.m1, s.u1, s.m2, s.u2);
+
+      drawScenarioText(s);
+
+      let x1 = d.startX1;
+      let x2 = d.startX2;
+      let v1 = s.u1;
+      let v2 = s.u2;
+      let resultPhase = "before";
+      let showCollisionBurst = false;
+
+      if (stage === "movingToCollision") {
+        const t = Math.min((clock - stageStart) / d.duration, 1);
+        const eased = smoothStep(t);
+        x1 = lerp(d.startX1, d.collisionX1, eased);
+        x2 = lerp(d.startX2, d.collisionX2, eased);
+
+        if (t >= 1) {
+          stage = "choose";
+          stageStart = clock;
+          choicesEl.classList.remove("hidden");
+          message.textContent = "";
+        }
+      }
+
+      if (stage === "choose") {
+        x1 = d.collisionX1;
+        x2 = d.collisionX2;
+        v1 = s.u1;
+        v2 = s.u2;
+        showCollisionBurst = true;
+      }
+
+      if (stage === "result") {
+        const afterDuration = 2.8;
+        const restartPause = 0.55;
+        const cycle = (clock - stageStart) % (d.duration + afterDuration + restartPause);
+
+        if (cycle < d.duration) {
+          const t = smoothStep(cycle / d.duration);
+          x1 = lerp(d.startX1, d.collisionX1, t);
+          x2 = lerp(d.startX2, d.collisionX2, t);
+          v1 = s.u1;
+          v2 = s.u2;
+          resultPhase = "before";
+        } else {
+          const t = Math.min(cycle - d.duration, afterDuration);
+          x1 = d.collisionX1 + vf * afterScale * t;
+          x2 = d.collisionX2 + vf * afterScale * t;
+          v1 = vf;
+          v2 = vf;
+          resultPhase = "after";
+          drawCollisionMarker();
+          drawAfterGhosts(vf);
+          drawLinkBar(x1, x2);
+        }
+      }
+
+      drawCart(ctx, x1, trackY - cartH / 2, d.w1, cartH, "A", s.m1, "#93c5fd", "#2563eb");
+      drawCart(ctx, x2, trackY - cartH / 2, d.w2, cartH, "B", s.m2, "#fdba74", "#d97706");
+      if (showCollisionBurst) drawCollisionBurst();
+
+      if (stage === "setup" || stage === "movingToCollision" || (stage === "result" && resultPhase === "before")) {
+        drawVelocityArrow(ctx, x1, trackY - 95, s.u1, "#2563eb", `vA = ${fmt(s.u1)} m/s`);
+        drawVelocityArrow(ctx, x2, trackY - 95, s.u2, "#d97706", `vB = ${fmt(s.u2)} m/s`);
+      } else if (stage === "choose") {
+        drawVelocityArrow(ctx, x1, trackY - 95, v1, "#2563eb", `vA = ${fmt(v1)} m/s`);
+        drawVelocityArrow(ctx, x2, trackY - 95, v2, "#d97706", `vB = ${fmt(v2)} m/s`);
+      } else {
+        drawVelocityArrow(ctx, x1, trackY - 116, vf, "#2563eb", `vA' = ${fmt(vf)} m/s`);
+        drawVelocityArrow(ctx, x2, trackY - 86, vf, "#d97706", `vB' = ${fmt(vf)} m/s`);
+      }
+
+    }
+
+    function drawMainBackground() {
+      ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+      ctx.fillStyle = "#f8fbff";
+      ctx.fillRect(0, 0, mainCanvas.width, mainCanvas.height);
+
+      ctx.strokeStyle = "rgba(100,116,139,0.14)";
+      ctx.lineWidth = 1;
+      for (let x = 50; x < mainCanvas.width; x += 50) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, mainCanvas.height);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = "#e2e8f0";
+      ctx.fillRect(0, trackY + 42, mainCanvas.width, mainCanvas.height - trackY);
+
+      ctx.strokeStyle = "#64748b";
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.moveTo(85, trackY + 3);
+      ctx.lineTo(mainCanvas.width - 85, trackY + 3);
+      ctx.stroke();
+
+      ctx.fillStyle = "#cbd5e1";
+      for (let x = 104; x < mainCanvas.width - 115; x += 62) {
+        ctx.fillRect(x, trackY + 12, 38, 8);
+      }
+    }
+
+    function drawScenarioText(s) {
+      // Scenario descriptions remain in the data model, but are intentionally not drawn.
+    }
+
+    function drawCollisionMarker() {
+      const center = collisionData.collisionPoint;
+      ctx.setLineDash([8, 8]);
+      ctx.strokeStyle = "#94a3b8";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(center, 95);
+      ctx.lineTo(center, trackY + 55);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      drawText(ctx, "collision point", center, trackY + 75, 13, "#64748b", "center");
+    }
+
+    function drawCollisionBurst() {
+      const center = collisionData.collisionPoint;
+      const y = trackY + 48;
+      ctx.strokeStyle = "#dc2626";
+      ctx.fillStyle = "rgba(254,226,226,0.95)";
+      ctx.lineWidth = 4;
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(center - 35, y - 22);
+      ctx.lineTo(center - 12, y - 7);
+      ctx.lineTo(center - 25, y + 18);
+      ctx.lineTo(center, y + 4);
+      ctx.lineTo(center + 25, y + 18);
+      ctx.lineTo(center + 12, y - 7);
+      ctx.lineTo(center + 35, y - 22);
+      ctx.lineTo(center + 18, y + 3);
+      ctx.lineTo(center + 35, y + 28);
+      ctx.lineTo(center, y + 12);
+      ctx.lineTo(center - 35, y + 28);
+      ctx.lineTo(center - 18, y + 3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    function drawAfterGhosts(vf) {
+      const d = collisionData;
+      ctx.globalAlpha = 0.18;
+      drawCart(ctx, d.collisionX1, trackY - cartH / 2, d.w1, cartH, "A", current.m1, "#93c5fd", "#2563eb");
+      drawCart(ctx, d.collisionX2, trackY - cartH / 2, d.w2, cartH, "B", current.m2, "#fdba74", "#d97706");
+      ctx.globalAlpha = 1;
+
+      ctx.setLineDash([6, 7]);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(124,58,237,0.45)";
+      ctx.beginPath();
+      ctx.moveTo((d.collisionX1 + d.collisionX2) / 2, trackY - cartH / 2 + 8);
+      ctx.lineTo((d.collisionX1 + d.collisionX2) / 2 + vf * afterScale * 2.7, trackY - cartH / 2 + 8);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    function drawLinkBar(x1, x2) {
+      ctx.strokeStyle = "#7c3aed";
+      ctx.lineWidth = 8;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(x1, trackY - cartH / 2);
+      ctx.lineTo(x2, trackY - cartH / 2);
+      ctx.stroke();
+    }
+
+    function drawChoiceAnimations() {
+      for (let i = 0; i < 3; i++) {
+        const c = choiceCanvases[i];
+        const cctx = choiceCtxs[i];
+        cctx.clearRect(0, 0, c.width, c.height);
+
+        cctx.fillStyle = "#f8fbff";
+        cctx.fillRect(0, 0, c.width, c.height);
+
+        cctx.fillStyle = "#e2e8f0";
+        cctx.fillRect(0, 106, c.width, 44);
+
+        cctx.strokeStyle = "#64748b";
+        cctx.lineWidth = 4;
+        cctx.beginPath();
+        cctx.moveTo(12, 101);
+        cctx.lineTo(c.width - 12, 101);
+        cctx.stroke();
+
+        if (!current || !options[i]) continue;
+
+        if (stage === "setup" || stage === "movingToCollision") {
+          drawMiniWaiting(cctx, c.width, c.height);
+        } else {
+          drawMiniAfterPath(cctx, c.width, c.height, options[i]);
+        }
+      }
+    }
+
+    function drawMiniWaiting(cctx, width, height) {
+      drawText(cctx, "after-collision path", width / 2, 66, 14, "#94a3b8", "center");
+    }
+
+    function drawMiniAfterPath(cctx, width, height, option) {
+      const s = current;
+      const w1 = 48 + s.m1 * 6;
+      const w2 = 48 + s.m2 * 6;
+      const startA = width / 2 - w2 / 2;
+      const startB = width / 2 + w1 / 2;
+      const center = (startA + startB) / 2;
+      const cycle = (clock % 2.5) / 2.5;
+      const t = cycle * 2.2;
+
+      let x1 = startA + option.v1 * choiceScale * t;
+      let x2 = startB + option.v2 * choiceScale * t;
+
+      if (option.stuck) {
+        const stuckV = option.v1;
+        x1 = startA + stuckV * choiceScale * t;
+        x2 = startB + stuckV * choiceScale * t;
+      }
+
+      x1 = clamp(x1, -35, width + 35);
+      x2 = clamp(x2, -35, width + 35);
+
+      cctx.setLineDash([4, 5]);
+      cctx.strokeStyle = option.stuck ? "rgba(124,58,237,0.4)" : "rgba(37,99,235,0.38)";
+      cctx.lineWidth = 2;
+      cctx.beginPath();
+      cctx.moveTo(center, 83);
+      cctx.lineTo((x1 + x2) / 2, 83);
+      cctx.stroke();
+      cctx.setLineDash([]);
+
+      cctx.globalAlpha = 0.22;
+      drawMiniCart(cctx, startA, 80, w1, 38, "A", s.m1, "#93c5fd", "#2563eb");
+      drawMiniCart(cctx, startB, 80, w2, 38, "B", s.m2, "#fdba74", "#d97706");
+      cctx.globalAlpha = 1;
+
+      if (option.stuck) drawMiniLinkBar(cctx, x1, x2, 80);
+
+      drawMiniCart(cctx, x1, 80, w1, 38, "A", s.m1, "#93c5fd", "#2563eb");
+      drawMiniCart(cctx, x2, 80, w2, 38, "B", s.m2, "#fdba74", "#d97706");
+
+      if (option.stuck) {
+        drawMiniVelocityArrow(cctx, x1, 40, option.v1, "#2563eb", `vA = ${fmt(option.v1)} m/s`, "above");
+        drawMiniVelocityArrow(cctx, x2, 20, option.v2, "#d97706", `vB = ${fmt(option.v2)} m/s`, "below");
+      } else {
+        drawMiniVelocityArrow(cctx, x1, 40, option.v1, "#2563eb", `vA = ${fmt(option.v1)} m/s`, "above");
+        drawMiniVelocityArrow(cctx, x2, 20, option.v2, "#d97706", `vB = ${fmt(option.v2)} m/s`, "below");
+      }
+
+      if (selected !== -1) {
+        drawText(cctx, option.correct ? "inelastic result" : option.label, width / 2, 137, 12, option.correct ? "#15803d" : "#64748b", "center");
+      }
+    }
+
+    function drawMiniLinkBar(cctx, x1, x2, y) {
+      cctx.strokeStyle = "#7c3aed";
+      cctx.lineWidth = 6;
+      cctx.lineCap = "round";
+      cctx.beginPath();
+      cctx.moveTo(x1, y);
+      cctx.lineTo(x2, y);
+      cctx.stroke();
+    }
+
+    function drawCart(drawCtx, x, y, w, h, label, mass, fill, stroke) {
+      drawCtx.fillStyle = fill;
+      drawCtx.strokeStyle = stroke;
+      drawCtx.lineWidth = 4;
+      roundedRect(drawCtx, x - w / 2, y - h / 2, w, h, 12);
+      drawCtx.fill();
+      drawCtx.stroke();
+
+      drawCtx.fillStyle = "#172033";
+      drawCtx.font = "bold 20px Arial";
+      drawCtx.textAlign = "center";
+      drawCtx.fillText(label, x, y - 5);
+
+      drawCtx.font = "bold 16px Arial";
+      drawCtx.fillText(`${mass} kg`, x, y + 21);
+
+      drawCtx.fillStyle = "#334155";
+      drawCtx.beginPath();
+      drawCtx.arc(x - w / 3, y + h / 2 + 7, 10, 0, Math.PI * 2);
+      drawCtx.arc(x + w / 3, y + h / 2 + 7, 10, 0, Math.PI * 2);
+      drawCtx.fill();
+    }
+
+    function drawMiniCart(drawCtx, x, y, w, h, label, mass, fill, stroke) {
+      drawCtx.fillStyle = fill;
+      drawCtx.strokeStyle = stroke;
+      drawCtx.lineWidth = 2;
+      roundedRect(drawCtx, x - w / 2, y - h / 2, w, h, 7);
+      drawCtx.fill();
+      drawCtx.stroke();
+
+      drawCtx.fillStyle = "#172033";
+      drawCtx.font = "bold 13px Arial";
+      drawCtx.textAlign = "center";
+      drawCtx.fillText(label, x, y - 2);
+
+      drawCtx.font = "bold 10px Arial";
+      drawCtx.fillText(`${mass} kg`, x, y + 12);
+    }
+
+    function drawVelocityArrow(drawCtx, x, y, v, color, label) {
+      if (Math.abs(v) < 0.05) {
+        drawText(drawCtx, label, x, y - 22, 13, color, "center");
+        return;
+      }
+
+      const dir = v > 0 ? 1 : -1;
+      const len = 42 + Math.min(100, Math.abs(v) * 22);
+      drawArrow(drawCtx, x - dir * len / 2, y, x + dir * len / 2, y, color, label);
+    }
+
+    function drawMiniVelocityArrow(drawCtx, x, y, v, color, label, labelSide) {
+      if (Math.abs(v) < 0.05) {
+        drawMiniVelocityLabel(drawCtx, label, x, labelSide === "below" ? y + 21 : y - 15, color);
+        return;
+      }
+
+      const dir = v > 0 ? 1 : -1;
+      const len = 22 + Math.min(45, Math.abs(v) * 9);
+      drawArrow(drawCtx, x - dir * len / 2, y, x + dir * len / 2, y, color, "");
+      drawMiniVelocityLabel(drawCtx, label, x, labelSide === "below" ? y + 21 : y - 15, color);
+    }
+
+    function drawMiniVelocityLabel(drawCtx, label, x, y, color) {
+      drawCtx.font = "bold 10px Arial";
+      const textWidth = drawCtx.measureText(label).width + 8;
+      drawCtx.fillStyle = "rgba(255,255,255,0.94)";
+      drawCtx.strokeStyle = color;
+      drawCtx.lineWidth = 1;
+      roundedRect(drawCtx, x - textWidth / 2, y - 11, textWidth, 16, 5);
+      drawCtx.fill();
+      drawCtx.stroke();
+      drawText(drawCtx, label, x, y + 1, 10, color, "center");
+    }
+
+    function drawArrow(drawCtx, x1, y1, x2, y2, color, label) {
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+      const head = 12;
+      const shaftEndX = x2 - head * Math.cos(angle);
+      const shaftEndY = y2 - head * Math.sin(angle);
+
+      drawCtx.strokeStyle = color;
+      drawCtx.fillStyle = color;
+      drawCtx.lineWidth = 4;
+      drawCtx.lineCap = "round";
+
+      drawCtx.beginPath();
+      drawCtx.moveTo(x1, y1);
+      drawCtx.lineTo(shaftEndX, shaftEndY);
+      drawCtx.stroke();
+
+      drawCtx.beginPath();
+      drawCtx.moveTo(x2, y2);
+      drawCtx.lineTo(x2 - head * Math.cos(angle - Math.PI / 6), y2 - head * Math.sin(angle - Math.PI / 6));
+      drawCtx.lineTo(x2 - head * Math.cos(angle + Math.PI / 6), y2 - head * Math.sin(angle + Math.PI / 6));
+      drawCtx.closePath();
+      drawCtx.fill();
+
+      if (label) {
+        const lx = (x1 + x2) / 2;
+        const ly = y1 - 16;
+        drawCtx.font = "bold 13px Arial";
+        const textWidth = drawCtx.measureText(label).width + 14;
+        drawCtx.fillStyle = "rgba(255,255,255,0.94)";
+        drawCtx.strokeStyle = color;
+        drawCtx.lineWidth = 2;
+        roundedRect(drawCtx, lx - textWidth / 2, ly - 13, textWidth, 24, 6);
+        drawCtx.fill();
+        drawCtx.stroke();
+        drawText(drawCtx, label, lx, ly + 5, 12, color, "center");
+      }
+    }
+
+    function drawText(drawCtx, text, x, y, size, color, align) {
+      drawCtx.fillStyle = color;
+      drawCtx.font = "bold " + size + "px Arial";
+      drawCtx.textAlign = align;
+      drawCtx.fillText(text, x, y);
+    }
+
+    function roundedRect(drawCtx, x, y, width, height, radius) {
+      drawCtx.beginPath();
+      drawCtx.moveTo(x + radius, y);
+      drawCtx.lineTo(x + width - radius, y);
+      drawCtx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      drawCtx.lineTo(x + width, y + height - radius);
+      drawCtx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      drawCtx.lineTo(x + radius, y + height);
+      drawCtx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      drawCtx.lineTo(x, y + radius);
+      drawCtx.quadraticCurveTo(x, y, x + radius, y);
+      drawCtx.closePath();
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function smoothStep(value) {
+      const t = clamp(value, 0, 1);
+      return t * t * (3 - 2 * t);
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    cards.forEach((card, index) => {
+      card.addEventListener("click", () => chooseCard(index));
+    });
+
+    startBtn.addEventListener("click", startToCollision);
+    resetBtn.addEventListener("click", resetScenario);
+    nextBtn.addEventListener("click", nextScenario);
+
+    function animate() {
+      clock += 0.016;
+      drawChoiceAnimations();
+      drawMain();
+      requestAnimationFrame(animate);
+    }
+
+    loadScenario(0);
+    animate();
+  </script>
+</body>
+</html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Station 6 — Density Test | Material Properties Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="lab.css" />
+</head>
+<body>
+<div class="page">
+
+  <div class="topbar">
+    <a class="back-btn" href="../index.html">← Grade 5</a>
+    <div class="eyebrow">Grade 5 · Science Lab</div>
+  </div>
+
+  <div id="progShell" class="shell prog-shell"></div>
+  <div class="s-nav" id="sNav"></div>
+
+  <div class="shell">
+    <div class="eyebrow">Station 6 of 6</div>
+    <h1>⚖️ Density Test</h1>
+    <p>Density = mass ÷ volume. Materials denser than water (1 g/cm³) sink; lighter ones float.</p>
+    <div id="matBadge" class="mat-badge"></div>
+
+    <div class="st-grid">
+      <div class="sim-wrap">
+        <canvas id="cvs" width="370" height="270"></canvas>
+        <div class="sim-lbl">Density Visual</div>
+      </div>
+      <div class="ctrls">
+        <div class="dens-grid">
+          <div class="fg">
+            <div class="fl">Mass (grams)</div>
+            <input type="number" id="massInput" min="0" step="0.1" oninput="onUpdate()">
+          </div>
+          <div class="fg">
+            <div class="fl">Volume (cm³)</div>
+            <input type="number" id="volInput" min="0.1" step="0.1" oninput="onUpdate()">
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="calculate()">⚖️ Calculate Density</button>
+
+        <div id="densResult" class="dens-result">
+          <div class="dens-big" id="densVal">—</div>
+          <div style="font-size:.8rem;color:var(--muted);margin-top:3px;">g/cm³</div>
+          <div id="densMsg" style="margin-top:8px;font-size:.88rem;font-weight:600;"></div>
+        </div>
+
+        <div class="fg">
+          <div class="fl">Prediction: Will it float or sink?</div>
+          <div class="btn-row">
+            <button class="btn btn-secondary" id="pred6Float" onclick="pred('float',this)">Will Float</button>
+            <button class="btn btn-secondary" id="pred6Sink"  onclick="pred('sink',this)">Will Sink</button>
+          </div>
+        </div>
+        <div class="fg">
+          <div class="fl">Your Note</div>
+          <textarea class="fta" id="noteTA" oninput="saveStationNote(6,{note:this.value})"></textarea>
+        </div>
+        <div class="info-box"><strong>Rule:</strong> Density &lt; 1 g/cm³ → floats &nbsp;|&nbsp; Density &gt; 1 g/cm³ → sinks</div>
+        <button class="btn btn-green" id="recBtn" onclick="save()">Record Results ✓</button>
+      </div>
+    </div>
+
+    <div class="final-q">
+      <h3>🤔 Think About It</h3>
+      <p>How does density help explain why some materials float and others sink?</p>
+    </div>
+  </div>
+
+  <div class="nav-row">
+    <a class="btn btn-secondary" href="station-5.html">← Previous</a>
+    <a class="btn btn-secondary" href="table.html">View Data Table</a>
+    <a class="btn btn-primary" href="table.html">View Data Table →</a>
+  </div>
+
+</div>
+<script src="lab-data.js"></script>
+<script>
+const STATION = 6;
+
+function m() { return getMat(); }
+
+function onUpdate() {
+  const mass = parseFloat(document.getElementById('massInput').value) || 0;
+  const vol  = parseFloat(document.getElementById('volInput').value)  || 1;
+  drawVis(mass / vol);
+}
+
+function calculate() {
+  const mass = parseFloat(document.getElementById('massInput').value) || 0;
+  const vol  = parseFloat(document.getElementById('volInput').value)  || 1;
+  const den  = parseFloat((mass / vol).toFixed(2));
+  document.getElementById('densResult').style.display = 'block';
+  document.getElementById('densVal').textContent = den;
+  const msg = den < 1
+    ? `✅ ${den} < 1 g/cm³ — less dense than water → likely floats!`
+    : den === 1
+    ? `⚠️ ${den} = 1 g/cm³ — same density as water → borderline!`
+    : `❌ ${den} > 1 g/cm³ — denser than water → likely sinks.`;
+  document.getElementById('densMsg').textContent = msg;
+  saveStationNote(6, { mass, vol, density: den });
+  drawVis(den);
+}
+
+function pred(choice, el) {
+  saveStationNote(6, { prediction: choice });
+  document.getElementById('pred6Float').style.borderColor = '';
+  document.getElementById('pred6Sink').style.borderColor = '';
+  el.style.borderColor = 'var(--accent)';
+}
+
+function drawVis(density) {
+  const cv = document.getElementById('cvs'); if (!cv) return;
+  const ctx = cv.getContext('2d');
+  const W = 370, H = 270, mat = m();
+  ctx.clearRect(0, 0, W, H); ctx.fillStyle = '#f0f8ff'; ctx.fillRect(0, 0, W, H);
+
+  const maxVal = Math.max(density * 1.2, 2.0);
+  const barW = 80, gap = 40, startX = 55, baseY = 220;
+  const vals = [density, 1.0];
+  const labels = ['This Material', 'Water'];
+  const colors = [mat.color, 'rgba(40,130,220,0.7)'];
+
+  labels.forEach((lbl, i) => {
+    const bh = Math.min(180, (vals[i] / maxVal) * 160);
+    const bx = startX + i * (barW + gap);
+    const by = baseY - bh;
+    ctx.fillStyle = colors[i];
+    ctx.beginPath(); ctx.roundRect(bx, by, barW, bh, 6); ctx.fill();
+    ctx.fillStyle = '#333'; ctx.font = 'bold 13px Instrument Sans,system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(`${vals[i].toFixed(2)} g/cm³`, bx + barW / 2, by - 8);
+    ctx.fillStyle = i === 0 ? mat.color : 'rgba(40,130,220,0.9)';
+    ctx.font = '12px Instrument Sans,system-ui';
+    ctx.fillText(lbl, bx + barW / 2, baseY + 16);
+  });
+
+  const wLineY = baseY - (1.0 / maxVal) * 160;
+  ctx.strokeStyle = 'rgba(40,130,220,0.5)'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+  ctx.beginPath(); ctx.moveTo(30, wLineY); ctx.lineTo(W - 20, wLineY); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(40,130,220,0.7)'; ctx.font = '10px system-ui'; ctx.textAlign = 'right';
+  ctx.fillText('Water = 1.0', W - 18, wLineY - 4);
+
+  ctx.fillStyle = density < 1 ? 'rgba(39,122,67,0.85)' : 'rgba(185,58,43,0.85)';
+  ctx.font = 'bold 14px Instrument Sans,system-ui'; ctx.textAlign = 'center';
+  ctx.fillText(density < 1 ? '↑ Floats' : '↓ Sinks', startX + barW / 2, H - 10);
+  ctx.textAlign = 'left';
+}
+
+function save() {
+  const mass = parseFloat(document.getElementById('massInput').value) || m().mass;
+  const vol  = parseFloat(document.getElementById('volInput').value)  || m().vol;
+  saveStationNote(6, {
+    note: document.getElementById('noteTA').value,
+    mass, vol, density: parseFloat((mass / vol).toFixed(2)),
+  });
+  markComplete(6);
+  renderProgress(STATION);
+  const btn = document.getElementById('recBtn');
+  btn.textContent = '✓ Recorded!'; btn.style.background = 'var(--green)';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (!getMatId()) { window.location.href = 'index.html'; return; }
+  const mat = getMat();
+  document.getElementById('matBadge').textContent = `${mat.icon} Testing: ${mat.name}`;
+  renderProgress(STATION);
+  const d = getStationData(STATION);
+  document.getElementById('massInput').value = d.mass || mat.mass;
+  document.getElementById('volInput').value  = d.vol  || mat.vol;
+  if (d.note) document.getElementById('noteTA').value = d.note;
+  if (d.prediction) {
+    const el = document.getElementById(d.prediction === 'float' ? 'pred6Float' : 'pred6Sink');
+    if (el) el.style.borderColor = 'var(--accent)';
+  }
+  if (getCompleted().includes(STATION)) {
+    const btn = document.getElementById('recBtn');
+    btn.textContent = '✓ Recorded!'; btn.style.background = 'var(--green)';
+  }
+  drawVis((d.mass || mat.mass) / (d.vol || mat.vol));
+});
+</script>
+</body>
+</html>

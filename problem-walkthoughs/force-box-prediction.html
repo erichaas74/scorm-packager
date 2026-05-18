@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Force Prediction</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #eef2f7;
+      color: #172033;
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .game {
+      width: min(1100px, 100%);
+      background: white;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+
+    .top {
+      background: #172033;
+      color: white;
+      padding: 14px 18px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-weight: bold;
+    }
+
+    #mainCanvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: #f8fbff;
+      border-bottom: 1px solid #d7deea;
+    }
+
+    .panel {
+      padding: 14px 16px 18px;
+    }
+
+    #message {
+      font-size: 16px;
+      margin-bottom: 10px;
+      min-height: 24px;
+    }
+
+    .choices {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      width: 100%;
+      margin-bottom: 12px;
+      transition: opacity 0.25s ease;
+    }
+
+    .choices.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .choice-card {
+      border-radius: 12px;
+      border: 3px solid #cbd5e1;
+      background: white;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.12s ease, border-color 0.12s ease;
+    }
+
+    .choice-card:hover {
+      transform: translateY(-2px);
+    }
+
+    .choice-header {
+      padding: 6px 8px;
+      font-weight: bold;
+      color: white;
+      font-size: 13px;
+    }
+
+    .choice-a .choice-header { background: #2563eb; }
+    .choice-b .choice-header { background: #16a34a; }
+    .choice-c .choice-header { background: #dc2626; }
+
+    .choice-canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: #f8fbff;
+    }
+
+    .choice-label {
+      padding: 5px 6px 7px;
+      font-size: 12px;
+      color: #334155;
+      text-align: center;
+      font-weight: bold;
+      min-height: 22px;
+    }
+
+    .correct {
+      border-color: #16a34a !important;
+      box-shadow: 0 0 0 3px rgba(22,163,74,0.15);
+    }
+
+    .wrong {
+      border-color: #dc2626 !important;
+      box-shadow: 0 0 0 3px rgba(220,38,38,0.15);
+    }
+
+    .disabled {
+      pointer-events: none;
+      opacity: 0.9;
+    }
+
+    button {
+      border: none;
+      border-radius: 9px;
+      padding: 9px 12px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      background: #2563eb;
+      color: white;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    @media (max-width: 750px) {
+      .choices { grid-template-columns: 1fr; max-width: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="game">
+    <div class="top">
+      <div>Force Prediction</div>
+      <div>Score: <span id="score">0</span></div>
+    </div>
+
+    <canvas id="mainCanvas" width="1100" height="420"></canvas>
+
+    <div class="panel">
+      <div id="message">Click New. Match the motion to the forces.</div>
+
+      <div class="choices hidden">
+        <div class="choice-card choice-a" id="card0">
+          <div class="choice-header">Box A</div>
+          <canvas class="choice-canvas" id="choiceCanvas0" width="340" height="120"></canvas>
+          <div class="choice-label" id="choiceLabel0"></div>
+        </div>
+
+        <div class="choice-card choice-b" id="card1">
+          <div class="choice-header">Box B</div>
+          <canvas class="choice-canvas" id="choiceCanvas1" width="340" height="120"></canvas>
+          <div class="choice-label" id="choiceLabel1"></div>
+        </div>
+
+        <div class="choice-card choice-c" id="card2">
+          <div class="choice-header">Box C</div>
+          <canvas class="choice-canvas" id="choiceCanvas2" width="340" height="120"></canvas>
+          <div class="choice-label" id="choiceLabel2"></div>
+        </div>
+      </div>
+
+      <button id="newBtn">New</button>
+    </div>
+  </div>
+
+  <script>
+    const mainCanvas = document.getElementById("mainCanvas");
+    const mainCtx = mainCanvas.getContext("2d");
+    const message = document.getElementById("message");
+    const scoreEl = document.getElementById("score");
+    const newBtn = document.getElementById("newBtn");
+
+    const choiceCanvases = [
+      document.getElementById("choiceCanvas0"),
+      document.getElementById("choiceCanvas1"),
+      document.getElementById("choiceCanvas2")
+    ];
+    const choicesEl = document.querySelector(".choices");
+    const choiceCtxs = choiceCanvases.map(c => c.getContext("2d"));
+    const choiceLabels = [
+      document.getElementById("choiceLabel0"),
+      document.getElementById("choiceLabel1"),
+      document.getElementById("choiceLabel2")
+    ];
+    const cards = [
+      document.getElementById("card0"),
+      document.getElementById("card1"),
+      document.getElementById("card2")
+    ];
+
+    let score = 0;
+    let scenarioIndex = 0;
+    let current = null;
+    let currentChoices = [];
+    let revealed = false;
+    let animTime = 0;
+    let revealTime = 0;
+    let introStartTime = 0;
+    let choicesReady = false;
+    let autoAdvanceTimer = null;
+    const INTRO_MOTION_TIME = 1.45;
+    const INTRO_PAUSE_TIME = 0.75;
+    const REST_INTRO_TIME = 1.05;
+    const MOVING_FORCE_BUILD_START_TIME = INTRO_MOTION_TIME + INTRO_PAUSE_TIME;
+    const FORCE_STEP_DELAY = 0.5;
+    const FORCE_DRAW_TIME = 0.45;
+    const FORCE_BUILD_HOLD_TIME = 0.35;
+    const FALLBACK_INTRO_DONE_TIME = MOVING_FORCE_BUILD_START_TIME + 2.8;
+
+    const scenarios = [
+      {
+        title: "Rest, one force right",
+        velocity: 0,
+        rightForce: 60,
+        leftForce: 0,
+        verticalForces: false,
+        answer: "movesRight",
+        explanation: "Correct: the only push is to the right.",
+        options: ["staysStill", "movesRight", "movesLeft"]
+      },
+      {
+        title: "Rest, one force left",
+        velocity: 0,
+        rightForce: 0,
+        leftForce: 60,
+        verticalForces: false,
+        answer: "movesLeft",
+        explanation: "Correct: the only push is to the left.",
+        options: ["staysStill", "movesRight", "movesLeft"]
+      },
+      {
+        title: "Moving right, one force left",
+        velocity: 1,
+        rightForce: 0,
+        leftForce: 60,
+        verticalForces: false,
+        answer: "slowRight",
+        explanation: "Correct: it slows, stops, then accelerates left.",
+        options: ["speedUpRight", "slowRight", "movesLeft"]
+      },
+      {
+        title: "Rest, two balanced horizontal forces",
+        velocity: 0,
+        rightForce: 50,
+        leftForce: 50,
+        verticalForces: false,
+        answer: "staysStill",
+        explanation: "Correct: it starts at rest and the forces balance.",
+        options: ["staysStill", "movesRight", "movesLeft"]
+      },
+      {
+        title: "Rest, stronger right horizontal force",
+        velocity: 0,
+        rightForce: 70,
+        leftForce: 30,
+        verticalForces: false,
+        answer: "movesRight",
+        explanation: "Correct: the stronger push is to the right.",
+        options: ["staysStill", "movesRight", "movesLeft"]
+      },
+      {
+        title: "Rest, balanced forces",
+        velocity: 0,
+        rightForce: 40,
+        leftForce: 40,
+        answer: "staysStill",
+        explanation: "Correct: it starts at rest and the forces balance.",
+        options: ["staysStill", "movesRight", "movesLeft"]
+      },
+      {
+        title: "Rest, stronger right force",
+        velocity: 0,
+        rightForce: 70,
+        leftForce: 30,
+        answer: "movesRight",
+        explanation: "Correct: the stronger push is to the right.",
+        options: ["staysStill", "movesRight", "movesLeft"]
+      },
+      {
+        title: "Rest, stronger left force",
+        velocity: 0,
+        rightForce: 20,
+        leftForce: 70,
+        answer: "movesLeft",
+        explanation: "Correct: the stronger push is to the left.",
+        options: ["staysStill", "movesRight", "movesLeft"]
+      },
+      {
+        title: "Moving right, balanced",
+        velocity: 1,
+        rightForce: 50,
+        leftForce: 50,
+        answer: "constRight",
+        explanation: "Correct: balanced forces keep the speed constant.",
+        options: ["stops", "constRight", "slowRight"]
+      },
+      {
+        title: "Moving right, force right",
+        velocity: 1,
+        rightForce: 80,
+        leftForce: 30,
+        answer: "speedUpRight",
+        explanation: "Correct: velocity and the stronger push both point right.",
+        options: ["constRight", "speedUpRight", "slowRight"]
+      },
+      {
+        title: "Moving right, force left",
+        velocity: 1,
+        rightForce: 20,
+        leftForce: 70,
+        answer: "slowRight",
+        explanation: "Correct: it slows, stops, then accelerates left.",
+        options: ["speedUpRight", "slowRight", "movesLeft"]
+      },
+      {
+        title: "Moving left, balanced",
+        velocity: -1,
+        rightForce: 40,
+        leftForce: 40,
+        answer: "constLeft",
+        explanation: "Correct: balanced forces keep the speed constant.",
+        options: ["stops", "constLeft", "speedUpRight"]
+      },
+      {
+        title: "Moving left, force left",
+        velocity: -1,
+        rightForce: 20,
+        leftForce: 80,
+        answer: "speedUpLeft",
+        explanation: "Correct: velocity and the stronger push both point left.",
+        options: ["constLeft", "speedUpLeft", "slowLeft"]
+      },
+      {
+        title: "Moving left, force right",
+        velocity: -1,
+        rightForce: 70,
+        leftForce: 20,
+        answer: "slowLeft",
+        explanation: "Correct: it slows, stops, then accelerates right.",
+        options: ["slowLeft", "speedUpLeft", "movesRight"]
+      }
+    ];
+
+    const motionLabels = {
+      staysStill: "still",
+      movesRight: "starts right",
+      movesLeft: "starts left",
+      constRight: "constant right",
+      constLeft: "constant left",
+      speedUpRight: "faster right",
+      speedUpLeft: "faster left",
+      slowRight: "stop, then left",
+      slowLeft: "stop, then right",
+      stops: "stops"
+    };
+
+    function nextScenario() {
+      if (autoAdvanceTimer) {
+        clearTimeout(autoAdvanceTimer);
+        autoAdvanceTimer = null;
+      }
+
+      current = scenarios[scenarioIndex];
+      scenarioIndex = (scenarioIndex + 1) % scenarios.length;
+      currentChoices = shuffle([...current.options]);
+      revealed = false;
+      revealTime = 0;
+      introStartTime = animTime;
+      choicesReady = false;
+      message.textContent = current.velocity === 0 ? "Starting at rest." : "Watch the motion.";
+      choicesEl.classList.add("hidden");
+      resetCards();
+      updateChoiceLabels();
+      drawMain();
+    }
+
+    function resetCards() {
+      cards.forEach(card => {
+        card.classList.remove("correct", "wrong", "disabled");
+      });
+    }
+
+    function updateChoiceLabels() {
+      for (let i = 0; i < 3; i++) {
+        choiceLabels[i].textContent = revealed ? motionLabels[currentChoices[i]] : "";
+      }
+    }
+
+    function chooseCard(index) {
+      if (!current || revealed || !choicesReady) return;
+      revealed = true;
+      revealTime = animTime;
+
+      const chosen = currentChoices[index];
+      const correctIndex = currentChoices.indexOf(current.answer);
+
+      cards.forEach(card => card.classList.add("disabled"));
+
+      if (chosen === current.answer) {
+        score += 1;
+        scoreEl.textContent = score;
+        cards[index].classList.add("correct");
+      } else {
+        cards[index].classList.add("wrong");
+        cards[correctIndex].classList.add("correct");
+      }
+
+      updateChoiceLabels();
+      message.textContent = current.explanation;
+      drawMain();
+
+      if (isStillOutcome(current.answer)) {
+        autoAdvanceTimer = setTimeout(nextScenario, 3000);
+      }
+    }
+
+    function shuffle(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function drawMain() {
+      mainCtx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+      drawMainBackground();
+
+      if (!current) {
+        drawText(mainCtx, "Predict Motion", mainCanvas.width / 2, 90, 32, "#172033", "center");
+        drawText(mainCtx, "Click New.", mainCanvas.width / 2, 135, 20, "#172033", "center");
+        return;
+      }
+
+      if (revealed) {
+        drawText(mainCtx, current.title, mainCanvas.width / 2, 46, 24, "#172033", "center");
+      }
+
+      const x = mainCanvas.width / 2;
+      const y = 220;
+      const outcomeTime = revealed ? animTime - revealTime : 0;
+      const introTime = getIntroTime();
+      const forceBuildStartTime = getForceBuildStartTime();
+      const blockX = revealed ? getMainOutcomeX(current.answer, outcomeTime, x) : getIntroBlockX(current.velocity, introTime, x);
+      const liveVelocity = revealed ? getMainOutcomeVelocity(current.answer, outcomeTime) : getIntroVelocity(current.velocity, introTime);
+
+      drawBlock(mainCtx, blockX, y, "#f8c471", "#8a5a1f", "Block");
+
+      if (revealed || choicesReady) {
+        drawForces(mainCtx, blockX, y, current);
+        if (revealed || current.velocity !== 0) {
+          drawLiveVelocity(mainCtx, blockX, y, revealed ? liveVelocity : current.velocity * 120);
+        }
+      } else if (introTime >= forceBuildStartTime) {
+        if (current.velocity !== 0) {
+          drawLiveVelocity(mainCtx, blockX, y, current.velocity * 120);
+        } else {
+          drawStartingAtRestCue();
+        }
+        drawIntroForces(mainCtx, blockX, y, current, introTime - forceBuildStartTime);
+      } else if (current.velocity === 0) {
+        drawStartingAtRestCue();
+      } else if (introTime >= INTRO_MOTION_TIME) {
+        drawPauseOverlay();
+      } else {
+        drawIntroVelocityCue(mainCtx, blockX, y, current.velocity);
+      }
+    }
+
+    function drawMainBackground() {
+      mainCtx.fillStyle = "#f8fbff";
+      mainCtx.fillRect(0, 0, mainCanvas.width, mainCanvas.height);
+
+      mainCtx.fillStyle = "#e2e8f0";
+      mainCtx.fillRect(0, 300, mainCanvas.width, 120);
+
+      mainCtx.strokeStyle = "#64748b";
+      mainCtx.lineWidth = 5;
+      mainCtx.beginPath();
+      mainCtx.moveTo(110, 260);
+      mainCtx.lineTo(mainCanvas.width - 110, 260);
+      mainCtx.stroke();
+    }
+
+    function drawForces(ctx, x, y, scenario) {
+      getForceItems(x, y, scenario).forEach(force => {
+        drawArrow(ctx, force.x1, force.y1, force.x2, force.y2, force.color, force.label);
+      });
+    }
+
+    function drawIntroForces(ctx, x, y, scenario, t) {
+      getForceItems(x, y, scenario).forEach((force, index) => {
+        drawPartialArrow(ctx, force.x1, force.y1, force.x2, force.y2, force.color, force.label, introProgress(t, 0.15 + index * FORCE_STEP_DELAY));
+      });
+    }
+
+    function getForceItems(x, y, scenario) {
+      const halfBox = 45;
+      const forces = [];
+
+      if (scenario.rightForce > 0) {
+        const rightLength = 40 + scenario.rightForce;
+        forces.push({
+          x1: x + halfBox,
+          y1: y,
+          x2: x + halfBox + rightLength,
+          y2: y,
+          color: "#2563eb",
+          label: scenario.rightForce + " N"
+        });
+      }
+
+      if (scenario.leftForce > 0) {
+        const leftLength = 40 + scenario.leftForce;
+        forces.push({
+          x1: x - halfBox,
+          y1: y,
+          x2: x - halfBox - leftLength,
+          y2: y,
+          color: "#2563eb",
+          label: scenario.leftForce + " N"
+        });
+      }
+
+      if (scenario.verticalForces !== false) {
+        forces.push({
+          x1: x,
+          y1: y - halfBox,
+          x2: x,
+          y2: y - halfBox - 90,
+          color: "#dc2626",
+          label: "FN 50 N"
+        });
+        forces.push({
+          x1: x,
+          y1: y + halfBox,
+          x2: x,
+          y2: y + halfBox + 90,
+          color: "#dc2626",
+          label: "Fg 50 N"
+        });
+      }
+
+      return forces;
+    }
+
+    function getIntroBlockX(velocity, t, center) {
+      if (t >= INTRO_MOTION_TIME || velocity === 0) return center;
+
+      const progress = Math.max(0, Math.min(t / INTRO_MOTION_TIME, 1));
+      const offset = 180;
+      if (velocity > 0) return center - offset + offset * progress;
+      return center + offset - offset * progress;
+    }
+
+    function getIntroVelocity(velocity, t) {
+      if (t >= INTRO_MOTION_TIME || velocity === 0) return 0;
+
+      const speed = 180 / INTRO_MOTION_TIME;
+      return velocity > 0 ? speed : -speed;
+    }
+
+    function drawStartingAtRestCue() {
+      const centerX = mainCanvas.width / 2;
+
+      drawText(mainCtx, "Starting at rest", centerX, 94, 22, "#334155", "center");
+    }
+
+    function drawPauseOverlay() {
+      const fadeIn = smoothStep((getIntroTime() - INTRO_MOTION_TIME) / 0.2);
+      const fadeOut = 1 - smoothStep((getIntroTime() - MOVING_FORCE_BUILD_START_TIME + 0.2) / 0.2);
+      const alpha = Math.max(0, Math.min(fadeIn, fadeOut, 1));
+      const centerX = mainCanvas.width / 2;
+      const centerY = 142;
+
+      mainCtx.fillStyle = "rgba(23,32,51," + (0.14 * alpha) + ")";
+      mainCtx.fillRect(0, 0, mainCanvas.width, mainCanvas.height);
+
+      mainCtx.fillStyle = "rgba(255,255,255," + (0.96 * alpha) + ")";
+      mainCtx.strokeStyle = "rgba(23,32,51," + (0.18 * alpha) + ")";
+      mainCtx.lineWidth = 2;
+      roundedRect(mainCtx, centerX - 74, centerY - 44, 148, 88, 12);
+      mainCtx.fill();
+      mainCtx.stroke();
+
+      mainCtx.fillStyle = "rgba(23,32,51," + alpha + ")";
+      mainCtx.fillRect(centerX - 22, centerY - 22, 13, 44);
+      mainCtx.fillRect(centerX + 9, centerY - 22, 13, 44);
+    }
+
+    function drawPartialArrow(ctx, x1, y1, x2, y2, color, label, progress) {
+      if (progress <= 0) return;
+
+      const partialX = x1 + (x2 - x1) * progress;
+      const partialY = y1 + (y2 - y1) * progress;
+      const distance = Math.hypot(partialX - x1, partialY - y1);
+
+      if (distance < 18) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 4;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(partialX, partialY);
+        ctx.stroke();
+        return;
+      }
+
+      drawArrow(ctx, x1, y1, partialX, partialY, color, progress > 0.96 ? label : "");
+    }
+
+    function getIntroTime() {
+      if (!current) return FALLBACK_INTRO_DONE_TIME;
+      if (revealed || choicesReady) return getIntroDoneTime();
+      return animTime - introStartTime;
+    }
+
+    function getForceBuildStartTime() {
+      return current && current.velocity === 0 ? REST_INTRO_TIME : MOVING_FORCE_BUILD_START_TIME;
+    }
+
+    function getIntroDoneTime() {
+      return getForceBuildStartTime() + getForceBuildTime();
+    }
+
+    function getForceBuildTime() {
+      const forceCount = current ? getForceItems(0, 0, current).length : 4;
+      return Math.max(0.9, FORCE_DRAW_TIME + FORCE_BUILD_HOLD_TIME + (forceCount - 1) * FORCE_STEP_DELAY);
+    }
+
+    function introProgress(t, start) {
+      const raw = Math.max(0, Math.min((t - start) / FORCE_DRAW_TIME, 1));
+      return smoothStep(raw);
+    }
+
+    function smoothStep(value) {
+      const raw = Math.max(0, Math.min(value, 1));
+      return raw * raw * (3 - 2 * raw);
+    }
+
+    function roundedRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    }
+
+    function updateIntroState() {
+      if (!current || revealed || choicesReady) return;
+      const introTime = getIntroTime();
+      const forceBuildStartTime = getForceBuildStartTime();
+      const introDoneTime = getIntroDoneTime();
+
+      if (current.velocity === 0 && introTime < forceBuildStartTime) {
+        message.textContent = "Starting at rest.";
+        return;
+      }
+
+      if (current.velocity !== 0 && introTime < INTRO_MOTION_TIME) {
+        message.textContent = "Watch the motion.";
+        return;
+      }
+
+      if (current.velocity !== 0 && introTime < forceBuildStartTime) {
+        message.textContent = "Pause.";
+        return;
+      }
+
+      if (introTime < introDoneTime) {
+        message.textContent = "Build the force diagram.";
+        return;
+      }
+
+      choicesReady = true;
+      message.textContent = "";
+      choicesEl.classList.remove("hidden");
+    }
+
+    function drawLiveVelocity(ctx, x, y, velocity) {
+      const cueY = y - 160;
+      const speed = Math.abs(velocity);
+
+      if (speed < 8) {
+        ctx.fillStyle = "#334155";
+        ctx.fillRect(x - 7, cueY - 8, 5, 18);
+        ctx.fillRect(x + 2, cueY - 8, 5, 18);
+        return;
+      }
+
+      const length = Math.max(42, Math.min(170, speed * 0.55));
+
+      if (velocity > 0) {
+        drawArrow(ctx, x - length / 2, cueY, x + length / 2, cueY, "#16a34a", "");
+      } else {
+        drawArrow(ctx, x + length / 2, cueY, x - length / 2, cueY, "#16a34a", "");
+      }
+    }
+
+    function drawIntroVelocityCue(ctx, x, y, velocity) {
+      if (velocity === 0) return;
+
+      const cueY = y - 160;
+      const length = 96;
+
+      if (velocity > 0) {
+        drawArrow(ctx, x - length / 2, cueY, x + length / 2, cueY, "#16a34a", "");
+      } else {
+        drawArrow(ctx, x + length / 2, cueY, x - length / 2, cueY, "#16a34a", "");
+      }
+
+    }
+
+    function getMainOutcomeX(type, t, center) {
+      if (!revealed) return center;
+
+      if (type === "staysStill" || type === "stops") return center;
+      if (type === "movesRight") return center + 58 * t * t;
+      if (type === "movesLeft") return center - 58 * t * t;
+      if (type === "constRight") return center + 190 * t;
+      if (type === "constLeft") return center - 190 * t;
+      if (type === "speedUpRight") return center + 84 * t * t;
+      if (type === "speedUpLeft") return center - 84 * t * t;
+      if (type === "slowRight") return center + getReverseDistance(t);
+      if (type === "slowLeft") return center - getReverseDistance(t);
+      return center;
+    }
+
+    function getMainOutcomeVelocity(type, t) {
+      if (!revealed) return 0;
+
+      if (type === "staysStill" || type === "stops") return 0;
+      if (type === "movesRight") return 116 * t;
+      if (type === "movesLeft") return -116 * t;
+      if (type === "constRight") return 190;
+      if (type === "constLeft") return -190;
+      if (type === "speedUpRight") return 168 * t;
+      if (type === "speedUpLeft") return -168 * t;
+      if (type === "slowRight") return getReverseVelocity(t);
+      if (type === "slowLeft") return -getReverseVelocity(t);
+      return 0;
+    }
+
+    function getReverseDistance(t) {
+      return 250 * t - 80 * t * t;
+    }
+
+    function getReverseVelocity(t) {
+      return 250 - 160 * t;
+    }
+
+    function isStillOutcome(type) {
+      return type === "staysStill" || type === "stops";
+    }
+
+    function shouldAdvanceAfterExit() {
+      if (!current || !revealed || isStillOutcome(current.answer)) return false;
+
+      const x = getMainOutcomeX(current.answer, animTime - revealTime, mainCanvas.width / 2);
+      return x < -70 || x > mainCanvas.width + 70;
+    }
+
+    function drawChoiceAnimations() {
+      for (let i = 0; i < 3; i++) {
+        const ctx = choiceCtxs[i];
+        const canvas = choiceCanvases[i];
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#f8fbff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#e2e8f0";
+        ctx.fillRect(0, 82, canvas.width, 38);
+
+        ctx.strokeStyle = "#64748b";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(14, 79);
+        ctx.lineTo(canvas.width - 14, 79);
+        ctx.stroke();
+
+        if (!current) continue;
+
+        const motionType = currentChoices[i];
+        const cycle = getChoiceCycle(animTime);
+
+        if (motionType === "constRight" || motionType === "constLeft") {
+          drawConstantPreview(ctx, motionType, canvas.width, getChoiceColor(i));
+        } else {
+          const x = getAnimatedX(motionType, animTime, canvas.width);
+          drawMiniBlock(ctx, x, 58, getChoiceColor(i));
+          drawMiniVelocityVector(ctx, motionType, x, 58, cycle, canvas.width);
+        }
+      }
+    }
+
+    function getChoiceCycle(t) {
+      return (t % 2.4) / 2.4;
+    }
+
+    function getAnimatedX(type, t, width) {
+      const center = width / 2;
+      const cycle = getChoiceCycle(t);
+
+      if (type === "staysStill" || type === "stops") return center;
+      if (type === "movesRight") return 34 + cycle * cycle * (width - 68);
+      if (type === "movesLeft") return width - 34 - cycle * cycle * (width - 68);
+      if (type === "constRight") return -24 + cycle * (width + 48);
+      if (type === "constLeft") return width + 24 - cycle * (width + 48);
+      if (type === "speedUpRight") return 34 + (0.35 * cycle + 0.65 * cycle * cycle) * (width - 68);
+      if (type === "speedUpLeft") return width - 34 - (0.35 * cycle + 0.65 * cycle * cycle) * (width - 68);
+      if (type === "slowRight" || type === "slowLeft") return getMiniReverseX(type, cycle, width);
+      return center;
+    }
+
+    function drawConstantPreview(ctx, type, width, color) {
+      const x = getAnimatedX(type, animTime, width);
+      const cycle = getChoiceCycle(animTime);
+
+      drawMiniBlock(ctx, x, 58, color);
+      drawMiniVelocityVector(ctx, type, x, 58, cycle, width);
+
+      if (type === "constRight" && x > width - 24) {
+        const wrappedX = x - width - 48;
+        drawMiniBlock(ctx, wrappedX, 58, color);
+        drawMiniVelocityVector(ctx, type, wrappedX, 58, cycle, width);
+      }
+
+      if (type === "constLeft" && x < 24) {
+        const wrappedX = x + width + 48;
+        drawMiniBlock(ctx, wrappedX, 58, color);
+        drawMiniVelocityVector(ctx, type, wrappedX, 58, cycle, width);
+      }
+    }
+
+    function getMiniReverseX(type, cycle, width) {
+      const center = width / 2;
+      const displacement = 220 * cycle - 330 * cycle * cycle;
+      return type === "slowRight" ? center + displacement : center - displacement;
+    }
+
+    function drawMiniVelocityVector(ctx, type, x, y, cycle, width) {
+      const velocity = getMiniPreviewVelocity(type, cycle, width);
+      const speed = Math.abs(velocity);
+
+      if (speed < 10) {
+        ctx.fillStyle = "#334155";
+        ctx.fillRect(x - 6, y - 35, 4, 14);
+        ctx.fillRect(x + 2, y - 35, 4, 14);
+        return;
+      }
+
+      const length = Math.max(24, Math.min(64, speed * 0.18));
+      const cueY = y - 28;
+
+      if (velocity > 0) {
+        drawArrow(ctx, x - length / 2, cueY, x + length / 2, cueY, "#16a34a", "");
+      } else {
+        drawArrow(ctx, x + length / 2, cueY, x - length / 2, cueY, "#16a34a", "");
+      }
+    }
+
+    function getMiniPreviewVelocity(type, cycle, width) {
+      if (type === "staysStill" || type === "stops") return 0;
+      if (type === "movesRight") return 2 * cycle * (width - 68);
+      if (type === "movesLeft") return -2 * cycle * (width - 68);
+      if (type === "constRight") return width + 48;
+      if (type === "constLeft") return -(width + 48);
+      if (type === "speedUpRight") return (0.35 + 1.3 * cycle) * (width - 68);
+      if (type === "speedUpLeft") return -(0.35 + 1.3 * cycle) * (width - 68);
+      if (type === "slowRight") return 220 - 660 * cycle;
+      if (type === "slowLeft") return -(220 - 660 * cycle);
+      return 0;
+    }
+
+    function drawMiniBlock(ctx, x, y, color) {
+      ctx.fillStyle = color.fill;
+      ctx.strokeStyle = color.stroke;
+      ctx.lineWidth = 2;
+      ctx.fillRect(x - 17, y - 17, 34, 34);
+      ctx.strokeRect(x - 17, y - 17, 34, 34);
+    }
+
+    function getChoiceColor(index) {
+      const colors = [
+        { fill: "#93c5fd", stroke: "#2563eb" },
+        { fill: "#86efac", stroke: "#16a34a" },
+        { fill: "#fca5a5", stroke: "#dc2626" }
+      ];
+      return colors[index];
+    }
+
+    function drawBlock(ctx, x, y, fill, stroke, label) {
+      ctx.fillStyle = fill;
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 3;
+      ctx.fillRect(x - 45, y - 45, 90, 90);
+      ctx.strokeRect(x - 45, y - 45, 90, 90);
+
+      drawText(ctx, label, x, y + 6, 16, "#172033", "center");
+    }
+
+    function drawArrow(ctx, x1, y1, x2, y2, color, label) {
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+      const head = 12;
+      const shaftEndX = x2 - head * Math.cos(angle);
+      const shaftEndY = y2 - head * Math.sin(angle);
+
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 4;
+      ctx.lineCap = "round";
+
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(shaftEndX, shaftEndY);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - head * Math.cos(angle - Math.PI / 6), y2 - head * Math.sin(angle - Math.PI / 6));
+      ctx.lineTo(x2 - head * Math.cos(angle + Math.PI / 6), y2 - head * Math.sin(angle + Math.PI / 6));
+      ctx.closePath();
+      ctx.fill();
+
+      if (label) {
+        const lx = (x1 + x2) / 2;
+        const ly = (y1 + y2) / 2;
+        ctx.font = "bold 12px Arial";
+        const w = ctx.measureText(label).width + 14;
+
+        ctx.fillStyle = "white";
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.fillRect(lx - w / 2, ly - 11, w, 22);
+        ctx.strokeRect(lx - w / 2, ly - 11, w, 22);
+
+        drawText(ctx, label, lx, ly + 4, 12, color, "center");
+      }
+    }
+
+    function drawText(ctx, text, x, y, size, color, align) {
+      ctx.fillStyle = color;
+      ctx.font = "bold " + size + "px Arial";
+      ctx.textAlign = align;
+      ctx.fillText(text, x, y);
+    }
+
+    function hexToRgba(hex, alpha) {
+      const value = hex.replace("#", "");
+      const r = parseInt(value.slice(0, 2), 16);
+      const g = parseInt(value.slice(2, 4), 16);
+      const b = parseInt(value.slice(4, 6), 16);
+      return "rgba(" + r + "," + g + "," + b + "," + alpha + ")";
+    }
+
+    cards.forEach((card, index) => {
+      card.addEventListener("click", () => chooseCard(index));
+    });
+
+    newBtn.addEventListener("click", nextScenario);
+
+    function animate() {
+      animTime += 0.016;
+      updateIntroState();
+      drawChoiceAnimations();
+      drawMain();
+
+      if (shouldAdvanceAfterExit()) {
+        nextScenario();
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    drawMain();
+    animate();
+  </script>
+</body>
+</html>

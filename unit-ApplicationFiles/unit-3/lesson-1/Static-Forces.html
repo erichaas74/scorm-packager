@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Static Tension Practice</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --panel: #ffffff;
+      --ink: #172033;
+      --muted: #5d6b82;
+      --blue: #2563eb;
+      --green: #16a34a;
+      --red: #dc2626;
+      --orange: #ea580c;
+      --line: #d8e0ed;
+      --good-bg: #dcfce7;
+      --good-ink: #166534;
+      --bad-bg: #fee2e2;
+      --bad-ink: #991b1b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    .app {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 18px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 28px;
+    }
+
+    .subtitle {
+      margin: 0 0 16px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 330px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .canvas-card,
+    .control-card,
+    .math-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(23, 32, 51, 0.08);
+    }
+
+    .canvas-card {
+      padding: 12px;
+      position: relative;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 12px;
+      background: linear-gradient(#eef5ff, #ffffff 58%, #f8fafc);
+      border: 1px solid var(--line);
+    }
+
+    .vector-answer {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      border-radius: 12px;
+      border: 2px solid #93c5fd;
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 6px 18px rgba(23, 32, 51, 0.18);
+      transform: translate(-50%, -50%);
+      z-index: 5;
+    }
+
+    .vector-answer .mini-label {
+      font-weight: 700;
+      color: #1e40af;
+      font-size: 16px;
+      white-space: nowrap;
+    }
+
+    .vector-answer input[type="number"] {
+      width: 92px;
+      padding: 7px 8px;
+      font-size: 18px;
+      text-align: center;
+      border: 1px solid #bfdbfe;
+      border-radius: 9px;
+    }
+
+    .control-card {
+      padding: 16px;
+    }
+
+    .section-title {
+      font-weight: 700;
+      margin-bottom: 10px;
+      font-size: 17px;
+    }
+
+    .button-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      color: var(--ink);
+      border-radius: 12px;
+      padding: 11px 12px;
+      font-size: 15px;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    button.active {
+      background: #dbeafe;
+      border-color: #93c5fd;
+      color: #1e3a8a;
+      font-weight: 700;
+    }
+
+    button.primary {
+      width: 100%;
+      background: var(--blue);
+      border-color: var(--blue);
+      color: white;
+      text-align: center;
+      font-weight: 700;
+      margin-top: 10px;
+    }
+
+    button.secondary {
+      width: 100%;
+      text-align: center;
+      margin-top: 8px;
+    }
+
+    .slider-row {
+      margin: 14px 0;
+    }
+
+    label {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    .practice-box {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    .question {
+      font-weight: 700;
+      line-height: 1.35;
+      margin-bottom: 10px;
+    }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr 45px;
+      gap: 8px;
+      align-items: center;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 11px;
+      font-size: 18px;
+    }
+
+    .unit {
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .feedback {
+      margin-top: 12px;
+      padding: 11px;
+      border-radius: 12px;
+      font-weight: 700;
+      line-height: 1.35;
+      display: none;
+    }
+
+    .feedback.correct {
+      display: block;
+      background: var(--good-bg);
+      color: var(--good-ink);
+      border: 1px solid #86efac;
+    }
+
+    .feedback.wrong {
+      display: block;
+      background: var(--bad-bg);
+      color: var(--bad-ink);
+      border: 1px solid #fca5a5;
+    }
+
+    .feedback.neutral {
+      display: block;
+      background: #eff6ff;
+      color: #1e40af;
+      border: 1px solid #bfdbfe;
+    }
+
+    .note {
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      border-radius: 12px;
+      padding: 10px;
+      font-size: 14px;
+      line-height: 1.35;
+      margin-top: 12px;
+    }
+
+    .math-card {
+      margin-top: 16px;
+      padding: 16px;
+      line-height: 1.45;
+    }
+
+    .equation {
+      font-family: "Courier New", monospace;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      padding: 10px;
+      border-radius: 10px;
+      margin: 8px 0;
+      white-space: pre-wrap;
+    }
+
+    .answer {
+      font-weight: 700;
+      color: var(--blue);
+      font-size: 18px;
+      margin-top: 8px;
+    }
+
+    .hidden-message {
+      background: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      color: var(--muted);
+      padding: 12px;
+      border-radius: 12px;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 12px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .legend span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .swatch {
+      width: 18px;
+      height: 4px;
+      border-radius: 99px;
+      display: inline-block;
+    }
+
+    @media (max-width: 860px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Identifying Tension in Static Systems</h1>
+    <p class="subtitle">Find the tension in each cable. Submit your answer to check your work.</p>
+
+    <div class="layout">
+      <div>
+        <div class="canvas-card">
+          <canvas id="scene" width="900" height="560"></canvas>
+          <div id="vectorAnswerBox" class="vector-answer">
+            <span class="mini-label">T =</span>
+            <input id="studentAnswer" type="number" inputmode="decimal" placeholder="?" step="0.1" />
+            <span class="unit">N</span>
+          </div>
+        </div>
+
+        <div class="math-card">
+          <div class="section-title">Solution</div>
+          <div id="mathText" class="hidden-message">The solution is hidden until you check your answer.</div>
+        </div>
+      </div>
+
+      <div class="control-card">
+        <div class="section-title">Choose a system</div>
+        <div class="button-grid">
+          <button id="twoVertical" class="active">Two vertical cables</button>
+          <button id="threeVertical">Three vertical cables</button>
+          <button id="twoAngled">Two angled cables</button>
+        </div>
+
+        <div class="slider-row">
+          <label for="massSlider"><span>Mass</span><strong><span id="massLabel">10</span> kg</strong></label>
+          <input id="massSlider" type="range" min="1" max="40" value="10" step="1" />
+        </div>
+
+        <div class="slider-row">
+          <label for="angleSlider"><span>Cable angle</span><strong><span id="angleLabel">45</span>°</strong></label>
+          <input id="angleSlider" type="range" min="15" max="80" value="45" step="1" />
+        </div>
+
+        <div class="practice-box">
+          <div class="question" id="questionText">What is the tension in each cable?</div>
+          <div class="note">Type your answer directly in the box on the tension vector.</div>
+          <button id="checkBtn" class="primary">Check Answer</button>
+          <button id="newProblemBtn" class="secondary">New Random Problem</button>
+          <div id="feedback" class="feedback"></div>
+        </div>
+
+        <div class="note">
+          The diagram gives the mass, cable setup, and angle. The calculated tension values are hidden until after the answer is checked.
+        </div>
+
+        <div class="legend">
+          <span><i class="swatch" style="background: var(--red)"></i> Weight</span>
+          <span><i class="swatch" style="background: var(--blue)"></i> Tension direction</span>
+          <span><i class="swatch" style="background: var(--green)"></i> Vertical component</span>
+          <span><i class="swatch" style="background: var(--orange)"></i> Horizontal component</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="scorm-wrapper.js"></script>
+  <script>
+    const canvas = document.getElementById("scene");
+    const ctx = canvas.getContext("2d");
+
+    const massSlider = document.getElementById("massSlider");
+    const angleSlider = document.getElementById("angleSlider");
+    const massLabel = document.getElementById("massLabel");
+    const angleLabel = document.getElementById("angleLabel");
+    const mathText = document.getElementById("mathText");
+    const questionText = document.getElementById("questionText");
+    const studentAnswer = document.getElementById("studentAnswer");
+    const vectorAnswerBox = document.getElementById("vectorAnswerBox");
+    const feedback = document.getElementById("feedback");
+    const checkBtn = document.getElementById("checkBtn");
+    const newProblemBtn = document.getElementById("newProblemBtn");
+
+    const buttons = {
+      twoVertical: document.getElementById("twoVertical"),
+      threeVertical: document.getElementById("threeVertical"),
+      twoAngled: document.getElementById("twoAngled")
+    };
+
+    let mode = "twoVertical";
+    let solutionVisible = false;
+    let lastCorrectAnswer = 49;
+    let scormCompleted = false;
+    const g = 9.8;
+
+    Object.keys(buttons).forEach(key => {
+      buttons[key].addEventListener("click", () => {
+        mode = key;
+        Object.values(buttons).forEach(btn => btn.classList.remove("active"));
+        buttons[key].classList.add("active");
+        resetAnswerState();
+        draw();
+      });
+    });
+
+    massSlider.addEventListener("input", () => {
+      resetAnswerState();
+      draw();
+    });
+
+    angleSlider.addEventListener("input", () => {
+      resetAnswerState();
+      draw();
+    });
+
+    checkBtn.addEventListener("click", checkAnswer);
+
+    studentAnswer.addEventListener("keydown", event => {
+      if (event.key === "Enter") checkAnswer();
+    });
+
+    newProblemBtn.addEventListener("click", () => {
+      const modes = ["twoVertical", "threeVertical", "twoAngled"];
+      mode = modes[Math.floor(Math.random() * modes.length)];
+      Object.keys(buttons).forEach(key => {
+        buttons[key].classList.toggle("active", key === mode);
+      });
+      massSlider.value = Math.floor(Math.random() * 30) + 5;
+      angleSlider.value = Math.floor(Math.random() * 50) + 25;
+      resetAnswerState();
+      draw();
+    });
+
+    function resetAnswerState() {
+      solutionVisible = false;
+      studentAnswer.value = "";
+      feedback.className = "feedback";
+      feedback.textContent = "";
+      mathText.className = "hidden-message";
+      mathText.textContent = "The solution is hidden until you check your answer.";
+    }
+
+    function checkAnswer() {
+      const guess = Number(studentAnswer.value);
+      if (!studentAnswer.value || Number.isNaN(guess)) {
+        feedback.className = "feedback neutral";
+        feedback.textContent = "Enter a tension value first.";
+        return;
+      }
+
+      const tolerance = Math.max(0.6, Math.abs(lastCorrectAnswer) * 0.02);
+      const isCorrect = Math.abs(guess - lastCorrectAnswer) <= tolerance;
+      solutionVisible = true;
+
+      if (isCorrect) {
+        feedback.className = "feedback correct";
+        feedback.textContent = `Correct. The tension in each cable is about ${round(lastCorrectAnswer)} N.`;
+        markSCORMComplete();
+      } else {
+        feedback.className = "feedback wrong";
+        feedback.textContent = `Not quite. Your answer was ${guess} N. The correct tension is about ${round(lastCorrectAnswer)} N.`;
+      }
+
+      draw();
+    }
+
+    function markSCORMComplete() {
+      if (scormCompleted || !window.SCORM) return;
+
+      scormCompleted = true;
+      window.SCORM.setScore(100, 0, 100);
+      window.SCORM.setStatus("completed");
+      window.SCORM.commit();
+    }
+
+    function round(value) {
+      return Math.round(value * 10) / 10;
+    }
+
+    function positionVectorInput(canvasX, canvasY) {
+      if (solutionVisible) {
+        vectorAnswerBox.style.display = "none";
+        return;
+      }
+
+      const scaleX = canvas.clientWidth / canvas.width;
+      const scaleY = canvas.clientHeight / canvas.height;
+      vectorAnswerBox.style.display = "flex";
+      vectorAnswerBox.style.left = `${canvas.offsetLeft + canvasX * scaleX}px`;
+      vectorAnswerBox.style.top = `${canvas.offsetTop + canvasY * scaleY}px`;
+    }
+
+    function draw() {
+      const mass = Number(massSlider.value);
+      const angleDeg = Number(angleSlider.value);
+      const weight = mass * g;
+      const angleRad = angleDeg * Math.PI / 180;
+
+      massLabel.textContent = mass;
+      angleLabel.textContent = angleDeg;
+      angleSlider.disabled = mode !== "twoAngled";
+      angleSlider.style.opacity = mode === "twoAngled" ? "1" : "0.35";
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawBackground();
+
+      const cx = canvas.width / 2;
+      const ceilingY = 65;
+      const boxY = 330;
+      const boxW = 160;
+      const boxH = 90;
+      const topY = boxY - boxH / 2;
+      const bottomY = boxY + boxH / 2;
+
+      drawCeiling(ceilingY);
+
+      if (mode === "twoVertical") {
+        const t = weight / 2;
+        lastCorrectAnswer = t;
+        questionText.textContent = "What is the tension in each cable?";
+        const cableXs = [cx - 55, cx + 55];
+
+        cableXs.forEach(x => {
+          drawCable(x, ceilingY, x, topY);
+          drawArrow(x, topY + 8, x, topY - 100, "#2563eb", 5);
+          drawLabel(solutionVisible ? `T = ${round(t)} N` : "T = ?", x - 42, topY - 112, "#1e40af");
+        });
+
+        drawBox(cx, boxY, boxW, boxH, `${mass} kg`);
+        drawArrow(cx, bottomY - 4, cx, bottomY + 125, "#dc2626", 6);
+        drawLabel(`Weight = ${round(weight)} N`, cx - 76, bottomY + 145, "#991b1b");
+        positionVectorInput(cableXs[0], topY - 112);
+        if (solutionVisible) updateMathTwoVertical(mass, weight, t);
+      }
+
+      if (mode === "threeVertical") {
+        const t = weight / 3;
+        lastCorrectAnswer = t;
+        questionText.textContent = "What is the tension in each cable?";
+        const cableXs = [cx - 70, cx, cx + 70];
+
+        cableXs.forEach(x => {
+          drawCable(x, ceilingY, x, topY);
+          drawArrow(x, topY + 8, x, topY - 90, "#2563eb", 5);
+          drawLabel(solutionVisible ? `T = ${round(t)} N` : "T = ?", x - 32, topY - 102, "#1e40af");
+        });
+
+        drawBox(cx, boxY, boxW, boxH, `${mass} kg`);
+        drawArrow(cx, bottomY - 4, cx, bottomY + 125, "#dc2626", 6);
+        drawLabel(`Weight = ${round(weight)} N`, cx - 76, bottomY + 145, "#991b1b");
+        positionVectorInput(cableXs[0], topY - 102);
+        if (solutionVisible) updateMathThreeVertical(mass, weight, t);
+      }
+
+      if (mode === "twoAngled") {
+        const verticalPerCable = weight / 2;
+        const tension = verticalPerCable / Math.sin(angleRad);
+        lastCorrectAnswer = tension;
+        questionText.textContent = "What is the full tension in each angled cable?";
+
+        const attachLeft = { x: cx - 65, y: topY };
+        const attachRight = { x: cx + 65, y: topY };
+        const cableLength = 255;
+        const anchorLeft = {
+          x: attachLeft.x - Math.cos(angleRad) * cableLength,
+          y: attachLeft.y - Math.sin(angleRad) * cableLength
+        };
+        const anchorRight = {
+          x: attachRight.x + Math.cos(angleRad) * cableLength,
+          y: attachRight.y - Math.sin(angleRad) * cableLength
+        };
+
+        drawCable(anchorLeft.x, anchorLeft.y, attachLeft.x, attachLeft.y);
+        drawCable(anchorRight.x, anchorRight.y, attachRight.x, attachRight.y);
+
+        drawAnchor(anchorLeft.x, anchorLeft.y);
+        drawAnchor(anchorRight.x, anchorRight.y);
+
+        drawBox(cx, boxY, boxW, boxH, `${mass} kg`);
+
+        drawArrow(attachLeft.x, attachLeft.y + 2, attachLeft.x - Math.cos(angleRad) * 120, attachLeft.y - Math.sin(angleRad) * 120, "#2563eb", 5);
+        drawArrow(attachRight.x, attachRight.y + 2, attachRight.x + Math.cos(angleRad) * 120, attachRight.y - Math.sin(angleRad) * 120, "#2563eb", 5);
+
+        if (solutionVisible) {
+          drawArrow(attachLeft.x, attachLeft.y, attachLeft.x, attachLeft.y - 92, "#16a34a", 4);
+          drawArrow(attachRight.x, attachRight.y, attachRight.x, attachRight.y - 92, "#16a34a", 4);
+          drawArrow(attachLeft.x, attachLeft.y, attachLeft.x - 86, attachLeft.y, "#ea580c", 4);
+          drawArrow(attachRight.x, attachRight.y, attachRight.x + 86, attachRight.y, "#ea580c", 4);
+        }
+
+        drawArrow(cx, bottomY - 4, cx, bottomY + 125, "#dc2626", 6);
+
+        drawAngleArc(attachLeft.x, attachLeft.y, Math.PI, Math.PI + angleRad, angleDeg, true);
+        drawAngleArc(attachRight.x, attachRight.y, -angleRad, 0, angleDeg, false);
+
+        drawLabel(solutionVisible ? `T = ${round(tension)} N` : "T = ?", anchorLeft.x + 28, anchorLeft.y + 24, "#1e40af");
+        drawLabel(solutionVisible ? `T = ${round(tension)} N` : "T = ?", anchorRight.x - 80, anchorRight.y + 24, "#1e40af");
+        positionVectorInput(anchorLeft.x + 72, anchorLeft.y + 24);
+        if (solutionVisible) {
+          drawLabel(`vertical part = ${round(verticalPerCable)} N`, cx - 92, topY - 116, "#166534");
+          drawLabel(`horizontal parts cancel`, cx - 90, topY + 24, "#9a3412");
+        }
+        drawLabel(`Weight = ${round(weight)} N`, cx - 76, bottomY + 145, "#991b1b");
+
+        if (solutionVisible) updateMathTwoAngled(mass, weight, angleDeg, verticalPerCable, tension);
+      }
+    }
+
+    function drawBackground() {
+      for (let x = 0; x <= canvas.width; x += 45) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.strokeStyle = "rgba(148, 163, 184, 0.14)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+      for (let y = 0; y <= canvas.height; y += 45) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.strokeStyle = "rgba(148, 163, 184, 0.14)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+
+    function drawCeiling(y) {
+      ctx.strokeStyle = "#334155";
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.moveTo(80, y);
+      ctx.lineTo(canvas.width - 80, y);
+      ctx.stroke();
+
+      ctx.strokeStyle = "rgba(51, 65, 85, 0.35)";
+      ctx.lineWidth = 2;
+      for (let x = 90; x < canvas.width - 80; x += 28) {
+        ctx.beginPath();
+        ctx.moveTo(x, y + 12);
+        ctx.lineTo(x + 16, y - 8);
+        ctx.stroke();
+      }
+    }
+
+    function drawCable(x1, y1, x2, y2) {
+      ctx.strokeStyle = "#475569";
+      ctx.lineWidth = 5;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      ctx.lineCap = "butt";
+    }
+
+    function drawAnchor(x, y) {
+      ctx.fillStyle = "#334155";
+      ctx.beginPath();
+      ctx.arc(x, y, 8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawBox(cx, cy, w, h, label) {
+      const x = cx - w / 2;
+      const y = cy - h / 2;
+
+      const grad = ctx.createLinearGradient(x, y, x, y + h);
+      grad.addColorStop(0, "#fef3c7");
+      grad.addColorStop(1, "#f59e0b");
+      ctx.fillStyle = grad;
+      roundRect(x, y, w, h, 14, true, false);
+
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#92400e";
+      roundRect(x, y, w, h, 14, false, true);
+
+      ctx.fillStyle = "#451a03";
+      ctx.font = "700 28px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, cx, cy);
+    }
+
+    function drawArrow(x1, y1, x2, y2, color, width) {
+      const headLength = 15;
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+      const lineEndX = x2 - Math.cos(angle) * headLength;
+      const lineEndY = y2 - Math.sin(angle) * headLength;
+
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = width;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(lineEndX, lineEndY);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - headLength * Math.cos(angle - Math.PI / 6), y2 - headLength * Math.sin(angle - Math.PI / 6));
+      ctx.lineTo(x2 - headLength * Math.cos(angle + Math.PI / 6), y2 - headLength * Math.sin(angle + Math.PI / 6));
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawLabel(text, x, y, color) {
+      ctx.font = "700 18px Arial";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      const metrics = ctx.measureText(text);
+      ctx.fillStyle = "rgba(255,255,255,0.88)";
+      roundRect(x - 8, y - 15, metrics.width + 16, 30, 8, true, false);
+      ctx.fillStyle = color;
+      ctx.fillText(text, x, y);
+    }
+
+    function drawAngleArc(x, y, start, end, angle, leftSide) {
+      ctx.strokeStyle = "#64748b";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, 36, start, end);
+      ctx.stroke();
+
+      ctx.fillStyle = "#334155";
+      ctx.font = "700 15px Arial";
+      ctx.textAlign = "center";
+      const offsetX = leftSide ? -48 : 48;
+      ctx.fillText(`${angle}°`, x + offsetX, y - 18);
+    }
+
+    function roundRect(x, y, w, h, r, fill, stroke) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+      if (fill) ctx.fill();
+      if (stroke) ctx.stroke();
+    }
+
+    function updateMathTwoVertical(mass, weight, t) {
+      mathText.className = "";
+      mathText.innerHTML = `
+        <p>The light is not moving, so the upward cable forces must equal the downward weight.</p>
+        <div class="equation">Weight = mg = ${mass}(9.8) = ${round(weight)} N
+
+T₁ + T₂ = ${round(weight)} N
+T₁ = T₂ = ${round(weight)} ÷ 2</div>
+        <div class="answer">Each cable tension = ${round(t)} N</div>
+      `;
+    }
+
+    function updateMathThreeVertical(mass, weight, t) {
+      mathText.className = "";
+      mathText.innerHTML = `
+        <p>The light is not moving, so the three upward cable forces must equal the downward weight.</p>
+        <div class="equation">Weight = mg = ${mass}(9.8) = ${round(weight)} N
+
+T₁ + T₂ + T₃ = ${round(weight)} N
+T₁ = T₂ = T₃ = ${round(weight)} ÷ 3</div>
+        <div class="answer">Each cable tension = ${round(t)} N</div>
+      `;
+    }
+
+    function updateMathTwoAngled(mass, weight, angleDeg, verticalPerCable, tension) {
+      mathText.className = "";
+      mathText.innerHTML = `
+        <p>The sideways parts of the cable forces cancel. The upward parts must add to the weight.</p>
+        <div class="equation">Weight = mg = ${mass}(9.8) = ${round(weight)} N
+
+Vertical support needed from each cable:
+${round(weight)} ÷ 2 = ${round(verticalPerCable)} N
+
+sin(${angleDeg}°) = vertical part ÷ tension
+sin(${angleDeg}°) = ${round(verticalPerCable)} ÷ T
+T = ${round(verticalPerCable)} ÷ sin(${angleDeg}°)</div>
+        <div class="answer">Each cable tension = ${round(tension)} N</div>
+      `;
+    }
+
+    draw();
+  </script>
+</body>
+</html>

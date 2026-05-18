@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Traitor Hunt — Operation Liberty Quill</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+.suspect-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 18px 0;
+}
+@media (max-width: 580px) { .suspect-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.suspect-card {
+  border: 2.5px solid var(--parchment-md);
+  border-radius: var(--radius-md);
+  padding: 16px 8px 14px;
+  text-align: center;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, opacity 0.3s, transform 0.15s;
+  position: relative;
+  user-select: none;
+}
+.suspect-card:not(.eliminated):hover { transform: translateY(-3px); box-shadow: var(--shadow-sm); }
+.suspect-card.eliminated {
+  opacity: 0.35;
+  filter: grayscale(1);
+  cursor: default;
+  border-color: #cbd5e1;
+  transform: none !important;
+}
+.suspect-card.flash-correct { border-color: var(--green); background: var(--green-lt); }
+.suspect-card.flash-wrong   { border-color: var(--colonial-red); background: var(--red-lt); }
+.suspect-card.is-traitor    { border-color: var(--colonial-red); box-shadow: 0 0 0 3px rgba(139,26,26,0.25); }
+
+.suspect-emoji { font-size: 38px; display: block; margin-bottom: 8px; line-height: 1; }
+.suspect-name  { font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 700; color: var(--ink); }
+.suspect-role  { font-size: 11px; color: var(--ink-muted); margin-top: 3px; }
+.cleared-badge {
+  display: inline-block;
+  margin-top: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #6b7280;
+  background: #f1f5f9;
+  border-radius: 99px;
+  padding: 2px 10px;
+}
+
+/* Evidence board */
+.evidence-board {
+  background: #131929;
+  border-radius: var(--radius-md);
+  padding: 18px;
+  margin: 14px 0;
+}
+.evidence-item {
+  border-left: 3px solid;
+  padding: 11px 14px;
+  margin-bottom: 10px;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.evidence-item:last-child { margin-bottom: 0; }
+.evidence-item.ev-current { border-color: var(--gold);  background: rgba(196,147,47,0.1); }
+.evidence-item.ev-past    { border-color: var(--green); background: rgba(22,163,74,0.08); }
+.ev-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.ev-current .ev-label { color: var(--gold); }
+.ev-past    .ev-label { color: var(--green); }
+.ev-text { font-size: 13.5px; line-height: 1.7; font-style: italic; color: #cbd5e1; }
+
+/* Action prompt */
+.action-prompt {
+  text-align: center;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 14px 0 6px;
+  padding: 10px 16px;
+  background: var(--parchment-dk);
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--parchment-md);
+}
+
+.verdict-banner {
+  padding: 16px 20px;
+  border-radius: var(--radius-md);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  margin: 12px 0;
+  line-height: 1.5;
+}
+.verdict-success { background: var(--green-lt); color: #065f46; border: 2px solid var(--green); }
+.verdict-error   { background: var(--red-lt);   color: var(--colonial-red); }
+
+.clue-counter {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  text-align: right;
+  margin-bottom: 4px;
+  letter-spacing: 0.04em;
+}
+</style>
+</head>
+<body>
+<div class="spy-app">
+  <header class="spy-header">
+    <h1>&#x1F511; Operation Liberty Quill</h1>
+    <div class="spy-name-badge" id="name-badge">Revolutionary War Spy Mission</div>
+  </header>
+  <div class="progress-bar">
+    <div class="pip-row" id="pip-row"></div>
+  </div>
+  <div class="pip-labels" id="pip-labels"></div>
+  <div class="stage-host" id="stage-host"></div>
+</div>
+<script src="shared.js"></script>
+<script>
+const STAGE = 5;
+const st = loadState();
+
+let clueIndex     = typeof st.traitorClueIndex === 'number' ? st.traitorClueIndex : 0;
+let eliminated    = (st.traitorEliminated || []).slice();
+let traitorSolved = st.traitorSolved || false;
+
+const SUSPECTS = [
+  { id: 'thomas',   name: 'Thomas',     role: 'Blacksmith', emoji: '&#x1F528;' },
+  { id: 'margaret', name: 'Margaret',   role: 'Innkeeper',  emoji: '&#x1F56F;' },
+  { id: 'hale',     name: 'Capt. Hale', role: 'Soldier',    emoji: '&#x2694;' },
+  { id: 'eleanor',  name: 'Eleanor',    role: 'Printer',    emoji: '&#x1F4DC;' },
+];
+
+// First 3 clues each eliminate one suspect; 4th triggers the accusation phase
+const CLUES = [
+  {
+    label: 'Evidence 1 of 4 — Soldier\'s Alibi',
+    text:  'Twelve Patriot soldiers each signed a sworn statement that Captain Hale stood guard at Fort Morris from dusk until dawn on Tuesday — the same night the spy route was passed to the British.',
+    answer: 'hale',
+    type:   'eliminate',
+    hint:   'Twelve witnesses confirm his location all night.',
+  },
+  {
+    label: 'Evidence 2 of 4 — The Town Meeting',
+    text:  'Margaret the innkeeper hosted a secret Patriot rally from sundown to midnight. The town minister, the schoolmaster, and eighteen other colonists swear she never stepped outside the inn.',
+    answer: 'margaret',
+    type:   'eliminate',
+    hint:   'Twenty witnesses place her firmly at the inn all evening.',
+  },
+  {
+    label: 'Evidence 3 of 4 — Eyewitness at the Docks',
+    text:  'Three dockworkers each independently described the courier as "a woman in a long work apron." A brass button engraved with a printing-press symbol was recovered at the dead-drop location.',
+    answer: 'thomas',
+    type:   'eliminate',
+    hint:   'The witnesses said it was a woman — and one suspect is not.',
+  },
+  {
+    label: 'Evidence 4 of 4 — The Wax Seal',
+    text:  'The intercepted letter bore a rare red wax stamp shaped like a printing press. Our records confirm only one print shop in the colony uses such a seal. One suspect remains — make your accusation.',
+    answer: 'eleanor',
+    type:   'accuse',
+    hint:   'All others have been cleared. The evidence points to one person.',
+  },
+];
+
+initPage(STAGE);
+render();
+
+function render() {
+  const isAccuse = clueIndex >= CLUES.length - 1;
+
+  const suspectHTML = SUSPECTS.map(s => {
+    const isElim   = eliminated.includes(s.id);
+    const isTraitor = traitorSolved && s.id === 'eleanor';
+    return `
+      <div class="suspect-card ${isElim ? 'eliminated' : ''} ${isTraitor ? 'is-traitor' : ''}"
+           id="sc-${s.id}"
+           onclick="clickSuspect('${s.id}')">
+        <span class="suspect-emoji">${s.emoji}</span>
+        <div class="suspect-name">${s.name}</div>
+        <div class="suspect-role">${s.role}</div>
+        ${isElim ? '<div class="cleared-badge">&#x2713; Cleared</div>' : ''}
+        ${isTraitor ? '<div style="margin-top:6px;font-size:11px;font-weight:700;color:var(--colonial-red)">&#x26A0; TRAITOR</div>' : ''}
+      </div>`;
+  }).join('');
+
+  const evidenceHTML = CLUES.slice(0, clueIndex + 1).map((c, i) =>
+    `<div class="evidence-item ${i === clueIndex ? 'ev-current' : 'ev-past'}">
+       <div class="ev-label">${c.label}</div>
+       <div class="ev-text">"${c.text}"</div>
+     </div>`
+  ).join('');
+
+  let promptHTML = '';
+  if (traitorSolved) {
+    promptHTML = `
+      <div class="verdict-banner verdict-success">
+        &#x1F3C6; Correct! Eleanor the Printer was the traitor. She used her print shop to copy your spy route and sealed the letter with her distinctive wax stamp before handing it to a British courier.
+      </div>`;
+  } else if (isAccuse) {
+    promptHTML = `<div class="action-prompt">&#x26A1; All other suspects are cleared — click the traitor to make your accusation!</div>`;
+  } else {
+    promptHTML = `<div class="action-prompt">&#x1F50D; Read the evidence above. Which suspect does it clear? Click to eliminate them.</div>`;
+  }
+
+  document.getElementById('stage-host').innerHTML = `
+    <div class="stage-title">
+      <span class="standard-badge badge-hist">History — Spy Networks</span>
+      Find the Traitor
+    </div>
+    <p class="stage-subtitle">Someone in the colony leaked your spy route to the British! Study each piece of evidence to eliminate suspects — then accuse the traitor.</p>
+
+    <div class="suspect-grid">${suspectHTML}</div>
+
+    <div class="clue-counter">Evidence revealed: ${clueIndex + 1} / ${CLUES.length}</div>
+    <div class="evidence-board">${evidenceHTML}</div>
+
+    ${promptHTML}
+    <div id="clue-feedback" style="text-align:center;margin-top:8px;min-height:22px;font-size:13px"></div>
+
+    <div style="text-align:center">
+      <button class="continue-btn" id="s5-continue"
+        ${traitorSolved ? '' : 'disabled'}
+        onclick="s5Continue()">
+        Traitor Found &#x2014; Next Challenge &rarr;
+      </button>
+    </div>
+  `;
+}
+
+function clickSuspect(id) {
+  if (traitorSolved) return;
+
+  const currentClue = CLUES[clueIndex];
+  const fb = document.getElementById('clue-feedback');
+
+  if (eliminated.includes(id)) {
+    if (fb) fb.innerHTML = '<span class="feedback-err">This suspect has already been cleared by earlier evidence.</span>';
+    return;
+  }
+
+  if (id === currentClue.answer) {
+    if (currentClue.type === 'eliminate') {
+      eliminated.push(id);
+      // Flash the card green briefly before re-render
+      const card = document.getElementById(`sc-${id}`);
+      if (card) card.classList.add('flash-correct');
+      setTimeout(() => {
+        clueIndex++;
+        render();
+      }, 600);
+    } else {
+      // Accusation — correct!
+      traitorSolved = true;
+      render();
+    }
+  } else {
+    // Wrong guess
+    const card = document.getElementById(`sc-${id}`);
+    if (card) {
+      card.classList.add('flash-wrong');
+      setTimeout(() => card.classList.remove('flash-wrong'), 700);
+    }
+    if (fb) fb.innerHTML = `<span class="feedback-err">That's not right. Hint: ${currentClue.hint}</span>`;
+  }
+}
+
+function s5Continue() {
+  saveState({ traitorClueIndex: clueIndex, traitorEliminated: eliminated, traitorSolved });
+  goToNextPage(STAGE);
+}
+</script>
+</body>
+</html>

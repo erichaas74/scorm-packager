@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Unit 2 Lesson 5 - Coriolis Cannon Challenge</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    :root {
+      --bg: #020617;
+      --panel: #0f172a;
+      --panel-2: #111827;
+      --line: #334155;
+      --text: #f8fafc;
+      --muted: #cbd5e1;
+      --sky: #38bdf8;
+      --yellow: #facc15;
+      --purple: #d8b4fe;
+      --green: #86efac;
+      --red: #fca5a5;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    button:focus-visible,
+    input:focus-visible {
+      outline: 3px solid var(--sky);
+      outline-offset: 3px;
+    }
+
+    .app {
+      width: min(100% - 32px, 1180px);
+      margin: 0 auto;
+      padding: 24px 0;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 18px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.8rem, 4vw, 2.7rem);
+      line-height: 1.02;
+      letter-spacing: -0.02em;
+    }
+
+    .intro {
+      margin: 8px 0 0;
+      max-width: 760px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .status {
+      min-width: 190px;
+      text-align: right;
+      font-size: 1.1rem;
+      font-weight: 800;
+    }
+
+    .status.ready { color: var(--text); }
+    .status.flying { color: #fde68a; }
+    .status.hit { color: var(--green); }
+    .status.miss { color: var(--red); }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .canvas-card,
+    .controls,
+    .info-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: 0 22px 60px rgba(0, 0, 0, 0.28);
+    }
+
+    .canvas-card {
+      border-radius: 18px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      min-height: 470px;
+    }
+
+    .view-stack {
+      display: grid;
+      gap: 16px;
+    }
+
+    .side-view canvas {
+      min-height: 230px;
+    }
+
+    .view-label {
+      position: absolute;
+      left: 16px;
+      top: 14px;
+      z-index: 2;
+      border: 1px solid rgba(226, 232, 240, 0.18);
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.76);
+      color: var(--muted);
+      padding: 7px 11px;
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+
+    .controls {
+      border-radius: 18px;
+      padding: 16px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .actions,
+    .segmented {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .primary,
+    .secondary,
+    .segment {
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-weight: 800;
+      transition: transform 0.16s ease, background 0.16s ease;
+    }
+
+    .primary {
+      background: var(--sky);
+      color: #082f49;
+    }
+
+    .secondary,
+    .segment {
+      background: #334155;
+    }
+
+    .primary:hover,
+    .secondary:hover,
+    .segment:hover {
+      transform: translateY(-1px);
+    }
+
+    .segment.active {
+      background: #a78bfa;
+      color: #1e1b4b;
+    }
+
+    label.control {
+      display: grid;
+      gap: 8px;
+    }
+
+    .label-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      font-size: 0.92rem;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--sky);
+    }
+
+    .range-hints {
+      display: flex;
+      justify-content: space-between;
+      color: #94a3b8;
+      font-size: 0.78rem;
+    }
+
+    .checks {
+      display: grid;
+      gap: 10px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .checks label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .goal {
+      border-radius: 12px;
+      background: #1e293b;
+      padding: 12px;
+      color: var(--muted);
+      line-height: 1.48;
+      font-size: 0.92rem;
+    }
+
+    .goal strong {
+      color: var(--text);
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .info-card {
+      border-radius: 14px;
+      padding: 14px;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 0.92rem;
+    }
+
+    .info-card strong {
+      color: var(--text);
+    }
+
+    @media (max-width: 900px) {
+      .header,
+      .grid,
+      .info-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .header {
+        align-items: start;
+        display: grid;
+      }
+
+      .status {
+        text-align: left;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="header">
+      <div>
+        <h1>Coriolis Cannon Challenge</h1>
+        <p class="intro">A rotating-Earth lab showing how a projectile can move straight by inertia while the rotating reference frame makes the path appear curved.</p>
+      </div>
+      <div id="status" class="status ready">Status: Ready</div>
+    </header>
+
+    <section class="grid" aria-label="Coriolis cannon simulation">
+      <div class="view-stack">
+        <div class="canvas-card">
+          <div class="view-label">Rotating top view</div>
+          <canvas id="simCanvas" aria-label="Coriolis cannon top-view simulation canvas"></canvas>
+        </div>
+
+        <div class="canvas-card side-view">
+          <div class="view-label">Side view</div>
+          <canvas id="sideCanvas" aria-label="Side view of cannon projectile motion with rotating ground below"></canvas>
+        </div>
+      </div>
+
+      <aside class="controls">
+        <div class="actions">
+          <button id="fireBtn" class="primary" type="button">Fire</button>
+          <button id="resetBtn" class="secondary" type="button">Reset</button>
+        </div>
+
+        <label class="control" for="aimCorrection">
+          <div class="label-row"><span>Aim correction</span><strong><span id="aimValue">0</span> deg</strong></div>
+          <input id="aimCorrection" type="range" min="-25" max="25" step="1" value="0" />
+          <div class="range-hints"><span>left</span><span>direct</span><span>right</span></div>
+        </label>
+
+        <label class="control" for="shellSpeed">
+          <div class="label-row"><span>Shell speed</span><strong><span id="speedValue">160</span> px/s</strong></div>
+          <input id="shellSpeed" type="range" min="80" max="260" step="10" value="160" />
+        </label>
+
+        <label class="control" for="targetDistance">
+          <div class="label-row"><span>Target distance</span><strong><span id="distanceValue">520</span> px</strong></div>
+          <input id="targetDistance" type="range" min="260" max="540" step="20" value="520" />
+        </label>
+
+        <label class="control" for="rotationRate">
+          <div class="label-row"><span>Earth rotation rate</span><strong><span id="rotationValue">8</span> deg/s</strong></div>
+          <input id="rotationRate" type="range" min="0" max="18" step="1" value="8" />
+        </label>
+
+        <div>
+          <div class="label-row" style="margin-bottom: 8px;"><span>Hemisphere / rotation direction</span></div>
+          <div class="segmented">
+            <button id="northBtn" class="segment active" type="button">North</button>
+            <button id="southBtn" class="segment" type="button">South</button>
+          </div>
+        </div>
+
+        <div class="checks">
+          <label><input id="showSpacePath" type="checkbox" checked /> Show straight inertial path</label>
+          <label><input id="showEarthPath" type="checkbox" checked /> Show curved rotating-Earth path</label>
+        </div>
+
+        <div class="goal">
+          <strong>Student goal:</strong> fire once directly, then adjust the aim correction until the shell hits the target. Compare short vs. long target distances.
+        </div>
+      </aside>
+    </section>
+
+    <section class="info-grid" aria-label="Student response prompts">
+      <div class="info-card"><strong>Prediction:</strong> Will direct aim hit, miss left, or miss right?</div>
+      <div class="info-card"><strong>Data:</strong> Record distance, speed, rotation rate, aim correction, and hit/miss.</div>
+      <div class="info-card"><strong>Claim:</strong> Explain why inertia keeps the shell moving straight while Earth rotation changes the observed path.</div>
+    </section>
+  </main>
+
+  <script src="scorm-wrapper.js"></script>
+  <script>
+    (function() {
+      "use strict";
+
+      var canvas = document.getElementById("simCanvas");
+      var ctx = canvas.getContext("2d");
+      var sideCanvas = document.getElementById("sideCanvas");
+      var sideCtx = sideCanvas.getContext("2d");
+      var statusNode = document.getElementById("status");
+
+      var inputs = {
+        aimCorrection: document.getElementById("aimCorrection"),
+        shellSpeed: document.getElementById("shellSpeed"),
+        targetDistance: document.getElementById("targetDistance"),
+        rotationRate: document.getElementById("rotationRate"),
+        showSpacePath: document.getElementById("showSpacePath"),
+        showEarthPath: document.getElementById("showEarthPath")
+      };
+
+      var labels = {
+        aim: document.getElementById("aimValue"),
+        speed: document.getElementById("speedValue"),
+        distance: document.getElementById("distanceValue"),
+        rotation: document.getElementById("rotationValue")
+      };
+
+      var fireBtn = document.getElementById("fireBtn");
+      var resetBtn = document.getElementById("resetBtn");
+      var northBtn = document.getElementById("northBtn");
+      var southBtn = document.getElementById("southBtn");
+
+      var projectile = null;
+      var theta = 0;
+      var lastTime = 0;
+      var status = "Ready";
+      var missDistance = null;
+      var hemisphere = "North";
+      var scormCompleted = false;
+
+      function params() {
+        return {
+          rotationRate: Number(inputs.rotationRate.value),
+          hemisphere: hemisphere,
+          shellSpeed: Number(inputs.shellSpeed.value),
+          targetDistance: Number(inputs.targetDistance.value),
+          aimCorrection: Number(inputs.aimCorrection.value),
+          showSpacePath: inputs.showSpacePath.checked,
+          showEarthPath: inputs.showEarthPath.checked
+        };
+      }
+
+      function rotate(point, angle) {
+        return {
+          x: point.x * Math.cos(angle) - point.y * Math.sin(angle),
+          y: point.x * Math.sin(angle) + point.y * Math.cos(angle)
+        };
+      }
+
+      function add(a, b) { return { x: a.x + b.x, y: a.y + b.y }; }
+      function sub(a, b) { return { x: a.x - b.x, y: a.y - b.y }; }
+      function mag(point) { return Math.hypot(point.x, point.y); }
+      function norm(point) {
+        var m = mag(point) || 1;
+        return { x: point.x / m, y: point.y / m };
+      }
+
+      function getLocalPoints() {
+        var distance = Number(inputs.targetDistance.value);
+        return {
+          cannon: { x: -distance / 2, y: 0 },
+          target: { x: distance / 2, y: 0 }
+        };
+      }
+
+      function setStatus(nextStatus, nextMissDistance) {
+        status = nextStatus;
+        missDistance = nextMissDistance == null ? null : nextMissDistance;
+        statusNode.className = "status " + status.toLowerCase();
+        statusNode.textContent = "Status: " + status + (missDistance && missDistance > 0 ? " - Missed by " + missDistance + " px" : "");
+      }
+
+      function markSCORMComplete() {
+        if (scormCompleted || !window.SCORM) return;
+        scormCompleted = true;
+        window.SCORM.setScore(100, 0, 100);
+        window.SCORM.setStatus("completed");
+        window.SCORM.commit();
+      }
+
+      function loadSCORMState() {
+        if (!window.SCORM) return;
+        var lessonStatus = window.SCORM.getValue("cmi.core.lesson_status");
+        scormCompleted = lessonStatus === "completed" || lessonStatus === "passed";
+      }
+
+      function fire() {
+        var p = params();
+        var points = getLocalPoints();
+        var cannonWorld = rotate(points.cannon, theta);
+        var targetDirectionLocal = norm(sub(points.target, points.cannon));
+        var aimLocal = rotate(targetDirectionLocal, p.aimCorrection * Math.PI / 180);
+        var aimWorld = rotate(aimLocal, theta);
+
+        projectile = {
+          startWorld: cannonWorld,
+          launchTheta: theta,
+          velocity: { x: aimWorld.x * p.shellSpeed, y: aimWorld.y * p.shellSpeed },
+          t: 0,
+          history: [{ time: 0, world: cannonWorld }],
+          maxTime: 8
+        };
+
+        setStatus("Flying");
+      }
+
+      function reset() {
+        projectile = null;
+        theta = 0;
+        setStatus("Ready");
+      }
+
+      function resize() {
+        var parent = canvas.parentElement;
+        var width = parent.clientWidth;
+        var height = Math.min(620, Math.max(470, Math.floor(width * 0.62)));
+        var dpr = window.devicePixelRatio || 1;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        canvas.style.width = width + "px";
+        canvas.style.height = height + "px";
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        var sideParent = sideCanvas.parentElement;
+        var sideWidth = sideParent.clientWidth;
+        var sideHeight = Math.min(290, Math.max(230, Math.floor(sideWidth * 0.28)));
+        sideCanvas.width = sideWidth * dpr;
+        sideCanvas.height = sideHeight * dpr;
+        sideCanvas.style.width = sideWidth + "px";
+        sideCanvas.style.height = sideHeight + "px";
+        sideCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      function drawGrid(centerX, centerY) {
+        var radius = 270;
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate(theta);
+
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.fillStyle = "#102a43";
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "#9fb3c8";
+        ctx.stroke();
+
+        ctx.strokeStyle = "rgba(159, 179, 200, 0.26)";
+        ctx.lineWidth = 1;
+        for (var r = 70; r <= 240; r += 55) {
+          ctx.beginPath();
+          ctx.arc(0, 0, r, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        for (var i = 0; i < 12; i += 1) {
+          var angle = i * Math.PI / 6;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(angle) * -radius, Math.sin(angle) * -radius);
+          ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+          ctx.stroke();
+        }
+
+        ctx.strokeStyle = "rgba(125, 211, 252, 0.6)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-radius, 0);
+        ctx.lineTo(radius, 0);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawCannonAndTarget(centerX, centerY) {
+        var p = params();
+        var points = getLocalPoints();
+        var cannonWorld = rotate(points.cannon, theta);
+        var targetWorld = rotate(points.target, theta);
+        var aimLocal = rotate(norm(sub(points.target, points.cannon)), p.aimCorrection * Math.PI / 180);
+        var aimWorld = rotate(aimLocal, theta);
+
+        ctx.save();
+        ctx.translate(centerX, centerY);
+
+        ctx.strokeStyle = "rgba(251, 191, 36, 0.85)";
+        ctx.setLineDash([8, 8]);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(cannonWorld.x, cannonWorld.y);
+        ctx.lineTo(cannonWorld.x + aimWorld.x * 620, cannonWorld.y + aimWorld.y * 620);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = "#38bdf8";
+        ctx.beginPath();
+        ctx.arc(cannonWorld.x, cannonWorld.y, 12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#e0f2fe";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.strokeStyle = "#bae6fd";
+        ctx.lineWidth = 8;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(cannonWorld.x, cannonWorld.y);
+        ctx.lineTo(cannonWorld.x + aimWorld.x * 42, cannonWorld.y + aimWorld.y * 42);
+        ctx.stroke();
+        ctx.lineCap = "butt";
+
+        ctx.fillStyle = "#ef4444";
+        ctx.beginPath();
+        ctx.arc(targetWorld.x, targetWorld.y, 15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(targetWorld.x, targetWorld.y, 6, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawProjectile(centerX, centerY) {
+        if (!projectile) return;
+
+        var p = params();
+        var current = projectile.history[projectile.history.length - 1].world;
+
+        ctx.save();
+        ctx.translate(centerX, centerY);
+
+        if (p.showSpacePath && projectile.history.length > 1) {
+          ctx.strokeStyle = "rgba(250, 204, 21, 0.9)";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          projectile.history.forEach(function(point, index) {
+            if (index === 0) ctx.moveTo(point.world.x, point.world.y);
+            else ctx.lineTo(point.world.x, point.world.y);
+          });
+          ctx.stroke();
+        }
+
+        if (p.showEarthPath && projectile.history.length > 3) {
+          ctx.strokeStyle = "rgba(216, 180, 254, 0.95)";
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          projectile.history.forEach(function(point, index) {
+            var direction = p.hemisphere === "North" ? 1 : -1;
+            var historicalTheta = projectile.launchTheta + direction * (p.rotationRate * Math.PI / 180) * point.time;
+            var localAtThatMoment = rotate(point.world, -historicalTheta);
+            var screenNow = rotate(localAtThatMoment, theta);
+            if (index === 0) ctx.moveTo(screenNow.x, screenNow.y);
+            else ctx.lineTo(screenNow.x, screenNow.y);
+          });
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = "#facc15";
+        ctx.beginPath();
+        ctx.arc(current.x, current.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#713f12";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawLabels(width, height) {
+        ctx.save();
+        ctx.fillStyle = "rgba(15, 23, 42, 0.82)";
+        ctx.fillRect(18, 18, 300, 102);
+        ctx.strokeStyle = "rgba(226, 232, 240, 0.25)";
+        ctx.strokeRect(18, 18, 300, 102);
+
+        ctx.fillStyle = "#f8fafc";
+        ctx.font = "bold 17px system-ui, sans-serif";
+        ctx.fillText("Coriolis Cannon Challenge", 34, 45);
+
+        ctx.font = "13px system-ui, sans-serif";
+        ctx.fillStyle = "#fde68a";
+        ctx.fillText("Yellow = straight inertial path", 34, 70);
+        ctx.fillStyle = "#d8b4fe";
+        ctx.fillText("Purple = path seen from rotating Earth", 34, 92);
+        ctx.fillStyle = "#bae6fd";
+        ctx.fillText("Blue = cannon   Red = target", 34, 114);
+
+        ctx.textAlign = "right";
+        ctx.font = "13px system-ui, sans-serif";
+        ctx.fillStyle = "rgba(248, 250, 252, 0.72)";
+        ctx.fillText("Launch straight. The map rotates underneath.", width - 22, height - 24);
+        ctx.restore();
+      }
+
+      function drawSideView(width, height) {
+        var p = params();
+        var groundTop = height - 58;
+        var cannonX = 72;
+        var targetX = width - 86;
+        var baselineY = groundTop - 16;
+        var flightWidth = targetX - cannonX;
+        var maxArcHeight = Math.min(92, Math.max(56, height * 0.34));
+        var progress = projectile ? Math.min(projectile.t / Math.max(0.8, p.targetDistance / p.shellSpeed), 1.18) : 0;
+        var aimLift = Math.max(-0.25, Math.min(0.25, p.aimCorrection / 80));
+
+        sideCtx.clearRect(0, 0, width, height);
+
+        var sky = sideCtx.createLinearGradient(0, 0, 0, height);
+        sky.addColorStop(0, "#0b1220");
+        sky.addColorStop(0.58, "#172554");
+        sky.addColorStop(1, "#111827");
+        sideCtx.fillStyle = sky;
+        sideCtx.fillRect(0, 0, width, height);
+
+        for (var star = 0; star < 42; star += 1) {
+          var sx = (star * 97 + 31) % width;
+          var sy = 24 + ((star * 43) % Math.max(42, groundTop - 68));
+          sideCtx.fillStyle = star % 3 === 0 ? "rgba(255,255,255,0.72)" : "rgba(255,255,255,0.32)";
+          sideCtx.fillRect(sx, sy, 1.5, 1.5);
+        }
+
+        sideCtx.fillStyle = "#0f766e";
+        sideCtx.fillRect(0, groundTop, width, height - groundTop);
+        sideCtx.fillStyle = "#164e63";
+        sideCtx.fillRect(0, groundTop, width, 10);
+        sideCtx.strokeStyle = "rgba(125, 211, 252, 0.38)";
+        sideCtx.lineWidth = 2;
+        sideCtx.beginPath();
+        sideCtx.moveTo(0, groundTop + 9);
+        sideCtx.lineTo(width, groundTop + 9);
+        sideCtx.stroke();
+
+        var direction = p.hemisphere === "North" ? 1 : -1;
+        var stripeSpacing = 54;
+        var scroll = ((theta * 70) % stripeSpacing + stripeSpacing) % stripeSpacing;
+        for (var x = -stripeSpacing; x < width + stripeSpacing; x += stripeSpacing) {
+          var stripeX = x + scroll;
+          sideCtx.strokeStyle = "rgba(226, 232, 240, 0.34)";
+          sideCtx.lineWidth = 2;
+          sideCtx.beginPath();
+          sideCtx.moveTo(stripeX, groundTop + 10);
+          sideCtx.lineTo(stripeX + 28, height);
+          sideCtx.stroke();
+        }
+
+        sideCtx.fillStyle = "rgba(15, 23, 42, 0.72)";
+        sideCtx.strokeStyle = "rgba(226, 232, 240, 0.18)";
+        sideCtx.lineWidth = 1;
+        roundedRect(sideCtx, 18, 18, 268, 58, 12);
+        sideCtx.fill();
+        sideCtx.stroke();
+        sideCtx.fillStyle = "#e2e8f0";
+        sideCtx.font = "bold 13px system-ui, sans-serif";
+        sideCtx.fillText("Projectile side view", 32, 42);
+        sideCtx.fillStyle = "#cbd5e1";
+        sideCtx.font = "12px system-ui, sans-serif";
+        sideCtx.fillText("Surface marks slide as Earth rotates below.", 32, 62);
+
+        sideCtx.strokeStyle = "rgba(250, 204, 21, 0.36)";
+        sideCtx.setLineDash([7, 7]);
+        sideCtx.lineWidth = 2;
+        sideCtx.beginPath();
+        for (var step = 0; step <= 80; step += 1) {
+          var t = step / 80;
+          var px = cannonX + flightWidth * t;
+          var py = baselineY - Math.sin(Math.PI * t) * maxArcHeight - aimLift * flightWidth * t;
+          if (step === 0) sideCtx.moveTo(px, py);
+          else sideCtx.lineTo(px, py);
+        }
+        sideCtx.stroke();
+        sideCtx.setLineDash([]);
+
+        var projectileX = cannonX;
+        var projectileY = baselineY;
+        if (projectile) {
+          projectileX = cannonX + flightWidth * progress;
+          projectileY = baselineY - Math.sin(Math.PI * Math.min(progress, 1)) * maxArcHeight - aimLift * flightWidth * Math.min(progress, 1);
+          if (progress > 1) projectileY += (progress - 1) * 160;
+        }
+
+        sideCtx.fillStyle = "#334155";
+        roundedRect(sideCtx, cannonX - 34, baselineY - 9, 46, 18, 5);
+        sideCtx.fill();
+        sideCtx.strokeStyle = "#bae6fd";
+        sideCtx.lineWidth = 8;
+        sideCtx.lineCap = "round";
+        sideCtx.beginPath();
+        sideCtx.moveTo(cannonX - 12, baselineY - 6);
+        sideCtx.lineTo(cannonX + 32, baselineY - 24 - aimLift * 80);
+        sideCtx.stroke();
+        sideCtx.lineCap = "butt";
+        sideCtx.fillStyle = "#38bdf8";
+        sideCtx.beginPath();
+        sideCtx.arc(cannonX - 24, baselineY - 1, 13, 0, Math.PI * 2);
+        sideCtx.fill();
+
+        sideCtx.fillStyle = "#ef4444";
+        roundedRect(sideCtx, targetX - 18, baselineY - 24, 36, 24, 6);
+        sideCtx.fill();
+        sideCtx.strokeStyle = "white";
+        sideCtx.lineWidth = 2;
+        sideCtx.stroke();
+        sideCtx.fillStyle = "#fee2e2";
+        sideCtx.font = "bold 11px system-ui, sans-serif";
+        sideCtx.textAlign = "center";
+        sideCtx.fillText("Target", targetX, baselineY - 33);
+        sideCtx.textAlign = "left";
+
+        if (projectile && progress <= 1.2) {
+          sideCtx.fillStyle = "#facc15";
+          sideCtx.beginPath();
+          sideCtx.arc(projectileX, projectileY, 8, 0, Math.PI * 2);
+          sideCtx.fill();
+          sideCtx.strokeStyle = "#713f12";
+          sideCtx.lineWidth = 2;
+          sideCtx.stroke();
+        }
+
+        sideCtx.fillStyle = "rgba(248, 250, 252, 0.78)";
+        sideCtx.font = "12px system-ui, sans-serif";
+        sideCtx.textAlign = "right";
+        sideCtx.fillText("Ground rotation direction: " + (direction > 0 ? "eastward" : "westward"), width - 18, groundTop + 34);
+        sideCtx.textAlign = "left";
+      }
+
+      function roundedRect(drawCtx, x, y, width, height, radius) {
+        drawCtx.beginPath();
+        drawCtx.moveTo(x + radius, y);
+        drawCtx.lineTo(x + width - radius, y);
+        drawCtx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        drawCtx.lineTo(x + width, y + height - radius);
+        drawCtx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        drawCtx.lineTo(x + radius, y + height);
+        drawCtx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        drawCtx.lineTo(x, y + radius);
+        drawCtx.quadraticCurveTo(x, y, x + radius, y);
+        drawCtx.closePath();
+      }
+
+      function updateProjectile(dt) {
+        if (!projectile || status !== "Flying") return;
+
+        projectile.t += dt;
+        var currentWorld = add(projectile.startWorld, {
+          x: projectile.velocity.x * projectile.t,
+          y: projectile.velocity.y * projectile.t
+        });
+        projectile.history.push({ time: projectile.t, world: currentWorld });
+        if (projectile.history.length > 500) projectile.history.shift();
+
+        var target = getLocalPoints().target;
+        var targetWorld = rotate(target, theta);
+        var distance = mag(sub(currentWorld, targetWorld));
+
+        if (distance < 18) {
+          setStatus("Hit", 0);
+          markSCORMComplete();
+        } else if (projectile.t > projectile.maxTime || mag(currentWorld) > 420) {
+          setStatus("Miss", Math.round(distance));
+        }
+      }
+
+      function drawFrame(time) {
+        if (!lastTime) lastTime = time;
+        var dt = Math.min(0.035, (time - lastTime) / 1000);
+        lastTime = time;
+
+        var p = params();
+        var direction = p.hemisphere === "North" ? 1 : -1;
+        theta += direction * (p.rotationRate * Math.PI / 180) * dt;
+        updateProjectile(dt);
+
+        var width = canvas.clientWidth;
+        var height = canvas.clientHeight;
+        var centerX = width / 2;
+        var centerY = height / 2 + 12;
+        ctx.clearRect(0, 0, width, height);
+
+        var gradient = ctx.createLinearGradient(0, 0, 0, height);
+        gradient.addColorStop(0, "#0f172a");
+        gradient.addColorStop(1, "#1e293b");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+
+        drawGrid(centerX, centerY);
+        drawCannonAndTarget(centerX, centerY);
+        drawProjectile(centerX, centerY);
+        drawLabels(width, height);
+        drawSideView(sideCanvas.clientWidth, sideCanvas.clientHeight);
+        window.requestAnimationFrame(drawFrame);
+      }
+
+      function syncControls() {
+        labels.aim.textContent = inputs.aimCorrection.value;
+        labels.speed.textContent = inputs.shellSpeed.value;
+        labels.distance.textContent = inputs.targetDistance.value;
+        labels.rotation.textContent = inputs.rotationRate.value;
+      }
+
+      function setHemisphere(nextHemisphere) {
+        hemisphere = nextHemisphere;
+        northBtn.classList.toggle("active", hemisphere === "North");
+        southBtn.classList.toggle("active", hemisphere === "South");
+      }
+
+      Object.keys(inputs).forEach(function(key) {
+        inputs[key].addEventListener("input", syncControls);
+      });
+      fireBtn.addEventListener("click", fire);
+      resetBtn.addEventListener("click", reset);
+      northBtn.addEventListener("click", function() { setHemisphere("North"); });
+      southBtn.addEventListener("click", function() { setHemisphere("South"); });
+      window.addEventListener("resize", resize);
+
+      syncControls();
+      resize();
+      loadSCORMState();
+      window.requestAnimationFrame(drawFrame);
+    }());
+  </script>
+</body>
+</html>

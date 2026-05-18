@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Station 2 — Oxidation | Chemical Properties Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="lab.css" />
+</head>
+<body>
+<div class="page">
+
+  <div class="topbar">
+    <a class="back-btn" href="../index.html">← Grade 5</a>
+    <div class="eyebrow">Grade 5 · Chemical Properties Lab</div>
+  </div>
+
+  <div id="progShell" class="shell prog-shell"></div>
+  <div class="s-nav" id="sNav"></div>
+
+  <div class="shell">
+    <div class="eyebrow">Station 2 of 5</div>
+    <h1>🟤 Oxidation Test</h1>
+    <p>Rusting is how metals change when touching oxygen and water. Fast-forward time and watch what happens!</p>
+    <div id="matBadge" class="mat-badge"></div>
+
+    <div class="st-grid">
+      <div class="sim-wrap">
+        <canvas id="cvs" width="370" height="270"></canvas>
+        <div class="sim-lbl">Time-Lapse Simulation</div>
+      </div>
+      <div class="ctrls">
+        <div class="fg">
+          <div class="fl">Your Prediction</div>
+          <div class="btn-row">
+            <button class="btn btn-secondary" id="predRust"  onclick="predict('rusts',this)">Will Rust/Change 🟤</button>
+            <button class="btn btn-secondary" id="predNoRust" onclick="predict('no-change',this)">No Change</button>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="ffBtn" onclick="fastForward()">⏩ Fast-Forward 7 Days</button>
+        <button class="btn btn-secondary" onclick="resetSim()">↺ Reset to Day 0</button>
+        <div class="obs">
+          <div class="fg">
+            <div class="fl">What happened after 7 days?</div>
+            <div class="fv" id="obsResult">Fast-forward to observe...</div>
+          </div>
+          <div class="fg">
+            <div class="fl">Oxidation Type</div>
+            <div class="fv" id="obsType">—</div>
+          </div>
+          <div class="fg">
+            <div class="fl">Your Note</div>
+            <textarea class="fta" id="noteTA" oninput="saveStationNote(2,{note:this.value})"></textarea>
+          </div>
+        </div>
+        <div class="info-box"><strong>Did you know?</strong> Rust is a new substance called iron oxide (Fe₂O₃). Oxidation is a chemical change — you can't un-rust iron by drying it out!</div>
+        <button class="btn btn-green" id="recBtn" onclick="save()">Record Results ✓</button>
+      </div>
+    </div>
+
+    <div class="final-q">
+      <h3>🤔 Think About It</h3>
+      <p>Why do metal bridges need regular painting? What would happen if they were left exposed to rain and air for years?</p>
+    </div>
+  </div>
+
+  <div class="nav-row">
+    <a class="btn btn-secondary" href="station-1.html">← Previous</a>
+    <a class="btn btn-secondary" href="table.html">View Data Table</a>
+    <a class="btn btn-primary" href="station-3.html">Next Station →</a>
+  </div>
+
+</div>
+<script src="lab-data.js"></script>
+<script>
+const STATION = 2;
+let day = 0;
+let animId = null;
+let rainDrops = [];
+const CX = 185, SURF_Y = 175;
+
+function sb() { return getSubst(); }
+
+function predict(choice, el) {
+  saveStationNote(2, { prediction: choice });
+  ['predRust','predNoRust'].forEach(id => document.getElementById(id).style.borderColor = '');
+  el.style.borderColor = 'var(--accent)';
+}
+
+function spawnRain() {
+  rainDrops.push({ x: Math.random() * 370, y: -8, vx: 1.5, vy: 5 + Math.random()*3 });
+}
+
+function fastForward() {
+  if (animId) return;
+  document.getElementById('ffBtn').disabled = true;
+  let t = 0;
+  function frame() {
+    t++;
+    day = Math.min(7, day + 0.06);
+    if (Math.random() < 0.6 && day < 6.5) spawnRain();
+    rainDrops = rainDrops.filter(d => d.y < 280);
+    rainDrops.forEach(d => { d.x += d.vx; d.y += d.vy; });
+    if (!animId) return;
+    draw();
+    if (day < 7) animId = requestAnimationFrame(frame);
+    else { animId = null; day = 7; rainDrops = []; draw(); showResult(); }
+  }
+  animId = requestAnimationFrame(frame);
+}
+
+function showResult() {
+  const mat = sb();
+  const re = document.getElementById('obsResult');
+  const te = document.getElementById('obsType');
+  let result, type;
+  if (mat.rusts) {
+    result = '⬛→🟤 Rust formed! Orange-brown iron oxide appeared on the surface.';
+    type = 'Rust (iron oxide) — orange-brown coating';
+  } else if (mat.tarnishes) {
+    result = '🟤→🟢 Tarnish appeared! The surface changed color slowly over time.';
+    type = 'Patina/Tarnish — green or dark coating';
+  } else {
+    result = '✅ No change! This substance did not rust or oxidize after 7 days.';
+    type = 'None — substance did not oxidize';
+  }
+  re.textContent = result; re.classList.add('rev');
+  te.textContent = type; te.classList.add('rev');
+  saveStationNote(2, { rusts: mat.rusts, tarnishes: mat.tarnishes || false, oxidationType: type });
+}
+
+function resetSim() {
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
+  day = 0; rainDrops = [];
+  document.getElementById('ffBtn').disabled = false;
+  ['obsResult','obsType'].forEach(id => {
+    const el = document.getElementById(id);
+    el.textContent = id === 'obsResult' ? 'Fast-forward to observe...' : '—';
+    el.classList.remove('rev');
+  });
+  draw();
+}
+
+function hexToRgba(hex, a) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+function draw() {
+  const cv = document.getElementById('cvs'); if (!cv) return;
+  const ctx = cv.getContext('2d');
+  const W = 370, H = 270, mat = sb();
+  ctx.clearRect(0, 0, W, H);
+
+  // Sky
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, 160);
+  const cloudiness = Math.min(1, day / 3);
+  const skyR = Math.floor(160 + cloudiness * 40), skyG = Math.floor(200 - cloudiness * 30);
+  skyGrad.addColorStop(0, `rgb(${skyR},${skyG},220)`);
+  skyGrad.addColorStop(1, `rgb(${skyR+20},${skyG+10},230)`);
+  ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, W, H);
+
+  // Clouds
+  if (day > 0.5) {
+    ctx.fillStyle = `rgba(220,230,240,${Math.min(0.7, cloudiness * 0.8)})`;
+    [[60,35,45,25],[180,28,55,22],[310,42,40,18]].forEach(([cx,cy,rx,ry]) => {
+      ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI*2); ctx.fill();
+    });
+  }
+
+  // Ground
+  const grassGrad = ctx.createLinearGradient(0, 210, 0, H);
+  grassGrad.addColorStop(0, '#7aa860'); grassGrad.addColorStop(1, '#5a8840');
+  ctx.fillStyle = grassGrad; ctx.fillRect(0, 210, W, H-210);
+
+  // Surface block (like a shelf or concrete slab)
+  ctx.fillStyle = '#c8c0b4';
+  ctx.beginPath(); ctx.roundRect(55, SURF_Y+10, 260, 28, 6); ctx.fill();
+  ctx.strokeStyle = '#aaa09a'; ctx.lineWidth = 1; ctx.stroke();
+
+  // Water puddle effect (builds over days)
+  if (day > 1) {
+    const alpha = Math.min(0.5, (day-1) * 0.07);
+    ctx.fillStyle = `rgba(80,150,220,${alpha})`;
+    ctx.beginPath(); ctx.ellipse(CX, SURF_Y+18, 70, 10, 0, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Substance
+  const bx = CX-38, by = SURF_Y-48;
+  const progress = Math.min(1, day / 6);
+  ctx.fillStyle = mat.color;
+  ctx.beginPath(); ctx.roundRect(bx, by, 76, 52, 9); ctx.fill();
+
+  // Rust/tarnish overlay
+  if (mat.rusts && progress > 0) {
+    const rustCol = mat.rustColor || '#b5651d';
+    // Rust spreads from edges
+    ctx.fillStyle = hexToRgba(rustCol, progress * 0.8);
+    // Corners and edges
+    [
+      [bx, by, 26, 18], [bx+50, by, 26, 18],
+      [bx, by+34, 26, 18], [bx+50, by+34, 26, 18],
+    ].forEach(([x,y,w,h]) => {
+      ctx.fillRect(x, y, w, h);
+    });
+    if (progress > 0.5) {
+      ctx.fillStyle = hexToRgba(rustCol, (progress-0.5)*1.6*0.7);
+      ctx.beginPath(); ctx.roundRect(bx, by, 76, 52, 9); ctx.fill();
+    }
+  } else if (mat.tarnishes && progress > 0) {
+    const tanCol = mat.rustColor || '#5a8a5a';
+    ctx.fillStyle = hexToRgba(tanCol, progress * 0.7);
+    ctx.beginPath(); ctx.roundRect(bx, by, 76, 52, 9); ctx.fill();
+  }
+  ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.font = 'bold 22px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText(mat.icon, CX, by+33);
+
+  // Rain drops
+  rainDrops.forEach(d => {
+    ctx.strokeStyle = 'rgba(150,200,255,0.6)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(d.x+d.vx*2, d.y+d.vy*2); ctx.stroke();
+  });
+
+  // Day counter
+  ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.beginPath(); ctx.roundRect(W-90, 8, 80, 28, 8); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 14px Space Grotesk,system-ui'; ctx.textAlign = 'right';
+  ctx.fillText(`Day ${Math.round(day * 10)/10}`, W-14, 26);
+  ctx.textAlign = 'left';
+}
+
+function save() {
+  saveStationNote(2, { note: document.getElementById('noteTA').value });
+  markComplete(2); renderProgress(STATION);
+  const btn = document.getElementById('recBtn');
+  btn.textContent = '✓ Recorded!'; btn.style.background = 'var(--green)';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (!getSubstId()) { window.location.href = 'index.html'; return; }
+  document.getElementById('matBadge').textContent = `${sb().icon} Testing: ${sb().name}`;
+  renderProgress(STATION);
+  const d = getStationData(STATION);
+  if (d.note) document.getElementById('noteTA').value = d.note;
+  if (d.prediction) {
+    const el = document.getElementById(d.prediction === 'rusts' ? 'predRust' : 'predNoRust');
+    if (el) el.style.borderColor = 'var(--accent)';
+  }
+  if (getCompleted().includes(STATION)) {
+    const btn = document.getElementById('recBtn');
+    btn.textContent = '✓ Recorded!'; btn.style.background = 'var(--green)';
+  }
+  draw();
+});
+</script>
+</body>
+</html>

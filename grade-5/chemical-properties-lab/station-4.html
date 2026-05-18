@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Station 4 — Reactivity | Chemical Properties Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="lab.css" />
+</head>
+<body>
+<div class="page">
+
+  <div class="topbar">
+    <a class="back-btn" href="../index.html">← Grade 5</a>
+    <div class="eyebrow">Grade 5 · Chemical Properties Lab</div>
+  </div>
+
+  <div id="progShell" class="shell prog-shell"></div>
+  <div class="s-nav" id="sNav"></div>
+
+  <div class="shell">
+    <div class="eyebrow">Station 4 of 5</div>
+    <h1>⚗️ Reactivity Test</h1>
+    <p>Reactivity tells us how fast substances mix and change. We'll add vinegar (an acid) and watch what happens!</p>
+    <div id="matBadge" class="mat-badge"></div>
+
+    <div class="st-grid">
+      <div class="sim-wrap">
+        <canvas id="cvs" width="370" height="270"></canvas>
+        <div class="sim-lbl">Simulation</div>
+      </div>
+      <div class="ctrls">
+        <div class="fg">
+          <div class="fl">Your Prediction — When we add vinegar...</div>
+          <div class="btn-row">
+            <button class="btn btn-secondary" id="predReact" onclick="predict('reacts',this)">Will React ⚗️</button>
+            <button class="btn btn-secondary" id="predNoReact" onclick="predict('no-react',this)">No Reaction</button>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="addBtn" onclick="addVinegar()">🧪 Add Vinegar</button>
+        <button class="btn btn-secondary" onclick="resetSim()">↺ Reset</button>
+        <div class="obs">
+          <div class="fg">
+            <div class="fl">Reaction Observed</div>
+            <div class="fv" id="obsResult">Add vinegar to observe...</div>
+          </div>
+          <div class="fg">
+            <div class="fl">Reactivity Rating (1=none · 5=extreme)</div>
+            <div class="r-row" id="reactRow">
+              <button class="rb" onclick="setRating(1)">1</button>
+              <button class="rb" onclick="setRating(2)">2</button>
+              <button class="rb" onclick="setRating(3)">3</button>
+              <button class="rb" onclick="setRating(4)">4</button>
+              <button class="rb" onclick="setRating(5)">5</button>
+            </div>
+          </div>
+          <div class="fg">
+            <div class="fl">Your Note</div>
+            <textarea class="fta" id="noteTA" oninput="saveStationNote(4,{note:this.value})"></textarea>
+          </div>
+        </div>
+        <div class="info-box"><strong>Why bubbles?</strong> When baking soda and vinegar react, they make carbon dioxide (CO₂) gas — the same gas that makes soda drinks fizzy!</div>
+        <button class="btn btn-green" id="recBtn" onclick="save()">Record Results ✓</button>
+      </div>
+    </div>
+
+    <div class="final-q">
+      <h3>🤔 Think About It</h3>
+      <p>If you mixed bleach and vinegar in real life, it would release toxic chlorine gas. Why is it important to NEVER mix cleaning chemicals at home?</p>
+    </div>
+  </div>
+
+  <div class="nav-row">
+    <a class="btn btn-secondary" href="station-3.html">← Previous</a>
+    <a class="btn btn-secondary" href="table.html">View Data Table</a>
+    <a class="btn btn-primary" href="station-5.html">Next Station →</a>
+  </div>
+
+</div>
+<script src="lab-data.js"></script>
+<script>
+const STATION = 4;
+let bubbles = [];
+let drops = [];
+let animId = null;
+let pouring = false;
+let pourDone = false;
+let resultShown = false;
+let pourY = 0;
+const CX = 185;
+const BEAKER_TOP = 80, BEAKER_BOT = 220, BEAKER_X = 115, BEAKER_W = 140;
+const LIQUID_TOP = { none:200, few:195, moderate:185, lots:175, extreme:160 };
+
+function sb() { return getSubst(); }
+
+function predict(choice, el) {
+  saveStationNote(4, { prediction: choice });
+  ['predReact','predNoReact'].forEach(id => document.getElementById(id).style.borderColor = '');
+  el.style.borderColor = 'var(--accent)';
+}
+
+function spawnBubble(mat) {
+  const lvl = mat.reactBubbles;
+  const maxBubs = { none:0, few:2, moderate:5, lots:12, extreme:30 }[lvl] || 0;
+  if (bubbles.length < maxBubs + 10) {
+    const bx = BEAKER_X + 15 + Math.random() * (BEAKER_W - 30);
+    const by = BEAKER_BOT - 8 - Math.random() * 30;
+    bubbles.push({ x: bx, y: by, r: 2 + Math.random()*4, vy: -(0.6 + Math.random()*1.2), life: 1.0 });
+  }
+}
+
+function spawnDrop() {
+  drops.push({ x: CX - 10 + Math.random()*20, y: 25, vy: 2 + Math.random()*2 });
+}
+
+function addVinegar() {
+  if (animId) return;
+  document.getElementById('addBtn').disabled = true;
+  pouring = true; pourY = 25;
+  let frame2 = 0;
+  const mat = sb();
+  const lvl = mat.reactBubbles;
+  const spawnRate = { none:0, few:0.08, moderate:0.25, lots:0.6, extreme:1.2 }[lvl] || 0;
+
+  function frame() {
+    frame2++;
+    // Pouring drops
+    if (frame2 < 80) {
+      if (Math.random() < 0.5) spawnDrop();
+    } else if (!pourDone) {
+      pourDone = true;
+      if (!resultShown) { resultShown = true; showResult(); }
+    }
+    drops = drops.filter(d => d.y < BEAKER_BOT);
+    drops.forEach(d => { d.y += d.vy; });
+
+    // Bubbles
+    if (pourDone && Math.random() < spawnRate) spawnBubble(mat);
+    bubbles = bubbles.filter(b => b.life > 0);
+    bubbles.forEach(b => {
+      b.y += b.vy; b.x += (Math.random()-0.5)*0.4;
+      if (b.y < BEAKER_TOP + 10) b.life -= 0.15;
+      else b.life -= 0.003;
+    });
+
+    draw(frame2);
+    if (!pourDone || bubbles.length > 0 || (spawnRate > 0 && frame2 < 400)) {
+      animId = requestAnimationFrame(frame);
+    } else {
+      animId = null;
+    }
+  }
+  animId = requestAnimationFrame(frame);
+}
+
+function showResult() {
+  const mat = sb();
+  const msgs = {
+    none:    '😶 No reaction — vinegar and this substance do not react with each other.',
+    few:     '🫧 Very slight reaction — a few small bubbles formed slowly.',
+    moderate:'⚗️ Moderate reaction — bubbles formed steadily. A chemical change is occurring!',
+    lots:    '💥 Strong reaction! Many bubbles rapidly forming — clear chemical change!',
+    extreme: '🌋 EXTREME reaction! Violent fizzing and bubbling — CO₂ gas everywhere!',
+  };
+  const el = document.getElementById('obsResult');
+  el.textContent = msgs[mat.reactBubbles] || 'Test complete.';
+  el.classList.add('rev');
+  setRatingDisplay(mat.react);
+  saveStationNote(4, { reactLevel: mat.react, reactBubbles: mat.reactBubbles });
+}
+
+function setRating(val) {
+  saveStationNote(4, { reactRating: val });
+  setRatingDisplay(val);
+}
+function setRatingDisplay(val) {
+  document.getElementById('reactRow').querySelectorAll('.rb').forEach((b,i) => b.classList.toggle('sel', i+1===val));
+}
+
+function resetSim() {
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
+  bubbles = []; drops = []; pouring = false; pourDone = false; resultShown = false;
+  document.getElementById('addBtn').disabled = false;
+  const el = document.getElementById('obsResult');
+  el.textContent = 'Add vinegar to observe...'; el.classList.remove('rev');
+  document.getElementById('reactRow').querySelectorAll('.rb').forEach(b => b.classList.remove('sel'));
+  draw(0);
+}
+
+function draw(frame2 = 0) {
+  const cv = document.getElementById('cvs'); if (!cv) return;
+  const ctx = cv.getContext('2d');
+  const W = 370, H = 270, mat = sb();
+  ctx.clearRect(0, 0, W, H);
+
+  // Lab bench background
+  ctx.fillStyle = '#f0f0e8'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#ddd8cc'; ctx.fillRect(0, 240, W, 30);
+
+  // Vinegar bottle on right
+  const bx2 = 280, by2 = 20;
+  ctx.fillStyle = '#c8a04a'; ctx.beginPath(); ctx.roundRect(bx2, by2, 30, 50, 6); ctx.fill();
+  ctx.fillStyle = '#a07820'; ctx.beginPath(); ctx.roundRect(bx2+6, by2-12, 18, 14, 3); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = '8px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText('🧪', bx2+15, by2+28);
+
+  // Pouring drops
+  if (pouring) {
+    ctx.strokeStyle = 'rgba(200,160,70,0.7)'; ctx.lineWidth = 2;
+    drops.forEach(d => {
+      ctx.beginPath(); ctx.moveTo(d.x+bx2-CX+10, d.y); ctx.lineTo(d.x+bx2-CX+10, d.y+6); ctx.stroke();
+    });
+    // Stream line
+    if (!pourDone && (frame2 || 0) < 80) {
+      ctx.strokeStyle = 'rgba(200,160,70,0.5)';
+      ctx.beginPath(); ctx.moveTo(bx2+15, by2+50); ctx.lineTo(CX, BEAKER_TOP+5); ctx.stroke();
+    }
+  }
+
+  // Beaker
+  ctx.strokeStyle = 'rgba(100,150,200,0.5)'; ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(BEAKER_X, BEAKER_TOP);
+  ctx.lineTo(BEAKER_X, BEAKER_BOT);
+  ctx.lineTo(BEAKER_X+BEAKER_W, BEAKER_BOT);
+  ctx.lineTo(BEAKER_X+BEAKER_W, BEAKER_TOP);
+  ctx.stroke();
+  // Beaker spout
+  ctx.beginPath(); ctx.moveTo(BEAKER_X+BEAKER_W-5, BEAKER_TOP); ctx.lineTo(BEAKER_X+BEAKER_W+12, BEAKER_TOP-8); ctx.stroke();
+  // Beaker tick marks
+  ctx.strokeStyle = '#bbb'; ctx.lineWidth = 1;
+  [180,160,140,120].forEach(y => {
+    ctx.beginPath(); ctx.moveTo(BEAKER_X, y); ctx.lineTo(BEAKER_X+10, y); ctx.stroke();
+  });
+
+  // Substance in beaker
+  const extremeOvfl = pourDone && mat.reactBubbles === 'extreme' && bubbles.length > 5;
+  const liquidTop = pourDone ? LIQUID_TOP[mat.reactBubbles] || 200 : 200;
+  const liqColor = mat.isLiquid ? mat.color : mat.color;
+  ctx.fillStyle = extremeOvfl ? 'rgba(240,240,220,0.9)' : `${liqColor}88`;
+  ctx.fillRect(BEAKER_X+2, liquidTop, BEAKER_W-4, BEAKER_BOT-liquidTop-2);
+
+  // Foam overflow for extreme
+  if (extremeOvfl) {
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.beginPath(); ctx.ellipse(CX, BEAKER_TOP, BEAKER_W/2+15, 18, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.beginPath(); ctx.ellipse(CX+10, BEAKER_TOP-12, 30, 10, 0, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Substance label at bottom of beaker
+  ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.font = '12px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText(mat.icon, CX, BEAKER_BOT - 6);
+
+  // Vinegar added label
+  if (pourDone) {
+    ctx.fillStyle = 'rgba(200,160,70,0.5)';
+    ctx.fillRect(BEAKER_X+2, liquidTop-12, BEAKER_W-4, 12);
+    ctx.fillStyle = '#775500'; ctx.font = '9px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText('+ Vinegar', CX, liquidTop-2);
+  }
+
+  // Bubbles
+  bubbles.forEach(b => {
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, b.life * 4) * 0.7;
+    ctx.strokeStyle = 'rgba(200,220,255,0.9)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  });
+
+  ctx.textAlign = 'left';
+}
+
+function save() {
+  saveStationNote(4, { note: document.getElementById('noteTA').value });
+  markComplete(4); renderProgress(STATION);
+  const btn = document.getElementById('recBtn');
+  btn.textContent = '✓ Recorded!'; btn.style.background = 'var(--green)';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (!getSubstId()) { window.location.href = 'index.html'; return; }
+  document.getElementById('matBadge').textContent = `${sb().icon} Testing: ${sb().name}`;
+  renderProgress(STATION);
+  const d = getStationData(STATION);
+  if (d.note) document.getElementById('noteTA').value = d.note;
+  if (d.reactRating) setRatingDisplay(d.reactRating);
+  if (d.prediction) {
+    const el = document.getElementById(d.prediction === 'reacts' ? 'predReact' : 'predNoReact');
+    if (el) el.style.borderColor = 'var(--accent)';
+  }
+  if (getCompleted().includes(STATION)) {
+    const btn = document.getElementById('recBtn');
+    btn.textContent = '✓ Recorded!'; btn.style.background = 'var(--green)';
+  }
+  draw(0);
+});
+</script>
+</body>
+</html>

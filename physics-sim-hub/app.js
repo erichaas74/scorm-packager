@@ -24,17 +24,36 @@ const MODULE_REGISTRY = {
     "Dimensional Analysis Setup": UnitConversion,
 };
 
+// Standalone pages that open in a new tab instead of loading into the canvas
+const PAGE_LINKS = {
+    "2D Kinematics: Student Explorer": "./kinematics2dFlatSimple.html",
+};
+
 const DEFAULT_MODULE_NAME = "Problem 2: 2D Projectile Motion";
 let currentSimulationInstance = null;
 
 window.onload = function() {
     const selector = document.getElementById('problemSelector');
-    
+
     Object.keys(MODULE_REGISTRY).forEach((moduleName) => {
         const option = document.createElement('option');
         option.value = moduleName; option.innerText = moduleName;
         selector.appendChild(option);
     });
+
+    if (Object.keys(PAGE_LINKS).length) {
+        const divider = document.createElement('option');
+        divider.disabled = true;
+        divider.innerText = '── Standalone Pages ──';
+        selector.appendChild(divider);
+
+        Object.keys(PAGE_LINKS).forEach((label) => {
+            const option = document.createElement('option');
+            option.value = label; option.innerText = '↗ ' + label;
+            selector.appendChild(option);
+        });
+    }
+
     selector.value = DEFAULT_MODULE_NAME;
 
     const loadModule = (moduleName) => {
@@ -44,10 +63,21 @@ window.onload = function() {
         const ModuleClass = MODULE_REGISTRY[moduleName];
         currentSimulationInstance = new ModuleClass('simCanvas');
         currentSimulationInstance.previewTitleFallback = moduleName + " Preview";
-        currentSimulationInstance.init(); 
+        currentSimulationInstance.init();
     };
 
-    selector.addEventListener('change', (e) => loadModule(e.target.value));
+    selector.addEventListener('change', (e) => {
+        const name = e.target.value;
+        if (PAGE_LINKS[name]) {
+            window.open(PAGE_LINKS[name], '_blank');
+            // Reset selector back to the current module so nothing breaks
+            selector.value = currentSimulationInstance
+                ? Object.keys(MODULE_REGISTRY).find(k => currentSimulationInstance instanceof MODULE_REGISTRY[k]) ?? DEFAULT_MODULE_NAME
+                : DEFAULT_MODULE_NAME;
+            return;
+        }
+        loadModule(name);
+    });
     loadModule(selector.value);
 
     document.getElementById('playBtn').addEventListener('click', () => {

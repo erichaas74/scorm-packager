@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lab Test — Operation Liberty Quill</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="spy-app">
+  <header class="spy-header">
+    <h1>&#x1F511; Operation Liberty Quill</h1>
+    <div class="spy-name-badge" id="name-badge">Revolutionary War Spy Mission</div>
+  </header>
+  <div class="progress-bar">
+    <div class="pip-row" id="pip-row"></div>
+  </div>
+  <div class="pip-labels" id="pip-labels"></div>
+  <div class="stage-host" id="stage-host"></div>
+</div>
+<script src="shared.js"></script>
+<script>
+const STAGE = 3;
+const st = loadState();
+let materials      = (st.materials      || []).slice();
+let testDone       = st.testDone        || false;
+let testProtected  = st.testProtected   || false;
+let materialReason = st.materialReason  || '';
+
+const MATERIALS = [
+  { id: 'wax',     label: 'Wax Paper',   waterproof: true,  color: '#fef3c7', border: '#d97706' },
+  { id: 'leather', label: 'Leather',     waterproof: true,  color: '#92400e', border: '#78350f' },
+  { id: 'cloth',   label: 'Cloth',       waterproof: false, color: '#bfdbfe', border: '#3b82f6' },
+  { id: 'tin',     label: 'Tin Sheet',   waterproof: true,  color: '#cbd5e1', border: '#64748b' },
+  { id: 'paper',   label: 'Plain Paper', waterproof: false, color: '#f9fafb', border: '#9ca3af' },
+];
+
+initPage(STAGE);
+
+renderPage();
+
+function renderPage() {
+  const mCards = MATERIALS.map(m => {
+    const sel = materials.includes(m.id) ? ' selected' : '';
+    const resultHtml = testDone
+      ? `<div class="mat-result ${m.waterproof ? 'ok' : 'bad'}">${m.waterproof ? '&#x2713; Waterproof' : '&#x2717; Not Waterproof'}</div>`
+      : '';
+    return `<div class="mat-card${sel}" id="mat-${m.id}" onclick="toggleMaterial('${m.id}')">
+      <div class="mat-swatch" style="background:${m.color};border-color:${m.border}"></div>
+      <h4>${m.label}</h4>
+      ${resultHtml}
+    </div>`;
+  }).join('');
+
+  const wc = wordCount(materialReason);
+
+  document.getElementById('stage-host').innerHTML = `
+    <div class="stage-title">
+      <span class="standard-badge badge-sci">NGSS 5-PS1-3</span>
+      Waterproof Your Message
+    </div>
+    <p class="stage-subtitle">Choose <strong>2 materials</strong> to protect your message. Then test them in the rain to see which works best!</p>
+    <canvas id="rain-canvas" width="560" height="280"></canvas>
+    <div class="material-cards">${mCards}</div>
+    <div class="rain-result-banner" id="rain-banner"></div>
+    <div style="text-align:center;margin-bottom:14px">
+      <button class="ctrl-btn" id="rain-btn" onclick="startRainTest()" ${materials.length < 2 ? 'disabled' : ''}>
+        &#x1F327; Test in Rain
+      </button>
+    </div>
+    <div id="reason-wrap" style="${testDone ? '' : 'display:none'}">
+      <label class="field-label" for="reason-input">Which material would you use to protect a real message — and why? <span style="font-weight:400;color:var(--ink-muted)">(5+ words)</span></label>
+      <textarea id="reason-input" rows="3" placeholder="I would choose ___ because...">${materialReason}</textarea>
+      <span class="word-counter ${wc >= 5 ? 'met' : ''}" id="reason-counter">${wc} / 5 words minimum</span>
+    </div>
+    <div style="text-align:center">
+      <button class="continue-btn" id="s3-continue" disabled onclick="s3Continue()">Test Complete &rarr;</button>
+    </div>
+  `;
+
+  drawRainScene(false, false);
+
+  if (testDone) {
+    showRainBanner();
+    checkS3();
+  }
+
+  const ri = document.getElementById('reason-input');
+  if (ri) {
+    ri.addEventListener('input', e => {
+      materialReason = e.target.value;
+      const wc = wordCount(materialReason);
+      const counter = document.getElementById('reason-counter');
+      if (counter) {
+        counter.textContent = `${wc} / 5 words minimum`;
+        counter.className = 'word-counter' + (wc >= 5 ? ' met' : '');
+      }
+      checkS3();
+    });
+  }
+}
+
+function toggleMaterial(id) {
+  if (testDone) return;
+  if (materials.includes(id)) {
+    materials = materials.filter(m => m !== id);
+  } else {
+    if (materials.length >= 2) materials.shift();
+    materials.push(id);
+  }
+  MATERIALS.forEach(m => {
+    const el = document.getElementById(`mat-${m.id}`);
+    if (el) el.className = 'mat-card' + (materials.includes(m.id) ? ' selected' : '');
+  });
+  const btn = document.getElementById('rain-btn');
+  if (btn) btn.disabled = materials.length < 2;
+  drawRainScene(false, false);
+}
+
+function drawRainScene(raining, damaged) {
+  const canvas = document.getElementById('rain-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = 560, H = 280;
+
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+  skyGrad.addColorStop(0, raining ? '#374151' : '#93c5fd');
+  skyGrad.addColorStop(1, raining ? '#6b7280' : '#bfdbfe');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  function cloud(cx, cy, scale) {
+    ctx.fillStyle = raining ? '#9ca3af' : 'rgba(255,255,255,0.9)';
+    [[0,0,28],[20,-8,22],[40,2,24],[-18,4,20]].forEach(([dx,dy,r]) => {
+      ctx.beginPath(); ctx.arc(cx+dx*scale, cy+dy*scale, r*scale, 0, Math.PI*2); ctx.fill();
+    });
+  }
+  cloud(100, 55, 1); cloud(280, 40, 1.2); cloud(450, 65, 0.9);
+
+  ctx.fillStyle = '#6b7c5a';
+  ctx.fillRect(0, H * 0.72, W, H);
+
+  const sx = W * 0.18, sy = H * 0.28, sw = W * 0.45, sh = H * 0.44;
+  ctx.fillStyle = damaged ? '#d4a57a' : '#f5e6c8';
+  rrect(ctx, sx, sy, sw, sh, 6);
+  ctx.fill();
+  ctx.strokeStyle = '#c4932f';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  for (const ry of [sy, sy + sh]) {
+    ctx.beginPath();
+    ctx.ellipse(sx + sw/2, ry, sw/2, 10, 0, 0, Math.PI*2);
+    ctx.fillStyle = damaged ? '#c4952a' : '#e8d5a8';
+    ctx.fill();
+    ctx.strokeStyle = '#c4932f';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = damaged ? 'rgba(100,60,20,0.3)' : 'rgba(44,24,16,0.6)';
+  for (let line = 0; line < 4; line++) {
+    ctx.fillRect(sx + 18, sy + 20 + line * 18, sw - 36, 4);
+  }
+
+  if (damaged) {
+    ctx.fillStyle = 'rgba(60,100,180,0.18)';
+    ctx.beginPath();
+    ctx.ellipse(sx + sw/2, sy + sh/2, sw*0.4, sh*0.38, 0.2, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  if (materials.length > 0) {
+    const mat = MATERIALS.find(m => m.id === materials[materials.length - 1]);
+    if (mat) {
+      const mx = sx + sw + 20, my = sy, mw = W * 0.22, mh = sh;
+      ctx.fillStyle = mat.color;
+      ctx.strokeStyle = mat.border;
+      ctx.lineWidth = 2.5;
+      rrect(ctx, mx, my, mw, mh, 8);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.font = 'bold 11px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(mat.label, mx + mw/2, my + mh/2);
+    }
+  }
+
+  if (!raining && !damaged) {
+    ctx.fillStyle = 'rgba(44,24,16,0.5)';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('Select 2 materials above, then click "Test in Rain"', W/2, H - 6);
+  }
+}
+
+let rainDrops = [];
+function startRainTest() {
+  if (materials.length < 2) return;
+  stopAllAnimations();
+  testDone = false;
+
+  const btn = document.getElementById('rain-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Testing...'; }
+
+  rainDrops = Array.from({length: 70}, () => ({
+    x: Math.random() * 560,
+    y: Math.random() * -200,
+    speed: 3.5 + Math.random() * 3,
+    len: 9 + Math.random() * 9
+  }));
+
+  let t = 0;
+  function frame() {
+    const canvas = document.getElementById('rain-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    t++;
+    drawRainScene(true, false);
+    rainDrops.forEach(d => {
+      d.y += d.speed; d.x += 0.6;
+      if (d.y > 290) { d.y = -20; d.x = Math.random() * 560; }
+    });
+    ctx.strokeStyle = 'rgba(100,160,255,0.65)';
+    ctx.lineWidth = 1.5;
+    rainDrops.forEach(d => {
+      ctx.beginPath();
+      ctx.moveTo(d.x, d.y);
+      ctx.lineTo(d.x + 3, d.y + d.len);
+      ctx.stroke();
+    });
+    if (t < 200) {
+      _rafId = requestAnimationFrame(frame);
+    } else {
+      finishRainTest();
+    }
+  }
+  _rafId = requestAnimationFrame(frame);
+}
+
+function finishRainTest() {
+  testDone = true;
+  testProtected = materials.some(id => MATERIALS.find(m => m.id === id && m.waterproof));
+  drawRainScene(false, !testProtected);
+
+  MATERIALS.forEach(m => {
+    const el = document.getElementById(`mat-${m.id}`);
+    if (el) {
+      const oldResult = el.querySelector('.mat-result');
+      if (oldResult) oldResult.remove();
+      const r = document.createElement('div');
+      r.className = `mat-result ${m.waterproof ? 'ok' : 'bad'}`;
+      r.innerHTML = m.waterproof ? '&#x2713; Waterproof' : '&#x2717; Not Waterproof';
+      el.appendChild(r);
+    }
+  });
+
+  showRainBanner();
+
+  const rw = document.getElementById('reason-wrap');
+  if (rw) rw.style.display = '';
+
+  const ri = document.getElementById('reason-input');
+  if (ri) {
+    ri.addEventListener('input', e => {
+      materialReason = e.target.value;
+      const wc = wordCount(materialReason);
+      const counter = document.getElementById('reason-counter');
+      if (counter) {
+        counter.textContent = `${wc} / 5 words minimum`;
+        counter.className = 'word-counter' + (wc >= 5 ? ' met' : '');
+      }
+      checkS3();
+    });
+  }
+  checkS3();
+}
+
+function showRainBanner() {
+  const banner = document.getElementById('rain-banner');
+  if (!banner) return;
+  banner.style.display = '';
+  if (testProtected) {
+    banner.className = 'rain-result-banner ok';
+    banner.innerHTML = '&#x2713; Message Protected! Your material kept the message dry.';
+  } else {
+    banner.className = 'rain-result-banner bad';
+    banner.innerHTML = '&#x2717; Message Damaged! Neither material was waterproof enough.';
+  }
+}
+
+function checkS3() {
+  const btn = document.getElementById('s3-continue');
+  if (btn) btn.disabled = !(testDone && wordCount(materialReason) >= 5);
+}
+
+function s3Continue() {
+  saveState({ materials, testDone, testProtected, materialReason });
+  goToNextPage(STAGE);
+}
+</script>
+</body>
+</html>

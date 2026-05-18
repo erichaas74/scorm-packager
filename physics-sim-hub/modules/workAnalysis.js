@@ -403,11 +403,8 @@ export function buildGivensStep(knownVariables, options = {}) {
         id: 'givens',
         title: 'Identify The Givens',
         accent: '#0f172a',
-        // Show the FULL pool on the canvas as selectable elements — students
-        // need to be able to mis-pick a wrong one for the feedback to mean
-        // anything.
         focusLabel: 'Tag every quantity the problem hands you',
-        focusValues: pool,
+        focusValues: expected,
         resultValues: [],
         lines: ['Mark each given on the canvas or in the variable list.'],
         tasks: [{

@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Kinematics: Interactive Simulation</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --accent:        #4f46e5;
+            --accent-hover:  #4338ca;
+            --accent-light:  #eef2ff;
+            --surface-0:     #f0f2f5;
+            --surface-1:     #ffffff;
+            --surface-2:     #f8f9fb;
+            --border:        #e4e7ec;
+            --border-subtle: #eef0f4;
+            --text-primary:  #111827;
+            --text-secondary:#4b5563;
+            --text-muted:    #9ca3af;
+            --success:       #059669;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--surface-0);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            padding: clamp(8px, 1.5vw, 16px);
+        }
+
+        /* ── Outer card ── */
+        .sim-card {
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            border-radius: 1.25rem;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            box-shadow: 0 4px 24px -8px rgba(0,0,0,0.08);
+        }
+
+        /* ── Accent stripe ── */
+        .accent-bar {
+            height: 3px;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6, #a78bfa);
+            background-size: 200% 200%;
+            animation: gradient 6s ease infinite;
+            flex-shrink: 0;
+        }
+        @keyframes gradient {
+            0%, 100% { background-position: 0% 50%; }
+            50%       { background-position: 100% 50%; }
+        }
+
+        /* ── Title bar ── */
+        .sim-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.85rem 1.25rem;
+            border-bottom: 1px solid var(--border-subtle);
+            background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,249,251,0.98));
+            flex-shrink: 0;
+        }
+
+        .sim-header-left {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+        }
+
+        .sim-icon {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 0.6rem;
+            background: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(79,70,229,0.3);
+            flex-shrink: 0;
+        }
+
+        .sim-title {
+            font-size: 0.92rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            letter-spacing: -0.01em;
+        }
+
+        .sim-subtitle {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            letter-spacing: 0.04em;
+        }
+
+        /* ── Scenario chips ── */
+        .scenario-chips {
+            display: flex;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .chip {
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 0.3rem 0.75rem;
+            font-size: 0.72rem;
+            font-weight: 700;
+            cursor: pointer;
+            background: var(--surface-2);
+            color: var(--text-secondary);
+            transition: all 0.14s ease;
+            white-space: nowrap;
+            user-select: none;
+        }
+        .chip:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-light);
+        }
+        .chip.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(79,70,229,0.28);
+        }
+
+        /* ── Canvas viewport ── */
+        .canvas-viewport {
+            flex: 1;
+            position: relative;
+            background: rgba(248,250,252,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem;
+            min-height: 0;
+        }
+
+        #simCanvas {
+            width: 100%;
+            height: auto;
+            max-height: min(70vh, 700px);
+            object-fit: contain;
+            display: block;
+            border-radius: 0.75rem;
+            cursor: crosshair;
+            user-select: none;
+            touch-action: none;
+        }
+
+        /* ── Bottom control bar ── */
+        .control-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            padding: 0.75rem 1.25rem;
+            border-top: 1px solid var(--border-subtle);
+            background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,249,251,0.98));
+            flex-shrink: 0;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            font-family: inherit;
+            font-weight: 700;
+            font-size: 0.8rem;
+            padding: 0.5rem 1.1rem;
+            border-radius: 0.65rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.14s ease;
+            line-height: 1;
+            white-space: nowrap;
+        }
+        .btn:active { transform: scale(0.97); }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+        .btn-primary:hover { background: var(--accent-hover); box-shadow: 0 3px 10px rgba(79,70,229,0.32); }
+
+        .btn-outline {
+            background: var(--surface-1);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+        .btn-outline:hover { background: var(--surface-2); border-color: #c7cdd8; }
+        .btn-outline.active {
+            background: var(--accent-light);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* Divider */
+        .bar-divider {
+            width: 1px;
+            height: 1.5rem;
+            background: var(--border);
+            flex-shrink: 0;
+        }
+
+        /* Hover tip */
+        .hover-tip {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin-left: auto;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            background: var(--surface-2);
+            border: 1px solid var(--border-subtle);
+            border-radius: 0.55rem;
+            padding: 0.35rem 0.7rem;
+        }
+        .hover-tip svg { color: #a78bfa; flex-shrink: 0; }
+
+        /* ── Hidden containers required by the module class ── */
+        #controls, #topControls { display: none !important; }
+
+        /* ── Module extension (walkthrough panels) ── */
+        #moduleExtension {
+            border-top: 1px solid var(--border-subtle);
+            background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,249,251,0.98));
+            padding: 1rem 1.25rem 1.15rem;
+        }
+        #moduleExtension.hidden { display: none; }
+
+        /* Copy module-extension styles from index.html so panels render correctly */
+        .module-extension__header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 0.85rem;
+        }
+        .module-extension__title {
+            font-size: 0.82rem;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            color: var(--text-primary);
+        }
+        .module-extension__subtitle {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .module-extension__grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 0.8rem;
+        }
+        .module-extension__card {
+            background: rgba(255,255,255,0.92);
+            border: 1px solid var(--border);
+            border-radius: 0.9rem;
+            padding: 0.85rem 0.9rem;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+        }
+        .module-extension__card h4 {
+            font-size: 0.72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            margin: 0 0 0.65rem;
+        }
+        .module-extension__line {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            line-height: 1.45;
+            margin: 0 0 0.38rem;
+        }
+        .module-extension__line strong { color: var(--text-primary); }
+        .module-extension__line .katex { font-size: 1em; }
+        .module-extension__value-key .katex { font-size: 0.95em; }
+        .module-extension__equation-text .katex { font-size: 1em; }
+        .module-extension__line--focus {
+            border-left: 3px solid var(--step-accent, var(--accent));
+            padding-left: 0.55rem;
+            color: var(--text-primary);
+        }
+        .module-extension__line--revealed {
+            min-height: 1.25rem;
+            transition: color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
+        }
+        .module-extension__line--active {
+            color: var(--step-accent, var(--accent));
+            transform: translateX(2px);
+        }
+        .module-extension__line--result {
+            display: inline-block;
+            border-radius: 0.45rem;
+            padding: 0.14rem 0.4rem;
+            background: color-mix(in srgb, var(--step-accent, var(--accent)) 12%, white);
+            color: var(--text-primary);
+        }
+        .module-extension__cursor {
+            display: inline-block;
+            width: 0.45em;
+            height: 1em;
+            margin-left: 0.12em;
+            border-right: 2px solid var(--step-accent, var(--accent));
+            transform: translateY(0.12em);
+            animation: workLineCursor 0.75s steps(2, start) infinite;
+        }
+        @keyframes workLineCursor { 0%,45%{opacity:1} 46%,100%{opacity:0} }
+
+        .module-extension__equation-flow { display: grid; gap: 0.5rem; margin-top: 0.7rem; }
+        .module-extension__step-breakdown { display: grid; gap: 0.85rem; margin-top: 0.7rem; }
+        .module-extension__step-breakdown-block { display: grid; gap: 0.48rem; }
+        .module-extension__breakdown-label {
+            font-size: 0.62rem; font-weight: 850; letter-spacing: 0.08em;
+            text-transform: uppercase; color: var(--step-accent, var(--accent));
+        }
+        .module-extension__equation-stage {
+            display: grid;
+            grid-template-columns: 5.8rem minmax(0,1fr);
+            align-items: center;
+            gap: 0.55rem;
+            border: 1px solid var(--border-subtle);
+            border-radius: 0.55rem;
+            padding: 0.48rem 0.58rem;
+            background: rgba(248,250,252,0.72);
+            color: var(--text-secondary);
+            transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+        }
+        .module-extension__equation-stage--active {
+            border-color: var(--step-accent, var(--accent));
+            background: color-mix(in srgb, var(--step-accent, var(--accent)) 8%, white);
+            transform: translateX(2px);
+        }
+        .module-extension__equation-stage--result {
+            border-color: color-mix(in srgb, var(--step-accent, var(--accent)) 55%, white);
+            background: color-mix(in srgb, var(--step-accent, var(--accent)) 13%, white);
+            color: var(--text-primary);
+        }
+        .module-extension__equation-label {
+            font-size: 0.62rem; font-weight: 850; letter-spacing: 0.08em;
+            text-transform: uppercase; color: var(--step-accent, var(--accent));
+        }
+        .module-extension__equation-text {
+            min-height: 1.25rem;
+            font-family: 'JetBrains Mono', ui-monospace, monospace;
+            font-size: 0.8rem; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere;
+        }
+        .module-extension__value-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+            gap: 0.48rem;
+        }
+        .module-extension__value-chip {
+            display: grid; gap: 0.22rem; min-height: 3.1rem;
+            border: 1px solid var(--border-subtle); border-radius: 0.65rem;
+            padding: 0.5rem 0.6rem; background: rgba(248,250,252,0.84);
+            transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+        }
+        .module-extension__value-chip--active {
+            transform: translateY(-1px);
+            border-color: var(--step-accent, var(--accent));
+            background: color-mix(in srgb, var(--step-accent, var(--accent)) 9%, white);
+        }
+        .module-extension__value-chip--result {
+            border-color: color-mix(in srgb, var(--step-accent, var(--accent)) 50%, white);
+            background: color-mix(in srgb, var(--step-accent, var(--accent)) 14%, white);
+        }
+        .module-extension__value-key {
+            font-size: 0.62rem; font-weight: 850; letter-spacing: 0.06em;
+            text-transform: uppercase; color: var(--text-muted);
+        }
+        .module-extension__value-text {
+            min-height: 1.25rem;
+            font-family: 'JetBrains Mono', ui-monospace, monospace;
+            font-size: 0.8rem; font-weight: 700; line-height: 1.35;
+            color: var(--text-primary); overflow-wrap: anywhere;
+        }
+        .module-extension__sequence-stack { display: grid; gap: 0.9rem; }
+        .module-extension__card--current-step {
+            border-color: color-mix(in srgb, var(--step-accent, var(--accent)) 45%, var(--border));
+            background: linear-gradient(180deg, color-mix(in srgb, var(--step-accent, var(--accent)) 7%, white), rgba(255,255,255,0.94));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 10px 28px -20px var(--step-accent, var(--accent));
+        }
+        .module-extension__current-label {
+            display: inline-flex; width: fit-content; margin-bottom: 0.45rem;
+            border-radius: 999px; padding: 0.18rem 0.5rem;
+            background: color-mix(in srgb, var(--step-accent, var(--accent)) 12%, white);
+            color: var(--step-accent, var(--accent));
+            font-size: 0.58rem; font-weight: 900; letter-spacing: 0.09em; text-transform: uppercase;
+        }
+        .module-extension__grid--steps { align-items: stretch; }
+        .module-extension__card--step { position: relative; overflow: hidden; }
+        .module-extension__card--step::before {
+            content: ''; position: absolute; inset: 0 auto 0 0; width: 4px;
+            background: var(--step-accent, var(--accent)); opacity: 0.18;
+        }
+        .module-extension__card--active-step {
+            border-color: color-mix(in srgb, var(--step-accent, var(--accent)) 48%, var(--border));
+            background: color-mix(in srgb, var(--step-accent, var(--accent)) 6%, white);
+        }
+        .module-extension__card--active-step::before { opacity: 1; }
+        .module-extension__card--completed-step { opacity: 0.78; }
+        .module-extension__walkthrough-equation {
+            display: grid; gap: 0.22rem; border-radius: 0.55rem;
+            padding: 0.52rem 0.62rem; margin: 0.65rem 0;
+            background: rgba(248,250,252,0.8); border: 1px solid var(--border-subtle);
+        }
+        .module-extension__walkthrough-equation span,
+        .module-extension__walkthrough-question {
+            font-size: 0.64rem; font-weight: 850; letter-spacing: 0.08em;
+            text-transform: uppercase; color: var(--text-muted);
+        }
+        .module-extension__walkthrough-equation strong {
+            font-family: 'JetBrains Mono', ui-monospace, monospace;
+            font-size: 0.83rem; color: var(--text-primary);
+        }
+        .module-extension__walkthrough-question {
+            display: block; margin: 0.7rem 0 0.35rem; color: var(--step-accent, var(--accent));
+        }
+        .module-extension__walkthrough-input-row {
+            display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 0.5rem; align-items: center;
+        }
+        .module-extension__walkthrough-input {
+            width: 100%; border: 1px solid var(--border); border-radius: 0.6rem;
+            padding: 0.55rem 0.7rem; background: white; color: var(--text-primary);
+            font-size: 0.85rem; font-weight: 650;
+        }
+        .module-extension__walkthrough-input:focus {
+            outline: none; border-color: var(--step-accent, var(--accent));
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--step-accent, var(--accent)) 13%, transparent);
+        }
+        .module-extension__walkthrough-actions {
+            display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.75rem;
+        }
+        .module-extension__walkthrough-btn {
+            border: 1px solid var(--border); border-radius: 0.55rem;
+            padding: 0.46rem 0.68rem; background: white; color: var(--text-secondary);
+            font-size: 0.72rem; font-weight: 800; cursor: pointer;
+        }
+        .module-extension__walkthrough-btn--primary {
+            border-color: var(--step-accent, var(--accent));
+            background: var(--step-accent, var(--accent)); color: white;
+        }
+        .module-extension__walkthrough-btn:disabled { cursor: not-allowed; opacity: 0.45; }
+        .module-extension__walkthrough-feedback,
+        .module-extension__walkthrough-hint,
+        .module-extension__walkthrough-answer {
+            border-radius: 0.55rem; padding: 0.48rem 0.62rem;
+            margin-top: 0.55rem; font-size: 0.78rem; font-weight: 700;
+        }
+        .module-extension__walkthrough-feedback--ok { background: #ecfdf5; color: #059669; }
+        .module-extension__walkthrough-feedback--error { background: #fef2f2; color: #b91c1c; }
+        .module-extension__walkthrough-hint { background: #fffbeb; color: #92400e; }
+        .module-extension__walkthrough-answer {
+            background: color-mix(in srgb, var(--step-accent, var(--accent)) 10%, white);
+            color: var(--text-primary);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 99px; }
+
+        @media (max-width: 600px) {
+            .sim-header { flex-direction: column; align-items: flex-start; }
+            .hover-tip { display: none; }
+            .bar-divider { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Required hidden containers for the Module class -->
+    <div id="controls"></div>
+    <div id="topControls"></div>
+
+    <div class="sim-card">
+        <div class="accent-bar"></div>
+
+        <!-- Header -->
+        <div class="sim-header">
+            <div class="sim-header-left">
+                <div class="sim-icon">
+                    <!-- Arc trajectory icon -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 20 Q6 4 12 8 Q18 12 21 20"/>
+                        <circle cx="3" cy="20" r="1.5" fill="currentColor" stroke="none"/>
+                        <circle cx="21" cy="20" r="1.5" fill="currentColor" stroke="none"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="sim-title">2D Projectile Motion</div>
+                    <div class="sim-subtitle">Interactive Simulation</div>
+                </div>
+            </div>
+
+            <!-- Scenario selector as chips -->
+            <div class="scenario-chips" id="scenarioChips">
+                <button class="chip active" data-scenario="Standard Projectile" data-v0="25" data-angle="45" data-hi="0" data-hf="0">Standard Launch</button>
+                <button class="chip" data-scenario="Standard Projectile" data-v0="20" data-angle="30" data-hi="0" data-hf="0">Shallow Angle</button>
+                <button class="chip" data-scenario="Higher Landing" data-v0="22" data-angle="50" data-hi="0" data-hf="12">Onto Building</button>
+                <button class="chip" data-scenario="Lower Landing / Cliff" data-v0="18" data-angle="35" data-hi="15" data-hf="0">Off a Cliff</button>
+            </div>
+        </div>
+
+        <!-- Canvas viewport -->
+        <div class="canvas-viewport">
+            <canvas id="simCanvas" width="1280" height="690"></canvas>
+        </div>
+
+        <!-- Module extension panel (walkthrough / work analysis — hidden until needed) -->
+        <div id="moduleExtension" class="hidden"></div>
+
+        <!-- Control bar -->
+        <div class="control-bar">
+            <button class="btn btn-primary" id="playBtn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Play
+            </button>
+
+            <div class="bar-divider"></div>
+
+            <button class="btn btn-outline active" id="toggleEquationsBtn" title="Show / hide the equation box">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                Equations
+            </button>
+
+            <button class="btn btn-outline active" id="toggleVelocityBtn" title="Show / hide live velocity components">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                Vx &amp; Vy
+            </button>
+
+            <button class="btn btn-outline" id="toggleMaxHBtn" title="Show / hide max height line">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><polyline points="17 7 12 2 7 7"/></svg>
+                h<sub>max</sub>
+            </button>
+
+            <!-- Hover tip -->
+            <div class="hover-tip">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Hover over values in the panels to see animated explanations
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import Module2DKinematics from './modules/Kinematics2d.js';
+
+        // ── Instantiate ──────────────────────────────────────────────────────
+        const sim = new Module2DKinematics('simCanvas');
+        sim.previewTitleFallback = '2D Projectile Motion';
+        sim.init();
+
+        // ── Apply "familiarization" defaults after init() ─────────────────────
+        // Show all values (no unknowns) so students see the complete picture
+        const reveal = {
+            unknownDx:              false,
+            unknownDy:              false,
+            unknownHmax:            false,
+            unknownInitialVelocity: false,
+            unknownInitialVx:       false,
+            unknownInitialVy:       false,
+            unknownFinalVx:         false,
+            unknownFinalVy:         false,
+            unknownFinalVelocity:   false,
+            unknownTheta:           false,
+            unknownTime:            false,
+            // Feature defaults
+            showEquations:          true,
+            showXValuesPanel:       true,
+            showYValuesPanel:       true,
+            showComponents:         true,
+            showMaxHeight:          false,
+            showVectorBreakdown:    false,
+            showFinalVectorAdditionZoom: false,
+            showGhostFrames:        false,
+            showProblemLabels:      false,
+            showDistanceMarkers:    true,
+            showVelocityVectors:    true,
+            showTimerDisplay:       true,
+            autoScaleToFit:         true,
+            trailStyle:             'Dotted',
+            listDisplay:            'Values',
+            // Starting scenario
+            initialVelocity: 25,
+            launchAngle:     45,
+            initialHeight:   0,
+            landingHeight:   0,
+            scenarioType:    'Standard Projectile',
+            workerStyle:     'Construction',
+        };
+        Object.entries(reveal).forEach(([key, val]) => sim.setInputValue(key, val, { redraw: false }));
+        sim.drawPreview();
+
+        // ── Play button ───────────────────────────────────────────────────────
+        const playBtn = document.getElementById('playBtn');
+        playBtn.addEventListener('click', () => {
+            if (sim.isPlaying) {
+                sim.stopPreview();
+                playBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play`;
+            } else {
+                sim.playPreview();
+                playBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Pause`;
+            }
+        });
+
+        // Reset play button when animation naturally ends
+        const origStop = sim.stopPreview.bind(sim);
+        sim.stopPreview = function(...args) {
+            origStop(...args);
+            playBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play`;
+        };
+
+        // ── Toggle: equations ─────────────────────────────────────────────────
+        const toggleEqBtn = document.getElementById('toggleEquationsBtn');
+        toggleEqBtn.addEventListener('click', () => {
+            const next = !sim.inputs.showEquations;
+            sim.setInputValue('showEquations', next, { redraw: true });
+            toggleEqBtn.classList.toggle('active', next);
+        });
+
+        // ── Toggle: velocity components ───────────────────────────────────────
+        const toggleVelBtn = document.getElementById('toggleVelocityBtn');
+        toggleVelBtn.addEventListener('click', () => {
+            const next = !sim.inputs.showComponents;
+            sim.setInputValue('showComponents', next, { redraw: true });
+            toggleVelBtn.classList.toggle('active', next);
+        });
+
+        // ── Toggle: max height ────────────────────────────────────────────────
+        const toggleHmaxBtn = document.getElementById('toggleMaxHBtn');
+        toggleHmaxBtn.addEventListener('click', () => {
+            const next = !sim.inputs.showMaxHeight;
+            sim.setInputValue('showMaxHeight', next, { redraw: true });
+            toggleHmaxBtn.classList.toggle('active', next);
+        });
+
+        // ── Scenario chips ────────────────────────────────────────────────────
+        document.getElementById('scenarioChips').addEventListener('click', (e) => {
+            const chip = e.target.closest('.chip');
+            if (!chip) return;
+
+            // Update active state
+            document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+
+            // Stop animation and load new scenario
+            if (sim.isPlaying) sim.stopPreview();
+            playBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play`;
+
+            const updates = {
+                scenarioType:  chip.dataset.scenario,
+                initialVelocity: parseFloat(chip.dataset.v0),
+                launchAngle:     parseFloat(chip.dataset.angle),
+                initialHeight:   parseFloat(chip.dataset.hi),
+                landingHeight:   parseFloat(chip.dataset.hf),
+            };
+            Object.entries(updates).forEach(([key, val]) => sim.setInputValue(key, val, { redraw: false }));
+            sim.drawPreview();
+        });
+    </script>
+</body>
+</html>

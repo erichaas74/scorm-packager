@@ -52,6 +52,11 @@ const lessonManifest = path.join(folderPath, 'imsmanifest.xml');
 const manifestToUse  = fs.existsSync(lessonManifest) ? lessonManifest : manifestSrc;
 console.log(`  manifest: ${fs.existsSync(lessonManifest) ? folderName + '/imsmanifest.xml' : 'root imsmanifest.xml (no lesson-specific found)'}`);
 
+// Use a lesson-specific SCORM wrapper when the lesson provides one.
+const lessonWrapper = path.join(folderPath, 'scorm-wrapper.js');
+const wrapperToUse  = fs.existsSync(lessonWrapper) ? lessonWrapper : wrapperSrc;
+console.log(`  wrapper:  ${fs.existsSync(lessonWrapper) ? folderName + '/scorm-wrapper.js' : 'root scorm-wrapper.js (no lesson-specific found)'}`);
+
 if (process.platform !== 'win32') {
   console.error('Error: package-sim.js now uses built-in Windows PowerShell ZIP support.');
   console.error('Run this script on Windows, or add a platform-specific ZIP implementation for your environment.');
@@ -110,7 +115,7 @@ const stagingDir = path.join(stagingRoot, 'package');
 
 try {
   copyDirectoryFiltered(folderPath, stagingDir);
-  fs.copyFileSync(wrapperSrc, path.join(stagingDir, 'scorm-wrapper.js'));
+  fs.copyFileSync(wrapperToUse, path.join(stagingDir, 'scorm-wrapper.js'));
   fs.copyFileSync(manifestToUse, path.join(stagingDir, 'imsmanifest.xml'));
   zipWithPowerShell(stagingDir, outputZipPath);
 

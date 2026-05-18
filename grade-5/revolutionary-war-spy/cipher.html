@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cipher — Operation Liberty Quill</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="spy-app">
+  <header class="spy-header">
+    <h1>&#x1F511; Operation Liberty Quill</h1>
+    <div class="spy-name-badge" id="name-badge">Revolutionary War Spy Mission</div>
+  </header>
+  <div class="progress-bar">
+    <div class="pip-row" id="pip-row"></div>
+  </div>
+  <div class="pip-labels" id="pip-labels"></div>
+  <div class="stage-host" id="stage-host"></div>
+</div>
+<script src="shared.js"></script>
+<script>
+const STAGE = 1;
+const st = loadState();
+let localShift          = st.shift          || 7;
+let localMessage        = st.message        || '';
+let localDecodedCorrect = st.decodedCorrect || false;
+
+initPage(STAGE);
+
+document.getElementById('stage-host').innerHTML = `
+  <div class="stage-title">
+    <span class="standard-badge badge-math">Math 5.OA.B.3</span>
+    Create Your Secret Cipher
+  </div>
+  <p class="stage-subtitle">Spies used Caesar ciphers — shifting each letter by a secret number. Create your own coded message, then decode the intercepted message below to unlock your mission.</p>
+  <div class="cipher-layout">
+    <canvas id="cipher-canvas" width="340" height="340"></canvas>
+    <div class="cipher-controls">
+      <div>
+        <label>Shift Amount: <span class="shift-display" id="shift-disp">${localShift}</span></label>
+        <input type="range" id="shift-slider" min="1" max="25" value="${localShift}">
+      </div>
+      <div>
+        <label>Your Secret Message (letters &amp; spaces only)</label>
+        <input type="text" id="msg-input" placeholder="Type your message..." maxlength="25" autocomplete="off">
+      </div>
+      <div>
+        <label>Your Coded Message:</label>
+        <div class="coded-output" id="coded-out">&nbsp;</div>
+      </div>
+      <div style="font-size:12px;color:var(--ink-muted);line-height:1.5">
+        <strong>How it works:</strong> Each letter shifts forward. A with shift 3 becomes D. The wheel shows the pattern!
+      </div>
+    </div>
+  </div>
+  <div class="intercept-box">
+    <h4>&#x26A0; Intercepted Enemy Message</h4>
+    <p style="font-size:12px;color:var(--ink-muted);margin-bottom:8px">This message was captured from a courier. The shift is <strong>8</strong>. Can you decode it?</p>
+    <div class="intercept-coded">KZWAA LMTIEIZM IB UQLVQOPB</div>
+    <div class="decode-row">
+      <input type="text" id="decode-input" placeholder="Type your decoded answer..." autocomplete="off">
+      <button class="ctrl-btn" onclick="checkDecode()">Check</button>
+    </div>
+    <div id="decode-feedback" style="margin-top:8px"></div>
+  </div>
+  <div style="text-align:center">
+    <button class="continue-btn" id="s1-continue" disabled onclick="s1Continue()">Cipher Unlocked &#x2014; Plan the Route &rarr;</button>
+  </div>
+`;
+
+// Restore state
+document.getElementById('msg-input').value = localMessage;
+if (localMessage) updateCoded();
+if (localDecodedCorrect) {
+  document.getElementById('decode-feedback').innerHTML = '<div class="unlock-badge unlocked">&#x2713; Unlocked!</div>';
+}
+checkS1();
+
+drawCipherWheel(document.getElementById('cipher-canvas'), localShift);
+
+document.getElementById('shift-slider').addEventListener('input', e => {
+  localShift = parseInt(e.target.value);
+  document.getElementById('shift-disp').textContent = localShift;
+  drawCipherWheel(document.getElementById('cipher-canvas'), localShift);
+  updateCoded();
+});
+
+document.getElementById('msg-input').addEventListener('input', e => {
+  localMessage = e.target.value;
+  updateCoded();
+  checkS1();
+});
+
+function updateCoded() {
+  const coded = caesarEncode(localMessage, localShift);
+  const out = document.getElementById('coded-out');
+  if (!out) return;
+  if (!coded.trim()) { out.innerHTML = '&nbsp;'; return; }
+  out.innerHTML = coded.split('').map((ch, i) =>
+    `<span class="coded-char" id="cc${i}">${ch === ' ' ? '&nbsp;' : ch}</span>`
+  ).join('');
+  coded.split('').forEach((_, i) => {
+    setTimeout(() => {
+      const el = document.getElementById(`cc${i}`);
+      if (!el) return;
+      el.classList.add('glow');
+      setTimeout(() => el.classList.remove('glow'), 350);
+    }, i * 55);
+  });
+}
+
+function checkDecode() {
+  const answer  = document.getElementById('decode-input').value.trim().toUpperCase().replace(/\s+/g, ' ');
+  const correct = 'CROSS DELAWARE AT MIDNIGHT';
+  const fb      = document.getElementById('decode-feedback');
+  if (answer === correct) {
+    localDecodedCorrect = true;
+    fb.innerHTML = '<div class="unlock-badge unlocked">&#x2713; Correct! "Cross Delaware at Midnight" — a famous plan from 1776!</div>';
+  } else {
+    fb.innerHTML = '<div class="feedback-err">Not quite. Hint: use shift 8 — A becomes I, B becomes J, and so on.</div>';
+  }
+  checkS1();
+}
+
+function checkS1() {
+  const btn = document.getElementById('s1-continue');
+  if (btn) btn.disabled = !(localMessage.trim().length >= 3 && localDecodedCorrect);
+}
+
+function s1Continue() {
+  saveState({
+    shift:          localShift,
+    message:        localMessage,
+    codedMessage:   caesarEncode(localMessage, localShift),
+    decodedCorrect: localDecodedCorrect
+  });
+  goToNextPage(STAGE);
+}
+
+function drawCipherWheel(canvas, shift) {
+  const ctx = canvas.getContext('2d');
+  const cx = 170, cy = 170;
+  const R_outer = 145, R_inner = 98, R_center = 42;
+  const N = 26;
+  const arc = (Math.PI * 2) / N;
+
+  ctx.clearRect(0, 0, 340, 340);
+
+  for (let i = 0; i < N; i++) {
+    const startA = i * arc - Math.PI / 2 - arc / 2;
+    const endA   = startA + arc;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, R_outer, startA, endA);
+    ctx.closePath();
+    ctx.fillStyle = i % 2 === 0 ? '#8b1a1a' : '#6b1414';
+    ctx.fill();
+    ctx.strokeStyle = '#2c1810';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(i * arc);
+    ctx.fillStyle = '#f0d080';
+    ctx.font = 'bold 12px "Space Grotesk", Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String.fromCharCode(65 + i), 0, -(R_outer + R_inner) / 2);
+    ctx.restore();
+  }
+
+  for (let i = 0; i < N; i++) {
+    const shiftedIdx = (i + shift) % N;
+    const startA = i * arc - Math.PI / 2 - arc / 2;
+    const endA   = startA + arc;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, R_inner, startA, endA);
+    ctx.closePath();
+    ctx.fillStyle = i % 2 === 0 ? '#2563eb' : '#1d4ed8';
+    ctx.fill();
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(i * arc);
+    ctx.fillStyle = '#e0f2fe';
+    ctx.font = 'bold 11px "Space Grotesk", Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String.fromCharCode(65 + shiftedIdx), 0, -(R_inner + R_center) / 2);
+    ctx.restore();
+  }
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, R_center, 0, Math.PI * 2);
+  ctx.fillStyle = '#f5e6c8';
+  ctx.fill();
+  ctx.strokeStyle = '#c4932f';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.font = 'bold 22px "Space Grotesk", Arial';
+  ctx.fillStyle = '#8b1a1a';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`+${shift}`, cx, cy);
+
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - R_outer - 6);
+  ctx.lineTo(cx - 7, cy - R_outer + 8);
+  ctx.lineTo(cx + 7, cy - R_outer + 8);
+  ctx.closePath();
+  ctx.fillStyle = '#c4932f';
+  ctx.fill();
+}
+</script>
+</body>
+</html>
