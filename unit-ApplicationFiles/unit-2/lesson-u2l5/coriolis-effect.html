@@ -121,6 +121,76 @@
       min-height: 230px;
     }
 
+    .globe-view {
+      min-height: 360px;
+      position: relative;
+      background: #020617;
+    }
+
+    .globe-shell {
+      height: clamp(360px, 44vw, 500px);
+      min-height: 360px;
+      position: relative;
+    }
+
+    #globeViz {
+      position: absolute;
+      inset: 0;
+    }
+
+    #globeViz canvas {
+      min-height: 0;
+    }
+
+    #loading {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      z-index: 2;
+      background: rgba(2, 6, 23, 0.82);
+      color: var(--muted);
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      transition: opacity 0.28s ease;
+      pointer-events: none;
+    }
+
+    #controls {
+      position: absolute;
+      right: 16px;
+      bottom: 16px;
+      z-index: 3;
+      width: min(260px, calc(100% - 32px));
+      border: 1px solid rgba(226, 232, 240, 0.2);
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.82);
+      padding: 12px;
+      box-shadow: 0 16px 35px rgba(0, 0, 0, 0.26);
+      backdrop-filter: blur(10px);
+    }
+
+    #controls label {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 0.84rem;
+      font-weight: 800;
+    }
+
+    #controls strong {
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    #speedSlider {
+      display: block;
+      width: 100%;
+      accent-color: var(--sky);
+    }
+
     .view-label {
       position: absolute;
       left: 16px;
@@ -289,7 +359,23 @@
 
         <div class="canvas-card side-view">
           <div class="view-label">Side view</div>
-          <canvas id="sideCanvas" aria-label="Side view of cannon projectile motion with rotating ground below"></canvas>
+          <canvas id="sideCanvas" aria-label="Ground-based side view with fixed surface and rotating star field"></canvas>
+        </div>
+
+        <div class="canvas-card globe-view">
+          <div class="view-label">Globe view</div>
+          <div class="globe-shell">
+            <div id="globeViz" aria-label="Interactive 3D globe showing Earth rotation and animated paths"></div>
+            <div id="loading">Loading 3D Globe...</div>
+
+            <div id="controls">
+              <label for="speedSlider" class="text-sm font-medium">
+                <span>Auto-Rotate Speed:</span>
+                <strong><span id="globeSpeedValue">1.5</span>x</strong>
+              </label>
+              <input id="speedSlider" type="range" min="0" max="5" step="0.1" value="1.5" />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -320,6 +406,12 @@
           <input id="rotationRate" type="range" min="0" max="18" step="1" value="8" />
         </label>
 
+        <label class="control" for="observerLatitude">
+          <div class="label-row"><span>Observer latitude</span><strong><span id="latitudeValue">40</span> deg N</strong></div>
+          <input id="observerLatitude" type="range" min="0" max="90" step="5" value="40" />
+          <div class="range-hints"><span>equator</span><span>mid-latitude</span><span>pole</span></div>
+        </label>
+
         <div>
           <div class="label-row" style="margin-bottom: 8px;"><span>Hemisphere / rotation direction</span></div>
           <div class="segmented">
@@ -328,8 +420,15 @@
           </div>
         </div>
 
+        <div>
+          <div class="label-row" style="margin-bottom: 8px;"><span>Side view direction</span></div>
+          <div class="segmented">
+            <button id="lookNorthBtn" class="segment active" type="button">Look North</button>
+            <button id="lookSouthBtn" class="segment" type="button">Look South</button>
+          </div>
+        </div>
+
         <div class="checks">
-          <label><input id="showSpacePath" type="checkbox" checked /> Show straight inertial path</label>
           <label><input id="showEarthPath" type="checkbox" checked /> Show curved rotating-Earth path</label>
         </div>
 
@@ -347,6 +446,316 @@
   </main>
 
   <script src="scorm-wrapper.js"></script>
+  <script src="https://unpkg.com/globe.gl"></script>
+  <script>
+    (function() {
+      "use strict";
+
+      var world = null;
+      var scenario = null;
+      var projectilePoint = null;
+      var projectilePath = [];
+      var calculatedLaunch = null;
+      var selectedLatitude = null;
+      var selectedLongitude = null;
+      var lastRenderTime = 0;
+      var renderQueued = false;
+
+      function latitudeLabel(latitude) {
+        if (Math.abs(latitude) < 0.05) return "Equator";
+        return Math.abs(latitude).toFixed(1) + " deg " + (latitude > 0 ? "N" : "S");
+      }
+
+      function makeLatitudePath(latitude, color, stroke, altitude) {
+        var coords = [];
+
+        for (var longitude = -180; longitude <= 180; longitude += 4) {
+          coords.push({
+            lat: latitude,
+            lng: longitude,
+            alt: altitude
+          });
+        }
+
+        return {
+          coords: coords,
+          color: color,
+          stroke: stroke
+        };
+      }
+
+      function configureWorld() {
+        world
+          .pointsData([])
+          .pointLat("lat")
+          .pointLng("lng")
+          .pointColor("color")
+          .pointAltitude("altitude")
+          .pointRadius("radius")
+          .pointLabel(function(point) { return point.label; })
+          .arcsData([])
+          .arcColor("color")
+          .arcAltitude("altitude")
+          .arcStroke("stroke")
+          .arcDashLength("dashLength")
+          .arcDashGap("dashGap")
+          .arcDashAnimateTime("animateTime");
+
+        if (typeof world.pathsData === "function") {
+          world
+            .pathsData([])
+            .pathPoints("coords")
+            .pathPointLat("lat")
+            .pathPointLng("lng")
+            .pathPointAlt("alt")
+            .pathColor("color")
+            .pathStroke("stroke");
+        }
+
+        if (typeof world.labelsData === "function") {
+          world
+            .labelsData([])
+            .labelLat("lat")
+            .labelLng("lng")
+            .labelText("text")
+            .labelSize("size")
+            .labelColor("color")
+            .labelAltitude("alt");
+        }
+      }
+
+      function renderGlobe() {
+        var points = [];
+        var arcs = [];
+        var paths = [];
+        var labels = [];
+
+        renderQueued = false;
+
+        if (!world || !scenario) return;
+
+        points.push({
+          lat: scenario.cannon.lat,
+          lng: scenario.cannon.lng,
+          color: "#38bdf8",
+          radius: 0.36,
+          altitude: 0.015,
+          label: scenario.cannonLabel || "Cannon launch site"
+        });
+        points.push({
+          lat: scenario.target.lat,
+          lng: scenario.target.lng,
+          color: "#ef4444",
+          radius: 0.42,
+          altitude: 0.018,
+          label: "Target"
+        });
+
+        labels.push({
+          lat: scenario.cannon.lat,
+          lng: scenario.cannon.lng,
+          text: scenario.cannonText || "Cannon",
+          color: "#bae6fd",
+          size: 0.72,
+          alt: 0.028
+        });
+        labels.push({
+          lat: scenario.target.lat,
+          lng: scenario.target.lng,
+          text: "Target",
+          color: "#fee2e2",
+          size: 0.72,
+          alt: 0.028
+        });
+
+        arcs.push({
+          startLat: scenario.cannon.lat,
+          startLng: scenario.cannon.lng,
+          endLat: scenario.target.lat,
+          endLng: scenario.target.lng,
+          color: "#bae6fd",
+          altitude: 0.18,
+          stroke: 0.55,
+          dashLength: 0.32,
+          dashGap: 0.08,
+          animateTime: 2200
+        });
+
+        if (calculatedLaunch) {
+          if (calculatedLaunch.coords.length > 1) {
+            paths.push({
+              coords: calculatedLaunch.coords,
+              color: "#f97316",
+              stroke: 2.35
+            });
+          }
+        }
+
+        if (projectilePoint) {
+          points.push({
+            lat: projectilePoint.lat,
+            lng: projectilePoint.lng,
+            color: "#facc15",
+            radius: 0.28,
+            altitude: 0.08,
+            label: "Shell in flight"
+          });
+          labels.push({
+            lat: projectilePoint.lat,
+            lng: projectilePoint.lng,
+            text: projectilePoint.status,
+            color: "#fef3c7",
+            size: 0.65,
+            alt: 0.11
+          });
+        }
+
+        if (selectedLatitude !== null && selectedLongitude !== null) {
+          paths.push(makeLatitudePath(selectedLatitude, "#00ffaa", 2.5, 0.014));
+          points.push({
+            lat: selectedLatitude,
+            lng: selectedLongitude,
+            color: "#00ffaa",
+            radius: 0.3,
+            altitude: 0.075,
+            label: "Clicked point: " + latitudeLabel(selectedLatitude) + ", " + selectedLongitude.toFixed(1) + " deg"
+          });
+          labels.push({
+            lat: selectedLatitude,
+            lng: selectedLongitude,
+            text: latitudeLabel(selectedLatitude),
+            color: "#ccfbf1",
+            size: 0.72,
+            alt: 0.1
+          });
+        }
+
+        if (projectilePath.length > 1) {
+          paths.push({
+            coords: projectilePath,
+            color: "#d8b4fe",
+            stroke: 2.1
+          });
+        }
+
+        world.pointsData(points);
+        world.arcsData(arcs);
+        if (typeof world.pathsData === "function") world.pathsData(paths);
+        if (typeof world.labelsData === "function") world.labelsData(labels);
+      }
+
+      function queueRender(force) {
+        var now = window.performance ? window.performance.now() : Date.now();
+
+        if (force || now - lastRenderTime > 70) {
+          lastRenderTime = now;
+          renderGlobe();
+          return;
+        }
+
+        if (!renderQueued) {
+          renderQueued = true;
+          window.requestAnimationFrame(renderGlobe);
+        }
+      }
+
+      window.coriolisGlobe = {
+        setScenario: function(nextScenario) {
+          scenario = nextScenario;
+          projectilePoint = null;
+          projectilePath = [];
+          calculatedLaunch = null;
+          queueRender(true);
+        },
+        launch: function(launchPlan) {
+          projectilePoint = null;
+          projectilePath = [];
+          calculatedLaunch = launchPlan || null;
+          queueRender(true);
+        },
+        updateProjectile: function(nextPoint, statusText) {
+          var hasLanded = statusText === "Hit" || statusText === "Miss";
+
+          projectilePoint = hasLanded ? null : {
+            lat: nextPoint.lat,
+            lng: nextPoint.lng,
+            status: statusText || "Shell"
+          };
+          projectilePath.push({
+            lat: nextPoint.lat,
+            lng: nextPoint.lng,
+            alt: 0.035
+          });
+          if (projectilePath.length > 85) projectilePath.shift();
+          queueRender(false);
+        },
+        resetProjectile: function() {
+          projectilePoint = null;
+          projectilePath = [];
+          calculatedLaunch = null;
+          queueRender(true);
+        }
+      };
+
+      window.addEventListener("load", function() {
+        var globeNode = document.getElementById("globeViz");
+        var loadingNode = document.getElementById("loading");
+        var speedSlider = document.getElementById("speedSlider");
+        var speedValue = document.getElementById("globeSpeedValue");
+        var globeResizeObserver = null;
+
+        if (!globeNode || !loadingNode || !speedSlider || !speedValue) return;
+
+        if (typeof Globe === "undefined") {
+          loadingNode.textContent = "Error: Failed to load 3D engine. Please check connection.";
+          return;
+        }
+
+        world = Globe()
+          (globeNode)
+          .globeImageUrl("https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg")
+          .bumpImageUrl("https://unpkg.com/three-globe/example/img/earth-topology.png")
+          .backgroundImageUrl("https://unpkg.com/three-globe/example/img/night-sky.png")
+          .showGraticules(true)
+          .onGlobeReady(function() {
+            loadingNode.style.opacity = "0";
+            loadingNode.setAttribute("aria-hidden", "true");
+          });
+
+        world.controls().autoRotate = true;
+        world.controls().autoRotateSpeed = Number(speedSlider.value);
+        world.pointOfView({ lat: 32, lng: -96, altitude: 2.35 }, 0);
+        configureWorld();
+        world.onGlobeClick(function(coords) {
+          selectedLatitude = coords.lat;
+          selectedLongitude = coords.lng;
+          queueRender(true);
+        });
+
+        function resizeGlobe() {
+          var rect = globeNode.getBoundingClientRect();
+          if (!rect.width || !rect.height) return;
+          world.width(Math.floor(rect.width));
+          world.height(Math.floor(rect.height));
+        }
+
+        window.addEventListener("resize", resizeGlobe);
+        if (window.ResizeObserver) {
+          globeResizeObserver = new ResizeObserver(resizeGlobe);
+          globeResizeObserver.observe(globeNode);
+        }
+        resizeGlobe();
+
+        speedSlider.addEventListener("input", function(event) {
+          var speed = parseFloat(event.target.value);
+          world.controls().autoRotateSpeed = speed;
+          speedValue.textContent = speed.toFixed(1);
+        });
+
+        renderGlobe();
+      });
+    }());
+  </script>
   <script>
     (function() {
       "use strict";
@@ -362,7 +771,7 @@
         shellSpeed: document.getElementById("shellSpeed"),
         targetDistance: document.getElementById("targetDistance"),
         rotationRate: document.getElementById("rotationRate"),
-        showSpacePath: document.getElementById("showSpacePath"),
+        observerLatitude: document.getElementById("observerLatitude"),
         showEarthPath: document.getElementById("showEarthPath")
       };
 
@@ -370,20 +779,25 @@
         aim: document.getElementById("aimValue"),
         speed: document.getElementById("speedValue"),
         distance: document.getElementById("distanceValue"),
-        rotation: document.getElementById("rotationValue")
+        rotation: document.getElementById("rotationValue"),
+        latitude: document.getElementById("latitudeValue")
       };
 
       var fireBtn = document.getElementById("fireBtn");
       var resetBtn = document.getElementById("resetBtn");
       var northBtn = document.getElementById("northBtn");
       var southBtn = document.getElementById("southBtn");
+      var lookNorthBtn = document.getElementById("lookNorthBtn");
+      var lookSouthBtn = document.getElementById("lookSouthBtn");
 
       var projectile = null;
+      var launchPlan = null;
       var theta = 0;
       var lastTime = 0;
       var status = "Ready";
       var missDistance = null;
       var hemisphere = "North";
+      var sideViewDirection = "North";
       var scormCompleted = false;
 
       function params() {
@@ -393,7 +807,8 @@
           shellSpeed: Number(inputs.shellSpeed.value),
           targetDistance: Number(inputs.targetDistance.value),
           aimCorrection: Number(inputs.aimCorrection.value),
-          showSpacePath: inputs.showSpacePath.checked,
+          observerLatitude: Number(inputs.observerLatitude.value),
+          sideViewDirection: sideViewDirection,
           showEarthPath: inputs.showEarthPath.checked
         };
       }
@@ -418,6 +833,122 @@
         return {
           cannon: { x: -distance / 2, y: 0 },
           target: { x: distance / 2, y: 0 }
+        };
+      }
+
+      function wrapLongitude(longitude) {
+        var wrapped = longitude;
+        while (wrapped > 180) wrapped -= 360;
+        while (wrapped < -180) wrapped += 360;
+        return wrapped;
+      }
+
+      function formatLatitude(latitude) {
+        return Math.abs(latitude).toFixed(1) + " deg " + (latitude >= 0 ? "N" : "S");
+      }
+
+      function formatLongitude(longitude) {
+        return Math.abs(longitude).toFixed(1) + " deg " + (longitude >= 0 ? "E" : "W");
+      }
+
+      function formatGlobePoint(point) {
+        return formatLatitude(point.lat) + ", " + formatLongitude(point.lng);
+      }
+
+      function getAimLabel(aimLocal) {
+        var angle = Math.atan2(aimLocal.y, aimLocal.x) * 180 / Math.PI;
+        var direction = angle >= 0 ? "north" : "south";
+
+        if (Math.abs(angle) < 0.5) return "Aim: due east";
+
+        return "Aim: " + Math.abs(angle).toFixed(0) + " deg " + direction + " of east";
+      }
+
+      function getAimShortLabel(aimLocal) {
+        var angle = Math.atan2(aimLocal.y, aimLocal.x) * 180 / Math.PI;
+
+        if (Math.abs(angle) < 0.5) return "E";
+
+        return Math.abs(angle).toFixed(0) + " deg " + (angle >= 0 ? "N" : "S");
+      }
+
+      function localToGlobe(point) {
+        var p = params();
+        var latitudeSign = p.hemisphere === "North" ? 1 : -1;
+        var baseLatitude = Math.max(-75, Math.min(75, latitudeSign * p.observerLatitude));
+        var latitudeScale = 0.055;
+        var longitudeScale = latitudeScale / Math.max(0.28, Math.cos(baseLatitude * Math.PI / 180));
+
+        return {
+          lat: Math.max(-82, Math.min(82, baseLatitude + point.y * latitudeScale)),
+          lng: wrapLongitude(-96 + point.x * longitudeScale)
+        };
+      }
+
+      function syncGlobeScenario() {
+        var points = getLocalPoints();
+        var p = params();
+        var aimLocal = rotate(norm(sub(points.target, points.cannon)), p.aimCorrection * Math.PI / 180);
+        var cannonGlobe = localToGlobe(points.cannon);
+
+        if (!window.coriolisGlobe) return;
+
+        window.coriolisGlobe.setScenario({
+          cannon: cannonGlobe,
+          target: localToGlobe(points.target),
+          cannonText: "Cannon " + getAimShortLabel(aimLocal),
+          cannonLabel: "Cannon: " + formatGlobePoint(cannonGlobe) + " | " + getAimLabel(aimLocal)
+        });
+      }
+
+      function syncGlobeProjectile(currentWorld, nextStatus) {
+        var localShellPosition = rotate(currentWorld, -theta);
+
+        if (!window.coriolisGlobe) return;
+
+        window.coriolisGlobe.updateProjectile(localToGlobe(localShellPosition), nextStatus);
+      }
+
+      function calculateLaunchPlan(points, aimLocal, aimWorld, p, launchTheta) {
+        var direction = p.hemisphere === "North" ? 1 : -1;
+        var angularSpeed = direction * (p.rotationRate * Math.PI / 180);
+        var flightTime = p.targetDistance / Math.max(1, p.shellSpeed);
+        var sampleCount = 72;
+        var cannonWorld = rotate(points.cannon, launchTheta);
+        var startGlobe = localToGlobe(points.cannon);
+        var coords = [];
+        var localPath = [];
+
+        for (var i = 0; i <= sampleCount; i += 1) {
+          var progress = i / sampleCount;
+          var t = flightTime * progress;
+          var currentWorld = add(cannonWorld, {
+            x: aimWorld.x * p.shellSpeed * t,
+            y: aimWorld.y * p.shellSpeed * t
+          });
+          var localAtTime = rotate(currentWorld, -(launchTheta + angularSpeed * t));
+          var globePoint = localToGlobe(localAtTime);
+          var arcAltitude = 0.035 + Math.sin(Math.PI * progress) * 0.16;
+
+          globePoint.alt = arcAltitude;
+          coords.push(globePoint);
+          localPath.push({
+            time: t,
+            progress: progress,
+            x: localAtTime.x,
+            y: localAtTime.y,
+            alt: arcAltitude
+          });
+        }
+
+        return {
+          start: startGlobe,
+          coords: coords,
+          localPath: localPath,
+          target: localToGlobe(points.target),
+          aimLabel: getAimLabel(aimLocal),
+          locationLabel: formatGlobePoint(startGlobe),
+          flightTime: flightTime
         };
       }
 
@@ -449,6 +980,7 @@
         var targetDirectionLocal = norm(sub(points.target, points.cannon));
         var aimLocal = rotate(targetDirectionLocal, p.aimCorrection * Math.PI / 180);
         var aimWorld = rotate(aimLocal, theta);
+        launchPlan = calculateLaunchPlan(points, aimLocal, aimWorld, p, theta);
 
         projectile = {
           startWorld: cannonWorld,
@@ -456,16 +988,24 @@
           velocity: { x: aimWorld.x * p.shellSpeed, y: aimWorld.y * p.shellSpeed },
           t: 0,
           history: [{ time: 0, world: cannonWorld }],
-          maxTime: 8
+          maxTime: launchPlan.flightTime
         };
 
         setStatus("Flying");
+        syncGlobeScenario();
+        if (window.coriolisGlobe) {
+          window.coriolisGlobe.launch(launchPlan);
+          window.coriolisGlobe.updateProjectile(localToGlobe(points.cannon), "Launch");
+        }
       }
 
       function reset() {
         projectile = null;
+        launchPlan = null;
         theta = 0;
         setStatus("Ready");
+        syncGlobeScenario();
+        if (window.coriolisGlobe) window.coriolisGlobe.resetProjectile();
       }
 
       function resize() {
@@ -503,28 +1043,45 @@
         ctx.strokeStyle = "#9fb3c8";
         ctx.stroke();
 
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(0, 0, radius - 3, 0, Math.PI * 2);
+        ctx.clip();
+
         ctx.strokeStyle = "rgba(159, 179, 200, 0.26)";
         ctx.lineWidth = 1;
-        for (var r = 70; r <= 240; r += 55) {
+        for (var offset = -240; offset <= 240; offset += 60) {
           ctx.beginPath();
-          ctx.arc(0, 0, r, 0, Math.PI * 2);
+          ctx.moveTo(-radius, offset);
+          ctx.lineTo(radius, offset);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(offset, -radius);
+          ctx.lineTo(offset, radius);
           ctx.stroke();
         }
 
-        for (var i = 0; i < 12; i += 1) {
-          var angle = i * Math.PI / 6;
-          ctx.beginPath();
-          ctx.moveTo(Math.cos(angle) * -radius, Math.sin(angle) * -radius);
-          ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
-          ctx.stroke();
-        }
-
-        ctx.strokeStyle = "rgba(125, 211, 252, 0.6)";
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = "rgba(125, 211, 252, 0.78)";
+        ctx.lineWidth = 2.5;
         ctx.beginPath();
         ctx.moveTo(-radius, 0);
         ctx.lineTo(radius, 0);
         ctx.stroke();
+
+        ctx.strokeStyle = "rgba(167, 139, 250, 0.72)";
+        ctx.beginPath();
+        ctx.moveTo(0, -radius);
+        ctx.lineTo(0, radius);
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.fillStyle = "rgba(226, 232, 240, 0.8)";
+        ctx.font = "bold 12px system-ui, sans-serif";
+        ctx.fillText("N", 8, -radius + 24);
+        ctx.fillText("S", 8, radius - 14);
+        ctx.fillText("E", radius - 24, -8);
+        ctx.fillText("W", -radius + 12, -8);
         ctx.restore();
       }
 
@@ -535,6 +1092,7 @@
         var targetWorld = rotate(points.target, theta);
         var aimLocal = rotate(norm(sub(points.target, points.cannon)), p.aimCorrection * Math.PI / 180);
         var aimWorld = rotate(aimLocal, theta);
+        var cannonGlobe = localToGlobe(points.cannon);
 
         ctx.save();
         ctx.translate(centerX, centerY);
@@ -544,7 +1102,7 @@
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(cannonWorld.x, cannonWorld.y);
-        ctx.lineTo(cannonWorld.x + aimWorld.x * 620, cannonWorld.y + aimWorld.y * 620);
+        ctx.lineTo(cannonWorld.x + aimWorld.x * p.targetDistance, cannonWorld.y + aimWorld.y * p.targetDistance);
         ctx.stroke();
         ctx.setLineDash([]);
 
@@ -575,6 +1133,31 @@
         ctx.beginPath();
         ctx.arc(targetWorld.x, targetWorld.y, 6, 0, Math.PI * 2);
         ctx.stroke();
+
+        ctx.font = "bold 12px system-ui, sans-serif";
+        ctx.fillStyle = "#e0f2fe";
+        ctx.fillText("Cannon: " + formatGlobePoint(cannonGlobe), cannonWorld.x + 18, cannonWorld.y - 18);
+        ctx.fillStyle = "#fde68a";
+        ctx.fillText(getAimLabel(aimLocal), cannonWorld.x + 18, cannonWorld.y);
+        ctx.restore();
+      }
+
+      function drawLaunchPlanTop(centerX, centerY) {
+        if (!launchPlan || !launchPlan.localPath.length) return;
+
+        ctx.save();
+        ctx.translate(centerX, centerY);
+
+        ctx.strokeStyle = "#f97316";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        launchPlan.localPath.forEach(function(point, index) {
+          var screenPoint = rotate(point, theta);
+          if (index === 0) ctx.moveTo(screenPoint.x, screenPoint.y);
+          else ctx.lineTo(screenPoint.x, screenPoint.y);
+        });
+        ctx.stroke();
+
         ctx.restore();
       }
 
@@ -586,17 +1169,6 @@
 
         ctx.save();
         ctx.translate(centerX, centerY);
-
-        if (p.showSpacePath && projectile.history.length > 1) {
-          ctx.strokeStyle = "rgba(250, 204, 21, 0.9)";
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          projectile.history.forEach(function(point, index) {
-            if (index === 0) ctx.moveTo(point.world.x, point.world.y);
-            else ctx.lineTo(point.world.x, point.world.y);
-          });
-          ctx.stroke();
-        }
 
         if (p.showEarthPath && projectile.history.length > 3) {
           ctx.strokeStyle = "rgba(216, 180, 254, 0.95)";
@@ -614,33 +1186,35 @@
         }
 
         ctx.fillStyle = "#facc15";
-        ctx.beginPath();
-        ctx.arc(current.x, current.y, 8, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = "#713f12";
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        if (status === "Flying") {
+          ctx.beginPath();
+          ctx.arc(current.x, current.y, 8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = "#713f12";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
         ctx.restore();
       }
 
       function drawLabels(width, height) {
         ctx.save();
         ctx.fillStyle = "rgba(15, 23, 42, 0.82)";
-        ctx.fillRect(18, 18, 300, 102);
+        ctx.fillRect(18, 18, 326, 132);
         ctx.strokeStyle = "rgba(226, 232, 240, 0.25)";
-        ctx.strokeRect(18, 18, 300, 102);
+        ctx.strokeRect(18, 18, 326, 132);
 
         ctx.fillStyle = "#f8fafc";
         ctx.font = "bold 17px system-ui, sans-serif";
         ctx.fillText("Coriolis Cannon Challenge", 34, 45);
 
         ctx.font = "13px system-ui, sans-serif";
-        ctx.fillStyle = "#fde68a";
-        ctx.fillText("Yellow = straight inertial path", 34, 70);
         ctx.fillStyle = "#d8b4fe";
-        ctx.fillText("Purple = path seen from rotating Earth", 34, 92);
+        ctx.fillText("Purple = path seen from rotating Earth", 34, 70);
         ctx.fillStyle = "#bae6fd";
-        ctx.fillText("Blue = cannon   Red = target", 34, 114);
+        ctx.fillText("Blue = cannon   Red = target", 34, 92);
+        ctx.fillStyle = "#fed7aa";
+        ctx.fillText("Orange = calculated shared arc", 34, 114);
 
         ctx.textAlign = "right";
         ctx.font = "13px system-ui, sans-serif";
@@ -651,14 +1225,48 @@
 
       function drawSideView(width, height) {
         var p = params();
-        var groundTop = height - 58;
-        var cannonX = 72;
-        var targetX = width - 86;
-        var baselineY = groundTop - 16;
-        var flightWidth = targetX - cannonX;
-        var maxArcHeight = Math.min(92, Math.max(56, height * 0.34));
-        var progress = projectile ? Math.min(projectile.t / Math.max(0.8, p.targetDistance / p.shellSpeed), 1.18) : 0;
-        var aimLift = Math.max(-0.25, Math.min(0.25, p.aimCorrection / 80));
+        var points = getLocalPoints();
+        var aimLocal = rotate(norm(sub(points.target, points.cannon)), p.aimCorrection * Math.PI / 180);
+        var horizonY = Math.max(82, height * 0.42);
+        var centerX = width / 2;
+        var barrelBaseY = height - 24;
+        var targetY = horizonY + 14;
+        var progress = projectile ? Math.min(projectile.t / Math.max(0.01, projectile.maxTime), 1.2) : 0;
+        var targetX = centerX;
+        var lookingNorth = p.sideViewDirection === "North";
+        var observerLatitude = p.observerLatitude;
+        var polarisY = horizonY - (observerLatitude / 90) * (horizonY - 22);
+        var surfaceSpeed = 7.292e-5 * 6371000 * Math.cos(observerLatitude * Math.PI / 180);
+        var lateralScale = Math.min(0.75, width * 0.28 / Math.max(80, p.targetDistance * 0.32));
+        var viewSign = lookingNorth ? 1 : -1;
+        var shellPoint = null;
+        var shellRadius = 8;
+
+        function sidePointFromSample(sample) {
+          var depth = Math.max(0, Math.min(1.15, sample.progress));
+          var startY = barrelBaseY - 58;
+          var baseY = startY + (targetY - startY) * depth;
+          var lift = Math.max(0, ((sample.alt || 0.035) - 0.035) / 0.16) * 34;
+
+          return {
+            x: centerX + sample.y * lateralScale * viewSign,
+            y: baseY - lift
+          };
+        }
+
+        if (projectile) {
+          var currentWorld = projectile.history[projectile.history.length - 1].world;
+          var currentLocal = rotate(currentWorld, -theta);
+          var shellProgress = Math.min(projectile.t / Math.max(0.01, projectile.maxTime), 1);
+
+          shellPoint = sidePointFromSample({
+            x: currentLocal.x,
+            y: currentLocal.y,
+            progress: shellProgress,
+            alt: 0.035 + Math.sin(Math.PI * shellProgress) * 0.16
+          });
+          shellRadius = 13 - shellProgress * 7;
+        }
 
         sideCtx.clearRect(0, 0, width, height);
 
@@ -669,114 +1277,198 @@
         sideCtx.fillStyle = sky;
         sideCtx.fillRect(0, 0, width, height);
 
-        for (var star = 0; star < 42; star += 1) {
-          var sx = (star * 97 + 31) % width;
-          var sy = 24 + ((star * 43) % Math.max(42, groundTop - 68));
-          sideCtx.fillStyle = star % 3 === 0 ? "rgba(255,255,255,0.72)" : "rgba(255,255,255,0.32)";
-          sideCtx.fillRect(sx, sy, 1.5, 1.5);
+        if (lookingNorth) {
+          sideCtx.strokeStyle = "rgba(226, 232, 240, 0.11)";
+          sideCtx.lineWidth = 1;
+          for (var ring = 34; ring <= Math.max(width, height); ring += 56) {
+            sideCtx.beginPath();
+            sideCtx.arc(centerX, polarisY, ring, 0, Math.PI * 2);
+            sideCtx.stroke();
+          }
+          for (var star = 0; star < 58; star += 1) {
+            var orbit = 26 + ((star * 37) % Math.max(90, width * 0.56));
+            var starAngle = star * 2.399 - theta;
+            var sx = centerX + Math.cos(starAngle) * orbit;
+            var sy = polarisY + Math.sin(starAngle) * orbit;
+            if (sx > 4 && sx < width - 4 && sy > 8 && sy < horizonY - 6) {
+              sideCtx.fillStyle = star % 4 === 0 ? "rgba(255,255,255,0.78)" : "rgba(255,255,255,0.38)";
+              sideCtx.fillRect(sx, sy, 1.6, 1.6);
+            }
+          }
+          sideCtx.fillStyle = "#f8fafc";
+          sideCtx.beginPath();
+          sideCtx.arc(centerX, polarisY, 3.2, 0, Math.PI * 2);
+          sideCtx.fill();
+          sideCtx.fillStyle = "rgba(226, 232, 240, 0.78)";
+          sideCtx.font = "11px system-ui, sans-serif";
+          sideCtx.fillText("Polaris " + observerLatitude + " deg altitude", centerX + 9, polarisY + 4);
+        } else {
+          var starDrift = (Math.abs(theta) * 90) % width;
+          for (var southStar = 0; southStar < 54; southStar += 1) {
+            var baseX = (southStar * 89 + 23) % width;
+            var sxSouth = (baseX + starDrift) % width;
+            var arc = Math.sin((sxSouth / width) * Math.PI);
+            var sySouth = 22 + ((southStar * 47) % Math.max(48, horizonY - 54)) + arc * 16;
+            if (sySouth < horizonY - 6) {
+              sideCtx.fillStyle = southStar % 4 === 0 ? "rgba(255,255,255,0.76)" : "rgba(255,255,255,0.36)";
+              sideCtx.fillRect(sxSouth, sySouth, 1.6, 1.6);
+            }
+          }
         }
 
-        sideCtx.fillStyle = "#0f766e";
-        sideCtx.fillRect(0, groundTop, width, height - groundTop);
-        sideCtx.fillStyle = "#164e63";
-        sideCtx.fillRect(0, groundTop, width, 10);
-        sideCtx.strokeStyle = "rgba(125, 211, 252, 0.38)";
+        var ground = sideCtx.createLinearGradient(0, horizonY, 0, height);
+        ground.addColorStop(0, "#155e75");
+        ground.addColorStop(1, "#0f766e");
+        sideCtx.fillStyle = ground;
+        sideCtx.beginPath();
+        sideCtx.moveTo(0, horizonY);
+        sideCtx.lineTo(width, horizonY);
+        sideCtx.lineTo(width, height);
+        sideCtx.lineTo(0, height);
+        sideCtx.closePath();
+        sideCtx.fill();
+        sideCtx.strokeStyle = "rgba(125, 211, 252, 0.4)";
         sideCtx.lineWidth = 2;
         sideCtx.beginPath();
-        sideCtx.moveTo(0, groundTop + 9);
-        sideCtx.lineTo(width, groundTop + 9);
+        sideCtx.moveTo(0, horizonY);
+        sideCtx.lineTo(width, horizonY);
         sideCtx.stroke();
 
-        var direction = p.hemisphere === "North" ? 1 : -1;
-        var stripeSpacing = 54;
-        var scroll = ((theta * 70) % stripeSpacing + stripeSpacing) % stripeSpacing;
-        for (var x = -stripeSpacing; x < width + stripeSpacing; x += stripeSpacing) {
-          var stripeX = x + scroll;
+        sideCtx.fillStyle = "#1e293b";
+        sideCtx.beginPath();
+        sideCtx.moveTo(0, horizonY);
+        sideCtx.lineTo(width * 0.12, horizonY - 24);
+        sideCtx.lineTo(width * 0.24, horizonY - 7);
+        sideCtx.lineTo(width * 0.36, horizonY - 32);
+        sideCtx.lineTo(width * 0.5, horizonY - 5);
+        sideCtx.lineTo(width * 0.66, horizonY - 28);
+        sideCtx.lineTo(width * 0.82, horizonY - 9);
+        sideCtx.lineTo(width, horizonY - 22);
+        sideCtx.lineTo(width, horizonY);
+        sideCtx.closePath();
+        sideCtx.fill();
+
+        for (var lane = -4; lane <= 4; lane += 1) {
           sideCtx.strokeStyle = "rgba(226, 232, 240, 0.34)";
+          sideCtx.lineWidth = lane === 0 ? 3 : 2;
+          sideCtx.beginPath();
+          sideCtx.moveTo(centerX + lane * 18, horizonY);
+          sideCtx.lineTo(centerX + lane * width * 0.18, height);
+          sideCtx.stroke();
+        }
+        for (var mark = 1; mark <= 5; mark += 1) {
+          var depth = mark / 6;
+          var stripeY = horizonY + Math.pow(depth, 1.55) * (height - horizonY);
+          var halfWidth = width * depth * 0.46;
+          sideCtx.strokeStyle = "rgba(226, 232, 240, 0.24)";
           sideCtx.lineWidth = 2;
           sideCtx.beginPath();
-          sideCtx.moveTo(stripeX, groundTop + 10);
-          sideCtx.lineTo(stripeX + 28, height);
+          sideCtx.moveTo(centerX - halfWidth, stripeY);
+          sideCtx.lineTo(centerX + halfWidth, stripeY);
           sideCtx.stroke();
         }
 
         sideCtx.fillStyle = "rgba(15, 23, 42, 0.72)";
         sideCtx.strokeStyle = "rgba(226, 232, 240, 0.18)";
         sideCtx.lineWidth = 1;
-        roundedRect(sideCtx, 18, 18, 268, 58, 12);
+        roundedRect(sideCtx, 18, 18, 306, 96, 12);
         sideCtx.fill();
         sideCtx.stroke();
         sideCtx.fillStyle = "#e2e8f0";
         sideCtx.font = "bold 13px system-ui, sans-serif";
-        sideCtx.fillText("Projectile side view", 32, 42);
+        sideCtx.fillText(lookingNorth ? "North-facing ground view" : "South-facing ground view", 32, 42);
         sideCtx.fillStyle = "#cbd5e1";
         sideCtx.font = "12px system-ui, sans-serif";
-        sideCtx.fillText("Surface marks slide as Earth rotates below.", 32, 62);
+        sideCtx.fillText(lookingNorth ? "Surface fixed; stars rotate around Polaris." : "Surface fixed; stars drift left to right.", 32, 62);
+        sideCtx.fillText("Surface speed: " + Math.round(surfaceSpeed) + " m/s eastward", 32, 80);
+        sideCtx.fillText(getAimLabel(aimLocal), 32, 98);
 
-        sideCtx.strokeStyle = "rgba(250, 204, 21, 0.36)";
-        sideCtx.setLineDash([7, 7]);
-        sideCtx.lineWidth = 2;
+        sideCtx.strokeStyle = launchPlan ? "#f97316" : "rgba(250, 204, 21, 0.36)";
+        if (!launchPlan) sideCtx.setLineDash([7, 7]);
+        sideCtx.lineWidth = launchPlan ? 3 : 2;
         sideCtx.beginPath();
-        for (var step = 0; step <= 80; step += 1) {
-          var t = step / 80;
-          var px = cannonX + flightWidth * t;
-          var py = baselineY - Math.sin(Math.PI * t) * maxArcHeight - aimLift * flightWidth * t;
-          if (step === 0) sideCtx.moveTo(px, py);
-          else sideCtx.lineTo(px, py);
+        if (launchPlan && launchPlan.localPath.length) {
+          launchPlan.localPath.forEach(function(sample, index) {
+            var sidePoint = sidePointFromSample(sample);
+            if (index === 0) sideCtx.moveTo(sidePoint.x, sidePoint.y);
+            else sideCtx.lineTo(sidePoint.x, sidePoint.y);
+          });
+        } else {
+          for (var step = 0; step <= 80; step += 1) {
+            var t = step / 80;
+            var previewPoint = sidePointFromSample({
+              x: points.cannon.x + aimLocal.x * p.targetDistance * t,
+              y: points.cannon.y + aimLocal.y * p.targetDistance * t,
+              progress: t,
+              alt: 0.035 + Math.sin(Math.PI * t) * 0.16
+            });
+            if (step === 0) sideCtx.moveTo(previewPoint.x, previewPoint.y);
+            else sideCtx.lineTo(previewPoint.x, previewPoint.y);
+          }
         }
         sideCtx.stroke();
         sideCtx.setLineDash([]);
 
-        var projectileX = cannonX;
-        var projectileY = baselineY;
-        if (projectile) {
-          projectileX = cannonX + flightWidth * progress;
-          projectileY = baselineY - Math.sin(Math.PI * Math.min(progress, 1)) * maxArcHeight - aimLift * flightWidth * Math.min(progress, 1);
-          if (progress > 1) projectileY += (progress - 1) * 160;
-        }
-
-        sideCtx.fillStyle = "#334155";
-        roundedRect(sideCtx, cannonX - 34, baselineY - 9, 46, 18, 5);
-        sideCtx.fill();
-        sideCtx.strokeStyle = "#bae6fd";
-        sideCtx.lineWidth = 8;
-        sideCtx.lineCap = "round";
+        sideCtx.save();
+        sideCtx.translate(targetX, targetY + 2);
+        sideCtx.scale(1, 0.34);
+        sideCtx.fillStyle = "#fee2e2";
         sideCtx.beginPath();
-        sideCtx.moveTo(cannonX - 12, baselineY - 6);
-        sideCtx.lineTo(cannonX + 32, baselineY - 24 - aimLift * 80);
+        sideCtx.arc(0, 0, 42, 0, Math.PI * 2);
+        sideCtx.fill();
+        sideCtx.strokeStyle = "rgba(255, 255, 255, 0.86)";
+        sideCtx.lineWidth = 3;
         sideCtx.stroke();
-        sideCtx.lineCap = "butt";
-        sideCtx.fillStyle = "#38bdf8";
-        sideCtx.beginPath();
-        sideCtx.arc(cannonX - 24, baselineY - 1, 13, 0, Math.PI * 2);
-        sideCtx.fill();
-
         sideCtx.fillStyle = "#ef4444";
-        roundedRect(sideCtx, targetX - 18, baselineY - 24, 36, 24, 6);
+        sideCtx.beginPath();
+        sideCtx.arc(0, 0, 31, 0, Math.PI * 2);
         sideCtx.fill();
-        sideCtx.strokeStyle = "white";
-        sideCtx.lineWidth = 2;
-        sideCtx.stroke();
+        sideCtx.fillStyle = "#f8fafc";
+        sideCtx.beginPath();
+        sideCtx.arc(0, 0, 20, 0, Math.PI * 2);
+        sideCtx.fill();
+        sideCtx.fillStyle = "#ef4444";
+        sideCtx.beginPath();
+        sideCtx.arc(0, 0, 10, 0, Math.PI * 2);
+        sideCtx.fill();
+        sideCtx.restore();
+
         sideCtx.fillStyle = "#fee2e2";
         sideCtx.font = "bold 11px system-ui, sans-serif";
         sideCtx.textAlign = "center";
-        sideCtx.fillText("Target", targetX, baselineY - 33);
+        sideCtx.fillText("Target", targetX, targetY - 22);
         sideCtx.textAlign = "left";
 
-        if (projectile && progress <= 1.2) {
+        if (projectile && shellPoint && status === "Flying" && progress <= 1.2) {
           sideCtx.fillStyle = "#facc15";
           sideCtx.beginPath();
-          sideCtx.arc(projectileX, projectileY, 8, 0, Math.PI * 2);
+          sideCtx.arc(shellPoint.x, progress > 1 ? shellPoint.y + (progress - 1) * 110 : shellPoint.y, Math.max(4, shellRadius), 0, Math.PI * 2);
           sideCtx.fill();
           sideCtx.strokeStyle = "#713f12";
           sideCtx.lineWidth = 2;
           sideCtx.stroke();
         }
 
-        sideCtx.fillStyle = "rgba(248, 250, 252, 0.78)";
-        sideCtx.font = "12px system-ui, sans-serif";
-        sideCtx.textAlign = "right";
-        sideCtx.fillText("Ground rotation direction: " + (direction > 0 ? "eastward" : "westward"), width - 18, groundTop + 34);
+        sideCtx.fillStyle = "#334155";
+        sideCtx.beginPath();
+        sideCtx.ellipse(centerX, barrelBaseY - 3, 48, 16, 0, 0, Math.PI * 2);
+        sideCtx.fill();
+        sideCtx.strokeStyle = "#bae6fd";
+        sideCtx.lineWidth = 10;
+        sideCtx.lineCap = "round";
+        sideCtx.beginPath();
+        sideCtx.moveTo(centerX, barrelBaseY - 10);
+        sideCtx.lineTo(centerX + aimLocal.y * width * 0.16 * viewSign, barrelBaseY - 68);
+        sideCtx.stroke();
+        sideCtx.lineCap = "butt";
+        sideCtx.fillStyle = "#38bdf8";
+        sideCtx.beginPath();
+        sideCtx.arc(centerX, barrelBaseY - 4, 22, 0, Math.PI * 2);
+        sideCtx.fill();
+        sideCtx.strokeStyle = "#e0f2fe";
+        sideCtx.lineWidth = 2;
+        sideCtx.stroke();
+
         sideCtx.textAlign = "left";
       }
 
@@ -797,7 +1489,7 @@
       function updateProjectile(dt) {
         if (!projectile || status !== "Flying") return;
 
-        projectile.t += dt;
+        projectile.t = Math.min(projectile.t + dt, projectile.maxTime);
         var currentWorld = add(projectile.startWorld, {
           x: projectile.velocity.x * projectile.t,
           y: projectile.velocity.y * projectile.t
@@ -808,13 +1500,18 @@
         var target = getLocalPoints().target;
         var targetWorld = rotate(target, theta);
         var distance = mag(sub(currentWorld, targetWorld));
+        var globeStatus = "Flying";
 
         if (distance < 18) {
           setStatus("Hit", 0);
+          globeStatus = "Hit";
           markSCORMComplete();
-        } else if (projectile.t > projectile.maxTime || mag(currentWorld) > 420) {
+        } else if (projectile.t >= projectile.maxTime || mag(currentWorld) > 420) {
           setStatus("Miss", Math.round(distance));
+          globeStatus = "Miss";
         }
+
+        syncGlobeProjectile(currentWorld, globeStatus);
       }
 
       function drawFrame(time) {
@@ -840,6 +1537,7 @@
         ctx.fillRect(0, 0, width, height);
 
         drawGrid(centerX, centerY);
+        drawLaunchPlanTop(centerX, centerY);
         drawCannonAndTarget(centerX, centerY);
         drawProjectile(centerX, centerY);
         drawLabels(width, height);
@@ -852,24 +1550,42 @@
         labels.speed.textContent = inputs.shellSpeed.value;
         labels.distance.textContent = inputs.targetDistance.value;
         labels.rotation.textContent = inputs.rotationRate.value;
+        labels.latitude.textContent = inputs.observerLatitude.value;
       }
 
       function setHemisphere(nextHemisphere) {
         hemisphere = nextHemisphere;
         northBtn.classList.toggle("active", hemisphere === "North");
         southBtn.classList.toggle("active", hemisphere === "South");
+        if (status !== "Flying") launchPlan = null;
+        syncGlobeScenario();
+      }
+
+      function setSideViewDirection(nextDirection) {
+        sideViewDirection = nextDirection;
+        lookNorthBtn.classList.toggle("active", sideViewDirection === "North");
+        lookSouthBtn.classList.toggle("active", sideViewDirection === "South");
       }
 
       Object.keys(inputs).forEach(function(key) {
-        inputs[key].addEventListener("input", syncControls);
+        inputs[key].addEventListener("input", function() {
+          syncControls();
+          if (key !== "showEarthPath" && status !== "Flying") {
+            launchPlan = null;
+            syncGlobeScenario();
+          }
+        });
       });
       fireBtn.addEventListener("click", fire);
       resetBtn.addEventListener("click", reset);
       northBtn.addEventListener("click", function() { setHemisphere("North"); });
       southBtn.addEventListener("click", function() { setHemisphere("South"); });
+      lookNorthBtn.addEventListener("click", function() { setSideViewDirection("North"); });
+      lookSouthBtn.addEventListener("click", function() { setSideViewDirection("South"); });
       window.addEventListener("resize", resize);
 
       syncControls();
+      syncGlobeScenario();
       resize();
       loadSCORMState();
       window.requestAnimationFrame(drawFrame);

@@ -129,6 +129,7 @@
   <div class="stage-host" id="stage-host"></div>
 </div>
 <script src="shared.js"></script>
+<script src="graphics-lib.js"></script>
 <script>
 const STAGE = 6;
 const st = loadState();
@@ -154,100 +155,10 @@ const QUIZ_OPTIONS = [
 
 initPage(STAGE);
 
-// ── CANVAS DRAWING ────────────────────────────────────────────────────────────
-const MESSAGE_LINES = [
-  { text: 'TOP SECRET — PATRIOT INTELLIGENCE', y: 38,  size: 13, bold: true  },
-  { text: 'ATTACK AT DAWN',                        y: 80,  size: 24, bold: true  },
-  { text: 'MEET AT LIBERTY BRIDGE',                y: 118, size: 16, bold: true  },
-  { text: '',                                       y: 138                        },
-  { text: 'Burn this message after reading.',       y: 158, size: 12, bold: false },
-  { text: '— Your Ally in the Cause',          y: 182, size: 13, bold: false, italic: true },
-];
-
-function drawSecret(progress) {
-  const canvas = document.getElementById('ink-canvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
-
-  // Parchment background
-  const bg = ctx.createLinearGradient(0, 0, W, H);
-  bg.addColorStop(0, '#f8ecd0');
-  bg.addColorStop(1, '#eeddb5');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
-
-  // Subtle dot texture
-  for (let tx = 4; tx < W; tx += 10) {
-    for (let ty = 4; ty < H; ty += 10) {
-      if ((tx * 13 + ty * 7) % 19 < 2) {
-        ctx.fillStyle = 'rgba(100,60,20,0.06)';
-        ctx.fillRect(tx, ty, 2, 2);
-      }
-    }
-  }
-
-  // Edge vignette
-  const vig = ctx.createRadialGradient(W/2, H/2, H*0.3, W/2, H/2, H*0.75);
-  vig.addColorStop(0, 'rgba(0,0,0,0)');
-  vig.addColorStop(1, 'rgba(70,35,5,0.14)');
-  ctx.fillStyle = vig;
-  ctx.fillRect(0, 0, W, H);
-
-  // Decorative border
-  ctx.strokeStyle = 'rgba(100,60,20,0.25)';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(14, 10, W - 28, H - 20);
-
-  if (progress <= 0) {
-    ctx.fillStyle = 'rgba(100,60,20,0.3)';
-    ctx.font = '12px "Instrument Sans", Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('Select a revealing method below, then click Apply', W/2, H - 16);
-    return;
-  }
-
-  // Revealed text — clipped to progress band
-  const revealX = W * progress;
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(0, 0, revealX, H);
-  ctx.clip();
-
-  MESSAGE_LINES.forEach(line => {
-    if (!line.text) return;
-    const sz = line.size || 14;
-    ctx.font = `${line.italic ? 'italic ' : ''}${line.bold ? 'bold ' : ''}${sz}px "Courier New", monospace`;
-    ctx.fillStyle = '#3d1e06';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'alphabetic';
-    ctx.fillText(line.text, W / 2, line.y);
-  });
-
-  ctx.restore();
-
-  // Amber heat glow at the reveal boundary
-  if (progress > 0 && progress < 1) {
-    const gx = revealX;
-    const glow = ctx.createRadialGradient(gx, H/2, 0, gx, H/2, 90);
-    glow.addColorStop(0,   'rgba(255,180,30,0.42)');
-    glow.addColorStop(0.45,'rgba(255,110,15,0.18)');
-    glow.addColorStop(1,   'rgba(255,80,0,0)');
-    ctx.fillStyle = glow;
-    ctx.fillRect(gx - 90, 0, 180, H);
-
-    // Tiny spark flecks
-    for (let k = 0; k < 6; k++) {
-      const fx = gx + (Math.random() - 0.5) * 12;
-      const fy = 20 + Math.random() * (H - 40);
-      const fr = 2 + Math.random() * 3.5;
-      ctx.beginPath();
-      ctx.arc(fx, fy, fr, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255,${130 + Math.random() * 100 | 0},0,${0.35 + Math.random() * 0.45})`;
-      ctx.fill();
-    }
-  }
+function redrawInk(progress) {
+  const { ctx, W, H } = SPY.mount('ink-canvas', 560, 200);
+  SPY.draw.invisibleInk(ctx, W, H, { progress });
+  return { ctx, W, H };
 }
 
 // ── PAGE RENDER ───────────────────────────────────────────────────────────────
@@ -325,8 +236,7 @@ function renderPage() {
     </div>
   `;
 
-  // Restore canvas state
-  drawSecret(inkRevealed ? 1 : 0);
+  redrawInk(inkRevealed ? 1 : 0);
 }
 
 // ── INTERACTIONS ──────────────────────────────────────────────────────────────
@@ -358,7 +268,7 @@ function applyTool() {
   const applyBtn = document.getElementById('apply-btn');
 
   if (!tool.correct) {
-    drawSecret(0);
+    redrawInk(0);
     if (fb) fb.innerHTML = '<span class="feedback-err">Nothing happened. That method doesn\'t work on this type of ink. Try a different approach!</span>';
     return;
   }
@@ -377,7 +287,7 @@ function applyTool() {
   function frame(ts) {
     if (!startTime) startTime = ts;
     const prog = Math.min((ts - startTime) / duration, 1);
-    drawSecret(prog);
+    redrawInk(prog);
     if (prog < 1) {
       _rafId = requestAnimationFrame(frame);
     } else {

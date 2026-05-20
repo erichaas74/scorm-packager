@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vertical Jump Combine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Prevents scrollbars */
+        }
+        #canvas-container {
+            flex: 1; /* Takes up all available top space */
+            width: 100%;
+            position: relative;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        #ui-layer {
+            width: 100%;
+            background-color: white;
+            border-top: 1px solid #e2e8f0;
+            box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.05);
+            z-index: 10;
+            padding: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Section: Physics Canvas -->
+    <div id="canvas-container">
+        <canvas id="simulationCanvas"></canvas>
+    </div>
+
+    <!-- Bottom Section: Control Dashboard -->
+    <div id="ui-layer" class="flex flex-col items-center">
+        <div class="max-w-4xl w-full flex flex-col gap-3">
+            <div class="flex justify-between items-center px-2">
+                <h2 class="text-slate-800 font-bold text-lg md:text-xl">Vertical Jump Combine: Form Matters</h2>
+                <button onclick="clearHistory()" class="text-sm px-3 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-colors font-medium">Clear Graphs</button>
+            </div>
+            
+            <p class="px-2 text-sm text-slate-500">Bending knees increases contact time, allowing more Impulse (Area under curve). Find the best combination!</p>
+            
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-2" id="button-container">
+                <!-- Jump profile buttons injected by JS -->
+            </div>
+            
+            <div class="grid grid-cols-3 gap-2 md:gap-4 mt-2 px-2 text-center">
+                <div class="bg-blue-50 p-2 rounded-lg border border-blue-100">
+                    <div class="text-[10px] md:text-xs text-blue-600 font-bold uppercase tracking-wider">Net Impulse</div>
+                    <div class="text-lg md:text-xl font-black text-blue-900" id="impulse-readout">0 N·s</div>
+                </div>
+                <div class="bg-green-50 p-2 rounded-lg border border-green-100">
+                    <div class="text-[10px] md:text-xs text-green-600 font-bold uppercase tracking-wider">Takeoff Speed</div>
+                    <div class="text-lg md:text-xl font-black text-green-900" id="speed-readout">0.0 m/s</div>
+                </div>
+                <div class="bg-purple-50 p-2 rounded-lg border border-purple-100">
+                    <div class="text-[10px] md:text-xs text-purple-600 font-bold uppercase tracking-wider">Max Height</div>
+                    <div class="text-lg md:text-xl font-black text-purple-900" id="height-readout">0.00 m</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simulationCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+
+        let width, height;
+        function resize() {
+            // Safely get dimensions from the wrapper div to prevent syntax errors
+            width = container.clientWidth;
+            height = container.clientHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Physics constants
+        const mass = 80; // kg
+        const gravity = 9.81; // m/s^2
+        const weight = mass * gravity; // ~784.8 N
+        
+        // Jump state variables
+        let state = 'idle'; // idle, pushing, flight, landed
+        let athleteY = 0; // Height above ground (meters)
+        let athleteVy = 0; // Vertical velocity (m/s)
+        let timeInPush = 0;
+        let currentForce = 0;
+        
+        let jumpHistory = [];
+        let currentGraphData = [];
+        let activeProfile = null;
+
+        // The different jumping styles
+        const jumpProfiles = [
+            { id: 'pogo', name: 'Explosive Pogo', contactTime: 0.12, peakForce: 2800, color: '#ef4444' }, // Red
+            { id: 'stiff', name: 'Stiff-Leg Hop', contactTime: 0.18, peakForce: 2300, color: '#f97316' }, // Orange
+            { id: 'athletic', name: 'Athletic Jump', contactTime: 0.30, peakForce: 2000, color: '#22c55e' }, // Green (Best)
+            { id: 'squat', name: 'Deep Squat', contactTime: 0.45, peakForce: 1500, color: '#3b82f6' }, // Blue
+            { id: 'toodeep', name: 'Too-Deep Squat', contactTime: 0.65, peakForce: 1100, color: '#8b5cf6' } // Purple
+        ];
+
+        const btnContainer = document.getElementById('button-container');
+        jumpProfiles.forEach(p => {
+            const btn = document.createElement('button');
+            btn.className = 'py-2 px-1 rounded border-2 font-bold text-xs md:text-sm transition-all hover:bg-slate-50 bg-white';
+            btn.style.borderColor = p.color;
+            btn.style.color = p.color;
+            btn.innerText = p.name;
+            btn.onclick = () => startJump(p);
+            btnContainer.appendChild(btn);
+        });
+
+        function clearHistory() {
+            jumpHistory = [];
+            currentGraphData = [];
+            state = 'idle';
+            athleteY = 0;
+            document.getElementById('impulse-readout').innerText = '0 N·s';
+            document.getElementById('speed-readout').innerText = '0.0 m/s';
+            document.getElementById('height-readout').innerText = '0.00 m';
+        }
+
+        function startJump(profile) {
+            // Prevent interrupting a jump in progress
+            if (state === 'pushing' || state === 'flight') return;
+            
+            activeProfile = profile;
+            state = 'pushing';
+            timeInPush = 0;
+            athleteY = 0;
+            athleteVy = 0;
+            currentForce = weight;
+            currentGraphData = [];
+        }
+
+        let lastTime = performance.now();
+        function animate(currentTime) {
+            let dt = (currentTime - lastTime) / 1000;
+            if (dt > 0.1) dt = 0.1; // Cap dt to prevent physics explosions on lag
+            lastTime = currentTime;
+
+            updatePhysics(dt);
+            drawScene();
+
+            requestAnimationFrame(animate);
+        }
+
+        function updatePhysics(dt) {
+            if (state === 'pushing') {
+                timeInPush += dt;
+                
+                if (timeInPush >= activeProfile.contactTime) {
+                    // Takeoff!
+                    state = 'flight';
+                    currentForce = 0;
+                    
+                    // The analytical physics math (Impulse = integral of force curve minus weight)
+                    // F(t) = W + (Peak - W) * sin(pi * t / t_contact)
+                    // Net Impulse = (Peak - W) * (2 * t_contact / PI)
+                    const netImpulse = (activeProfile.peakForce - weight) * (2 * activeProfile.contactTime / Math.PI);
+                    const takeoffSpeed = netImpulse / mass;
+                    const maxHeight = (takeoffSpeed * takeoffSpeed) / (2 * gravity);
+                    
+                    // Force the actual simulation velocity to match the perfect math
+                    athleteVy = takeoffSpeed; 
+                    
+                    // Update UI Readouts
+                    document.getElementById('impulse-readout').innerText = netImpulse.toFixed(0) + ' N·s';
+                    document.getElementById('speed-readout').innerText = takeoffSpeed.toFixed(1) + ' m/s';
+                    document.getElementById('height-readout').innerText = maxHeight.toFixed(2) + ' m';
+
+                    // Save graph data for overlay comparisons
+                    jumpHistory.push({
+                        profile: activeProfile,
+                        points: [...currentGraphData]
+                    });
+
+                } else {
+                    // Calculate force curve during the push (sine wave shape)
+                    currentForce = weight + (activeProfile.peakForce - weight) * Math.sin(Math.PI * timeInPush / activeProfile.contactTime);
+                    
+                    // Update graph
+                    currentGraphData.push({ t: timeInPush, f: currentForce });
+                }
+            } 
+            else if (state === 'flight') {
+                // Apply Gravity
+                athleteVy -= gravity * dt;
+                athleteY += athleteVy * dt;
+                
+                // Check for landing
+                if (athleteY <= 0 && athleteVy < 0) {
+                    athleteY = 0;
+                    athleteVy = 0;
+                    state = 'landed';
+                }
+            }
+        }
+
+        function drawScene() {
+            ctx.clearRect(0, 0, width, height);
+            
+            // Draw Ground
+            const groundY = height - 40;
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillRect(0, groundY, width, height - groundY);
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(0, groundY, width, 4);
+
+            drawJumper(groundY);
+            drawGraph();
+        }
+
+        function drawJumper(groundY) {
+            const jumperX = width * 0.25;
+            const pixelsPerMeter = 180; // Scale factor for visuals
+            
+            // Base visual height of the athlete
+            let boxHeight = 60; 
+            
+            // If pushing, animate the "squat" based on contact time and current force
+            if (state === 'pushing') {
+                // Longer contact time = deeper squat visual
+                const squatDepth = activeProfile.contactTime / 0.65; 
+                // Dip down and come back up following the sine curve
+                boxHeight = 60 - (30 * squatDepth * Math.sin(Math.PI * timeInPush / activeProfile.contactTime));
+            }
+            
+            const visualY = groundY - (athleteY * pixelsPerMeter) - boxHeight;
+            
+            // Draw athlete box
+            ctx.fillStyle = (state === 'idle') ? '#cbd5e1' : (activeProfile ? activeProfile.color : '#cbd5e1');
+            ctx.fillRect(jumperX - 25, visualY, 50, boxHeight);
+            
+            // Outline
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(jumperX - 25, visualY, 50, boxHeight);
+        }
+
+        function drawGraph() {
+            // Responsive Graph layout
+            const gX = width * 0.5;
+            const gY = 40;
+            const gW = width * 0.45;
+            const gH = height - 100;
+            
+            if (gW < 100 || gH < 100) return; // Don't draw if screen is too tiny
+            
+            // Graph Background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(gX, gY, gW, gH);
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(gX, gY, gW, gH);
+            
+            // Draw Weight Threshold Line (Baseline for Net Impulse)
+            const wY = gY + gH - (weight / 3500) * gH;
+            ctx.beginPath();
+            ctx.moveTo(gX, wY);
+            ctx.lineTo(gX + gW, wY);
+            ctx.strokeStyle = '#94a3b8';
+            ctx.setLineDash([5, 5]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            ctx.fillStyle = '#64748b';
+            ctx.font = '12px Inter';
+            ctx.fillText('Weight (' + weight.toFixed(0) + ' N)', gX + 5, wY - 5);
+            
+            // Axes Labels
+            ctx.fillText('Time (s) ->', gX + gW - 70, gY + gH - 10);
+            ctx.save();
+            ctx.translate(gX + 15, gY + 60);
+            ctx.rotate(-Math.PI/2);
+            ctx.fillText('Normal Force (N)', 0, 0);
+            ctx.restore();
+
+            // Draw all previous jumps (ghosted)
+            jumpHistory.forEach(jump => {
+                drawCurve(jump.points, jump.profile.color, 0.3, false, gX, gY, gW, gH, wY);
+            });
+
+            // Draw the current or most recent jump prominently and filled
+            if (state === 'pushing') {
+                drawCurve(currentGraphData, activeProfile.color, 1.0, true, gX, gY, gW, gH, wY);
+            } else if (jumpHistory.length > 0 && state !== 'idle') {
+                const lastJump = jumpHistory[jumpHistory.length - 1];
+                drawCurve(lastJump.points, lastJump.profile.color, 1.0, true, gX, gY, gW, gH, wY);
+            }
+        }
+
+        function drawCurve(points, color, alpha, fillArea, gX, gY, gW, gH, wY) {
+            if (points.length === 0) return;
+            
+            const maxTime = 0.7; // Fixed x-axis scale
+            const maxForce = 3500; // Fixed y-axis scale
+            
+            ctx.beginPath();
+            ctx.moveTo(gX, gY + gH - (points[0].f / maxForce) * gH);
+            
+            for(let i = 1; i < points.length; i++) {
+                const x = gX + (points[i].t / maxTime) * gW;
+                const y = gY + gH - (points[i].f / maxForce) * gH;
+                ctx.lineTo(x, y);
+            }
+            
+            ctx.strokeStyle = color;
+            ctx.globalAlpha = alpha;
+            ctx.lineWidth = fillArea ? 3 : 2;
+            ctx.stroke();
+            
+            // Fill the area between the curve and the weight line (The Net Impulse)
+            if (fillArea) {
+                const lastX = gX + (points[points.length-1].t / maxTime) * gW;
+                ctx.lineTo(lastX, wY);
+                ctx.lineTo(gX, wY);
+                ctx.fillStyle = color;
+                ctx.globalAlpha = 0.2;
+                ctx.fill();
+            }
+            
+            ctx.globalAlpha = 1.0; // Reset alpha
+        }
+
+        // Start animation loop
+        requestAnimationFrame(animate);
+    </script>
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Globe Sun Shadow Lab</title>
+  <link rel="preconnect" href="https://unpkg.com" />
+  <link rel="stylesheet" href="style.css" />
+  <script defer src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script defer src="https://unpkg.com/globe.gl"></script>
+  <script defer src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
+  <script defer src="https://unpkg.com/luxon@3.7.1/build/global/luxon.min.js"></script>
+  <script defer src="https://unpkg.com/tz-lookup@6.1.25/tz.js"></script>
+  <script defer src="game.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="control-panel" aria-label="Lab controls">
+      <a class="back-link" href="../index.html">Grade 5</a>
+
+      <header class="lesson-header">
+        <div class="eyebrow">Earth science lab</div>
+        <h1>Globe Sun Shadow Lab</h1>
+        <p>Compare the Sun and Moon paths, then test how a real 3D object casts a shadow at that place and time.</p>
+      </header>
+
+      <section class="panel" aria-labelledby="locationTitle">
+        <h2 id="locationTitle">Location</h2>
+        <div class="input-grid">
+          <label>
+            Latitude
+            <input id="latInput" type="number" step="0.01" min="-89.9" max="89.9" value="38.83" />
+          </label>
+          <label>
+            Longitude
+            <input id="lonInput" type="number" step="0.01" min="-180" max="180" value="-104.82" />
+          </label>
+        </div>
+        <button id="useLocationBtn" class="btn primary" type="button">Update Location</button>
+        <p class="zone-line">Time zone: <strong id="zoneLabel">America/Denver</strong></p>
+        <div class="chip-grid" aria-label="Location presets">
+          <button class="chip active" type="button" data-location-preset data-lat="38.83" data-lon="-104.82">Colorado Springs</button>
+          <button class="chip" type="button" data-location-preset data-lat="51.51" data-lon="-0.13">London</button>
+          <button class="chip" type="button" data-location-preset data-lat="35.68" data-lon="139.76">Tokyo</button>
+          <button class="chip" type="button" data-location-preset data-lat="0" data-lon="0">Equator</button>
+          <button class="chip" type="button" data-location-preset data-lat="64.84" data-lon="-147.72">Alaska</button>
+          <button class="chip" type="button" data-location-preset data-lat="-34.60" data-lon="-58.38">Buenos Aires</button>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="dateTitle">
+        <h2 id="dateTitle">Date and Time</h2>
+        <label>
+          Date
+          <input id="dateInput" type="date" />
+        </label>
+        <div class="season-grid" aria-label="Season shortcuts">
+          <button id="marchBtn" class="btn compact" type="button" data-season="march">March Eq.</button>
+          <button id="juneBtn" class="btn compact" type="button" data-season="june">June Sol.</button>
+          <button id="septBtn" class="btn compact" type="button" data-season="sept">Sept. Eq.</button>
+          <button id="decBtn" class="btn compact" type="button" data-season="dec">Dec. Sol.</button>
+        </div>
+        <label class="range-label" for="timeSlider">
+          <span>Time of day</span>
+          <strong id="timeLabel">12:00 PM</strong>
+        </label>
+        <input id="timeSlider" type="range" min="0" max="1439" step="5" value="720" />
+        <div class="button-grid two">
+          <button id="playBtn" class="btn" type="button">Play Day</button>
+          <button id="noonBtn" class="btn" type="button">Solar Noon</button>
+          <button id="sunriseBtn" class="btn" type="button">Sunrise</button>
+          <button id="sunsetBtn" class="btn" type="button">Sunset</button>
+        </div>
+        <div class="diagnostic-readout" aria-live="polite">
+          <div>
+            <span>Selected Local Time</span>
+            <strong id="diagnosticLocalTime">--</strong>
+          </div>
+          <div>
+            <span>UTC Instant</span>
+            <strong id="diagnosticUTC">--</strong>
+          </div>
+          <div>
+            <span>Time Zone</span>
+            <strong id="diagnosticZone">America/Denver</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="layersTitle">
+        <h2 id="layersTitle">Layers</h2>
+        <div class="toggle-grid">
+          <button id="moonToggle" class="toggle active" type="button" aria-pressed="true">Moon Path</button>
+          <button id="seasonToggle" class="toggle" type="button" aria-pressed="false">Compare Seasons</button>
+          <button id="labelsToggle" class="toggle active" type="button" aria-pressed="true">Path Labels</button>
+          <button id="belowToggle" class="toggle active" type="button" aria-pressed="true">Below Horizon</button>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="shadowTitle">
+        <h2 id="shadowTitle">Shadow Maker</h2>
+        <div class="input-grid">
+          <label>
+            3D Object
+            <select id="objectSelect">
+              <option value="pole">Vertical Pole</option>
+              <option value="cube">Cube</option>
+              <option value="person">Simple Person</option>
+              <option value="tower">Tower</option>
+            </select>
+          </label>
+          <label>
+            Height, meters
+            <input id="heightInput" type="number" min="0.2" max="10" step="0.1" value="2" />
+          </label>
+        </div>
+        <p class="microcopy">Shadow length uses height / tan(sun altitude). The 3D scene uses the same sun direction for its light.</p>
+      </section>
+
+      <section class="panel readout-panel" aria-labelledby="readoutTitle">
+        <h2 id="readoutTitle">Daily Readout</h2>
+        <div id="readout" class="readout"></div>
+      </section>
+    </aside>
+
+    <main class="workspace">
+      <header class="workspace-bar">
+        <div class="tabs" role="tablist" aria-label="Lab views">
+          <button id="globeTab" class="tab active" type="button" role="tab" aria-selected="true">Globe</button>
+          <button id="horizonTab" class="tab" type="button" role="tab" aria-selected="false">Horizon + Shadows</button>
+        </div>
+        <div class="status-group" aria-live="polite">
+          <span id="statusText" class="status-chip">Ready</span>
+          <span id="sunSummary" class="status-chip warm">Sun data loading</span>
+        </div>
+      </header>
+
+      <section class="stage" aria-label="Interactive simulation area">
+        <div id="dependencyWarning" class="dependency-warning" hidden>
+          This lab needs the Three.js, Globe.gl, SunCalc, Luxon, and tz-lookup libraries to load.
+        </div>
+
+        <div id="globeView" class="view active" role="tabpanel" aria-labelledby="globeTab">
+          <div id="globeContainer" aria-label="Clickable 3D globe"></div>
+          <div class="map-readout" aria-hidden="true">
+            <span class="legend-dot sun"></span> Selected site
+          </div>
+        </div>
+
+        <div id="horizonView" class="view horizon-layout" role="tabpanel" aria-labelledby="horizonTab">
+          <section class="canvas-panel">
+            <canvas id="horizonCanvas" aria-label="Sun and moon path chart"></canvas>
+            <div class="overlay-label">Surface sky view</div>
+          </section>
+          <section class="canvas-panel">
+            <canvas id="shadowCanvas" aria-label="3D object shadow scene"></canvas>
+            <div class="overlay-label">3D shadow maker</div>
+            <div id="shadowInfo" class="shadow-info">Shadow info</div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <noscript>
+    <div class="dependency-warning visible">JavaScript is required for this lab.</div>
+  </noscript>
+</body>
+</html>

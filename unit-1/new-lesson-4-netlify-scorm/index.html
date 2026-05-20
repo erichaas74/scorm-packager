@@ -18,6 +18,21 @@ body{font-family:"Segoe UI",Tahoma,sans-serif;background:#0f172a;color:#e2e8f0}
 .toggle input{accent-color:#facc15}
 .frame-wrap{position:relative;min-height:0}
 iframe{display:block;width:100%;height:100%;border:0;background:#020617}
+.submission-summary{display:none;height:100%;overflow:auto;background:#f8fafc;color:#0f172a;padding:24px}
+.submission-summary.visible{display:block}
+.summary-inner{max-width:980px;margin:0 auto}
+.summary-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px;border-bottom:2px solid #cbd5e1;padding-bottom:14px}
+.summary-head h1{margin:0 0 6px;font-size:26px;line-height:1.15;color:#0f172a}
+.summary-head p{margin:0;color:#475569}
+.summary-badge{flex:0 0 auto;border:1px solid #16a34a;background:#dcfce7;color:#14532d;border-radius:999px;padding:7px 11px;font-size:13px;font-weight:700}
+.summary-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 18px}
+.summary-meta div{border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:10px 12px}
+.summary-meta span{display:block;font-size:12px;color:#64748b;margin-bottom:3px}
+.summary-meta strong{display:block;font-size:15px;color:#0f172a}
+.answer-card{border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:14px 16px;margin:12px 0;break-inside:avoid}
+.answer-card h2{margin:0 0 8px;font-size:16px;color:#0f172a;line-height:1.35}
+.answer-card p{margin:0;white-space:pre-wrap;line-height:1.5;color:#1e293b}
+.answer-empty{color:#991b1b;font-style:italic}
 .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(2,6,23,.7);backdrop-filter:blur(4px);transition:opacity .2s ease}
 .overlay.hidden{opacity:0;pointer-events:none}
 .card{width:min(92vw,520px);padding:24px;border:1px solid rgba(148,163,184,.22);border-radius:20px;background:rgba(15,23,42,.96);box-shadow:0 20px 50px rgba(0,0,0,.35)}
@@ -30,6 +45,10 @@ iframe{display:block;width:100%;height:100%;border:0;background:#020617}
 @media (max-width: 700px){
   .topbar{align-items:flex-start;flex-direction:column}
   .card{padding:20px}
+  .submission-summary{padding:18px}
+  .summary-head{display:block}
+  .summary-badge{display:inline-block;margin-top:10px}
+  .summary-meta{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -43,7 +62,39 @@ iframe{display:block;width:100%;height:100%;border:0;background:#020617}
     </div>
   </div>
   <div class="frame-wrap">
-    <iframe id="lab-frame" title="Reaction Time Lab" allow="autoplay; fullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+    <iframe id="lab-frame" title="Reaction Time Lab" allow="autoplay; fullscreen; clipboard-write" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+    <section id="submission-summary" class="submission-summary" aria-label="Submitted lab responses">
+      <div class="summary-inner">
+        <div class="summary-head">
+          <div>
+            <h1>Reaction Time Lab Submission</h1>
+            <p>Use these responses for rubric grading.</p>
+          </div>
+          <div class="summary-badge">Submitted</div>
+        </div>
+        <div class="summary-meta">
+          <div><span>Submitted</span><strong id="summary-submitted-at">-</strong></div>
+          <div><span>Trials recorded</span><strong id="summary-trials">-</strong></div>
+          <div><span>BusyBee text</span><strong id="summary-copy-status">Ready to paste</strong></div>
+        </div>
+        <article class="answer-card">
+          <h2 id="summary-q1">Analysis question 1</h2>
+          <p id="summary-a1" class="answer-empty">No response captured.</p>
+        </article>
+        <article class="answer-card">
+          <h2 id="summary-q2">Analysis question 2</h2>
+          <p id="summary-a2" class="answer-empty">No response captured.</p>
+        </article>
+        <article class="answer-card">
+          <h2 id="summary-q3">Analysis question 3</h2>
+          <p id="summary-a3" class="answer-empty">No response captured.</p>
+        </article>
+        <article class="answer-card">
+          <h2 id="summary-q4">Analysis question 4</h2>
+          <p id="summary-a4" class="answer-empty">No response captured.</p>
+        </article>
+      </div>
+    </section>
     <div id="loading-overlay" class="overlay">
       <div class="card">
         <h1>Loading hosted lab</h1>
@@ -186,6 +237,33 @@ iframe{display:block;width:100%;height:100%;border:0;background:#020617}
     commit();
   }
 
+  function setScore(raw, min, max) {
+    setValue('cmi.core.score.min', min == null ? '0' : min);
+    setValue('cmi.core.score.max', max == null ? '100' : max);
+    setValue('cmi.core.score.raw', raw == null ? '100' : raw);
+    commit();
+  }
+
+  function setComment(comment) {
+    setValue('cmi.comments', String(comment || '').slice(0, 4096));
+    commit();
+  }
+
+  function setInteraction(index, id, response) {
+    var base = 'cmi.interactions.' + index;
+    var now = new Date();
+    var hh = String(now.getHours()).padStart(2, '0');
+    var mm = String(now.getMinutes()).padStart(2, '0');
+    var ss = String(now.getSeconds()).padStart(2, '0');
+
+    setValue(base + '.id', String(id || ('analysis_' + index)).slice(0, 255));
+    setValue(base + '.type', 'fill-in');
+    setValue(base + '.student_response', String(response || '').slice(0, 255));
+    setValue(base + '.result', 'neutral');
+    setValue(base + '.time', hh + ':' + mm + ':' + ss);
+    commit();
+  }
+
   global.addEventListener('load', function() {
     initialize();
   });
@@ -200,7 +278,10 @@ iframe{display:block;width:100%;height:100%;border:0;background:#020617}
     commit: commit,
     getValue: getValue,
     setValue: setValue,
-    setStatus: setStatus
+    setStatus: setStatus,
+    setScore: setScore,
+    setComment: setComment,
+    setInteraction: setInteraction
   };
 }(window));
 </script>
@@ -217,7 +298,8 @@ iframe{display:block;width:100%;height:100%;border:0;background:#020617}
 
   var shellState = {
     suspendData: '',
-    lessonStatus: 'incomplete'
+    lessonStatus: 'incomplete',
+    lessonMode: ''
   };
 
   var iframeEl = null;
@@ -225,6 +307,10 @@ iframe{display:block;width:100%;height:100%;border:0;background:#020617}
   var statusEl = null;
   var toggleEl = null;
   var openLinkEl = null;
+  var summaryEl = null;
+  var summarySubmittedAtEl = null;
+  var summaryTrialsEl = null;
+  var summaryCopyStatusEl = null;
 
   function searchFlagEnabled(name) {
     try {
@@ -260,6 +346,7 @@ iframe{display:block;width:100%;height:100%;border:0;background:#020617}
     if (typeof SCORM === 'undefined') return;
     shellState.suspendData = SCORM.getValue('cmi.suspend_data') || '';
     shellState.lessonStatus = SCORM.getValue('cmi.core.lesson_status') || 'incomplete';
+    shellState.lessonMode = SCORM.getValue('cmi.core.lesson_mode') || '';
   }
 
   function writeSuspendData(payload) {
@@ -276,6 +363,106 @@ iframe{display:block;width:100%;height:100%;border:0;background:#020617}
       SCORM.commit();
     }
     renderStatus();
+  }
+
+  function normalizeAnalysisItems(payload) {
+    var defaultPrompts = [
+      'What was your fastest average reaction time? Was it closer to average human or elite reaction time?',
+      'Were your visual and auditory reaction times different? Use examples from the lab and your data.',
+      'In the constant-velocity sprint, the distance you lost at the start was the same at end if you both reached full speed. In the drag race, how did your initial head start compare to your final race gap? Why does constant acceleration cause that gap to grow continuously, even though both cars accelerate at the exact same rate?',
+      'Why are Olympic sprinters disqualified for reacting in less than 0.100 s, and what does that show about human limits?'
+    ];
+    var prompts = payload && payload.prompts ? payload.prompts : defaultPrompts;
+    var analysis = payload && payload.analysis ? payload.analysis : {};
+    if (!analysis.a1 && !analysis.a2 && !analysis.a3 && !analysis.a4 && shellState.suspendData) {
+      try {
+        var saved = JSON.parse(shellState.suspendData);
+        if (saved && saved.a && saved.a.length) {
+          analysis = {
+            a1: saved.a[0] || '',
+            a2: saved.a[1] || '',
+            a3: saved.a[2] || '',
+            a4: saved.a[3] || ''
+          };
+        } else if (saved && saved.analysis) {
+          analysis = saved.analysis;
+        }
+      } catch (e) {}
+    }
+    return [
+      { id: 'analysis_q1', prompt: prompts[0] || defaultPrompts[0], answer: analysis.a1 || '' },
+      { id: 'analysis_q2', prompt: prompts[1] || defaultPrompts[1], answer: analysis.a2 || '' },
+      { id: 'analysis_q3', prompt: prompts[2] || defaultPrompts[2], answer: analysis.a3 || '' },
+      { id: 'analysis_q4', prompt: prompts[3] || defaultPrompts[3], answer: analysis.a4 || '' }
+    ];
+  }
+
+  function buildSubmissionComment(payload) {
+    if (payload && payload.submissionText) return String(payload.submissionText).slice(0, 4096);
+    var items = normalizeAnalysisItems(payload);
+    var score = payload && payload.score ? payload.score : {};
+    var lines = [
+      'Reaction Time Lab submission',
+      'Submitted: ' + new Date().toLocaleString(),
+      'Trials recorded: ' + ((payload && payload.totalRecorded) || ''),
+      'Lab auto-score before rubric: ' + (score.percent == null ? '' : score.percent + '%'),
+      ''
+    ];
+
+    for (var i = 0; i < items.length; i++) {
+      lines.push('Q' + (i + 1) + ': ' + items[i].prompt);
+      lines.push('A' + (i + 1) + ': ' + items[i].answer);
+      lines.push('');
+    }
+
+    return lines.join('\n').slice(0, 4096);
+  }
+
+  function writeRubricSubmission(payload) {
+    if (typeof SCORM === 'undefined') return;
+    var items = normalizeAnalysisItems(payload);
+
+    SCORM.setComment(buildSubmissionComment(payload || {}));
+    for (var i = 0; i < items.length; i++) {
+      SCORM.setInteraction(i, items[i].id, items[i].answer);
+    }
+  }
+
+  function setAnswerText(id, text) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = text || 'No response captured.';
+    el.classList.toggle('answer-empty', !text);
+  }
+
+  function showSubmissionSummary(payload) {
+    var items = normalizeAnalysisItems(payload || {});
+    var submittedAt = payload && payload.completedAt ? new Date(payload.completedAt).toLocaleString() : new Date().toLocaleString();
+    var trials = payload && payload.totalRecorded ? payload.totalRecorded : '';
+
+    if (summarySubmittedAtEl) summarySubmittedAtEl.textContent = submittedAt;
+    if (summaryTrialsEl) summaryTrialsEl.textContent = trials || '9 expected';
+    if (summaryCopyStatusEl) summaryCopyStatusEl.textContent = payload && payload.copiedToClipboard ? 'Copied to clipboard' : 'Ready to copy/paste';
+
+    for (var i = 0; i < items.length; i++) {
+      setAnswerText('summary-q' + (i + 1), 'Q' + (i + 1) + ': ' + items[i].prompt);
+      setAnswerText('summary-a' + (i + 1), items[i].answer);
+    }
+
+    if (iframeEl) iframeEl.style.display = 'none';
+    if (overlayEl) overlayEl.classList.add('hidden');
+    if (summaryEl) summaryEl.classList.add('visible');
+  }
+
+  function writeCompletion(payload) {
+    shellState.lessonStatus = 'completed';
+    if (typeof SCORM !== 'undefined') {
+      writeRubricSubmission(payload || {});
+      SCORM.setStatus('completed');
+      SCORM.commit();
+    }
+    renderStatus();
+    showSubmissionSummary(payload || {});
   }
 
   function clearScormState() {
@@ -295,6 +482,7 @@ iframe{display:block;width:100%;height:100%;border:0;background:#020617}
   function renderStatus() {
     if (!statusEl) return;
     var text = shellState.lessonStatus || 'incomplete';
+    if (text === 'passed') text = 'completed';
     statusEl.textContent = text.charAt(0).toUpperCase() + text.slice(1);
   }
 
@@ -340,7 +528,7 @@ iframe{display:block;width:100%;height:100%;border:0;background:#020617}
         clearScormState();
         break;
       case 'submitted':
-        writeLessonStatus('completed');
+        writeCompletion(data.payload || {});
         break;
     }
   }
@@ -351,6 +539,10 @@ iframe{display:block;width:100%;height:100%;border:0;background:#020617}
     statusEl = document.getElementById('shell-status');
     toggleEl = document.getElementById('autofill-toggle');
     openLinkEl = document.getElementById('open-hosted-link');
+    summaryEl = document.getElementById('submission-summary');
+    summarySubmittedAtEl = document.getElementById('summary-submitted-at');
+    summaryTrialsEl = document.getElementById('summary-trials');
+    summaryCopyStatusEl = document.getElementById('summary-copy-status');
 
     readScormState();
     renderStatus();
@@ -364,6 +556,9 @@ iframe{display:block;width:100%;height:100%;border:0;background:#020617}
     }
 
     reloadEmbed();
+    if (shellState.lessonStatus === 'completed' || shellState.lessonStatus === 'passed' || shellState.lessonMode === 'review') {
+      showSubmissionSummary({});
+    }
     iframeEl.addEventListener('load', function() {
       overlayEl.classList.add('hidden');
     });

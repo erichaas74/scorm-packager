@@ -79,12 +79,31 @@
       min-width: 220px;
     }
 
+    .top-info button {
+      padding: 7px 10px;
+      font-size: 12px;
+      border-radius: 8px;
+    }
+
     #mainCanvas {
       display: block;
       width: 100%;
       height: auto;
       background: var(--canvas-bg);
       border-bottom: 1px solid var(--line);
+    }
+
+    .canvas-stage {
+      position: relative;
+    }
+
+    .canvas-start {
+      position: absolute;
+      left: 50%;
+      top: 10%;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+      box-shadow: 0 10px 24px rgba(37, 99, 235, 0.24);
     }
 
     .panel {
@@ -176,13 +195,6 @@
       opacity: 0.92;
     }
 
-    .buttons {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-
     button {
       border: none;
       border-radius: 9px;
@@ -213,13 +225,18 @@
     }
 
     .result-panel {
-      margin-top: 14px;
+      height: 145px;
+      padding: 10px 16px;
       border-top: 1px solid var(--line);
-      padding-top: 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+      overflow: hidden;
+      transition: opacity 0.2s ease;
     }
 
     .result-panel.hidden {
-      display: none;
+      opacity: 0;
+      pointer-events: none;
     }
 
     .equation-stack {
@@ -272,7 +289,88 @@
       font-size: 13px;
       line-height: 1.4;
     }
+#equations-container {
+            height: 122px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            background: #ffffff;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 12px 8px;
+        }
+        
+        #equations-wrapper {
+            transform-origin: center center;
+            transition: transform 0.2s ease-out;
+        }
+        .eq-row {
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 1.45rem;
+            font-weight: bold;
+            margin-bottom: 0;
+            position: relative;
+            height: 2.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        /* Fixed widths prevent layout from shifting when text size changes */
+        .cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.3s ease-in-out, color 0.3s;
+            white-space: nowrap;
+            color: #111827;
+        }
+        .cell-m { width: 64px; }
+        .cell-v { width: 76px; }
+        .cell-op { width: 32px; color: #111827; }
+        .cell-coef { width: 48px; }
+        
+        .result-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 2rem;
+            font-weight: bold;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.8s ease-in-out;
+            background: rgba(255, 255, 255, 0.92);
+        }
 
+        /* --- Translated Tailwind Classes --- */
+        .section-title {
+            color: #111827;
+            font-weight: 500;
+            text-align: center;
+            margin-bottom: 0.35rem;
+            text-transform: none;
+            letter-spacing: 0;
+            font-size: 0.95rem;
+        }
+        .mt-4 { margin-top: 1rem; }
+        .equation-section.hidden {
+            display: none;
+        }
+        .eq-grid {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease;
+        }
+        .text-cyan { color: #111827; }
+        .text-rose { color: #111827; }
+        .text-green { color: #15803d; }
+        .text-red { color: #b91c1c; }
     @media (max-width: 780px) {
       body {
         padding: 10px;
@@ -285,8 +383,8 @@
     }
 
     @media (max-width: 520px) {
-      .equation-lines {
-        font-size: 13px;
+      #equations-wrapper {
+        transform: scale(0.48);
       }
     }
   </style>
@@ -294,15 +392,73 @@
 <body>
   <div class="game">
     <div class="top">
-      <div class="top-title">Elastic Collision</div>
+      <div class="top-title">Perfectly Elastic Collision</div>
       <div class="scenario-title" id="scenarioTitle"></div>
       <div class="top-info">
-        <div>Scenario: <span id="scenarioNum">1 / 6</span></div>
-        <div>Score: <span id="score">0</span></div>
+        <button id="resetBtn" class="secondary">Reset Scenario</button>
+        <button id="nextBtn" class="secondary">Next Scenario 1 / 6</button>
       </div>
     </div>
 
-    <canvas id="mainCanvas" width="1100" height="368"></canvas>
+    <div class="canvas-stage">
+      <canvas id="mainCanvas" width="1100" height="294"></canvas>
+      <button id="startBtn" class="canvas-start">Start to Collision</button>
+    </div>
+
+      <div id="resultPanel" class="result-panel hidden">
+        <!-- Lock-Grid Equations Area -->
+            <div id="equations-container">
+                <div id="equations-wrapper">
+                    <div id="momentum-section" class="equation-section">
+                      <!-- Momentum Section -->
+                      <div class="section-title">Total Momentum Before = Total Momentum After</div>
+                      <div class="eq-row">
+                          <div id="mom-grid" class="eq-grid text-cyan">
+                              <div id="m_m1" class="cell cell-m">m<sub>A</sub></div>
+                              <div id="m_v1" class="cell cell-v">v<sub>A</sub></div>
+                              <div class="cell cell-op">+</div>
+                              <div id="m_m2" class="cell cell-m text-rose">m<sub>B</sub></div>
+                              <div id="m_v2" class="cell cell-v text-rose">v<sub>B</sub></div>
+                              <div class="cell cell-op">=</div>
+                              <div id="m_m3" class="cell cell-m">m<sub>A</sub></div>
+                              <div id="m_v3" class="cell cell-v">v'<sub>A</sub></div>
+                              <div class="cell cell-op">+</div>
+                              <div id="m_m4" class="cell cell-m text-rose">m<sub>B</sub></div>
+                              <div id="m_v4" class="cell cell-v text-rose">v'<sub>B</sub></div>
+                          </div>
+                          <div id="mom-result" class="result-overlay text-green">
+                          </div>
+                      </div>
+                    </div>
+
+                    <div id="ke-section" class="equation-section hidden">
+                      <!-- Kinetic Energy Section -->
+                      <div class="section-title">Total Kinetic Energy Before = Total Kinetic Energy After</div>
+                      <div class="eq-row">
+                          <div id="ke-grid" class="eq-grid text-cyan">
+                              <div class="cell cell-coef">1/2</div>
+                              <div id="k_m1" class="cell cell-m">m<sub>A</sub></div>
+                              <div id="k_v1" class="cell cell-v">v<sub>A</sub><sup>2</sup></div>
+                              <div class="cell cell-op">+</div>
+                              <div class="cell cell-coef text-rose">1/2</div>
+                              <div id="k_m2" class="cell cell-m text-rose">m<sub>B</sub></div>
+                              <div id="k_v2" class="cell cell-v text-rose">v<sub>B</sub><sup>2</sup></div>
+                              <div class="cell cell-op">=</div>
+                              <div class="cell cell-coef">1/2</div>
+                              <div id="k_m3" class="cell cell-m">m<sub>A</sub></div>
+                              <div id="k_v3" class="cell cell-v">v'<sub>A</sub><sup>2</sup></div>
+                              <div class="cell cell-op">+</div>
+                              <div class="cell cell-coef text-rose">1/2</div>
+                              <div id="k_m4" class="cell cell-m text-rose">m<sub>B</sub></div>
+                              <div id="k_v4" class="cell cell-v text-rose">v'<sub>B</sub><sup>2</sup></div>
+                          </div>
+                          <div id="ke-result" class="result-overlay text-green">
+                          </div>
+                      </div>
+                    </div>
+                </div>
+            </div>
+      </div>
 
     <div class="panel">
       <div id="message"></div>
@@ -324,25 +480,6 @@
           <div class="choice-header">Choice C</div>
           <canvas class="choice-canvas" id="choiceCanvas2" width="340" height="150"></canvas>
           <div class="choice-label" id="choiceLabel2"></div>
-        </div>
-      </div>
-
-      <div class="buttons">
-        <button id="startBtn">Start to Collision</button>
-        <button id="resetBtn" class="secondary">Reset Scenario</button>
-        <button id="nextBtn" class="secondary">Next Scenario</button>
-      </div>
-
-      <div id="resultPanel" class="result-panel hidden">
-        <div class="equation-stack">
-          <div class="equation-card">
-            <strong>Total momentum before = total momentum after</strong>
-            <div class="equation-lines" id="momentumMath"></div>
-          </div>
-          <div class="equation-card">
-            <strong>Total kinetic energy before = total kinetic energy after</strong>
-            <div class="equation-lines" id="energyMath"></div>
-          </div>
         </div>
       </div>
     </div>
@@ -372,15 +509,35 @@
 
     const choicesEl = document.getElementById("choices");
     const message = document.getElementById("message");
-    const scoreEl = document.getElementById("score");
-    const scenarioNum = document.getElementById("scenarioNum");
     const scenarioTitle = document.getElementById("scenarioTitle");
     const startBtn = document.getElementById("startBtn");
     const resetBtn = document.getElementById("resetBtn");
     const nextBtn = document.getElementById("nextBtn");
     const resultPanel = document.getElementById("resultPanel");
-    const momentumMath = document.getElementById("momentumMath");
-    const energyMath = document.getElementById("energyMath");
+    const equationCells = {
+      m_m1: document.getElementById("m_m1"),
+      m_v1: document.getElementById("m_v1"),
+      m_m2: document.getElementById("m_m2"),
+      m_v2: document.getElementById("m_v2"),
+      m_m3: document.getElementById("m_m3"),
+      m_v3: document.getElementById("m_v3"),
+      m_m4: document.getElementById("m_m4"),
+      m_v4: document.getElementById("m_v4"),
+      k_m1: document.getElementById("k_m1"),
+      k_v1: document.getElementById("k_v1"),
+      k_m2: document.getElementById("k_m2"),
+      k_v2: document.getElementById("k_v2"),
+      k_m3: document.getElementById("k_m3"),
+      k_v3: document.getElementById("k_v3"),
+      k_m4: document.getElementById("k_m4"),
+      k_v4: document.getElementById("k_v4")
+    };
+    const momGrid = document.getElementById("mom-grid");
+    const keGrid = document.getElementById("ke-grid");
+    const momResult = document.getElementById("mom-result");
+    const keResult = document.getElementById("ke-result");
+    const momentumSection = document.getElementById("momentum-section");
+    const keSection = document.getElementById("ke-section");
 
     const scenarios = [
       {
@@ -425,13 +582,14 @@
     let current = null;
     let options = [];
     let selected = -1;
-    let score = 0;
     let stage = "setup"; // setup, movingToCollision, choose, result
     let stageStart = 0;
     let clock = 0;
     let collisionData = null;
+    let equationTimers = [];
+    let evaluatingChoice = false;
 
-    const trackY = 244;
+    const trackY = 196;
     const cartH = 72;
     const beforeScale = 58;
     const afterScale = 56;
@@ -470,17 +628,19 @@
       current = scenarios[scenarioIndex];
       options = buildOptions(current);
       selected = -1;
+      evaluatingChoice = false;
       stage = "setup";
       stageStart = clock;
       collisionData = getCollisionData(current);
 
-      scenarioNum.textContent = (scenarioIndex + 1) + " / " + scenarios.length;
+      nextBtn.textContent = "Next Scenario " + (scenarioIndex + 1) + " / " + scenarios.length;
       scenarioTitle.textContent = current.title;
       message.textContent = "";
       choicesEl.classList.add("hidden");
       startBtn.disabled = false;
       resultPanel.classList.add("hidden");
       resetCards();
+      resetEquationGrid();
       updateChoiceLabels(false);
       drawMain();
     }
@@ -604,51 +764,134 @@
     }
 
     function chooseCard(index) {
-      if (stage !== "choose" || selected !== -1) return;
+      if (stage !== "choose" || evaluatingChoice) return;
 
       selected = index;
-      const correctIndex = options.findIndex(o => o.correct);
-      const isCorrect = options[index].correct;
+      evaluatingChoice = true;
+      const option = options[index];
 
-      cards.forEach(card => card.classList.add("disabled"));
-      cards[correctIndex].classList.add("correct");
-
-      if (isCorrect) {
-        score += 1;
-        scoreEl.textContent = score;
-      } else {
-        cards[index].classList.add("wrong");
-      }
+      cards.forEach((card) => {
+        card.classList.add("disabled");
+      });
 
       updateChoiceLabels(true);
-      showEquationMath();
+      showEquationMath(option, index);
       resultPanel.classList.remove("hidden");
-      stage = "result";
-      stageStart = clock;
       message.textContent = "";
     }
 
-    function showEquationMath() {
+    function showEquationMath(option, index) {
       const s = current;
-      const final = elasticFinal(s.m1, s.u1, s.m2, s.u2);
       const pBefore = momentum(s.m1, s.u1, s.m2, s.u2);
-      const pAfter = momentum(s.m1, final.v1, s.m2, final.v2);
+      const pAfter = momentum(s.m1, option.v1, s.m2, option.v2);
       const keBefore = kineticEnergy(s.m1, s.u1, s.m2, s.u2);
-      const keAfter = kineticEnergy(s.m1, final.v1, s.m2, final.v2);
+      const keAfter = kineticEnergy(s.m1, option.v1, s.m2, option.v2);
+      const momentumConserved = nearlyEqual(pBefore, pAfter);
+      const energyConserved = nearlyEqual(keBefore, keAfter);
 
-      momentumMath.innerHTML =
-        `<div class="equation-line equation-symbol">m<sub>A</sub>v<sub>A</sub> + m<sub>B</sub>v<sub>B</sub> = m<sub>A</sub>v'<sub>A</sub> + m<sub>B</sub>v'<sub>B</sub></div>` +
-        `<div class="equation-line">(${fmt(s.m1, 0)} kg)(${fmt(s.u1)} m/s) + (${fmt(s.m2, 0)} kg)(${fmt(s.u2)} m/s) = (${fmt(s.m1, 0)} kg)(${fmt(final.v1)} m/s) + (${fmt(s.m2, 0)} kg)(${fmt(final.v2)} m/s)</div>` +
-        `<div class="equation-line equation-solved">${fmt(pBefore)} kg*m/s = ${fmt(pAfter)} kg*m/s</div>`;
+      resetEquationGrid();
+      momentumSection.classList.remove("hidden");
+      keSection.classList.add("hidden");
+      momGrid.style.opacity = "1";
+      momResult.style.opacity = "0";
 
-      energyMath.innerHTML =
-        `<div class="equation-line equation-symbol">1/2 m<sub>A</sub>v<sub>A</sub><sup>2</sup> + 1/2 m<sub>B</sub>v<sub>B</sub><sup>2</sup> = 1/2 m<sub>A</sub>v'<sub>A</sub><sup>2</sup> + 1/2 m<sub>B</sub>v'<sub>B</sub><sup>2</sup></div>` +
-        `<div class="equation-line">1/2(${fmt(s.m1, 0)} kg)(${fmt(s.u1)} m/s)<sup>2</sup> + 1/2(${fmt(s.m2, 0)} kg)(${fmt(s.u2)} m/s)<sup>2</sup> = 1/2(${fmt(s.m1, 0)} kg)(${fmt(final.v1)} m/s)<sup>2</sup> + 1/2(${fmt(s.m2, 0)} kg)(${fmt(final.v2)} m/s)<sup>2</sup></div>` +
-        `<div class="equation-line equation-solved">${fmt(keBefore)} J = ${fmt(keAfter)} J</div>`;
+      queueEquationStep(() => {
+        equationCells.m_m1.innerHTML = fmt(s.m1, 0);
+        equationCells.m_v1.innerHTML = fmt(s.u1);
+        equationCells.m_m2.innerHTML = fmt(s.m2, 0);
+        equationCells.m_v2.innerHTML = fmt(s.u2);
+        equationCells.m_m3.innerHTML = fmt(s.m1, 0);
+        equationCells.m_v3.innerHTML = fmt(option.v1);
+        equationCells.m_m4.innerHTML = fmt(s.m2, 0);
+        equationCells.m_v4.innerHTML = fmt(option.v2);
+      }, 250);
+
+      queueEquationStep(() => {
+        momResult.className = `result-overlay ${momentumConserved ? "text-green" : "text-red"}`;
+        momResult.textContent = `${fmt(pBefore)} = ${fmt(pAfter)} ${momentumConserved ? "conserved" : "not conserved"}`;
+        momResult.style.opacity = "1";
+      }, 1150);
+
+      queueEquationStep(() => {
+        momentumSection.classList.add("hidden");
+        keSection.classList.remove("hidden");
+      }, 3000);
+
+      queueEquationStep(() => {
+        equationCells.k_m1.innerHTML = fmt(s.m1, 0);
+        equationCells.k_v1.innerHTML = `(${fmt(s.u1)})<sup>2</sup>`;
+        equationCells.k_m2.innerHTML = fmt(s.m2, 0);
+        equationCells.k_v2.innerHTML = `(${fmt(s.u2)})<sup>2</sup>`;
+        equationCells.k_m3.innerHTML = fmt(s.m1, 0);
+        equationCells.k_v3.innerHTML = `(${fmt(option.v1)})<sup>2</sup>`;
+        equationCells.k_m4.innerHTML = fmt(s.m2, 0);
+        equationCells.k_v4.innerHTML = `(${fmt(option.v2)})<sup>2</sup>`;
+      }, 3250);
+
+      queueEquationStep(() => {
+        keResult.className = `result-overlay ${energyConserved ? "text-green" : "text-red"}`;
+        keResult.textContent = `${fmt(keBefore)} = ${fmt(keAfter)} ${energyConserved ? "conserved" : "not conserved"}`;
+        keResult.style.opacity = "1";
+      }, 4150);
+
+      queueEquationStep(() => {
+        evaluatingChoice = false;
+        if (momentumConserved && energyConserved) {
+          cards[index].classList.add("correct");
+          stage = "result";
+          stageStart = clock;
+        } else {
+          cards[index].classList.add("wrong");
+          cards.forEach(card => card.classList.remove("disabled"));
+          selected = -1;
+        }
+      }, 5200);
+    }
+
+    function queueEquationStep(callback, delay) {
+      equationTimers.push(window.setTimeout(callback, delay));
+    }
+
+    function nearlyEqual(a, b) {
+      return Math.abs(a - b) < 0.05;
+    }
+
+    function resetEquationGrid() {
+      const symbols = {
+        m_m1: "m<sub>A</sub>",
+        m_v1: "v<sub>A</sub>",
+        m_m2: "m<sub>B</sub>",
+        m_v2: "v<sub>B</sub>",
+        m_m3: "m<sub>A</sub>",
+        m_v3: "v'<sub>A</sub>",
+        m_m4: "m<sub>B</sub>",
+        m_v4: "v'<sub>B</sub>",
+        k_m1: "m<sub>A</sub>",
+        k_v1: "v<sub>A</sub><sup>2</sup>",
+        k_m2: "m<sub>B</sub>",
+        k_v2: "v<sub>B</sub><sup>2</sup>",
+        k_m3: "m<sub>A</sub>",
+        k_v3: "v'<sub>A</sub><sup>2</sup>",
+        k_m4: "m<sub>B</sub>",
+        k_v4: "v'<sub>B</sub><sup>2</sup>"
+      };
+
+      for (const [id, value] of Object.entries(symbols)) {
+        equationCells[id].innerHTML = value;
+      }
+      equationTimers.forEach(timer => window.clearTimeout(timer));
+      equationTimers = [];
+      momResult.textContent = "";
+      keResult.textContent = "";
+      momResult.style.opacity = "0";
+      keResult.style.opacity = "0";
+      momGrid.style.opacity = "1";
+      keGrid.style.opacity = "1";
+      momentumSection.classList.remove("hidden");
+      keSection.classList.add("hidden");
     }
 
     function showMath() {
-      showEquationMath();
       return;
 
       const s = current;
@@ -802,7 +1045,6 @@
       ctx.lineTo(center, trackY + 55);
       ctx.stroke();
       ctx.setLineDash([]);
-      drawText(ctx, "collision point", center, trackY + 75, 13, "#64748b", "center");
     }
 
     function drawCollisionBurst() {
@@ -892,7 +1134,7 @@
       const w2 = 48 + s.m2 * 6;
       const startA = width / 2 - w2 / 2;
       const startB = width / 2 + w1 / 2;
-      const cycle = (clock % 2.5) / 2.5;
+      const cycle = selected === -1 ? (clock % 2.5) / 2.5 : 0.78;
       const t = cycle * 2.2;
 
       let x1 = startA + option.v1 * choiceScale * t;

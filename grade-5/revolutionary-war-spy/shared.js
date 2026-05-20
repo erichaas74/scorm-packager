@@ -1,5 +1,5 @@
-const STAGE_LABELS = ['Briefing','Cipher','Route Map','Lab Test','Report','Traitor Hunt','Invisible Ink','Signal Flags','Fraction Lock','Portfolio'];
-const STAGE_PAGES  = ['briefing.html','cipher.html','route-map.html','lab-test.html','report.html','traitor-hunt.html','invisible-ink.html','signal-flags.html','fraction-lock.html','portfolio.html'];
+const STAGE_LABELS = ['Briefing','Cipher','Route Map','Lab Test','Report','Traitor Hunt','Invisible Ink','Signal Flags','Fraction Lock','Battle Command','Portfolio'];
+const STAGE_PAGES  = ['briefing.html','cipher.html','route-map.html','lab-test.html','report.html','traitor-hunt.html','invisible-ink.html','signal-flags.html','fraction-lock.html','battle-command.html','portfolio.html'];
 const STATE_KEY    = 'spy_mission_state';
 
 function loadState() {

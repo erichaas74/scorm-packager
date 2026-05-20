@@ -724,6 +724,10 @@
     el.analysis3 = document.getElementById('analysis-3');
     el.analysis4 = document.getElementById('analysis-4');
     el.submitBtn = document.getElementById('submit-btn');
+    el.submissionScreen = document.getElementById('submission-screen');
+    el.submissionText = document.getElementById('submission-text');
+    el.copySubmissionBtn = document.getElementById('copy-submission-btn');
+    el.editSubmissionBtn = document.getElementById('edit-submission-btn');
 
     // New UI elements
     el.pendingCard = document.getElementById('pending-card');
@@ -1792,19 +1796,76 @@
     return analysisPromptScore(state.analysis.a1) > 0 && analysisPromptScore(state.analysis.a2) > 0 && analysisPromptScore(state.analysis.a3) > 0 && analysisPromptScore(state.analysis.a4) > 0;
   }
 
+  var ANALYSIS_PROMPTS = [
+    'What was your fastest average reaction time? Was it closer to average human or elite reaction time?',
+    'Were your visual and auditory reaction times different? Use examples from the lab and your data.',
+    'In the constant-velocity sprint, the distance you lost at the start was the same at end if you both reached full speed. In the drag race, how did your initial head start compare to your final race gap? Why does constant acceleration cause that gap to grow continuously, even though both cars accelerate at the exact same rate?',
+    'Why are Olympic sprinters disqualified for reacting in less than 0.100 s, and what does that show about human limits?'
+  ];
+
+  function buildBusyBeeSubmissionText(breakdown) {
+    var lines = [
+      'Reaction Time Lab Submission',
+      '',
+      'Trials recorded: ' + totalTrialsRecorded(),
+      'Lab auto-score before rubric: ' + (breakdown && breakdown.percent != null ? breakdown.percent + '%' : ''),
+      '',
+      'Q1: ' + ANALYSIS_PROMPTS[0],
+      state.analysis.a1,
+      '',
+      'Q2: ' + ANALYSIS_PROMPTS[1],
+      state.analysis.a2,
+      '',
+      'Q3: ' + ANALYSIS_PROMPTS[2],
+      state.analysis.a3,
+      '',
+      'Q4: ' + ANALYSIS_PROMPTS[3],
+      state.analysis.a4
+    ];
+    return lines.join('\n');
+  }
+
+  function copyForBusyBee(text) {
+    if (!navigator.clipboard || !navigator.clipboard.writeText) return false;
+    navigator.clipboard.writeText(text).then(function() {
+      setStatusMessage('good', 'Submission recorded and copied. Paste it into the Buzz submission comment for BusyBee grading.');
+      render();
+    }, function() {
+      setStatusMessage('good', 'Submission recorded. If Buzz asks for a comment, copy the summary from the review screen.');
+      render();
+    });
+    return true;
+  }
+
   function submitLab() {
     if (!allRequiredTrialsRecorded() || !allAnalysisComplete()) return;
 
     state.submitted = true;
     state.completedAt = nowMs();
+    var breakdown = computeScoreBreakdown();
+    var busyBeeText = buildBusyBeeSubmissionText(breakdown);
+    var copied = copyForBusyBee(busyBeeText);
     setSCORMProgress(true);
     saveSuspendData();
     if (getHostBridge()) {
       getHostBridge().notifySubmit({
         completedAt: state.completedAt,
         totalRecorded: totalTrialsRecorded(),
-        screen: getCurrentScreenTag()
+        screen: getCurrentScreenTag(),
+        score: breakdown,
+        submissionText: busyBeeText,
+        copiedToClipboard: copied,
+        analysis: {
+          a1: state.analysis.a1,
+          a2: state.analysis.a2,
+          a3: state.analysis.a3,
+          a4: state.analysis.a4
+        },
+        prompts: ANALYSIS_PROMPTS
       });
+    }
+    if (!copied) {
+      setStatusMessage('good', 'Submission recorded. If Buzz asks for a comment, copy the summary from the review screen.');
     }
     render();
   }
@@ -2051,7 +2112,22 @@
     el.submitBtn.textContent = state.submitted ? 'Submitted' : 'Submit Lab';
   }
 
+  function renderSubmissionScreen() {
+    if (!el.submissionScreen || !el.submissionText) return;
+    if (!state.submitted) {
+      el.submissionScreen.classList.add('hidden');
+      return;
+    }
+
+    el.startScreen.classList.add('hidden');
+    el.app.classList.add('hidden');
+    el.submissionScreen.classList.remove('hidden');
+    el.submissionText.value = buildBusyBeeSubmissionText(computeScoreBreakdown());
+  }
+
   function render() {
+    renderSubmissionScreen();
+    if (state.submitted) return;
     renderScenarioInfo();
     renderSceneVisibility();
     renderOverlays();
@@ -2072,12 +2148,37 @@
       node.addEventListener('contextmenu', function(evt) { evt.preventDefault(); });
     }
 
+    function copySubmissionFromScreen() {
+      if (!el.submissionText) return;
+      var text = el.submissionText.value || buildBusyBeeSubmissionText(computeScoreBreakdown());
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function() {
+          if (el.copySubmissionBtn) el.copySubmissionBtn.textContent = 'Copied';
+        }, function() {
+          el.submissionText.focus();
+          el.submissionText.select();
+        });
+      } else {
+        el.submissionText.focus();
+        el.submissionText.select();
+      }
+    }
+
     el.startBtn.addEventListener('click', function() {
       el.startScreen.classList.add('hidden');
       el.app.classList.remove('hidden');
       sizeCanvas();
       render();
     });
+
+    if (el.copySubmissionBtn) el.copySubmissionBtn.addEventListener('click', copySubmissionFromScreen);
+    if (el.editSubmissionBtn) {
+      el.editSubmissionBtn.addEventListener('click', function() {
+        el.submissionScreen.classList.add('hidden');
+        el.app.classList.remove('hidden');
+        sizeCanvas();
+      });
+    }
 
     el.showWalkthroughBtn.addEventListener('click', openWalkthrough);
     el.resetLabBtn.addEventListener('click', resetWholeLab);

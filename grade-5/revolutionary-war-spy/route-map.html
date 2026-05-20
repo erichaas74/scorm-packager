@@ -21,6 +21,7 @@
   <div class="stage-host" id="stage-host"></div>
 </div>
 <script src="shared.js"></script>
+<script src="graphics-lib.js"></script>
 <script>
 const STAGE = 2;
 const st = loadState();
@@ -70,32 +71,14 @@ updateMapUI(canvas);
 canvas.addEventListener('mousedown', handleMapClick);
 canvas.addEventListener('touchstart', e => { e.preventDefault(); handleMapClick(e); }, { passive: false });
 
-function mapCellSize(canvas) {
-  const padL = 52, padT = 38;
-  const cw = (canvas.width  - padL - 8) / 10;
-  const ch = (canvas.height - padT - 8) / 10;
-  return { cw, ch, padL, padT };
-}
-
-function colToX(canvas, col) {
-  const { cw, padL } = mapCellSize(canvas);
-  return padL + col * cw + cw / 2;
-}
-
-function rowToY(canvas, row) {
-  const { ch, padT } = mapCellSize(canvas);
-  return padT + row * ch + ch / 2;
-}
-
 function handleMapClick(e) {
   const canvas = document.getElementById('map-canvas');
   if (!canvas) return;
   const { x, y } = getCanvasXY(canvas, e);
-  const { cw, ch, padL, padT } = mapCellSize(canvas);
-
-  const col = Math.floor((x - padL) / cw);
-  const row = Math.floor((y - padT) / ch);
-  if (col < 0 || col > 9 || row < 0 || row > 9) return;
+  const scale = SPY.CANVAS.scale;
+  const cell = SPY.mapGrid.xyToCell(600, 420, x / scale, y / scale);
+  if (!cell) return;
+  const { col, row } = cell;
 
   for (const z of PATROL_ZONES) {
     if (col >= z.c1 && col <= z.c2 && row >= z.r1 && row <= z.r2) {
@@ -124,7 +107,8 @@ function handleMapClick(e) {
 }
 
 function updateMapUI(canvas) {
-  drawMapGrid(canvas);
+  const { ctx, W, H } = SPY.mount('map-canvas', 600, 420);
+  SPY.draw.mapGrid(ctx, W, H, { route, landmarks: LANDMARKS, patrolZones: PATROL_ZONES });
 
   const list = document.getElementById('coord-list');
   if (list) list.innerHTML = route.map(p => `<li>${p.label}</li>`).join('');
@@ -153,102 +137,6 @@ function clearRoute() {
   if (canvas) updateMapUI(canvas);
 }
 
-function drawMapGrid(canvas) {
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
-  const { cw, ch, padL, padT } = mapCellSize(canvas);
-
-  ctx.fillStyle = '#d4c5a0';
-  ctx.fillRect(0, 0, W, H);
-
-  ctx.fillStyle = 'rgba(100,70,30,0.04)';
-  for (let tx = 0; tx < W; tx += 6) for (let ty = 0; ty < H; ty += 6) {
-    if (Math.sin(tx * 0.7) * Math.cos(ty * 0.9) > 0.6) ctx.fillRect(tx, ty, 2, 2);
-  }
-
-  for (const z of PATROL_ZONES) {
-    const x1 = padL + z.c1 * cw, y1 = padT + z.r1 * ch;
-    const x2 = padL + (z.c2 + 1) * cw, y2 = padT + (z.r2 + 1) * ch;
-    ctx.fillStyle = 'rgba(220,38,38,0.18)';
-    ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
-    ctx.strokeStyle = 'rgba(220,38,38,0.6)';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([6, 4]);
-    ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
-    ctx.setLineDash([]);
-    ctx.fillStyle = 'rgba(220,38,38,0.7)';
-    ctx.font = 'bold 10px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('BRITISH PATROL', (x1 + x2) / 2, y1 + 14);
-  }
-
-  ctx.strokeStyle = 'rgba(80,50,20,0.25)';
-  ctx.lineWidth = 1;
-  for (let c = 0; c <= 10; c++) {
-    const x = padL + c * cw;
-    ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, padT + 10 * ch); ctx.stroke();
-  }
-  for (let r = 0; r <= 10; r++) {
-    const y = padT + r * ch;
-    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + 10 * cw, y); ctx.stroke();
-  }
-
-  ctx.font = 'bold 12px "Space Grotesk", Arial';
-  ctx.fillStyle = '#4a3020';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  for (let c = 0; c < 10; c++) {
-    ctx.fillText(String.fromCharCode(65 + c), padL + c * cw + cw / 2, padT - 16);
-  }
-  ctx.textAlign = 'right';
-  for (let r = 0; r < 10; r++) {
-    ctx.fillText(r + 1, padL - 6, padT + r * ch + ch / 2);
-  }
-
-  for (const lm of LANDMARKS) {
-    const lx = colToX(canvas, lm.col), ly = rowToY(canvas, lm.row);
-    ctx.beginPath();
-    ctx.arc(lx, ly, 9, 0, Math.PI * 2);
-    ctx.fillStyle = '#c4932f';
-    ctx.fill();
-    ctx.strokeStyle = '#2c1810';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    ctx.font = 'bold 9px Arial';
-    ctx.fillStyle = '#2c1810';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.fillText(lm.name, lx, ly + 11);
-  }
-
-  if (route.length > 1) {
-    ctx.beginPath();
-    ctx.strokeStyle = '#2563eb';
-    ctx.lineWidth = 2.5;
-    ctx.setLineDash([]);
-    ctx.moveTo(colToX(canvas, route[0].col), rowToY(canvas, route[0].row));
-    for (let i = 1; i < route.length; i++) {
-      ctx.lineTo(colToX(canvas, route[i].col), rowToY(canvas, route[i].row));
-    }
-    ctx.stroke();
-  }
-
-  route.forEach((pt, idx) => {
-    const px = colToX(canvas, pt.col), py = rowToY(canvas, pt.row);
-    ctx.beginPath();
-    ctx.arc(px, py, 10, 0, Math.PI * 2);
-    ctx.fillStyle = '#2563eb';
-    ctx.fill();
-    ctx.strokeStyle = 'white';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.font = 'bold 11px "Space Grotesk", Arial';
-    ctx.fillStyle = 'white';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(idx + 1, px, py);
-  });
-}
 
 function s2Continue() {
   saveState({ route, routeValid });

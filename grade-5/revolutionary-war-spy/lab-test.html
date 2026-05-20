@@ -21,6 +21,7 @@
   <div class="stage-host" id="stage-host"></div>
 </div>
 <script src="shared.js"></script>
+<script src="graphics-lib.js"></script>
 <script>
 const STAGE = 3;
 const st = loadState();
@@ -80,7 +81,7 @@ function renderPage() {
     </div>
   `;
 
-  drawRainScene(false, false);
+  redrawRain(false, false);
 
   if (testDone) {
     showRainBanner();
@@ -116,87 +117,14 @@ function toggleMaterial(id) {
   });
   const btn = document.getElementById('rain-btn');
   if (btn) btn.disabled = materials.length < 2;
-  drawRainScene(false, false);
+  redrawRain(false, false);
 }
 
-function drawRainScene(raining, damaged) {
-  const canvas = document.getElementById('rain-canvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const W = 560, H = 280;
-
-  const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
-  skyGrad.addColorStop(0, raining ? '#374151' : '#93c5fd');
-  skyGrad.addColorStop(1, raining ? '#6b7280' : '#bfdbfe');
-  ctx.fillStyle = skyGrad;
-  ctx.fillRect(0, 0, W, H);
-
-  function cloud(cx, cy, scale) {
-    ctx.fillStyle = raining ? '#9ca3af' : 'rgba(255,255,255,0.9)';
-    [[0,0,28],[20,-8,22],[40,2,24],[-18,4,20]].forEach(([dx,dy,r]) => {
-      ctx.beginPath(); ctx.arc(cx+dx*scale, cy+dy*scale, r*scale, 0, Math.PI*2); ctx.fill();
-    });
-  }
-  cloud(100, 55, 1); cloud(280, 40, 1.2); cloud(450, 65, 0.9);
-
-  ctx.fillStyle = '#6b7c5a';
-  ctx.fillRect(0, H * 0.72, W, H);
-
-  const sx = W * 0.18, sy = H * 0.28, sw = W * 0.45, sh = H * 0.44;
-  ctx.fillStyle = damaged ? '#d4a57a' : '#f5e6c8';
-  rrect(ctx, sx, sy, sw, sh, 6);
-  ctx.fill();
-  ctx.strokeStyle = '#c4932f';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  for (const ry of [sy, sy + sh]) {
-    ctx.beginPath();
-    ctx.ellipse(sx + sw/2, ry, sw/2, 10, 0, 0, Math.PI*2);
-    ctx.fillStyle = damaged ? '#c4952a' : '#e8d5a8';
-    ctx.fill();
-    ctx.strokeStyle = '#c4932f';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-  }
-
-  ctx.fillStyle = damaged ? 'rgba(100,60,20,0.3)' : 'rgba(44,24,16,0.6)';
-  for (let line = 0; line < 4; line++) {
-    ctx.fillRect(sx + 18, sy + 20 + line * 18, sw - 36, 4);
-  }
-
-  if (damaged) {
-    ctx.fillStyle = 'rgba(60,100,180,0.18)';
-    ctx.beginPath();
-    ctx.ellipse(sx + sw/2, sy + sh/2, sw*0.4, sh*0.38, 0.2, 0, Math.PI*2);
-    ctx.fill();
-  }
-
-  if (materials.length > 0) {
-    const mat = MATERIALS.find(m => m.id === materials[materials.length - 1]);
-    if (mat) {
-      const mx = sx + sw + 20, my = sy, mw = W * 0.22, mh = sh;
-      ctx.fillStyle = mat.color;
-      ctx.strokeStyle = mat.border;
-      ctx.lineWidth = 2.5;
-      rrect(ctx, mx, my, mw, mh, 8);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = 'rgba(0,0,0,0.5)';
-      ctx.font = 'bold 11px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(mat.label, mx + mw/2, my + mh/2);
-    }
-  }
-
-  if (!raining && !damaged) {
-    ctx.fillStyle = 'rgba(44,24,16,0.5)';
-    ctx.font = '12px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText('Select 2 materials above, then click "Test in Rain"', W/2, H - 6);
-  }
+function redrawRain(raining, damaged) {
+  const { ctx, W, H } = SPY.mount('rain-canvas', 560, 280);
+  const sel = materials.length > 0 ? MATERIALS.find(m => m.id === materials[materials.length - 1]) : null;
+  SPY.draw.rainScene(ctx, W, H, { raining, damaged, selectedMaterial: sel });
+  return { ctx, W, H };
 }
 
 let rainDrops = [];
@@ -217,23 +145,14 @@ function startRainTest() {
 
   let t = 0;
   function frame() {
-    const canvas = document.getElementById('rain-canvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    if (!document.getElementById('rain-canvas')) return;
     t++;
-    drawRainScene(true, false);
+    const { ctx } = redrawRain(true, false);
     rainDrops.forEach(d => {
       d.y += d.speed; d.x += 0.6;
       if (d.y > 290) { d.y = -20; d.x = Math.random() * 560; }
     });
-    ctx.strokeStyle = 'rgba(100,160,255,0.65)';
-    ctx.lineWidth = 1.5;
-    rainDrops.forEach(d => {
-      ctx.beginPath();
-      ctx.moveTo(d.x, d.y);
-      ctx.lineTo(d.x + 3, d.y + d.len);
-      ctx.stroke();
-    });
+    SPY.draw.rainDrops(ctx, rainDrops);
     if (t < 200) {
       _rafId = requestAnimationFrame(frame);
     } else {
@@ -246,7 +165,7 @@ function startRainTest() {
 function finishRainTest() {
   testDone = true;
   testProtected = materials.some(id => MATERIALS.find(m => m.id === id && m.waterproof));
-  drawRainScene(false, !testProtected);
+  redrawRain(false, !testProtected);
 
   MATERIALS.forEach(m => {
     const el = document.getElementById(`mat-${m.id}`);

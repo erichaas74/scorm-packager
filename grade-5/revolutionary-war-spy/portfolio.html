@@ -21,8 +21,9 @@
   <div class="stage-host" id="stage-host"></div>
 </div>
 <script src="shared.js"></script>
+<script src="graphics-lib.js"></script>
 <script>
-const STAGE = 9;
+const STAGE = 10;
 const st = loadState();
 
 initPage(STAGE);
@@ -78,6 +79,13 @@ document.getElementById('stage-host').innerHTML = `
       <div class="port-val"><strong>My Spy Moment (W.5.3)</strong>${st.response2 || '—'}</div>
       <div class="port-val"><strong>Communication &amp; the Revolution (History)</strong>${st.response3 || '—'}</div>
     </div>
+    <div class="portfolio-section">
+      <h3>&#x2694;&#xFE0F; Battle Command — Math 5.NBT + History</h3>
+      <div class="port-val"><strong>Battles Completed</strong>${st.battleScenario || '—'}</div>
+      <div class="port-val"><strong>Final Command (Yorktown)</strong>${st.battleDecisionLabel || '—'}</div>
+      <div class="port-val"><strong>Campaign Score</strong>${st.battleScore !== undefined ? st.battleScore + ' / 270 points' : '—'}</div>
+      <div class="port-val"><strong>Your Field Report (Yorktown)</strong>${(st.battleReports && st.battleReports[2]) || '—'}</div>
+    </div>
   </div>
   <div style="text-align:center;margin-top:20px" class="no-print">
     <button class="ctrl-btn" onclick="window.print()" style="padding:12px 28px;font-size:14px">&#x1F5A8; Print Portfolio</button>
@@ -87,38 +95,14 @@ document.getElementById('stage-host').innerHTML = `
 startConfetti();
 
 function startConfetti() {
-  const canvas = document.getElementById('confetti-canvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const COLORS = ['#8b1a1a','#c4932f','#2563eb','#16a34a','#f59e0b','#7c3aed'];
-  const particles = Array.from({length: 80}, () => ({
-    x: Math.random() * 840,
-    y: Math.random() * 180 - 180,
-    vx: (Math.random() - 0.5) * 2,
-    vy: 2 + Math.random() * 3,
-    size: 6 + Math.random() * 7,
-    color: COLORS[Math.floor(Math.random() * COLORS.length)],
-    rotation: Math.random() * Math.PI * 2,
-    rotV: (Math.random() - 0.5) * 0.15,
-  }));
-
+  const { ctx, W, H } = SPY.mount('confetti-canvas', 840, 180);
+  const particles = SPY.confetti.create(80, W, H);
   let t = 0;
   function frame() {
     t++;
-    ctx.clearRect(0, 0, 840, 180);
-    particles.forEach(p => {
-      p.x += p.vx; p.y += p.vy; p.vy += 0.05; p.rotation += p.rotV;
-      if (p.y > 190) { p.y = -12; p.x = Math.random() * 840; p.vy = 2 + Math.random() * 2; }
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.rotation);
-      ctx.fillStyle = p.color;
-      ctx.globalAlpha = 0.85;
-      ctx.fillRect(-p.size/2, -p.size/4, p.size, p.size * 0.5);
-      ctx.restore();
-    });
+    SPY.confetti.step(ctx, W, H, particles);
     if (t < 280) _rafId = requestAnimationFrame(frame);
-    else ctx.clearRect(0, 0, 840, 180);
+    else ctx.clearRect(0, 0, W, H);
   }
   _rafId = requestAnimationFrame(frame);
 }
