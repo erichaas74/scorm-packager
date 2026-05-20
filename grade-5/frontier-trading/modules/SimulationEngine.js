@@ -202,7 +202,7 @@ function finishSelling() {
   state.sell.done = true;
   calculateResults();
   setPhase('results');
-  renderResultsScreen();
+  startResultsReveal();
 }
 
 // ── Results calculation ──
@@ -260,46 +260,184 @@ function renderEventLog() {
   `).join('');
 }
 
-function renderResultsScreen() {
-  const r = state.results;
-  const t = getTransport();
-  const route = getSelectedRoute();
-  const profitClass = r.profit >= 0 ? 'result-profit-pos' : 'result-profit-neg';
-  const grade = r.profit >= 60 ? 'A+' : r.profit >= 40 ? 'A' : r.profit >= 25 ? 'B' : r.profit >= 10 ? 'C' : 'D';
-  const gradeMsg = { 'A+':'Outstanding Frontier Merchant!', A:'Excellent Trading Run!', B:'Good Business Sense!', C:'Decent First Expedition', D:'Tough Journey — Try Again!' };
+// ── Results Reveal — staged animated sequence ──
 
+function gradeFor(profit) {
+  return profit >= 60 ? 'A+' : profit >= 40 ? 'A' : profit >= 25 ? 'B' : profit >= 10 ? 'C' : 'D';
+}
+
+function startResultsReveal() {
   const el = document.getElementById('results-content');
   if (!el) return;
 
-  const icon = COMPANY_ICONS.find(i=>i.id===state.company.icon);
+  // Phase 0: "Tallying the ledger…" suspense beat
+  el.innerHTML = `
+    <div class="calculating-overlay">
+      <div class="calculating-quill">✒️</div>
+      <div class="calculating-text">Tallying the ledger…</div>
+    </div>`;
+
+  setTimeout(() => {
+    buildResultsDOM();
+    setTimeout(animateProfitCounter, 300);
+  }, 1300);
+}
+
+function buildResultsDOM() {
+  const r     = state.results;
+  const t     = getTransport();
+  const route = getSelectedRoute();
+  const icon  = COMPANY_ICONS.find(i => i.id === state.company.icon);
+  const grade = gradeFor(r.profit);
+  const profitClass = r.profit >= 0 ? 'result-profit-pos' : 'result-profit-neg';
+  const el = document.getElementById('results-content');
+  if (!el) return;
 
   el.innerHTML = `
     <div class="results-badge">
-      <span class="results-emblem">${icon?icon.symbol:'⭐'}</span>
+      <span class="results-emblem">${icon ? icon.symbol : '⭐'}</span>
       <div class="results-company-name">${state.company.name}</div>
-      <div class="results-grade grade-${grade.replace('+','plus')}">${grade}</div>
-      <div class="results-grade-msg">${gradeMsg[grade]}</div>
+      <div id="res-counter" class="results-profit-counter counter-neutral">$0.00</div>
+      <div id="res-grade" class="results-grade grade-${grade.replace('+','plus')}"
+           style="opacity:0;transform:scale(0.2) translateY(-20px)">${grade}</div>
+      <div id="res-grade-msg" class="results-grade-msg" style="opacity:0;"> </div>
     </div>
 
-    <div class="results-ledger">
+    <div class="results-ledger" id="res-ledger" style="opacity:0;transform:translateY(12px)">
       <div class="ledger-title">Company Ledger</div>
       <div class="ledger-row"><span>Starting Capital</span><span>$${r.startMoney.toFixed(2)}</span></div>
-      <div class="ledger-row ledger-neg"><span>Transport (${t?t.name:''})</span><span>-$${(t?t.startCost:0).toFixed(2)}</span></div>
-      <div class="ledger-row ledger-neg"><span>Goods Purchased</span><span>-$${Math.max(0,r.spent-(t?t.startCost:0)).toFixed(2)}</span></div>
-      <div class="ledger-row ledger-neg"><span>Journey Supplies</span><span>-$${((route?route.days:0)*1.5).toFixed(2)}</span></div>
-      ${r.losses > 0 ? `<div class="ledger-row ledger-neg"><span>Event Losses</span><span>-$${r.losses.toFixed(2)}</span></div>` : ''}
+      <div class="ledger-row ledger-neg"><span>Transport (${t ? t.name : ''})</span><span>−$${(t ? t.startCost : 0).toFixed(2)}</span></div>
+      <div class="ledger-row ledger-neg"><span>Goods Purchased</span><span>−$${Math.max(0, r.spent - (t ? t.startCost : 0)).toFixed(2)}</span></div>
+      <div class="ledger-row ledger-neg"><span>Journey Supplies</span><span>−$${((route ? route.days : 0) * 1.5).toFixed(2)}</span></div>
+      ${r.losses > 0 ? `<div class="ledger-row ledger-neg"><span>Event Losses</span><span>−$${r.losses.toFixed(2)}</span></div>` : ''}
       <div class="ledger-row ledger-pos"><span>Sales Revenue</span><span>+$${r.revenue.toFixed(2)}</span></div>
       <div class="ledger-divider"></div>
       <div class="ledger-row ledger-profit ${profitClass}">
         <span>Net Profit</span>
-        <span>${r.profit >= 0 ? '+' : ''}$${r.profit.toFixed(2)}</span>
+        <span>${r.profit >= 0 ? '+' : '−'}$${Math.abs(r.profit).toFixed(2)}</span>
       </div>
       <div class="ledger-row ledger-score"><span>Company Score</span><span>${r.score} pts</span></div>
     </div>
 
-    <div class="results-btns">
+    <div class="results-btns" id="res-btns" style="opacity:0">
       <button class="btn-primary" onclick="showLeaderboard()">View Leaderboard</button>
       <button class="btn-secondary" onclick="restartGame()">Play Again</button>
-    </div>
-  `;
+    </div>`;
 }
+
+function animateProfitCounter() {
+  const target   = state.results.profit;
+  const duration = 1900;
+  const start    = performance.now();
+  const el       = document.getElementById('res-counter');
+  if (!el) { revealGrade(); return; }
+  const easeOut  = t => 1 - Math.pow(1 - t, 4);
+
+  (function tick(now) {
+    const pct = Math.min((now - start) / duration, 1);
+    const val = target * easeOut(pct);
+    el.textContent = `${val >= 0 ? '+' : '−'}$${Math.abs(val).toFixed(2)}`;
+    el.className   = `results-profit-counter ${val > 0.005 ? 'counter-pos' : val < -0.005 ? 'counter-neg' : 'counter-neutral'}`;
+    if (pct < 1) {
+      requestAnimationFrame(tick);
+    } else {
+      el.textContent = `${target >= 0 ? '+' : '−'}$${Math.abs(target).toFixed(2)}`;
+      setTimeout(revealGrade, 480);
+    }
+  })(start);
+}
+
+function revealGrade() {
+  const grade  = gradeFor(state.results.profit);
+  const msgs   = { 'A+': 'Outstanding Frontier Merchant!', A: 'Excellent Trading Run!',
+                    B: 'Good Business Sense!', C: 'Decent First Expedition', D: 'Tough Journey — Try Again!' };
+  const gradeEl = document.getElementById('res-grade');
+  const msgEl   = document.getElementById('res-grade-msg');
+
+  if (gradeEl) gradeEl.classList.add('grade-bounce-in');
+  if (msgEl) {
+    msgEl.style.transition = 'opacity 0.5s 0.3s';
+    msgEl.style.opacity    = '1';
+    msgEl.textContent      = msgs[grade] || '';
+  }
+
+  if (grade === 'A+' || grade === 'A') {
+    setTimeout(launchConfetti, 350);
+    setTimeout(revealLedger, 1100);
+  } else {
+    setTimeout(revealLedger, 650);
+  }
+}
+
+function revealLedger() {
+  const ledger = document.getElementById('res-ledger');
+  const btns   = document.getElementById('res-btns');
+  if (!ledger) return;
+
+  ledger.style.transition = 'opacity 0.4s, transform 0.4s';
+  ledger.style.opacity    = '1';
+  ledger.style.transform  = 'translateY(0)';
+
+  const rows = ledger.querySelectorAll('.ledger-row, .ledger-divider');
+  rows.forEach((row, i) => {
+    row.style.opacity   = '0';
+    row.style.transform = 'translateX(-10px)';
+    setTimeout(() => {
+      row.style.transition = 'opacity 0.22s ease, transform 0.22s ease';
+      row.style.opacity    = '1';
+      row.style.transform  = 'translateX(0)';
+    }, 60 + i * 105);
+  });
+
+  if (btns) {
+    setTimeout(() => {
+      btns.style.transition = 'opacity 0.4s';
+      btns.style.opacity    = '1';
+    }, 60 + rows.length * 105 + 220);
+  }
+}
+
+function launchConfetti() {
+  const canvas = document.getElementById('confetti-canvas');
+  if (!canvas) return;
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  canvas.style.display = 'block';
+  const cc = canvas.getContext('2d');
+
+  const palette = ['#C8932A','#FFD060','#E0B040','#2A5C1E','#5A9EC9','#F5E6C8','#8B2635','#ffffff'];
+  const parts   = Array.from({ length: 150 }, () => ({
+    x:    canvas.width  * (0.15 + Math.random() * 0.70),
+    y:    -20 - Math.random() * 80,
+    vx:   (Math.random() - 0.5) * 10,
+    vy:   1.5 + Math.random() * 5,
+    rot:  Math.random() * 360,
+    rotV: (Math.random() - 0.5) * 10,
+    col:  palette[Math.floor(Math.random() * palette.length)],
+    w:    7 + Math.random() * 10,
+    h:    4 + Math.random() * 5,
+    life: 1.0
+  }));
+
+  (function tick() {
+    cc.clearRect(0, 0, canvas.width, canvas.height);
+    let alive = false;
+    for (const p of parts) {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.18; p.vx *= 0.99; p.rot += p.rotV; p.life -= 0.007;
+      if (p.life > 0 && p.y < canvas.height + 30) {
+        alive = true;
+        cc.save();
+        cc.globalAlpha = Math.min(1, p.life * 2.5);
+        cc.translate(p.x, p.y);
+        cc.rotate(p.rot * Math.PI / 180);
+        cc.fillStyle = p.col;
+        cc.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        cc.restore();
+      }
+    }
+    if (alive) requestAnimationFrame(tick);
+    else canvas.style.display = 'none';
+  })();
+}
+
+function renderResultsScreen() { startResultsReveal(); }
