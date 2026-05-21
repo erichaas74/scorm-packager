@@ -58,8 +58,12 @@
           </div>
         </div>
         <div class="fg">
+          <div class="fl">Was Your Prediction Right?</div>
+          <div class="fv" id="obsPredCheck6">Calculate density first to check!</div>
+        </div>
+        <div class="fg">
           <div class="fl">Your Note</div>
-          <textarea class="fta" id="noteTA" oninput="saveStationNote(6,{note:this.value})"></textarea>
+          <textarea class="fta" id="noteTA" placeholder="How does this material's density compare to water? What does that mean for floating or sinking?" oninput="saveStationNote(6,{note:this.value})"></textarea>
         </div>
         <div class="info-box"><strong>Rule:</strong> Density &lt; 1 g/cm³ → floats &nbsp;|&nbsp; Density &gt; 1 g/cm³ → sinks</div>
         <button class="btn btn-green" id="recBtn" onclick="save()">Record Results ✓</button>
@@ -82,13 +86,15 @@
 <script src="lab-data.js"></script>
 <script>
 const STATION = 6;
+let densAnimProgress = 0;
+let densAnimId = null;
 
 function m() { return getMat(); }
 
 function onUpdate() {
   const mass = parseFloat(document.getElementById('massInput').value) || 0;
   const vol  = parseFloat(document.getElementById('volInput').value)  || 1;
-  drawVis(mass / vol);
+  drawVis(mass / vol, 1);
 }
 
 function calculate() {
@@ -104,7 +110,30 @@ function calculate() {
     : `❌ ${den} > 1 g/cm³ — denser than water → likely sinks.`;
   document.getElementById('densMsg').textContent = msg;
   saveStationNote(6, { mass, vol, density: den });
-  drawVis(den);
+
+  const predVal = getStationData(6).prediction;
+  const predEl = document.getElementById('obsPredCheck6');
+  if (predVal && predEl) {
+    const correct = (predVal === 'float' && den < 1) || (predVal === 'sink' && den >= 1);
+    predEl.textContent = correct
+      ? `Yes! You predicted "${predVal}" — the density (${den} g/cm³) confirms it! 🎉`
+      : `Surprise! You predicted "${predVal}", but with density ${den} g/cm³ it actually ${den < 1 ? 'floats' : 'sinks'}.`;
+    predEl.classList.add('rev');
+  }
+
+  animateDens(den);
+}
+
+function animateDens(den) {
+  densAnimProgress = 0;
+  if (densAnimId) cancelAnimationFrame(densAnimId);
+  function frame() {
+    densAnimProgress = Math.min(1, densAnimProgress + 0.028);
+    drawVis(den, easeOutCubic(densAnimProgress));
+    if (densAnimProgress < 1) densAnimId = requestAnimationFrame(frame);
+    else drawVis(den, 1);
+  }
+  densAnimId = requestAnimationFrame(frame);
 }
 
 function pred(choice, el) {
@@ -114,41 +143,95 @@ function pred(choice, el) {
   el.style.borderColor = 'var(--accent)';
 }
 
-function drawVis(density) {
+function drawVis(density, progress = 1) {
   const cv = document.getElementById('cvs'); if (!cv) return;
   const ctx = cv.getContext('2d');
   const W = 370, H = 270, mat = m();
-  ctx.clearRect(0, 0, W, H); ctx.fillStyle = '#f0f8ff'; ctx.fillRect(0, 0, W, H);
+  ctx.clearRect(0, 0, W, H);
+  drawLabBench(ctx, W, H, 'Density Test');
 
   const maxVal = Math.max(density * 1.2, 2.0);
-  const barW = 80, gap = 40, startX = 55, baseY = 220;
-  const vals = [density, 1.0];
-  const labels = ['This Material', 'Water'];
-  const colors = [mat.color, 'rgba(40,130,220,0.7)'];
+  const barW = 52, gap = 18, startX = 14, baseY = 210;
+  const animDens  = density * progress;
+  const animWater = 1.0 * Math.min(1, progress * 1.4);
 
-  labels.forEach((lbl, i) => {
-    const bh = Math.min(180, (vals[i] / maxVal) * 160);
+  [[animDens, density, mat.color, 'Your Material'],
+   [animWater, 1.0, 'rgba(40,130,220,0.75)', 'Water']
+  ].forEach(([animVal, rawVal, color, lbl], i) => {
+    const bh = Math.min(168, (animVal / maxVal) * 148);
     const bx = startX + i * (barW + gap);
     const by = baseY - bh;
-    ctx.fillStyle = colors[i];
-    ctx.beginPath(); ctx.roundRect(bx, by, barW, bh, 6); ctx.fill();
-    ctx.fillStyle = '#333'; ctx.font = 'bold 13px Instrument Sans,system-ui'; ctx.textAlign = 'center';
-    ctx.fillText(`${vals[i].toFixed(2)} g/cm³`, bx + barW / 2, by - 8);
-    ctx.fillStyle = i === 0 ? mat.color : 'rgba(40,130,220,0.9)';
-    ctx.font = '12px Instrument Sans,system-ui';
-    ctx.fillText(lbl, bx + barW / 2, baseY + 16);
+    ctx.fillStyle = color;
+    ctx.beginPath(); rr(ctx, bx, by, barW, bh, 5); ctx.fill();
+    if (progress >= 0.95) {
+      ctx.fillStyle = '#333'; ctx.font = 'bold 10px Instrument Sans,system-ui'; ctx.textAlign = 'center';
+      ctx.fillText(`${rawVal.toFixed(2)} g/cm³`, bx + barW / 2, by - 6);
+    }
+    ctx.fillStyle = i === 0 ? (density < 1 ? '#277a43' : '#b93a2b') : 'rgba(40,130,220,0.9)';
+    ctx.font = '10px Instrument Sans,system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(lbl, bx + barW / 2, baseY + 13);
   });
 
-  const wLineY = baseY - (1.0 / maxVal) * 160;
-  ctx.strokeStyle = 'rgba(40,130,220,0.5)'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
-  ctx.beginPath(); ctx.moveTo(30, wLineY); ctx.lineTo(W - 20, wLineY); ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.fillStyle = 'rgba(40,130,220,0.7)'; ctx.font = '10px system-ui'; ctx.textAlign = 'right';
-  ctx.fillText('Water = 1.0', W - 18, wLineY - 4);
+  if (progress > 0.4) {
+    const wLineY = baseY - (1.0 / maxVal) * 148;
+    ctx.strokeStyle = `rgba(40,130,220,${0.45 * Math.min(1,(progress-0.4)/0.3)})`; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(6, wLineY); ctx.lineTo(startX + barW * 2 + gap + 14, wLineY); ctx.stroke();
+    ctx.setLineDash([]);
+    if (progress >= 0.9) {
+      ctx.fillStyle = 'rgba(40,130,220,0.7)'; ctx.font = '9px system-ui'; ctx.textAlign = 'center';
+      ctx.fillText('Water = 1.0', startX + barW + gap / 2, wLineY - 4);
+    }
+  }
 
-  ctx.fillStyle = density < 1 ? 'rgba(39,122,67,0.85)' : 'rgba(185,58,43,0.85)';
-  ctx.font = 'bold 14px Instrument Sans,system-ui'; ctx.textAlign = 'center';
-  ctx.fillText(density < 1 ? '↑ Floats' : '↓ Sinks', startX + barW / 2, H - 10);
+  if (progress >= 0.95) {
+    ctx.fillStyle = density < 1 ? '#277a43' : '#b93a2b';
+    ctx.font = 'bold 11px Instrument Sans,system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(density < 1 ? '↑ floats!' : '↓ sinks!', startX + barW + gap / 2, H - 4);
+  }
+
+  // Mini beaker (right side)
+  if (progress > 0.25) {
+    const bkAlpha = Math.min(1, (progress - 0.25) / 0.45);
+    const bkX = 188, bkY = 22, bkW = 162, bkH = 192;
+    ctx.save();
+    ctx.globalAlpha = bkAlpha;
+
+    ctx.strokeStyle = 'rgba(80,90,100,0.55)'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); rr(ctx, bkX, bkY, bkW, bkH, 10); ctx.stroke();
+
+    const waterTop = bkY + bkH * 0.28;
+    ctx.fillStyle = 'rgba(40,130,220,0.15)';
+    ctx.beginPath(); rr(ctx, bkX + 2, waterTop, bkW - 4, bkH - bkH * 0.28 - 2, 8); ctx.fill();
+
+    ctx.strokeStyle = 'rgba(40,130,220,0.5)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(bkX + 8, waterTop); ctx.lineTo(bkX + bkW - 8, waterTop); ctx.stroke();
+
+    ctx.fillStyle = 'rgba(40,130,220,0.55)'; ctx.font = '8px Instrument Sans,system-ui'; ctx.textAlign = 'right';
+    ctx.fillText('Water', bkX + bkW - 8, waterTop - 4);
+
+    const mw = 58, mh = 28;
+    const mx = bkX + (bkW - mw) / 2;
+    const my = density < 1
+      ? waterTop - mh * 0.45
+      : bkY + bkH - mh - 8;
+
+    drawSoftShadow(ctx, mx, my, mw, mh, 8, 0.13);
+    ctx.fillStyle = mat.color;
+    rr(ctx, mx, my, mw, mh, 6); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.font = '18px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(mat.icon, mx + mw / 2, my + mh / 2 + 6);
+
+    ctx.fillStyle = 'rgba(70,90,105,0.65)'; ctx.font = '9px Instrument Sans,system-ui';
+    ctx.fillText('In Water', bkX + bkW / 2, bkY - 5);
+
+    if (progress >= 0.95) {
+      ctx.fillStyle = density < 1 ? '#277a43' : '#b93a2b';
+      ctx.font = 'bold 11px Instrument Sans,system-ui';
+      ctx.fillText(density < 1 ? '↑ Floats!' : '↓ Sinks!', bkX + bkW / 2, bkY + bkH + 14);
+    }
+    ctx.restore();
+  }
+
   ctx.textAlign = 'left';
 }
 
@@ -182,7 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btn = document.getElementById('recBtn');
     btn.textContent = '✓ Recorded!'; btn.style.background = 'var(--green)';
   }
-  drawVis((d.mass || mat.mass) / (d.vol || mat.vol));
+  drawVis((d.mass || mat.mass) / (d.vol || mat.vol), 1);
 });
 </script>
 </body>

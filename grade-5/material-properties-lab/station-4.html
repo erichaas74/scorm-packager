@@ -45,7 +45,7 @@
           </div>
           <div class="fg">
             <div class="fl">Your Note</div>
-            <textarea class="fta" id="noteTA" oninput="saveStationNote(4,{note:this.value})"></textarea>
+            <textarea class="fta" id="noteTA" placeholder="What did you see on the other side? Could you read the object card clearly or was it blurry/blocked?" oninput="saveStationNote(4,{note:this.value})"></textarea>
           </div>
         </div>
         <button class="btn btn-green" id="recBtn" onclick="save()">Record Results ✓</button>
@@ -70,29 +70,37 @@
 const STATION = 4;
 const ANIM = {};
 let lightProg = 0;
+let pulseT = 0;
 
 function cancelAll() { Object.values(ANIM).forEach(id => cancelAnimationFrame(id)); }
 function m() { return getMat(); }
 
 function shine() {
   document.getElementById('shineBtn').disabled = true;
-  let p = 0;
+  let raw = 0;
   function frame() {
-    p += 0.02; lightProg = Math.min(1, p);
+    raw += 0.024;
+    pulseT += 0.045;
+    lightProg = easeOutCubic(Math.min(1, raw));
     draw(lightProg);
-    if (p < 1) ANIM.light = requestAnimationFrame(frame);
+    if (raw < 1) ANIM.light = requestAnimationFrame(frame);
     else showResult();
   }
   ANIM.light = requestAnimationFrame(frame);
 }
 
 function resetSim() {
-  cancelAll(); lightProg = 0;
+  cancelAll();
+  lightProg = 0;
+  pulseT = 0;
   document.getElementById('shineBtn').disabled = false;
   draw(0);
   ['obsResult', 'obsSee'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) { el.textContent = id === 'obsResult' ? 'Click "Shine Flashlight" to test...' : '—'; el.classList.remove('rev'); }
+    if (el) {
+      el.textContent = id === 'obsResult' ? 'Click "Shine Flashlight" to test...' : '—';
+      el.classList.remove('rev');
+    }
   });
 }
 
@@ -100,8 +108,8 @@ function showResult() {
   const mat = m();
   const info = {
     transparent: { r: '✅ Transparent — light and details pass straight through!', s: 'Yes — you can see objects clearly through it.' },
-    translucent:  { r: '🌤 Translucent — some light passes through, but details are blurry.', s: 'Partly — shapes visible but not clearly.' },
-    opaque:       { r: '⛔ Opaque — light cannot pass through at all.', s: 'No — the material blocks all light.' },
+    translucent:  { r: '🌤 Translucent — some light passes through, but details are blurry.', s: 'Partly — shapes are visible, but not clearly.' },
+    opaque:       { r: '⛔ Opaque — light cannot pass through the material.', s: 'No — the material blocks the object behind it.' },
   };
   const i = info[mat.tr];
   const re = document.getElementById('obsResult'), se = document.getElementById('obsSee');
@@ -110,49 +118,215 @@ function showResult() {
   saveStationNote(4, { transparency: mat.tr });
 }
 
-function draw(p = 0) {
-  const cv = document.getElementById('cvs'); if (!cv) return;
-  const ctx = cv.getContext('2d');
-  const W = 370, H = 270, mat = m();
-  ctx.clearRect(0, 0, W, H); ctx.fillStyle = '#0a0a1a'; ctx.fillRect(0, 0, W, H);
+function drawFlashlight(ctx, x, y, p) {
+  ctx.save();
+  ctx.translate(x, y);
 
-  ctx.font = '28px serif'; ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(255,220,50,0.9)';
-  ctx.fillText('⭐', 300, 145);
+  // Handle and body.
+  ctx.fillStyle = '#4d5c68';
+  rr(ctx, -31, -13, 35, 26, 7); ctx.fill();
+  const bodyGrad = ctx.createLinearGradient(-8, -16, 20, 16);
+  bodyGrad.addColorStop(0, '#95a4ae');
+  bodyGrad.addColorStop(1, '#5d6e79');
+  ctx.fillStyle = bodyGrad;
+  rr(ctx, -8, -16, 31, 32, 8); ctx.fill();
 
-  const mx = 155, my = 60, mw = 55, mh = 150;
-  const alpha = mat.tr === 'transparent' ? 0.25 : mat.tr === 'translucent' ? 0.7 : 0.97;
-  ctx.fillStyle = mat.color; ctx.globalAlpha = alpha;
-  ctx.fillRect(mx, my, mw, mh);
-  ctx.globalAlpha = 1;
-  ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1; ctx.strokeRect(mx, my, mw, mh);
-  ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.font = '10px Instrument Sans,system-ui'; ctx.textAlign = 'center';
-  ctx.fillText(mat.name, mx + mw / 2, my + mh / 2 + 4);
+  // Lens glow.
+  const glow = ctx.createRadialGradient(24, 0, 2, 24, 0, 24 + p * 12);
+  glow.addColorStop(0, `rgba(255,244,160,${0.9 * Math.max(0.25, p)})`);
+  glow.addColorStop(1, 'rgba(255,244,160,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(24, 0, 25 + p * 8, 0, Math.PI * 2); ctx.fill();
 
-  const flx = 35, fly = H / 2;
-  ctx.fillStyle = '#888';
-  ctx.beginPath(); ctx.roundRect(flx - 20, fly - 10, 30, 20, 5); ctx.fill();
-  ctx.fillStyle = '#ffee88'; ctx.beginPath(); ctx.arc(flx + 10, fly, 8, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fff1a2';
+  ctx.beginPath(); ctx.arc(18, 0, 9, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(60,65,70,0.35)';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(18, 0, 10, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+}
 
-  if (p > 0) {
-    const ba = p * (mat.tr === 'transparent' ? 0.35 : mat.tr === 'translucent' ? 0.18 : 0.06);
-    ctx.fillStyle = `rgba(255,240,120,${ba})`;
+function drawTargetCard(ctx, mat, p) {
+  const cardX = 270, cardY = 82, cardW = 62, cardH = 118;
+
+  drawSoftShadow(ctx, cardX, cardY, cardW, cardH, 14, 0.12);
+  ctx.fillStyle = '#fffef8';
+  rr(ctx, cardX, cardY, cardW, cardH, 8);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(80,100,120,0.22)';
+  ctx.stroke();
+
+  const visibility = mat.tr === 'transparent' ? 1 : mat.tr === 'translucent' ? 0.58 : 0.17;
+  const blurAmt = mat.tr === 'transparent' ? 0 : mat.tr === 'translucent' ? 3.2 : 0;
+  const boost = 0.45 + p * 0.55;
+
+  ctx.save();
+  ctx.filter = `blur(${blurAmt}px)`;
+  ctx.globalAlpha = visibility * boost;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '30px serif';
+  ctx.fillStyle = '#f2c94c';
+  ctx.fillText('⭐', cardX + cardW / 2, cardY + 42);
+  ctx.font = 'bold 25px Instrument Sans, system-ui, sans-serif';
+  ctx.fillStyle = '#3f5369';
+  ctx.fillText('A', cardX + cardW / 2, cardY + 84);
+  ctx.restore();
+
+  ctx.fillStyle = 'rgba(70,95,115,0.65)';
+  ctx.font = 'bold 8px Instrument Sans, system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('OBJECT CARD', cardX + cardW / 2, cardY + cardH - 8);
+}
+
+function drawBeam(ctx, p, mat, geom) {
+  const { flx, fly, mx, my, mw, mh, W } = geom;
+  if (p <= 0) return;
+
+  // Incoming cone.
+  const pulse = 0.85 + Math.sin(pulseT) * 0.15;
+  ctx.fillStyle = `rgba(255,238,126,${0.34 * p * pulse})`;
+  ctx.beginPath();
+  ctx.moveTo(flx + 18, fly - 10);
+  ctx.lineTo(mx, my + 22);
+  ctx.lineTo(mx, my + mh - 22);
+  ctx.lineTo(flx + 18, fly + 10);
+  ctx.closePath();
+  ctx.fill();
+
+  // Thin center rays.
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 4; i++) {
+    const yOff = -24 + i * 16;
+    ctx.strokeStyle = `rgba(255,250,180,${0.32 * p})`;
+    ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.moveTo(flx + 10, fly - 8); ctx.lineTo(mx, my + 20); ctx.lineTo(mx, my + mh - 20); ctx.lineTo(flx + 10, fly + 8);
+    ctx.moveTo(flx + 18, fly);
+    ctx.lineTo(mx, fly + yOff);
+    ctx.stroke();
+  }
+
+  if (mat.tr === 'transparent') {
+    ctx.fillStyle = `rgba(255,239,120,${0.28 * p})`;
+    ctx.beginPath();
+    ctx.moveTo(mx + mw, my + 27);
+    ctx.lineTo(W - 10, my + 12);
+    ctx.lineTo(W - 10, my + mh - 12);
+    ctx.lineTo(mx + mw, my + mh - 27);
+    ctx.closePath();
     ctx.fill();
-    if (mat.tr !== 'opaque') {
-      ctx.fillStyle = `rgba(255,240,120,${p * (mat.tr === 'transparent' ? 0.28 : 0.08)})`;
+
+    for (let i = 0; i < 4; i++) {
+      ctx.strokeStyle = `rgba(255,250,180,${0.35 * p})`;
+      ctx.lineWidth = 1.2;
       ctx.beginPath();
-      ctx.moveTo(mx + mw, my + 30); ctx.lineTo(W - 10, my); ctx.lineTo(W - 10, my + mh); ctx.lineTo(mx + mw, my + mh - 30);
-      ctx.fill();
-    }
-    if (mat.tr === 'transparent' && p > 0.8) {
-      ctx.font = '28px serif'; ctx.textAlign = 'center';
-      ctx.globalAlpha = p * 0.9; ctx.fillStyle = 'rgba(255,220,50,1)';
-      ctx.fillText('⭐', 300, 145); ctx.globalAlpha = 1;
+      ctx.moveTo(mx + mw, my + 38 + i * 22);
+      ctx.lineTo(W - 18, my + 32 + i * 25);
+      ctx.stroke();
     }
   }
-  ctx.textAlign = 'left';
+
+  if (mat.tr === 'translucent') {
+    // Scattered rays show light passes through, but details blur.
+    for (let i = 0; i < 7; i++) {
+      const spread = -32 + i * 11;
+      ctx.strokeStyle = `rgba(255,240,140,${0.12 * p})`;
+      ctx.lineWidth = 4.5 - i * 0.24;
+      ctx.beginPath();
+      ctx.moveTo(mx + mw, fly + spread * 0.45);
+      ctx.lineTo(W - 16, fly + spread * 1.1);
+      ctx.stroke();
+    }
+    ctx.fillStyle = `rgba(255,239,120,${0.10 * p})`;
+    ctx.beginPath();
+    ctx.arc(mx + mw + 28, fly, 42 * p, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  if (mat.tr === 'opaque') {
+    // Dark shadow shows the material blocks light.
+    ctx.fillStyle = `rgba(0,0,0,${0.24 * p})`;
+    ctx.beginPath();
+    ctx.moveTo(mx + mw, my + 30);
+    ctx.lineTo(W - 12, my + 50);
+    ctx.lineTo(W - 12, my + mh - 50);
+    ctx.lineTo(mx + mw, my + mh - 30);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = `rgba(255,238,126,${0.34 * p})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(mx + 4, my + 18);
+    ctx.lineTo(mx + 4, my + mh - 18);
+    ctx.stroke();
+  }
+}
+
+function drawTransparencyLabel(ctx, mat, x, y) {
+  const text = mat.tr === 'transparent' ? 'clear' : mat.tr === 'translucent' ? 'blurry' : 'blocked';
+  const color = mat.tr === 'transparent' ? '#277a43' : mat.tr === 'translucent' ? '#b85c14' : '#b93a2b';
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.88)';
+  ctx.strokeStyle = 'rgba(35,86,116,0.10)';
+  rr(ctx, x, y, 86, 24, 12);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.font = 'bold 11px Instrument Sans, system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text.toUpperCase(), x + 43, y + 12);
+  ctx.restore();
+}
+
+function draw(p = 0) {
+  const cv = document.getElementById('cvs');
+  if (!cv) return;
+  const ctx = cv.getContext('2d');
+  const W = 370, H = 270, mat = m();
+  const mx = 150, my = 58, mw = 62, mh = 150;
+  const flx = 45, fly = 142;
+
+  ctx.clearRect(0, 0, W, H);
+  drawLabBench(ctx, W, H, 'Transparency');
+
+  // A small stand for the material sample.
+  ctx.strokeStyle = 'rgba(80,90,100,0.28)';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(mx - 10, my + mh + 20);
+  ctx.lineTo(mx + mw + 10, my + mh + 20);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(80,90,100,0.18)';
+  ctx.fillRect(mx - 7, my + mh, 5, 22);
+  ctx.fillRect(mx + mw + 2, my + mh, 5, 22);
+
+  drawTargetCard(ctx, mat, p);
+  drawFlashlight(ctx, flx, fly, p);
+  drawBeam(ctx, p, mat, { flx, fly, mx, my, mw, mh, W });
+
+  // Material panel. Global alpha makes the panel itself match the concept.
+  ctx.save();
+  ctx.globalAlpha = mat.tr === 'transparent' ? 0.46 : mat.tr === 'translucent' ? 0.76 : 0.98;
+  drawMaterialSample(ctx, mx, my, mw, mh, mat, { radius: 9, showLabel: false, shadowAlpha: 0.16 });
+  ctx.restore();
+
+  // Frosted look for translucent materials.
+  if (mat.tr === 'translucent') {
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    rr(ctx, mx + 4, my + 4, mw - 8, mh - 8, 7);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Label below material.
+  ctx.fillStyle = 'rgba(45,70,90,0.82)';
+  ctx.font = 'bold 11px Instrument Sans, system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(mat.name, mx + mw / 2, my + mh + 35);
+  if (p > 0.65) drawTransparencyLabel(ctx, mat, mx - 12, my - 30);
 }
 
 function save() {

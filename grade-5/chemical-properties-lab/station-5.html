@@ -175,33 +175,35 @@ function draw(progress = 0) {
   const ctx = cv.getContext('2d');
   const W = 370, H = 270, mat = sb();
   ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = '#f4f8f4'; ctx.fillRect(0, 0, W, H);
-  // Lab bench
-  ctx.fillStyle = '#e0d8cc'; ctx.fillRect(0, 240, W, 30);
-
-  // Beaker
-  ctx.strokeStyle = 'rgba(100,150,200,0.5)'; ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  ctx.moveTo(BEAKER_X, BEAKER_TOP);
-  ctx.lineTo(BEAKER_X, BEAKER_BOT);
-  ctx.lineTo(BEAKER_X+BEAKER_W, BEAKER_BOT);
-  ctx.lineTo(BEAKER_X+BEAKER_W, BEAKER_TOP);
-  ctx.stroke();
-  // Tick marks
-  ctx.strokeStyle = '#ccc'; ctx.lineWidth = 1;
-  [180,160,140,120,100].forEach(y => {
-    ctx.beginPath(); ctx.moveTo(BEAKER_X, y); ctx.lineTo(BEAKER_X+8, y); ctx.stroke();
-  });
+  drawSharedLabBackground(ctx, W, H);
 
   // Liquid in beaker
-  const liqColor = mat.isLiquid ? mat.color : `${mat.color}66`;
   const liqTop = 130;
+  const liquidBottom = BEAKER_BOT - 10;
   ctx.fillStyle = mat.isLiquid ? `${mat.color}aa` : '#d0e8f0';
-  ctx.fillRect(BEAKER_X+2, liqTop, BEAKER_W-4, BEAKER_BOT-liqTop-2);
+  ctx.fillRect(BEAKER_X+10, liqTop, BEAKER_W-20, liquidBottom-liqTop);
+
+  // Beaker glass
+  if (ASSETS.beaker) {
+    ctx.drawImage(ASSETS.beaker, BEAKER_X-10, BEAKER_TOP-10, 140, 140);
+  } else {
+    ctx.strokeStyle = 'rgba(160,190,220,0.65)'; ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(BEAKER_X, BEAKER_TOP);
+    ctx.lineTo(BEAKER_X, BEAKER_BOT);
+    ctx.lineTo(BEAKER_X+BEAKER_W, BEAKER_BOT);
+    ctx.lineTo(BEAKER_X+BEAKER_W, BEAKER_TOP);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(220,230,240,0.45)'; ctx.lineWidth = 1;
+    [180,160,140,120,100].forEach(y => {
+      ctx.beginPath(); ctx.moveTo(BEAKER_X+6, y); ctx.lineTo(BEAKER_X+18, y); ctx.stroke();
+    });
+  }
+
   // Liquid label
-  ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.font = '11px system-ui'; ctx.textAlign = 'center';
-  ctx.fillText(mat.icon, BEAKER_X+BEAKER_W/2, BEAKER_BOT-8);
-  ctx.fillStyle = '#555'; ctx.font = '9px system-ui';
+  ctx.fillStyle = 'rgba(15,23,42,0.55)'; ctx.font = '11px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText(mat.icon, BEAKER_X+BEAKER_W/2, liquidBottom-8);
+  ctx.fillStyle = '#dbe7f3'; ctx.font = '9px system-ui';
   ctx.fillText(mat.isLiquid ? mat.name : `${mat.name} (in water)`, BEAKER_X+BEAKER_W/2, liqTop - 6);
 
   // pH strip holder (mounted to right)
@@ -231,7 +233,7 @@ function draw(progress = 0) {
 
   // Arrow hint before dipping
   if (!stripDipped && progress < 0.1) {
-    ctx.fillStyle = 'rgba(44,110,145,0.6)'; ctx.font = '12px system-ui'; ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(219,234,254,0.85)'; ctx.font = '12px system-ui'; ctx.textAlign = 'left';
     ctx.fillText('↓ Dip in liquid', STRIP_X+22, stripY+50);
   }
 
@@ -249,15 +251,17 @@ function draw(progress = 0) {
   ctx.beginPath(); ctx.roundRect(scaleX, scaleY, 22, scaleH, 5); ctx.fill();
 
   // Scale labels
-  ctx.fillStyle = '#444'; ctx.font = 'bold 9px system-ui'; ctx.textAlign = 'center';
+  ctx.font = 'bold 9px system-ui'; ctx.textAlign = 'center';
   ['1','4','7','10','14'].forEach((lbl, i) => {
     const fy = scaleY + (i/4) * scaleH;
-    ctx.fillStyle = '#333';
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 3;
+    ctx.strokeText(lbl, scaleX+11, fy + 4);
+    ctx.fillStyle = '#fff';
     ctx.fillText(lbl, scaleX+11, fy + 4);
     ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(scaleX, fy); ctx.lineTo(scaleX+22, fy); ctx.stroke();
   });
-  ctx.fillStyle = '#555'; ctx.font = '9px system-ui'; ctx.textAlign = 'left';
+  ctx.fillStyle = '#dbe7f3'; ctx.font = '9px system-ui'; ctx.textAlign = 'left';
   ctx.fillText('Acid', scaleX+26, scaleY+8);
   ctx.fillText('Neutral', scaleX+26, scaleY+scaleH/2+4);
   ctx.fillText('Base', scaleX+26, scaleY+scaleH-2);
@@ -268,7 +272,9 @@ function draw(progress = 0) {
     const markerY = scaleY + pct * scaleH;
     ctx.fillStyle = '#fff';
     ctx.beginPath(); ctx.moveTo(scaleX-6, markerY); ctx.lineTo(scaleX, markerY-5); ctx.lineTo(scaleX, markerY+5); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#333'; ctx.font = 'bold 10px system-ui'; ctx.textAlign = 'right';
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 10px system-ui'; ctx.textAlign = 'right';
+    ctx.strokeStyle = 'rgba(0,0,0,0.65)'; ctx.lineWidth = 3;
+    ctx.strokeText(`pH ${sb().ph}`, scaleX-8, markerY+4);
     ctx.fillText(`pH ${sb().ph}`, scaleX-8, markerY+4);
   }
   ctx.textAlign = 'left';
@@ -300,7 +306,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const btn = document.getElementById('recBtn');
     btn.textContent = '✓ Recorded!'; btn.style.background = 'var(--green)';
   }
-  draw(0);
+  loadAssets(() => {
+    draw(0);
+  });
 });
 </script>
 </body>

@@ -28,19 +28,34 @@
       <div class="shell" style="background:rgba(44,110,145,.04);">
         <h2 id="chTitle"></h2>
         <p id="chDesc" class="mt8"></p>
-        <div class="fg mt12">
-          <div class="fl">Suggested best material (based on your data)</div>
-          <div class="fv rev" id="chSuggestion"></div>
+
+        <!-- Step 1: Commit prediction before seeing verdict -->
+        <div id="chPredSection" class="mt12">
+          <div class="fg">
+            <div class="fl">You are testing: <span id="chMatName" style="color:var(--text);font-style:normal;text-transform:none;letter-spacing:0;font-size:.88rem;"></span></div>
+            <div class="fl mt8">Do you think it's a good choice for this challenge?</div>
+            <div class="btn-row mt8">
+              <button class="btn btn-green" onclick="chooseAnswer(true)">Yes, I think it works!</button>
+              <button class="btn btn-secondary" onclick="chooseAnswer(false)">Hmm, probably not...</button>
+            </div>
+          </div>
         </div>
-        <div class="fg mt8">
-          <div class="fl">Your Evidence</div>
-          <textarea class="fta" id="evidenceTA" rows="4" placeholder="Write your evidence here. Use specific numbers from your tests — waterproof rating, density, float/sink result, strength rating..."></textarea>
+
+        <!-- Step 2: Write evidence -->
+        <div id="chEvidenceSection" style="display:none;" class="mt12">
+          <div class="fg">
+            <div class="fl">Your Evidence — use specific numbers from your test data!</div>
+            <textarea class="fta" id="evidenceTA" rows="4" placeholder="For example: My material had a waterproof rating of 5/5 and water beaded right off. This proves it's good for a raincoat because..."></textarea>
+          </div>
+          <button class="btn btn-green mt8" onclick="submit()">Submit Evidence ✓</button>
         </div>
-        <button class="btn btn-green mt8" onclick="submit()">Submit Evidence ✓</button>
       </div>
+
+      <!-- Step 3: Verdict (shown after submit) -->
       <div id="chFeedback" style="display:none;" class="shell mt8">
-        <h3 style="color:var(--green);margin-bottom:8px;">Great scientific thinking! 🎉</h3>
+        <h3 id="fbTitle" style="margin-bottom:8px;"></h3>
         <p id="fbText"></p>
+        <div id="fbHint" class="info-box mt8" style="display:none;"></div>
       </div>
     </div>
 
@@ -54,6 +69,7 @@
 <script src="lab-data.js"></script>
 <script>
 let selectedChallenge = null;
+let userThinksBest = null;
 
 function buildChallenges() {
   document.getElementById('chGrid').innerHTML = CHALLENGES.map(c =>
@@ -67,31 +83,68 @@ function buildChallenges() {
 
 function pick(id, el) {
   selectedChallenge = id;
+  userThinksBest = null;
   document.querySelectorAll('.ch-card').forEach(c => c.classList.remove('sel'));
   el.classList.add('sel');
 
   const ch = CHALLENGES.find(c => c.id === id);
-  const matId = getMatId();
   const mat = getMat();
-  const isBest = ch.best.includes(matId);
 
   document.getElementById('chTitle').textContent = `${ch.icon} ${ch.title} Challenge`;
   document.getElementById('chDesc').textContent = ch.desc;
-  document.getElementById('chSuggestion').textContent = isBest
-    ? `${mat.icon} ${mat.name} — great choice based on your test data!`
-    : `${mat.icon} ${mat.name} might not be ideal. Hint: ${ch.hint}`;
+  document.getElementById('chMatName').textContent = `${mat.icon} ${mat.name}`;
 
-  document.getElementById('chAnswer').style.display = 'block';
+  document.getElementById('chPredSection').style.display = 'block';
+  document.getElementById('chEvidenceSection').style.display = 'none';
   document.getElementById('chFeedback').style.display = 'none';
+  document.getElementById('chAnswer').style.display = 'block';
+  document.getElementById('chAnswer').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function chooseAnswer(thinks) {
+  userThinksBest = thinks;
+  document.getElementById('chPredSection').style.display = 'none';
+  document.getElementById('chEvidenceSection').style.display = 'block';
   document.getElementById('evidenceTA').value = '';
+  document.getElementById('evidenceTA').focus();
 }
 
 function submit() {
   const ev = (document.getElementById('evidenceTA').value || '').trim();
   if (ev.length < 20) { alert('Please write at least one sentence of evidence using data from your tests!'); return; }
+
+  const ch = CHALLENGES.find(c => c.id === selectedChallenge);
+  const matId = getMatId();
+  const mat = getMat();
+  const isBest = ch.best.includes(matId);
+
+  let title, text, showHint;
+  if (isBest && userThinksBest) {
+    title = '🎉 Great scientific thinking!';
+    text = `${mat.icon} ${mat.name} IS one of the best choices for a ${ch.title} — and you knew it! Your evidence: "${ev}"`;
+    showHint = false;
+  } else if (isBest && !userThinksBest) {
+    title = '😮 Surprise — the data says yes!';
+    text = `${mat.icon} ${mat.name} actually works well for a ${ch.title}! Your evidence supported it, even if you weren't sure at first. Evidence: "${ev}"`;
+    showHint = true;
+  } else if (!isBest && userThinksBest) {
+    title = '🤔 Good try — let\'s look at the data again!';
+    text = `${mat.icon} ${mat.name} has some useful properties, but may not be the best choice for a ${ch.title}. Evidence: "${ev}"`;
+    showHint = true;
+  } else {
+    title = '✅ Good scientific reasoning!';
+    text = `You correctly figured that ${mat.icon} ${mat.name} might not be ideal here. Evidence: "${ev}"`;
+    showHint = true;
+  }
+
   const fb = document.getElementById('chFeedback');
-  document.getElementById('fbText').textContent =
-    `You wrote: "${ev}" — great job using your lab data as evidence! Real scientists use exactly this kind of reasoning: observations → data → evidence → conclusion.`;
+  const fbTitle = document.getElementById('fbTitle');
+  const fbHint = document.getElementById('fbHint');
+  fbTitle.textContent = title;
+  fbTitle.style.color = (isBest && userThinksBest) ? 'var(--green)' : 'var(--accent)';
+  document.getElementById('fbText').textContent = text;
+  fbHint.textContent = ch.hint;
+  fbHint.style.display = showHint ? 'block' : 'none';
   fb.style.display = 'block';
   fb.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }

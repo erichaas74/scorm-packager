@@ -652,6 +652,125 @@
     }
 
     /* ── Event Listeners ──────────────────────────────────────────────── */
+    function hasSearchFlag(name) {
+        try {
+            return new URLSearchParams(window.location.search).has(name);
+        } catch (e) {
+            return false;
+        }
+    }
+
+    var TEST_AUTOFILL_MODE = true;
+    var TEST_TEXT_RESPONSES = {
+        'ta-trend': 'The interval distance increases each time, so the falling object is speeding up.',
+        'ta-accel': 'The object accelerates because gravity makes its velocity change by more each tenth of a second.',
+        'ta-intratio': 'The interval ratios follow odd numbers, showing the added distance grows in a steady pattern.',
+        'ta-galileo': 'Galileo could use repeated time intervals to show that falling distance follows a square pattern.',
+        'ta-errors': 'Small reading errors can come from the tape scale, rounding, or stopping the scrubber slightly off time.',
+        'ta-waterclock': 'A water clock gave Galileo repeated time intervals, much like the equal time marks in this lab.'
+    };
+
+    function roundedNumber(value, places) {
+        var scale = Math.pow(10, places);
+        return Math.round(value * scale) / scale;
+    }
+
+    function buildTestingAnswers() {
+        var answers = {};
+        var previousDist = 0;
+        var firstDist = null;
+        var firstInterval = null;
+        times.forEach(function (time) {
+            if (time === 0.0) return;
+            var tf = time.toFixed(1);
+            var dist = roundedNumber(0.5 * G * time * time, 1);
+            var interval = roundedNumber(dist - previousDist, 1);
+            if (firstDist === null) firstDist = dist;
+            if (firstInterval === null) firstInterval = interval;
+            answers[tf] = {
+                dist: dist.toFixed(1),
+                interval: interval.toFixed(1),
+                intratio: (interval / firstInterval).toFixed(2),
+                ratio: (dist / firstDist).toFixed(2)
+            };
+            previousDist = dist;
+        });
+        return answers;
+    }
+
+    function autofillTestingAnswers() {
+        if (submitted) return;
+        var answers = buildTestingAnswers();
+        ['interval', 'intratio', 'ratio'].forEach(unlockColumn);
+        Object.keys(answers).forEach(function (tf) {
+            ['dist', 'interval', 'intratio', 'ratio'].forEach(function (col) {
+                var input = document.querySelector('input[data-time="' + tf + '"][data-col="' + col + '"]');
+                if (!input) return;
+                input.disabled = false;
+                input.value = answers[tf][col];
+            });
+        });
+        TEXT_IDS.forEach(function (id) {
+            var ta = document.getElementById(id);
+            if (ta) ta.value = TEST_TEXT_RESPONSES[id] || 'Testing response with enough detail to satisfy the lab requirement.';
+        });
+        initTextAreaFeedback();
+        currentStage = 1;
+        revalidateAll();
+        updateCompletedChart();
+        saveSuspendData();
+        reportScore();
+    }
+
+    function installTestingAutofillButton() {
+        if (!TEST_AUTOFILL_MODE || document.getElementById('test-autofill-button')) return;
+        var anchor = document.getElementById('guidance-banner');
+        if (!anchor || !anchor.parentNode) return;
+        var wrap = document.createElement('div');
+        wrap.className = 'screen-only flex items-center gap-3 mt-3';
+        var button = document.createElement('button');
+        button.id = 'test-autofill-button';
+        button.type = 'button';
+        button.className = 'px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-sm font-bold transition-all';
+        button.textContent = 'Autofill Test Answers';
+        var status = document.createElement('span');
+        status.id = 'test-autofill-status';
+        status.className = 'text-xs text-amber-300 font-semibold';
+        button.addEventListener('click', function () {
+            autofillTestingAnswers();
+            status.textContent = 'Saved test answers.';
+        });
+        wrap.appendChild(button);
+        wrap.appendChild(status);
+        anchor.parentNode.insertBefore(wrap, anchor.nextSibling);
+    }
+
+    function isEditableTarget(target) {
+        return target && (
+            target.tagName === 'INPUT' ||
+            target.tagName === 'TEXTAREA' ||
+            target.isContentEditable
+        );
+    }
+
+    function installClipboardGuards() {
+        document.addEventListener('copy', function (e) { e.preventDefault(); }, true);
+        document.addEventListener('cut', function (e) { e.preventDefault(); }, true);
+        document.addEventListener('paste', function (e) {
+            if (isEditableTarget(e.target)) e.preventDefault();
+        }, true);
+        document.addEventListener('drop', function (e) {
+            if (isEditableTarget(e.target)) e.preventDefault();
+        }, true);
+        document.addEventListener('beforeinput', function (e) {
+            if (e.inputType === 'insertFromPaste' || e.inputType === 'insertFromDrop') e.preventDefault();
+        }, true);
+        document.addEventListener('keydown', function (e) {
+            var key = String(e.key || '').toLowerCase();
+            if ((e.ctrlKey || e.metaKey) && (key === 'c' || key === 'v' || key === 'x')) e.preventDefault();
+        }, true);
+    }
+
     zoomButton.addEventListener('click', function () {
         isZoomed = !isZoomed;
         if (isZoomed) {
@@ -699,10 +818,7 @@
         }
     });
 
-    document.getElementById('app-root').addEventListener('paste', function (e) {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') e.preventDefault();
-    });
-    document.addEventListener('copy', function (e) { e.preventDefault(); });
+    installClipboardGuards();
 
     var submitBtn = document.getElementById('submit-btn');
     if (submitBtn) submitBtn.addEventListener('click', submitAssignment);
@@ -759,6 +875,7 @@
         loadSuspendData();
         highlightColumn(currentStage);
         highlightReferenceCell(currentStage);
+        installTestingAutofillButton();
     });
 
     window.addEventListener('beforeunload', function () {

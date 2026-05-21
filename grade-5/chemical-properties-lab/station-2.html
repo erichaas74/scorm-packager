@@ -90,7 +90,7 @@ function predict(choice, el) {
 }
 
 function spawnRain() {
-  rainDrops.push({ x: Math.random() * 370, y: -8, vx: 1.5, vy: 5 + Math.random()*3 });
+  rainDrops.push({ x: 56 + Math.random() * 258, y: 42, vx: 0.7, vy: 5 + Math.random()*3 });
 }
 
 function fastForward() {
@@ -154,36 +154,38 @@ function draw() {
   const W = 370, H = 270, mat = sb();
   ctx.clearRect(0, 0, W, H);
 
-  // Sky
-  const skyGrad = ctx.createLinearGradient(0, 0, 0, 160);
-  const cloudiness = Math.min(1, day / 3);
-  const skyR = Math.floor(160 + cloudiness * 40), skyG = Math.floor(200 - cloudiness * 30);
-  skyGrad.addColorStop(0, `rgb(${skyR},${skyG},220)`);
-  skyGrad.addColorStop(1, `rgb(${skyR+20},${skyG+10},230)`);
-  ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, W, H);
+  drawSharedLabBackground(ctx, W, H);
 
-  // Clouds
+  // Weathering chamber
+  const chamberX = 42, chamberY = 38, chamberW = 286, chamberH = 180;
+  ctx.fillStyle = 'rgba(210,230,245,0.08)';
+  ctx.beginPath(); ctx.roundRect(chamberX, chamberY, chamberW, chamberH, 14); ctx.fill();
+  ctx.strokeStyle = 'rgba(170,200,225,0.42)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(chamberX, chamberY, chamberW, chamberH, 14); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.fillRect(chamberX + 12, chamberY + 12, 3, chamberH - 24);
+
+  // Moisture haze builds over time.
+  const cloudiness = Math.min(1, day / 3);
   if (day > 0.5) {
-    ctx.fillStyle = `rgba(220,230,240,${Math.min(0.7, cloudiness * 0.8)})`;
-    [[60,35,45,25],[180,28,55,22],[310,42,40,18]].forEach(([cx,cy,rx,ry]) => {
+    ctx.fillStyle = `rgba(220,235,245,${Math.min(0.28, cloudiness * 0.24)})`;
+    [[88,70,44,16],[184,63,58,18],[280,78,34,14]].forEach(([cx,cy,rx,ry]) => {
       ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI*2); ctx.fill();
     });
   }
 
-  // Ground
-  const grassGrad = ctx.createLinearGradient(0, 210, 0, H);
-  grassGrad.addColorStop(0, '#7aa860'); grassGrad.addColorStop(1, '#5a8840');
-  ctx.fillStyle = grassGrad; ctx.fillRect(0, 210, W, H-210);
-
-  // Surface block (like a shelf or concrete slab)
-  ctx.fillStyle = '#c8c0b4';
+  // Test shelf
+  const shelfGrad = ctx.createLinearGradient(55, SURF_Y+10, 55, SURF_Y+42);
+  shelfGrad.addColorStop(0, '#aeb8c2');
+  shelfGrad.addColorStop(1, '#58616d');
+  ctx.fillStyle = shelfGrad;
   ctx.beginPath(); ctx.roundRect(55, SURF_Y+10, 260, 28, 6); ctx.fill();
-  ctx.strokeStyle = '#aaa09a'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.strokeStyle = 'rgba(220,230,240,0.45)'; ctx.lineWidth = 1; ctx.stroke();
 
   // Water puddle effect (builds over days)
   if (day > 1) {
     const alpha = Math.min(0.5, (day-1) * 0.07);
-    ctx.fillStyle = `rgba(80,150,220,${alpha})`;
+    ctx.fillStyle = `rgba(115,180,235,${alpha})`;
     ctx.beginPath(); ctx.ellipse(CX, SURF_Y+18, 70, 10, 0, 0, Math.PI*2); ctx.fill();
   }
 
@@ -214,12 +216,13 @@ function draw() {
     ctx.fillStyle = hexToRgba(tanCol, progress * 0.7);
     ctx.beginPath(); ctx.roundRect(bx, by, 76, 52, 9); ctx.fill();
   }
-  ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.font = 'bold 22px system-ui'; ctx.textAlign = 'center';
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.82)'; ctx.font = 'bold 22px system-ui'; ctx.textAlign = 'center';
   ctx.fillText(mat.icon, CX, by+33);
 
   // Rain drops
   rainDrops.forEach(d => {
-    ctx.strokeStyle = 'rgba(150,200,255,0.6)'; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(150,210,255,0.72)'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(d.x+d.vx*2, d.y+d.vy*2); ctx.stroke();
   });
 

@@ -1,5 +1,6 @@
-/* ── Chemical Properties Lab — shared data & state ── */
+/* ── Chemical Properties Lab — Core Logic & Shared Assets ── */
 
+// 1. Core Data
 const SUBST = {
   iron: {
     name:'Iron Nail',    icon:'🔩', color:'#7a7a7a', lc:'#b0b0b0',
@@ -137,7 +138,7 @@ const CHALLENGES = [
     hint:'Check the toxicity rating. Substances rated 0 (None) are completely safe for school labs.' },
 ];
 
-/* ── LocalStorage state ── */
+// 2. LocalStorage State Management
 const LAB_KEY = 'cpl_state';
 
 function getState() {
@@ -170,7 +171,7 @@ function markComplete(n) {
   setState({ completed });
 }
 
-/* ── Render progress shell + station nav ── */
+// 3. Shared UI Functions
 function renderProgress(currentStation) {
   const completed = getCompleted();
   const sb = getSubst();
@@ -193,4 +194,96 @@ function renderProgress(currentStation) {
       `<a href="station-${s.num}.html" class="s-pill ${s.num===currentStation?'active':''} ${completed.includes(s.num)&&s.num!==currentStation?'done':''}">${s.icon} ${s.short}</a>`
     ).join('');
   }
+}
+
+// 4. SVG Assets & Loader
+const SVG_STRINGS = {
+  beaker: `
+    <svg xmlns="http://www.w3.org/2000/svg" width="140" height="140" viewBox="0 0 140 140">
+      <path d="M20,10 L20,130 C20,135 25,140 30,140 L110,140 C115,140 120,135 120,130 L120,10" fill="rgba(255,255,255,0.2)" stroke="#8aa2b5" stroke-width="5" stroke-linecap="round"/>
+      <path d="M120,10 L130,2" fill="none" stroke="#8aa2b5" stroke-width="5" stroke-linecap="round"/>
+      <line x1="20" y1="40" x2="35" y2="40" stroke="#8aa2b5" stroke-width="3"/>
+      <line x1="20" y1="70" x2="35" y2="70" stroke="#8aa2b5" stroke-width="3"/>
+      <line x1="20" y1="100" x2="35" y2="100" stroke="#8aa2b5" stroke-width="3"/>
+      <path d="M28,25 L28,120" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="4" stroke-linecap="round"/>
+    </svg>`,
+  bunsen: `
+    <svg xmlns="http://www.w3.org/2000/svg" width="60" height="80" viewBox="0 0 60 80">
+      <rect x="5" y="65" width="50" height="10" rx="4" fill="#4a5568"/>
+      <polygon points="15,65 25,50 35,50 45,65" fill="#718096"/>
+      <rect x="22" y="10" width="16" height="40" fill="#a0aec0"/>
+      <rect x="19" y="5" width="22" height="6" rx="2" fill="#cbd5e0"/>
+      <circle cx="22" cy="45" r="5" fill="#e53e3e"/>
+    </svg>`
+};
+
+const ASSETS = {};
+
+function loadAssets(onComplete) {
+  const keys = Object.keys(SVG_STRINGS);
+  if (!keys.length) {
+    if (onComplete) onComplete();
+    return;
+  }
+
+  let remaining = keys.length;
+  const finishOne = () => {
+    remaining--;
+    if (remaining === 0 && onComplete) onComplete();
+  };
+
+  keys.forEach(key => {
+    if (ASSETS[key]) {
+      finishOne();
+      return;
+    }
+
+    const img = new Image();
+    const svgBase64 = btoa(SVG_STRINGS[key]);
+    img.onload = () => {
+      ASSETS[key] = img;
+      finishOne();
+    };
+    img.onerror = finishOne;
+    img.src = `data:image/svg+xml;base64,${svgBase64}`;
+  });
+}
+
+// 5. Shared Lab Environment (Canvas Background)
+function drawSharedLabBackground(ctx, w, h) {
+  ctx.fillStyle = '#1c212b';
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < w; i += 25) {
+    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, h - 50); ctx.stroke();
+  }
+  for (let i = 0; i < h - 50; i += 25) {
+    ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(w, i); ctx.stroke();
+  }
+
+  const spotlight = ctx.createRadialGradient(w / 2, h / 2 - 20, 10, w / 2, h / 2 - 20, w * 0.7);
+  spotlight.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
+  spotlight.addColorStop(1, 'rgba(0, 0, 0, 0.7)');
+  ctx.fillStyle = spotlight;
+  ctx.fillRect(0, 0, w, h);
+
+  const benchY = h - 50;
+  const benchGradient = ctx.createLinearGradient(0, benchY, 0, h);
+  benchGradient.addColorStop(0, '#3a414d');
+  benchGradient.addColorStop(0.05, '#21252b');
+  benchGradient.addColorStop(1, '#0d0f12');
+
+  ctx.fillStyle = benchGradient;
+  ctx.fillRect(0, benchY, w, h - benchY);
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+  ctx.fillRect(0, benchY, w, 2);
+
+  const wallShadow = ctx.createLinearGradient(0, benchY, 0, benchY + 15);
+  wallShadow.addColorStop(0, 'rgba(0, 0, 0, 0.5)');
+  wallShadow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = wallShadow;
+  ctx.fillRect(0, benchY, w, 15);
 }
