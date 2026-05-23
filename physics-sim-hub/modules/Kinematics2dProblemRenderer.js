@@ -311,7 +311,8 @@ const problemRendererMethods = {
             .filter(tracker => tracker.targetAnchor && tracker.targetAnchor.startsWith('value:'))
             .map(tracker => {
                 const fromAnchor = this.getCanvasAnchor(`problem:value:${tracker.valueKey}`);
-                const toAnchor = this.getCanvasAnchor(tracker.targetAnchor);
+                const toAnchor = this.getCanvasAnchor(tracker.targetAnchor)
+                    || this.getCanvasAnchor(`${tracker.targetAnchor}:row`);
                 if (!fromAnchor || !toAnchor || seenTargets.has(tracker.targetAnchor)) return null;
                 seenTargets.add(tracker.targetAnchor);
 
@@ -326,7 +327,7 @@ const problemRendererMethods = {
             .filter(Boolean);
     },
 
-    drawProblemValueTransferAnimation(ctx, time) {
+    drawProblemValueTransferAnimation(ctx, time, yOffset = 0) {
         if (!this.inputs.animateGivenValues) return;
         if (this.isStaticPreviewRendering) return;
         const items = this.getProblemValueTransferItems();
@@ -370,6 +371,38 @@ const problemRendererMethods = {
                 scale: 1.02 + (pulse * 0.08)
             }, localProgress);
         });
+
+        // After each chip lands, run the matching hover-style animation on the canvas
+        const model = this.latestModel;
+        if (!model || typeof this._drawGivenChipHoverAnim !== 'function') return;
+
+        const arrivalHoverDuration = 1.8;
+        const fadeOutWindow = 0.35;
+
+        // Temporarily restore scene height so hover animations (getDisplacementGeometry, yToCanvas, etc.)
+        // compute correct canvas-relative Y positions. this.height is already back to full canvas height
+        // by this point, but hover draws into the scene area offset by yOffset.
+        const savedHeight = this.height;
+        if (yOffset > 0) this.height = Math.max(200, savedHeight - yOffset);
+
+        items.forEach((item, index) => {
+            const arrivalTime = startTime + (index * itemGap) + itemDuration;
+            const arrivalElapsed = time - arrivalTime;
+            if (arrivalElapsed <= 0 || arrivalElapsed > arrivalHoverDuration) return;
+
+            const fadeIn  = Math.min(1, arrivalElapsed * 10);
+            const fadeOut = arrivalElapsed > (arrivalHoverDuration - fadeOutWindow)
+                ? 1 - (arrivalElapsed - (arrivalHoverDuration - fadeOutWindow)) / fadeOutWindow
+                : 1;
+
+            ctx.save();
+            ctx.translate(0, yOffset);
+            ctx.globalAlpha = fadeIn * fadeOut;
+            this._drawGivenChipHoverAnim(ctx, model, item.tracker, arrivalElapsed);
+            ctx.restore();
+        });
+
+        this.height = savedHeight;
     }
 
 };

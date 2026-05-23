@@ -1185,12 +1185,6 @@ drawPhysicsVectors(ctx, model) {
         this.drawArrow(ctx, model.canvasX, model.canvasY, model.canvasX + px * pScale, model.canvasY - py * pScale, "rgba(6, 182, 212, 0.5)", 6);
     }
 
-    if (this.inputs.showForceVector) {
-        const fScale = 2.5 * vectorScale;
-        const fg = model.m * model.g;
-        this.drawArrow(ctx, model.canvasX, model.canvasY, model.canvasX, model.canvasY + fg * fScale, "rgba(147, 51, 234, 0.5)", 6);
-    }
-
     if (this.inputs.showVelocityVectors && !suppressLaunchComponents) {
         const vScale = 2.5 * vectorScale;
         // Darker, high-contrast vectors
@@ -1270,18 +1264,6 @@ drawProblemLabels(ctx, model) {
     const timeLabel = `t = ${this.inputs.unknownTime ? "?" : `${model.tFlight.toFixed(2)} s`}`;
     const timeFocusStyle = this.getWorkAnalysisValueFocusStyle(model, 'time');
     this.drawStopwatch(ctx, Math.min(this.width - 90, model.endX + 70), Math.max(50, model.endY - 55), timeLabel, timeFocusStyle);
-},
-
-drawTelemetry(ctx, model) {
-    ctx.save();
-    ctx.fillStyle = "#0f172a";
-    ctx.font = this.scaleFontString("600 9.8px Inter, sans-serif");
-    ctx.textAlign = "left";
-    ctx.textBaseline = "alphabetic";
-    ctx.fillText(`Time: ${model.activeTime.toFixed(2)} s`, 20, 30);
-    ctx.fillText(`X Pos: ${model.currentX.toFixed(2)} m`, 20, 55);
-    ctx.fillText(`Y Pos: ${model.currentY.toFixed(2)} m`, 20, 80);
-    ctx.restore();
 },
 
 drawComponents(ctx, model) {

@@ -54,6 +54,21 @@ import walkthroughInteractionMethods from './Kinematics2dWalkthroughInteraction.
 import problemRendererMethods from './Kinematics2dProblemRenderer.js';
 import sceneRendererMethods from './Kinematics2dSceneRenderer.js';
 import uiRendererMethods from './Kinematics2dUIRenderer.js';
+import {
+    MODES as MODE_SVG_MODES,
+    buildModeSvgPanel,
+    bindModeSvgPanelEvents,
+    loadSettings as loadModeSvgSettings,
+    saveSettings as saveModeSvgSettings,
+    saveGlobalDefaults as saveModeSvgGlobalDefaults,
+    loadStepOverlays,
+    saveStepOverlays,
+    saveStepOverlayGlobalDefaults,
+    exportModeSvg,
+    exportAllModeSvgs,
+    previewModeOnCanvas,
+    playModeAnimation,
+} from './Kinematics2dModeSvgExport.js';
 
 export default class Module2DKinematics extends KinematicsModuleBase {
     constructor(canvasId) {
@@ -69,11 +84,12 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         this._hoverRafId = null;
         this._hoverLoopToken = 0;
         this._hoverAnimStartMs = 0;
+        this._stepOverlays = {};
     }
 
     init() {
         this.setupInputs('controls', {
-            "Problem Statement": {
+            "Problem Setup": {
                 sampleProblem2d: {
                     label: "Sample 2D Problem",
                     type: "select",
@@ -81,37 +97,13 @@ export default class Module2DKinematics extends KinematicsModuleBase {
                     value: "Custom / None"
                 },
                 problemStatement: {
-                    label: "Problem Text For Preview",
+                    label: "Problem Text",
                     type: "textarea",
                     value: "",
                     rows: 5,
                     livePreview: true,
-                    placeholder: "Paste or write the full 2D projectile problem here. It will replace the generic preview title."
+                    placeholder: "Paste or write the full 2D projectile problem here."
                 },
-                animateGivenValues: { label: "Animate Given Values Into Cards", type: "checkbox", value: true }
-            },
-            "Physics Parameters": {
-                workAnalysisProblemType: {
-                    label: "Problem Type: Given Variables",
-                    type: "select",
-                    options: this.getWorkAnalysisProblemTypeOptions(),
-                    value: "Auto"
-                },
-                mass: { label: "Mass (kg)", type: "number", value: 1.0, step: 0.1 },
-                initialVelocity: { label: "Initial Velocity (m/s)", type: "number", value: 20, step: 1 },
-                launchAngle: { label: "Launch Angle (deg)", type: "number", value: 60, step: 1 },
-                initialHeight: { label: "Initial Height (m)", type: "number", value: 0, step: 1 },
-                landingHeight: { label: "Landing Height (m)", type: "number", value: 0, step: 1 },
-                givenDx: { label: "Given delta x / Range (m)", type: "number", value: 170, step: 1 },
-                givenDy: { label: "Given delta y (m)", type: "number", value: 0, step: 1 },
-                givenTime: { label: "Given Time (s)", type: "number", value: 4, step: 0.1 },
-                givenVx: { label: "Given v0x / vx (m/s)", type: "number", value: 20, step: 0.5 },
-                givenVy: { label: "Given v0y (m/s)", type: "number", value: 15, step: 0.5 },
-                givenHmax: { label: "Given hmax (m)", type: "number", value: 25, step: 1 },
-                givenHeightDrop: { label: "Given Height Drop (m)", type: "number", value: 40, step: 1 },
-                gravity: { label: "Gravity (m/s²)", type: "number", value: 9.8, step: 0.1 }
-            },
-            "Scenario / Diagram Type": {
                 scenarioType: {
                     label: "Launch Scenario",
                     type: "select",
@@ -126,95 +118,46 @@ export default class Module2DKinematics extends KinematicsModuleBase {
                 objectType: {
                     label: "Object Type",
                     type: "select",
-                    options: ["Ball", "Block", "Person", "Plane"],
+                    options: ["Ball", "Cannon Ball", "Rock", "Block", "Person", "Plane"],
                     value: "Ball"
                 },
-                rulerStyle: {
-                    label: "Ruler Style",
+                workerStyle: {
+                    label: "Worker Style",
                     type: "select",
-                    options: ["None", "Simple", "Detailed"],
-                    value: "Simple"
+                    options: ["Construction", "Navy", "Fireman", "Police", "Scientist", "Climber", "Acrobat"],
+                    value: "Construction"
                 },
-                listDisplay: {
-                    label: "Variables List",
-                    type: "select",
-                    options: ["Hidden", "Symbols", "Values"],
-                    value: "Values"
-                },
-                autoScaleToFit: { label: "Auto Scale To Fit Diagram", type: "checkbox", value: true },
-                showGhostFrames: { label: "Show Ghost Positions", type: "checkbox", value: false },
-                showXDisplacementGhosts: { label: "Show X Displacement Ghosts", type: "checkbox", value: false },
-                showYDisplacementGhosts: { label: "Show Y Displacement Ghosts", type: "checkbox", value: false },
                 ghostFrameCount: { label: "Ghost Position Count", type: "number", value: 6, step: 1 },
-                showAngleArc: { label: "Show Launch Angle Arc", type: "checkbox", value: true },
-                showLaunchCannon: { label: "Show Launch Cannon", type: "checkbox", value: true },
-                showProblemLabels: { label: "Show Problem Variable Labels", type: "checkbox", value: false },
-                showDropPlaneGuide: { label: "Show Airplane Guide In Drop Mode", type: "checkbox", value: true },
-                svgExportTime: { label: "SVG Diagram Time (s)", type: "number", value: 4, step: 0.1 }
-            },
-            "Unknown / Hidden Variable Labels": {
-                unknownHmax: { label: "Mark hₘₐₓ Unknown (?)", type: "checkbox", value: false },
-                unknownDx: { label: "Mark Δx Unknown (?)", type: "checkbox", value: false },
-                unknownInitialVelocity: { label: "Mark v₀ Unknown (?)", type: "checkbox", value: false },
-                unknownInitialVx: { label: "Mark v₀ₓ Unknown (?)", type: "checkbox", value: true },
-                unknownInitialVy: { label: "Mark v₀ᵧ Unknown (?)", type: "checkbox", value: true },
-                unknownFinalVx: { label: "Mark vₓ Unknown (?)", type: "checkbox", value: true },
-                unknownFinalVy: { label: "Mark vᵧ Unknown (?)", type: "checkbox", value: true },
-                unknownDy: { label: "Mark Δy Unknown (?)", type: "checkbox", value: false },
-                unknownFinalVelocity: { label: "Mark Final v Unknown (?)", type: "checkbox", value: true },
-                unknownTheta: { label: "Mark θ Unknown (?)", type: "checkbox", value: false },
-                unknownTime: { label: "Mark t Unknown (?)", type: "checkbox", value: false }
-            },
-            "Display Settings": {
-                stopAnimation: {
-                    label: "Stop Animation At",
+                svgExportTime: { label: "SVG Diagram Time (s)", type: "number", value: 4, step: 0.1 },
+                workAnalysisProblemType: {
+                    label: "Problem Type: Given Variables",
                     type: "select",
-                    options: ["End of Flight", "Max Height", "Custom Time"],
-                    value: "End of Flight"
-                },
-                customStopTime: {
-                    label: "Custom Stop Time (s)",
-                    type: "number",
-                    value: 5.0,
-                    step: 0.1
-                },
-                timingMode: {
-                    label: "Overlay Timing",
-                    type: "select",
-                    options: ["Always", "At End", "At Max Height", "At Custom Time"],
-                    value: "Always"
-                },
-                trailStyle: {
-                    label: "Trail Style",
-                    type: "select",
-                    options: ["Dotted", "Solid", "None"],
-                    value: "Dotted"
-                },
-                showTimerDisplay: { label: "Show Canvas Timer", type: "checkbox", value: true },
-                showDistanceMarkers: { label: "Show X/Y Distance Lines", type: "checkbox", value: true },
-                showMomentumVector: { label: "Show Momentum (p) Vector", type: "checkbox", value: false },
-                showForceVector: { label: "Show Force (F) Vector", type: "checkbox", value: false },
-                showVelocityVectors: { label: "Show Live Velocity Vectors", type: "checkbox", value: true },
-                showInitialVelocityVector: { label: "Show Initial Velocity Vector", type: "checkbox", value: false },
-                showVectorBreakdown: { label: "Show Initial Vector Breakdown", type: "checkbox", value: false },
-                showFinalVectorAdditionZoom: { label: "Show Final Vector Addition Zoom", type: "checkbox", value: false },
-                showVectorBreakdownValues: { label: "Show Vx / Vy Values In Breakdown", type: "checkbox", value: false },
-                captureVectorBreakdownInSvg: { label: "Capture Vector Breakdown In SVG", type: "checkbox", value: false },
-                showAccelerationVector: { label: "Show Acceleration Vector", type: "checkbox", value: false },
-                showMaxHeight: { label: "Show Max Height Line", type: "checkbox", value: false },
-                showTelemetry: { label: "Show Time/Position HUD", type: "checkbox", value: false },
-                showComponents: { label: "Show Live Velocity (Vx, Vy)", type: "checkbox", value: false },
-                useProjectileXValues: { label: "Use Simple Projectile X Values", type: "checkbox", value: false },
-                showEquations: { label: "Show Equation Box", type: "checkbox", value: false },
-                accelerationPlacement: {
-                    label: "Acceleration Placement",
-                    type: "select",
-                    options: ["Auto", "Near Object", "Above Arc", "Left Side", "Right Side", "Below Motion"],
+                    options: this.getWorkAnalysisProblemTypeOptions(),
                     value: "Auto"
                 },
-                accelerationOffsetX: { label: "Acceleration Offset X", type: "number", value: 0, step: 5 },
-                accelerationOffsetY: { label: "Acceleration Offset Y", type: "number", value: 0, step: 5 },
-                workAnalysisStepDuration: { label: "Work Step Duration (s)", type: "number", value: 2.2, step: 0.1 }
+                unknownDx:              { label: "Δx Unknown (?)", type: "checkbox", value: true },
+                unknownDy:              { label: "Δy Unknown (?)", type: "checkbox", value: true },
+                unknownHmax:            { label: "hₘₐₓ Unknown (?)", type: "checkbox", value: true },
+                unknownInitialVelocity: { label: "v₀ Unknown (?)", type: "checkbox", value: false },
+                unknownInitialVx:       { label: "v₀ₓ Unknown (?)", type: "checkbox", value: true },
+                unknownInitialVy:       { label: "v₀ᵧ Unknown (?)", type: "checkbox", value: true },
+                unknownFinalVx:         { label: "vₓ Unknown (?)", type: "checkbox", value: true },
+                unknownFinalVy:         { label: "vᵧ Unknown (?)", type: "checkbox", value: true },
+                unknownFinalVelocity:   { label: "v_final Unknown (?)", type: "checkbox", value: true },
+                unknownTheta:           { label: "θ Unknown (?)", type: "checkbox", value: false },
+                unknownTime:            { label: "t Unknown (?)", type: "checkbox", value: true },
+                initialVelocity: { label: "Initial Velocity (m/s)", type: "number", value: 20, step: 1 },
+                launchAngle: { label: "Launch Angle (deg)", type: "number", value: 60, step: 1 },
+                initialHeight: { label: "Initial Height (m)", type: "number", value: 0, step: 1 },
+                landingHeight: { label: "Landing Height (m)", type: "number", value: 0, step: 1 },
+                givenDx: { label: "Given Δx / Range (m)", type: "number", value: 170, step: 1 },
+                givenDy: { label: "Given Δy (m)", type: "number", value: 0, step: 1 },
+                givenTime: { label: "Given Time (s)", type: "number", value: 4, step: 0.1 },
+                givenVx: { label: "Given v₀ₓ / vₓ (m/s)", type: "number", value: 20, step: 0.5 },
+                givenVy: { label: "Given v₀ᵧ (m/s)", type: "number", value: 15, step: 0.5 },
+                givenHmax: { label: "Given hₘₐₓ (m)", type: "number", value: 25, step: 1 },
+                givenHeightDrop: { label: "Given Height Drop (m)", type: "number", value: 40, step: 1 },
+                gravity: { label: "Gravity (m/s²)", type: "number", value: 9.8, step: 0.1 }
             },
             ...this.getProblemSetupImportControls()
         });
@@ -227,55 +170,32 @@ export default class Module2DKinematics extends KinematicsModuleBase {
 
         this.inputElements.workAnalysisProblemType?.addEventListener('change', () => {
             this.resetWorkWalkthroughState();
+            this.resetModeSvgPanel?.();
             this.applyWorkAnalysisProblemTypePreset(this.inputs.workAnalysisProblemType, { randomize: true, redraw: true });
+            this.updateCustomProblemVisibility();
         });
         this.inputElements.sampleProblem2d?.addEventListener('change', () => {
             this.applySampleProblem(this.inputs.sampleProblem2d, { redraw: true });
+            this.updateCustomProblemVisibility();
         });
-        this.updatePhysicsParameterVisibility();
+        this.updateCustomProblemVisibility();
         this.drawPreview();
     }
 
     getDefaultSettings() {
+        // Only non-UI sim state defaults — keys with input definitions are already initialised
+        // by buildInputs() via their .value property and do not need to be listed here.
         return {
-            mass: 1,
-            initialVelocity: 20,
-            launchAngle: 60,
-            initialHeight: 0,
-            landingHeight: 0,
-            givenDx: 170,
-            givenDy: 0,
-            givenTime: 4,
-            givenVx: 20,
-            givenVy: 15,
-            givenHmax: 25,
-            givenHeightDrop: 40,
-            gravity: 9.8,
-            scenarioType: "Standard Projectile",
-            objectType: "Ball",
             rulerStyle: "Simple",
             listDisplay: "Values",
             autoScaleToFit: true,
             showGhostFrames: false,
             showXDisplacementGhosts: false,
             showYDisplacementGhosts: false,
-            ghostFrameCount: 6,
             showAngleArc: true,
             showLaunchCannon: true,
             showProblemLabels: false,
             showDropPlaneGuide: true,
-            svgExportTime: 4,
-            unknownDx: true,
-            unknownDy: true,
-            unknownHmax: true,
-            unknownInitialVelocity: false,
-            unknownInitialVx: true,
-            unknownInitialVy: true,
-            unknownFinalVx: true,
-            unknownFinalVy: true,
-            unknownFinalVelocity: true,
-            unknownTheta: false,
-            unknownTime: true,
             stopAnimation: "End of Flight",
             customStopTime: 5,
             timingMode: "Always",
@@ -284,16 +204,13 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             animateGivenValues: true,
             showDistanceMarkers: true,
             showMomentumVector: false,
-            showForceVector: false,
             showVelocityVectors: true,
             showInitialVelocityVector: false,
             showVectorBreakdown: false,
             showFinalVectorAdditionZoom: false,
-            showVectorBreakdownValues: false,
             captureVectorBreakdownInSvg: false,
             showAccelerationVector: false,
             showMaxHeight: false,
-            showTelemetry: false,
             showComponents: false,
             useProjectileXValues: false,
             valuesPanelLayout: "Current Layout",
@@ -309,9 +226,6 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             accelerationPlacement: "Auto",
             accelerationOffsetX: 0,
             accelerationOffsetY: 0,
-            workAnalysisProblemType: "Auto",
-            sampleProblem2d: "Custom / None",
-            problemStatement: "",
             workAnalysisStepDuration: 2.2
         };
     }
@@ -389,7 +303,6 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         const visible = new Set(this.getVisiblePhysicsParameterKeys(typeNumber));
         const physicsKeys = [
             'workAnalysisProblemType',
-            'mass',
             'initialVelocity',
             'launchAngle',
             'initialHeight',
@@ -403,12 +316,48 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             'givenHeightDrop',
             'gravity'
         ];
+        const unknownKeys = [
+            'unknownDx', 'unknownDy', 'unknownHmax',
+            'unknownInitialVelocity', 'unknownInitialVx', 'unknownInitialVy',
+            'unknownFinalVx', 'unknownFinalVy', 'unknownFinalVelocity',
+            'unknownTheta', 'unknownTime'
+        ];
 
         physicsKeys.forEach((key) => {
             const wrapper = this.inputElements[key]?.parentElement;
             if (!wrapper) return;
             wrapper.style.display = visible.has(key) ? '' : 'none';
         });
+
+        // Unknown checkboxes are always visible when a problem type is selected;
+        // hidden in Auto mode since they have no canonical meaning there.
+        const showUnknowns = Boolean(typeNumber);
+        unknownKeys.forEach((key) => {
+            const wrapper = this.inputElements[key]?.parentElement;
+            if (!wrapper) return;
+            wrapper.style.display = showUnknowns ? '' : 'none';
+        });
+    }
+
+    updateCustomProblemVisibility() {
+        const isCustom = this.inputs.sampleProblem2d === 'Custom / None';
+        const customOnlyKeys = [
+            'workAnalysisProblemType',
+            'unknownDx', 'unknownDy', 'unknownHmax',
+            'unknownInitialVelocity', 'unknownInitialVx', 'unknownInitialVy',
+            'unknownFinalVx', 'unknownFinalVy', 'unknownFinalVelocity',
+            'unknownTheta', 'unknownTime',
+            'initialVelocity', 'launchAngle', 'initialHeight', 'landingHeight',
+            'givenDx', 'givenDy', 'givenTime', 'givenVx', 'givenVy', 'givenHmax', 'givenHeightDrop',
+            'gravity'
+        ];
+        customOnlyKeys.forEach((key) => {
+            const wrapper = this.inputElements[key]?.parentElement;
+            if (wrapper) wrapper.style.display = isCustom ? '' : 'none';
+        });
+        if (isCustom) {
+            this.updatePhysicsParameterVisibility();
+        }
     }
 
     randomBetween(min, max, decimals = 0) {
@@ -479,7 +428,6 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         return {
             sampleProblem2d: ['sampleproblem', 'sample2dproblem', 'problemexample'],
             problemStatement: ['problem', 'problemtext', 'problemstatement', 'prompt'],
-            mass: ['m'],
             initialVelocity: ['vi', 'v0', 'velocity', 'initialspeed', 'launchspeed'],
             launchAngle: ['theta', 'angle', 'launchtheta'],
             initialHeight: ['yi', 'y0', 'startheight', 'launchheight'],
@@ -494,6 +442,7 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             gravity: ['g'],
             scenarioType: ['scenario', 'launchscenario', 'diagramtype'],
             objectType: ['object', 'projectile', 'item'],
+            workerStyle: ['workerstyle', 'characterstyle', 'worker'],
             rulerStyle: ['ruler'],
             listDisplay: ['variables', 'variablelist'],
             autoScaleToFit: ['autoscale', 'fitdiagram'],
@@ -525,16 +474,13 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             animateGivenValues: ['animategivenvalues', 'givenvalueanimation', 'animateknowns', 'animategivens'],
             showDistanceMarkers: ['distancelines', 'distanceguides'],
             showMomentumVector: ['momentumvector', 'showmomentum'],
-            showForceVector: ['forcevector', 'showforce'],
             showVelocityVectors: ['velocityvectors', 'showvelocity'],
             showInitialVelocityVector: ['initialvelocityvector', 'showinitialvelocity', 'showlaunchvector'],
             showVectorBreakdown: ['vectorbreakdown', 'breakdownintro', 'vectorintro', 'initialvectorbreakdown', 'showinitialvectorbreakdown'],
             showFinalVectorAdditionZoom: ['finalvectoraddition', 'finalvectorzoom', 'showfinalvectoraddition', 'showfinalvectorzoom'],
-            showVectorBreakdownValues: ['vectorbreakdownvalues', 'breakdownvalues', 'showvxvyvalues'],
             captureVectorBreakdownInSvg: ['svgvectorbreakdown', 'capturebreakdownsvg', 'capturesvgbreakdown'],
             showAccelerationVector: ['accelerationvector', 'showacceleration'],
             showMaxHeight: ['maxheightline', 'showhmax'],
-            showTelemetry: ['telemetry', 'hud'],
             showComponents: ['components', 'showvxvy'],
             useProjectileXValues: ['simplexvalues', 'projectilexvalues', 'dxvt'],
             valuesPanelLayout: ['valueslayout', 'panellayout'],
@@ -994,7 +940,7 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         let scenarioType = this.inputs.scenarioType || "Standard Projectile";
         let vi = Math.max(0, this.normalizeNumber(this.inputs.initialVelocity, 25));
         const g = Math.max(0.01, this.normalizeNumber(this.inputs.gravity, 9.8));
-        const m = Math.max(0.01, this.normalizeNumber(this.inputs.mass, 1));
+        const m = 1;
 
         let angleDeg = this.normalizeNumber(this.inputs.launchAngle, 60);
         let yi = this.normalizeNumber(this.inputs.initialHeight, 5);
@@ -1595,10 +1541,6 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             this.drawVariableList(ctx, model);
         }
 
-        if (this.inputs.showTelemetry && overlayTime && !isFinalVelocityZoom) {
-            this.drawTelemetry(ctx, model);
-        }
-
         if (this.inputs.showComponents && overlayTime && !model.isFinished && !isFinalVelocityZoom) {
             this.drawComponents(ctx, model);
         }
@@ -1634,7 +1576,7 @@ export default class Module2DKinematics extends KinematicsModuleBase {
                 this.height = originalHeight;
             }
             this.drawCanvasProblemHeader(ctx, problemHeaderLayout);
-            this.drawProblemValueTransferAnimation(ctx, time);
+            this.drawProblemValueTransferAnimation(ctx, time, problemHeaderLayout.height);
             return;
         }
 
@@ -1680,7 +1622,171 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         }
     }
 
-    syncExternalPanels() {}
+    // ── Mode SVG Settings panel ──────────────────────────────────────────────
+
+    _getModeSvgTypeKey() {
+        return String(this.getWorkAnalysisProblemTypeNumber(this.inputs.workAnalysisProblemType) || 'auto');
+    }
+
+    _getModeSvgTypeTitle() {
+        const typeNumber = this.getWorkAnalysisProblemTypeNumber(this.inputs.workAnalysisProblemType);
+        if (!typeNumber) return 'Problem Type: Auto';
+        const defs = this.getWorkAnalysisProblemTypeDefinitions();
+        return defs[typeNumber]?.title || `Problem Type ${typeNumber}`;
+    }
+
+    _ensureModeSvgState() {
+        if (!this._modeSvgState) {
+            const typeKey = this._getModeSvgTypeKey();
+            const stepOverlays = loadStepOverlays(typeKey);
+            const model = this.computeProjectileModel(0);
+            const pType = this.getSelectedWorkAnalysisProblemType(model);
+            const currentSteps = Kinematics2dWorkAnalysis.getConfiguredWorkAnalysisSteps(model, pType);
+            this._modeSvgState = {
+                activeMode:    'intro',
+                activeSection: 'modes',
+                activeStepId:  currentSteps[0]?.id || null,
+                typeKey,
+                typeTitle:     this._getModeSvgTypeTitle(),
+                allSettings:   loadModeSvgSettings(typeKey),
+                stepOverlays,
+                currentSteps,
+            };
+        }
+        return this._modeSvgState;
+    }
+
+    _refreshModeSvgPanel() {
+        if (!this.moduleExtension) return;
+        const state = this._ensureModeSvgState();
+        // Sync type info and steps in case problem type changed
+        state.typeKey   = this._getModeSvgTypeKey();
+        state.typeTitle = this._getModeSvgTypeTitle();
+        const model = this.computeProjectileModel(0);
+        const pType = this.getSelectedWorkAnalysisProblemType(model);
+        state.currentSteps = Kinematics2dWorkAnalysis.getConfiguredWorkAnalysisSteps(model, pType);
+        if (!state.currentSteps.find(s => s.id === state.activeStepId)) {
+            state.activeStepId = state.currentSteps[0]?.id || null;
+        }
+
+        this.moduleExtension.classList.remove('hidden');
+        this.moduleExtension.innerHTML = buildModeSvgPanel(this, state);
+
+        const statusEl = document.getElementById('status');
+
+        bindModeSvgPanelEvents(this.moduleExtension, state, (action) => {
+            // Auto-save mode settings on every change
+            saveModeSvgSettings(state.typeKey, state.allSettings);
+
+            if (action === 'tab' || action === 'reset' || action === 'section' || action === 'step-tab' || action === 'reset-step') {
+                this._refreshModeSvgPanel();
+            }
+            if (action === 'step-tab') {
+                // Clicking a step tab previews that step on canvas
+                const stepIdx = (state.currentSteps || []).findIndex(s => s.id === state.activeStepId);
+                if (stepIdx >= 0) {
+                    if (!this.workSequenceState) this.workSequenceState = this.createWorkSequenceState();
+                    this.workSequenceState.stepIndex = stepIdx;
+                }
+                if (state.currentSteps?.length) {
+                    this.renderWorkAnalysisSequenceStepPreview(state.currentSteps);
+                }
+            }
+            if (action === 'preview' || action === 'tab' || action === 'reset' || action === 'setting') {
+                previewModeOnCanvas(this, state.activeMode, state.allSettings);
+            }
+            if (action === 'step-setting' || action === 'save-step-defaults' || action === 'reset-step') {
+                saveStepOverlays(state.typeKey, state.stepOverlays);
+                if (state.currentSteps?.length) {
+                    // Keep canvas in sync with the settings panel's active step so that
+                    // changes (e.g. showExplanation) render on the step being configured.
+                    const stepIdx = state.currentSteps.findIndex(s => s.id === state.activeStepId);
+                    if (stepIdx >= 0) {
+                        if (!this.workSequenceState) this.workSequenceState = this.createWorkSequenceState();
+                        this.workSequenceState.stepIndex = stepIdx;
+                    }
+                    this.renderWorkAnalysisSequenceStepPreview(state.currentSteps);
+                }
+            }
+            if (action === 'play-mode') {
+                playModeAnimation(this, state.activeMode, state.allSettings);
+            }
+            if (action === 'play-step') {
+                if (state.currentSteps?.length) {
+                    const stepIdx = state.currentSteps.findIndex(s => s.id === state.activeStepId);
+                    if (stepIdx >= 0) {
+                        this.playWalkthroughStepAnimation(state.currentSteps, stepIdx);
+                    }
+                }
+            }
+            if (action === 'export-this') {
+                const ms = state.allSettings[state.activeMode];
+                exportModeSvg(this, state.activeMode, ms, statusEl, state.stepOverlays).then(() => {
+                    if (statusEl && !statusEl.innerText.includes('exported')) statusEl.innerText = 'System Ready';
+                });
+            }
+            if (action === 'export-all') {
+                exportAllModeSvgs(this, state.allSettings, statusEl, state.stepOverlays);
+            }
+            if (action === 'save-defaults') {
+                saveModeSvgGlobalDefaults(state.allSettings);
+                if (statusEl) {
+                    statusEl.innerText = 'Settings saved as global default.';
+                    setTimeout(() => { if (statusEl.innerText.includes('global default')) statusEl.innerText = 'System Ready'; }, 2000);
+                }
+            }
+            if (action === 'save-step-defaults') {
+                saveStepOverlayGlobalDefaults(state.stepOverlays);
+                if (statusEl) {
+                    statusEl.innerText = 'Step settings saved as global default.';
+                    setTimeout(() => { if (statusEl.innerText.includes('global default')) statusEl.innerText = 'System Ready'; }, 2000);
+                }
+            }
+        });
+    }
+
+    syncExternalPanels() {
+        if (!this.moduleExtension) return;
+        // Only initialise the panel once; subsequent draw calls don't re-render it
+        // (avoids losing focused input state while the canvas redraws).
+        if (!this._modeSvgPanelReady) {
+            this._modeSvgPanelReady = true;
+            this._refreshModeSvgPanel();
+        }
+    }
+
+    // Reload the panel from scratch (call when problem type changes).
+    resetModeSvgPanel() {
+        this._modeSvgState = null;
+        this._modeSvgPanelReady = false;
+        this._refreshModeSvgPanel();
+    }
+
+    // ── SVG frame helper ─────────────────────────────────────────────────────
+
+    // Renders one SVG frame at `time` using canvas2svg.
+    // Options:
+    //   walkthroughStep  – if set, becomes activeWalkthroughStep during render
+    //   drawStepPanel    – if set (a step object), drawStepPanel() is called after drawFrame
+    // Returns serialised SVG string, or null if C2S is unavailable.
+    createSvgFrame(time, { walkthroughStep = null, drawStepPanel = null } = {}) {
+        if (typeof C2S === 'undefined') return null;
+        const ctx = new C2S(this.width, this.height);
+        patchC2SContext(ctx);
+        ctx.fillStyle = this.config.backgroundColor;
+        ctx.fillRect(0, 0, this.width, this.height);
+        this.isSvgExporting = true;
+        const prevStep = this.activeWalkthroughStep;
+        if (walkthroughStep) this.activeWalkthroughStep = walkthroughStep;
+        try {
+            this.drawFrame(ctx, time);
+            if (drawStepPanel) this.drawStepPanel(ctx, drawStepPanel);
+        } finally {
+            this.activeWalkthroughStep = prevStep;
+            this.isSvgExporting = false;
+        }
+        return ctx.getSerializedSvg(true);
+    }
 
     getScenarioStepX(model) {
         if (!Number.isFinite(model.endX) || model.endX <= model.startX) return model.startX;
@@ -1917,19 +2023,42 @@ export default class Module2DKinematics extends KinematicsModuleBase {
     }
 
     drawStepPanel(ctx, step) {
-        if (!step || !Array.isArray(step.lines) || !step.lines.length) return;
+        if (!step) return;
+        const hasLines = Array.isArray(step.lines) && step.lines.length > 0;
         const uiScale = this.getCanvasTextScale();
         const panelWidth = 342 * uiScale;
         const maxTextWidth = panelWidth - (36 * uiScale);
 
         ctx.save();
-        ctx.font = this.scaleFontString("15px 'Cambria Math', 'STIX Two Math', 'Times New Roman', serif");
-        const wrappedLines = step.lines.flatMap(line => this.wrapTextToWidth(ctx, line, maxTextWidth));
+        let wrappedLines = [];
+        if (hasLines) {
+            ctx.font = this.scaleFontString("15px 'Cambria Math', 'STIX Two Math', 'Times New Roman', serif");
+            wrappedLines = step.lines.flatMap(line => this.wrapTextToWidth(ctx, line, maxTextWidth));
+        }
         ctx.restore();
 
-        const panelHeight = (64 + (wrappedLines.length * 23)) * uiScale;
-        const x = this.width - panelWidth - 20;
-        const y = 20;
+        const panelHeight = hasLines
+            ? (64 + (wrappedLines.length * 23)) * uiScale
+            : 52 * uiScale;
+
+        const stepSetting = this._modeSvgState?.stepOverlays?.[step?.id];
+        const posSetting = stepSetting && !Array.isArray(stepSetting) ? stepSetting : {};
+        const position = posSetting.panelPosition || 'top-right';
+        const nudgeX = Number(posSetting.panelNudgeX) || 0;
+        const nudgeY = Number(posSetting.panelNudgeY) || 0;
+        const margin = 20 * uiScale;
+
+        let baseX, baseY;
+        if (position.includes('left'))        baseX = margin;
+        else if (position.includes('center')) baseX = (this.width - panelWidth) / 2;
+        else                                  baseX = this.width - panelWidth - margin;
+
+        if (position.startsWith('top'))       baseY = margin;
+        else if (position.startsWith('middle')) baseY = (this.height - panelHeight) / 2;
+        else                                  baseY = this.height - panelHeight - margin;
+
+        const x = Math.max(0, Math.min(this.width  - panelWidth,  baseX + nudgeX));
+        const y = Math.max(0, Math.min(this.height - panelHeight, baseY + nudgeY));
 
         ctx.save();
         ctx.fillStyle = "rgba(255,255,255,0.97)";
@@ -1950,15 +2079,19 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         ctx.font = this.scaleFontString("700 14px Inter, sans-serif");
         ctx.fillText(step.title || '', x + (18 * uiScale), y + (18 * uiScale));
 
-        ctx.fillStyle = "#64748b";
-        ctx.font = this.scaleFontString("500 11.5px Inter, sans-serif");
-        ctx.fillText(step.focusLabel || '', x + (18 * uiScale), y + (39 * uiScale));
+        if (step.focusLabel) {
+            ctx.fillStyle = "#64748b";
+            ctx.font = this.scaleFontString("500 11.5px Inter, sans-serif");
+            ctx.fillText(step.focusLabel, x + (18 * uiScale), y + (39 * uiScale));
+        }
 
-        ctx.fillStyle = "#1e293b";
-        ctx.font = this.scaleFontString("15px 'Cambria Math', 'STIX Two Math', 'Times New Roman', serif");
-        wrappedLines.forEach((line, i) => {
-            ctx.fillText(line, x + (18 * uiScale), y + (59 * uiScale) + (i * 23 * uiScale));
-        });
+        if (hasLines) {
+            ctx.fillStyle = "#1e293b";
+            ctx.font = this.scaleFontString("15px 'Cambria Math', 'STIX Two Math', 'Times New Roman', serif");
+            wrappedLines.forEach((line, i) => {
+                ctx.fillText(line, x + (18 * uiScale), y + (59 * uiScale) + (i * 23 * uiScale));
+            });
+        }
         ctx.restore();
     }
 
@@ -2123,7 +2256,7 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             componentLength
         } = this.getInitialVectorBreakdownGeometry(model);
         const angleArcRadius = this.clamp(componentLength * 0.18, 34 * vectorScale, 58 * vectorScale);
-        const showBreakdownValues = Boolean(this.inputs.showVectorBreakdownValues);
+        const showBreakdownValues = Boolean(this.inputs.showComponents);
         const displayV0Label = `vᵢ = ${model.vi.toFixed(1)} m/s`;
         const displayAngleLabel = `θ = ${model.angleDeg.toFixed(0)}°`;
         const displayVxLabel = stage === 'equations'

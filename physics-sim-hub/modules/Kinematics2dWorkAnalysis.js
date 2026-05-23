@@ -385,7 +385,7 @@ export function getWorkAnalysisKnownVariablesForType(typeNumber) {
 }
 
 export function getVisiblePhysicsParameterKeys(typeNumber) {
-    const always = ['workAnalysisProblemType', 'mass', 'gravity'];
+    const always = ['workAnalysisProblemType', 'gravity'];
     const typeSpecific = {
         '1': ['initialVelocity', 'launchAngle'],
         '2': ['initialVelocity', 'launchAngle', 'givenDy'],

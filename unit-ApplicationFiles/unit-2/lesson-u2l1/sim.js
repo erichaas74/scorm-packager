@@ -131,17 +131,17 @@
   function cacheElements() {
     [
       "start-screen","start-lesson-btn","app","show-walkthrough","submit-btn","reset-lab-btn",
-      "simCanvas","sideCanvas","main-view-container","side-view-container","controls-container",
-      "heading-slider","airspeed-slider","engage-btn","retry-btn","result-modal","modal-title",
+      "simCanvas","sideCanvas","main-view-container","side-view-container","controls-container","student-controls-overlay",
+      "heading-slider","angle-input","airspeed-slider","engage-btn","retry-btn","result-modal","modal-title",
       "modal-desc","modal-airspeed","modal-wind","modal-formula","activity-level-title",
-      "activity-level-instructions","activity-level-givens","heading-readout","airspeed-readout",
-      "wind-dir-readout","wind-speed-readout","target-side-readout","target-forward-readout","heading-control-status","airspeed-control-status",
+      "activity-level-instructions","activity-level-givens","airspeed-readout",
+      "wind-dir-readout","wind-speed-readout",
       "heading-control-group","airspeed-control-group","time-fill","time-text","score-display",
       "flight-log-body","overall-progress-badge","completion-trials-item","completion-trials-status",
       "completion-analysis-item","completion-analysis-status","analysis-card","analysis-lock-chip",
-      "analysis-lock-text","analysis-1","analysis-2","analysis-3","walkthrough-overlay",
+      "analysis-lock-text","analysis-fields","analysis-1","analysis-2","analysis-3","walkthrough-overlay",
       "walk-step-label","walk-title","walk-body","walk-prev-btn","walk-next-btn","walk-dots",
-      "brief-title","brief-copy","equation-hint","vector-hint-toggle","vector-hint-panel","vector-breakdown-canvas"
+      "vector-hint-toggle","vector-hint-panel","vector-breakdown-canvas"
     ].forEach(function(id) { el[id] = $(id); });
     el.ctx = el.simCanvas.getContext("2d");
     el.sideCtx = el.sideCanvas.getContext("2d");
@@ -150,10 +150,34 @@
     el.analysisInputs = [el["analysis-1"], el["analysis-2"], el["analysis-3"]];
   }
 
-  function setSliderEnabled(slider, enabled, group, statusNode) {
+  function setSliderEnabled(slider, enabled, group) {
     slider.disabled = !enabled;
-    group.classList.toggle("locked", !enabled);
-    statusNode.textContent = enabled ? "Student controls" : "Given value";
+    group.classList.toggle("hidden", !enabled);
+  }
+
+  function setHeadingFromDegrees(value, updateDisplayOnly) {
+    var next = Number(value);
+    if (!Number.isFinite(next)) next = 0;
+    next = Math.max(-45, Math.min(45, next));
+    state.plane.heading = degToRad(next);
+    el["heading-slider"].value = next;
+    el["angle-input"].value = fmt(next, 1);
+    if (!updateDisplayOnly) updateUI();
+  }
+
+  function positionStudentControls() {
+    var overlay = el["student-controls-overlay"];
+    var main = el["main-view-container"];
+    if (!overlay || !main) return;
+    var viewW = main.clientWidth || el.simCanvas.width;
+    var viewH = main.clientHeight || el.simCanvas.height;
+    var overlayW = overlay.offsetWidth || 360;
+    var overlayH = overlay.offsetHeight || 128;
+    var halfW = overlayW / 2;
+    var left = Math.max(14 + halfW, Math.min(viewW - 14 - halfW, state.plane.x));
+    var top = Math.max(14, Math.min(viewH - overlayH - 14, state.plane.y + 52));
+    overlay.style.left = left + "px";
+    overlay.style.top = top + "px";
   }
 
   function resizeCanvases() {
@@ -187,39 +211,36 @@
     state.plane.heading = degToRad(c.headingDeg);
     state.plane.x = startXForOffsetMeters(c.startOffsetMeters);
     state.plane.y = el.simCanvas.height - 175;
-    el["heading-slider"].value = c.headingDeg;
     el["airspeed-slider"].value = c.displayAirspeed;
-    setSliderEnabled(el["heading-slider"], c.controlMode === "angle" || c.controlMode === "both", el["heading-control-group"], el["heading-control-status"]);
-    setSliderEnabled(el["airspeed-slider"], c.controlMode === "speed" || c.controlMode === "both", el["airspeed-control-group"], el["airspeed-control-status"]);
+    setSliderEnabled(el["heading-slider"], c.controlMode === "angle" || c.controlMode === "both", el["heading-control-group"]);
+    el["angle-input"].disabled = !(c.controlMode === "angle" || c.controlMode === "both");
+    setHeadingFromDegrees(c.headingDeg, true);
+    setSliderEnabled(el["airspeed-slider"], c.controlMode === "speed" || c.controlMode === "both", el["airspeed-control-group"]);
+    el["student-controls-overlay"].classList.toggle("two-controls", c.controlMode === "both");
     el["controls-container"].classList.remove("hidden");
+    el["student-controls-overlay"].classList.remove("hidden");
     el["result-modal"].classList.add("hidden");
     updateUI();
   }
 
   function updateUI() {
     var c = config();
-    var headingDeg = radToDeg(state.plane.heading);
     var crosswind = Math.abs(state.wind.displaySpeed * Math.sin(degToRad(state.wind.direction)));
     var target = targetComponentsKt(c);
     el["activity-level-title"].textContent = c.name;
     el["activity-level-instructions"].textContent = c.instructions;
     el["activity-level-givens"].textContent = c.givens;
-    el["heading-readout"].textContent = fmt(headingDeg, 1) + " deg";
     el["airspeed-readout"].textContent = state.plane.displayAirspeed + " kt";
     el["wind-dir-readout"].textContent = state.wind.direction + " deg";
     el["wind-speed-readout"].textContent = state.wind.displaySpeed + " kt";
-    el["target-side-readout"].textContent = c.targetMode === "point" ? Math.abs(c.startOffsetMeters) + " m left" : "0 kt side drift";
-    el["target-forward-readout"].textContent = c.targetMode === "point" ? c.downrangeMeters + " m ahead" : "Runway line";
     el["modal-airspeed"].textContent = "Displayed Airspeed: " + state.plane.displayAirspeed + " kt";
     el["modal-wind"].textContent = "Crosswind Component: " + fmt(crosswind, 1) + " kt";
     el["modal-formula"].textContent = "Formula: " + buildFormulaText(c, target);
     el["time-fill"].style.height = ((state.maxFrames - state.currentFrame) / state.maxFrames * 100) + "%";
     el["time-text"].textContent = fmt(Math.max(0, (state.maxFrames - state.currentFrame) / FPS), 1) + " s";
     el["score-display"].textContent = state.score + " pts";
-    el["brief-title"].textContent = c.name;
-    el["brief-copy"].textContent = c.instructions + " Watch for whether the green resultant vector points along the target path.";
-    el["equation-hint"].textContent = buildFormulaText(c, target);
     drawVectorBreakdown();
+    positionStudentControls();
     updateLevelTabs();
     updateCompletion();
   }
@@ -251,6 +272,46 @@
     return { air: air, wind: wind, ground: ground, target: target };
   }
 
+  function targetVectorBreakdownKt(liveData) {
+    var c = config();
+    var wind = liveData.wind;
+    var ground;
+    var air;
+    if (c.targetMode === "point") {
+      ground = targetComponentsKt(c);
+      air = {
+        side: ground.side - wind.side,
+        forward: ground.forward - wind.forward
+      };
+    } else if (c.controlMode === "speed") {
+      var fixedHeading = degToRad(c.headingDeg);
+      var solvedSpeed = Math.abs(wind.side / Math.sin(fixedHeading));
+      air = {
+        side: Math.sin(fixedHeading) * solvedSpeed,
+        forward: Math.cos(fixedHeading) * solvedSpeed
+      };
+      ground = {
+        side: air.side + wind.side,
+        forward: air.forward + wind.forward
+      };
+    } else {
+      var airSide = -wind.side;
+      var airForward = Math.sqrt(Math.max(0, c.displayAirspeed * c.displayAirspeed - airSide * airSide));
+      air = { side: airSide, forward: airForward };
+      ground = {
+        side: air.side + wind.side,
+        forward: air.forward + wind.forward
+      };
+    }
+    return {
+      air: air,
+      wind: wind,
+      ground: ground,
+      heading: radToDeg(Math.atan2(air.side, air.forward)),
+      speed: Math.sqrt(air.side * air.side + air.forward * air.forward)
+    };
+  }
+
   function drawVectorBreakdown() {
     if (!state.hintOpen) return;
     resizeVectorBreakdownCanvas();
@@ -259,119 +320,186 @@
     var w = canvas.width;
     var h = canvas.height;
     var data = currentVectorBreakdownKt();
-    var vectors = [data.air, data.wind, data.ground, data.target];
-    var maxSide = 40;
-    var maxForward = 40;
-    vectors.forEach(function(v) {
-      maxSide = Math.max(maxSide, Math.abs(v.side));
-      maxForward = Math.max(maxForward, Math.abs(v.forward));
-    });
-    var scale = Math.min((w * 0.33) / maxSide, (h * 0.34) / maxForward, 3.3);
-    var origin = { x: Math.round(w * 0.34), y: Math.round(h * 0.68) };
-
-    function px(point) {
-      return { x: origin.x + point.side * scale, y: origin.y - point.forward * scale };
-    }
-    function dashedLine(a, b, color) {
-      var pa = px(a);
-      var pb = px(b);
-      ctx.save();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
-      ctx.setLineDash([6, 5]);
-      ctx.beginPath();
-      ctx.moveTo(pa.x, pa.y);
-      ctx.lineTo(pb.x, pb.y);
-      ctx.stroke();
-      ctx.restore();
-    }
+    var targetData = targetVectorBreakdownKt(data);
     function text(label, x, y, color, size) {
       ctx.fillStyle = color || "#e2e8f0";
       ctx.font = "700 " + (size || 12) + "px system-ui, sans-serif";
       ctx.fillText(label, x, y);
     }
-    function vectorLabel(name, vec, x, y, color) {
-      text(name, x, y, color, 12);
-      text("x: " + fmt(vec.side, 1) + " kt", x, y + 17, "#cbd5e1", 12);
-      text("y: " + fmt(vec.forward, 1) + " kt", x, y + 34, "#cbd5e1", 12);
+
+    function wrapText(label, x, y, maxWidth, color, size, lineHeight) {
+      var words = String(label).split(" ");
+      var line = "";
+      var usedLines = 0;
+      ctx.fillStyle = color || "#e2e8f0";
+      ctx.font = "700 " + (size || 11) + "px system-ui, sans-serif";
+      words.forEach(function(word) {
+        var testLine = line ? line + " " + word : word;
+        if (ctx.measureText(testLine).width > maxWidth && line) {
+          ctx.fillText(line, x, y + usedLines * lineHeight);
+          line = word;
+          usedLines += 1;
+        } else {
+          line = testLine;
+        }
+      });
+      if (line) {
+        ctx.fillText(line, x, y + usedLines * lineHeight);
+        usedLines += 1;
+      }
+      return y + usedLines * lineHeight;
+    }
+
+    function vectorMagnitude(vec) {
+      return Math.sqrt(vec.side * vec.side + vec.forward * vec.forward);
+    }
+
+    function trigContent(c) {
+      if (c.targetMode === "point") {
+        return {
+          instruction: "Use the landing displacement to build the target ground vector, then subtract wind to get the air vector.",
+          steps: [
+            "ground side = " + fmt(targetData.ground.side, 1) + " kt",
+            "ground forward = " + fmt(targetData.ground.forward, 1) + " kt",
+            "air = ground - wind",
+            "theta = atan2(side, forward)",
+            "theta = " + fmt(targetData.heading, 1) + " deg"
+          ]
+        };
+      }
+      if (c.controlMode === "speed") {
+        return {
+          instruction: "Keep the ground side component at 0 kt. The airplane side component must cancel the wind side component.",
+          steps: [
+            "air side = -" + fmt(data.wind.side, 1) + " kt",
+            "speed = |air side / sin(theta)|",
+            "= |" + fmt(-data.wind.side, 1) + " / sin(" + fmt(c.headingDeg, 1) + " deg)|",
+            "speed = " + fmt(targetData.speed, 1) + " kt"
+          ]
+        };
+      }
+      return {
+        instruction: "Keep the ground side component at 0 kt. With speed fixed, solve the angle that creates the needed side component.",
+        steps: [
+          "air side = -" + fmt(data.wind.side, 1) + " kt",
+          "sin(theta) = air side / speed",
+          "= " + fmt(-data.wind.side, 1) + " / " + fmt(c.displayAirspeed, 0),
+          "theta = " + fmt(targetData.heading, 1) + " deg"
+        ]
+      };
+    }
+
+    function panel(x, y, width, height, title) {
+      ctx.fillStyle = "rgba(15,23,42,.72)";
+      ctx.strokeStyle = "rgba(148,163,184,.22)";
+      ctx.lineWidth = 1;
+      roundRect(ctx, x, y, width, height, 16);
+      ctx.fill();
+      ctx.stroke();
+      if (title) text(title, x + 14, y + 24, "#e2e8f0", 12);
+    }
+
+    function drawVectorSet(bounds, title, vectorData, caption, showTargetStyle) {
+      panel(bounds.x, bounds.y, bounds.w, bounds.h, title);
+      var zero = { side: 0, forward: 0 };
+      var airEnd = vectorData.air;
+      var groundEnd = vectorData.ground;
+      var minSide = Math.min(0, airEnd.side, groundEnd.side);
+      var maxSide = Math.max(0, airEnd.side, groundEnd.side);
+      var minForward = Math.min(0, airEnd.forward, groundEnd.forward);
+      var maxForward = Math.max(0, airEnd.forward, groundEnd.forward);
+      if (maxSide - minSide < 30) {
+        var sideCenter = (minSide + maxSide) / 2;
+        minSide = sideCenter - 15;
+        maxSide = sideCenter + 15;
+      }
+      if (maxForward - minForward < 30) {
+        var forwardCenter = (minForward + maxForward) / 2;
+        minForward = forwardCenter - 15;
+        maxForward = forwardCenter + 15;
+      }
+      var padX = 46;
+      var padTop = 42;
+      var padBottom = 46;
+      var sideSpan = Math.max(30, maxSide - minSide);
+      var forwardSpan = Math.max(30, maxForward - minForward);
+      var scale = Math.min((bounds.w - padX * 2) / sideSpan, (bounds.h - padTop - padBottom) / forwardSpan);
+      var origin = {
+        x: bounds.x + padX - minSide * scale,
+        y: bounds.y + bounds.h - padBottom + minForward * scale
+      };
+      function px(point) {
+        return { x: origin.x + point.side * scale, y: origin.y - point.forward * scale };
+      }
+      function fromTo(a, b, color, width) {
+        var pa = px(a);
+        var pb = px(b);
+        drawArrow(ctx, pa.x, pa.y, pb.x, pb.y, color, width);
+      }
+      ctx.save();
+      ctx.strokeStyle = "rgba(148,163,184,.32)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([5, 6]);
+      ctx.beginPath();
+      ctx.moveTo(bounds.x + 18, origin.y);
+      ctx.lineTo(bounds.x + bounds.w - 18, origin.y);
+      ctx.moveTo(origin.x, bounds.y + 38);
+      ctx.lineTo(origin.x, bounds.y + bounds.h - 16);
+      ctx.stroke();
+      ctx.restore();
+
+      fromTo(zero, airEnd, "rgba(239,68,68,.95)", 4);
+      fromTo(airEnd, groundEnd, "rgba(96,165,250,.92)", 4);
+      fromTo(zero, groundEnd, showTargetStyle ? "rgba(250,204,21,.92)" : "rgba(74,222,128,.95)", 5);
+
+      var labelLeft = bounds.x + 16;
+      var labelTop = bounds.y + 16;
+      text("air " + fmt(vectorMagnitude(vectorData.air), 1) + " kt", labelLeft, labelTop + 16, "#fca5a5", 11);
+      text("wind", labelLeft, labelTop + 34, "#bfdbfe", 11);
+      text(showTargetStyle ? "target ground" : "ground", labelLeft, labelTop + 52, showTargetStyle ? "#fde68a" : "#86efac", 11);
+
+      if (caption) {
+        ctx.fillStyle = "#cbd5e1";
+        ctx.font = "700 11px system-ui, sans-serif";
+        ctx.fillText(caption, bounds.x + 14, bounds.y + bounds.h - 16);
+      }
+    }
+
+    function drawTrigPanel(bounds, content) {
+      panel(bounds.x, bounds.y, bounds.w, bounds.h, "Trig calculation");
+      var x = bounds.x + 14;
+      var y = bounds.y + 50;
+      var maxTextW = bounds.w - 28;
+      text("Instruction", x, y, "#67e8f9", 11);
+      y += 18;
+      y = wrapText(content.instruction, x, y, maxTextW, "#cbd5e1", 10, 14) + 16;
+      text("Steps", x, y, "#67e8f9", 11);
+      y += 20;
+      content.steps.forEach(function(line, index) {
+        var color = index === content.steps.length - 1 ? "#fde68a" : "#e2e8f0";
+        y = wrapText((index + 1) + ". " + line, x, y, maxTextW, color, 11, 15) + 7;
+      });
     }
 
     ctx.clearRect(0, 0, w, h);
     ctx.fillStyle = "#08111f";
     ctx.fillRect(0, 0, w, h);
 
-    ctx.strokeStyle = "rgba(148,163,184,.25)";
-    ctx.lineWidth = 1;
-    for (var gx = origin.x % 32; gx < w; gx += 32) {
-      ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, h); ctx.stroke();
-    }
-    for (var gy = origin.y % 32; gy < h; gy += 32) {
-      ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
-    }
+    var gap = 10;
+    var targetW = (w - 32 - gap) * 0.56;
+    var trigW = w - 32 - gap - targetW;
+    var colH = h - 32;
+    var targetX = 16;
+    var trigX = targetX + targetW + gap;
+    drawVectorSet(
+      { x: targetX, y: 16, w: targetW, h: colH },
+      "",
+      targetData,
+      "",
+      true
+    );
 
-    drawArrow(ctx, 20, origin.y, w - 24, origin.y, "rgba(148,163,184,.55)", 2);
-    drawArrow(ctx, origin.x, h - 20, origin.x, 24, "rgba(148,163,184,.55)", 2);
-    text("+x side", w - 82, origin.y - 10, "#94a3b8", 11);
-    text("+y forward", origin.x + 10, 30, "#94a3b8", 11);
-
-    var zero = { side: 0, forward: 0 };
-    var airEnd = data.air;
-    var groundEnd = data.ground;
-    var airSideLeg = { side: data.air.side, forward: 0 };
-    var windSideLeg = { side: data.air.side + data.wind.side, forward: data.air.forward };
-
-    dashedLine(zero, airSideLeg, "rgba(248,113,113,.72)");
-    dashedLine(airSideLeg, airEnd, "rgba(248,113,113,.72)");
-    dashedLine(airEnd, windSideLeg, "rgba(147,197,253,.72)");
-    dashedLine(windSideLeg, groundEnd, "rgba(147,197,253,.72)");
-    drawArrow(ctx, px(zero).x, px(zero).y, px(airEnd).x, px(airEnd).y, "rgba(239,68,68,.92)", 4);
-    drawArrow(ctx, px(airEnd).x, px(airEnd).y, px(groundEnd).x, px(groundEnd).y, "rgba(96,165,250,.9)", 4);
-    drawArrow(ctx, px(zero).x, px(zero).y, px(groundEnd).x, px(groundEnd).y, "rgba(74,222,128,.95)", 5);
-
-    var targetPoint = data.target;
-    var targetSideLeg = { side: data.target.side, forward: 0 };
-    ctx.save();
-    ctx.setLineDash([7, 6]);
-    dashedLine(zero, targetSideLeg, "rgba(250,204,21,.62)");
-    dashedLine(targetSideLeg, targetPoint, "rgba(250,204,21,.62)");
-    drawArrow(ctx, px(zero).x, px(zero).y, px(targetPoint).x, px(targetPoint).y, "rgba(250,204,21,.82)", 3);
-    ctx.restore();
-
-    var airScreen = px(airEnd);
-    text("air velocity", airScreen.x + 8, airScreen.y - 8, "#fca5a5", 12);
-    var groundScreen = px(groundEnd);
-    text("ground velocity", groundScreen.x + 8, groundScreen.y + 18, "#86efac", 12);
-    var targetScreen = px(targetPoint);
-    text("needed ground", targetScreen.x + 8, targetScreen.y - 10, "#fde68a", 12);
-
-    ctx.fillStyle = "rgba(15,23,42,.84)";
-    ctx.strokeStyle = "rgba(148,163,184,.24)";
-    ctx.lineWidth = 1;
-    roundRect(ctx, w - 190, 18, 170, 146, 14);
-    ctx.fill();
-    ctx.stroke();
-    vectorLabel("Red air vector", data.air, w - 174, 42, "#fca5a5");
-    vectorLabel("Blue wind vector", data.wind, w - 174, 92, "#bfdbfe");
-    vectorLabel("Green result", data.ground, w - 174, 142, "#86efac");
-
-    if (config().targetMode === "point") {
-      var note = w < 520 ? "Offset target: x/y first." : "Offset target: 30 m left and 150 m forward in 3.0 s";
-      ctx.fillStyle = "rgba(250,204,21,.09)";
-      ctx.strokeStyle = "rgba(250,204,21,.32)";
-      roundRect(ctx, 16, 16, Math.min(330, w - 220), 54, 14);
-      ctx.fill();
-      ctx.stroke();
-      text(note, 30, 39, "#fde68a", 12);
-      text(w < 520 ? "Then subtract wind." : "Break the required ground vector into x and y first.", 30, 58, "#cbd5e1", 12);
-    } else {
-      ctx.fillStyle = "rgba(250,204,21,.09)";
-      ctx.strokeStyle = "rgba(250,204,21,.32)";
-      roundRect(ctx, 16, 16, Math.min(300, w - 220), 54, 14);
-      ctx.fill();
-      ctx.stroke();
-      text(w < 520 ? "Target: ground x = 0 kt" : "Target: ground x component = 0 kt", 30, 39, "#fde68a", 12);
-      text("The side components must cancel.", 30, 58, "#cbd5e1", 12);
-    }
+    drawTrigPanel({ x: trigX, y: 16, w: trigW, h: colH }, trigContent(config()));
   }
 
   function roundRect(ctx, x, y, width, height, radius) {
@@ -401,13 +529,16 @@
   function updateCompletion() {
     var cleared = Object.keys(state.completed).length;
     var analysisDone = analysisComplete();
+    var analysisLocked = cleared < 3;
     el["completion-trials-status"].textContent = cleared + " / 3";
     el["overall-progress-badge"].textContent = cleared + " / 3 cleared";
     el["completion-trials-item"].classList.toggle("done", cleared === 3);
-    el["analysis-card"].classList.toggle("locked", cleared < 3);
-    el["analysis-lock-chip"].textContent = cleared < 3 ? "Locked" : "Unlocked";
-    el["analysis-lock-text"].textContent = cleared < 3 ? "Clear all three flight checks to unlock the analysis section." : "Use your recorded approaches to explain the vector addition.";
-    el.analysisInputs.forEach(function(input) { input.disabled = cleared < 3; });
+    el["analysis-card"].classList.toggle("locked", analysisLocked);
+    el["analysis-lock-chip"].textContent = analysisLocked ? "Locked" : "Unlocked";
+    el["analysis-lock-text"].textContent = analysisLocked ? "Clear all three flight checks to unlock the analysis section." : "Use your recorded approaches to explain the vector addition.";
+    el["analysis-fields"].classList.toggle("hidden", analysisLocked);
+    el["analysis-fields"].setAttribute("aria-hidden", analysisLocked ? "true" : "false");
+    el.analysisInputs.forEach(function(input) { input.disabled = analysisLocked; });
     el["completion-analysis-status"].textContent = analysisDone ? "Complete" : "In Progress";
     el["completion-analysis-item"].classList.toggle("done", analysisDone);
     el["submit-btn"].disabled = state.submitted || !(cleared === 3 && analysisDone);
@@ -472,6 +603,7 @@
     var forwardMiss = c.targetMode === "point" ? Math.abs(state.cameraY - metersToPixels(c.downrangeMeters)) : 0;
     state.phase = "ended";
     el["controls-container"].classList.add("hidden");
+    el["student-controls-overlay"].classList.add("hidden");
     el["result-modal"].classList.remove("hidden");
     var card = el["result-modal"].querySelector(".result-card");
     card.classList.toggle("success", success);
@@ -621,6 +753,103 @@
     }
   }
 
+  function drawFixedAirspeedVector(ctx) {
+    var c = config();
+    if (state.phase !== "setup" || c.controlMode !== "angle") return;
+    var arrowLength = 76;
+    var labelWidth = 112;
+    var x = Math.max(172, state.plane.x - 95);
+    var y = state.plane.y - 8;
+    var dx = Math.sin(state.plane.heading);
+    var dy = -Math.cos(state.plane.heading);
+    var fromX = x - dx * arrowLength / 2;
+    var fromY = y - dy * arrowLength / 2;
+    var toX = x + dx * arrowLength / 2;
+    var toY = y + dy * arrowLength / 2;
+    var labelX = Math.max(labelWidth / 2 + 18, fromX - labelWidth / 2 - 20);
+    var labelY = y - 28;
+
+    ctx.save();
+    ctx.fillStyle = "rgba(2,6,23,.68)";
+    ctx.strokeStyle = "rgba(248,113,113,.34)";
+    ctx.lineWidth = 1;
+    roundRect(ctx, labelX - labelWidth / 2, labelY, labelWidth, 58, 12);
+    ctx.fill();
+    ctx.stroke();
+
+    drawArrow(ctx, fromX, fromY, toX, toY, "rgba(239,68,68,.94)", 4);
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#fecaca";
+    ctx.font = "900 11px system-ui, sans-serif";
+    ctx.fillText("AIR SPEED", labelX, labelY + 18);
+    ctx.fillStyle = "#fee2e2";
+    ctx.font = "900 13px system-ui, sans-serif";
+    ctx.fillText(state.plane.displayAirspeed + " kt", labelX, labelY + 34);
+    ctx.fillStyle = "#fecaca";
+    ctx.font = "800 11px system-ui, sans-serif";
+    ctx.fillText("ANGLE " + fmt(radToDeg(state.plane.heading), 1) + " deg", labelX, labelY + 50);
+    ctx.restore();
+  }
+
+  function drawWindCompass(ctx) {
+    var cx = 86;
+    var cy = 86;
+    var r = 48;
+    var windTo = degToRad(state.wind.direction + 180);
+    var dx = Math.sin(windTo);
+    var dy = -Math.cos(windTo);
+
+    ctx.save();
+    ctx.fillStyle = "rgba(2,6,23,.62)";
+    ctx.strokeStyle = "rgba(255,255,255,.16)";
+    ctx.lineWidth = 1;
+    roundRect(ctx, 18, 20, 136, 166, 16);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#e2e8f0";
+    ctx.font = "900 11px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("WIND", cx, 42);
+
+    ctx.translate(cx, cy);
+    ctx.strokeStyle = "rgba(226,232,240,.58)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(226,232,240,.28)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-r + 8, 0);
+    ctx.lineTo(r - 8, 0);
+    ctx.moveTo(0, -r + 8);
+    ctx.lineTo(0, r - 8);
+    ctx.stroke();
+
+    ctx.fillStyle = "#cbd5e1";
+    ctx.font = "800 10px system-ui, sans-serif";
+    ctx.fillText("N", 0, -r + 15);
+    ctx.fillText("S", 0, r - 8);
+    ctx.fillText("E", r - 12, 4);
+    ctx.fillText("W", -r + 12, 4);
+
+    drawArrow(ctx, -dx * 16, -dy * 16, dx * (r - 11), dy * (r - 11), "rgba(96,165,250,.95)", 4);
+    ctx.restore();
+
+    ctx.save();
+    ctx.fillStyle = "#dbeafe";
+    ctx.font = "900 13px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(state.wind.displaySpeed + " kt", cx, 158);
+    ctx.fillStyle = "#bfdbfe";
+    ctx.font = "800 11px system-ui, sans-serif";
+    ctx.fillText("FROM " + state.wind.direction + " deg", cx, 174);
+    ctx.restore();
+  }
+
   function drawSideView() {
     var ctx = el.sideCtx;
     var w = el.sideCanvas.width;
@@ -718,8 +947,11 @@
       ctx.ellipse(x, y, 40, 10, 0, 0, Math.PI * 2);
       ctx.fill();
     }
-    drawVectors(ctx);
+    if (state.hintOpen) drawVectors(ctx);
+    drawFixedAirspeedVector(ctx);
     drawPlane(ctx, state.plane.x, state.plane.y, state.plane.heading);
+    drawWindCompass(ctx);
+    positionStudentControls();
   }
 
   function frame() {
@@ -761,8 +993,11 @@
     });
     el["heading-slider"].addEventListener("input", function(evt) {
       if (state.phase !== "setup") return;
-      state.plane.heading = degToRad(Number(evt.target.value));
-      updateUI();
+      setHeadingFromDegrees(evt.target.value);
+    });
+    el["angle-input"].addEventListener("input", function(evt) {
+      if (state.phase !== "setup") return;
+      setHeadingFromDegrees(evt.target.value);
     });
     el["airspeed-slider"].addEventListener("input", function(evt) {
       if (state.phase !== "setup") return;
@@ -774,6 +1009,7 @@
       if (state.phase !== "setup") return;
       state.phase = "running";
       el["controls-container"].classList.add("hidden");
+      el["student-controls-overlay"].classList.add("hidden");
     });
     el["retry-btn"].addEventListener("click", resetCurrentLevel);
     el["reset-lab-btn"].addEventListener("click", resetLab);

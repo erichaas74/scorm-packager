@@ -386,9 +386,44 @@ export default class SimulationGifMaker {
         this.animationRef = requestAnimationFrame(animate);
     }
 
+    playSegment(startTime, endTime, { onFrame = null, onEnd = null } = {}) {
+        this.stopPreview();
+        this.isPlaying = true;
+        this._pendingCleanup = onEnd;
+        const segDuration = Math.max(0.01, endTime - startTime);
+        const wallStart = performance.now();
+
+        const animate = (timestamp) => {
+            if (!this.isPlaying) return;
+            const elapsed = (timestamp - wallStart) / 1000;
+            const frameTime = Math.min(startTime + elapsed, endTime);
+            this.ctx.fillStyle = this.config.backgroundColor;
+            this.ctx.fillRect(0, 0, this.width, this.height);
+            if (onFrame) {
+                onFrame(frameTime);
+            } else {
+                this.drawFrame(this.ctx, frameTime);
+                this.syncExternalPanels();
+            }
+            if (elapsed < segDuration) {
+                this.animationRef = requestAnimationFrame(animate);
+            } else {
+                this.isPlaying = false;
+                this._pendingCleanup = null;
+                if (onEnd) onEnd();
+            }
+        };
+        this.animationRef = requestAnimationFrame(animate);
+    }
+
     stopPreview() {
         this.isPlaying = false;
         if (this.animationRef) { cancelAnimationFrame(this.animationRef); this.animationRef = null; }
+        if (this._pendingCleanup) {
+            const fn = this._pendingCleanup;
+            this._pendingCleanup = null;
+            try { fn(); } catch (_) {}
+        }
     }
 
     getSvgExportTime() {

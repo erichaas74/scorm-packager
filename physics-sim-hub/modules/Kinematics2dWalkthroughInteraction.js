@@ -85,16 +85,46 @@ const walkthroughInteractionMethods = {
         const canvasStep = this.getWalkthroughCanvasStep(step);
         const time = this.getWalkthroughCanvasTime(step);
 
+        // Resolve per-step display overrides
+        const stepSetting = this._modeSvgState?.stepOverlays?.[step?.id];
+        const setting = (stepSetting && !Array.isArray(stepSetting)) ? stepSetting : {};
+        const displayOverrides = { ...(setting.displayOverrides || {}) };
+        // backward compat: top-level listDisplay
+        if (displayOverrides.listDisplay === undefined && setting.listDisplay !== undefined) {
+            displayOverrides.listDisplay = setting.listDisplay;
+        }
+
+        // Temporarily apply per-step display overrides
+        const savedInputs = {};
+        Object.entries(displayOverrides).forEach(([k, v]) => {
+            if (v !== null && v !== undefined && k in this.inputs) {
+                savedInputs[k] = this.inputs[k];
+                this.setInputValue(k, v, { redraw: false });
+            }
+        });
+
         this.stopPreview();
         this.ctx.fillStyle = this.config.backgroundColor;
         this.ctx.fillRect(0, 0, this.width, this.height);
         this.activeWalkthroughStep = canvasStep;
         try {
             this.drawFrame(this.ctx, time);
+            if (step && setting.showExplanation === true && typeof this.drawStepPanel === 'function') {
+                this.drawStepPanel(this.ctx, step);
+            }
         } finally {
             this.activeWalkthroughStep = null;
+            Object.entries(savedInputs).forEach(([k, v]) => this.setInputValue(k, v, { redraw: false }));
         }
         this.syncExternalPanels({ force: true });
+
+        // Keep Step Settings panel in sync with the current walkthrough step
+        if (step && this._modeSvgState && this._modeSvgState.activeStepId !== step.id) {
+            this._modeSvgState.activeStepId = step.id;
+            if (this._modeSvgState.activeSection === 'steps' && typeof this._refreshModeSvgPanel === 'function') {
+                this._refreshModeSvgPanel();
+            }
+        }
     },
 
     renderWorkAnalysisSequenceStepPreview(steps) {
@@ -171,6 +201,35 @@ const walkthroughInteractionMethods = {
     // Export helpers
     // -------------------------------------------------------------------------
 
+    // Resolves the animation time range for a step, respecting its animationSource setting.
+    getStepAnimationTimeRange(steps, stepIndex) {
+        const step = steps[stepIndex];
+        if (!step) return { startTime: 0, endTime: 0.1 };
+
+        const stepOverlay = this._modeSvgState?.stepOverlays?.[step.id];
+        const setting = (stepOverlay && !Array.isArray(stepOverlay)) ? stepOverlay : {};
+        const animationSource = setting.animationSource || 'step-segment';
+
+        const model = this.getWalkthroughPreviewModel();
+        const breakdownDuration = Math.max(0, model.breakdownDuration || 0);
+
+        if (animationSource === 'full-flight') {
+            const flightEnd = breakdownDuration + (model.motionStopTime ?? model.tFlight ?? 0);
+            return { startTime: 0, endTime: Math.max(0.1, flightEnd) };
+        }
+        if (animationSource === 'breakdown') {
+            return { startTime: 0, endTime: Math.max(0.1, this.vectorBreakdownDuration ?? 6.2) };
+        }
+        if (animationSource === 'custom-range') {
+            const start = Number.isFinite(setting.customStartTime) ? Math.max(0, setting.customStartTime) : 0;
+            const end = Number.isFinite(setting.customEndTime) ? setting.customEndTime : start + 2;
+            return { startTime: start, endTime: Math.max(start + 0.1, end) };
+        }
+        // Default: 'step-segment'
+        const { startTime, endTime } = this.getWalkthroughStepExportWindow(steps, stepIndex);
+        return { startTime, endTime };
+    },
+
     getWalkthroughStepExportWindow(steps, stepIndex) {
         const model = this.getWalkthroughPreviewModel();
         const stepDuration = model.workStepDuration || this.getWorkAnalysisStepDuration();
@@ -216,28 +275,115 @@ const walkthroughInteractionMethods = {
         URL.revokeObjectURL(url);
     },
 
+    playWalkthroughStepAnimation(steps, stepIndex) {
+        const idx = stepIndex ?? this.getWorkSequenceState(steps).stepIndex;
+        const step = steps[idx];
+        if (!step) return;
+        const { startTime, endTime } = this.getStepAnimationTimeRange(steps, idx);
+
+        const stepSetting = this._modeSvgState?.stepOverlays?.[step.id];
+        const setting = (stepSetting && !Array.isArray(stepSetting)) ? stepSetting : {};
+        const displayOverrides = { ...(setting.displayOverrides || {}) };
+        if (displayOverrides.listDisplay === undefined && setting.listDisplay !== undefined) {
+            displayOverrides.listDisplay = setting.listDisplay;
+        }
+
+        const savedInputs = {};
+        Object.entries(displayOverrides).forEach(([k, v]) => {
+            if (v !== null && v !== undefined && k in this.inputs) {
+                savedInputs[k] = this.inputs[k];
+                this.setInputValue(k, v, { redraw: false });
+            }
+        });
+
+        const canvasStep = this.getWalkthroughCanvasStep(step);
+        this.activeWalkthroughStep = canvasStep;
+
+        const savedHoverKey = this.hoveredValueKey;
+        if (setting.hoverKey) {
+            this.hoveredValueKey = setting.hoverKey;
+            this._hoverAnimStartMs = performance.now();
+        }
+
+        this.playSegment(startTime, endTime, {
+            onFrame: (t) => {
+                this.ctx.fillStyle = this.config.backgroundColor;
+                this.ctx.fillRect(0, 0, this.width, this.height);
+                this.drawFrame(this.ctx, t);
+                if (setting.showExplanation === true && typeof this.drawStepPanel === 'function') {
+                    this.drawStepPanel(this.ctx, step);
+                }
+                this.syncExternalPanels({ force: true });
+            },
+            onEnd: () => {
+                this.activeWalkthroughStep = null;
+                this.hoveredValueKey = savedHoverKey;
+                Object.entries(savedInputs).forEach(([k, v]) => this.setInputValue(k, v, { redraw: false }));
+            }
+        });
+    },
+
     async exportWalkthroughStep(steps, stepIndex, format = 'gif', options = {}) {
-        const { step, startTime, endTime } = this.getWalkthroughStepExportWindow(steps, stepIndex);
+        const step = steps[stepIndex];
         if (!step) return;
 
+        const { startTime, endTime } = this.getStepAnimationTimeRange(steps, stepIndex);
         const statusEl = document.getElementById('status');
         const stepNumber = stepIndex + 1;
         const filenameBase = `work-step-${String(stepNumber).padStart(2, '0')}-${this.sanitizeExportFilenamePart(step.title, 'walkthrough')}`;
 
-        if (format === 'webm') {
-            statusEl.innerText = `Recording WebM for step ${stepNumber}...`;
-            const blob = await this.exportWebm((progress) => {
-                statusEl.innerText = `Recording WebM for step ${stepNumber}: ${Math.round(progress * 100)}%`;
-            }, { startTime, endTime });
-            this.downloadBlob(blob, `${filenameBase}.webm`);
-            statusEl.innerText = `Step ${stepNumber} WebM downloaded.`;
-        } else {
-            statusEl.innerText = `Rendering GIF for step ${stepNumber}...`;
-            const gifBase64 = await this.exportGif((progress) => {
-                statusEl.innerText = `Rendering GIF for step ${stepNumber}: ${Math.round(progress * 100)}%`;
-            }, { startTime, endTime });
-            this.downloadDataUrl(gifBase64, `${filenameBase}.gif`);
-            statusEl.innerText = `Step ${stepNumber} GIF downloaded.`;
+        // Apply per-step display overrides for the duration of the export
+        const stepOverlay = this._modeSvgState?.stepOverlays?.[step.id];
+        const setting = (stepOverlay && !Array.isArray(stepOverlay)) ? stepOverlay : {};
+        const displayOverrides = { ...(setting.displayOverrides || {}) };
+        if (displayOverrides.listDisplay === undefined && setting.listDisplay !== undefined) {
+            displayOverrides.listDisplay = setting.listDisplay;
+        }
+        const savedInputs = {};
+        Object.entries(displayOverrides).forEach(([k, v]) => {
+            if (v !== null && v !== undefined && k in this.inputs) {
+                savedInputs[k] = this.inputs[k];
+                this.setInputValue(k, v, { redraw: false });
+            }
+        });
+        this.activeWalkthroughStep = this.getWalkthroughCanvasStep(step);
+
+        // If a hover animation is configured, temporarily patch drawFrame so that
+        // each exported frame gets the correct hover-animation elapsed time
+        // (GIF renders frames back-to-back, so performance.now() barely advances).
+        const savedHoverKey = this.hoveredValueKey;
+        const hasHoverAnim = Boolean(setting.hoverKey);
+        if (hasHoverAnim) {
+            this.hoveredValueKey = setting.hoverKey;
+            const _origDrawFrame = this.drawFrame;
+            const _segStart = startTime;
+            this.drawFrame = (ctx, t) => {
+                this._hoverAnimStartMs = performance.now() - Math.max(0, t - _segStart) * 1000;
+                return _origDrawFrame.call(this, ctx, t);
+            };
+        }
+
+        try {
+            if (format === 'webm') {
+                statusEl.innerText = `Recording WebM for step ${stepNumber}...`;
+                const blob = await this.exportWebm((progress) => {
+                    statusEl.innerText = `Recording WebM for step ${stepNumber}: ${Math.round(progress * 100)}%`;
+                }, { startTime, endTime });
+                this.downloadBlob(blob, `${filenameBase}.webm`);
+                statusEl.innerText = `Step ${stepNumber} WebM downloaded.`;
+            } else {
+                statusEl.innerText = `Rendering GIF for step ${stepNumber}...`;
+                const gifBase64 = await this.exportGif((progress) => {
+                    statusEl.innerText = `Rendering GIF for step ${stepNumber}: ${Math.round(progress * 100)}%`;
+                }, { startTime, endTime });
+                this.downloadDataUrl(gifBase64, `${filenameBase}.gif`);
+                statusEl.innerText = `Step ${stepNumber} GIF downloaded.`;
+            }
+        } finally {
+            this.activeWalkthroughStep = null;
+            this.hoveredValueKey = savedHoverKey;
+            if (hasHoverAnim) { delete this.drawFrame; }
+            Object.entries(savedInputs).forEach(([k, v]) => this.setInputValue(k, v, { redraw: false }));
         }
 
         if (!options.suppressStatusReset) {

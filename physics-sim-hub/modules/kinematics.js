@@ -1344,12 +1344,63 @@ export default class KinematicsModuleBase extends SimulationGifMaker {
             ctx.beginPath();
             ctx.ellipse(24, -1, 7, 4, 0, 0, Math.PI * 2);
             ctx.fill();
+        } else if (normalized === 'cannon ball' || normalized === 'cannonball') {
+            // Cast-iron cannonball
+            ctx.fillStyle = '#374151';
+            ctx.strokeStyle = '#111827';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, 14, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            // Metallic sheen
+            ctx.fillStyle = 'rgba(156,163,175,0.35)';
+            ctx.beginPath();
+            ctx.ellipse(-4, -5, 5, 3.5, -Math.PI / 4, 0, Math.PI * 2);
+            ctx.fill();
+            // Specular highlight
+            ctx.fillStyle = 'rgba(229,231,235,0.65)';
+            ctx.beginPath();
+            ctx.arc(-5, -6, 2, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (normalized === 'rock') {
+            // Irregular rock
+            ctx.fillStyle = '#6b7280';
+            ctx.strokeStyle = '#374151';
+            ctx.lineWidth = 2;
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(0, -14);
+            ctx.bezierCurveTo(7, -14, 15, -8, 14, 0);
+            ctx.bezierCurveTo(15, 7, 10, 14, 3, 14);
+            ctx.bezierCurveTo(-3, 16, -12, 11, -14, 4);
+            ctx.bezierCurveTo(-17, -3, -12, -14, -5, -15);
+            ctx.bezierCurveTo(-2, -16, -3, -14, 0, -14);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            // Crack texture
+            ctx.strokeStyle = '#4b5563';
+            ctx.lineWidth = 1;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(-4, -6);
+            ctx.lineTo(2, 2);
+            ctx.lineTo(8, 0);
+            ctx.moveTo(-8, 2);
+            ctx.lineTo(-2, 6);
+            ctx.stroke();
+            // Highlight
+            ctx.fillStyle = 'rgba(156,163,175,0.3)';
+            ctx.beginPath();
+            ctx.ellipse(-3, -5, 5, 3, -0.5, 0, Math.PI * 2);
+            ctx.fill();
         } else {
             // Isometric Crate / Block
-            const size = 28; 
-            const depth = 8; 
+            const size = 28;
+            const depth = 8;
             const hSize = size / 2;
-            const blockColor = options.color || '#d97706'; 
+            const blockColor = options.color || '#d97706';
             
             ctx.fillStyle = blockColor; 
             ctx.strokeStyle = '#78350f';

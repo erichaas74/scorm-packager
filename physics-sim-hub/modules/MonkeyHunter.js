@@ -6,7 +6,7 @@ export default class MonkeyHunter extends SimulationGifMaker {
         
         this.scale = 9; // 1 meter = 9 pixels
         this.originX = 80; // Shifted right to make room for the cannon
-        this.groundY = this.height - 40;
+        this.groundY = this.height - 90;
     }
 
     init() {

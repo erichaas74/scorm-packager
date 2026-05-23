@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stickman Motion Lab</title>
+  <style>
+    :root {
+      --bg: #eef2f7;
+      --panel: #ffffff;
+      --ink: #1f2937;
+      --muted: #64748b;
+      --line: #cbd5e1;
+      --accent: #2563eb;
+      --accent2: #16a34a;
+      --warn: #f59e0b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(320px, 420px) 1fr;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .controls {
+      background: var(--panel);
+      border-right: 1px solid var(--line);
+      padding: 16px;
+      overflow: auto;
+    }
+
+    .stageWrap {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.78);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(8px);
+    }
+
+    h1 {
+      font-size: 1.15rem;
+      margin: 0 0 4px;
+    }
+
+    h2 {
+      font-size: 0.95rem;
+      margin: 18px 0 10px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    button,
+    .buttonLink {
+      border: 0;
+      border-radius: 999px;
+      padding: 9px 13px;
+      background: var(--accent);
+      color: white;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.24);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    button.secondary,
+    .buttonLink.secondary {
+      background: #e2e8f0;
+      color: #0f172a;
+      box-shadow: none;
+    }
+
+    button.green {
+      background: var(--accent2);
+      box-shadow: 0 6px 16px rgba(22, 163, 74, 0.22);
+    }
+
+    .buttonRow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .poseGrid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .poseSlot {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 6px;
+      align-items: center;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #f8fafc;
+    }
+
+    .poseSlot.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+    }
+
+    .poseSlot strong {
+      font-size: 0.8rem;
+      color: #334155;
+    }
+
+    .poseSlot button {
+      padding: 6px 9px;
+      font-size: 0.72rem;
+      box-shadow: none;
+    }
+
+    .control {
+      display: grid;
+      grid-template-columns: 140px 1fr 46px;
+      gap: 8px;
+      align-items: center;
+      margin: 9px 0;
+      font-size: 0.82rem;
+    }
+
+    .control label { color: #334155; }
+
+    .control output {
+      text-align: right;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .checkrow {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 10px 0 4px;
+      font-size: 0.85rem;
+      color: #334155;
+    }
+
+    .stage {
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      min-height: 0;
+      padding: 16px;
+    }
+
+    svg {
+      width: min(100%, 980px);
+      height: min(80vh, 720px);
+      background: linear-gradient(#f8fafc 0%, #e0f2fe 58%, #d9f99d 58%, #bef264 100%);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+      touch-action: none;
+    }
+
+    .ground { stroke: #4d7c0f; stroke-width: 5; stroke-linecap: round; }
+    .skeleton { stroke: #111827; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .shadow { fill: rgba(15, 23, 42, 0.16); }
+    .joint { fill: white; stroke: #2563eb; stroke-width: 3; cursor: grab; }
+    .joint:hover { fill: #dbeafe; }
+    .label { font: 700 12px system-ui, sans-serif; fill: #1e293b; pointer-events: none; }
+    .hint { font: 12px system-ui, sans-serif; fill: #475569; pointer-events: none; }
+    .forceGraph { fill: white; stroke: #94a3b8; stroke-width: 1.5; }
+    .forceCurve { fill: none; stroke: #f59e0b; stroke-width: 4; stroke-linecap: round; }
+    .graphText { font: 700 11px system-ui, sans-serif; fill: #475569; }
+
+    .readout {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(110px, 1fr));
+      gap: 10px;
+      padding: 12px 16px 16px;
+    }
+
+    .card {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px 12px;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+    }
+
+    .card strong {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .card span {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--ink);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.75rem;
+      color: #0f172a;
+      background: #f8fafc;
+    }
+
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; height: auto; overflow: visible; }
+      .controls { border-right: 0; border-bottom: 1px solid var(--line); max-height: none; }
+      .readout { grid-template-columns: repeat(2, minmax(110px, 1fr)); }
+      svg { height: 68vh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="controls">
+      <h1>Stickman Motion Lab</h1>
+      <p>Body proportions are locked. Pose each joint, drag blue joints in the SVG, then run or build reusable stickman motions.</p>
+
+      <div class="buttonRow">
+        <a class="buttonLink secondary" href="../index.html">Back to Physics Hub</a>
+        <button id="playBtn">Play squat jump</button>
+        <button id="pauseBtn" class="secondary">Pause</button>
+        <button id="resetBtn" class="secondary">Reset pose</button>
+        <button id="defaultBtn" class="secondary">Reset defaults</button>
+        <button id="exportBtn" class="green">Export SVG</button>
+      </div>
+
+      <label class="checkrow"><input id="mirror" type="checkbox" checked /> Mirror left/right joint controls</label>
+      <label class="checkrow"><input id="showJoints" type="checkbox" checked /> Show draggable joint handles</label>
+      <label class="checkrow"><input id="showGraph" type="checkbox" checked /> Show force-time idea graph</label>
+
+      <h2>Body Proportions Locked</h2>
+      <p>The stickman size values are fixed in the code so only pose, torso position, and animation settings are adjustable.</p>
+
+      <h2>Torso Position + Joint Angles</h2>
+      <p>Torso X/Y records the root point of the torso. Drag the center hip/root handle to update the location.</p>
+      <div id="poseControls"></div>
+
+      <h2>Jump Animation</h2>
+      <div id="motionControls"></div>
+
+      <h2>Pose Timeline 1–10</h2>
+      <p>Use the sliders or drag joints, save the current pose into a slot, then step through the saved poses in order.</p>
+      <div class="buttonRow">
+        <button id="saveCurrentPoseBtn">Save current pose</button>
+        <button id="nextPoseBtn" class="green">Next pose</button>
+        <button id="playTimelineBtn" class="secondary">Play 1–10</button>
+        <button id="stopTimelineBtn" class="secondary">Stop timeline</button>
+      </div>
+      <div id="poseSlotButtons" class="poseGrid"></div>
+
+      <h2>Static SVG Export</h2>
+      <p>Use this to copy the current SVG pose into another project.</p>
+      <textarea id="svgText" placeholder="Click Export SVG to generate code."></textarea>
+    </aside>
+
+    <main class="stageWrap">
+      <div class="topbar">
+        <div>
+          <strong>Squat + Jump Mechanics</strong>
+          <p>Deeper knee bend increases contact time, lowering peak force while producing the impulse needed to jump.</p>
+        </div>
+        <div class="buttonRow" style="margin:0;">
+          <button id="poseSquatBtn" class="secondary">Pose squat</button>
+          <button id="poseJumpBtn" class="secondary">Pose jump</button>
+        </div>
+      </div>
+
+      <section class="stage">
+        <svg id="scene" viewBox="0 0 900 620" role="img" aria-label="Adjustable SVG stickman that can squat and jump">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#f59e0b"></path>
+            </marker>
+          </defs>
+
+          <rect x="0" y="0" width="900" height="620" fill="transparent"></rect>
+          <line id="ground" class="ground" x1="90" y1="520" x2="810" y2="520"></line>
+          <ellipse id="shadow" class="shadow" cx="450" cy="525" rx="88" ry="15"></ellipse>
+
+          <g id="forceGraphGroup">
+            <rect class="forceGraph" x="635" y="55" width="205" height="120" rx="14"></rect>
+            <text class="graphText" x="652" y="80">Force-time idea</text>
+            <line x1="658" y1="150" x2="820" y2="150" stroke="#cbd5e1" stroke-width="2"></line>
+            <line x1="658" y1="150" x2="658" y2="95" stroke="#cbd5e1" stroke-width="2"></line>
+            <path id="forceCurve" class="forceCurve" d="M 665 150 C 690 85, 730 85, 755 150"></path>
+            <text id="contactLabel" class="graphText" x="650" y="165">longer contact time</text>
+          </g>
+
+          <g id="stickman"></g>
+          <text class="hint" x="92" y="552">Blue circles are draggable joint handles.</text>
+        </svg>
+      </section>
+
+      <section class="readout">
+        <div class="card"><strong>Estimated contact time</strong><span id="contactTimeOut">0.42 s</span></div>
+        <div class="card"><strong>Impulse idea</strong><span id="impulseOut">same Δp</span></div>
+        <div class="card"><strong>Peak force idea</strong><span id="peakForceOut">medium</span></div>
+        <div class="card"><strong>Animation phase</strong><span id="phaseOut">ready</span></div>
+        <div class="card"><strong>Timeline pose</strong><span id="poseIndexOut">1 / 10</span></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const svg = document.getElementById("scene");
+    const stickman = document.getElementById("stickman");
+    const sizeControls = document.getElementById("sizeControls");
+    const poseControls = document.getElementById("poseControls");
+    const motionControls = document.getElementById("motionControls");
+    const poseSlotButtons = document.getElementById("poseSlotButtons");
+    const svgText = document.getElementById("svgText");
+
+    const controls = {
+      // sizes
+      stroke: { group: "size", label: "Stroke width", min: 4, max: 18, step: 1, value: 11 },
+      jointRadius: { group: "size", label: "Joint handle", min: 4, max: 14, step: 1, value: 7 },
+      headRadius: { group: "size", label: "Head radius", min: 16, max: 54, step: 1, value: 35 },
+      neck: { group: "size", label: "Neck", min: 0, max: 36, step: 1, value: 34 },
+      torso: { group: "size", label: "Torso", min: 70, max: 180, step: 1, value: 125 },
+      shoulderWidth: { group: "size", label: "Shoulder width", min: 28, max: 120, step: 1, value: 81 },
+      hipWidth: { group: "size", label: "Hip width", min: 22, max: 100, step: 1, value: 62 },
+      upperArm: { group: "size", label: "Upper arm", min: 35, max: 120, step: 1, value: 72 },
+      forearm: { group: "size", label: "Forearm", min: 30, max: 120, step: 1, value: 66 },
+      hand: { group: "size", label: "Hand", min: 4, max: 28, step: 1, value: 14 },
+      upperLeg: { group: "size", label: "Upper leg", min: 50, max: 150, step: 1, value: 105 },
+      lowerLeg: { group: "size", label: "Lower leg", min: 50, max: 150, step: 1, value: 98 },
+      foot: { group: "size", label: "Foot", min: 20, max: 80, step: 1, value: 38 },
+
+      // pose
+      rootX: { group: "pose", label: "Torso X", min: 250, max: 650, step: 1, value: 450 },
+      rootY: { group: "pose", label: "Torso Y", min: 180, max: 500, step: 1, value: 330 },
+      torsoLean: { group: "pose", label: "Torso lean", min: -35, max: 45, step: 1, value: -2 },
+      leftShoulder: { group: "pose", label: "L shoulder", min: -120, max: 120, step: 1, value: 46 },
+      rightShoulder: { group: "pose", label: "R shoulder", min: -120, max: 120, step: 1, value: 46 },
+      leftElbow: { group: "pose", label: "L elbow", min: -120, max: 120, step: 1, value: -101 },
+      rightElbow: { group: "pose", label: "R elbow", min: -120, max: 120, step: 1, value: -101 },
+      leftHip: { group: "pose", label: "L hip", min: -95, max: 95, step: 1, value: 1 },
+      rightHip: { group: "pose", label: "R hip", min: -95, max: 95, step: 1, value: 1 },
+      leftKnee: { group: "pose", label: "L knee", min: -20, max: 145, step: 1, value: -4 },
+      rightKnee: { group: "pose", label: "R knee", min: -20, max: 145, step: 1, value: -4 },
+      leftAnkle: { group: "pose", label: "L ankle", min: -75, max: 75, step: 1, value: -4 },
+      rightAnkle: { group: "pose", label: "R ankle", min: -75, max: 75, step: 1, value: -4 },
+
+      // motion
+      squatDepth: { group: "motion", label: "Squat depth", min: 10, max: 125, step: 1, value: 78 },
+      jumpHeight: { group: "motion", label: "Jump height", min: 20, max: 170, step: 1, value: 95 },
+      contactTime: { group: "motion", label: "Contact time", min: 0.15, max: 0.9, step: 0.01, value: 0.42 },
+      speed: { group: "motion", label: "Animation speed", min: 0.3, max: 2.5, step: 0.1, value: 1.0 }
+    };
+
+    const userDefaultControls = {
+      stroke: 11,
+      jointRadius: 7,
+      headRadius: 35,
+      neck: 34,
+      torso: 125,
+      shoulderWidth: 81,
+      hipWidth: 62,
+      upperArm: 72,
+      forearm: 66,
+      hand: 14,
+      upperLeg: 105,
+      lowerLeg: 98,
+      foot: 38,
+
+      rootX: 450,
+      rootY: 330,
+      torsoLean: -2,
+      leftShoulder: 46,
+      rightShoulder: 46,
+      leftElbow: -101,
+      rightElbow: -101,
+      leftHip: 1,
+      rightHip: 1,
+      leftKnee: -4,
+      rightKnee: -4,
+      leftAnkle: -4,
+      rightAnkle: -4
+    };
+
+    const restPose = {
+      rootX: 450,
+      rootY: 330,
+      torsoLean: -2,
+      leftShoulder: 46,
+      rightShoulder: 46,
+      leftElbow: -101,
+      rightElbow: -101,
+      leftHip: 1,
+      rightHip: 1,
+      leftKnee: -4,
+      rightKnee: -4,
+      leftAnkle: -4,
+      rightAnkle: -4
+    };
+
+    const squatPose = {
+      rootX: 435,
+      rootY: 412,
+      torsoLean: -4,
+      leftShoulder: 42,
+      rightShoulder: 42,
+      leftElbow: -86,
+      rightElbow: -86,
+      leftHip: 60,
+      rightHip: 60,
+      leftKnee: 124,
+      rightKnee: 124,
+      leftAnkle: 1,
+      rightAnkle: 1
+    };
+
+    const jumpPose = {
+      rootX: 450,
+      rootY: 240,
+      torsoLean: 1,
+      leftShoulder: 120,
+      rightShoulder: 120,
+      leftElbow: 42,
+      rightElbow: 42,
+      leftHip: 66,
+      rightHip: 66,
+      leftKnee: 112,
+      rightKnee: 112,
+      leftAnkle: -44,
+      rightAnkle: -44
+    };
+
+    const poseKeys = Object.keys(restPose);
+
+    const animationFrames = [
+      { name: "Pose 1", ...restPose },
+      { name: "Pose 2", ...blendPoseValues(restPose, squatPose, 0.25) },
+      { name: "Pose 3", ...blendPoseValues(restPose, squatPose, 0.55) },
+      { name: "Pose 4", ...squatPose },
+      { name: "Pose 5", ...blendPoseValues(squatPose, jumpPose, 0.45) },
+      { name: "Pose 6", ...jumpPose },
+      { name: "Pose 7", ...blendPoseValues(jumpPose, squatPose, 0.45) },
+      { name: "Pose 8", ...squatPose },
+      { name: "Pose 9", ...blendPoseValues(squatPose, restPose, 0.55) },
+      { name: "Pose 10", ...restPose }
+    ];
+
+    let activePoseIndex = 0;
+    let timelinePlayer = {
+      running: false,
+      segment: 0,
+      t: 0,
+      last: null
+    };
+
+    const sliders = new Map();
+    const mirrorPairs = {
+      leftShoulder: "rightShoulder", rightShoulder: "leftShoulder",
+      leftElbow: "rightElbow", rightElbow: "leftElbow",
+      leftHip: "rightHip", rightHip: "leftHip",
+      leftKnee: "rightKnee", rightKnee: "leftKnee",
+      leftAnkle: "rightAnkle", rightAnkle: "leftAnkle"
+    };
+
+    let animation = {
+      running: false,
+      t: 0,
+      last: null,
+      phase: "ready"
+    };
+
+    let poseOffset = emptyOffset();
+    let dragTarget = null;
+    let currentPoints = {};
+
+    function emptyOffset() {
+      return {
+        rootX: 0,
+        rootY: 0,
+        torsoLean: 0,
+        leftShoulder: 0, rightShoulder: 0,
+        leftElbow: 0, rightElbow: 0,
+        leftHip: 0, rightHip: 0,
+        leftKnee: 0, rightKnee: 0,
+        leftAnkle: 0, rightAnkle: 0
+      };
+    }
+
+    function v(key) {
+      return controls[key].value + (poseOffset[key] || 0);
+    }
+
+    function blendPoseValues(fromPose, toPose, q) {
+      const blended = {};
+      Object.keys(fromPose).forEach(key => {
+        if (typeof fromPose[key] === "number" && typeof toPose[key] === "number") {
+          blended[key] = fromPose[key] + (toPose[key] - fromPose[key]) * q;
+        }
+      });
+      return blended;
+    }
+
+    function getCurrentPoseValues() {
+      const pose = {};
+      poseKeys.forEach(key => {
+        pose[key] = controls[key].value + (poseOffset[key] || 0);
+      });
+      return pose;
+    }
+
+    function setPoseValues(pose, phaseLabel = "pose") {
+      stopAnimation();
+      stopTimeline();
+      poseOffset = emptyOffset();
+      poseKeys.forEach(key => {
+        if (typeof pose[key] === "number") setControl(key, pose[key], false);
+      });
+      animation.phase = phaseLabel;
+      render();
+    }
+
+    function makeSlider(key) {
+      const c = controls[key];
+      const row = document.createElement("div");
+      row.className = "control";
+
+      const label = document.createElement("label");
+      label.textContent = c.label;
+      label.htmlFor = key;
+
+      const input = document.createElement("input");
+      input.type = "range";
+      input.id = key;
+      input.min = c.min;
+      input.max = c.max;
+      input.step = c.step;
+      input.value = c.value;
+
+      const output = document.createElement("output");
+      output.value = c.value;
+      output.textContent = formatValue(c.value, c.step);
+
+      input.addEventListener("input", () => {
+        setControl(key, Number(input.value), true);
+      });
+
+      row.append(label, input, output);
+      sliders.set(key, { input, output });
+      return row;
+    }
+
+    function buildControls() {
+      Object.keys(controls).forEach(key => {
+        const row = makeSlider(key);
+        if (controls[key].group === "size") return;
+        if (controls[key].group === "pose") poseControls.appendChild(row);
+        if (controls[key].group === "motion") motionControls.appendChild(row);
+      });
+      buildPoseSlotButtons();
+    }
+
+    function buildPoseSlotButtons() {
+      poseSlotButtons.innerHTML = "";
+      animationFrames.forEach((frame, index) => {
+        const slot = document.createElement("div");
+        slot.className = "poseSlot" + (index === activePoseIndex ? " active" : "");
+
+        const label = document.createElement("strong");
+        label.textContent = `Pose ${index + 1}`;
+
+        const goBtn = document.createElement("button");
+        goBtn.className = "secondary";
+        goBtn.textContent = "Go";
+        goBtn.addEventListener("click", () => goToPose(index));
+
+        const saveBtn = document.createElement("button");
+        saveBtn.textContent = "Save";
+        saveBtn.addEventListener("click", () => savePoseAt(index));
+
+        slot.append(label, goBtn, saveBtn);
+        poseSlotButtons.appendChild(slot);
+      });
+      updatePoseIndexReadout();
+    }
+
+    function formatValue(value, step) {
+      return Number(step) < 1 ? Number(value).toFixed(2) : Math.round(value);
+    }
+
+    function setControl(key, value, fromUser = false) {
+      controls[key].value = clamp(value, controls[key].min, controls[key].max);
+      const item = sliders.get(key);
+      if (item) {
+        item.input.value = controls[key].value;
+        item.output.textContent = formatValue(controls[key].value, controls[key].step);
+      }
+
+      if (fromUser && document.getElementById("mirror").checked && mirrorPairs[key]) {
+        const pair = mirrorPairs[key];
+        controls[pair].value = controls[key].value;
+        const pairItem = sliders.get(pair);
+        if (pairItem) {
+          pairItem.input.value = controls[pair].value;
+          pairItem.output.textContent = formatValue(controls[pair].value, controls[pair].step);
+        }
+      }
+      render();
+    }
+
+    function clamp(n, min, max) {
+      return Math.max(min, Math.min(max, n));
+    }
+
+    function degToRad(deg) { return deg * Math.PI / 180; }
+
+    function pointFromVerticalUp(origin, length, deg) {
+      const r = degToRad(deg);
+      return { x: origin.x + Math.sin(r) * length, y: origin.y - Math.cos(r) * length };
+    }
+
+    function pointFromVerticalDown(origin, length, deg, side = 1) {
+      const r = degToRad(deg);
+      return { x: origin.x + side * Math.sin(r) * length, y: origin.y + Math.cos(r) * length };
+    }
+
+    function perpendicularUnit(deg) {
+      const r = degToRad(deg);
+      return { x: Math.cos(r), y: Math.sin(r) };
+    }
+
+    function calcPose() {
+      const groundY = 520;
+      const root = {
+        x: controls.rootX.value + (poseOffset.rootX || 0),
+        y: controls.rootY.value + (poseOffset.rootY || 0)
+      };
+      const torsoAngle = v("torsoLean");
+      const shoulderCenter = pointFromVerticalUp(root, controls.torso.value, torsoAngle);
+      const neckTop = pointFromVerticalUp(shoulderCenter, controls.neck.value, torsoAngle);
+      const headCenter = pointFromVerticalUp(neckTop, controls.headRadius.value * 0.65, torsoAngle);
+      const perp = perpendicularUnit(torsoAngle);
+
+      const leftShoulder = offsetPoint(shoulderCenter, perp, -controls.shoulderWidth.value / 2);
+      const rightShoulder = offsetPoint(shoulderCenter, perp, controls.shoulderWidth.value / 2);
+      const leftHip = offsetPoint(root, perp, -controls.hipWidth.value / 2);
+      const rightHip = offsetPoint(root, perp, controls.hipWidth.value / 2);
+
+      const leftElbow = pointFromVerticalDown(leftShoulder, controls.upperArm.value, v("leftShoulder"), -1);
+      const rightElbow = pointFromVerticalDown(rightShoulder, controls.upperArm.value, v("rightShoulder"), 1);
+      const leftHand = pointFromVerticalDown(leftElbow, controls.forearm.value, v("leftShoulder") + v("leftElbow"), -1);
+      const rightHand = pointFromVerticalDown(rightElbow, controls.forearm.value, v("rightShoulder") + v("rightElbow"), 1);
+
+      const leftKnee = pointFromVerticalDown(leftHip, controls.upperLeg.value, v("leftHip"), -1);
+      const rightKnee = pointFromVerticalDown(rightHip, controls.upperLeg.value, v("rightHip"), 1);
+      const leftAnkle = pointFromVerticalDown(leftKnee, controls.lowerLeg.value, v("leftHip") - v("leftKnee"), -1);
+      const rightAnkle = pointFromVerticalDown(rightKnee, controls.lowerLeg.value, v("rightHip") - v("rightKnee"), 1);
+      const leftToe = pointFromVerticalDown(leftAnkle, controls.foot.value, 90 + v("leftAnkle"), -1);
+      const rightToe = pointFromVerticalDown(rightAnkle, controls.foot.value, 90 + v("rightAnkle"), 1);
+
+      return {
+        groundY, root, shoulderCenter, neckTop, headCenter,
+        leftShoulder, rightShoulder, leftElbow, rightElbow, leftHand, rightHand,
+        leftHip, rightHip, leftKnee, rightKnee, leftAnkle, rightAnkle, leftToe, rightToe
+      };
+    }
+
+    function offsetPoint(origin, unit, distance) {
+      return { x: origin.x + unit.x * distance, y: origin.y + unit.y * distance };
+    }
+
+    function line(a, b, attrs = "") {
+      return `<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}" ${attrs}></line>`;
+    }
+
+    function circle(p, r, attrs = "") {
+      return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r}" ${attrs}></circle>`;
+    }
+
+    function render() {
+      currentPoints = calcPose();
+      const p = currentPoints;
+      const stroke = controls.stroke.value;
+      const jointR = controls.jointRadius.value;
+      const showJoints = document.getElementById("showJoints").checked;
+
+      const bodyLines = [
+        line(p.root, p.shoulderCenter),
+        line(p.leftShoulder, p.rightShoulder),
+        line(p.leftHip, p.rightHip),
+        line(p.leftShoulder, p.leftElbow),
+        line(p.leftElbow, p.leftHand),
+        line(p.rightShoulder, p.rightElbow),
+        line(p.rightElbow, p.rightHand),
+        line(p.leftHip, p.leftKnee),
+        line(p.leftKnee, p.leftAnkle),
+        line(p.leftAnkle, p.leftToe),
+        line(p.rightHip, p.rightKnee),
+        line(p.rightKnee, p.rightAnkle),
+        line(p.rightAnkle, p.rightToe)
+      ].join("\n");
+
+      const head = `
+        <circle cx="${p.headCenter.x.toFixed(1)}" cy="${p.headCenter.y.toFixed(1)}" r="${controls.headRadius.value}" fill="none" stroke="#111827" stroke-width="${stroke}" />
+        ${line(p.neckTop, p.shoulderCenter)}
+      `;
+
+      const hands = `${circle(p.leftHand, controls.hand.value, 'fill="#111827"')}${circle(p.rightHand, controls.hand.value, 'fill="#111827"')}`;
+
+      const labels = `
+        <text class="label" x="${p.headCenter.x + controls.headRadius.value + 10}" y="${p.headCenter.y}">head</text>
+        <text class="label" x="${p.rightKnee.x + 12}" y="${p.rightKnee.y}">knee</text>
+        <text class="label" x="${p.rightAnkle.x + 12}" y="${p.rightAnkle.y + 4}">ankle</text>
+        <text class="label" x="${p.rightElbow.x + 12}" y="${p.rightElbow.y}">elbow</text>
+      `;
+
+      const joints = showJoints ? Object.entries({
+        headCenter: p.headCenter,
+        shoulderCenter: p.shoulderCenter,
+        root: p.root,
+        leftShoulder: p.leftShoulder,
+        rightShoulder: p.rightShoulder,
+        leftElbow: p.leftElbow,
+        rightElbow: p.rightElbow,
+        leftHand: p.leftHand,
+        rightHand: p.rightHand,
+        leftHip: p.leftHip,
+        rightHip: p.rightHip,
+        leftKnee: p.leftKnee,
+        rightKnee: p.rightKnee,
+        leftAnkle: p.leftAnkle,
+        rightAnkle: p.rightAnkle,
+        leftToe: p.leftToe,
+        rightToe: p.rightToe
+      }).map(([name, pt]) => circle(pt, jointR, `class="joint" data-joint="${name}"`)).join("\n") : "";
+
+      stickman.innerHTML = `
+        <g class="skeleton" stroke-width="${stroke}">
+          ${head}
+          ${bodyLines}
+        </g>
+        ${hands}
+        ${labels}
+        ${joints}
+      `;
+
+      document.getElementById("shadow").setAttribute("cx", String(p.root.x.toFixed(1)));
+      document.getElementById("shadow").setAttribute("rx", String(clamp(95 - Math.abs(p.root.y - controls.rootY.value) * 0.35, 38, 100)));
+      syncLivePositionOutputs(p.root);
+      document.getElementById("forceGraphGroup").style.display = document.getElementById("showGraph").checked ? "block" : "none";
+      updateReadout();
+    }
+
+    function syncLivePositionOutputs(root) {
+      const rootXItem = sliders.get("rootX");
+      const rootYItem = sliders.get("rootY");
+      if (rootXItem) rootXItem.output.textContent = Math.round(root.x);
+      if (rootYItem) rootYItem.output.textContent = Math.round(root.y);
+    }
+
+    function updateReadout() {
+      const ct = controls.contactTime.value;
+      document.getElementById("contactTimeOut").textContent = ct.toFixed(2) + " s";
+      document.getElementById("phaseOut").textContent = animation.phase;
+      updatePoseIndexReadout();
+      document.getElementById("peakForceOut").textContent = ct < 0.28 ? "high" : ct < 0.55 ? "medium" : "lower";
+
+      const wide = 55 + ct * 120;
+      const start = 740 - wide / 2;
+      const end = 740 + wide / 2;
+      const peakY = 80 + ct * 35;
+      document.getElementById("forceCurve").setAttribute("d", `M ${start.toFixed(1)} 150 C ${(start + wide * 0.25).toFixed(1)} ${peakY.toFixed(1)}, ${(start + wide * 0.75).toFixed(1)} ${peakY.toFixed(1)}, ${end.toFixed(1)} 150`);
+      document.getElementById("contactLabel").textContent = ct > 0.55 ? "longer contact → lower peak" : ct < 0.28 ? "short contact → higher peak" : "medium contact time";
+    }
+
+    function easeInOut(x) {
+      return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+    }
+
+    function jumpProgress(t) {
+      // Smooth airtime arc: 0 at launch/landing, 1 at peak.
+      return Math.sin(Math.PI * t);
+    }
+
+    function animate(now) {
+      if (!animation.running) return;
+      if (!animation.last) animation.last = now;
+      const dt = (now - animation.last) / 1000;
+      animation.last = now;
+      animation.t = (animation.t + dt * controls.speed.value / 2.4) % 1;
+
+      const h = controls.jumpHeight.value;
+      const t = animation.t;
+      const off = emptyOffset();
+
+      if (t < 0.38) {
+        const q = easeInOut(t / 0.38);
+        animation.phase = "loading squat";
+        blendPoseOffset(off, restPose, squatPose, q);
+      } else if (t < 0.54) {
+        const q = easeInOut((t - 0.38) / 0.16);
+        animation.phase = "push-off";
+        blendPoseOffset(off, squatPose, jumpPose, q);
+      } else if (t < 0.78) {
+        const airT = (t - 0.54) / 0.24;
+        animation.phase = "airborne";
+        const lift = -h * jumpProgress(airT);
+        blendPoseOffset(off, jumpPose, jumpPose, 1);
+        off.rootY += lift;
+      } else {
+        const q = easeInOut((t - 0.78) / 0.22);
+        animation.phase = "landing";
+        blendPoseOffset(off, jumpPose, restPose, q);
+      }
+
+      poseOffset = off;
+      render();
+      requestAnimationFrame(animate);
+    }
+
+    function playTimeline(now) {
+      if (!timelinePlayer.running) return;
+      if (!timelinePlayer.last) timelinePlayer.last = now;
+      const dt = (now - timelinePlayer.last) / 1000;
+      timelinePlayer.last = now;
+
+      const segmentDuration = Math.max(0.08, controls.contactTime.value / controls.speed.value);
+      timelinePlayer.t += dt / segmentDuration;
+
+      if (timelinePlayer.t >= 1) {
+        timelinePlayer.t = 0;
+        timelinePlayer.segment += 1;
+        if (timelinePlayer.segment >= animationFrames.length - 1) {
+          timelinePlayer.running = false;
+          activePoseIndex = animationFrames.length - 1;
+          setPoseValues(animationFrames[activePoseIndex], `pose ${activePoseIndex + 1}`);
+          return;
+        }
+      }
+
+      const from = animationFrames[timelinePlayer.segment];
+      const to = animationFrames[timelinePlayer.segment + 1];
+      const q = easeInOut(timelinePlayer.t);
+      const off = emptyOffset();
+      blendPoseOffset(off, from, to, q);
+      poseOffset = off;
+      activePoseIndex = timelinePlayer.segment;
+      animation.phase = `timeline ${timelinePlayer.segment + 1} → ${timelinePlayer.segment + 2}`;
+      render();
+      requestAnimationFrame(playTimeline);
+    }
+
+    function blendPoseOffset(off, fromPose, toPose, q) {
+      poseKeys.forEach(key => {
+        const blendedValue = fromPose[key] + (toPose[key] - fromPose[key]) * q;
+        off[key] = blendedValue - controls[key].value;
+      });
+    }
+
+    function applySquatOffset(off, q, depth) {
+      blendPoseOffset(off, restPose, squatPose, q, 0, 0);
+    }
+
+    function startAnimation() {
+      animation.running = true;
+      animation.last = null;
+      requestAnimationFrame(animate);
+    }
+
+    function stopAnimation() {
+      animation.running = false;
+      animation.last = null;
+    }
+
+    function stopTimeline() {
+      timelinePlayer.running = false;
+      timelinePlayer.last = null;
+    }
+
+    function updatePoseIndexReadout() {
+      const out = document.getElementById("poseIndexOut");
+      if (out) out.textContent = `${activePoseIndex + 1} / ${animationFrames.length}`;
+      if (poseSlotButtons && poseSlotButtons.children.length) {
+        [...poseSlotButtons.children].forEach((slot, index) => {
+          slot.classList.toggle("active", index === activePoseIndex);
+        });
+      }
+    }
+
+    function saveCurrentPose() {
+      savePoseAt(activePoseIndex);
+    }
+
+    function savePoseAt(index) {
+      stopAnimation();
+      stopTimeline();
+      activePoseIndex = clamp(index, 0, animationFrames.length - 1);
+      animationFrames[activePoseIndex] = {
+        name: `Pose ${activePoseIndex + 1}`,
+        ...getCurrentPoseValues()
+      };
+      animation.phase = `saved pose ${activePoseIndex + 1}`;
+      render();
+      buildPoseSlotButtons();
+    }
+
+    function goToPose(index) {
+      activePoseIndex = clamp(index, 0, animationFrames.length - 1);
+      setPoseValues(animationFrames[activePoseIndex], `pose ${activePoseIndex + 1}`);
+      updatePoseIndexReadout();
+    }
+
+    function nextPose() {
+      const nextIndex = (activePoseIndex + 1) % animationFrames.length;
+      goToPose(nextIndex);
+    }
+
+    function startTimeline() {
+      stopAnimation();
+      timelinePlayer.running = true;
+      timelinePlayer.segment = 0;
+      timelinePlayer.t = 0;
+      timelinePlayer.last = null;
+      activePoseIndex = 0;
+      requestAnimationFrame(playTimeline);
+    }
+
+    function resetPose() {
+      stopTimeline();
+      stopAnimation();
+      animation.t = 0;
+      animation.phase = "rest pose";
+      poseOffset = emptyOffset();
+      Object.entries(restPose).forEach(([key, value]) => setControl(key, value, false));
+      render();
+    }
+
+    function setBodyDefaults() {
+      stopTimeline();
+      stopAnimation();
+      animation.t = 0;
+      animation.phase = "default pose";
+      poseOffset = emptyOffset();
+      Object.entries(userDefaultControls).forEach(([key, value]) => setControl(key, value, false));
+      render();
+    }
+
+    function setSquatPose() {
+      stopTimeline();
+      stopAnimation();
+      animation.phase = "squat pose";
+      poseOffset = emptyOffset();
+      Object.entries(squatPose).forEach(([key, value]) => setControl(key, value, false));
+      render();
+    }
+
+    function setJumpPose() {
+      stopTimeline();
+      stopAnimation();
+      animation.phase = "top of jump";
+      poseOffset = emptyOffset();
+      Object.entries(jumpPose).forEach(([key, value]) => setControl(key, value, false));
+      render();
+    }
+
+    function exportCurrentSvg() {
+      const clone = svg.cloneNode(true);
+      clone.querySelectorAll(".joint, .hint").forEach(el => el.remove());
+      clone.removeAttribute("id");
+      clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+      svgText.value = clone.outerHTML;
+      svgText.focus();
+      svgText.select();
+    }
+
+    function pointerToSvgPoint(evt) {
+      const pt = svg.createSVGPoint();
+      pt.x = evt.clientX;
+      pt.y = evt.clientY;
+      return pt.matrixTransform(svg.getScreenCTM().inverse());
+    }
+
+    function nearestAngleFromDown(parent, target, side) {
+      const dx = (target.x - parent.x) * side;
+      const dy = target.y - parent.y;
+      return Math.atan2(dx, dy) * 180 / Math.PI;
+    }
+
+    svg.addEventListener("pointerdown", evt => {
+      const target = evt.target.closest(".joint");
+      if (!target) return;
+      dragTarget = target.dataset.joint;
+      svg.setPointerCapture(evt.pointerId);
+      stopAnimation();
+    });
+
+    svg.addEventListener("pointermove", evt => {
+      if (!dragTarget) return;
+      const pt = pointerToSvgPoint(evt);
+      const p = currentPoints;
+
+      if (dragTarget === "root") {
+        setControl("rootX", pt.x, false);
+        setControl("rootY", pt.y, false);
+      }
+
+      if (dragTarget.includes("Elbow")) {
+        const left = dragTarget.startsWith("left");
+        const key = left ? "leftShoulder" : "rightShoulder";
+        const parent = left ? p.leftShoulder : p.rightShoulder;
+        setControl(key, nearestAngleFromDown(parent, pt, left ? -1 : 1), true);
+      }
+
+      if (dragTarget.includes("Hand")) {
+        const left = dragTarget.startsWith("left");
+        const shoulderKey = left ? "leftShoulder" : "rightShoulder";
+        const elbowKey = left ? "leftElbow" : "rightElbow";
+        const parent = left ? p.leftElbow : p.rightElbow;
+        const absolute = nearestAngleFromDown(parent, pt, left ? -1 : 1);
+        setControl(elbowKey, absolute - controls[shoulderKey].value, true);
+      }
+
+      if (dragTarget.includes("Knee")) {
+        const left = dragTarget.startsWith("left");
+        const key = left ? "leftHip" : "rightHip";
+        const parent = left ? p.leftHip : p.rightHip;
+        setControl(key, nearestAngleFromDown(parent, pt, left ? -1 : 1), true);
+      }
+
+      if (dragTarget.includes("Ankle")) {
+        const left = dragTarget.startsWith("left");
+        const hipKey = left ? "leftHip" : "rightHip";
+        const kneeKey = left ? "leftKnee" : "rightKnee";
+        const parent = left ? p.leftKnee : p.rightKnee;
+        const absolute = nearestAngleFromDown(parent, pt, left ? -1 : 1);
+        setControl(kneeKey, controls[hipKey].value - absolute, true);
+      }
+
+      if (dragTarget.includes("Toe")) {
+        const left = dragTarget.startsWith("left");
+        const ankleKey = left ? "leftAnkle" : "rightAnkle";
+        const parent = left ? p.leftAnkle : p.rightAnkle;
+        const absolute = nearestAngleFromDown(parent, pt, left ? -1 : 1);
+        setControl(ankleKey, absolute - 90, true);
+      }
+
+      if (dragTarget === "shoulderCenter" || dragTarget === "headCenter") {
+        const angle = Math.atan2(pt.x - p.root.x, p.root.y - pt.y) * 180 / Math.PI;
+        setControl("torsoLean", angle, false);
+      }
+
+      render();
+    });
+
+    svg.addEventListener("pointerup", evt => {
+      dragTarget = null;
+      try { svg.releasePointerCapture(evt.pointerId); } catch {}
+    });
+
+    document.getElementById("playBtn").addEventListener("click", startAnimation);
+    document.getElementById("pauseBtn").addEventListener("click", stopAnimation);
+    document.getElementById("resetBtn").addEventListener("click", resetPose);
+    document.getElementById("defaultBtn").addEventListener("click", setBodyDefaults);
+    document.getElementById("exportBtn").addEventListener("click", exportCurrentSvg);
+    document.getElementById("saveCurrentPoseBtn").addEventListener("click", saveCurrentPose);
+    document.getElementById("nextPoseBtn").addEventListener("click", nextPose);
+    document.getElementById("playTimelineBtn").addEventListener("click", startTimeline);
+    document.getElementById("stopTimelineBtn").addEventListener("click", stopTimeline);
+    document.getElementById("poseSquatBtn").addEventListener("click", setSquatPose);
+    document.getElementById("poseJumpBtn").addEventListener("click", setJumpPose);
+    document.getElementById("showJoints").addEventListener("change", render);
+    document.getElementById("showGraph").addEventListener("change", render);
+
+    buildControls();
+    render();
+  </script>
+</body>
+</html>

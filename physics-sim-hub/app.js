@@ -6,6 +6,7 @@ import Module2DKinematics from './modules/Kinematics2d.js';
 import ModuleHorizontal2dKinematics from './modules/Horizontal2d.js';
 import Problem3_FreeBody from './modules/Problem3_FreeBody.js';
 import MonkeyHunter from './modules/MonkeyHunter.js';
+import MonkeyHunterNew from './modules/monkey-hunter-new.js';
 import AtwoodRamp from './modules/AtwoodRamp.js';
 import AtwoodFlat1Pulley from './modules/AtwoodFlat1Pulley.js';
 import AtwoodPulley from './modules/AtwoodPulley.js';
@@ -18,6 +19,7 @@ const MODULE_REGISTRY = {
     "Problem 2B: Horizontal Launch": ModuleHorizontal2dKinematics,
     "Problem 3: Free Body Diagram": Problem3_FreeBody,
     "Monkey & Hunter": MonkeyHunter,
+    "Monkey & Hunter (Walkthrough)": MonkeyHunterNew,
     "Atwood Machine: Ramp": AtwoodRamp,
     "Atwood Machine: Flat 1 Pulley": AtwoodFlat1Pulley,
     "Atwood Machine: Classic Pulley": AtwoodPulley,
@@ -27,6 +29,7 @@ const MODULE_REGISTRY = {
 // Standalone pages that open in a new tab instead of loading into the canvas
 const PAGE_LINKS = {
     "2D Kinematics: Student Explorer": "./kinematics2dFlatSimple.html",
+    "Stickman Motion Lab: Pose & Jump Builder": "./modules/stickman-physics.html",
 };
 
 const DEFAULT_MODULE_NAME = "Problem 2: 2D Projectile Motion";
@@ -64,6 +67,16 @@ window.onload = function() {
         currentSimulationInstance = new ModuleClass('simCanvas');
         currentSimulationInstance.previewTitleFallback = moduleName + " Preview";
         currentSimulationInstance.init();
+
+        const ext = document.getElementById('moduleExtension');
+        if (currentSimulationInstance instanceof Module2DKinematics) {
+            ext.classList.remove('hidden');
+            currentSimulationInstance.moduleExtension = ext;
+            currentSimulationInstance.drawPreview();
+        } else {
+            ext.classList.add('hidden');
+            ext.innerHTML = '';
+        }
     };
 
     selector.addEventListener('change', (e) => {

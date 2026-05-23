@@ -965,6 +965,25 @@ export function _hoverAnimAccel(ctx, model, axis, elapsed) {
         }
     }
 
+export function _drawGivenChipHoverAnim(ctx, model, tracker, elapsed) {
+    const { valueKey, axis } = tracker;
+    if (valueKey === 'dx') {
+        runHoverAnimationGuard(this, 'chipHover:dx', () => this._hoverAnimDeltaX(ctx, model, elapsed));
+    } else if (valueKey === 'dy') {
+        runHoverAnimationGuard(this, 'chipHover:dy', () => this._hoverAnimDeltaY(ctx, model, elapsed));
+    } else if (valueKey === 'hmax') {
+        runHoverAnimationGuard(this, 'chipHover:hmax', () => this._hoverAnimHmax(ctx, model, elapsed));
+    } else if (valueKey === 'v0x') {
+        runHoverAnimationGuard(this, 'chipHover:v0x', () => this._hoverAnimV0(ctx, model, 'x', elapsed));
+    } else if (valueKey === 'v0y') {
+        runHoverAnimationGuard(this, 'chipHover:v0y', () => this._hoverAnimV0(ctx, model, 'y', elapsed));
+    } else if (valueKey === 'v0') {
+        runHoverAnimationGuard(this, 'chipHover:v0', () => this._hoverAnimV0(ctx, model, axis || 'x', elapsed));
+    } else if (valueKey === 'time') {
+        runHoverAnimationGuard(this, 'chipHover:time', () => this._hoverAnimTime(ctx, model, elapsed));
+    }
+}
+
     export function _hoverAnimTime(ctx, model, elapsed) {
         const tFlight = model.tFlight;
         const dropDuration = 0.55;
@@ -1323,6 +1342,7 @@ const hoverAnimationMethods = {
     _hoverAnimVFinal,
     _hoverAnimAccel,
     _hoverAnimTime,
+    _drawGivenChipHoverAnim,
     drawTinyWorker
 };
 

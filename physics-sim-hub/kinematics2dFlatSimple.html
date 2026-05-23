@@ -495,6 +495,52 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 99px; }
 
+        /* ── Problem mode tabs ── */
+        .mode-tabs {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.5rem 1.25rem;
+            border-bottom: 1px solid var(--border-subtle);
+            background: var(--surface-2);
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+        .mode-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-right: 0.2rem;
+            flex-shrink: 0;
+        }
+        .mode-tab {
+            border: 1.5px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 0.3rem 0.8rem;
+            font-family: inherit;
+            font-size: 0.72rem;
+            font-weight: 700;
+            cursor: pointer;
+            background: var(--surface-1);
+            color: var(--text-secondary);
+            transition: all 0.13s ease;
+            white-space: nowrap;
+            line-height: 1.4;
+        }
+        .mode-tab:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-light);
+        }
+        .mode-tab.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(79,70,229,0.25);
+        }
+
         @media (max-width: 600px) {
             .sim-header { flex-direction: column; align-items: flex-start; }
             .hover-tip { display: none; }
@@ -535,6 +581,16 @@
                 <button class="chip" data-scenario="Higher Landing" data-v0="22" data-angle="50" data-hi="0" data-hf="12">Onto Building</button>
                 <button class="chip" data-scenario="Lower Landing / Cliff" data-v0="18" data-angle="35" data-hi="15" data-hf="0">Off a Cliff</button>
             </div>
+        </div>
+
+        <!-- Problem mode tabs -->
+        <div class="mode-tabs" id="modeTabs">
+            <span class="mode-label">Mode:</span>
+            <button class="mode-tab active" data-mode="intro">1 · Intro</button>
+            <button class="mode-tab" data-mode="givens">2 · Givens</button>
+            <button class="mode-tab" data-mode="equation">3 · Equation</button>
+            <button class="mode-tab" data-mode="solve">4 · Solve</button>
+            <button class="mode-tab" data-mode="finalVector">5 · Final Vector</button>
         </div>
 
         <!-- Canvas viewport -->
@@ -579,6 +635,7 @@
 
     <script type="module">
         import Module2DKinematics from './modules/Kinematics2d.js';
+        import { buildWorkAnalysisSequencePanel } from './modules/Kinematics2dWorkAnalysisPanels.js';
 
         // ── Instantiate ──────────────────────────────────────────────────────
         const sim = new Module2DKinematics('simCanvas');
@@ -674,23 +731,141 @@
             const chip = e.target.closest('.chip');
             if (!chip) return;
 
-            // Update active state
             document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
             chip.classList.add('active');
 
-            // Stop animation and load new scenario
-            if (sim.isPlaying) sim.stopPreview();
-            playBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play`;
-
             const updates = {
-                scenarioType:  chip.dataset.scenario,
+                scenarioType:    chip.dataset.scenario,
                 initialVelocity: parseFloat(chip.dataset.v0),
                 launchAngle:     parseFloat(chip.dataset.angle),
                 initialHeight:   parseFloat(chip.dataset.hi),
                 landingHeight:   parseFloat(chip.dataset.hf),
             };
             Object.entries(updates).forEach(([key, val]) => sim.setInputValue(key, val, { redraw: false }));
+            applyMode(currentMode);
+        });
+
+        // ── Problem mode system ───────────────────────────────────────────────
+
+        let currentMode = 'intro';
+
+        const MODE_SETTINGS = {
+            intro: {
+                unknownDx: false, unknownDy: false, unknownHmax: false,
+                unknownInitialVelocity: false, unknownInitialVx: false, unknownInitialVy: false,
+                unknownFinalVx: false, unknownFinalVy: false, unknownFinalVelocity: false,
+                unknownTheta: false, unknownTime: false,
+                showEquations: true, showComponents: true, showVelocityVectors: true,
+                showDistanceMarkers: true, showVectorBreakdown: false,
+                showFinalVectorAdditionZoom: false, showGhostFrames: false,
+                showMaxHeight: false, listDisplay: 'Values', showProblemLabels: false,
+                workAnalysisProblemType: 'Auto',
+            },
+            givens: {
+                showEquations: false, showComponents: false, showVelocityVectors: true,
+                showDistanceMarkers: true, showVectorBreakdown: false,
+                showFinalVectorAdditionZoom: false, listDisplay: 'Values',
+                showProblemLabels: false, workAnalysisProblemType: 'Auto',
+            },
+            equation: {
+                unknownDx: false, unknownDy: false, unknownHmax: false,
+                unknownInitialVelocity: false, unknownInitialVx: false, unknownInitialVy: false,
+                unknownFinalVx: false, unknownFinalVy: false, unknownFinalVelocity: false,
+                unknownTheta: false, unknownTime: false,
+                showEquations: true, showComponents: false, showVelocityVectors: false,
+                showDistanceMarkers: false, showVectorBreakdown: true,
+                showVectorBreakdownValues: true, showFinalVectorAdditionZoom: false,
+                listDisplay: 'Values', showProblemLabels: false,
+                workAnalysisProblemType: 'Auto',
+            },
+            solve: {
+                showEquations: false, showComponents: false, showVelocityVectors: true,
+                showDistanceMarkers: true, showVectorBreakdown: false,
+                showFinalVectorAdditionZoom: false, listDisplay: 'Values',
+                showProblemLabels: false, workAnalysisProblemType: 'Auto',
+            },
+            finalVector: {
+                unknownFinalVx: false, unknownFinalVy: false, unknownFinalVelocity: false,
+                showEquations: false, showComponents: false, showVelocityVectors: true,
+                showDistanceMarkers: true, showVectorBreakdown: false,
+                showFinalVectorAdditionZoom: true, listDisplay: 'Values',
+                showProblemLabels: false, workAnalysisProblemType: 'Auto',
+            }
+        };
+
+        function setPlayBtnState(playing) {
+            playBtn.innerHTML = playing
+                ? `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Pause`
+                : `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play`;
+        }
+
+        function applyMode(mode) {
+            currentMode = mode;
+
+            document.querySelectorAll('.mode-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+
+            if (sim.isPlaying) sim.stopPreview();
+            setPlayBtnState(false);
+
+            // Reset solve-mode panel plumbing
+            sim.syncExternalPanels = () => {};
+            const ext = document.getElementById('moduleExtension');
+            ext.classList.add('hidden');
+            ext.innerHTML = '';
+            sim.moduleExtension = null;
+
+            const settings = MODE_SETTINGS[mode] || MODE_SETTINGS.intro;
+            Object.entries(settings).forEach(([key, val]) => sim.setInputValue(key, val, { redraw: false }));
+
+            if (mode === 'givens') {
+                sim.applyWorkAnalysisProblemTypePreset(sim.inputs.workAnalysisProblemType, { randomize: false, redraw: false });
+                sim.drawPreview();
+                return;
+            }
+
+            if (mode === 'solve') {
+                sim.applyWorkAnalysisProblemTypePreset(sim.inputs.workAnalysisProblemType, { randomize: false, redraw: false });
+                const model = sim.computeProjectileModel(0);
+                const problemType = sim.getSelectedWorkAnalysisProblemType(model);
+                const steps = sim.getConfiguredWorkAnalysisSteps(model, problemType);
+
+                if (steps.length) {
+                    ext.classList.remove('hidden');
+                    sim.moduleExtension = ext;
+                    sim.resetWorkWalkthroughState();
+
+                    const renderPanel = () => {
+                        const m = sim.computeProjectileModel(0);
+                        const state = sim.getWorkSequenceState(steps);
+                        ext.innerHTML = buildWorkAnalysisSequencePanel({
+                            model: m, problemType, steps,
+                            manualState: state,
+                            showStepControls: true
+                        });
+                        sim.bindWorkAnalysisSequencePanelEvents(steps);
+                    };
+
+                    sim.syncExternalPanels = () => renderPanel();
+                    renderPanel();
+                    sim.renderWorkAnalysisSequenceStepPreview(steps);
+                    return;
+                }
+
+                sim.drawPreview();
+                return;
+            }
+
             sim.drawPreview();
+
+            if (mode === 'equation' || mode === 'finalVector') {
+                sim.playPreview();
+                setPlayBtnState(true);
+            }
+        }
+
+        document.getElementById('modeTabs').addEventListener('click', (e) => {
+            const tab = e.target.closest('.mode-tab');
+            if (tab) applyMode(tab.dataset.mode);
         });
     </script>
 </body>

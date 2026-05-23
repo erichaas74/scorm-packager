@@ -26,6 +26,7 @@
             display: block;
             width: 100%;
             height: 100%;
+            cursor: pointer;
         }
         #ui-layer {
             width: 100%;
@@ -56,6 +57,12 @@
             <div class="grid grid-cols-2 md:grid-cols-5 gap-2" id="button-container">
                 <!-- Jump profile buttons injected by JS -->
             </div>
+
+            <div class="grid grid-cols-3 gap-2 px-2">
+                <button id="bend-control" class="py-2 px-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs md:text-sm font-bold transition-colors">Bend x1.00</button>
+                <button id="height-control" class="py-2 px-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs md:text-sm font-bold transition-colors">Height x1.00</button>
+                <button id="motion-reset-control" class="py-2 px-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs md:text-sm font-bold transition-colors">Reset Form</button>
+            </div>
             
             <div class="grid grid-cols-3 gap-2 md:gap-4 mt-2 px-2 text-center">
                 <div class="bg-blue-50 p-2 rounded-lg border border-blue-100">
@@ -74,18 +81,24 @@
         </div>
     </div>
 
+    <script src="stickman-jump-animator.js"></script>
     <script>
         const canvas = document.getElementById('simulationCanvas');
         const ctx = canvas.getContext('2d');
         const container = document.getElementById('canvas-container');
+        const stickmanAnimator = window.createStickmanJumpAnimator
+            ? window.createStickmanJumpAnimator(ctx, { pixelsPerMeter: 180 })
+            : null;
 
         let width, height;
         function resize() {
             // Safely get dimensions from the wrapper div to prevent syntax errors
             width = container.clientWidth;
             height = container.clientHeight;
-            canvas.width = width;
-            canvas.height = height;
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = Math.max(1, Math.floor(width * dpr));
+            canvas.height = Math.max(1, Math.floor(height * dpr));
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         }
         window.addEventListener('resize', resize);
         resize();
@@ -105,6 +118,10 @@
         let jumpHistory = [];
         let currentGraphData = [];
         let activeProfile = null;
+        const motionInput = {
+            bendScale: 1,
+            jumpHeightScale: 1
+        };
 
         // The different jumping styles
         const jumpProfiles = [
@@ -131,9 +148,59 @@
             currentGraphData = [];
             state = 'idle';
             athleteY = 0;
+            athleteVy = 0;
+            activeProfile = null;
+            currentForce = 0;
+            motionInput.bendScale = 1;
+            motionInput.jumpHeightScale = 1;
+            updateMotionControls();
             document.getElementById('impulse-readout').innerText = '0 N·s';
             document.getElementById('speed-readout').innerText = '0.0 m/s';
             document.getElementById('height-readout').innerText = '0.00 m';
+        }
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        function updateMotionControls() {
+            document.getElementById('bend-control').innerText = 'Bend x' + motionInput.bendScale.toFixed(2);
+            document.getElementById('height-control').innerText = 'Height x' + motionInput.jumpHeightScale.toFixed(2);
+        }
+
+        function adjustMotionInput(kind, amount) {
+            if (kind === 'bend') {
+                motionInput.bendScale = clamp(motionInput.bendScale + amount, 0.45, 1.75);
+            }
+
+            if (kind === 'height') {
+                motionInput.jumpHeightScale = clamp(motionInput.jumpHeightScale + amount, 0.55, 1.9);
+            }
+
+            updateMotionControls();
+            drawScene();
+        }
+
+        function resetMotionInput() {
+            motionInput.bendScale = 1;
+            motionInput.jumpHeightScale = 1;
+            updateMotionControls();
+            drawScene();
+        }
+
+        function handleCanvasMotionClick(evt) {
+            const rect = canvas.getBoundingClientRect();
+            const clickX = evt.clientX - rect.left;
+            const clickY = evt.clientY - rect.top;
+
+            // Leave the graph side alone so students can compare curves without changing form.
+            if (clickX > rect.width * 0.45) return;
+
+            if (clickY < rect.height * 0.45) {
+                adjustMotionInput('height', 0.1);
+            } else {
+                adjustMotionInput('bend', 0.1);
+            }
         }
 
         function startJump(profile) {
@@ -230,25 +297,43 @@
         function drawJumper(groundY) {
             const jumperX = width * 0.25;
             const pixelsPerMeter = 180; // Scale factor for visuals
-            
-            // Base visual height of the athlete
-            let boxHeight = 60; 
-            
-            // If pushing, animate the "squat" based on contact time and current force
-            if (state === 'pushing') {
-                // Longer contact time = deeper squat visual
-                const squatDepth = activeProfile.contactTime / 0.65; 
-                // Dip down and come back up following the sine curve
+            const pushProgress = activeProfile ? timeInPush / activeProfile.contactTime : 0;
+            const athleteHeight = Math.max(118, Math.min(230, height * 0.46));
+
+            if (stickmanAnimator) {
+                stickmanAnimator.drawJumpState({
+                    x: jumperX,
+                    groundY,
+                    height: athleteHeight,
+                    pixelsPerMeter,
+                    state,
+                    athleteY,
+                    pushProgress,
+                    currentForce,
+                    weight,
+                    profile: activeProfile,
+                    bendScale: motionInput.bendScale,
+                    jumpHeightScale: motionInput.jumpHeightScale,
+                    color: activeProfile ? activeProfile.color : '#64748b',
+                    showForceArrow: state === 'pushing'
+                });
+                return;
+            }
+
+            drawFallbackJumper(jumperX, groundY, pixelsPerMeter);
+        }
+
+        function drawFallbackJumper(jumperX, groundY, pixelsPerMeter) {
+            let boxHeight = 60;
+
+            if (state === 'pushing' && activeProfile) {
+                const squatDepth = clamp((activeProfile.contactTime / 0.65) * motionInput.bendScale, 0, 1.35);
                 boxHeight = 60 - (30 * squatDepth * Math.sin(Math.PI * timeInPush / activeProfile.contactTime));
             }
-            
-            const visualY = groundY - (athleteY * pixelsPerMeter) - boxHeight;
-            
-            // Draw athlete box
+
+            const visualY = groundY - (athleteY * motionInput.jumpHeightScale * pixelsPerMeter) - boxHeight;
             ctx.fillStyle = (state === 'idle') ? '#cbd5e1' : (activeProfile ? activeProfile.color : '#cbd5e1');
             ctx.fillRect(jumperX - 25, visualY, 50, boxHeight);
-            
-            // Outline
             ctx.strokeStyle = '#1e293b';
             ctx.lineWidth = 2;
             ctx.strokeRect(jumperX - 25, visualY, 50, boxHeight);
@@ -338,6 +423,12 @@
             
             ctx.globalAlpha = 1.0; // Reset alpha
         }
+
+        document.getElementById('bend-control').addEventListener('click', () => adjustMotionInput('bend', 0.1));
+        document.getElementById('height-control').addEventListener('click', () => adjustMotionInput('height', 0.1));
+        document.getElementById('motion-reset-control').addEventListener('click', resetMotionInput);
+        canvas.addEventListener('click', handleCanvasMotionClick);
+        updateMotionControls();
 
         // Start animation loop
         requestAnimationFrame(animate);
