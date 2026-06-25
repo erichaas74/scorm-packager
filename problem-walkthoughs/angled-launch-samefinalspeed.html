@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cliff Launch: Which Lands Fastest?</title>
+  <style>
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: #f1f5f9;
+    }
+    body {
+      padding: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    @media (max-width: 760px) {
+      body { padding: 10px; }
+    }
+  </style>
+</head>
+<body>
+<style>
+.cliffq{
+  --blue:#28609f;
+  --dark:#173f66;
+  --bg:#edf5fb;
+  --line:#d7e2ef;
+  --text:#1f2937;
+  --muted:#64748b;
+  --green:#0f766e;
+  --orange:#b45309;
+  --up:#ef4444;
+  --flat:#2563eb;
+  --down:#7c3aed;
+  --same:#0f766e;
+  --vx:#059669;
+  --vy:#dc2626;
+  --vr:#0f172a;
+  max-width:1260px;
+  width:100%;
+  margin:auto;
+  padding:10px;
+  border-radius:20px;
+  background:var(--blue);
+  font-family:Arial,Helvetica,sans-serif;
+  color:var(--text);
+}
+.cliffq,.cliffq *{box-sizing:border-box}
+.cliffq button{font:inherit}
+.cliffq .card{
+  background:#fff;
+  border-radius:18px;
+  overflow:hidden;
+  box-shadow:0 12px 30px #0f172a22;
+}
+.cliffq .scene{
+  position:relative;
+  aspect-ratio:2/1;
+  min-height:390px;
+  overflow:hidden;
+  background:linear-gradient(170deg,#b8e0f7 0%,#dff3ff 30%,#e8f7ff 58%,#c7e9ff 72%,#9fd3ee 100%);
+}
+.cliffq .scene:before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background-image:
+    linear-gradient(#0f172a10 1px,transparent 1px),
+    linear-gradient(90deg,#0f172a10 1px,transparent 1px);
+  background-size:48px 48px;
+  opacity:.22;
+}
+.cliffq .sun{
+  position:absolute;
+  right:8%;
+  top:8%;
+  width:64px;
+  height:64px;
+  border-radius:50%;
+  background:radial-gradient(circle,#fff9 0 18%,#fde047 19% 55%,#f59e0b 56% 100%);
+  box-shadow:0 0 0 14px #fde04718,0 0 40px #fde04755;
+  opacity:.88;
+}
+.cliffq .cloud{
+  position:absolute;
+  width:120px;
+  height:34px;
+  border-radius:40px;
+  background:#ffffffcc;
+  box-shadow:38px -13px 0 8px #ffffffbb,75px 0 0 1px #ffffffbb;
+  opacity:.7;
+}
+.cliffq .cloud.c1{left:42%;top:10%;transform:scale(.85)}
+.cliffq .cloud.c2{left:70%;top:25%;transform:scale(.65)}
+/* mountain silhouette */
+.cliffq .mountains{
+  position:absolute;
+  left:0;right:0;
+  bottom:28%;
+  height:22%;
+  z-index:2;
+  background:linear-gradient(180deg,transparent 0,transparent 30%,#b0cfe888 30%);
+  clip-path:polygon(0 100%,0 60%,5% 35%,12% 55%,20% 20%,28% 50%,36% 35%,44% 60%,55% 40%,65% 65%,72% 45%,80% 68%,88% 50%,95% 60%,100% 48%,100% 100%);
+  opacity:.5;
+}
+.cliffq .water{
+  position:absolute;
+  left:0;right:0;bottom:0;
+  height:24%;
+  z-index:1;
+  background:
+    radial-gradient(ellipse at 20% 10%,#fff6 0 10%,transparent 12%),
+    repeating-linear-gradient(175deg,#ffffff38 0 2px,transparent 2px 38px),
+    linear-gradient(180deg,#38bdf8 0%,#0284c7 55%,#0369a1 100%);
+}
+.cliffq .waterline{
+  position:absolute;
+  left:0;right:0;
+  bottom:24%;
+  height:3px;
+  z-index:3;
+  background:#0e7490aa;
+}
+.cliffq .board{
+  position:absolute;
+  left:1.5%;top:2%;
+  z-index:30;
+  min-width:260px;
+  padding:10px 14px;
+  border:2px solid #94a3b8;
+  border-radius:14px;
+  background:#dbeafe;
+  font-weight:900;
+  font-size:clamp(1rem,1.7vw,1.2rem);
+  text-align:center;
+  color:var(--dark);
+  box-shadow:0 8px 18px #0f172a18;
+}
+.cliffq svg{
+  position:absolute;
+  inset:0;
+  z-index:9;
+  width:100%;height:100%;
+  overflow:visible;
+  pointer-events:none;
+}
+.cliffq .path{
+  fill:none;
+  stroke-width:4;
+  stroke-linecap:round;
+  stroke-dasharray:9 8;
+  opacity:0;
+  transition:opacity .25s;
+}
+.cliffq .path.ghost{opacity:.28}
+.cliffq .path.reveal{opacity:1}
+.cliffq .path.up{stroke:var(--up)}
+.cliffq .path.flat{stroke:var(--flat)}
+.cliffq .path.down{stroke:var(--down)}
+
+/* vector layer */
+.cliffq .vector-layer{opacity:0}
+.cliffq .vector-layer.show{opacity:1}
+
+/* vector arrow paths */
+.cliffq .vec-path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.cliffq .vec-x{stroke:var(--vx);stroke-width:3.5}
+.cliffq .vec-y{stroke:var(--vy);stroke-width:3.5}
+.cliffq .vec-r{stroke:var(--vr);stroke-width:5}
+.cliffq .vec-label{
+  font:900 13px Arial,Helvetica,sans-serif;
+  paint-order:stroke;
+  stroke:#fff;
+  stroke-width:5px;
+  stroke-linejoin:round;
+}
+.cliffq .vec-label.x{fill:var(--vx);font-size:15px}
+.cliffq .vec-label.y{fill:var(--vy);font-size:15px}
+.cliffq .vec-label.r{fill:var(--vr);font-size:19px}
+.cliffq .right-ang{fill:none;stroke:#94a3b8;stroke-width:2;stroke-linecap:square}
+.cliffq .land-dot{fill:#0f172a;stroke:#fff;stroke-width:2.5}
+.cliffq .angle-arc{fill:none;stroke:#7c3aed;stroke-width:2.5}
+.cliffq .angle-label{
+  font:900 12px Arial,Helvetica,sans-serif;
+  fill:#7c3aed;
+  paint-order:stroke;
+  stroke:#fff;
+  stroke-width:4px;
+  stroke-linejoin:round;
+}
+
+/* floating scene choice buttons */
+.cliffq .scene-choice{
+  position:absolute;
+  z-index:50;
+  transform:translateX(-50%);
+  background:#fffffff5;
+  border:2.5px solid;
+  border-radius:10px;
+  padding:6px 12px;
+  font:800 clamp(.7rem,1.2vw,.88rem) Arial,Helvetica,sans-serif;
+  cursor:pointer;
+  display:none;
+  box-shadow:0 4px 12px #0f172a22;
+  transition:.15s;
+}
+.cliffq .scene-choice.show{display:block}
+.cliffq .scene-choice:hover{transform:translateX(-50%) translateY(-2px);box-shadow:0 8px 18px #0f172a28}
+.cliffq .scene-choice.up{border-color:var(--up);color:var(--up)}
+.cliffq .scene-choice.flat{border-color:var(--flat);color:var(--flat)}
+.cliffq .scene-choice.down{border-color:var(--down);color:var(--down)}
+.cliffq .scene-choice.same{border-color:var(--same);color:var(--same)}
+.cliffq .scene-choice.correct{background:#ecfdf5}
+.cliffq .scene-choice.wrong{background:#fff7ed;border-color:var(--orange);color:#7c2d12}
+.cliffq .scene-choice:disabled{cursor:default;transform:translateX(-50%)}
+
+.cliffq .ball{
+  position:absolute;
+  z-index:14;
+  width:clamp(12px,1.3vw,16px);
+  height:clamp(12px,1.3vw,16px);
+  border-radius:50%;
+  border:1px solid #0f172a55;
+  box-shadow:0 3px 6px #0f172a2e;
+  background:radial-gradient(circle at 34% 30%,#fff8 0 13%,transparent 22%),radial-gradient(circle,#64748b,#334155 62%,#0f172a);
+  transform:translate(-50%,-50%);
+  opacity:0;
+}
+.cliffq .ball.show{opacity:1}
+.cliffq .ball.up{background:radial-gradient(circle at 34% 30%,#fff8 0 13%,transparent 22%),var(--up)}
+.cliffq .ball.flat{background:radial-gradient(circle at 34% 30%,#fff8 0 13%,transparent 22%),var(--flat)}
+.cliffq .ball.down{background:radial-gradient(circle at 34% 30%,#fff8 0 13%,transparent 22%),var(--down)}
+.cliffq .splash{
+  position:absolute;
+  z-index:16;
+  width:24px;height:10px;
+  border:3px solid #ffffffcc;
+  border-left-color:transparent;
+  border-right-color:transparent;
+  border-bottom:0;
+  border-radius:50%;
+  transform:translate(-50%,-50%) scale(.4);
+  opacity:0;
+}
+.cliffq .splash.show{animation:splash .45s ease-out forwards}
+@keyframes splash{
+  0%{opacity:1;transform:translate(-50%,-50%) scale(.35)}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(2.2)}
+}
+.cliffq .banner{
+  display:none;
+  position:absolute;
+  right:1.5%;
+  top:2%;
+  z-index:40;
+  width:min(440px,46%);
+  padding:14px;
+  border:2px solid #28609f38;
+  border-radius:18px;
+  background:#fffffff5;
+  box-shadow:0 12px 24px #0f172a1f;
+}
+.cliffq h3{
+  margin:0 0 8px;
+  color:var(--dark);
+  font-size:clamp(1.05rem,1.8vw,1.25rem);
+}
+.cliffq p{
+  margin:0;
+  color:var(--muted);
+  line-height:1.42;
+}
+.cliffq .choices{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-top:12px;
+}
+.cliffq .choice,.cliffq .main{
+  border:0;
+  border-radius:14px;
+  padding:12px 14px;
+  font-weight:900;
+  cursor:pointer;
+}
+.cliffq .choice{
+  min-height:54px;
+  text-align:center;
+  background:#fff;
+  color:var(--dark);
+  border:2px solid #cbd5e1;
+  font-size:.98rem;
+  transition:.2s;
+}
+.cliffq .choice[data-answer="up"]{border-color:var(--up)}
+.cliffq .choice[data-answer="flat"]{border-color:var(--flat)}
+.cliffq .choice[data-answer="down"]{border-color:var(--down)}
+.cliffq .choice[data-answer="same"]{border-color:var(--same)}
+.cliffq .choice.on{background:#eff6ff;box-shadow:inset 0 0 0 3px #ffffff}
+.cliffq .choice.correct{background:#ecfdf5;border-color:var(--same);color:#064e3b}
+.cliffq .choice.wrong{background:#fff7ed;border-color:var(--orange);color:#7c2d12}
+.cliffq .main{background:var(--blue);color:#fff}
+.cliffq button:hover,.cliffq button:focus-visible{
+  transform:translateY(-1px);
+  box-shadow:0 8px 18px #0f172a24;
+  outline:3px solid #28609f40;
+}
+.cliffq button:disabled{
+  background:#94a3b8;
+  cursor:not-allowed;
+  transform:none;
+  box-shadow:none;
+  opacity:.8;
+}
+.cliffq .bar{
+  position:absolute;
+  left:1.5%;
+  top:calc(2% + 62px);
+  bottom:auto;
+  z-index:41;
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.cliffq .help{
+  color:#f8fafc;
+  background:#0f172acc;
+  border-radius:999px;
+  padding:8px 11px;
+  font-size:.9rem;
+  font-weight:800;
+}
+.cliffq .fb{
+  display:none;
+  margin-top:12px;
+  padding:12px;
+  border-left:6px solid var(--blue);
+  border-radius:12px;
+  background:#eff6ff;
+  line-height:1.4;
+  font-size:.95rem;
+}
+.cliffq .fb strong{display:block;margin-bottom:4px;color:var(--dark)}
+.cliffq .fb.good{border-color:var(--green);background:#ecfdf5}
+.cliffq .fb.bad{border-color:var(--orange);background:#fff7ed}
+.cliffq .banner.show{display:block}
+@media(max-width:760px){
+  .cliffq .scene{aspect-ratio:4/3;min-height:500px}
+  .cliffq .board{right:3%;top:2%;min-width:220px}
+  .cliffq .banner{right:3%;top:calc(2% + 58px);width:min(360px,78%)}
+  .cliffq .calc-panel{left:3%;right:3%;bottom:3%;width:auto}
+  .cliffq .label{width:min(185px,35vw);font-size:.7rem}
+  .cliffq .choices{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){
+  .cliffq *{transition-duration:.01ms!important;animation-duration:.01ms!important}
+}
+</style>
+
+<section class="cliffq" data-cliffq aria-label="Projectile final speed from a cliff question">
+  <div class="card">
+    <div class="scene" data-scene>
+      <div class="sun"></div>
+      <div class="cloud c1"></div>
+      <div class="cloud c2"></div>
+      <div class="mountains"></div>
+      <div class="board">Same launch speed</div>
+
+      <div class="water"></div>
+      <div class="waterline"></div>
+
+      <svg data-svg aria-hidden="true">
+        <defs>
+          <!-- vector arrowhead markers -->
+          <marker id="ahTeal" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+            <path d="M 0 0 L 10 5 L 0 10 Z" fill="#059669"/>
+          </marker>
+          <marker id="ahRed" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+            <path d="M 0 0 L 10 5 L 0 10 Z" fill="#dc2626"/>
+          </marker>
+          <marker id="ahDark" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+            <path d="M 0 0 L 12 6 L 0 12 Z" fill="#0f172a"/>
+          </marker>
+          <!-- cliff rock gradient (userSpaceOnUse so JS can set x2 = stepX) -->
+          <linearGradient id="cliffGrad" gradientUnits="userSpaceOnUse" data-cliff-grad>
+            <stop offset="0" stop-color="#78716c"/>
+            <stop offset="1" stop-color="#a8a29e"/>
+          </linearGradient>
+          <!-- cannon barrel gradient, top-to-bottom in local barrel coords -->
+          <linearGradient id="barrelGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0"   stop-color="#475569"/>
+            <stop offset="0.3" stop-color="#94a3b8"/>
+            <stop offset="0.8" stop-color="#1e293b"/>
+            <stop offset="1"   stop-color="#0f172a"/>
+          </linearGradient>
+          <!-- muzzle ring gradient -->
+          <linearGradient id="muzzleGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0"   stop-color="#334155"/>
+            <stop offset="0.3" stop-color="#cbd5e1"/>
+            <stop offset="1"   stop-color="#0f172a"/>
+          </linearGradient>
+          <!-- cannon base (semicircle mount) — highlight at top-center -->
+          <radialGradient id="baseGrad" cx="50%" cy="0%" r="80%" fx="50%" fy="0%">
+            <stop offset="0"    stop-color="#ffffff"/>
+            <stop offset="0.25" stop-color="#e2e8f0"/>
+            <stop offset="0.5"  stop-color="#cbd5e1"/>
+            <stop offset="0.75" stop-color="#94a3b8"/>
+            <stop offset="1"    stop-color="#475569"/>
+          </radialGradient>
+          <!-- pivot gold -->
+          <radialGradient id="pivotGrad" cx="40%" cy="25%" r="65%">
+            <stop offset="0" stop-color="#fef08a"/>
+            <stop offset="1" stop-color="#ca8a04"/>
+          </radialGradient>
+        </defs>
+
+        <!-- CLIFF — drawn first so it sits behind everything -->
+        <g data-cliff-g>
+          <rect data-cliff-rock fill="url(#cliffGrad)"/>
+          <path data-cliff-cracks fill="none" stroke="#57534e" stroke-width="3" stroke-linecap="round"/>
+          <rect data-cliff-dirt fill="#78350f"/>
+          <rect data-cliff-grass fill="#4ade80"/>
+          <line data-grass-line stroke="#16a34a" stroke-width="4"/>
+          <line data-cliff-edge stroke="#44403c" stroke-width="4"/>
+        </g>
+
+        <!-- trajectory paths -->
+        <path class="path up" data-path="up"></path>
+        <path class="path flat" data-path="flat"></path>
+        <path class="path down" data-path="down"></path>
+
+        <!-- CANNON — over the paths, below vector overlays -->
+        <!-- All coords are in cannon-local space (scale 0.4 applied via group transform) -->
+        <g data-cannon-g>
+          <!-- 3 barrels, drawn behind the base, one per launch type -->
+          <g data-barrel="up">
+            <rect x="0" y="-20" width="90" height="40" fill="url(#barrelGrad)" rx="3"/>
+            <rect x="76" y="-26" width="14" height="52" fill="url(#muzzleGrad)" rx="2"/>
+            <line x1="0" y1="0" x2="76" y2="0" stroke="rgba(0,0,0,0.35)" stroke-width="1"/>
+            <line x1="0" y1="1" x2="76" y2="1" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+            <circle cx="95" cy="0" r="10" fill="#ef4444" opacity="0.9" stroke="#b91c1c" stroke-width="1.5"/>
+          </g>
+          <g data-barrel="flat">
+            <rect x="0" y="-20" width="90" height="40" fill="url(#barrelGrad)" rx="3"/>
+            <rect x="76" y="-26" width="14" height="52" fill="url(#muzzleGrad)" rx="2"/>
+            <line x1="0" y1="0" x2="76" y2="0" stroke="rgba(0,0,0,0.35)" stroke-width="1"/>
+            <line x1="0" y1="1" x2="76" y2="1" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+            <circle cx="95" cy="0" r="10" fill="#2563eb" opacity="0.9" stroke="#1d4ed8" stroke-width="1.5"/>
+          </g>
+          <g data-barrel="down">
+            <rect x="0" y="-20" width="90" height="40" fill="url(#barrelGrad)" rx="3"/>
+            <rect x="76" y="-26" width="14" height="52" fill="url(#muzzleGrad)" rx="2"/>
+            <line x1="0" y1="0" x2="76" y2="0" stroke="rgba(0,0,0,0.35)" stroke-width="1"/>
+            <line x1="0" y1="1" x2="76" y2="1" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+            <circle cx="95" cy="0" r="10" fill="#7c3aed" opacity="0.9" stroke="#6d28d9" stroke-width="1.5"/>
+          </g>
+          <!-- launch-point ring -->
+          <circle r="7" fill="#0f172a" stroke="#ffffffcc" stroke-width="4"/>
+        </g>
+
+        <!-- vector diagrams — one per launch type -->
+        <g class="vector-layer" data-vectors="up">
+          <circle class="land-dot" data-landpt="up" r="5" cx="0" cy="0" opacity="0"/>
+          <!-- resultant drawn first (behind) -->
+          <path class="vec-path vec-r" data-vecr="up" marker-end="url(#ahDark)"/>
+          <!-- vx and vy drawn on top -->
+          <path class="vec-path vec-x" data-vecx="up" marker-end="url(#ahTeal)"/>
+          <path class="vec-path vec-y" data-vecy="up" marker-end="url(#ahRed)"/>
+          <!-- right-angle corner box -->
+          <path class="right-ang" data-ra="up" opacity="0"/>
+          <!-- angle arc -->
+          <path class="angle-arc" data-arc="up" opacity="0"/>
+          <!-- labels -->
+          <text class="vec-label x" data-vxlabel="up" opacity="0" text-anchor="middle"></text>
+          <text class="vec-label y" data-vylabel="up" opacity="0" text-anchor="start"></text>
+          <text class="vec-label r" data-vrlabel="up" opacity="0" text-anchor="middle"></text>
+          <text class="angle-label" data-anglelabel="up" opacity="0"></text>
+        </g>
+        <g class="vector-layer" data-vectors="flat">
+          <circle class="land-dot" data-landpt="flat" r="5" cx="0" cy="0" opacity="0"/>
+          <path class="vec-path vec-r" data-vecr="flat" marker-end="url(#ahDark)"/>
+          <path class="vec-path vec-x" data-vecx="flat" marker-end="url(#ahTeal)"/>
+          <path class="vec-path vec-y" data-vecy="flat" marker-end="url(#ahRed)"/>
+          <path class="right-ang" data-ra="flat" opacity="0"/>
+          <path class="angle-arc" data-arc="flat" opacity="0"/>
+          <text class="vec-label x" data-vxlabel="flat" opacity="0" text-anchor="middle"></text>
+          <text class="vec-label y" data-vylabel="flat" opacity="0" text-anchor="start"></text>
+          <text class="vec-label r" data-vrlabel="flat" opacity="0" text-anchor="middle"></text>
+          <text class="angle-label" data-anglelabel="flat" opacity="0"></text>
+        </g>
+        <g class="vector-layer" data-vectors="down">
+          <circle class="land-dot" data-landpt="down" r="5" cx="0" cy="0" opacity="0"/>
+          <path class="vec-path vec-r" data-vecr="down" marker-end="url(#ahDark)"/>
+          <path class="vec-path vec-x" data-vecx="down" marker-end="url(#ahTeal)"/>
+          <path class="vec-path vec-y" data-vecy="down" marker-end="url(#ahRed)"/>
+          <path class="right-ang" data-ra="down" opacity="0"/>
+          <path class="angle-arc" data-arc="down" opacity="0"/>
+          <text class="vec-label x" data-vxlabel="down" opacity="0" text-anchor="middle"></text>
+          <text class="vec-label y" data-vylabel="down" opacity="0" text-anchor="start"></text>
+          <text class="vec-label r" data-vrlabel="down" opacity="0" text-anchor="middle"></text>
+          <text class="angle-label" data-anglelabel="down" opacity="0"></text>
+        </g>
+      </svg>
+
+      <div class="ball up" data-ball="up" aria-label="Angled up projectile"></div>
+      <div class="ball flat" data-ball="flat" aria-label="Horizontal projectile"></div>
+      <div class="ball down" data-ball="down" aria-label="Angled down projectile"></div>
+
+      <div class="splash" data-splash="up"></div>
+      <div class="splash" data-splash="flat"></div>
+      <div class="splash" data-splash="down"></div>
+
+      <!-- scene-positioned choice buttons -->
+      <button class="scene-choice up"   type="button" data-answer="up"   data-scene-btn="up">Angled up</button>
+      <button class="scene-choice flat" type="button" data-answer="flat" data-scene-btn="flat">Horizontal</button>
+      <button class="scene-choice down" type="button" data-answer="down" data-scene-btn="down">Angled down</button>
+      <button class="scene-choice same" type="button" data-answer="same" data-scene-btn="same">They all land with the same speed</button>
+
+      <div class="banner" data-banner>
+        <div data-question>
+          <h3>Which cannon ball hits the water with the greatest speed?</h3>
+        </div>
+        <div class="fb" data-fb aria-live="polite"></div>
+      </div>
+
+      <div class="bar">
+        <button class="main" type="button" data-main>Show Launches</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+(()=>{
+  const root = document.currentScript.previousElementSibling;
+  if(!root?.matches('[data-cliffq]')) return;
+
+  const $ = q => root.querySelector(q);
+  const $$ = q => [...root.querySelectorAll(q)];
+
+  const scene = $('[data-scene]');
+  const svg = $('[data-svg]');
+  const main = $('[data-main]');
+  const fb = $('[data-fb]');
+  const banner = $('[data-banner]');
+  const choices = $$('[data-answer]');
+  const sceneChoiceBtns = {
+    up:   $('[data-scene-btn="up"]'),
+    flat: $('[data-scene-btn="flat"]'),
+    down: $('[data-scene-btn="down"]'),
+    same: $('[data-scene-btn="same"]')
+  };
+
+  // SVG cliff elements
+  const cliffGradEl  = $('[data-cliff-grad]');
+  const cliffRockEl  = $('[data-cliff-rock]');
+  const cliffCracksEl= $('[data-cliff-cracks]');
+  const cliffDirtEl  = $('[data-cliff-dirt]');
+  const cliffGrassEl = $('[data-cliff-grass]');
+  const grassLineEl  = $('[data-grass-line]');
+  const cliffEdgeEl  = $('[data-cliff-edge]');
+
+  // SVG cannon elements
+  const cannonG = $('[data-cannon-g]');
+  const barrels = {
+    up:   $('[data-barrel="up"]'),
+    flat: $('[data-barrel="flat"]'),
+    down: $('[data-barrel="down"]')
+  };
+
+  const paths = {
+    up: $('[data-path="up"]'),
+    flat: $('[data-path="flat"]'),
+    down: $('[data-path="down"]')
+  };
+  const balls = {
+    up: $('[data-ball="up"]'),
+    flat: $('[data-ball="flat"]'),
+    down: $('[data-ball="down"]')
+  };
+  const splashes = {
+    up: $('[data-splash="up"]'),
+    flat: $('[data-splash="flat"]'),
+    down: $('[data-splash="down"]')
+  };
+  const vectorGroups = {
+    up: $('[data-vectors="up"]'),
+    flat: $('[data-vectors="flat"]'),
+    down: $('[data-vectors="down"]')
+  };
+  const vecX = {
+    up: $('[data-vecx="up"]'),
+    flat: $('[data-vecx="flat"]'),
+    down: $('[data-vecx="down"]')
+  };
+  const vecY = {
+    up: $('[data-vecy="up"]'),
+    flat: $('[data-vecy="flat"]'),
+    down: $('[data-vecy="down"]')
+  };
+  const vecR = {
+    up: $('[data-vecr="up"]'),
+    flat: $('[data-vecr="flat"]'),
+    down: $('[data-vecr="down"]')
+  };
+  const vecXLabel = {
+    up: $('[data-vxlabel="up"]'),
+    flat: $('[data-vxlabel="flat"]'),
+    down: $('[data-vxlabel="down"]')
+  };
+  const vecYLabel = {
+    up: $('[data-vylabel="up"]'),
+    flat: $('[data-vylabel="flat"]'),
+    down: $('[data-vylabel="down"]')
+  };
+  const vecRLabel = {
+    up: $('[data-vrlabel="up"]'),
+    flat: $('[data-vrlabel="flat"]'),
+    down: $('[data-vrlabel="down"]')
+  };
+  const arcPath = {
+    up: $('[data-arc="up"]'),
+    flat: $('[data-arc="flat"]'),
+    down: $('[data-arc="down"]')
+  };
+  const angleLabel = {
+    up: $('[data-anglelabel="up"]'),
+    flat: $('[data-anglelabel="flat"]'),
+    down: $('[data-anglelabel="down"]')
+  };
+  const rightAngles = {
+    up: $('[data-ra="up"]'),
+    flat: $('[data-ra="flat"]'),
+    down: $('[data-ra="down"]')
+  };
+  const landDots = {
+    up: $('[data-landpt="up"]'),
+    flat: $('[data-landpt="flat"]'),
+    down: $('[data-landpt="down"]')
+  };
+
+  const TYPES = ['up','flat','down'];
+  const ANGLES = { up: -45, flat: 0, down: 45 };
+  const REAL = {
+    v0: 35,
+    height: 45,
+    g: 9.8,
+    angles: { up: 45, flat: 0, down: -45 },
+    names: { up:'Angled Up', flat:'Horizontal', down:'Angled Down' }
+  };
+
+  function velocityData(type){
+    const theta = REAL.angles[type] * Math.PI/180;
+    const vx = REAL.v0 * Math.cos(theta);
+    const vyi = REAL.v0 * Math.sin(theta);
+    const vyfMag = Math.sqrt(vyi*vyi + 2*REAL.g*REAL.height);
+    const vyf = -vyfMag;
+    const speed = Math.sqrt(vx*vx + vyf*vyf);
+    return { vx, vyi, vyf, speed };
+  }
+
+  function fmt(n){
+    return (Math.abs(n) < 0.05 ? 0 : n).toFixed(1);
+  }
+
+  function polarToCartesian(cx, cy, r, deg){
+    const rad = deg * Math.PI / 180;
+    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+  }
+
+  function describeArc(cx, cy, r, startDeg, endDeg){
+    const s = polarToCartesian(cx, cy, r, startDeg);
+    const e = polarToCartesian(cx, cy, r, endDeg);
+    const largeArc = Math.abs(endDeg - startDeg) > 180 ? 1 : 0;
+    const sweep = endDeg > startDeg ? 1 : 0;
+    return `M ${s.x} ${s.y} A ${r} ${r} 0 ${largeArc} ${sweep} ${e.x} ${e.y}`;
+  }
+
+  function setText(el, x, y, str){
+    el.setAttribute('x', x);
+    el.setAttribute('y', y);
+    el.textContent = str;
+  }
+
+  function setXY(el, x, y){
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+  }
+
+  // --- Vector animation helpers ---
+
+  function drawPath(el, len, duration, tok){
+    return new Promise(resolve => {
+      el.style.strokeDasharray = (len + 14) + '';
+      el.style.strokeDashoffset = (len + 14) + '';
+      const start = performance.now();
+      function step(now){
+        if(tok !== token){ resolve(); return; }
+        const t = Math.min((now - start) / duration, 1);
+        const ease = 1 - Math.pow(1 - t, 2.5);
+        el.style.strokeDashoffset = (len + 14) * (1 - ease);
+        if(t < 1) requestAnimationFrame(step);
+        else { el.style.strokeDashoffset = '0'; resolve(); }
+      }
+      requestAnimationFrame(step);
+    });
+  }
+
+  function delay(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+  function resetVectorEl(el){
+    el.setAttribute('d','');
+    el.style.strokeDasharray = '1000';
+    el.style.strokeDashoffset = '1000';
+  }
+
+  function setupVectorCoords(L, type){
+    const data = velocityData(type);
+    const end = L.shots[type].end;
+    // Scale relative to scene height so vectors are proportional
+    const scl = L.H * 0.0053;
+    const vxPx = data.vx * scl;
+    const vyPx = Math.abs(data.vyf) * scl;
+
+    // Origin IS the landing/impact point — vectors fan out from there
+    const ox = end.x;
+    const oy = end.y;
+
+    // head-to-tail layout: vx goes right, vy drops down from vx tip, resultant is diagonal
+    const x1 = ox,         y1 = oy;           // impact origin
+    const x2 = ox + vxPx,  y2 = oy;           // vx tip
+    const x3 = ox + vxPx,  y3 = oy + vyPx;    // vy tip = resultant tip
+
+    return { x1, y1, x2, y2, x3, y3, vxPx, vyPx, end, data };
+  }
+
+  async function animateVectors(L, type, tok){
+    if(tok !== token) return;
+    const { x1, y1, x2, y2, x3, y3, vxPx, vyPx, end, data } = setupVectorCoords(L, type);
+
+    // Landing dot at impact point
+    landDots[type].setAttribute('cx', end.x);
+    landDots[type].setAttribute('cy', end.y);
+    landDots[type].setAttribute('opacity','1');
+
+    // Pre-position all paths (invisible via dashoffset)
+    vecX[type].setAttribute('d', `M ${x1} ${y1} L ${x2} ${y2}`);
+    vecY[type].setAttribute('d', `M ${x2} ${y2} L ${x3} ${y3}`);
+    vecR[type].setAttribute('d', `M ${x1} ${y1} L ${x3} ${y3}`);
+
+    [vecX, vecY, vecR].forEach(grp => {
+      grp[type].style.strokeDasharray = '2000';
+      grp[type].style.strokeDashoffset = '2000';
+    });
+
+    // Reset label opacities
+    [vecXLabel, vecYLabel, vecRLabel, angleLabel].forEach(g => g[type].setAttribute('opacity','0'));
+    arcPath[type].setAttribute('opacity','0');
+    rightAngles[type].setAttribute('opacity','0');
+
+    vectorGroups[type].classList.add('show');
+
+    // --- Step 1: draw vx and vy simultaneously ---
+    await Promise.all([
+      drawPath(vecX[type], vxPx, 320, tok),
+      drawPath(vecY[type], vyPx, 320, tok)
+    ]);
+    if(tok !== token) return;
+
+    // vx label
+    setText(vecXLabel[type], x1 + vxPx / 2, y1 - 10, `${fmt(data.vx)} m/s`);
+    vecXLabel[type].setAttribute('opacity','1');
+
+    // Right-angle box at the vx/vy corner
+    const raS = Math.min(11, vxPx * 0.15, vyPx * 0.15);
+    rightAngles[type].setAttribute('d', `M ${x2-raS} ${y2} L ${x2-raS} ${y2+raS} L ${x2} ${y2+raS}`);
+    rightAngles[type].setAttribute('opacity','1');
+
+    // vy label
+    const lyFlip = (x2 + 80 < L.W);
+    const lyX = lyFlip ? x2 + 7 : x2 - 7;
+    setText(vecYLabel[type], lyX, y2 + vyPx / 2, `${fmt(Math.abs(data.vyf))} m/s`);
+    vecYLabel[type].setAttribute('text-anchor', lyFlip ? 'start' : 'end');
+    vecYLabel[type].setAttribute('opacity','1');
+
+    // --- Pause before resultant ---
+    await delay(300);
+    if(tok !== token) return;
+
+    // --- Step 2: draw resultant ---
+    const rPx = Math.hypot(vxPx, vyPx);
+    await drawPath(vecR[type], rPx, 290, tok);
+    if(tok !== token) return;
+
+    // |v| label
+    setText(vecRLabel[type], x1 - 6 + L.W * 0.02, y1 - 22 + L.H * 0.16, `${fmt(data.speed)} m/s`);
+    vecRLabel[type].setAttribute('text-anchor', 'end');
+    vecRLabel[type].setAttribute('opacity','1');
+
+    // Angle arc and label
+    const thetaRad = Math.atan2(vyPx, vxPx);
+    const thetaDeg = thetaRad * 180 / Math.PI;
+    const arcR = Math.min(22, vxPx * 0.32);
+    arcPath[type].setAttribute('d', describeArc(x1, y1, arcR, 0, thetaDeg));
+    arcPath[type].setAttribute('opacity','1');
+    setText(angleLabel[type], x1 + arcR + 5, y1 - 5 + L.H * 0.03, `${fmt(thetaDeg)}°`);
+    angleLabel[type].setAttribute('opacity','1');
+  }
+
+  // --- Layout ---
+
+  function layout(){
+    const r = scene.getBoundingClientRect();
+    const W = r.width, H = r.height;
+
+    const origin = { x: W * 0.11, y: H * 0.38 };
+    const groundY = H * 0.76;
+    const v0 = Math.min(W, H) * 1.1;
+    const g = Math.min(W, H) * 1.08;
+    const drop = groundY - origin.y;
+    const finalRatio = Math.sqrt((v0*v0 + 2*g*drop) / (v0*v0));
+
+    const shots = {};
+    TYPES.forEach(type => {
+      const theta = ANGLES[type] * Math.PI/180;
+      const vx = v0 * Math.cos(theta);
+      const vy = v0 * Math.sin(theta);
+      const disc = vy*vy + 2*g*drop;
+      const t = (-vy + Math.sqrt(disc)) / g;
+      const end = { x: origin.x + vx*t, y: groundY };
+      shots[type] = { theta, vx, vy, time:t, end };
+    });
+
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    // --- SVG Cliff (K2D style) ---
+    const stepX = origin.x;
+    const cliffTopY = origin.y;
+    const grassH = 16;
+    const grassBotY = cliffTopY + grassH;
+
+    cliffGradEl.setAttribute('x1', '0');
+    cliffGradEl.setAttribute('y1', '0');
+    cliffGradEl.setAttribute('x2', stepX);
+    cliffGradEl.setAttribute('y2', '0');
+
+    cliffRockEl.setAttribute('x', '0');
+    cliffRockEl.setAttribute('y', grassBotY);
+    cliffRockEl.setAttribute('width', stepX);
+    cliffRockEl.setAttribute('height', H - grassBotY);
+
+    cliffCracksEl.setAttribute('d',
+      `M ${stepX-10} ${cliffTopY+40} L ${stepX} ${cliffTopY+45}` +
+      ` M ${stepX-40} ${cliffTopY+80} L ${stepX-10} ${cliffTopY+70} L ${stepX} ${cliffTopY+75}` +
+      ` M ${stepX-25} ${cliffTopY+130} L ${stepX-5} ${cliffTopY+135} L ${stepX} ${cliffTopY+140}`
+    );
+
+    cliffDirtEl.setAttribute('x', '0');
+    cliffDirtEl.setAttribute('y', cliffTopY);
+    cliffDirtEl.setAttribute('width', stepX + 8);
+    cliffDirtEl.setAttribute('height', grassH);
+
+    cliffGrassEl.setAttribute('x', '0');
+    cliffGrassEl.setAttribute('y', cliffTopY);
+    cliffGrassEl.setAttribute('width', stepX + 8);
+    cliffGrassEl.setAttribute('height', '10');
+
+    grassLineEl.setAttribute('x1', '0');
+    grassLineEl.setAttribute('y1', cliffTopY);
+    grassLineEl.setAttribute('x2', stepX + 8);
+    grassLineEl.setAttribute('y2', cliffTopY);
+
+    cliffEdgeEl.setAttribute('x1', stepX);
+    cliffEdgeEl.setAttribute('y1', grassBotY);
+    cliffEdgeEl.setAttribute('x2', stepX);
+    cliffEdgeEl.setAttribute('y2', H);
+
+    // --- SVG Cannon (K2D style, cannonScale = 0.4) ---
+    cannonG.setAttribute('transform', `translate(${origin.x},${origin.y}) scale(0.4)`);
+    TYPES.forEach(type => {
+      barrels[type].setAttribute('transform', `rotate(${ANGLES[type]})`);
+    });
+
+    return { W, H, origin, groundY, v0, g, drop, finalRatio, shots };
+  }
+
+  function pos(L, type, t){
+    const s = L.shots[type];
+    return {
+      x: L.origin.x + s.vx*t,
+      y: L.origin.y + s.vy*t + 0.5*L.g*t*t
+    };
+  }
+
+  function pathString(L, type){
+    const s = L.shots[type];
+    let d = `M ${L.origin.x} ${L.origin.y}`;
+    for(let i=1; i<=44; i++){
+      const p = pos(L, type, s.time * i/44);
+      d += ` L ${p.x} ${p.y}`;
+    }
+    return d;
+  }
+
+  function setPaths(mode='ghost'){
+    const L = layout();
+    TYPES.forEach(type => {
+      paths[type].setAttribute('d', pathString(L,type));
+      paths[type].classList.remove('ghost','reveal');
+      if(mode) paths[type].classList.add(mode);
+      setXY(balls[type], L.origin.x, L.origin.y);
+      setXY(splashes[type], L.shots[type].end.x, L.groundY);
+
+      // Pre-setup vector path coords without animating
+      vectorGroups[type].classList.remove('show');
+      [vecX, vecY, vecR].forEach(g => resetVectorEl(g[type]));
+      landDots[type].setAttribute('opacity','0');
+      [vecXLabel, vecYLabel, vecRLabel, angleLabel].forEach(g => g[type].setAttribute('opacity','0'));
+      arcPath[type].setAttribute('opacity','0');
+      rightAngles[type].setAttribute('opacity','0');
+    });
+    return L;
+  }
+
+  function clearResult(){
+    token++;
+    cancelAnimationFrame(raf);
+    lastL = null;
+    banner.classList.remove('show');
+    Object.values(sceneChoiceBtns).forEach(btn => {
+      btn.classList.remove('show','correct','wrong','on');
+      btn.disabled = false;
+    });
+    TYPES.forEach(type => {
+      balls[type].classList.remove('show');
+      splashes[type].classList.remove('show');
+      vectorGroups[type].classList.remove('show');
+      paths[type].classList.remove('reveal');
+      paths[type].classList.add('ghost');
+      [vecX, vecY, vecR].forEach(g => resetVectorEl(g[type]));
+      landDots[type].setAttribute('opacity','0');
+      [vecXLabel, vecYLabel, vecRLabel, angleLabel].forEach(g => g[type].setAttribute('opacity','0'));
+      arcPath[type].setAttribute('opacity','0');
+      rightAngles[type].setAttribute('opacity','0');
+    });
+    fb.style.display = 'none';
+    fb.innerHTML = '';
+    fb.className = 'fb';
+    main.textContent = 'Show Launches';
+    main.disabled = false;
+  }
+
+  let picked = '';
+  let busy = false;
+  let raf = 0;
+  let token = 0;
+  let lastL = null;
+
+  function reset(){
+    picked = '';
+    busy = false;
+    choices.forEach(b=>{
+      b.disabled = false;
+      b.classList.remove('on','correct','wrong');
+      b.setAttribute('aria-pressed','false');
+    });
+    clearResult();
+    setPaths('ghost');
+    // Show banner with question from the start
+    banner.classList.add('show');
+    $('[data-question]').style.display = '';
+  }
+
+  function select(answer){
+    if(busy || !lastL) return;
+    picked = answer;
+    const ok = picked === 'same';
+    choices.forEach(b=>{
+      const a = b.dataset.answer;
+      b.classList.toggle('correct', a === 'same');
+      b.classList.toggle('wrong', a === picked && picked !== 'same');
+      b.classList.toggle('on', a === picked);
+      b.setAttribute('aria-pressed', a === picked ? 'true':'false');
+      b.disabled = true;
+    });
+    fb.style.display = 'block';
+    fb.className = 'fb ' + (ok ? 'good':'bad');
+    fb.innerHTML = ok ?
+      `<strong>Correct!</strong> They land with the same final speed. The launch angle changes the path, air time, and impact angle — but the vectors show every ball arrives with the same |v|.` :
+      `<strong>Not quite.</strong> Speed at impact depends only on starting speed and vertical drop. Watch the vectors — every ball's |v| arrow is the same length.`;
+    $('[data-question]').style.display = 'none';
+    banner.classList.add('show');
+
+    // Hide choices then draw vectors
+    Object.values(sceneChoiceBtns).forEach(btn => btn.classList.remove('show'));
+    if(lastL){
+      const my = token;
+      const L = lastL;
+      (async () => {
+        for(const type of ['up','flat','down']){
+          if(my !== token) break;
+          await animateVectors(L, type, my);
+          if(type !== 'down') await delay(200);
+        }
+      })();
+    }
+  }
+
+  function animateOneBall(L, type, my){
+    return new Promise(resolve => {
+      const s = L.shots[type];
+      paths[type].classList.remove('ghost');
+      paths[type].classList.add('reveal');
+      balls[type].classList.add('show');
+      setXY(balls[type], L.origin.x, L.origin.y);
+      const start = performance.now();
+      function step(now){
+        if(my !== token){ resolve(); return; }
+        const elapsed = (now - start) / 1000;
+        const t = Math.min(s.time, elapsed);
+        const p = pos(L, type, t);
+        setXY(balls[type], p.x, p.y);
+        if(elapsed < s.time){
+          raf = requestAnimationFrame(step);
+        } else {
+          splashes[type].classList.remove('show');
+          void splashes[type].offsetWidth;
+          splashes[type].classList.add('show');
+          resolve();
+        }
+      }
+      raf = requestAnimationFrame(step);
+    });
+  }
+
+  async function animateAll(L){
+    const my = ++token;
+    busy = true;
+    main.disabled = true;
+    main.textContent = 'Launching…';
+
+    for(const type of ['up','flat','down']){
+      if(my !== token) return;
+      await animateOneBall(L, type, my);
+      if(my !== token) return;
+      if(type !== 'down') await delay(600);
+    }
+
+    if(my !== token) return;
+    lastL = L;
+    busy = false;
+    main.disabled = false;
+    main.textContent = 'Try Again';
+
+    // Place individual choices at each landing spot (just above waterline)
+    TYPES.forEach(type => {
+      const btn = sceneChoiceBtns[type];
+      btn.style.left = L.shots[type].end.x + 'px';
+      btn.style.top = (L.groundY - 52 + L.H * 0.10) + 'px';
+      btn.classList.add('show');
+    });
+    // "same speed" below all three, horizontally centered between them
+    const allX = TYPES.map(t => L.shots[t].end.x);
+    const midX = (Math.min(...allX) + Math.max(...allX)) / 2;
+    sceneChoiceBtns.same.style.left = midX + 'px';
+    sceneChoiceBtns.same.style.top = (L.groundY + 28 + L.H * 0.10) + 'px';
+    sceneChoiceBtns.same.classList.add('show');
+  }
+
+  choices.forEach(b => b.addEventListener('click', () => select(b.dataset.answer)));
+
+  main.addEventListener('click', () => {
+    if(main.textContent === 'Try Again') reset();
+    else {
+      const L = setPaths('ghost');
+      animateAll(L);
+    }
+  });
+
+  addEventListener('resize', () => {
+    if(!busy) setPaths('ghost');
+  });
+
+  reset();
+})();
+</script>
+</body>
+</html>

@@ -361,6 +361,7 @@ export class VectorBreakdownAnimator {
     const ctx = this.ctx;
     const canvasAngle = -angleRad;
     const radius = 72;
+    const labelShiftX = -(this.layout?.w || 0) * 0.03;
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.strokeStyle = this.options.colors.angle;
@@ -374,7 +375,7 @@ export class VectorBreakdownAnimator {
     const ly = oy + Math.sin(labelAngle) * (radius + 22);
     ctx.fillStyle = '#ddd6fe';
     ctx.font = '700 22px Arial';
-    ctx.fillText('θ', lx - 6, ly + 6);
+    ctx.fillText('θ', lx - 6 + labelShiftX, ly + 6);
     ctx.restore();
   }
 
@@ -537,7 +538,7 @@ export class VectorBreakdownAnimator {
       const side = sideMap[key];
       const labelColor = activePair.includes(key) ? highlightColor : side.baseColor;
       const bg = activePair.includes(key) ? 'rgba(82, 68, 3, 0.82)' : 'rgba(15, 23, 42, 0.85)';
-      this._drawLabel(side.label, side.lx, side.ly, labelColor, bg);
+      this._drawLabel(side.label, side.lx - (this.layout.w * 0.03), side.ly, labelColor, bg);
     }
   }
 
@@ -565,6 +566,7 @@ export class VectorBreakdownAnimator {
     const triangleT = this._stageProgress('triangle');
     const trigT = this._stageProgress('trig');
     const finalT = this._stageProgress('final');
+    const labelShiftX = -(w * 0.03);
 
     const currentEndX = this._lerp(ox, endX, vectorT);
     const currentEndY = this._lerp(oy, endY, vectorT);
@@ -573,7 +575,7 @@ export class VectorBreakdownAnimator {
       this._drawArrow(ox, oy, currentEndX, currentEndY, this.options.colors.vector, 5, 1);
     }
     if (vectorT >= 0.98) {
-      this._drawLabel('V', (ox + endX) / 2 + 24, (oy + endY) / 2 - 18, this.options.colors.vector);
+      this._drawLabel('V', (ox + endX) / 2 + 24 + labelShiftX, (oy + endY) / 2 - 18, this.options.colors.vector);
     }
 
     if (this.options.display.showAngle && angleT > 0.001) {
@@ -584,7 +586,7 @@ export class VectorBreakdownAnimator {
       const currentX = this._lerp(ox, projX, xT);
       this._drawArrow(ox, oy, currentX, oy, this.options.colors.x, 5, 1);
       if (xT > 0.6) {
-        this._drawLabel('Vx', (ox + projX) / 2, oy + (components.y >= 0 ? 42 : -42), this.options.colors.x);
+        this._drawLabel('Vx', (ox + projX) / 2 + labelShiftX, oy + (components.y >= 0 ? 42 : -42), this.options.colors.x);
       }
     }
 
@@ -592,7 +594,7 @@ export class VectorBreakdownAnimator {
       const currentY = this._lerp(oy, endY, yT);
       this._drawArrow(projX, oy, projX, currentY, this.options.colors.y, 5, 1);
       if (yT > 0.6) {
-        this._drawLabel('Vy', projX + (components.x >= 0 ? 44 : -44), (oy + endY) / 2, this.options.colors.y);
+        this._drawLabel('Vy', projX + (components.x >= 0 ? 44 : -44) + labelShiftX, (oy + endY) / 2, this.options.colors.y);
       }
     }
 

@@ -301,7 +301,32 @@ const problemRendererMethods = {
             .length;
 
         if (!this.getCanvasProblemStatement() || transferableCount === 0) return 0;
-        return 0.55 + (transferableCount * 0.62);
+        return this.getProblemValueTransferTiming(transferableCount).totalDuration;
+    },
+
+    getGivenValueAnimationSpeed() {
+        const speed = this.normalizeNumber(this.inputs.givenValueAnimationSpeed, 0.65);
+        return this.clamp(speed, 0.2, 2);
+    },
+
+    getProblemValueTransferTiming(itemCount = 1) {
+        const timeScale = 1 / this.getGivenValueAnimationSpeed();
+        const count = Math.max(1, itemCount);
+        const startTime = 0.25;
+        const itemDuration = 0.52 * timeScale;
+        const itemGap = 0.62 * timeScale;
+        const arrivalHoverDuration = 1.8 * timeScale;
+        const fadeOutWindow = Math.min(0.35 * timeScale, arrivalHoverDuration * 0.5);
+        const finalArrivalTime = startTime + ((count - 1) * itemGap) + itemDuration;
+
+        return {
+            startTime,
+            itemDuration,
+            itemGap,
+            arrivalHoverDuration,
+            fadeOutWindow,
+            totalDuration: finalArrivalTime + arrivalHoverDuration
+        };
     },
 
     getProblemValueTransferItems() {
@@ -333,9 +358,13 @@ const problemRendererMethods = {
         const items = this.getProblemValueTransferItems();
         if (!items.length) return;
 
-        const startTime = 0.25;
-        const itemDuration = 0.52;
-        const itemGap = 0.62;
+        const {
+            startTime,
+            itemDuration,
+            itemGap,
+            arrivalHoverDuration,
+            fadeOutWindow
+        } = this.getProblemValueTransferTiming(items.length);
 
         items.forEach((item, index) => {
             const localProgress = this.clamp((time - startTime - (index * itemGap)) / itemDuration, 0, 1);
@@ -376,9 +405,6 @@ const problemRendererMethods = {
         const model = this.latestModel;
         if (!model || typeof this._drawGivenChipHoverAnim !== 'function') return;
 
-        const arrivalHoverDuration = 1.8;
-        const fadeOutWindow = 0.35;
-
         // Temporarily restore scene height so hover animations (getDisplacementGeometry, yToCanvas, etc.)
         // compute correct canvas-relative Y positions. this.height is already back to full canvas height
         // by this point, but hover draws into the scene area offset by yOffset.
@@ -389,6 +415,7 @@ const problemRendererMethods = {
             const arrivalTime = startTime + (index * itemGap) + itemDuration;
             const arrivalElapsed = time - arrivalTime;
             if (arrivalElapsed <= 0 || arrivalElapsed > arrivalHoverDuration) return;
+            if (this.shouldSuppressGivenValueArrivalBadge?.(item.tracker, model)) return;
 
             const fadeIn  = Math.min(1, arrivalElapsed * 10);
             const fadeOut = arrivalElapsed > (arrivalHoverDuration - fadeOutWindow)
@@ -403,6 +430,24 @@ const problemRendererMethods = {
         });
 
         this.height = savedHeight;
+    },
+
+    shouldSuppressGivenValueArrivalBadge(tracker, model) {
+        if (!tracker || !model) return false;
+
+        const valueKey = tracker.valueKey;
+        const focusedValues = new Set(this.activeWalkthroughStep?.focusValues || []);
+        if (focusedValues.has(valueKey)) return true;
+
+        if (this.activeWalkthroughStep?.id !== 'givens') return false;
+        if (!this.inputs.showDistanceMarkers || this.inputs.rulerStyle === 'None') return false;
+
+        const dy = (model.yf ?? 0) - (model.yi ?? 0);
+
+        if (valueKey === 'dx') return true;
+        if (valueKey === 'dy') return Math.abs(dy) >= 0.01;
+        if (valueKey === 'hmax') return Math.abs(dy) < 0.01;
+        return false;
     }
 
 };

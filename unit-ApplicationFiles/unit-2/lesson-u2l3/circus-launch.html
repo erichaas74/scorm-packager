@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Circus Launch: Equal Range Challenge</title>
+  <style>
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: #eef4f8;
+    }
+
+    body {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #1f2937;
+    }
+
+    @media (max-width: 760px) {
+      body {
+        padding: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+<section class="rh" data-rh aria-label="Circus projectile range activity">
+  <style>
+    .rh {
+      --blue: #255f91;
+      --blue-dark: #173f66;
+      --red: #d93b3b;
+      --gold: #f0b429;
+      --teal: #0f938c;
+      --ink: #1f2937;
+      --muted: #64748b;
+      --line: #d9e5ef;
+      --sky: #eaf5fc;
+      --grass: #d7ead7;
+      width: 100%;
+      max-width: 1240px;
+      min-width: 0;
+      border: 8px solid var(--blue);
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 18px 38px #0f172a24;
+      overflow: hidden;
+    }
+
+    .rh,
+    .rh * {
+      box-sizing: border-box;
+    }
+
+    .rh button,
+    .rh input {
+      font: inherit;
+    }
+
+    .rh button {
+      cursor: pointer;
+    }
+
+    .rh .topbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: center;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+      background:
+        linear-gradient(90deg, #ffffff 0 42%, #fff7df 42% 44%, #ffffff 44% 58%, #fff7df 58% 60%, #ffffff 60%),
+        #ffffff;
+    }
+
+    .rh .topbar > div {
+      min-width: 0;
+    }
+
+    .rh h1 {
+      margin: 0;
+      color: var(--blue-dark);
+      font-size: clamp(1.35rem, 2.6vw, 2.05rem);
+      line-height: 1.1;
+    }
+
+    .rh .prompt {
+      margin: 6px 0 0;
+      max-width: 760px;
+      color: var(--muted);
+      font-size: clamp(0.92rem, 1.6vw, 1rem);
+      line-height: 1.4;
+    }
+
+    .rh .speed-badge {
+      justify-self: end;
+      display: grid;
+      gap: 2px;
+      min-width: 150px;
+      padding: 10px 12px;
+      border: 1px solid #bdd7ec;
+      border-radius: 8px;
+      background: #edf7ff;
+      color: var(--blue-dark);
+      text-align: center;
+      font-weight: 800;
+    }
+
+    .rh .speed-badge span {
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .rh .scene {
+      position: relative;
+      min-height: 440px;
+      aspect-ratio: 2.05 / 1;
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, var(--sky) 0 77%, var(--grass) 77% 100%);
+    }
+
+    .rh .scene::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(#0f172a10 1px, transparent 1px),
+        linear-gradient(90deg, #0f172a10 1px, transparent 1px);
+      background-size: 48px 48px;
+      opacity: 0.5;
+    }
+
+    .rh .big-top {
+      position: absolute;
+      right: -40px;
+      bottom: 20%;
+      width: min(430px, 42vw);
+      height: min(230px, 23vw);
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    .rh .ground-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 77%;
+      height: 2px;
+      background: #6b728055;
+    }
+
+    .rh .plot-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 3;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    .rh .path {
+      fill: none;
+      stroke-width: 4;
+      stroke-linecap: round;
+      opacity: 0.82;
+    }
+
+    .rh .path.red {
+      stroke: var(--red);
+      stroke-dasharray: 10 8;
+    }
+
+    .rh .path.blue {
+      stroke: var(--blue);
+      stroke-dasharray: 3 8;
+    }
+
+    .rh .range-line {
+      position: absolute;
+      z-index: 4;
+      height: 6px;
+      border-radius: 999px;
+      background: repeating-linear-gradient(90deg, #334155 0 10px, #f8fafc 10px 20px);
+      transform-origin: left center;
+      box-shadow: 0 1px 0 #ffffffa0;
+    }
+
+    .rh .range-label {
+      position: absolute;
+      z-index: 5;
+      min-width: 92px;
+      padding: 5px 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #fffffff2;
+      color: var(--ink);
+      text-align: center;
+      font-size: 0.82rem;
+      font-weight: 800;
+      box-shadow: 0 5px 12px #0f172a18;
+      transform: translate(-50%, -100%);
+    }
+
+    .rh .target {
+      position: absolute;
+      z-index: 5;
+      width: 118px;
+      height: 22px;
+      border: 3px solid #a16207;
+      border-radius: 8px;
+      background:
+        repeating-linear-gradient(45deg, #111827 0 2px, transparent 2px 9px),
+        repeating-linear-gradient(-45deg, transparent 0 7px, #ffffff 7px 9px),
+        #fff8de;
+      box-shadow: 0 8px 16px #0f172a22;
+      transform: translate(-50%, -50%);
+    }
+
+    .rh .target::before,
+    .rh .target::after {
+      content: "";
+      position: absolute;
+      top: 100%;
+      width: 4px;
+      height: 34px;
+      background: #64748b;
+    }
+
+    .rh .target::before {
+      left: 16px;
+    }
+
+    .rh .target::after {
+      right: 16px;
+    }
+
+    .rh .launcher {
+      position: absolute;
+      z-index: 6;
+      width: 1px;
+      height: 1px;
+      overflow: visible;
+    }
+
+    .rh .launcher-base {
+      position: absolute;
+      left: -34px;
+      top: 13px;
+      width: 76px;
+      height: 44px;
+      border: 5px solid #1e293b;
+      border-radius: 50%;
+      background: #475569;
+      box-shadow: inset 0 0 0 10px #f8fafc;
+    }
+
+    .rh .launcher-stand {
+      position: absolute;
+      left: -12px;
+      top: 26px;
+      width: 24px;
+      height: 78px;
+      border-radius: 6px;
+      background: #1e293b;
+    }
+
+    .rh .barrel {
+      position: absolute;
+      left: 0;
+      top: -14px;
+      width: clamp(100px, 11vw, 142px);
+      height: 28px;
+      border-radius: 999px 14px 14px 999px;
+      transform-origin: 12px 50%;
+      box-shadow: 0 7px 12px #0f172a28;
+    }
+
+    .rh .barrel::after {
+      content: "";
+      position: absolute;
+      right: -10px;
+      top: -7px;
+      width: 20px;
+      height: 42px;
+      border-radius: 50%;
+      background: #1e293b;
+    }
+
+    .rh .barrel.red {
+      z-index: 2;
+      background: linear-gradient(90deg, #f2c338 0 18%, var(--red) 18% 74%, #f2c338 74% 100%);
+    }
+
+    .rh .barrel.blue {
+      z-index: 1;
+      background: linear-gradient(90deg, #f2c338 0 18%, var(--blue) 18% 74%, var(--teal) 74% 100%);
+    }
+
+    .rh .pivot {
+      position: absolute;
+      left: -14px;
+      top: -14px;
+      z-index: 4;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #111827;
+      box-shadow: inset 0 0 0 6px #f97316;
+    }
+
+    .rh .acrobat {
+      position: absolute;
+      z-index: 7;
+      width: 46px;
+      height: 54px;
+      transform: translate(-50%, -50%);
+      will-change: left, top, transform;
+      pointer-events: none;
+    }
+
+    .rh .acrobat .head,
+    .rh .acrobat .body,
+    .rh .acrobat .arm,
+    .rh .acrobat .leg {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .rh .acrobat .head {
+      top: 0;
+      width: 17px;
+      height: 17px;
+      border-radius: 50%;
+      background: #e7b785;
+      box-shadow: 0 -4px 0 #2d2330 inset;
+    }
+
+    .rh .acrobat .body {
+      top: 17px;
+      width: 24px;
+      height: 24px;
+      border-radius: 10px 10px 7px 7px;
+      background: var(--suit);
+    }
+
+    .rh .acrobat .arm {
+      top: 20px;
+      width: 44px;
+      height: 6px;
+      border-radius: 999px;
+      background: #e7b785;
+    }
+
+    .rh .acrobat .leg {
+      top: 39px;
+      width: 35px;
+      height: 7px;
+      border-radius: 999px;
+      background: #1f2937;
+    }
+
+    .rh .acrobat.red {
+      --suit: var(--red);
+    }
+
+    .rh .acrobat.blue {
+      --suit: var(--blue);
+    }
+
+    .rh .scene-status {
+      position: absolute;
+      left: 16px;
+      top: 16px;
+      z-index: 8;
+      width: min(410px, calc(100% - 32px));
+      padding: 12px 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #fffffff4;
+      box-shadow: 0 10px 20px #0f172a17;
+    }
+
+    .rh .scene-status h2 {
+      margin: 0 0 6px;
+      color: var(--blue-dark);
+      font-size: 1rem;
+      line-height: 1.2;
+    }
+
+    .rh .scene-status p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.35;
+    }
+
+    .rh .workspace {
+      display: grid;
+      grid-template-columns: minmax(260px, 0.85fr) minmax(340px, 1.15fr);
+      gap: 18px;
+      padding: 18px 20px 20px;
+      border-top: 1px solid var(--line);
+      background: #fbfdff;
+    }
+
+    .rh .panel {
+      min-width: 0;
+    }
+
+    .rh .panel-title {
+      margin: 0 0 10px;
+      color: var(--blue-dark);
+      font-size: 1rem;
+      line-height: 1.2;
+    }
+
+    .rh .angle-card {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+    }
+
+    .rh .set-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .rh .set-btn {
+      min-height: 78px;
+      padding: 10px;
+      background: #ffffff;
+      color: var(--ink);
+      border: 1px solid #d8e5ef;
+      border-radius: 8px;
+      text-align: left;
+      font-weight: 800;
+      transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+    }
+
+    .rh .set-btn span {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 0.76rem;
+      text-transform: uppercase;
+    }
+
+    .rh .set-btn strong {
+      display: block;
+      color: var(--blue-dark);
+      font-size: 1.15rem;
+      line-height: 1.15;
+    }
+
+    .rh .set-btn.active {
+      border-color: var(--blue);
+      background: #eef6ff;
+      box-shadow: inset 0 0 0 2px #255f9130;
+    }
+
+    .rh .calc-box {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+      padding: 12px;
+      border: 1px solid #d8e5ef;
+      border-radius: 8px;
+      background: #f8fbff;
+    }
+
+    .rh .formula {
+      margin: 0;
+      color: var(--blue-dark);
+      font-size: 0.9rem;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .rh .calc-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .rh .calc-field {
+      display: grid;
+      gap: 5px;
+    }
+
+    .rh .calc-field label {
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .rh .calc-field input {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 8px 10px;
+      background: #ffffff;
+      color: var(--ink);
+      font-weight: 800;
+    }
+
+    .rh .calc-field input:focus {
+      outline: 3px solid #93c5fd66;
+      border-color: var(--blue);
+    }
+
+    .rh .hint {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.35;
+    }
+
+    .rh .angle-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .rh .angle-row label {
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 800;
+    }
+
+    .rh .angle-value {
+      min-width: 148px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #eef6ff;
+      color: var(--blue-dark);
+      text-align: center;
+      font-weight: 900;
+    }
+
+    .rh input[type="range"] {
+      width: 100%;
+      accent-color: var(--blue);
+      cursor: pointer;
+    }
+
+    .rh .pair-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .rh .angle-pill {
+      padding: 10px;
+      border-radius: 8px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+    }
+
+    .rh .angle-pill span {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .rh .angle-pill strong {
+      font-size: 1.25rem;
+      color: var(--ink);
+    }
+
+    .rh .angle-pill.red {
+      border-left: 6px solid var(--red);
+    }
+
+    .rh .angle-pill.blue {
+      border-left: 6px solid var(--blue);
+    }
+
+    .rh .launch-btn,
+    .rh .reset-btn,
+    .rh .choice-btn {
+      border: 0;
+      border-radius: 8px;
+      font-weight: 800;
+      transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+    }
+
+    .rh .set-btn:hover,
+    .rh .launch-btn:hover,
+    .rh .reset-btn:hover,
+    .rh .choice-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px #0f172a1d;
+    }
+
+    .rh .launch-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .rh .launch-btn {
+      min-height: 48px;
+      background: var(--blue);
+      color: #ffffff;
+      font-size: 1rem;
+    }
+
+    .rh .reset-btn {
+      min-width: 92px;
+      padding: 0 14px;
+      background: #e2e8f0;
+      color: var(--ink);
+    }
+
+    .rh .launch-btn:disabled,
+    .rh .reset-btn:disabled,
+    .rh .set-btn:disabled,
+    .rh .choice-btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.65;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .rh .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .rh .metric {
+      min-height: 82px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+    }
+
+    .rh .metric span {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .rh .metric strong {
+      color: var(--ink);
+      font-size: clamp(1.1rem, 2vw, 1.42rem);
+    }
+
+    .rh .evidence {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+      overflow: hidden;
+    }
+
+    .rh table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+    }
+
+    .rh th,
+    .rh td {
+      padding: 9px 10px;
+      border-bottom: 1px solid #edf2f7;
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    .rh th {
+      background: #f8fafc;
+      color: var(--muted);
+      font-size: 0.76rem;
+      text-transform: uppercase;
+    }
+
+    .rh tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .rh .match {
+      color: #047857;
+      font-weight: 900;
+    }
+
+    .rh .no-match {
+      color: #9a3412;
+      font-weight: 900;
+    }
+
+    .rh .empty-row td {
+      color: var(--muted);
+      text-align: center;
+      padding: 18px 10px;
+    }
+
+    .rh .conclusion {
+      margin-top: 14px;
+      padding: 14px;
+      border: 1px solid #bdd7ec;
+      border-radius: 8px;
+      background: #f1f8ff;
+    }
+
+    .rh .choices {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .rh .choice-btn {
+      padding: 11px 12px;
+      background: #ffffff;
+      color: var(--ink);
+      border: 1px solid #d8e5ef;
+      text-align: left;
+    }
+
+    .rh .choice-btn.correct {
+      background: #ecfdf5;
+      border-color: #34d399;
+      color: #047857;
+    }
+
+    .rh .choice-btn.selected {
+      border-color: var(--blue);
+      background: #eef6ff;
+      color: var(--blue-dark);
+    }
+
+    .rh .choice-btn.selected.correct {
+      background: #ecfdf5;
+      border-color: #34d399;
+      color: #047857;
+    }
+
+    .rh .choice-btn.incorrect {
+      background: #fff7ed;
+      border-color: #f59e0b;
+      color: #9a3412;
+    }
+
+    .rh .feedback {
+      min-height: 24px;
+      margin: 10px 0 0;
+      color: var(--blue-dark);
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .rh .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 880px) {
+      .rh .topbar,
+      .rh .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .rh .speed-badge {
+        justify-self: stretch;
+      }
+
+      .rh .scene {
+        min-height: 500px;
+        aspect-ratio: 4 / 5;
+      }
+
+      .rh .scene-status {
+        width: calc(100% - 24px);
+        left: 12px;
+        top: 12px;
+      }
+
+      .rh .metrics,
+      .rh .calc-grid,
+      .rh .pair-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .rh .topbar,
+      .rh .workspace {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      .rh .angle-row {
+        grid-template-columns: 1fr;
+      }
+
+      .rh .angle-value {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .rh .target {
+        width: 96px;
+      }
+
+      .rh .set-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .rh .launch-row {
+        grid-template-columns: 1fr;
+      }
+
+      .rh th,
+      .rh td {
+        padding: 8px 6px;
+        font-size: 0.82rem;
+      }
+    }
+  </style>
+
+  <header class="topbar">
+    <div>
+      <h1>Equal Range Launch Challenge</h1>
+      <p class="prompt">Launch the 40&deg; cannon, test four possible partner angles, and use calculated ranges plus the simulator evidence to find the set that lands at the same distance.</p>
+    </div>
+    <div class="speed-badge">
+      <span>Launch speed</span>
+      <strong>24 m/s</strong>
+    </div>
+  </header>
+
+  <div class="scene" data-scene>
+    <div class="ground-line" aria-hidden="true"></div>
+    <svg class="big-top" viewBox="0 0 420 230" aria-hidden="true">
+      <path d="M25 220H395L348 96H72L25 220Z" fill="#fff4cf" stroke="#b45309" stroke-width="6" />
+      <path d="M72 96L210 12L348 96H72Z" fill="#d93b3b" stroke="#b45309" stroke-width="6" />
+      <path d="M112 96L210 12L308 96H250L210 37L170 96H112Z" fill="#fff4cf" />
+      <path d="M92 220L130 96H176L158 220H92Z" fill="#d93b3b" opacity="0.85" />
+      <path d="M262 220L244 96H290L328 220H262Z" fill="#d93b3b" opacity="0.85" />
+      <path d="M188 220V140C188 126 232 126 232 140V220H188Z" fill="#173f66" opacity="0.9" />
+      <path d="M210 12V0" stroke="#173f66" stroke-width="5" />
+      <path d="M210 0L252 16L210 30Z" fill="#f0b429" />
+    </svg>
+
+    <div class="scene-status" aria-live="polite">
+      <h2 data-status-title>Ready to test Set A</h2>
+      <p data-status-copy>Calculate the 40&deg; range and Set A range, then launch to compare the landing points.</p>
+    </div>
+
+    <svg class="plot-svg" data-plot aria-hidden="true">
+      <path class="path red" data-path-a></path>
+      <path class="path blue" data-path-b></path>
+    </svg>
+
+    <div class="range-line" data-range-line aria-hidden="true"></div>
+    <div class="range-label" data-range-label aria-hidden="true"></div>
+    <div class="target" data-target aria-hidden="true"></div>
+
+    <div class="launcher" data-launcher aria-hidden="true">
+      <div class="launcher-stand"></div>
+      <div class="launcher-base"></div>
+      <div class="barrel blue" data-barrel-b></div>
+      <div class="barrel red" data-barrel-a></div>
+      <div class="pivot"></div>
+    </div>
+
+    <div class="acrobat red" data-acrobat-a aria-hidden="true">
+      <span class="head"></span>
+      <span class="arm"></span>
+      <span class="body"></span>
+      <span class="leg"></span>
+    </div>
+    <div class="acrobat blue" data-acrobat-b aria-hidden="true">
+      <span class="head"></span>
+      <span class="arm"></span>
+      <span class="body"></span>
+      <span class="leg"></span>
+    </div>
+  </div>
+
+  <div class="workspace">
+    <div class="panel">
+      <h2 class="panel-title">Test Sets</h2>
+      <div class="angle-card">
+        <div class="angle-row">
+          <label>Current test</label>
+          <div class="angle-value"><span data-angle-a>40</span>&deg; vs. <span data-angle-b>20</span>&deg;</div>
+        </div>
+        <div class="pair-grid">
+          <div class="angle-pill red">
+            <span>Reference cannon</span>
+            <strong><span data-angle-a-readout>40</span>&deg;</strong>
+          </div>
+          <div class="angle-pill blue">
+            <span>Test cannon</span>
+            <strong><span data-angle-b-readout>20</span>&deg;</strong>
+          </div>
+        </div>
+        <div class="set-grid" aria-label="Angle test sets">
+          <button class="set-btn active" type="button" data-set="A">
+            <span>Set A</span>
+            <strong>40&deg; vs. 20&deg;</strong>
+          </button>
+          <button class="set-btn" type="button" data-set="B">
+            <span>Set B</span>
+            <strong>40&deg; vs. 35&deg;</strong>
+          </button>
+          <button class="set-btn" type="button" data-set="C">
+            <span>Set C</span>
+            <strong>40&deg; vs. 50&deg;</strong>
+          </button>
+          <button class="set-btn" type="button" data-set="D">
+            <span>Set D</span>
+            <strong>40&deg; vs. 70&deg;</strong>
+          </button>
+        </div>
+        <div class="calc-box">
+          <p class="formula">Use R = (24<sup>2</sup> sin(2&theta;)) / 9.8 and round to 0.1 m.</p>
+          <div class="calc-grid">
+            <div class="calc-field">
+              <label for="calc-ref">40&deg; range</label>
+              <input id="calc-ref" data-calc-ref type="number" inputmode="decimal" step="0.1" placeholder="m" />
+            </div>
+            <div class="calc-field">
+              <label for="calc-test"><span data-calc-test-label>20</span>&deg; range</label>
+              <input id="calc-test" data-calc-test type="number" inputmode="decimal" step="0.1" placeholder="m" />
+            </div>
+          </div>
+          <p class="hint" data-calc-feedback aria-live="polite">Enter both calculated ranges before launching the selected set.</p>
+        </div>
+        <div class="launch-row">
+          <button class="launch-btn" type="button" data-launch>Check Calculations &amp; Launch</button>
+          <button class="reset-btn" type="button" data-reset>Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">Evidence</h2>
+      <div class="metrics" aria-live="polite">
+        <div class="metric">
+          <span>40&deg; range</span>
+          <strong><span data-range-a>--</span> m</strong>
+        </div>
+        <div class="metric">
+          <span>Test range</span>
+          <strong><span data-range-b>--</span> m</strong>
+        </div>
+        <div class="metric">
+          <span>Difference</span>
+          <strong><span data-difference>--</span> m</strong>
+        </div>
+      </div>
+
+      <div class="evidence">
+        <table>
+          <thead>
+            <tr>
+              <th>Trial</th>
+              <th>Angles</th>
+              <th>Calculated</th>
+              <th>Result</th>
+            </tr>
+          </thead>
+          <tbody data-trials>
+            <tr class="empty-row">
+              <td colspan="4">Calculate and launch Set A to collect the first trial.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="conclusion">
+        <h2 class="panel-title">Conclusion</h2>
+        <div class="choices">
+          <button class="choice-btn" type="button" data-choice="A">Set A: 40&deg; and 20&deg;</button>
+          <button class="choice-btn" type="button" data-choice="B">Set B: 40&deg; and 35&deg;</button>
+          <button class="choice-btn" type="button" data-choice="C">Set C: 40&deg; and 50&deg;</button>
+          <button class="choice-btn" type="button" data-choice="D">Set D: 40&deg; and 70&deg;</button>
+        </div>
+        <p class="feedback" data-feedback aria-live="polite"></p>
+      </div>
+    </div>
+  </div>
+
+  <span class="sr-only" data-live aria-live="polite"></span>
+</section>
+
+<script>
+(() => {
+  const root = document.currentScript.previousElementSibling;
+  if (!root?.matches("[data-rh]")) return;
+
+  const $ = (query) => root.querySelector(query);
+  const $$ = (query) => [...root.querySelectorAll(query)];
+
+  const scene = $("[data-scene]");
+  const launcher = $("[data-launcher]");
+  const barrelA = $("[data-barrel-a]");
+  const barrelB = $("[data-barrel-b]");
+  const pathA = $("[data-path-a]");
+  const pathB = $("[data-path-b]");
+  const acrobatA = $("[data-acrobat-a]");
+  const acrobatB = $("[data-acrobat-b]");
+  const rangeLine = $("[data-range-line]");
+  const rangeLabel = $("[data-range-label]");
+  const target = $("[data-target]");
+  const calcRef = $("[data-calc-ref]");
+  const calcTest = $("[data-calc-test]");
+  const calcFeedback = $("[data-calc-feedback]");
+  const launchButton = $("[data-launch]");
+  const resetButton = $("[data-reset]");
+  const trialsBody = $("[data-trials]");
+  const feedback = $("[data-feedback]");
+  const live = $("[data-live]");
+
+  const G = 9.8;
+  const V0 = 24;
+  const REFERENCE_ANGLE = 40;
+  const MAX_RANGE = (V0 * V0) / G;
+  const PROJECTILE_OFFSET = 34;
+  const TEST_SETS = [
+    { id: "A", testAngle: 20 },
+    { id: "B", testAngle: 35 },
+    { id: "C", testAngle: 50 },
+    { id: "D", testAngle: 70 }
+  ];
+
+  const state = {
+    layout: null,
+    trials: [],
+    selectedSetId: "A",
+    busy: false
+  };
+
+  function metersRange(angleDeg) {
+    const radians = angleDeg * Math.PI / 180;
+    return (V0 * V0 * Math.sin(2 * radians)) / G;
+  }
+
+  function flightTime(angleDeg) {
+    const radians = angleDeg * Math.PI / 180;
+    return (2 * V0 * Math.sin(radians)) / G;
+  }
+
+  function layout() {
+    const rect = scene.getBoundingClientRect();
+    const groundY = rect.height * 0.77;
+    const originX = Math.max(58, rect.width * 0.11);
+    const originY = groundY - 42;
+    const maxPixelRange = rect.width - originX - Math.max(72, rect.width * 0.06);
+    const pixelsPerMeter = maxPixelRange / MAX_RANGE;
+
+    state.layout = {
+      width: rect.width,
+      height: rect.height,
+      groundY,
+      originX,
+      originY,
+      pixelsPerMeter
+    };
+
+    launcher.style.left = `${originX}px`;
+    launcher.style.top = `${originY}px`;
+    return state.layout;
+  }
+
+  function pointAt(angleDeg, progress) {
+    const L = state.layout || layout();
+    const radians = angleDeg * Math.PI / 180;
+    const totalTime = flightTime(angleDeg);
+    const t = totalTime * progress;
+    const xMeters = V0 * Math.cos(radians) * t;
+    const yMeters = V0 * Math.sin(radians) * t - 0.5 * G * t * t;
+    return {
+      x: L.originX + xMeters * L.pixelsPerMeter,
+      y: L.originY - yMeters * L.pixelsPerMeter
+    };
+  }
+
+  function pathFor(angleDeg) {
+    const L = state.layout || layout();
+    let d = `M ${L.originX.toFixed(2)} ${L.originY.toFixed(2)}`;
+    for (let i = 1; i <= 70; i += 1) {
+      const p = pointAt(angleDeg, i / 70);
+      d += ` L ${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+    }
+    return d;
+  }
+
+  function placeAcrobat(el, angleDeg, progress, spin = 0) {
+    const p = pointAt(angleDeg, progress);
+    el.style.left = `${p.x}px`;
+    el.style.top = `${p.y}px`;
+    el.style.transform = `translate(-50%, -50%) rotate(${spin}deg)`;
+  }
+
+  function formatNumber(value) {
+    return value.toFixed(1);
+  }
+
+  function setText(selector, value) {
+    $$(selector).forEach((el) => {
+      el.textContent = value;
+    });
+  }
+
+  function getSelectedSet() {
+    return TEST_SETS.find((set) => set.id === state.selectedSetId) || TEST_SETS[0];
+  }
+
+  function clearLaunchVisuals() {
+    pathA.setAttribute("d", "");
+    pathB.setAttribute("d", "");
+    rangeLine.style.display = "none";
+    rangeLabel.style.display = "none";
+    target.style.display = "none";
+    $("[data-range-a]").textContent = "--";
+    $("[data-range-b]").textContent = "--";
+    $("[data-difference]").textContent = "--";
+  }
+
+  function updateReadouts() {
+    const selectedSet = getSelectedSet();
+    const angleA = REFERENCE_ANGLE;
+    const angleB = selectedSet.testAngle;
+    const L = state.layout || layout();
+    const launchOffset = PROJECTILE_OFFSET / Math.max(1, pointAt(angleA, 1).x - L.originX);
+
+    setText("[data-angle-a]", angleA);
+    setText("[data-angle-b]", angleB);
+    setText("[data-angle-a-readout]", angleA);
+    setText("[data-angle-b-readout]", angleB);
+    setText("[data-calc-test-label]", angleB);
+    barrelA.style.transform = `rotate(${-angleA}deg)`;
+    barrelB.style.transform = `rotate(${-angleB}deg)`;
+
+    placeAcrobat(acrobatA, angleA, launchOffset, -angleA);
+    placeAcrobat(acrobatB, angleB, PROJECTILE_OFFSET / Math.max(1, pointAt(angleB, 1).x - L.originX), -angleB);
+  }
+
+  function showRangeMarkers(rangeA, rangeB) {
+    const L = state.layout || layout();
+    const endpointA = pointAt(REFERENCE_ANGLE, 1);
+
+    rangeLine.style.display = "block";
+    rangeLabel.style.display = "block";
+    target.style.display = "block";
+    rangeLine.style.left = `${L.originX}px`;
+    rangeLine.style.top = `${L.originY + 38}px`;
+    rangeLine.style.width = `${Math.max(0, endpointA.x - L.originX)}px`;
+
+    rangeLabel.style.left = `${(L.originX + endpointA.x) / 2}px`;
+    rangeLabel.style.top = `${L.originY + 32}px`;
+    rangeLabel.textContent = `40 deg: ${formatNumber(rangeA)} m`;
+
+    target.style.left = `${endpointA.x}px`;
+    target.style.top = `${L.originY + 38}px`;
+
+    $("[data-range-a]").textContent = formatNumber(rangeA);
+    $("[data-range-b]").textContent = formatNumber(rangeB);
+    $("[data-difference]").textContent = Math.abs(rangeA - rangeB).toFixed(2);
+  }
+
+  function animate(duration, onFrame) {
+    const start = performance.now();
+    return new Promise((resolve) => {
+      function step(now) {
+        const progress = Math.min(1, (now - start) / duration);
+        onFrame(progress);
+        if (progress < 1 && state.busy) {
+          requestAnimationFrame(step);
+        } else {
+          resolve();
+        }
+      }
+      requestAnimationFrame(step);
+    });
+  }
+
+  function addTrial(selectedSet, rangeA, rangeB, studentA, studentB) {
+    const previousIndex = state.trials.findIndex((trial) => trial.id === selectedSet.id);
+    const trial = {
+      id: selectedSet.id,
+      angleA: REFERENCE_ANGLE,
+      angleB: selectedSet.testAngle,
+      rangeA,
+      rangeB,
+      studentA,
+      studentB,
+      difference: Math.abs(rangeA - rangeB),
+      match: Math.abs(rangeA - rangeB) < 0.15
+    };
+
+    if (previousIndex >= 0) {
+      state.trials[previousIndex] = trial;
+    } else {
+      state.trials.push(trial);
+    }
+
+    renderTrials();
+  }
+
+  function renderTrials() {
+    if (!state.trials.length) {
+      trialsBody.innerHTML = '<tr class="empty-row"><td colspan="4">Calculate and launch Set A to collect the first trial.</td></tr>';
+      return;
+    }
+
+    const orderedTrials = [...state.trials].sort((a, b) => a.id.localeCompare(b.id));
+    trialsBody.innerHTML = orderedTrials.map((trial, index) => `
+      <tr>
+        <td>${index + 1}: Set ${trial.id}</td>
+        <td>${trial.angleA}&deg; vs. ${trial.angleB}&deg;</td>
+        <td>${formatNumber(trial.studentA)} m / ${formatNumber(trial.studentB)} m</td>
+        <td class="${trial.match ? "match" : "no-match"}">${trial.match ? "Equal range" : "Different"}</td>
+      </tr>
+    `).join("");
+  }
+
+  function setBusy(nextBusy) {
+    state.busy = nextBusy;
+    launchButton.disabled = nextBusy;
+    resetButton.disabled = nextBusy;
+    calcRef.disabled = nextBusy;
+    calcTest.disabled = nextBusy;
+    $$("[data-set]").forEach((button) => {
+      button.disabled = nextBusy;
+    });
+  }
+
+  async function launchPair() {
+    if (state.busy) return;
+    feedback.textContent = "";
+    calcFeedback.textContent = "";
+
+    const selectedSet = getSelectedSet();
+    const angleA = REFERENCE_ANGLE;
+    const angleB = selectedSet.testAngle;
+    const rangeA = metersRange(angleA);
+    const rangeB = metersRange(angleB);
+    const studentA = Number(calcRef.value);
+    const studentB = Number(calcTest.value);
+    const calcIsReady = Number.isFinite(studentA) && Number.isFinite(studentB);
+    const calcIsClose = Math.abs(studentA - rangeA) <= 0.6 && Math.abs(studentB - rangeB) <= 0.6;
+
+    if (!calcIsReady || !calcRef.value || !calcTest.value) {
+      calcFeedback.textContent = "Enter both calculated ranges first.";
+      calcFeedback.style.color = "#9a3412";
+      return;
+    }
+
+    if (!calcIsClose) {
+      calcFeedback.textContent = "Recheck the formula and round each range to the nearest 0.1 m.";
+      calcFeedback.style.color = "#9a3412";
+      return;
+    }
+
+    setBusy(true);
+    calcFeedback.textContent = "Calculations accepted. Launching the selected set.";
+    calcFeedback.style.color = "#047857";
+
+    const totalDuration = 1600;
+
+    pathA.setAttribute("d", pathFor(angleA));
+    pathB.setAttribute("d", pathFor(angleB));
+    showRangeMarkers(rangeA, rangeB);
+
+    $("[data-status-title]").textContent = `Launching Set ${selectedSet.id}`;
+    $("[data-status-copy]").textContent = `Comparing the 40 degree reference launch with the ${angleB} degree test launch.`;
+    live.textContent = `Launching Set ${selectedSet.id}: 40 degrees and ${angleB} degrees.`;
+
+    await animate(totalDuration, (progress) => {
+      placeAcrobat(acrobatA, angleA, progress, progress * 720 - angleA);
+      placeAcrobat(acrobatB, angleB, progress, progress * -720 - angleB);
+    });
+
+    placeAcrobat(acrobatA, angleA, 1, 0);
+    placeAcrobat(acrobatB, angleB, 1, 0);
+    addTrial(selectedSet, rangeA, rangeB, studentA, studentB);
+
+    const difference = Math.abs(rangeA - rangeB);
+    const resultText = difference < 0.15 ? "Equal range" : "Different ranges";
+    $("[data-status-title]").textContent = `Set ${selectedSet.id}: ${resultText}`;
+    $("[data-status-copy]").textContent = `40 degrees travels ${formatNumber(rangeA)} m. ${angleB} degrees travels ${formatNumber(rangeB)} m. Difference: ${difference.toFixed(2)} m.`;
+    live.textContent = `Trial recorded for Set ${selectedSet.id}. Difference: ${difference.toFixed(2)} meters.`;
+    setBusy(false);
+  }
+
+  function checkConclusion(choice) {
+    $$(".choice-btn").forEach((button) => {
+      button.classList.remove("correct", "incorrect", "selected");
+    });
+
+    const selected = $(`[data-choice="${choice}"]`);
+    selected.classList.add("selected");
+
+    if (state.trials.length < TEST_SETS.length) {
+      feedback.textContent = "Test all four sets first, then choose the set that matched the 40 degree launch.";
+      return;
+    }
+
+    if (choice === "C") {
+      selected.classList.add("correct");
+      feedback.textContent = "Confirmed: Set C matches the 40 degree range. The 40 degree and 50 degree launches land at the same distance.";
+    } else {
+      selected.classList.add("incorrect");
+      feedback.textContent = "Check the evidence table again. Only one tested set has a near-zero difference from the 40 degree launch.";
+    }
+  }
+
+  function resetActivity() {
+    state.trials = [];
+    state.selectedSetId = "A";
+    calcRef.value = "";
+    calcTest.value = "";
+    calcFeedback.textContent = "Enter both calculated ranges before launching the selected set.";
+    calcFeedback.style.color = "";
+    feedback.textContent = "";
+    $("[data-range-a]").textContent = "--";
+    $("[data-range-b]").textContent = "--";
+    $("[data-difference]").textContent = "--";
+    $$("[data-set]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.set === state.selectedSetId);
+    });
+    $$(".choice-btn").forEach((button) => {
+      button.classList.remove("correct", "incorrect", "selected");
+    });
+    $("[data-status-title]").textContent = "Ready to test Set A";
+    $("[data-status-copy]").textContent = "Calculate the 40 degree range and Set A range, then launch to compare the landing points.";
+    renderTrials();
+    layout();
+    clearLaunchVisuals();
+    updateReadouts();
+  }
+
+  $$("[data-set]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (state.busy) return;
+      state.selectedSetId = button.dataset.set;
+      calcRef.value = "";
+      calcTest.value = "";
+      calcFeedback.textContent = "Enter both calculated ranges before launching the selected set.";
+      calcFeedback.style.color = "";
+      feedback.textContent = "";
+      $$("[data-set]").forEach((setButton) => {
+        setButton.classList.toggle("active", setButton === button);
+      });
+      $("[data-status-title]").textContent = `Ready to test Set ${state.selectedSetId}`;
+      $("[data-status-copy]").textContent = `Calculate the 40 degree range and Set ${state.selectedSetId} range, then launch to compare the landing points.`;
+      clearLaunchVisuals();
+      updateReadouts();
+    });
+  });
+
+  [calcRef, calcTest].forEach((input) => {
+    input.addEventListener("input", () => {
+      calcFeedback.textContent = "Enter both calculated ranges before launching the selected set.";
+      calcFeedback.style.color = "";
+    });
+  });
+
+  launchButton.addEventListener("click", launchPair);
+  resetButton.addEventListener("click", resetActivity);
+  $$(".choice-btn").forEach((button) => {
+    button.addEventListener("click", () => checkConclusion(button.dataset.choice));
+  });
+
+  window.addEventListener("resize", () => {
+    if (state.busy) return;
+    layout();
+    clearLaunchVisuals();
+    updateReadouts();
+  });
+
+  layout();
+  clearLaunchVisuals();
+  updateReadouts();
+})();
+</script>
+</body>
+</html>

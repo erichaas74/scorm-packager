@@ -1,27 +1,5 @@
-// =============================================================================
-// Kinematics2dWorkAnalysis.js — complete drop-in replacement
-// =============================================================================
-// All original behavior is preserved (problem-type definitions, sample
-// problems, scenario solver, randomized inputs, step-id metadata, model →
-// steps configuration).
-//
-// Two pedagogical extensions are baked in here so the rest of the rebuild
-// can rely on them:
-//
-//   1. buildGivensStep is prepended to every problem type as step 0.
-//      Students start by tagging every quantity the problem hands them
-//      (multi-select task) before any algebra.
-//
-//   2. The 'components' step in projectile-launch types is augmented with a
-//      hand-authored task chain: click v0 → click theta → pick the cosine
-//      equation → drag the v0x arrow → compute v0x → pick the sine equation
-//      → drag the v0y arrow → compute v0y. Each is a separately tracked
-//      skill via the proficiency module.
-//
-// Every other step's tasks are auto-derived from its `resultValues` by
-// getDefaultTasksForStep (in workAnalysis.js), which weaves a formula-pick
-// before each numeric task.
-// =============================================================================
+// Problem definitions, sample data, solvers, and configured walkthrough steps
+// for the 2D kinematics module.
 
 import {
     buildGivensStep,
@@ -63,16 +41,16 @@ const randomSignedMagnitude = (min, max, decimals = 0, random = Math.random) => 
 export function getWorkAnalysisProblemTypeDefinitions() {
     return {
         '1': {
-            option: '1: given v0, theta, delta y = 0',
-            title: 'Given v0, theta, and level landing'
+            option: '1: given v₀, theta, delta y = 0',
+            title: 'Given v₀, theta, and level landing'
         },
         '2': {
-            option: '2: given v0, theta, delta y',
-            title: 'Given v0, theta, and delta y'
+            option: '2: given v₀, theta, delta y',
+            title: 'Given v₀, theta, and delta y'
         },
         '3': {
-            option: '3: given v0x, v0y, delta y',
-            title: 'Given v0x, v0y, and delta y'
+            option: '3: given v₀x, v₀y, delta y',
+            title: 'Given v₀x, v₀y, and delta y'
         },
         '4': {
             option: '4: given delta x, delta y, time',
@@ -107,10 +85,10 @@ export function getSample2dKinematicsProblems() {
         },
         type1: {
             id: 'type1',
-            title: 'Type 1: Level launch with v0 and theta',
+            title: 'Type 1: Level launch with v₀ and theta',
             prompt: 'A basketball is launched from floor level at 24.0 m/s and 52 degrees above the horizontal. It lands at the same height, so delta y = 0 m. Find the flight time, horizontal range, maximum height, and final velocity.',
             settings: {
-                workAnalysisProblemType: '1: given v0, theta, delta y = 0',
+                workAnalysisProblemType: '1: given v₀, theta, delta y = 0',
                 scenarioType: 'Standard Projectile',
                 initialVelocity: 24,
                 launchAngle: 52,
@@ -119,10 +97,10 @@ export function getSample2dKinematicsProblems() {
         },
         type2: {
             id: 'type2',
-            title: 'Type 2: Nonlevel launch with v0, theta, and delta y',
+            title: 'Type 2: Nonlevel launch with v₀, theta, and delta y',
             prompt: 'A soccer ball is kicked from a 1.5 m platform at 19.0 m/s and 38 degrees above the horizontal. It lands on a field 6.0 m lower than the launch point. Find the time in the air, range, and impact velocity.',
             settings: {
-                workAnalysisProblemType: '2: given v0, theta, delta y',
+                workAnalysisProblemType: '2: given v₀, theta, delta y',
                 scenarioType: 'Lower Landing / Cliff',
                 initialVelocity: 19,
                 launchAngle: 38,
@@ -131,10 +109,10 @@ export function getSample2dKinematicsProblems() {
         },
         type3: {
             id: 'type3',
-            title: 'Type 3: Given v0x, v0y, and delta y',
+            title: 'Type 3: Given v₀x, v₀y, and delta y',
             prompt: 'A stunt object leaves a ramp with horizontal velocity 16.0 m/s and vertical velocity 12.0 m/s. It lands 4.0 m below its launch point. Find the flight time, range, launch speed, and launch angle.',
             settings: {
-                workAnalysisProblemType: '3: given v0x, v0y, delta y',
+                workAnalysisProblemType: '3: given v₀x, v₀y, delta y',
                 scenarioType: 'Lower Landing / Cliff',
                 givenVx: 16,
                 givenVy: 12,
@@ -192,10 +170,12 @@ export function getSample2dKinematicsProblems() {
         type8: {
             id: 'type8',
             title: 'Type 8: Horizontal launch from a height',
-            prompt: 'A rescue package is released horizontally from a helicopter moving at 28.0 m/s. The package falls 45 m to the ground. Find the fall time, horizontal distance traveled, and impact velocity.',
+            prompt: 'A rock is kicked horizontally off the edge of a cliff at 28.0 m/s. The rock falls 45 m into the water below. Find the fall time, horizontal distance traveled, and impact velocity.',
             settings: {
                 workAnalysisProblemType: '8: given vx, height drop, horizontal launch',
                 scenarioType: 'Lower Landing / Cliff',
+                objectType: 'Rock',
+                showLaunchCannon: false,
                 givenVx: 28,
                 givenHeightDrop: 45,
                 givenDy: -45
@@ -229,6 +209,12 @@ const workAnalysisProblemTypeTitles = {
 // -----------------------------------------------------------------------------
 
 const focusValuesByStepId = {
+    intro: [],
+    hover: [],
+    'vector-breakdown': ['v0', 'theta', 'v0x', 'v0y'],
+    equation: ['v0x', 'v0y', 'time', 'dy'],
+    solve: ['time', 'dx', 'dy', 'v0x', 'v0y'],
+    'final-vector': ['v0x', 'vy', 'finalV'],
     components: ['v0', 'theta', 'v0x', 'v0y'],
     vertical: ['dy', 'v0y', 'ay'],
     time: ['time', 'dy', 'v0y'],
@@ -242,6 +228,12 @@ const focusValuesByStepId = {
 };
 
 const resultValueByStepId = {
+    intro: null,
+    hover: null,
+    'vector-breakdown': 'v0x',
+    equation: null,
+    solve: null,
+    'final-vector': 'finalV',
     components: 'v0x',
     vertical: 'dy',
     time: 'time',
@@ -255,6 +247,12 @@ const resultValueByStepId = {
 };
 
 const resultValuesByStepId = {
+    intro: [],
+    hover: [],
+    'vector-breakdown': ['v0x', 'v0y'],
+    equation: [],
+    solve: [],
+    'final-vector': ['finalV'],
     components: ['v0x', 'v0y'],
     vertical: ['dy'],
     time: ['time'],
@@ -268,6 +266,9 @@ const resultValuesByStepId = {
 };
 
 const equationStepIds = new Set([
+    'equation',
+    'solve',
+    'final-vector',
     'vertical',
     'time',
     'range',
@@ -314,47 +315,6 @@ function withFocusMetadata(step) {
     }
     return merged;
 }
-
-// -----------------------------------------------------------------------------
-// Components-step augmenter
-// -----------------------------------------------------------------------------
-// Hand-author the components step's task list. The auto-derive in workAnalysis
-// would weave formula-pick + numeric for each result; here we add canvas-pick
-// (find the resultant + angle on the canvas) and vector-decompose (physically
-// drag the component arrows) on either side of the formula-pick.
-//
-// Eight tasks total per components step. Each maps to its own skill signature
-// in the proficiency tracker, so a student weak on any one of the eight (e.g.
-// can compute the trig but can't visualize the triangle) keeps seeing that
-// task come back while the others unlock skip suggestions.
-
-const augmentComponentsStep = (step) => {
-    if (step.id !== 'components') return step;
-    if (!step.componentWalkthrough) return step;
-    return {
-        ...step,
-        tasks: [
-            { id: 'pick-v0',          kind: 'canvas-pick',     target: 'v0',    prompt: 'Click the resultant launch velocity vector.' },
-            { id: 'pick-theta',       kind: 'canvas-pick',     target: 'theta', prompt: 'Click the launch angle.' },
-            { id: 'pick-formula-v0x', kind: 'formula-pick',    target: 'v0x',
-              pickerKind: 'vector-triangle', expectedEquationId: 'tri-cos',
-              equationIds: ['tri-sin', 'tri-cos', 'tri-tan'], hideNoneOption: true,
-              prompt: 'Which triangle equation gives you v₀x?' },
-            { id: 'decompose-v0x',    kind: 'vector-decompose', target: 'v0x',
-              prompt: 'Drag horizontally from the launch point until the readout matches v₀x.' },
-            { id: 'enter-v0x',        kind: 'numeric',         target: 'v0x',   prompt: 'Compute v₀x.' },
-            { id: 'pick-formula-v0y', kind: 'formula-pick',    target: 'v0y',
-              pickerKind: 'vector-triangle', expectedEquationId: 'tri-sin',
-              equationIds: ['tri-sin', 'tri-cos', 'tri-tan'], hideNoneOption: true,
-              prompt: 'Which triangle equation gives you v₀ᵧ?' },
-            { id: 'decompose-v0y',    kind: 'vector-decompose', target: 'v0y',
-              prompt: 'Drag vertically from the end of the v₀x leg until the readout matches v₀ᵧ.' },
-            { id: 'enter-v0y',        kind: 'numeric',         target: 'v0y',   prompt: 'Compute v₀ᵧ.' }
-        ]
-    };
-};
-
-// -----------------------------------------------------------------------------
 // Public option / resolution helpers (unchanged)
 // -----------------------------------------------------------------------------
 
@@ -621,10 +581,7 @@ export function getSelectedWorkAnalysisProblemType(model, inputs, normalizeToken
 // -----------------------------------------------------------------------------
 // Step configurations
 // -----------------------------------------------------------------------------
-// stepsByType is unchanged from the original (same accent colors, same lines,
-// same focusLabels). The only change is in the return: each type's steps are
-// composed with [givens, ...withLiveEquation(steps)] and each step is run
-// through augmentComponentsStep before withFocusMetadata.
+// Each problem type is composed into the shared six-stage walkthrough shape.
 
 export function getWorkAnalysisTypeConfigs(model) {
     const dy = model.yf - model.yi;
@@ -666,6 +623,128 @@ export function getWorkAnalysisTypeConfigs(model) {
         return nextSteps;
     };
 
+    const makeIntroStep = (typeNumber) => ({
+        id: 'intro',
+        title: 'Intro',
+        accent: '#334155',
+        focusLabel: 'Read the scenario and identify the motion.',
+        lines: [
+            workAnalysisProblemTypeTitles[typeNumber] || `Problem Type ${typeNumber}`,
+            `${model.scenarioType}`,
+            `Use g = ${model.g.toFixed(2)} m/s² downward.`
+        ],
+        resultValues: []
+    });
+
+    const makeHoverStep = () => ({
+        id: 'hover',
+        title: 'Hover',
+        accent: '#0ea5e9',
+        focusLabel: 'Watch the selected variable highlighted in the scene.',
+        lines: [],
+        resultValues: []
+    });
+
+    const makeVectorBreakdownStep = (steps) => {
+        const existing = steps.find(step => step.id === 'components' && step.componentWalkthrough)
+            || steps.find(step => step.id === 'components');
+        const base = existing || {
+            id: 'components',
+            accent: '#1d4ed8',
+            focusLabel: 'Resolve the launch vector into horizontal and vertical parts.',
+            lines: componentLines,
+            resultValues: ['v0x', 'v0y']
+        };
+        return {
+            ...base,
+            id: 'vector-breakdown',
+            title: 'Vector Breakdown',
+            accent: base.accent || '#1d4ed8',
+            focusLabel: base.focusLabel || 'Resolve the launch vector into horizontal and vertical parts.',
+            lines: base.lines?.length ? base.lines : componentLines,
+            componentWalkthrough: base.componentWalkthrough === true,
+            resultValues: Array.isArray(base.resultValues) ? base.resultValues : ['v0x', 'v0y']
+        };
+    };
+
+    const getSolveSourceSteps = (steps) => steps.filter(step => (
+        step.id !== 'components' && step.id !== 'summary'
+    ));
+
+    const uniqueLines = (lines, fallback) => {
+        const seen = new Set();
+        const clean = lines
+            .filter(Boolean)
+            .map(line => String(line).trim())
+            .filter(line => {
+                if (!line || seen.has(line)) return false;
+                seen.add(line);
+                return true;
+            });
+        return clean.length ? clean : fallback;
+    };
+
+    const makeEquationStep = (steps) => {
+        const source = getSolveSourceSteps(steps);
+        const lines = uniqueLines(
+            source.map(step => step.lines?.[0]).slice(0, 5),
+            ['Choose the equation that connects the knowns to the unknown.']
+        );
+        return {
+            id: 'equation',
+            title: 'Equation',
+            accent: '#7c3aed',
+            focusLabel: 'Pick the relationship before substituting numbers.',
+            lines,
+            animatedPanel: true,
+            resultValues: []
+        };
+    };
+
+    const makeSolveStep = (steps) => {
+        const source = getSolveSourceSteps(steps);
+        const summary = steps.find(step => step.id === 'summary');
+        const resultLines = source
+            .map(step => step.lines?.[step.lines.length - 1])
+            .concat(summary?.lines || []);
+        return {
+            id: 'solve',
+            title: 'Solve',
+            accent: '#ea580c',
+            focusLabel: 'Substitute the values and compute the requested quantities.',
+            lines: uniqueLines(resultLines, [`t = ${model.tFlight.toFixed(2)} s`, `Δx = ${model.range.toFixed(2)} m`]).slice(0, 7),
+            animatedPanel: true,
+            resultValues: []
+        };
+    };
+
+    const makeFinalVectorStep = () => {
+        const impactAngle = Math.atan2(model.finalVy, model.vix) * 180 / Math.PI;
+        return {
+            id: 'final-vector',
+            title: 'Final Vector',
+            accent: '#dc2626',
+            focusLabel: 'Zoom in on the final velocity vector.',
+            lines: [
+                `vx(final) = ${model.vix.toFixed(2)} m/s`,
+                `vy(final) = ${model.finalVy.toFixed(2)} m/s`,
+                `v(final) = √(vx² + vy²) = ${model.finalSpeed.toFixed(2)} m/s`,
+                `θ(final) = ${impactAngle.toFixed(1)}°`
+            ],
+            resultValues: ['finalV']
+        };
+    };
+
+    const composeSixStageSteps = (typeNumber, givensStep, steps) => ([
+        makeIntroStep(typeNumber),
+        { ...givensStep, title: 'Givens' },
+        makeHoverStep(),
+        makeVectorBreakdownStep(steps),
+        makeEquationStep(steps),
+        makeSolveStep(steps),
+        makeFinalVectorStep()
+    ]);
+
     const stepsByType = {
         type1: [
             { id: 'components', title: 'Resolve Components', accent: '#1d4ed8', focusLabel: 'Given v₀ and θ, find v₀x and v₀ᵧ', lines: componentLines, componentWalkthrough: true },
@@ -684,7 +763,7 @@ export function getWorkAnalysisTypeConfigs(model) {
             { id: 'summary', title: 'Answer Summary', accent: '#0f172a', focusLabel: 'Collect the nonlevel-launch results', lines: [`Time = ${model.tFlight.toFixed(2)} s`, `Range = ${model.range.toFixed(2)} m`, `Final speed = ${model.finalSpeed.toFixed(2)} m/s`] }
         ],
         type3: [
-            { id: 'components', title: 'Start With Given Components', accent: '#1d4ed8', focusLabel: 'v₀x and v₀ᵧ are already known', lines: [`v₀x = ${model.vix.toFixed(2)} m/s`, `v₀ᵧ = ${model.viy.toFixed(2)} m/s`], resultValues: [] },
+            { id: 'components', title: 'Start With Given Components', accent: '#1d4ed8', focusLabel: 'v₀x and v₀ᵧ are already known', lines: [`v₀x = ${model.vix.toFixed(2)} m/s`, `v₀ᵧ = ${model.viy.toFixed(2)} m/s`], focusValues: ['v0x', 'v0y'], resultValues: [] },
             { id: 'vertical', title: 'Solve Time From y-Motion', accent: '#047857', focusLabel: 'Use Δy, v₀ᵧ, and gravity', lines: [`Δy = ${dy.toFixed(2)} m`, `t = ${model.tFlight.toFixed(2)} s`], focusValues: ['time', 'dy', 'v0y', 'ay'], resultValues: ['time'] },
             { id: 'range', title: 'Solve Range', accent: '#ea580c', focusLabel: 'Use Δx = v₀x t', lines: ['Δx = v₀x t', rangeEquation] },
             { id: 'reconstruct', title: 'Rebuild v₀ and θ', accent: '#0ea5e9', focusLabel: 'Combine the components if needed', lines: [`v₀ = ${model.vi.toFixed(2)} m/s`, `θ = ${model.angleDeg.toFixed(1)}°`] },
@@ -697,7 +776,7 @@ export function getWorkAnalysisTypeConfigs(model) {
             { id: 'summary', title: 'Answer Summary', accent: '#0f172a', focusLabel: 'Collect the reconstructed launch values', lines: [`v₀x = ${model.vix.toFixed(2)} m/s`, `v₀ᵧ = ${model.viy.toFixed(2)} m/s`, `v₀ = ${model.vi.toFixed(2)} m/s`] }
         ],
         type5: [
-            { id: 'components', title: 'Write Component Forms', accent: '#1d4ed8', focusLabel: 'Express v₀x and v₀ᵧ in terms of v₀ and θ', lines: ['v₀x = v₀ cosθ', 'v₀ᵧ = v₀ sinθ'], resultValues: [] },
+            { id: 'components', title: 'Write Component Forms', accent: '#1d4ed8', focusLabel: 'Express v₀x and v₀ᵧ in terms of v₀ and θ', lines: ['v₀x = v₀ cosθ', 'v₀ᵧ = v₀ sinθ'], focusValues: ['v0', 'theta'], resultValues: [] },
             { id: 'time', title: 'Substitute Time', accent: '#7c3aed', focusLabel: 'Use t = Δx / (v₀ cosθ)', lines: ['Δx = v₀ cosθ · t', 't = Δx / (v₀ cosθ)'], focusValues: ['time', 'dx', 'v0', 'theta'], resultValues: [] },
             { id: 'vertical', title: 'Solve For v₀', accent: '#047857', focusLabel: 'Put that time into the y-equation', lines: [`${dyLabel} = v₀ sinθ · t - ½gt²`, `v₀ = ${model.vi.toFixed(2)} m/s`], focusValues: ['v0', 'theta', 'dx', 'dy'], resultValues: ['v0'] },
             { id: 'components', title: 'Evaluate Components', accent: '#0ea5e9', focusLabel: 'Now compute the launch components', lines: [`v₀x = ${model.vix.toFixed(2)} m/s`, `v₀ᵧ = ${model.viy.toFixed(2)} m/s`], componentWalkthrough: true },
@@ -718,7 +797,7 @@ export function getWorkAnalysisTypeConfigs(model) {
             { id: 'summary', title: 'Answer Summary', accent: '#0f172a', focusLabel: 'Collect the reconstructed launch results', lines: [`Range = ${model.range.toFixed(2)} m`, `hₘₐₓ = ${hmax.toFixed(2)} m`, `θ = ${model.angleDeg.toFixed(1)}°`] }
         ],
         type8: [
-            { id: 'components', title: 'Horizontal Launch Setup', accent: '#1d4ed8', focusLabel: 'There is no upward launch component', lines: ['v₀x = v₀', 'v₀ᵧ = 0.00 m/s'], resultValues: [] },
+            { id: 'components', title: 'Horizontal Launch Setup', accent: '#1d4ed8', focusLabel: 'There is no upward launch component', lines: ['v₀x = v₀', 'v₀ᵧ = 0.00 m/s'], focusValues: ['v0x', 'v0y'], resultValues: [] },
             { id: 'vertical', title: 'Solve Fall Time', accent: '#047857', focusLabel: 'Use free fall in the y direction', lines: ['Δy = -½gt²', `t = ${model.tFlight.toFixed(2)} s`], focusValues: ['time', 'dy', 'ay'], resultValues: ['time'] },
             { id: 'range', title: 'Solve Horizontal Distance', accent: '#ea580c', focusLabel: 'Use constant horizontal speed', lines: ['Δx = v₀x t', `Δx = ${model.range.toFixed(2)} m`] },
             { id: 'vertical-result', title: 'Find Impact Velocity', accent: '#059669', focusLabel: 'The vertical speed grows during the fall', lines: [`vᵧ(final) = ${model.finalVy.toFixed(2)} m/s`, `v(final) = ${model.finalSpeed.toFixed(2)} m/s`], resultValues: ['vy', 'finalV'] },
@@ -731,7 +810,7 @@ export function getWorkAnalysisTypeConfigs(model) {
             const typeNumber = id.replace(/^type/, '');
             const knownVars = getWorkAnalysisKnownVariablesForType(typeNumber);
             const givensStep = buildGivensStep(knownVars);
-            const composed = [givensStep, ...withLiveEquationStep(steps)].map(augmentComponentsStep);
+            const composed = composeSixStageSteps(typeNumber, givensStep, withLiveEquationStep(steps));
             return [id, { id, steps: composed.map(withFocusMetadata) }];
         })
     );

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Elevator Scale Simulator</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Arial,Helvetica,sans-serif;background:#eef3f9;color:#172033}
+  .app{width:100vw;height:100vh;display:grid;grid-template-columns:70vw 30vw;gap:0}
+  .stage{height:100vh;padding:18px;display:flex;align-items:center;justify-content:center}
+  canvas{width:100%;height:100%;max-height:calc(100vh - 36px);background:white;border:3px solid #c8d3e0;border-radius:18px;display:block}
+  .panel{height:100vh;background:#fff;border-left:3px solid #c8d3e0;padding:24px;display:flex;flex-direction:column;gap:14px;overflow:hidden}
+  h1{font-size:30px;margin:0;color:#172033}
+  .sub{font-size:15px;color:#5d6878;margin-top:-8px;line-height:1.35}
+  .card{border:2px solid #d7e0ec;border-radius:16px;padding:14px;background:#f8fbff}
+  .scenario{font-size:23px;font-weight:800;color:#28609F;margin-bottom:6px}
+  .data{font-size:17px;line-height:1.55}
+  .label{font-size:18px;font-weight:800;margin:2px 0 4px}
+  button{border:0;border-radius:12px;padding:13px 14px;cursor:pointer;font-weight:800;font-size:16px;background:#28609F;color:white}
+  button.secondary{background:#e8eef7;color:#172033;border:2px solid #d4deeb}
+  button.choice{width:100%;text-align:left;background:white;color:#172033;border:2px solid #d4deeb;margin:5px 0}
+  button.choice.selected{background:#d7e8ff;border-color:#28609F}
+  button.choice.correct{background:#dff4e7;border-color:#1f8a4c}
+  button.choice.wrong{background:#ffe4e4;border-color:#b23b3b}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .feedback{min-height:92px;background:#f2f6fc;border-radius:12px;padding:12px;line-height:1.42;font-size:16px}
+  .eq{font-family:Consolas,monospace;background:#fff;border-left:6px solid #28609F;padding:10px;border-radius:8px;font-size:16px;line-height:1.45}
+  .small{font-size:13px;color:#667085;line-height:1.35}
+  @media(max-width:900px){html,body{overflow:auto}.app{height:auto;grid-template-columns:1fr}.stage{height:58vh}.panel{height:auto;border-left:0;border-top:3px solid #c8d3e0}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="stage">
+    <canvas id="sim" width="1280" height="720"></canvas>
+  </div>
+
+  <aside class="panel">
+    <div>
+      <h1>Elevator Scale Simulator</h1>
+      <div class="sub">The scale reads the normal force. It shows normal weight at rest, hides during motion, then reveals on the scale.</div>
+    </div>
+
+    <div class="card">
+      <div class="scenario" id="scenarioTitle">Accelerating Up</div>
+      <div class="data">
+        Mass: <b>70 kg</b><br>
+        Normal weight: <b>686 N</b><br>
+        Acceleration: <b id="accelLabel">+2.0 m/s²</b>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label">Guess the scale reading during acceleration:</div>
+      <button class="choice" data-choice="less">Less than normal weight</button>
+      <button class="choice" data-choice="same">Same as normal weight</button>
+      <button class="choice" data-choice="more">More than normal weight</button>
+    </div>
+
+    <div class="row">
+      <button id="startBtn">Start Motion</button>
+      <button class="secondary" id="nextBtn">Next Scenario</button>
+    </div>
+    <button class="secondary" id="resetBtn">Reset to Rest</button>
+
+    <div class="feedback" id="feedback">At rest, the scale shows the person’s weight: 686 N. Pick a prediction, then start the motion.</div>
+
+    <div class="eq" id="equation">
+      At rest: N = mg = 70(9.8) = 686 N
+    </div>
+  </aside>
+</div>
+
+<script>
+'use strict';
+const canvas = document.getElementById('sim');
+const ctx = canvas.getContext('2d');
+
+const scenarios = [
+  {name:'Accelerating Up', a: 2.0, answer:'more', note:'The scale pushes harder than gravity because the net force must be upward.', dir:'up'},
+  {name:'Moving Constant Speed', a: 0.0, answer:'same', note:'Constant speed means zero acceleration, so the normal force equals weight.', dir:'constant'},
+  {name:'Accelerating Down', a:-2.0, answer:'less', note:'The scale pushes less than gravity because the net force is downward.', dir:'down'}
+];
+
+let index = 0;
+let selected = null;
+let state = 'rest'; // rest, moving, revealed
+let startTime = performance.now();
+
+const mass = 70;
+const g = 9.8;
+const weight = mass * g;
+const moveDuration = 2600;
+
+function s(){return scenarios[index];}
+function finalReading(){return mass * (g + s().a);}
+function displayNumber(){
+  if(state === 'rest') return Math.round(weight) + ' N';
+  if(state === 'moving') return '----';
+  return Math.round(finalReading()) + ' N';
+}
+
+function roundRect(x,y,w,h,r,fill,stroke){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+  if(fill) ctx.fill();
+  if(stroke) ctx.stroke();
+}
+
+function arrow(x1,y1,x2,y2,label,color){
+  const ang = Math.atan2(y2-y1,x2-x1);
+  ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=7; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-18*Math.cos(ang-Math.PI/6), y2-18*Math.sin(ang-Math.PI/6));
+  ctx.lineTo(x2-18*Math.cos(ang+Math.PI/6), y2-18*Math.sin(ang+Math.PI/6));
+  ctx.closePath(); ctx.fill();
+  ctx.font='24px Arial';
+  ctx.fillText(label, x2+16, (y1+y2)/2);
+}
+
+function forceArrowFromDot(x, y, length, direction, label, color, side){
+  const endY = direction === 'up' ? y - length : y + length;
+  const ang = Math.atan2(endY-y, 0);
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 8; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,endY); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x,endY);
+  ctx.lineTo(x - 17*Math.cos(ang-Math.PI/6), endY - 17*Math.sin(ang-Math.PI/6));
+  ctx.lineTo(x - 17*Math.cos(ang+Math.PI/6), endY - 17*Math.sin(ang+Math.PI/6));
+  ctx.closePath(); ctx.fill();
+  ctx.font='24px Arial'; ctx.textAlign = side === 'left' ? 'right' : 'left';
+  ctx.fillText(label, x + (side === 'left' ? -18 : 18), (y+endY)/2 + 8);
+  ctx.textAlign='left';
+}
+
+function centerDot(x,y){
+  ctx.fillStyle='#28609F'; ctx.beginPath(); ctx.arc(x,y,21,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='white'; ctx.beginPath(); ctx.arc(x,y,6,0,Math.PI*2); ctx.fill();
+}
+
+function drawScale(cx,y){
+  ctx.fillStyle='#303846'; roundRect(cx-92,y-28,184,36,10,true,false);
+  ctx.fillStyle='#fff'; roundRect(cx-65,y-23,130,26,6,true,false);
+  ctx.fillStyle= state === 'moving' ? '#98a2b3' : '#172033';
+  ctx.font='bold 20px Arial'; ctx.textAlign='center';
+  ctx.fillText(displayNumber(), cx, y-3);
+  ctx.textAlign='left';
+}
+
+function drawPerson(cx, floorY){
+  const squash = state === 'revealed' && s().a > 0 ? 1 : state === 'revealed' && s().a < 0 ? -1 : 0;
+  ctx.save();
+  ctx.translate(cx, floorY);
+  ctx.scale(1+squash*0.035,1-squash*0.03);
+  ctx.fillStyle='#28609F'; ctx.strokeStyle='#28609F'; ctx.lineWidth=10; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-16,-58); ctx.lineTo(-34,0); ctx.moveTo(16,-58); ctx.lineTo(34,0); ctx.stroke();
+  roundRect(-30,-142,60,88,16,true,false);
+  ctx.beginPath(); ctx.moveTo(-28,-120); ctx.lineTo(-70,-85); ctx.moveTo(28,-120); ctx.lineTo(70,-85); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0,-180,30,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='white'; ctx.beginPath(); ctx.arc(-10,-187,4,0,Math.PI*2); ctx.arc(10,-187,4,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function motionOffset(now){
+  if(state === 'rest') return 245;
+  const t = Math.min(1, (now - startTime) / moveDuration);
+  const eased = t*t;
+  if(t >= 1 && state === 'moving') finishReveal();
+  if(s().dir === 'up') return 245 - 150*eased;
+  if(s().dir === 'down') return 95 + 150*eased;
+  return 245 - 150*t;
+}
+
+function finishReveal(){
+  state = 'revealed';
+  const correct = selected === s().answer;
+  setChoiceStyles(true);
+  const reading = Math.round(finalReading());
+  document.getElementById('feedback').textContent = (selected ? (correct ? 'Correct. ' : 'Not quite. ') : 'No guess selected. ') + s().note + ' The scale now shows ' + reading + ' N.';
+  document.getElementById('equation').textContent = `N = m(g + a) = 70(9.8 ${s().a < 0 ? '-' : '+'} ${Math.abs(s().a).toFixed(1)}) = ${reading} N`;
+}
+
+function draw(now){
+  const cabY = motionOffset(now);
+  const activeN = state === 'rest' ? weight : finalReading();
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // shaft fills the animation area
+  ctx.fillStyle='#e9eef5'; ctx.fillRect(110,30,1060,660);
+  ctx.strokeStyle='#9aabbf'; ctx.lineWidth=5; ctx.strokeRect(110,30,1060,660);
+  ctx.strokeStyle='#c2cedd'; ctx.lineWidth=2;
+  for(let y=65;y<675;y+=55){ctx.beginPath();ctx.moveTo(120,y);ctx.lineTo(1160,y);ctx.stroke();}
+
+  // cab
+  const cabX = 385;
+  const cabW = 510;
+  const cabCenter = cabX + cabW/2;
+  ctx.fillStyle='#dfe7f1'; ctx.strokeStyle='#56677c'; ctx.lineWidth=6;
+  roundRect(cabX,cabY,cabW,390,18,true,true);
+  ctx.strokeStyle='#8da0b8'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(cabCenter,cabY+10); ctx.lineTo(cabCenter,cabY+380); ctx.stroke();
+  ctx.strokeStyle='#56677c'; ctx.lineWidth=5;
+  ctx.beginPath(); ctx.moveTo(cabCenter,0); ctx.lineTo(cabCenter,cabY); ctx.stroke();
+
+  const floorY = cabY + 340;
+  drawScale(cabCenter,floorY);
+  drawPerson(cabCenter,floorY-28);
+
+  // force vectors are now drawn inside the elevator, starting at the center dot
+  const midX = cabCenter;
+  const midY = floorY - 132;
+  const nLen = Math.max(65, Math.min(155, activeN/5.7));
+  const wLen = Math.max(65, Math.min(155, weight/5.7));
+  forceArrowFromDot(midX,midY,nLen,'up','Normal Force','#1f8a4c','right');
+  forceArrowFromDot(midX,midY,wLen,'down','Weight mg','#b23b3b','left');
+  centerDot(midX,midY);
+
+  // motion cue beside the elevator
+  if(state === 'moving'){
+    if(s().dir === 'up') arrow(970,cabY+300,970,cabY+155,'accelerating up','#1f8a4c');
+    else if(s().dir === 'down') arrow(970,cabY+125,970,cabY+270,'accelerating down','#b23b3b');
+    else arrow(970,cabY+300,970,cabY+155,'constant speed','#667085');
+  }
+
+  ctx.font='24px Arial'; ctx.fillStyle='#172033'; ctx.textAlign='center';
+  if(state === 'rest') ctx.fillText('At rest: scale shows weight.',640,665);
+  else if(state === 'moving') ctx.fillText('During motion: scale number hidden. Watch the force arrows.',640,665);
+  else if(s().a > 0) ctx.fillText('Reveal on scale: Normal Force > Weight',640,665);
+  else if(s().a < 0) ctx.fillText('Reveal on scale: Normal Force < Weight',640,665);
+  else ctx.fillText('Reveal on scale: Normal Force = Weight',640,665);
+  ctx.textAlign='left';
+
+  requestAnimationFrame(draw);
+}
+
+function setChoiceStyles(revealed=false){
+  document.querySelectorAll('.choice').forEach(btn=>{
+    const ch = btn.dataset.choice;
+    btn.classList.toggle('selected', ch === selected && !revealed);
+    btn.classList.toggle('correct', revealed && ch === s().answer);
+    btn.classList.toggle('wrong', revealed && selected === ch && selected !== s().answer);
+  });
+}
+function choose(choice){
+  if(state === 'moving') return;
+  selected = choice;
+  setChoiceStyles(false);
+  document.getElementById('feedback').textContent = 'Prediction locked in. Start the motion. The number will disappear until the scale reveals the result.';
+}
+function startMotion(){
+  if(state === 'moving') return;
+  state = 'moving';
+  startTime = performance.now();
+  setChoiceStyles(false);
+  document.getElementById('feedback').textContent = 'Motion started. The scale number is hidden while the elevator accelerates.';
+  document.getElementById('equation').textContent = 'During motion: decide whether N is less than, equal to, or greater than mg.';
+}
+function resetScenario(resetIndex=false){
+  if(resetIndex) index = 0;
+  selected = null;
+  state = 'rest';
+  setChoiceStyles(false);
+  document.getElementById('scenarioTitle').textContent = s().name;
+  document.getElementById('accelLabel').textContent = (s().a > 0 ? '+' : '') + s().a.toFixed(1) + ' m/s²';
+  document.getElementById('feedback').textContent = 'At rest, the scale shows the person’s weight: 686 N. Pick a prediction, then start the motion.';
+  document.getElementById('equation').textContent = 'At rest: N = mg = 70(9.8) = 686 N';
+}
+function nextScenario(){
+  index = (index + 1) % scenarios.length;
+  resetScenario(false);
+}
+
+document.querySelectorAll('.choice').forEach(btn=>btn.addEventListener('click',()=>choose(btn.dataset.choice)));
+document.getElementById('startBtn').addEventListener('click',startMotion);
+document.getElementById('nextBtn').addEventListener('click',nextScenario);
+document.getElementById('resetBtn').addEventListener('click',()=>resetScenario(true));
+resetScenario(true);
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>

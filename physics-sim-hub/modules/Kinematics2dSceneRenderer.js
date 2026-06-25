@@ -1205,7 +1205,7 @@ drawInitialVelocityVector(ctx, model) {
     const arrowLength = 72 * vectorScale;
     const endX = model.startX + (arrowLength * Math.cos(model.angleRad));
     const endY = model.startY - (arrowLength * Math.sin(model.angleRad));
-    const magnitudeLabel = `vᵢ = ${this.inputs.unknownInitialVelocity ? "?" : `${model.vi.toFixed(1)} m/s`}`;
+    const magnitudeLabel = `v₀ = ${this.inputs.unknownInitialVelocity ? "?" : `${model.vi.toFixed(1)} m/s`}`;
     const v0FocusStyle = this.getWorkAnalysisValueFocusStyle(model, 'v0');
     this.drawArrow(ctx, model.startX, model.startY, endX, endY, v0FocusStyle.lineColor || "#2563eb", v0FocusStyle.lineWidth || 3);
 
@@ -1237,7 +1237,7 @@ drawProblemLabels(ctx, model) {
         const arrowLength = 72 * vectorScale;
         const v0EndX = model.startX + arrowLength * Math.cos(model.angleRad);
         const v0EndY = model.startY - arrowLength * Math.sin(model.angleRad);
-        const v0Label = `vᵢ = ${this.inputs.unknownInitialVelocity ? "?" : `${model.vi.toFixed(1)} m/s`}`;
+        const v0Label = `v₀ = ${this.inputs.unknownInitialVelocity ? "?" : `${model.vi.toFixed(1)} m/s`}`;
         const v0FocusStyle = this.getWorkAnalysisValueFocusStyle(model, 'v0');
         this.drawLabeledArrow(ctx, model.startX, model.startY, v0EndX, v0EndY, v0FocusStyle.lineColor || "#2563eb", v0Label, v0FocusStyle);
 
@@ -1313,18 +1313,20 @@ drawAngleArc(ctx, x, y, angleDeg, radius, label, labelOptions = {}) {
     ctx.stroke();
 
     const labelAngle = endAngle / 2;
-    const lx = x + (radius + (34 * vectorScale)) * Math.cos(labelAngle);
-    const ly = y + (radius + (34 * vectorScale)) * Math.sin(labelAngle);
-    this.drawTextLabel(ctx, lx, ly, label, {
-        font: "bold 10.5px serif",
-        fill: labelOptions.fill || "#2563eb",
-        background: labelOptions.background || "rgba(255,255,255,0.82)",
-        borderColor: labelOptions.borderColor,
-        borderWidth: labelOptions.borderWidth ?? 1,
-        shadowColor: labelOptions.shadowColor || 'rgba(15, 23, 42, 0.10)',
-        shadowBlur: labelOptions.shadowBlur ?? (this.isSvgExporting ? 0 : 6),
-        scale: labelOptions.scale || 1
-    });
+    const lx = x + (radius + (34 * vectorScale)) * Math.cos(labelAngle) + (labelOptions.labelOffsetX || 0);
+    const ly = y + (radius + (34 * vectorScale)) * Math.sin(labelAngle) + (labelOptions.labelOffsetY || 0);
+    if (label) {
+        this.drawTextLabel(ctx, lx, ly, label, {
+            font: "bold 10.5px serif",
+            fill: labelOptions.fill || "#2563eb",
+            background: labelOptions.background || "rgba(255,255,255,0.82)",
+            borderColor: labelOptions.borderColor,
+            borderWidth: labelOptions.borderWidth ?? 1,
+            shadowColor: labelOptions.shadowColor || 'rgba(15, 23, 42, 0.10)',
+            shadowBlur: labelOptions.shadowBlur ?? (this.isSvgExporting ? 0 : 6),
+            scale: labelOptions.scale || 1
+        });
+    }
 
     ctx.restore();
 },

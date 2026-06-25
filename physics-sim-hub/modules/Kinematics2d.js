@@ -1,74 +1,20 @@
 import KinematicsModuleBase from './kinematics.js';
 import * as Kinematics2dWorkAnalysis from './Kinematics2dWorkAnalysis.js';
-
-// Patch a canvas2svg context so it survives font strings and roundRect usage.
-function patchC2SContext(ctx) {
-    if (typeof ctx.setLineDash !== 'function') ctx.setLineDash = () => {};
-
-    // canvas2svg emits a <rect> SVG element for roundRect instead of adding to the
-    // current path, so fill()/stroke() crash. Replace with a bezier arc path.
-    ctx.roundRect = function(x, y, w, h, r) {
-        const rv = Array.isArray(r) ? r[0] : (r || 0);
-        const radius = Math.min(rv, Math.abs(w) / 2, Math.abs(h) / 2);
-        this.moveTo(x + radius, y);
-        this.lineTo(x + w - radius, y);
-        this.quadraticCurveTo(x + w, y, x + w, y + radius);
-        this.lineTo(x + w, y + h - radius);
-        this.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
-        this.lineTo(x + radius, y + h);
-        this.quadraticCurveTo(x, y + h, x, y + h - radius);
-        this.lineTo(x, y + radius);
-        this.quadraticCurveTo(x, y, x + radius, y);
-        this.closePath();
-    };
-
-    // canvas2svg's __parseFont regex only matches double-quoted font family names
-    // (character class [-,\"\sa-z]). Single-quoted names like 'Cambria Math' make
-    // the regex return null, crashing on null[1]. Normalize before every text call.
-    ['fillText', 'strokeText'].forEach((method) => {
-        const orig = ctx[method];
-        if (typeof orig !== 'function') return;
-        ctx[method] = function(text, x, y, mw) {
-            const saved = this.font;
-            if (saved && saved.includes("'")) this.font = saved.replace(/'/g, '"');
-            orig.call(this, text, x, y, mw);
-            this.font = saved;
-        };
-    });
-
-    // canvas2svg maps fillRect/strokeRect to SVG <rect> which rejects negative
-    // width/height. The real canvas spec handles negatives by flipping the rect.
-    ['fillRect', 'strokeRect', 'clearRect'].forEach((method) => {
-        const orig = ctx[method];
-        if (typeof orig !== 'function') return;
-        ctx[method] = function(x, y, w, h) {
-            if (w < 0) { x += w; w = -w; }
-            if (h < 0) { y += h; h = -h; }
-            orig.call(this, x, y, w, h);
-        };
-    });
-}
 import { drawWalkthroughOverlay } from './Kinematics2dWalkthroughOverlays.js';
 import hoverAnimationMethods from './Kinematics2dHoverAnimations.js';
 import walkthroughInteractionMethods from './Kinematics2dWalkthroughInteraction.js';
+import stepExportMethods from './Kinematics2dStepExport.js';
+import stepRendererMethods from './Kinematics2dStepRenderer.js';
 import problemRendererMethods from './Kinematics2dProblemRenderer.js';
 import sceneRendererMethods from './Kinematics2dSceneRenderer.js';
 import uiRendererMethods from './Kinematics2dUIRenderer.js';
 import {
-    MODES as MODE_SVG_MODES,
-    buildModeSvgPanel,
-    bindModeSvgPanelEvents,
-    loadSettings as loadModeSvgSettings,
-    saveSettings as saveModeSvgSettings,
-    saveGlobalDefaults as saveModeSvgGlobalDefaults,
-    loadStepOverlays,
-    saveStepOverlays,
-    saveStepOverlayGlobalDefaults,
-    exportModeSvg,
-    exportAllModeSvgs,
-    previewModeOnCanvas,
-    playModeAnimation,
-} from './Kinematics2dModeSvgExport.js';
+    bindStepSettingsPanelEvents,
+    buildStepSettingsPanel,
+    loadStepSettings,
+    saveStepSettings,
+    saveStepSettingsDefaults
+} from './Kinematics2dStepSettings.js';
 
 export default class Module2DKinematics extends KinematicsModuleBase {
     constructor(canvasId) {
@@ -79,12 +25,13 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         this.groundY = this.height - 32;
         this.airplaneReleaseFraction = 0.1;
         this.vectorBreakdownDuration = 6.2;
-        this.workSequenceState = this.createWorkSequenceState();
+        this.stepState = this.createStepState();
         this.advtrajectoryCache = null;
         this._hoverRafId = null;
         this._hoverLoopToken = 0;
         this._hoverAnimStartMs = 0;
-        this._stepOverlays = {};
+        this._hoverPreviewTime = null;
+        this._stepHoverRestoreInputs = null;
     }
 
     init() {
@@ -159,6 +106,29 @@ export default class Module2DKinematics extends KinematicsModuleBase {
                 givenHeightDrop: { label: "Given Height Drop (m)", type: "number", value: 40, step: 1 },
                 gravity: { label: "Gravity (m/s²)", type: "number", value: 9.8, step: 0.1 }
             },
+            "Animation Controls": {
+                animateGivenValues: { label: "Animate Given Values Into Cards", type: "checkbox", value: true },
+                givenValueAnimationSpeed: { label: "Given Animation Speed (1 = normal)", type: "number", value: 0.65, step: 0.05 }
+            },
+            "Value Panels": {
+                listDisplay: { label: "Show Values", type: "select", options: ["Hidden", "Symbols", "Values"], value: "Values" },
+                showXValuesPanel: { label: "Show X Panel", type: "checkbox", value: true },
+                xPanelShowDisplacement: { label: "  X: Δx displacement", type: "checkbox", value: true },
+                xPanelShowV0:           { label: "  X: v₀ₓ initial velocity", type: "checkbox", value: true },
+                xPanelShowV:            { label: "  X: vₓ velocity", type: "checkbox", value: true },
+                xPanelShowA:            { label: "  X: aₓ acceleration", type: "checkbox", value: true },
+                xPanelShowT:            { label: "  X: t time", type: "checkbox", value: true },
+                showYValuesPanel: { label: "Show Y Panel", type: "checkbox", value: true },
+                yPanelShowDisplacement: { label: "  Y: Δy displacement", type: "checkbox", value: true },
+                yPanelShowHmax:         { label: "  Y: hₘₐₓ max height", type: "checkbox", value: true },
+                yPanelShowV0:           { label: "  Y: v₀ᵧ initial velocity", type: "checkbox", value: true },
+                yPanelShowV:            { label: "  Y: vᵧ velocity", type: "checkbox", value: true },
+                yPanelShowA:            { label: "  Y: aᵧ acceleration", type: "checkbox", value: true },
+                yPanelShowT:            { label: "  Y: t time", type: "checkbox", value: true },
+                valuesPanelLayout: { label: "Panel Layout", type: "select", options: ["Current Layout", "Left Stack", "Right Stack", "Bottom Corners", "Split Corners (X Top-Left)", "Split Corners (X Bottom-Left)"], value: "Current Layout" },
+                valuesPanelOffsetX: { label: "Panel Offset X (px)", type: "number", value: 0, step: 5 },
+                valuesPanelOffsetY: { label: "Panel Offset Y (px)", type: "number", value: 0, step: 5 }
+            },
             ...this.getProblemSetupImportControls()
         });
 
@@ -169,8 +139,8 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         });
 
         this.inputElements.workAnalysisProblemType?.addEventListener('change', () => {
-            this.resetWorkWalkthroughState();
-            this.resetModeSvgPanel?.();
+            this.resetStepState();
+            this.resetStepSettingsPanel?.();
             this.applyWorkAnalysisProblemTypePreset(this.inputs.workAnalysisProblemType, { randomize: true, redraw: true });
             this.updateCustomProblemVisibility();
         });
@@ -187,7 +157,6 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         // by buildInputs() via their .value property and do not need to be listed here.
         return {
             rulerStyle: "Simple",
-            listDisplay: "Values",
             autoScaleToFit: true,
             showGhostFrames: false,
             showXDisplacementGhosts: false,
@@ -202,6 +171,7 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             trailStyle: "Dotted",
             showTimerDisplay: true,
             animateGivenValues: true,
+            givenValueAnimationSpeed: 0.65,
             showDistanceMarkers: true,
             showMomentumVector: false,
             showVelocityVectors: true,
@@ -213,11 +183,6 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             showMaxHeight: false,
             showComponents: false,
             useProjectileXValues: false,
-            valuesPanelLayout: "Current Layout",
-            valuesPanelOffsetX: 0,
-            valuesPanelOffsetY: 0,
-            showXValuesPanel: true,
-            showYValuesPanel: true,
             showEquations: false,
             equationPanelPlacement: "Bottom Right",
             equationPanelOffsetX: 0,
@@ -259,7 +224,7 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             this.setInputValue(key, value, { redraw: false });
         });
 
-        this.resetWorkWalkthroughState();
+        this.resetStepState();
         this.applyWorkAnalysisProblemTypePreset(this.inputs.workAnalysisProblemType, { randomize: false, redraw: false });
         if (redraw) this.drawPreview();
     }
@@ -472,6 +437,7 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             trailStyle: ['trail'],
             showTimerDisplay: ['timer', 'showtimer'],
             animateGivenValues: ['animategivenvalues', 'givenvalueanimation', 'animateknowns', 'animategivens'],
+            givenValueAnimationSpeed: ['givenanimationspeed', 'givenspeed', 'givenvaluespeed', 'animategivensspeed'],
             showDistanceMarkers: ['distancelines', 'distanceguides'],
             showMomentumVector: ['momentumvector', 'showmomentum'],
             showVelocityVectors: ['velocityvectors', 'showvelocity'],
@@ -516,83 +482,6 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         return 2;
     }
 
-    getSvgExportTime() {
-        if (
-            this.inputs?.captureVectorBreakdownInSvg &&
-            (this.inputs?.showVectorBreakdown || this.inputs?.showFinalVectorAdditionZoom)
-        ) {
-            const model = this.computeProjectileModel(0);
-            if (model.finalVectorDuration > 0) {
-                return model.finalVectorStartTime + (model.finalVectorDuration * 0.9);
-            }
-            if (model.breakdownDuration > 0) return model.breakdownDuration * 0.9;
-        }
-        if (Number.isFinite(this.inputs?.svgExportTime)) return this.inputs.svgExportTime;
-        return this.config.duration;
-    }
-
-    async exportSvg() {
-        if (typeof C2S === 'undefined') {
-            document.getElementById('status').innerText = "SVG Library Error!";
-            return;
-        }
-
-        const baseModel = this.computeProjectileModel(0);
-        const problemType = this.getSelectedWorkAnalysisProblemType(baseModel);
-        const steps = this.getConfiguredWorkAnalysisSteps(baseModel, problemType);
-
-        if (!steps || !steps.length) {
-            return super.exportSvg();
-        }
-
-        const statusEl = document.getElementById('status');
-
-        const renderStepSvg = (step) => {
-            const canvasStep = this.getWalkthroughCanvasStep(step);
-            const time = this.getWalkthroughCanvasTime(step);
-            const svgCtx = new C2S(this.width, this.height);
-            patchC2SContext(svgCtx);
-            svgCtx.fillStyle = this.config.backgroundColor;
-            svgCtx.fillRect(0, 0, this.width, this.height);
-            this.isSvgExporting = true;
-            this.activeWalkthroughStep = canvasStep;
-            try {
-                this.drawFrame(svgCtx, time);
-                this.drawStepPanel(svgCtx, step);
-            } finally {
-                this.activeWalkthroughStep = null;
-                this.isSvgExporting = false;
-            }
-            return svgCtx.getSerializedSvg(true);
-        };
-
-        const downloadSvg = (svgString, filename) => {
-            const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-        };
-
-        for (let i = 0; i < steps.length; i++) {
-            statusEl.innerText = `Exporting step ${i + 1} of ${steps.length}…`;
-            try {
-                const slug = this.sanitizeExportFilenamePart(steps[i].title, 'step');
-                const filename = `step-${String(i + 1).padStart(2, '0')}-${slug}.svg`;
-                downloadSvg(renderStepSvg(steps[i]), filename);
-            } catch (e) {
-                console.error(`Step ${i + 1} SVG failed:`, e);
-            }
-        }
-
-        statusEl.innerText = `Downloaded ${steps.length} step SVGs!`;
-        setTimeout(() => { statusEl.innerText = 'System Ready'; }, 2500);
-    }
-
     getPlaybackDuration() {
         const model = this.computeProjectileModel(0);
         const givenValueAnimationDuration = this.inputs.animateGivenValues
@@ -632,11 +521,11 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         return Math.max(0.6, this.normalizeNumber(this.inputs.workAnalysisStepDuration, 2.2));
     }
 
-    shouldAnimateWorkAnalysis() { return false; }
-    shouldDrawWorkAnalysisCanvas() { return false; }
-    shouldHighlightWorkAnalysisDiagram() { return false; }
+    shouldAnimateWorkAnalysis() { return Boolean(this.activeWalkthroughStep?.animatedPanel); }
+    shouldDrawWorkAnalysisCanvas() { return Boolean(this.activeWalkthroughStep?.animatedPanel); }
+    shouldHighlightWorkAnalysisDiagram() { return Boolean(this.activeWalkthroughStep?.animatedPanel); }
     isWorkAnalysisLaunchComponentStep() { return false; }
-    isStepWalkthroughMode() { return false; }
+    isStepWalkthroughMode() { return Boolean(this.activeWalkthroughStep); }
 
     getMotionStopTime(tFlight, tPeak) {
         let stopTime = tFlight;
@@ -1202,6 +1091,17 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         return ["displacement", "v0", "v", "a", "t"];
     }
 
+    getAxisPanelHeight(rowCount) {
+        const uiScale = this.getCanvasTextScale();
+        const isDense = rowCount > 5;
+        const rowsTopOffset = (isDense ? 36 : 40) * uiScale;
+        const rowHeight = (isDense ? 17 : 19) * uiScale;
+        const bottomPadding = 14 * uiScale;
+        return rowCount
+            ? rowsTopOffset + ((rowCount - 0.5) * rowHeight) + bottomPadding
+            : rowsTopOffset;
+    }
+
     getEquationLines() {
         if (this.useSimpleProjectileXValues()) {
             return ['Δx = vt'];
@@ -1216,46 +1116,54 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         ];
     }
 
-    getValuesPanelLayouts() {
+    getValuesPanelLayouts(xRowCount = 0, yRowCount = 0) {
         const uiScale = this.getCanvasTextScale();
         const width = 148 * uiScale;
-        const height = 164 * uiScale;
+        const xHeight = this.getAxisPanelHeight(xRowCount);
+        const yHeight = this.getAxisPanelHeight(yRowCount);
         const layout = this.inputs.valuesPanelLayout || 'Current Layout';
         const offsetX = this.normalizeNumber(this.inputs.valuesPanelOffsetX, 0);
         const offsetY = this.normalizeNumber(this.inputs.valuesPanelOffsetY, 0);
         const gap = 8 * uiScale;
 
         if (layout === 'Left Stack') {
-            const xPanel = this.getPanelPosition({ placement: 'Top Left', width, height, xOffset: offsetX, yOffset: offsetY });
-            const yPanel = this.clampPanelPosition(xPanel.x, xPanel.y + height + gap, width, height);
+            const xPanel = this.getPanelPosition({ placement: 'Top Left', width, height: xHeight, xOffset: offsetX, yOffset: offsetY });
+            const yPanel = this.clampPanelPosition(xPanel.x, xPanel.y + xHeight + gap, width, yHeight);
             return { xPanel, yPanel };
         }
 
         if (layout === 'Right Stack') {
-            const xPanel = this.getPanelPosition({ placement: 'Top Right', width, height, xOffset: offsetX, yOffset: offsetY });
-            const yPanel = this.clampPanelPosition(xPanel.x, xPanel.y + height + gap, width, height);
+            const xPanel = this.getPanelPosition({ placement: 'Top Right', width, height: xHeight, xOffset: offsetX, yOffset: offsetY });
+            const yPanel = this.clampPanelPosition(xPanel.x, xPanel.y + xHeight + gap, width, yHeight);
             return { xPanel, yPanel };
         }
 
         if (layout === 'Bottom Corners') {
             return {
-                xPanel: this.getPanelPosition({ placement: 'Bottom Left', width, height, xOffset: offsetX, yOffset: offsetY }),
-                yPanel: this.getPanelPosition({ placement: 'Bottom Right', width, height, xOffset: offsetX, yOffset: offsetY })
+                xPanel: this.getPanelPosition({ placement: 'Bottom Left', width, height: xHeight, xOffset: offsetX, yOffset: offsetY }),
+                yPanel: this.getPanelPosition({ placement: 'Bottom Right', width, height: yHeight, xOffset: offsetX, yOffset: offsetY })
             };
         }
 
-        if (layout === 'Split Corners') {
+        if (layout === 'Split Corners (X Top-Left)') {
             return {
-                xPanel: this.getPanelPosition({ placement: 'Top Left', width, height, xOffset: offsetX, yOffset: offsetY }),
-                yPanel: this.getPanelPosition({ placement: 'Bottom Right', width, height, xOffset: offsetX, yOffset: offsetY })
+                xPanel: this.getPanelPosition({ placement: 'Top Left', width, height: xHeight, xOffset: offsetX, yOffset: offsetY }),
+                yPanel: this.getPanelPosition({ placement: 'Bottom Right', width, height: yHeight, xOffset: offsetX, yOffset: offsetY })
             };
         }
 
-        const xPanel = this.getPanelPosition({ placement: 'Top Left', width, height, xOffset: offsetX, yOffset: offsetY });
+        if (layout === 'Split Corners (X Bottom-Left)') {
+            return {
+                xPanel: this.getPanelPosition({ placement: 'Bottom Left', width, height: xHeight, xOffset: offsetX, yOffset: offsetY }),
+                yPanel: this.getPanelPosition({ placement: 'Top Right', width, height: yHeight, xOffset: offsetX, yOffset: offsetY })
+            };
+        }
+
+        const xPanel = this.getPanelPosition({ placement: 'Top Left', width, height: xHeight, xOffset: offsetX, yOffset: offsetY });
         const yPanel = this.getPanelPosition({
             placement: 'Top Right',
             width,
-            height,
+            height: yHeight,
             xOffset: offsetX,
             yOffset: offsetY
         });
@@ -1400,30 +1308,9 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             const sequenceProgress = model.visualTime / model.breakdownDuration;
             const pan = this.easeInOut(sequenceProgress / 0.18);
             const geometry = this.getInitialVectorBreakdownGeometry(model);
-            const targetX = 0;
-            const topPadding = Math.max(70, this.height * 0.14);
-            const bottomPadding = Math.max(85, this.height * 0.17);
-            const minCameraY = geometry.maxY - (this.height - bottomPadding);
-            const maxCameraY = geometry.minY - topPadding;
-            const centeredCameraY = geometry.centerY - (this.height / 2);
-            const targetY = minCameraY <= maxCameraY
-                ? this.clamp(centeredCameraY, minCameraY, maxCameraY)
-                : (minCameraY + maxCameraY) / 2;
-            const cameraY = targetY * pan;
-            const worldMinX = Math.min(0, geometry.minX - 80);
-            const worldMaxX = Math.max(this.width, geometry.maxX + 120);
-            const worldHeight = Math.max(this.height, geometry.maxY + 160, cameraY + this.height + 120);
-
-            return {
-                x: 0,
-                y: cameraY,
-                targetX,
-                targetY,
-                worldMinX,
-                worldMaxX,
-                worldWidth: worldMaxX - worldMinX,
-                worldHeight
-            };
+            const targetX = Math.max(0, geometry.centerX - (this.width / 2));
+            const targetY = geometry.centerY - (this.height / 2);
+            return this.buildZoomCamera(targetX, targetY, pan);
         }
 
         return { x: 0, y: 0, worldWidth: this.width, worldHeight: this.height };
@@ -1496,6 +1383,7 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         }
 
         const isWAHighlight = model.isInWorkAnalysisSequence && this.shouldHighlightWorkAnalysisDiagram();
+        const isWalkthroughOverlayActive = Boolean(this.activeWalkthroughStep);
 
         if (this.inputs.showDistanceMarkers && this.inputs.rulerStyle !== "None" && !model.isInVectorBreakdown && !isWAHighlight) {
             this.drawDistanceTools(ctx, model);
@@ -1510,7 +1398,7 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             this.drawObject(ctx, model.endX, model.endY, this.inputs.objectType, 0.28, model);
         }
 
-        if (this.inputs.showInitialVelocityVector && !this.inputs.showProblemLabels && !model.isInVectorBreakdown && !isFinalVelocityZoom && !this.isWorkAnalysisLaunchComponentStep(model)) {
+        if (this.inputs.showInitialVelocityVector && !this.inputs.showProblemLabels && !model.isInVectorBreakdown && !isFinalVelocityZoom && !this.isWorkAnalysisLaunchComponentStep(model) && !isWalkthroughOverlayActive) {
             this.drawInitialVelocityVector(ctx, model);
         }
 
@@ -1533,7 +1421,7 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             this.drawPhysicsVectors(ctx, model);
         }
 
-        if (this.inputs.showProblemLabels && overlayTime && !isWAHighlight) {
+        if (this.inputs.showProblemLabels && overlayTime && !isWAHighlight && !isWalkthroughOverlayActive) {
             this.drawProblemLabels(ctx, model);
         }
 
@@ -1541,7 +1429,7 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             this.drawVariableList(ctx, model);
         }
 
-        if (this.inputs.showComponents && overlayTime && !model.isFinished && !isFinalVelocityZoom) {
+        if (this.inputs.showComponents && overlayTime && !model.isFinished && !model.isInVectorBreakdown && !isFinalVelocityZoom && !isWalkthroughOverlayActive) {
             this.drawComponents(ctx, model);
         }
 
@@ -1611,10 +1499,20 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             ctx.translate(-camera.x, -camera.y);
             this.drawWorldBackground(ctx, camera);
             this.drawProjectileWorld(ctx, model, overlayTime, isFinalVelocityZoom);
-            if (this.activeWalkthroughStep) {
+            const suppressVectorBreakdownOverlay = model.isInVectorBreakdown
+                && (this.activeWalkthroughStep?.id === 'vector-breakdown' || this.activeWalkthroughStep?.id === 'components');
+            if (this.activeWalkthroughStep && !suppressVectorBreakdownOverlay) {
                 drawWalkthroughOverlay.call(this, ctx, model, this.activeWalkthroughStep);
             }
             ctx.restore();
+        }
+
+        if (model.isInVectorBreakdown && this.activeWalkthroughStep?.id === 'vector-breakdown') {
+            this.drawVectorBreakdownNarrationPanel(ctx, model);
+        }
+
+        if (this.hoveredValueKey && !model.isInVectorBreakdown && !isFinalVelocityZoom) {
+            this.drawHoverVariableAnimation(ctx, model);
         }
 
         if (this.inputs.showTimerDisplay && !isFinalVelocityZoom) {
@@ -1622,46 +1520,42 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         }
     }
 
-    // ── Mode SVG Settings panel ──────────────────────────────────────────────
+    // ── Step settings panel ──────────────────────────────────────────────────
 
-    _getModeSvgTypeKey() {
+    _getStepSettingsTypeKey() {
         return String(this.getWorkAnalysisProblemTypeNumber(this.inputs.workAnalysisProblemType) || 'auto');
     }
 
-    _getModeSvgTypeTitle() {
+    _getStepSettingsTypeTitle() {
         const typeNumber = this.getWorkAnalysisProblemTypeNumber(this.inputs.workAnalysisProblemType);
         if (!typeNumber) return 'Problem Type: Auto';
         const defs = this.getWorkAnalysisProblemTypeDefinitions();
         return defs[typeNumber]?.title || `Problem Type ${typeNumber}`;
     }
 
-    _ensureModeSvgState() {
-        if (!this._modeSvgState) {
-            const typeKey = this._getModeSvgTypeKey();
-            const stepOverlays = loadStepOverlays(typeKey);
+    _ensureStepSettingsState() {
+        if (!this._stepSettingsState) {
+            const typeKey = this._getStepSettingsTypeKey();
+            const stepSettings = loadStepSettings(typeKey);
             const model = this.computeProjectileModel(0);
             const pType = this.getSelectedWorkAnalysisProblemType(model);
             const currentSteps = Kinematics2dWorkAnalysis.getConfiguredWorkAnalysisSteps(model, pType);
-            this._modeSvgState = {
-                activeMode:    'intro',
-                activeSection: 'modes',
+            this._stepSettingsState = {
                 activeStepId:  currentSteps[0]?.id || null,
                 typeKey,
-                typeTitle:     this._getModeSvgTypeTitle(),
-                allSettings:   loadModeSvgSettings(typeKey),
-                stepOverlays,
+                typeTitle:     this._getStepSettingsTypeTitle(),
+                stepSettings,
                 currentSteps,
             };
         }
-        return this._modeSvgState;
+        return this._stepSettingsState;
     }
 
-    _refreshModeSvgPanel() {
+    _refreshStepSettingsPanel() {
         if (!this.moduleExtension) return;
-        const state = this._ensureModeSvgState();
-        // Sync type info and steps in case problem type changed
-        state.typeKey   = this._getModeSvgTypeKey();
-        state.typeTitle = this._getModeSvgTypeTitle();
+        const state = this._ensureStepSettingsState();
+        state.typeKey   = this._getStepSettingsTypeKey();
+        state.typeTitle = this._getStepSettingsTypeTitle();
         const model = this.computeProjectileModel(0);
         const pType = this.getSelectedWorkAnalysisProblemType(model);
         state.currentSteps = Kinematics2dWorkAnalysis.getConfiguredWorkAnalysisSteps(model, pType);
@@ -1670,122 +1564,96 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         }
 
         this.moduleExtension.classList.remove('hidden');
-        this.moduleExtension.innerHTML = buildModeSvgPanel(this, state);
-
-        const statusEl = document.getElementById('status');
-
-        bindModeSvgPanelEvents(this.moduleExtension, state, (action) => {
-            // Auto-save mode settings on every change
-            saveModeSvgSettings(state.typeKey, state.allSettings);
-
-            if (action === 'tab' || action === 'reset' || action === 'section' || action === 'step-tab' || action === 'reset-step') {
-                this._refreshModeSvgPanel();
-            }
-            if (action === 'step-tab') {
-                // Clicking a step tab previews that step on canvas
-                const stepIdx = (state.currentSteps || []).findIndex(s => s.id === state.activeStepId);
-                if (stepIdx >= 0) {
-                    if (!this.workSequenceState) this.workSequenceState = this.createWorkSequenceState();
-                    this.workSequenceState.stepIndex = stepIdx;
+        const currentStepState = this.getStepState(state.currentSteps);
+        state.activeStepId = state.currentSteps[currentStepState.stepIndex]?.id || state.currentSteps[0]?.id || null;
+        this.moduleExtension.innerHTML = `
+            <div class="module-extension__header">
+                <div>
+                    <div class="module-extension__title">Step Settings</div>
+                    <div class="module-extension__subtitle">Saved per step for ${state.typeTitle}</div>
+                </div>
+            </div>
+            <div id="stepSettingsRoot">
+                ${buildStepSettingsPanel(state)}
+            </div>
+        `;
+        bindStepSettingsPanelEvents(this.moduleExtension, state, {
+            onStepTab: (stepId) => {
+                const stepIdx = state.currentSteps.findIndex(step => step.id === stepId);
+                if (stepIdx < 0) return;
+                state.activeStepId = stepId;
+                this.stepState = this.createStepState({ stepIndex: stepIdx });
+                this.renderStepPreview(state.currentSteps);
+                this._refreshStepSettingsPanel();
+            },
+            onAction: (action) => {
+                if (action === 'play') {
+                    this.playWalkthroughStepAnimation(state.currentSteps, this.getStepState(state.currentSteps).stepIndex);
+                    return;
                 }
-                if (state.currentSteps?.length) {
-                    this.renderWorkAnalysisSequenceStepPreview(state.currentSteps);
+                this.handleStepAction(action === 'reset-index' ? 'reset' : action, state.currentSteps);
+            },
+            onExport: async (format) => {
+                const current = this.getStepState(state.currentSteps).stepIndex;
+                try {
+                    await this.exportWalkthroughStep(state.currentSteps, current, format);
+                } catch (err) {
+                    const statusEl = document.getElementById('status');
+                    if (statusEl) statusEl.innerText = `Export failed: ${err?.message || err}`;
+                    console.error('Step export failed:', err);
                 }
-            }
-            if (action === 'preview' || action === 'tab' || action === 'reset' || action === 'setting') {
-                previewModeOnCanvas(this, state.activeMode, state.allSettings);
-            }
-            if (action === 'step-setting' || action === 'save-step-defaults' || action === 'reset-step') {
-                saveStepOverlays(state.typeKey, state.stepOverlays);
-                if (state.currentSteps?.length) {
-                    // Keep canvas in sync with the settings panel's active step so that
-                    // changes (e.g. showExplanation) render on the step being configured.
-                    const stepIdx = state.currentSteps.findIndex(s => s.id === state.activeStepId);
-                    if (stepIdx >= 0) {
-                        if (!this.workSequenceState) this.workSequenceState = this.createWorkSequenceState();
-                        this.workSequenceState.stepIndex = stepIdx;
-                    }
-                    this.renderWorkAnalysisSequenceStepPreview(state.currentSteps);
+                this.renderStepPreview(state.currentSteps);
+            },
+            onExportAll: async (format) => {
+                try {
+                    await this.exportAllWalkthroughSteps(state.currentSteps, format);
+                } catch (err) {
+                    const statusEl = document.getElementById('status');
+                    if (statusEl) statusEl.innerText = `Export failed: ${err?.message || err}`;
+                    console.error('Step export-all failed:', err);
                 }
-            }
-            if (action === 'play-mode') {
-                playModeAnimation(this, state.activeMode, state.allSettings);
-            }
-            if (action === 'play-step') {
-                if (state.currentSteps?.length) {
-                    const stepIdx = state.currentSteps.findIndex(s => s.id === state.activeStepId);
-                    if (stepIdx >= 0) {
-                        this.playWalkthroughStepAnimation(state.currentSteps, stepIdx);
-                    }
-                }
-            }
-            if (action === 'export-this') {
-                const ms = state.allSettings[state.activeMode];
-                exportModeSvg(this, state.activeMode, ms, statusEl, state.stepOverlays).then(() => {
-                    if (statusEl && !statusEl.innerText.includes('exported')) statusEl.innerText = 'System Ready';
-                });
-            }
-            if (action === 'export-all') {
-                exportAllModeSvgs(this, state.allSettings, statusEl, state.stepOverlays);
-            }
-            if (action === 'save-defaults') {
-                saveModeSvgGlobalDefaults(state.allSettings);
-                if (statusEl) {
-                    statusEl.innerText = 'Settings saved as global default.';
-                    setTimeout(() => { if (statusEl.innerText.includes('global default')) statusEl.innerText = 'System Ready'; }, 2000);
-                }
-            }
-            if (action === 'save-step-defaults') {
-                saveStepOverlayGlobalDefaults(state.stepOverlays);
+                this.renderStepPreview(state.currentSteps);
+            },
+            onSettingChange: () => {
+                saveStepSettings(state.typeKey, state.stepSettings);
+                const current = this.getStepState(state.currentSteps).stepIndex;
+                state.activeStepId = state.currentSteps[current]?.id || state.activeStepId;
+                this.renderStepPreview(state.currentSteps);
+            },
+            onSaveDefaults: () => {
+                saveStepSettingsDefaults(state.stepSettings);
+                const statusEl = document.getElementById('status');
                 if (statusEl) {
                     statusEl.innerText = 'Step settings saved as global default.';
-                    setTimeout(() => { if (statusEl.innerText.includes('global default')) statusEl.innerText = 'System Ready'; }, 2000);
+                    setTimeout(() => {
+                        if (statusEl.innerText.includes('Step settings saved')) statusEl.innerText = 'System Ready';
+                    }, 2000);
                 }
+            },
+            onResetSetting: () => {
+                if (state.activeStepId) delete state.stepSettings[state.activeStepId];
+                saveStepSettings(state.typeKey, state.stepSettings);
+                this.renderStepPreview(state.currentSteps);
+                this._refreshStepSettingsPanel();
             }
         });
     }
 
-    syncExternalPanels() {
+    syncExternalPanels({ force = false } = {}) {
         if (!this.moduleExtension) return;
         // Only initialise the panel once; subsequent draw calls don't re-render it
         // (avoids losing focused input state while the canvas redraws).
-        if (!this._modeSvgPanelReady) {
-            this._modeSvgPanelReady = true;
-            this._refreshModeSvgPanel();
+        if (force || !this._stepSettingsPanelReady) {
+            this._stepSettingsPanelReady = true;
+            this._refreshStepSettingsPanel();
         }
     }
 
-    // Reload the panel from scratch (call when problem type changes).
-    resetModeSvgPanel() {
-        this._modeSvgState = null;
-        this._modeSvgPanelReady = false;
-        this._refreshModeSvgPanel();
-    }
-
-    // ── SVG frame helper ─────────────────────────────────────────────────────
-
-    // Renders one SVG frame at `time` using canvas2svg.
-    // Options:
-    //   walkthroughStep  – if set, becomes activeWalkthroughStep during render
-    //   drawStepPanel    – if set (a step object), drawStepPanel() is called after drawFrame
-    // Returns serialised SVG string, or null if C2S is unavailable.
-    createSvgFrame(time, { walkthroughStep = null, drawStepPanel = null } = {}) {
-        if (typeof C2S === 'undefined') return null;
-        const ctx = new C2S(this.width, this.height);
-        patchC2SContext(ctx);
-        ctx.fillStyle = this.config.backgroundColor;
-        ctx.fillRect(0, 0, this.width, this.height);
-        this.isSvgExporting = true;
-        const prevStep = this.activeWalkthroughStep;
-        if (walkthroughStep) this.activeWalkthroughStep = walkthroughStep;
-        try {
-            this.drawFrame(ctx, time);
-            if (drawStepPanel) this.drawStepPanel(ctx, drawStepPanel);
-        } finally {
-            this.activeWalkthroughStep = prevStep;
-            this.isSvgExporting = false;
-        }
-        return ctx.getSerializedSvg(true);
+    // Reload the sequence panel from scratch (call when problem type changes).
+    resetStepSettingsPanel() {
+        this._stepSettingsState = null;
+        this._stepSettingsPanelReady = false;
+        this._refreshStepSettingsPanel();
     }
 
     getScenarioStepX(model) {
@@ -1832,6 +1700,9 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         if (this.hoveredValueKey !== prevKey) {
             this._hoverAnimStartMs = performance.now();
             if (this.hoveredValueKey) {
+                // Mouse hover takes over — clear step hover context so the loop
+                // draws the generic preview (no step overlays, time = 10).
+                this._cleanupStepHoverPreview();
                 if (!this.isPlaying) this._startHoverLoop();
             } else {
                 this._stopHoverLoop();
@@ -1845,11 +1716,22 @@ export default class Module2DKinematics extends KinematicsModuleBase {
     }
 
     stopPreview() {
+        this._cleanupStepHoverPreview();
         super.stopPreview();
         if (this.hoveredValueKey) {
             this._hoverAnimStartMs = performance.now();
             this._startHoverLoop();
         }
+    }
+
+    _cleanupStepHoverPreview() {
+        if (this._stepHoverRestoreInputs) {
+            this._stepHoverRestoreInputs();
+            this._stepHoverRestoreInputs = null;
+        }
+        this.activeWalkthroughStep = null;
+        this._hoverPreviewTime = null;
+        this._stopHoverLoop();
     }
 
     _startHoverLoop() {
@@ -1865,18 +1747,7 @@ export default class Module2DKinematics extends KinematicsModuleBase {
                 const bg = (this.kinematicsTheme && this.kinematicsTheme.backgroundColor) || '#e0f2fe';
                 this.ctx.fillStyle = bg;
                 this.ctx.fillRect(0, 0, this.width, this.height);
-                this.drawFrame(this.ctx, 10);
-
-                const model = this.latestModel;
-                if (model && !model.isInVectorBreakdown) {
-                    const cam = model.vectorBreakdownCamera;
-                    const problemHeaderLayout = this.getCanvasProblemHeaderLayout(this.ctx);
-                    this.ctx.save();
-                    if (problemHeaderLayout.height > 0) this.ctx.translate(0, problemHeaderLayout.height);
-                    if (cam) this.ctx.translate(-cam.x, -cam.y);
-                    this.drawHoverVariableAnimation(this.ctx, model);
-                    this.ctx.restore();
-                }
+                this.drawFrame(this.ctx, this._hoverPreviewTime ?? 10);
             } catch (error) {
                 console.error('Hover animation render failed', error);
                 this._stopHoverLoop();
@@ -1903,7 +1774,22 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         if (mode === "Hidden") return;
 
         const includeValue = mode === "Values";
-        const xRows = this.getXValueKeys().map(key => ({
+        const xKeyVisible = {
+            displacement: this.inputs.xPanelShowDisplacement !== false,
+            v0:           this.inputs.xPanelShowV0 !== false,
+            v:            this.inputs.xPanelShowV !== false,
+            a:            this.inputs.xPanelShowA !== false,
+            t:            this.inputs.xPanelShowT !== false
+        };
+        const yKeyVisible = {
+            displacement: this.inputs.yPanelShowDisplacement !== false,
+            hmax:         this.inputs.yPanelShowHmax !== false,
+            v0:           this.inputs.yPanelShowV0 !== false,
+            v:            this.inputs.yPanelShowV !== false,
+            a:            this.inputs.yPanelShowA !== false,
+            t:            this.inputs.yPanelShowT !== false
+        };
+        const xRows = this.getXValueKeys().filter(k => xKeyVisible[k] !== false).map(key => ({
             text: this.getAxisVarLabel("x", key, model, includeValue),
             axis: "x",
             key,
@@ -1912,24 +1798,19 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             valueAnchorId: includeValue ? `value:x:${key}` : null,
             focusKeys: this.getAxisValueFocusKeys("x", key)
         }));
-        const yRows = [
-            "displacement",
-            "hmax",
-            "v0",
-            "v",
-            "a",
-            "t"
-        ].map(key => ({
-            text: this.getAxisVarLabel("y", key, model, includeValue),
-            axis: "y",
-            key,
-            valueText: includeValue ? this.getValueTextFromRow(this.getAxisVarLabel("y", key, model, includeValue)) : "",
-            anchorId: `value:y:${key}:row`,
-            valueAnchorId: includeValue ? `value:y:${key}` : null,
-            focusKeys: this.getAxisValueFocusKeys("y", key)
-        }));
+        const yRows = ["displacement", "hmax", "v0", "v", "a", "t"]
+            .filter(k => yKeyVisible[k] !== false)
+            .map(key => ({
+                text: this.getAxisVarLabel("y", key, model, includeValue),
+                axis: "y",
+                key,
+                valueText: includeValue ? this.getValueTextFromRow(this.getAxisVarLabel("y", key, model, includeValue)) : "",
+                anchorId: `value:y:${key}:row`,
+                valueAnchorId: includeValue ? `value:y:${key}` : null,
+                focusKeys: this.getAxisValueFocusKeys("y", key)
+            }));
 
-        const panelLayout = this.getValuesPanelLayouts();
+        const panelLayout = this.getValuesPanelLayouts(xRows.length, yRows.length);
         const panelWidth = 148 * this.getCanvasTextScale();
 
         if (this.inputs.showXValuesPanel) {
@@ -1963,228 +1844,6 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         if (key === "a") return axis === "x" ? ['ax'] : ['ay'];
         if (key === "t") return ['time'];
         return [key];
-    }
-
-    drawWorkAnalysisSequence(ctx, model) {
-        const state = this.getWorkAnalysisSequenceState(model);
-        if (!state) return;
-        const uiScale = this.getCanvasTextScale();
-
-        if (this.shouldHighlightWorkAnalysisDiagram() && !state.step.liveEquation) {
-            this.drawWorkAnalysisHighlights(ctx, model, state.step);
-        }
-
-        if (state.step.liveEquation) {
-            this.drawLiveEquationAnimation(ctx, model, state);
-        }
-
-        const visibleLines = state.step.lines.slice(0, state.lineCount);
-        const panelWidth = 326 * uiScale;
-        const maxTextWidth = panelWidth - (42 * uiScale);
-
-        // Wrap lines with the equation font so nothing escapes the card.
-        ctx.save();
-        ctx.font = this.scaleFontString("15px 'Cambria Math', 'STIX Two Math', 'Times New Roman', serif");
-        const wrappedLines = visibleLines.flatMap(line => this.wrapTextToWidth(ctx, line, maxTextWidth));
-        ctx.restore();
-
-        const panelHeight = (82 + (wrappedLines.length * 20.5)) * uiScale;
-        const x = this.width - panelWidth - 20;
-        const y = this.height - panelHeight - 20;
-
-        ctx.save();
-        ctx.fillStyle = "rgba(255,255,255,0.95)";
-        ctx.strokeStyle = "rgba(15,23,42,0.18)";
-        ctx.lineWidth = 1.4 * uiScale;
-        this.roundRectPath(ctx, x, y, panelWidth, panelHeight, 14 * uiScale);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = state.step.accent;
-        this.roundRectPath(ctx, x, y, 9 * uiScale, panelHeight, 14 * uiScale);
-        ctx.fill();
-
-        ctx.fillStyle = "#0f172a";
-        ctx.font = this.scaleFontString("700 15px Inter, sans-serif");
-        ctx.textAlign = "left";
-        ctx.textBaseline = "middle";
-        ctx.fillText(`Step ${state.stepIndex + 1}: ${state.step.title}`, x + (21 * uiScale), y + (21 * uiScale));
-
-        ctx.fillStyle = "#64748b";
-        ctx.font = this.scaleFontString("600 12px Inter, sans-serif");
-        ctx.fillText(state.step.focusLabel, x + (21 * uiScale), y + (43 * uiScale));
-
-        ctx.fillStyle = "#1e293b";
-        ctx.font = this.scaleFontString("15px 'Cambria Math', 'STIX Two Math', 'Times New Roman', serif");
-        wrappedLines.forEach((line, index) => {
-            ctx.fillText(line, x + (21 * uiScale), y + (68 * uiScale) + (index * 20.5 * uiScale));
-        });
-        ctx.restore();
-    }
-
-    drawStepPanel(ctx, step) {
-        if (!step) return;
-        const hasLines = Array.isArray(step.lines) && step.lines.length > 0;
-        const uiScale = this.getCanvasTextScale();
-        const panelWidth = 342 * uiScale;
-        const maxTextWidth = panelWidth - (36 * uiScale);
-
-        ctx.save();
-        let wrappedLines = [];
-        if (hasLines) {
-            ctx.font = this.scaleFontString("15px 'Cambria Math', 'STIX Two Math', 'Times New Roman', serif");
-            wrappedLines = step.lines.flatMap(line => this.wrapTextToWidth(ctx, line, maxTextWidth));
-        }
-        ctx.restore();
-
-        const panelHeight = hasLines
-            ? (64 + (wrappedLines.length * 23)) * uiScale
-            : 52 * uiScale;
-
-        const stepSetting = this._modeSvgState?.stepOverlays?.[step?.id];
-        const posSetting = stepSetting && !Array.isArray(stepSetting) ? stepSetting : {};
-        const position = posSetting.panelPosition || 'top-right';
-        const nudgeX = Number(posSetting.panelNudgeX) || 0;
-        const nudgeY = Number(posSetting.panelNudgeY) || 0;
-        const margin = 20 * uiScale;
-
-        let baseX, baseY;
-        if (position.includes('left'))        baseX = margin;
-        else if (position.includes('center')) baseX = (this.width - panelWidth) / 2;
-        else                                  baseX = this.width - panelWidth - margin;
-
-        if (position.startsWith('top'))       baseY = margin;
-        else if (position.startsWith('middle')) baseY = (this.height - panelHeight) / 2;
-        else                                  baseY = this.height - panelHeight - margin;
-
-        const x = Math.max(0, Math.min(this.width  - panelWidth,  baseX + nudgeX));
-        const y = Math.max(0, Math.min(this.height - panelHeight, baseY + nudgeY));
-
-        ctx.save();
-        ctx.fillStyle = "rgba(255,255,255,0.97)";
-        ctx.strokeStyle = "rgba(15,23,42,0.15)";
-        ctx.lineWidth = 1.1 * uiScale;
-        this.roundRectPath(ctx, x, y, panelWidth, panelHeight, 11 * uiScale);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = step.accent || '#4f46e5';
-        this.roundRectPath(ctx, x, y, 7 * uiScale, panelHeight, 11 * uiScale);
-        ctx.fill();
-
-        ctx.textAlign = "left";
-        ctx.textBaseline = "middle";
-
-        ctx.fillStyle = "#0f172a";
-        ctx.font = this.scaleFontString("700 14px Inter, sans-serif");
-        ctx.fillText(step.title || '', x + (18 * uiScale), y + (18 * uiScale));
-
-        if (step.focusLabel) {
-            ctx.fillStyle = "#64748b";
-            ctx.font = this.scaleFontString("500 11.5px Inter, sans-serif");
-            ctx.fillText(step.focusLabel, x + (18 * uiScale), y + (39 * uiScale));
-        }
-
-        if (hasLines) {
-            ctx.fillStyle = "#1e293b";
-            ctx.font = this.scaleFontString("15px 'Cambria Math', 'STIX Two Math', 'Times New Roman', serif");
-            wrappedLines.forEach((line, i) => {
-                ctx.fillText(line, x + (18 * uiScale), y + (59 * uiScale) + (i * 23 * uiScale));
-            });
-        }
-        ctx.restore();
-    }
-
-    drawWorkAnalysisHighlights(ctx, model, step) {
-        if (!step) return;
-        const vectorScale = this.getVectorDrawingScale();
-        const state = this.getWorkAnalysisSequenceState(model);
-        const stepProgress = state?.step?.id === step.id ? (state.progress ?? 1) : 1;
-
-        if (step.id === 'components' || step.id === 'reconstruct') {
-            this.drawInitialVelocityVector(ctx, model);
-            const componentScale = 3 * vectorScale;
-            const xEnd = model.startX + (model.vix * componentScale);
-            const yEnd = model.startY - (model.viy * componentScale);
-            const vxFocusStyle = this.getWorkAnalysisValueFocusStyle(model, 'v0x');
-            const vyFocusStyle = this.getWorkAnalysisValueFocusStyle(model, 'v0y');
-            this.drawArrow(ctx, model.startX, model.startY, xEnd, model.startY, vxFocusStyle.lineColor || "#b91c1c", vxFocusStyle.lineWidth || 3);
-            this.drawArrow(ctx, xEnd, model.startY, xEnd, yEnd, vyFocusStyle.lineColor || "#047857", vyFocusStyle.lineWidth || 3);
-            this.drawTextLabel(ctx, xEnd + 18, model.startY - 6, "v₀x", {
-                font: "bold 11px serif",
-                fill: vxFocusStyle.fill || "#b91c1c",
-                background: vxFocusStyle.background || "rgba(255,255,255,0.88)",
-                borderColor: vxFocusStyle.borderColor,
-                borderWidth: vxFocusStyle.borderWidth ?? 1,
-                shadowColor: vxFocusStyle.shadowColor || 'rgba(15, 23, 42, 0.10)',
-                shadowBlur: vxFocusStyle.shadowBlur ?? (this.isSvgExporting ? 0 : 6),
-                scale: vxFocusStyle.scale || 1
-            });
-            this.drawTextLabel(ctx, xEnd + 22, yEnd - 10, "v₀ᵧ", {
-                font: "bold 11px serif",
-                fill: vyFocusStyle.fill || "#047857",
-                background: vyFocusStyle.background || "rgba(255,255,255,0.88)",
-                borderColor: vyFocusStyle.borderColor,
-                borderWidth: vyFocusStyle.borderWidth ?? 1,
-                shadowColor: vyFocusStyle.shadowColor || 'rgba(15, 23, 42, 0.10)',
-                shadowBlur: vyFocusStyle.shadowBlur ?? (this.isSvgExporting ? 0 : 6),
-                scale: vyFocusStyle.scale || 1
-            });
-            return;
-        }
-
-        if (step.id === 'horizontal' || step.id === 'range') {
-            this.drawDistanceTools(ctx, model);
-            return;
-        }
-
-        if (step.id === 'vertical') {
-            this.drawMaxHeightMarker(ctx, model);
-            const accX = Math.min(this.width - 110, model.peakCanvasX + 60);
-            const accY = Math.max(60, model.peakCanvasY - 80);
-            this.drawAccelerationArrow(ctx, accX, accY, 62 * vectorScale, `a = ${model.g.toFixed(1)} m/s²`);
-            return;
-        }
-
-        if (step.id === 'time') {
-            this.drawMaxHeightMarker(ctx, model);
-            this.drawStopwatch(
-                ctx,
-                Math.min(this.width - 80, model.peakCanvasX + 70),
-                Math.max(56, model.peakCanvasY - 36),
-                `t = ${model.tFlight.toFixed(2)} s`,
-                this.getWorkAnalysisValueFocusStyle(model, 'time')
-            );
-            return;
-        }
-
-        if (step.id === 'shortcut') {
-            this.drawDistanceTools(ctx, model);
-            this.drawMaxHeightMarker(ctx, model);
-            return;
-        }
-
-        if (step.id === 'vertical-result') {
-            if (Math.abs(model.yf - model.yi) < 0.01) {
-                this.drawMaxHeightMarker(ctx, model);
-            } else {
-                const vyScale = 2.8 * vectorScale;
-                this.drawArrow(ctx, model.endX, model.endY, model.endX, model.endY - (model.finalVy * vyScale), "#047857", 3);
-                this.drawTextLabel(ctx, model.endX + 18, model.endY - (model.finalVy * vyScale), "vᵧ(final)", {
-                    font: "bold 11px serif",
-                    fill: "#047857",
-                    background: "rgba(255,255,255,0.88)"
-                });
-            }
-            return;
-        }
-
-        if (step.id === 'summary') {
-            this.drawDistanceTools(ctx, model);
-            if (Math.abs(model.yf - model.yi) < 0.01) {
-                this.drawMaxHeightMarker(ctx, model);
-            }
-        }
     }
 
     getAxisVarLabel(axis, key, model, includeValue = true) {
@@ -2240,11 +1899,6 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         const stage = this.getVectorBreakdownStage(model);
         if (!stage) return;
 
-        if (stage === 'final-components' || stage === 'final-result' || stage.startsWith('final-zoom-')) {
-            this.drawFinalVelocityBreakdown(ctx, model, stage);
-            return;
-        }
-
         const vectorScale = this.getVectorDrawingScale();
         const {
             anchorX,
@@ -2257,31 +1911,28 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         } = this.getInitialVectorBreakdownGeometry(model);
         const angleArcRadius = this.clamp(componentLength * 0.18, 34 * vectorScale, 58 * vectorScale);
         const showBreakdownValues = Boolean(this.inputs.showComponents);
-        const displayV0Label = `vᵢ = ${model.vi.toFixed(1)} m/s`;
+        const vectorBreakdownLabelShiftX = -(this.width * 0.03);
+        const displayV0Label = `v₀ = ${model.vi.toFixed(1)} m/s`;
         const displayAngleLabel = `θ = ${model.angleDeg.toFixed(0)}°`;
-        const displayVxLabel = stage === 'equations'
-            ? 'Vx = v cos θ'
-            : (showBreakdownValues ? `Vx = ${this.inputs.unknownInitialVx ? "?" : `${model.vix.toFixed(1)} m/s`}` : 'Vx');
-        const displayVyLabel = stage === 'equations'
-            ? 'Vy = v sin θ'
-            : (showBreakdownValues ? `Vy = ${this.inputs.unknownInitialVy ? "?" : `${model.viy.toFixed(1)} m/s`}` : 'Vy');
 
         ctx.save();
         const componentVxLabel = stage === 'equations'
-            ? 'v0x = v0 cos theta'
-            : (showBreakdownValues ? `v0x = ${this.inputs.unknownInitialVx ? "?" : `${model.vix.toFixed(1)} m/s`}` : 'v0x');
+            ? 'v₀x = v₀ cos θ'
+            : (showBreakdownValues ? `v₀x = ${this.inputs.unknownInitialVx ? "?" : `${model.vix.toFixed(1)} m/s`}` : 'v₀x');
         const componentVyLabel = stage === 'equations'
-            ? 'v0y = v0 sin theta'
-            : (showBreakdownValues ? `v0y = ${this.inputs.unknownInitialVy ? "?" : `${model.viy.toFixed(1)} m/s`}` : 'v0y');
+            ? 'v₀y = v₀ sin θ'
+            : (showBreakdownValues ? `v₀y = ${this.inputs.unknownInitialVy ? "?" : `${model.viy.toFixed(1)} m/s`}` : 'v₀y');
         this.drawArrow(ctx, anchorX, anchorY, tipX, tipY, "#1d4ed8", 5, { headSize: 16 * vectorScale });
-        this.drawTextLabel(ctx, ((anchorX + tipX) / 2) - 6, ((anchorY + tipY) / 2) - (24 * vectorScale), displayV0Label, {
+        this.drawTextLabel(ctx, ((anchorX + tipX) / 2) - 6 + vectorBreakdownLabelShiftX, ((anchorY + tipY) / 2) - (24 * vectorScale), displayV0Label, {
             font: "bold 13px serif",
             fill: "#1d4ed8",
             background: "rgba(255,255,255,0.9)"
         });
 
         if (Math.abs(model.angleDeg) > 0.1) {
-            this.drawAngleArc(ctx, anchorX, anchorY, model.angleDeg, angleArcRadius, displayAngleLabel);
+            this.drawAngleArc(ctx, anchorX, anchorY, model.angleDeg, angleArcRadius, displayAngleLabel, {
+                labelOffsetX: vectorBreakdownLabelShiftX
+            });
         }
 
         if (stage === 'triangle' || stage === 'equations' || stage === 'labels') {
@@ -2301,18 +1952,121 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             this.drawArrow(ctx, anchorX, anchorY, projX, projY, "#b91c1c", 4, { headSize: 14 * vectorScale });
             this.drawArrow(ctx, projX, projY, tipX, tipY, "#047857", 4, { headSize: 14 * vectorScale });
 
-            this.drawTextLabel(ctx, (anchorX + projX) / 2, anchorY + (28 * vectorScale), componentVxLabel, {
+            this.drawTextLabel(ctx, ((anchorX + projX) / 2) + vectorBreakdownLabelShiftX, anchorY + (28 * vectorScale), componentVxLabel, {
                 font: "bold 12px serif",
                 fill: "#b91c1c",
                 background: "rgba(255,255,255,0.9)"
             });
 
-            this.drawTextLabel(ctx, projX + (44 * vectorScale), (projY + tipY) / 2, componentVyLabel, {
+            this.drawTextLabel(ctx, projX + (44 * vectorScale) + vectorBreakdownLabelShiftX, (projY + tipY) / 2, componentVyLabel, {
                 font: "bold 12px serif",
                 fill: "#047857",
                 background: "rgba(255,255,255,0.9)"
             });
         }
+
+        ctx.restore();
+    }
+
+    drawVectorBreakdownNarrationPanel(ctx, model) {
+        const stage = this.getVectorBreakdownStage(model);
+        if (!stage || stage.startsWith('final-zoom-')) return;
+
+        const uiScale = this.getCanvasTextScale();
+        const vxStr = this.inputs.unknownInitialVx ? '?' : `${model.vix.toFixed(1)} m/s`;
+        const vyStr = this.inputs.unknownInitialVy ? '?' : `${model.viy.toFixed(1)} m/s`;
+        const viStr = this.inputs.unknownInitialVelocity ? '?' : model.vi.toFixed(1);
+        const thetaStr = this.inputs.unknownTheta ? '?' : `${model.angleDeg.toFixed(0)}°`;
+
+        const stageData = {
+            vector: {
+                step: 1, title: 'Launch Velocity', accent: '#1d4ed8',
+                lines: [
+                    `v₀ = ${viStr} m/s at θ = ${thetaStr}`,
+                    'The launch speed and angle together',
+                    'describe the initial velocity vector.'
+                ]
+            },
+            triangle: {
+                step: 2, title: 'Right Triangle', accent: '#3b82f6',
+                lines: [
+                    'v₀ is the hypotenuse. The two legs are',
+                    'the horizontal component (red)',
+                    'and the vertical component (green).'
+                ]
+            },
+            labels: {
+                step: 3, title: 'Component Values', accent: '#b91c1c',
+                lines: [
+                    `v₀x = ${vxStr}  (horizontal — red)`,
+                    `v₀y = ${vyStr}  (vertical — green)`,
+                    'The components act independently:',
+                    'no x-acceleration, constant y-acceleration.'
+                ]
+            },
+            equations: {
+                step: 4, title: 'Trig Equations', accent: '#7c3aed',
+                lines: [
+                    'v₀x = v₀ cos θ',
+                    'v₀y = v₀ sin θ',
+                    `Result: v₀x = ${vxStr},  v₀y = ${vyStr}`
+                ]
+            }
+        };
+
+        const stageOrder = ['vector', 'triangle', 'labels', 'equations'];
+        const stageIndex = stageOrder.indexOf(stage);
+        const info = stageData[stage];
+        if (!info) return;
+
+        const lineH = 17 * uiScale;
+        const panelWidth = 265 * uiScale;
+        const panelHeight = (57 + (info.lines.length * lineH) + 20) * uiScale;
+        const margin = 16 * uiScale;
+        const x = this.width - panelWidth - margin;
+        const y = this.height - panelHeight - margin;
+
+        ctx.save();
+        ctx.shadowColor = 'rgba(15,23,42,0.13)';
+        ctx.shadowBlur = this.isSvgExporting ? 0 : 7;
+        ctx.fillStyle = 'rgba(255,255,255,0.96)';
+        ctx.strokeStyle = 'rgba(15,23,42,0.13)';
+        ctx.lineWidth = 1.1 * uiScale;
+        this.roundRectPath(ctx, x, y, panelWidth, panelHeight, 10 * uiScale);
+        ctx.fill();
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = info.accent;
+        this.roundRectPath(ctx, x, y, 7 * uiScale, panelHeight, 10 * uiScale);
+        ctx.fill();
+
+        const tx = x + 16 * uiScale;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+
+        ctx.fillStyle = info.accent;
+        ctx.font = this.scaleFontString('800 9.5px Inter, sans-serif');
+        ctx.fillText(`STAGE ${info.step} OF 4`, tx, y + 15 * uiScale);
+
+        ctx.fillStyle = '#0f172a';
+        ctx.font = this.scaleFontString('700 13px Inter, sans-serif');
+        ctx.fillText(info.title, tx, y + 31 * uiScale);
+
+        ctx.fillStyle = '#1e293b';
+        ctx.font = this.scaleFontString("11.5px 'Cambria Math','Times New Roman',Georgia,serif");
+        info.lines.forEach((line, i) => {
+            ctx.fillText(line, tx, y + 48 * uiScale + (i * lineH));
+        });
+
+        const dotsY = y + panelHeight - 12 * uiScale;
+        const dotGap = 13 * uiScale;
+        stageOrder.forEach((_, i) => {
+            ctx.beginPath();
+            ctx.arc(tx + (i * dotGap), dotsY, (i <= stageIndex ? 4.5 : 3) * uiScale, 0, Math.PI * 2);
+            ctx.fillStyle = i <= stageIndex ? info.accent : 'rgba(148,163,184,0.45)';
+            ctx.fill();
+        });
 
         ctx.restore();
     }
@@ -2336,6 +2090,8 @@ export default class Module2DKinematics extends KinematicsModuleBase {
 
 Object.assign(Module2DKinematics.prototype, hoverAnimationMethods);
 Object.assign(Module2DKinematics.prototype, walkthroughInteractionMethods);
+Object.assign(Module2DKinematics.prototype, stepExportMethods);
+Object.assign(Module2DKinematics.prototype, stepRendererMethods);
 Object.assign(Module2DKinematics.prototype, problemRendererMethods);
 Object.assign(Module2DKinematics.prototype, sceneRendererMethods);
 Object.assign(Module2DKinematics.prototype, uiRendererMethods);

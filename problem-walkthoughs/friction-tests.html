@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physics Simulation: Inertia & Friction</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom animations based on tailwind's animate-in plugin */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideInFromTop {
+            from { transform: translate(-50%, -20px); opacity: 0; }
+            to { transform: translate(-50%, 0); opacity: 1; }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-in-out forwards;
+        }
+        .animate-slide-in-top {
+            animation: slideInFromTop 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+    </style>
+</head>
+<body class="flex h-screen bg-slate-50 font-sans text-slate-800 m-0 overflow-hidden">
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col relative overflow-hidden w-full">
+        
+        <!-- Header -->
+        <header class="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center shadow-sm z-10">
+            <div>
+                <h2 id="header-title" class="text-2xl font-bold text-slate-800">Inertia Challenge</h2>
+                <p class="text-slate-500 text-sm">Observe the blocks and predict how friction affects them.</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="resetCurrentScenario()" class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors">
+                    <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    Reset
+                </button>
+            </div>
+        </header>
+
+        <!-- Canvas Area -->
+        <div class="flex-1 bg-slate-800 relative flex items-center justify-center p-4">
+            <canvas id="simCanvas" width="2000" height="800" class="w-full h-auto max-h-full rounded-xl shadow-2xl bg-white" style="aspect-ratio: 2000/800;"></canvas>
+
+            <!-- INTRO Overlay -->
+            <div id="overlay-intro" class="absolute inset-0 bg-slate-900/60 flex items-center justify-center p-4 backdrop-blur-sm rounded-xl hidden">
+                <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-lg text-center transform transition-all scale-100">
+                    <div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-indigo-600 ml-1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                    </div>
+                    <h3 id="intro-title" class="text-2xl font-bold text-slate-800 mb-2">Scenario</h3>
+                    <p id="intro-desc" class="text-slate-600 mb-8">Description</p>
+                    <button onclick="startSimulation()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl transition-transform hover:scale-105 active:scale-95 shadow-lg flex justify-center items-center gap-2">
+                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        Start Simulation
+                    </button>
+                </div>
+            </div>
+
+            <!-- GUESSING Overlay -->
+            <div id="overlay-guessing" class="absolute inset-0 bg-slate-900/40 flex items-center justify-center p-4 backdrop-blur-sm rounded-xl hidden animate-fade-in">
+                <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-xl text-center">
+                    <svg class="w-12 h-12 text-amber-500 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                    <h3 class="text-3xl font-extrabold text-slate-800 mb-2">Pause for Prediction!</h3>
+                    <p id="guess-desc" class="text-lg text-slate-600 mb-6">Which object will slide further before coming to a complete stop?</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <button onclick="handleGuess('cart1')" class="flex flex-col items-center p-4 border-2 border-slate-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all group">
+                            <div class="w-12 h-12 bg-blue-500 rounded-md mb-2 group-hover:scale-110 transition-transform"></div>
+                            <span id="guess-btn-1" class="font-bold text-slate-700">Light Block</span>
+                        </button>
+                        <button onclick="handleGuess('tie')" class="flex flex-col items-center p-4 border-2 border-slate-200 rounded-xl hover:border-indigo-500 hover:bg-indigo-50 transition-all group">
+                            <div class="w-12 h-12 flex items-center justify-center text-slate-400 mb-2 font-bold text-xl group-hover:scale-110 transition-transform">=</div>
+                            <span class="font-bold text-slate-700">They Tie</span>
+                        </button>
+                        <button onclick="handleGuess('cart2')" class="flex flex-col items-center p-4 border-2 border-slate-200 rounded-xl hover:border-red-500 hover:bg-red-50 transition-all group">
+                            <div class="w-12 h-12 bg-red-500 rounded-md mb-2 group-hover:scale-110 transition-transform"></div>
+                            <span id="guess-btn-3" class="font-bold text-slate-700">Heavy Block</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DONE Overlay -->
+            <div id="overlay-done" class="absolute top-12 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-md px-10 py-6 rounded-3xl shadow-2xl text-center border-4 border-emerald-500 hidden animate-slide-in-top z-20 w-full max-w-2xl">
+                <h2 class="text-5xl font-black text-emerald-600 mb-2 uppercase tracking-wide">It's a Tie!</h2>
+                <p class="text-2xl text-slate-700 font-semibold mb-4">Both blocks stop at the exact same time.</p>
+                
+                <div id="user-guess-result" class="mb-6 inline-block px-4 py-2 rounded-lg text-lg font-bold hidden">
+                    <!-- Populated by JS -->
+                </div>
+
+                <div class="text-left bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 text-slate-700">
+                    <h4 class="font-bold text-slate-800 text-lg mb-1">Why?</h4>
+                    <p id="done-why">
+                        <!-- Populated by JS -->
+                    </p>
+                </div>
+
+                <div id="done-actions" class="flex justify-center">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <script>
+        // Constants
+        const INTERNAL_WIDTH = 2000;
+        const INTERNAL_HEIGHT = 800;
+        const FRICTION_X = 800; // X coordinate where friction starts
+        const INITIAL_V = 500; // initial velocity
+        const MU_G = 250; // Deceleration due to friction (mu * g)
+
+        // State variables
+        let uiState = 'INTRO'; // INTRO, RUNNING, GUESSING, REVEALING, DONE
+        let scenario = 1; // 1 = Mass, 2 = Surface Area
+        let userGuess = null;
+        let countdown = null;
+        
+        let physicsState = null;
+        let requestRef = null;
+        let countdownInterval = null;
+        let autoAdvanceTimer = null;
+
+        // DOM Elements
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        const overlayIntro = document.getElementById('overlay-intro');
+        const overlayGuessing = document.getElementById('overlay-guessing');
+        const overlayDone = document.getElementById('overlay-done');
+        
+        // Initialize or reset physics state
+        function resetPhysics(scen = 1) {
+            // Clear any running timers
+            cancelAnimationFrame(requestRef);
+            clearInterval(countdownInterval);
+            clearTimeout(autoAdvanceTimer);
+            countdown = null;
+
+            scenario = scen;
+            userGuess = null;
+            uiState = 'INTRO';
+
+            physicsState = {
+                phase: 'IDLE', // IDLE, RUNNING, REVEALING, DONE
+                lastTime: performance.now(),
+                cart1: { 
+                    x: 100, y: 500, v: INITIAL_V, 
+                    mass: scen === 1 ? 10 : 20, 
+                    w: scen === 1 ? 80 : 160, 
+                    h: scen === 1 ? 80 : 80, 
+                    color: '#3b82f6', label: scen === 1 ? '10kg' : '20kg (Wide)' 
+                },
+                cart2: { 
+                    x: 100, y: 700, v: INITIAL_V, 
+                    mass: scen === 1 ? 40 : 20, 
+                    w: scen === 1 ? 140 : 80, 
+                    h: scen === 1 ? 140 : 160, 
+                    color: '#ef4444', label: scen === 1 ? '40kg' : '20kg (Tall)' 
+                }
+            };
+
+            updateUI();
+            drawCanvas();
+        }
+
+        function resetCurrentScenario() {
+            resetPhysics(scenario);
+        }
+
+        function startSimulation() {
+            physicsState.phase = 'RUNNING';
+            physicsState.lastTime = performance.now();
+            uiState = 'RUNNING';
+            updateUI();
+            updateAnimation();
+        }
+
+        function handleGuess(guess) {
+            userGuess = guess;
+            uiState = 'REVEALING';
+            physicsState.phase = 'REVEALING';
+            physicsState.lastTime = performance.now();
+            updateUI();
+            updateAnimation();
+        }
+
+        function updateAnimation() {
+            const now = performance.now();
+            const dt = (now - physicsState.lastTime) / 1000; // delta time in seconds
+            physicsState.lastTime = now;
+
+            if (physicsState.phase === 'RUNNING') {
+                physicsState.cart1.x += physicsState.cart1.v * dt;
+                physicsState.cart2.x += physicsState.cart2.v * dt;
+
+                // Pause at the friction line
+                if (physicsState.cart1.x + physicsState.cart1.w >= FRICTION_X) {
+                    physicsState.cart1.x = FRICTION_X - physicsState.cart1.w;
+                    physicsState.cart2.x = FRICTION_X - physicsState.cart2.w;
+                    physicsState.phase = 'IDLE';
+                    uiState = 'GUESSING';
+                    updateUI();
+                }
+            } else if (physicsState.phase === 'REVEALING') {
+                const applyFriction = (cart) => {
+                    if (cart.v > 0) {
+                        cart.v -= MU_G * dt;
+                        if (cart.v < 0) cart.v = 0;
+                        cart.x += cart.v * dt;
+                    }
+                };
+
+                applyFriction(physicsState.cart1);
+                applyFriction(physicsState.cart2);
+
+                if (physicsState.cart1.v === 0 && physicsState.cart2.v === 0) {
+                    physicsState.phase = 'DONE';
+                    uiState = 'DONE';
+                    updateUI();
+                    startCountdown();
+                }
+            }
+
+            drawCanvas();
+
+            if (physicsState.phase === 'RUNNING' || physicsState.phase === 'REVEALING') {
+                requestRef = requestAnimationFrame(updateAnimation);
+            }
+        }
+
+        function startCountdown() {
+            if (scenario === 1) {
+                countdown = 8;
+                updateDoneButton(); // initial render
+                
+                countdownInterval = setInterval(() => {
+                    countdown = countdown > 1 ? countdown - 1 : 1;
+                    updateDoneButton();
+                }, 1000);
+                
+                autoAdvanceTimer = setTimeout(() => {
+                    resetPhysics(2);
+                }, 8000);
+            }
+        }
+
+        function updateUI() {
+            // Hide all overlays
+            overlayIntro.classList.add('hidden');
+            overlayGuessing.classList.add('hidden');
+            overlayDone.classList.add('hidden');
+
+            // Header title
+            document.getElementById('header-title').innerText = scenario === 1 ? 'Inertia Challenge: Heavy vs. Light' : 'Inertia Challenge: Surface Area';
+
+            if (uiState === 'INTRO') {
+                overlayIntro.classList.remove('hidden');
+                document.getElementById('intro-title').innerText = scenario === 1 ? "Scenario 1: Mass Difference" : "Scenario 2: Surface Area";
+                document.getElementById('intro-desc').innerText = scenario === 1 
+                    ? "We have two blocks: a light 10kg block and a heavy 40kg block. They are traveling at the exact same speed on smooth ice. Ahead is a rough surface with friction."
+                    : "We have two 20kg blocks: one is wide and short, the other is tall and narrow. They travel at the same speed towards a rough surface.";
+            } 
+            else if (uiState === 'GUESSING') {
+                overlayGuessing.classList.remove('hidden');
+                document.getElementById('guess-desc').innerText = scenario === 1 
+                    ? "Both blocks just hit the rough surface. Which object will slide further before coming to a complete stop?"
+                    : "Both blocks hit the rough surface. Which one will slide further before stopping?";
+                
+                document.getElementById('guess-btn-1').innerText = scenario === 1 ? 'Light Block' : 'Wide Block';
+                document.getElementById('guess-btn-3').innerText = scenario === 1 ? 'Heavy Block' : 'Tall Block';
+            }
+            else if (uiState === 'DONE') {
+                overlayDone.classList.remove('hidden');
+                
+                // User Guess Result
+                const guessDiv = document.getElementById('user-guess-result');
+                if (userGuess) {
+                    guessDiv.classList.remove('hidden');
+                    if (userGuess === 'tie') {
+                        guessDiv.className = 'mb-6 inline-block px-4 py-2 rounded-lg text-lg font-bold bg-emerald-100 text-emerald-800';
+                        guessDiv.innerText = 'Your Guess: They Tie (Correct!)';
+                    } else {
+                        guessDiv.className = 'mb-6 inline-block px-4 py-2 rounded-lg text-lg font-bold bg-red-100 text-red-800';
+                        let wrongTarget = '';
+                        if (userGuess === 'cart1') wrongTarget = scenario === 1 ? 'Light Block' : 'Wide Block';
+                        if (userGuess === 'cart2') wrongTarget = scenario === 1 ? 'Heavy Block' : 'Tall Block';
+                        guessDiv.innerText = `Your Guess: ${wrongTarget} (Incorrect)`;
+                    }
+                } else {
+                    guessDiv.classList.add('hidden');
+                }
+
+                // Explanation
+                document.getElementById('done-why').innerHTML = scenario === 1 
+                    ? `Friction scales with weight (<i>F = &mu;mg</i>). Newton's 2nd Law states <i>a = F/m</i>. Substitute friction: <i>a = (&mu;mg) / m = &mu;g</i>. <strong>Mass cancels out!</strong> They both experience the exact same deceleration.`
+                    : `Standard dry kinetic friction does <strong>not</strong> depend on the surface area of contact. It only depends on the materials (&mu;) and the normal force (weight). Since both are 20kg, they stop at the exact same time.`;
+
+                updateDoneButton();
+            }
+        }
+
+        function updateDoneButton() {
+            const actionsDiv = document.getElementById('done-actions');
+            if (scenario === 1) {
+                actionsDiv.innerHTML = `
+                    <button onclick="resetPhysics(2)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md transition-transform hover:scale-105">
+                        Next: Test Surface Area ${countdown ? `(${countdown}s)` : ''} 
+                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                `;
+            } else {
+                actionsDiv.innerHTML = `
+                    <button onclick="resetPhysics(1)" class="bg-slate-200 hover:bg-slate-300 text-slate-800 px-8 py-3 rounded-xl font-bold flex items-center gap-2 transition-colors">
+                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                        Restart Lesson
+                    </button>
+                `;
+            }
+        }
+
+        function drawCanvas() {
+            // Clear
+            ctx.clearRect(0, 0, INTERNAL_WIDTH, INTERNAL_HEIGHT);
+
+            // Sky
+            ctx.fillStyle = '#e0f2fe';
+            ctx.fillRect(0, 0, INTERNAL_WIDTH, INTERNAL_HEIGHT);
+
+            // Smooth Ice (No Friction Zone)
+            ctx.fillStyle = '#bae6fd';
+            ctx.fillRect(0, INTERNAL_HEIGHT - 350, FRICTION_X, 350);
+            
+            // Rough Ground (Friction Zone)
+            ctx.fillStyle = '#cbd5e1';
+            ctx.fillRect(FRICTION_X, INTERNAL_HEIGHT - 350, INTERNAL_WIDTH - FRICTION_X, 350);
+
+            // Draw Friction Line
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 10;
+            ctx.setLineDash([20, 20]);
+            ctx.beginPath();
+            ctx.moveTo(FRICTION_X, INTERNAL_HEIGHT - 350);
+            ctx.lineTo(FRICTION_X, INTERNAL_HEIGHT);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw Labels
+            ctx.fillStyle = '#0369a1';
+            ctx.font = 'bold 40px sans-serif';
+            ctx.fillText('Smooth Ice (No Friction)', 100, INTERNAL_HEIGHT - 300);
+            
+            ctx.fillStyle = '#475569';
+            ctx.fillText('Rough Surface (Friction Added)', FRICTION_X + 50, INTERNAL_HEIGHT - 300);
+
+            // Draw Blocks
+            const drawBlock = (cart) => {
+                // Shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.fillRect(cart.x + 10, cart.y - 10, cart.w, 20);
+
+                // Body
+                ctx.fillStyle = cart.color;
+                ctx.fillRect(cart.x, cart.y - cart.h, cart.w, cart.h);
+                ctx.strokeStyle = '#1e293b';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(cart.x, cart.y - cart.h, cart.w, cart.h);
+
+                // Label
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 30px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(cart.label, cart.x + cart.w / 2, cart.y - cart.h / 2 + 10);
+                
+                // Speed indicator (if moving)
+                if (cart.v > 0) {
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                    ctx.font = '24px monospace';
+                    ctx.fillText(`v = ${Math.round(cart.v)}`, cart.x + cart.w / 2, cart.y - cart.h - 20);
+                }
+                ctx.textAlign = 'left'; // reset
+            };
+
+            drawBlock(physicsState.cart1);
+            drawBlock(physicsState.cart2);
+        }
+
+        // Start app
+        window.onload = () => {
+            resetPhysics(1);
+        };
+
+    </script>
+</body>
+</html>

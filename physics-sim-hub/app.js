@@ -28,7 +28,6 @@ const MODULE_REGISTRY = {
 
 // Standalone pages that open in a new tab instead of loading into the canvas
 const PAGE_LINKS = {
-    "2D Kinematics: Student Explorer": "./kinematics2dFlatSimple.html",
     "Stickman Motion Lab: Pose & Jump Builder": "./modules/stickman-physics.html",
 };
 

@@ -22,7 +22,7 @@ drawAxisValuePanel(ctx, { title, rows, x, y, width, model = null }) {
     const headerY = y + (16 * uiScale);
     const rowStartY = y + ((isDense ? 36 : 40) * uiScale);
     const rowHeight = (isDense ? 17 : 19) * uiScale;
-    const height = (isDense ? 138 : 140) * uiScale;
+    const height = this.getAxisPanelHeight(rows.length);
 
     ctx.save();
     ctx.fillStyle = this.kinematicsTheme.panelFill;
@@ -388,7 +388,7 @@ drawFinalVelocityBreakdown(ctx, model, stage) {
     const showSpeedSolve = stage === 'final-result' || stage === 'final-zoom-speed' || stage === 'final-zoom-angle';
     const showAngleSolve = stage === 'final-zoom-angle';
     const angleDeg = Math.atan2(Math.abs(vy), Math.abs(vx)) * 180 / Math.PI;
-    const directionLabel = vy < 0 ? `${angleDeg.toFixed(1)} deg below +x` : `${angleDeg.toFixed(1)} deg above +x`;
+    const directionLabel = vy < 0 ? `${angleDeg.toFixed(1)}° below +x` : `${angleDeg.toFixed(1)}° above +x`;
     const pulse = this.isSvgExporting ? 0 : (0.5 + 0.5 * Math.sin((model.visualTime || 0) * Math.PI * 2.2));
 
     ctx.save();
@@ -493,7 +493,7 @@ drawFinalVelocityBreakdown(ctx, model, stage) {
                 textAlign: "left"
             });
         } else {
-            this.drawTextLabel(ctx, originX + arcRadius + 24, originY + (vyLen >= 0 ? 28 : -28), `θ = ${angleDeg.toFixed(1)} deg`, {
+            this.drawTextLabel(ctx, originX + arcRadius + 24, originY + (vyLen >= 0 ? 28 : -28), `θ = ${angleDeg.toFixed(1)}°`, {
                 font: "bold 12px Georgia, serif",
                 fill: "#7c3aed",
                 background: "rgba(245, 243, 255, 0.96)",
@@ -514,7 +514,7 @@ drawFinalVelocityBreakdown(ctx, model, stage) {
     ];
 
     if (stage === 'final-zoom-vx') {
-        cardTitle = "Step 1: vₓf";
+        cardTitle = "vₓf";
         cardAccent = "#b91c1c";
         cardRows = [
             { text: "Horizontal velocity does not accelerate.", color: "#b91c1c" },
@@ -522,7 +522,7 @@ drawFinalVelocityBreakdown(ctx, model, stage) {
             { text: "This is one leg of the final velocity triangle." }
         ];
     } else if (stage === 'final-zoom-vy') {
-        cardTitle = "Step 2: vᵧf";
+        cardTitle = "vᵧf";
         cardAccent = "#047857";
         cardRows = [
             { text: "Gravity changes only the vertical velocity.", color: "#047857" },
@@ -530,7 +530,7 @@ drawFinalVelocityBreakdown(ctx, model, stage) {
             { text: "For now, compare it with the same tail point." }
         ];
     } else if (stage === 'final-zoom-tail-head') {
-        cardTitle = "Step 3: Tail to head";
+        cardTitle = "Tail to head";
         cardAccent = "#0f766e";
         cardRows = [
             { text: "Slide vy so its tail starts at the head of vx." },
@@ -538,7 +538,7 @@ drawFinalVelocityBreakdown(ctx, model, stage) {
             { text: "The diagonal will be the final velocity vector." }
         ];
     } else if (stage === 'final-zoom-resultant') {
-        cardTitle = "Step 4: Resultant vector";
+        cardTitle = "Resultant vector";
         cardAccent = "#4338ca";
         cardRows = [
             { text: "Draw from the original tail to the final head.", color: "#4338ca" },
@@ -546,16 +546,16 @@ drawFinalVelocityBreakdown(ctx, model, stage) {
             { text: `vf points ${directionLabel}` }
         ];
     } else if (showAngleSolve) {
-        cardTitle = "Step 6: Solve angle";
+        cardTitle = "Solve angle";
         cardAccent = "#7c3aed";
         cardRows = [
             { text: "tan(θ) = |vᵧf| / |vₓf|", color: "#7c3aed" },
             { text: `θ = tan^-1(${Math.abs(vy).toFixed(2)} / ${Math.abs(vx).toFixed(2)})` },
-            { text: `θ = ${angleDeg.toFixed(1)} deg` },
+            { text: `θ = ${angleDeg.toFixed(1)}°` },
             { text: `direction = ${directionLabel}` }
         ];
     } else if (showSpeedSolve) {
-        cardTitle = isZoom ? "Step 5: Solve speed" : "Solve final velocity";
+        cardTitle = isZoom ? "Solve speed" : "Solve final velocity";
         cardAccent = "#4338ca";
         cardRows = [
             { text: "v = sqrt(vₓf^2 + vᵧf^2)", color: "#4338ca" },

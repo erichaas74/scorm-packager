@@ -41,6 +41,7 @@ export function drawWalkthroughOverlay(ctx, model, step) {
             ? step.resultValues
             : (step.resultValue ? [step.resultValue] : [])
     );
+    const suppressValueLabels = step.suppressValueLabels === true || step.id === 'givens';
 
     // Draw a faint dim layer behind the overlay so it pops without obscuring.
     drawDimVeil(ctx, model);
@@ -60,7 +61,7 @@ export function drawWalkthroughOverlay(ctx, model, step) {
         const accent = step.accent || FOCUS_COLORS[key] || '#7c3aed';
         const isResult = resultKeys.has(key);
         try {
-            drawer.call(this, ctx, model, { key, accent, isResult, step });
+            drawer.call(this, ctx, model, { key, accent, isResult, step, suppressValueLabels });
         } catch (err) {
             // Drawing must never break the frame. Swallow and keep going.
             // eslint-disable-next-line no-console
@@ -100,7 +101,7 @@ const drawers = {
    Dimension spans
    ──────────────────────────────────────────────────────────────────────── */
 
-function drawDxSpan(ctx, model, { accent, isResult }) {
+function drawDxSpan(ctx, model, { accent, isResult, suppressValueLabels }) {
     const geometry = typeof this.getDisplacementGeometry === 'function'
         ? this.getDisplacementGeometry(model)
         : null;
@@ -112,19 +113,21 @@ function drawDxSpan(ctx, model, { accent, isResult }) {
         width: isResult ? 3 : 2.2,
         dashed: false
     });
-    const label = `Δx = ${model.range.toFixed(2)} m`;
-    this.drawTextLabel(ctx, (x1 + x2) / 2, y + 18, label, {
-        font: isResult ? 'bold 13px serif' : 'bold 12px serif',
-        fill: accent,
-        background: isResult ? 'rgba(254, 243, 199, 0.96)' : 'rgba(255,255,255,0.94)',
-        borderColor: accent,
-        borderWidth: isResult ? 2 : 1,
-        shadowColor: `${accent}55`,
-        shadowBlur: this.isSvgExporting ? 0 : (isResult ? 12 : 6)
-    });
+    if (!suppressValueLabels) {
+        const label = `Δx = ${model.range.toFixed(2)} m`;
+        this.drawTextLabel(ctx, (x1 + x2) / 2, y + 18, label, {
+            font: isResult ? 'bold 13px serif' : 'bold 12px serif',
+            fill: accent,
+            background: isResult ? 'rgba(254, 243, 199, 0.96)' : 'rgba(255,255,255,0.94)',
+            borderColor: accent,
+            borderWidth: isResult ? 2 : 1,
+            shadowColor: `${accent}55`,
+            shadowBlur: this.isSvgExporting ? 0 : (isResult ? 12 : 6)
+        });
+    }
 }
 
-function drawDySpan(ctx, model, { accent, isResult }) {
+function drawDySpan(ctx, model, { accent, isResult, suppressValueLabels }) {
     const geometry = typeof this.getDisplacementGeometry === 'function'
         ? this.getDisplacementGeometry(model)
         : null;
@@ -138,13 +141,15 @@ function drawDySpan(ctx, model, { accent, isResult }) {
             width: 2,
             dashed: true
         });
-        this.drawTextLabel(ctx, (model.startX + model.endX) / 2, y - 16, 'Δy = 0', {
-            font: 'bold 12px serif',
-            fill: accent,
-            background: 'rgba(255,255,255,0.94)',
-            borderColor: accent,
-            borderWidth: 1
-        });
+        if (!suppressValueLabels) {
+            this.drawTextLabel(ctx, (model.startX + model.endX) / 2, y - 16, 'Δy = 0', {
+                font: 'bold 12px serif',
+                fill: accent,
+                background: 'rgba(255,255,255,0.94)',
+                borderColor: accent,
+                borderWidth: 1
+            });
+        }
         return;
     }
 
@@ -156,17 +161,19 @@ function drawDySpan(ctx, model, { accent, isResult }) {
         width: isResult ? 3 : 2.2,
         vertical: true
     });
-    const label = `Δy = ${dy.toFixed(2)} m`;
-    this.drawTextLabel(ctx, x + 32, (yTop + yBot) / 2, label, {
-        font: isResult ? 'bold 13px serif' : 'bold 12px serif',
-        fill: accent,
-        background: isResult ? 'rgba(254, 243, 199, 0.96)' : 'rgba(255,255,255,0.94)',
-        borderColor: accent,
-        borderWidth: isResult ? 2 : 1
-    });
+    if (!suppressValueLabels) {
+        const label = `Δy = ${dy.toFixed(2)} m`;
+        this.drawTextLabel(ctx, x + 32, (yTop + yBot) / 2, label, {
+            font: isResult ? 'bold 13px serif' : 'bold 12px serif',
+            fill: accent,
+            background: isResult ? 'rgba(254, 243, 199, 0.96)' : 'rgba(255,255,255,0.94)',
+            borderColor: accent,
+            borderWidth: isResult ? 2 : 1
+        });
+    }
 }
 
-function drawHmaxBar(ctx, model, { accent, isResult, step }) {
+function drawHmaxBar(ctx, model, { accent, isResult, step, suppressValueLabels }) {
     const geometry = typeof this.getDisplacementGeometry === 'function'
         ? this.getDisplacementGeometry(model)
         : null;
@@ -191,14 +198,16 @@ function drawHmaxBar(ctx, model, { accent, isResult, step }) {
     ctx.fill();
     ctx.restore();
 
-    const label = `hₘₐₓ = ${hmax.toFixed(2)} m`;
-    this.drawTextLabel(ctx, peakX - 56, (peakY + groundY) / 2, label, {
-        font: isResult ? 'bold 13px serif' : 'bold 12px serif',
-        fill: accent,
-        background: isResult ? 'rgba(254, 243, 199, 0.96)' : 'rgba(255,255,255,0.94)',
-        borderColor: accent,
-        borderWidth: isResult ? 2 : 1
-    });
+    if (!suppressValueLabels) {
+        const label = `hₘₐₓ = ${hmax.toFixed(2)} m`;
+        this.drawTextLabel(ctx, peakX - 56, (peakY + groundY) / 2, label, {
+            font: isResult ? 'bold 13px serif' : 'bold 12px serif',
+            fill: accent,
+            background: isResult ? 'rgba(254, 243, 199, 0.96)' : 'rgba(255,255,255,0.94)',
+            borderColor: accent,
+            borderWidth: isResult ? 2 : 1
+        });
+    }
 
     if (step?.id === 'vertical-result' && typeof this.drawPeakZeroVelocityZoom === 'function') {
         this.drawPeakZeroVelocityZoom(ctx, model, 1);
@@ -209,57 +218,63 @@ function drawHmaxBar(ctx, model, { accent, isResult, step }) {
    Launch-point vectors
    ──────────────────────────────────────────────────────────────────────── */
 
-function drawV0Vector(ctx, model, { accent, isResult }) {
+function drawV0Vector(ctx, model, { accent, isResult, suppressValueLabels }) {
     const scale = pickVectorScale(model);
     const tipX = model.startX + (model.vix * scale);
     const tipY = model.startY - (model.viy * scale);
     this.drawArrow(ctx, model.startX, model.startY, tipX, tipY, accent, isResult ? 4 : 3, { headSize: isResult ? 16 : 14 });
-    const label = `v₀ = ${model.vi.toFixed(1)} m/s`;
-    this.drawTextLabel(ctx, (model.startX + tipX) / 2 - 6, (model.startY + tipY) / 2 - 22, label, {
-        font: isResult ? 'bold 13px serif' : 'bold 12px serif',
-        fill: accent,
-        background: isResult ? 'rgba(254, 243, 199, 0.96)' : 'rgba(255,255,255,0.94)',
-        borderColor: accent,
-        borderWidth: isResult ? 2 : 1
-    });
+    if (!suppressValueLabels) {
+        const label = `v₀ = ${model.vi.toFixed(1)} m/s`;
+        this.drawTextLabel(ctx, (model.startX + tipX) / 2 - 6, (model.startY + tipY) / 2 - 22, label, {
+            font: isResult ? 'bold 13px serif' : 'bold 12px serif',
+            fill: accent,
+            background: isResult ? 'rgba(254, 243, 199, 0.96)' : 'rgba(255,255,255,0.94)',
+            borderColor: accent,
+            borderWidth: isResult ? 2 : 1
+        });
+    }
 }
 
-function drawV0xComponent(ctx, model, { accent, isResult }) {
+function drawV0xComponent(ctx, model, { accent, isResult, suppressValueLabels }) {
     const scale = pickVectorScale(model);
     const tipX = model.startX + (model.vix * scale);
     const tipY = model.startY;
     this.drawArrow(ctx, model.startX, model.startY, tipX, tipY, accent, isResult ? 4 : 3, { headSize: isResult ? 14 : 12 });
-    const label = `v₀ₓ = ${model.vix.toFixed(2)} m/s`;
-    this.drawTextLabel(ctx, (model.startX + tipX) / 2, model.startY + 24, label, {
-        font: isResult ? 'bold 13px serif' : 'bold 12px serif',
-        fill: accent,
-        background: isResult ? 'rgba(254, 243, 199, 0.96)' : 'rgba(255,255,255,0.94)',
-        borderColor: accent,
-        borderWidth: isResult ? 2 : 1
-    });
+    if (!suppressValueLabels) {
+        const label = `v₀ₓ = ${model.vix.toFixed(2)} m/s`;
+        this.drawTextLabel(ctx, (model.startX + tipX) / 2, model.startY + 24, label, {
+            font: isResult ? 'bold 13px serif' : 'bold 12px serif',
+            fill: accent,
+            background: isResult ? 'rgba(254, 243, 199, 0.96)' : 'rgba(255,255,255,0.94)',
+            borderColor: accent,
+            borderWidth: isResult ? 2 : 1
+        });
+    }
 }
 
-function drawV0yComponent(ctx, model, { accent, isResult }) {
+function drawV0yComponent(ctx, model, { accent, isResult, suppressValueLabels }) {
     const scale = pickVectorScale(model);
     // Anchor the v0y arrow at the end of the v0x arrow (component triangle).
     const baseX = model.startX + (model.vix * scale);
     const tipY = model.startY - (model.viy * scale);
     this.drawArrow(ctx, baseX, model.startY, baseX, tipY, accent, isResult ? 4 : 3, { headSize: isResult ? 14 : 12 });
-    const label = `v₀ᵧ = ${model.viy.toFixed(2)} m/s`;
-    this.drawTextLabel(ctx, baseX + 38, (model.startY + tipY) / 2, label, {
-        font: isResult ? 'bold 13px serif' : 'bold 12px serif',
-        fill: accent,
-        background: isResult ? 'rgba(254, 243, 199, 0.96)' : 'rgba(255,255,255,0.94)',
-        borderColor: accent,
-        borderWidth: isResult ? 2 : 1
-    });
+    if (!suppressValueLabels) {
+        const label = `v₀ᵧ = ${model.viy.toFixed(2)} m/s`;
+        this.drawTextLabel(ctx, baseX + 38, (model.startY + tipY) / 2, label, {
+            font: isResult ? 'bold 13px serif' : 'bold 12px serif',
+            fill: accent,
+            background: isResult ? 'rgba(254, 243, 199, 0.96)' : 'rgba(255,255,255,0.94)',
+            borderColor: accent,
+            borderWidth: isResult ? 2 : 1
+        });
+    }
 }
 
-function drawTheta(ctx, model, { accent, isResult }) {
+function drawTheta(ctx, model, { accent, isResult, suppressValueLabels }) {
     const angle = model.angleDeg ?? 0;
     if (Math.abs(angle) < 0.5) return;
     const radius = isResult ? 56 : 46;
-    const label = `θ = ${angle.toFixed(1)}°`;
+    const label = suppressValueLabels ? '' : `θ = ${angle.toFixed(1)}°`;
     this.drawAngleArc(ctx, model.startX, model.startY, angle, radius, label, {
         lineColor: accent,
         lineWidth: isResult ? 2.6 : 2,
@@ -274,7 +289,7 @@ function drawTheta(ctx, model, { accent, isResult }) {
    Landing-point vectors
    ──────────────────────────────────────────────────────────────────────── */
 
-function drawLandingVy(ctx, model, { accent, isResult }) {
+function drawLandingVy(ctx, model, { accent, isResult, suppressValueLabels }) {
     const scale = pickVectorScale(model);
     const finalVy = model.finalVy ?? 0;
     if (Math.abs(finalVy) < 0.01) return;
@@ -282,36 +297,40 @@ function drawLandingVy(ctx, model, { accent, isResult }) {
     const tipX = model.endX;
     const tipY = model.endY - (finalVy * scale);
     this.drawArrow(ctx, model.endX, model.endY, tipX, tipY, accent, isResult ? 4 : 3, { headSize: isResult ? 14 : 12 });
-    const label = `vᵧ = ${finalVy.toFixed(2)} m/s`;
-    this.drawTextLabel(ctx, tipX + 38, (model.endY + tipY) / 2, label, {
-        font: isResult ? 'bold 13px serif' : 'bold 12px serif',
-        fill: accent,
-        background: isResult ? 'rgba(254, 243, 199, 0.96)' : 'rgba(255,255,255,0.94)',
-        borderColor: accent,
-        borderWidth: isResult ? 2 : 1
-    });
+    if (!suppressValueLabels) {
+        const label = `vᵧ = ${finalVy.toFixed(2)} m/s`;
+        this.drawTextLabel(ctx, tipX + 38, (model.endY + tipY) / 2, label, {
+            font: isResult ? 'bold 13px serif' : 'bold 12px serif',
+            fill: accent,
+            background: isResult ? 'rgba(254, 243, 199, 0.96)' : 'rgba(255,255,255,0.94)',
+            borderColor: accent,
+            borderWidth: isResult ? 2 : 1
+        });
+    }
 }
 
-function drawFinalVelocity(ctx, model, { accent, isResult }) {
+function drawFinalVelocity(ctx, model, { accent, isResult, suppressValueLabels }) {
     const scale = pickVectorScale(model);
     const tipX = model.endX + (model.vix * scale);
     const tipY = model.endY - ((model.finalVy ?? 0) * scale);
     this.drawArrow(ctx, model.endX, model.endY, tipX, tipY, accent, isResult ? 4 : 3, { headSize: isResult ? 16 : 14 });
-    const label = `v = ${(model.finalSpeed ?? 0).toFixed(2)} m/s`;
-    this.drawTextLabel(ctx, (model.endX + tipX) / 2 - 6, (model.endY + tipY) / 2 - 22, label, {
-        font: isResult ? 'bold 13px serif' : 'bold 12px serif',
-        fill: accent,
-        background: isResult ? 'rgba(254, 243, 199, 0.96)' : 'rgba(255,255,255,0.94)',
-        borderColor: accent,
-        borderWidth: isResult ? 2 : 1
-    });
+    if (!suppressValueLabels) {
+        const label = `v = ${(model.finalSpeed ?? 0).toFixed(2)} m/s`;
+        this.drawTextLabel(ctx, (model.endX + tipX) / 2 - 6, (model.endY + tipY) / 2 - 22, label, {
+            font: isResult ? 'bold 13px serif' : 'bold 12px serif',
+            fill: accent,
+            background: isResult ? 'rgba(254, 243, 199, 0.96)' : 'rgba(255,255,255,0.94)',
+            borderColor: accent,
+            borderWidth: isResult ? 2 : 1
+        });
+    }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
    Annotations
    ──────────────────────────────────────────────────────────────────────── */
 
-function drawTimeStrip(ctx, model, { accent, isResult }) {
+function drawTimeStrip(ctx, model, { accent, isResult, suppressValueLabels }) {
     // A small timeline strip beneath the trajectory, t=0 at startX, t=tFlight at endX.
     const stripY = Math.max(model.startY, model.endY) + 60;
     const x1 = model.startX;
@@ -345,35 +364,39 @@ function drawTimeStrip(ctx, model, { accent, isResult }) {
     }
     ctx.restore();
 
-    // Labels — main flight time gets the emphasis, others are smaller
-    for (let i = 0; i < ticks.length; i++) {
-        const tick = ticks[i];
-        const isMain = i === ticks.length - 1;
-        this.drawTextLabel(ctx, tick.x, stripY + 22, tick.label, {
-            font: (isMain && isResult) ? 'bold 13px serif' : (isMain ? 'bold 12px serif' : '11px serif'),
-            fill: accent,
-            background: (isMain && isResult) ? 'rgba(254, 243, 199, 0.96)' : 'rgba(255,255,255,0.94)',
-            borderColor: isMain ? accent : null,
-            borderWidth: isMain ? (isResult ? 2 : 1) : 0
-        });
+    if (!suppressValueLabels) {
+        // Labels — main flight time gets the emphasis, others are smaller
+        for (let i = 0; i < ticks.length; i++) {
+            const tick = ticks[i];
+            const isMain = i === ticks.length - 1;
+            this.drawTextLabel(ctx, tick.x, stripY + 22, tick.label, {
+                font: (isMain && isResult) ? 'bold 13px serif' : (isMain ? 'bold 12px serif' : '11px serif'),
+                fill: accent,
+                background: (isMain && isResult) ? 'rgba(254, 243, 199, 0.96)' : 'rgba(255,255,255,0.94)',
+                borderColor: isMain ? accent : null,
+                borderWidth: isMain ? (isResult ? 2 : 1) : 0
+            });
+        }
     }
 }
 
-function drawGravityArrow(ctx, model, { accent, isResult }) {
+function drawGravityArrow(ctx, model, { accent, isResult, suppressValueLabels }) {
     const g = Math.abs(model.g ?? 9.8);
     // Anchor in upper-right of the trajectory area where it won't fight other overlays.
     const x = Math.min(model.peakCanvasX + 80, model.endX - 40);
     const yTop = Math.min(model.startY, model.endY) - 80;
     const yBot = yTop + 50;
     this.drawArrow(ctx, x, yTop, x, yBot, accent, isResult ? 3.5 : 2.8, { headSize: isResult ? 13 : 11 });
-    const label = `g = ${g.toFixed(2)} m/s²`;
-    this.drawTextLabel(ctx, x + 44, (yTop + yBot) / 2, label, {
-        font: isResult ? 'bold 13px serif' : 'bold 12px serif',
-        fill: accent,
-        background: isResult ? 'rgba(254, 243, 199, 0.96)' : 'rgba(255,255,255,0.94)',
-        borderColor: accent,
-        borderWidth: isResult ? 2 : 1
-    });
+    if (!suppressValueLabels) {
+        const label = `g = ${g.toFixed(2)} m/s²`;
+        this.drawTextLabel(ctx, x + 44, (yTop + yBot) / 2, label, {
+            font: isResult ? 'bold 13px serif' : 'bold 12px serif',
+            fill: accent,
+            background: isResult ? 'rgba(254, 243, 199, 0.96)' : 'rgba(255,255,255,0.94)',
+            borderColor: accent,
+            borderWidth: isResult ? 2 : 1
+        });
+    }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
