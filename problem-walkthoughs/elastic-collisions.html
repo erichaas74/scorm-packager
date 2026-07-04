@@ -434,13 +434,13 @@
                           <div id="mom-grid" class="eq-grid text-cyan">
                               <div id="m_m1" class="cell cell-m">m<sub>A</sub></div>
                               <div id="m_v1" class="cell cell-v"><i>v</i><sub>Ai</sub></div>
-                              <div class="cell cell-op">+</div>
+                              <div id="m_op1" class="cell cell-op">+</div>
                               <div id="m_m2" class="cell cell-m text-rose">m<sub>B</sub></div>
                               <div id="m_v2" class="cell cell-v text-rose"><i>v</i><sub>Bi</sub></div>
-                              <div class="cell cell-op">=</div>
+                              <div id="m_equals" class="cell cell-op">=</div>
                               <div id="m_m3" class="cell cell-m">m<sub>A</sub></div>
                               <div id="m_v3" class="cell cell-v"><i>v</i><sub>Af</sub></div>
-                              <div class="cell cell-op">+</div>
+                              <div id="m_op2" class="cell cell-op">+</div>
                               <div id="m_m4" class="cell cell-m text-rose">m<sub>B</sub></div>
                               <div id="m_v4" class="cell cell-v text-rose"><i>v</i><sub>Bf</sub></div>
                           </div>
@@ -516,6 +516,11 @@
       m_v3: document.getElementById("m_v3"),
       m_m4: document.getElementById("m_m4"),
       m_v4: document.getElementById("m_v4")
+    };
+    const equationOps = {
+      op1: document.getElementById("m_op1"),
+      equals: document.getElementById("m_equals"),
+      op2: document.getElementById("m_op2")
     };
     const momGrid = document.getElementById("mom-grid");
     const momResult = document.getElementById("mom-result");
@@ -846,7 +851,7 @@
           choiceLabels[i].textContent = "";
           continue;
         }
-        choiceLabels[i].innerHTML = `p<sub>before</sub> = ${fmt(momentumOptions[i].value)} kg&middot;m/s`;
+        choiceLabels[i].innerHTML = `P<sub>total</sub> = ${fmt(momentumOptions[i].value)} kg&middot;m/s`;
       }
     }
 
@@ -886,14 +891,15 @@
       updateMomentumChoiceLabels();
 
       queueEquationStep(() => {
-        equationCells.m_m1.innerHTML = fmt(s.m1, 0);
-        equationCells.m_v1.innerHTML = fmt(s.u1);
-        equationCells.m_m2.innerHTML = fmt(s.m2, 0);
-        equationCells.m_v2.innerHTML = fmt(s.u2);
-        equationCells.m_m3.innerHTML = "p<sub>before</sub>";
+        equationCells.m_m1.innerHTML = `(${fmt(s.m1, 0)}`;
+        equationCells.m_v1.innerHTML = `${fmt(s.u1)})`;
+        equationCells.m_m2.innerHTML = `(${fmt(s.m2, 0)}`;
+        equationCells.m_v2.innerHTML = `${fmt(s.u2)})`;
+        equationCells.m_m3.innerHTML = "P<sub>total</sub>";
         equationCells.m_v3.innerHTML = "?";
         equationCells.m_m4.innerHTML = "";
         equationCells.m_v4.innerHTML = "";
+        equationOps.op2.style.visibility = "hidden";
       }, 200);
     }
 
@@ -912,8 +918,8 @@
         equationCells.m_v3.innerHTML = fmt(option.value);
         momResult.className = `result-overlay ${option.correct ? "text-green" : "text-red"}`;
         momResult.textContent = option.correct
-          ? `p before = ${fmt(option.value)} kg·m/s`
-          : `p before is ${fmt(momentumOptions[correctIndex].value)} kg·m/s`;
+          ? `P total = ${fmt(option.value)} kg·m/s`
+          : `P total is ${fmt(momentumOptions[correctIndex].value)} kg·m/s`;
         momResult.style.opacity = "1";
 
         if (option.correct) {
@@ -931,9 +937,33 @@
         updateChoiceLabels(true);
         stage = "choose";
         stageStart = clock;
-        resultPanel.classList.add("hidden");
-        resetEquationGrid();
+        showFinalVelocityEquation(null);
       }, 1850);
+    }
+
+    function showFinalVelocityEquation(option) {
+      const s = current;
+      const final = elasticFinal(s.m1, s.u1, s.m2, s.u2);
+      const given = givenCart(s);
+      const target = targetCart(s);
+      const givenVelocity = cartFinalVelocity(final, given);
+      const targetValue = option ? fmt(option.targetVelocity) : "?";
+
+      resetEquationGrid();
+      resultPanel.classList.remove("hidden");
+      equationTitle.textContent = "Total Momentum Before = Total Momentum After";
+      momentumSection.classList.remove("hidden");
+      momGrid.style.opacity = "1";
+      momResult.style.opacity = "0";
+
+      equationCells.m_m1.innerHTML = `(${fmt(s.m1, 0)}`;
+      equationCells.m_v1.innerHTML = `${fmt(s.u1)})`;
+      equationCells.m_m2.innerHTML = `(${fmt(s.m2, 0)}`;
+      equationCells.m_v2.innerHTML = `${fmt(s.u2)})`;
+      equationCells.m_m3.innerHTML = `(${fmt(s.m1, 0)}`;
+      equationCells.m_v3.innerHTML = `${target === "A" ? targetValue : fmt(givenVelocity)})`;
+      equationCells.m_m4.innerHTML = `(${fmt(s.m2, 0)}`;
+      equationCells.m_v4.innerHTML = `${target === "B" ? targetValue : fmt(givenVelocity)})`;
     }
 
     function showEquationMath(option, index) {
@@ -942,21 +972,8 @@
       const pAfter = finalMomentum(s, option);
       const momentumConserved = nearlyEqual(pBefore, pAfter);
 
-      resetEquationGrid();
-      equationTitle.textContent = "Total Momentum Before = Total Momentum After";
-      momentumSection.classList.remove("hidden");
-      momGrid.style.opacity = "1";
-      momResult.style.opacity = "0";
-
       queueEquationStep(() => {
-        equationCells.m_m1.innerHTML = fmt(s.m1, 0);
-        equationCells.m_v1.innerHTML = fmt(s.u1);
-        equationCells.m_m2.innerHTML = fmt(s.m2, 0);
-        equationCells.m_v2.innerHTML = fmt(s.u2);
-        equationCells.m_m3.innerHTML = fmt(s.m1, 0);
-        equationCells.m_v3.innerHTML = option.target === "A" ? fmt(option.targetVelocity) : fmt(option.givenVelocity);
-        equationCells.m_m4.innerHTML = fmt(s.m2, 0);
-        equationCells.m_v4.innerHTML = option.target === "B" ? fmt(option.targetVelocity) : fmt(option.givenVelocity);
+        showFinalVelocityEquation(option);
       }, 250);
 
       queueEquationStep(() => {
@@ -1022,6 +1039,9 @@
       for (const [id, value] of Object.entries(symbols)) {
         equationCells[id].innerHTML = value;
       }
+      equationOps.op1.style.visibility = "visible";
+      equationOps.equals.style.visibility = "visible";
+      equationOps.op2.style.visibility = "visible";
       equationTimers.forEach(timer => window.clearTimeout(timer));
       equationTimers = [];
       momResult.textContent = "";
