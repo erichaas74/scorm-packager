@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Elastic vs Inelastic Ball Momentum Demo</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f7fb;
+      color: #111827;
+    }
+
+    header {
+      background: #111827;
+      color: white;
+      padding: 16px 24px;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 28px;
+    }
+
+    .subtitle {
+      margin-top: 6px;
+      font-size: 16px;
+      opacity: 0.9;
+    }
+
+    .wrap {
+      max-width: 1120px;
+      margin: 18px auto;
+      padding: 0 14px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+    }
+
+    canvas {
+      width: 100%;
+      height: auto;
+      border: 2px solid #d1d5db;
+      border-radius: 12px;
+      background: linear-gradient(#dbeafe, #eff6ff);
+      display: block;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 11px 15px;
+      font-size: 15px;
+      cursor: pointer;
+      background: #2563eb;
+      color: white;
+      font-weight: bold;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    button.secondary {
+      background: #4b5563;
+    }
+
+    button.secondary:hover {
+      background: #374151;
+    }
+
+    button.answer {
+      background: #0f766e;
+    }
+
+    button.answer:hover {
+      background: #115e59;
+    }
+
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    .note {
+      text-align: center;
+      margin-top: 10px;
+      color: #4b5563;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Elastic vs Inelastic Ball Momentum Demo</h1>
+    <div class="subtitle">Watch the collision, compare velocity vectors, then calculate change in momentum.</div>
+  </header>
+
+  <main class="wrap">
+    <section class="card">
+      <canvas id="demoCanvas" width="1100" height="650"></canvas>
+
+      <div class="controls">
+        <button id="resetBtn" class="secondary">Reset</button>
+        <button id="dropBtn">1. Drop Both Balls</button>
+        <button id="nextBtn" disabled>Next Step</button>
+        <button id="elasticAnswer" class="answer" disabled>Predict: Elastic Ball</button>
+        <button id="inelasticAnswer" class="answer" disabled>Predict: Inelastic Ball</button>
+        <button id="sameAnswer" class="answer" disabled>Predict: Same</button>
+      </div>
+
+      <div class="note">
+        Positive velocity is upward. Negative velocity is downward. Both balls use the same mass and the same speed right before impact.
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const canvas = document.getElementById("demoCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const resetBtn = document.getElementById("resetBtn");
+    const dropBtn = document.getElementById("dropBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const elasticAnswer = document.getElementById("elasticAnswer");
+    const inelasticAnswer = document.getElementById("inelasticAnswer");
+    const sameAnswer = document.getElementById("sameAnswer");
+
+    // Momentum calculation values.
+    // Positive velocity = upward. Negative velocity = downward.
+    const mass = 0.10;       // kg
+    const vi = -4.4;         // m/s, downward right before impact
+    const elasticVf = 3.5;   // m/s, upward after bounce
+    const inelasticVf = 0;   // m/s, stopped after impact
+
+    const elasticPi = mass * vi;
+    const inelasticPi = mass * vi;
+
+    const elasticPf = mass * elasticVf;
+    const inelasticPf = mass * inelasticVf;
+
+    const elasticDeltaP = Math.abs(elasticPf - elasticPi);
+    const inelasticDeltaP = Math.abs(inelasticPf - inelasticPi);
+
+    // Canvas animation values.
+    const groundY = 400;
+    const radius = 30;
+    const startY = 95;
+    const elasticX = 310;
+    const inelasticX = 785;
+    const canvasG = 1700; // px/s^2 for animation timing
+    const restitution = 0.78;
+
+    let elasticBall;
+    let inelasticBall;
+    let running = false;
+    let demoFinished = false;
+    let lastTime = null;
+    let step = 0;
+    let prediction = null;
+
+    function resetDemo() {
+      elasticBall = {
+        x: elasticX,
+        y: startY,
+        vy: 0,
+        bounced: false
+      };
+
+      inelasticBall = {
+        x: inelasticX,
+        y: startY,
+        vy: 0,
+        stopped: false
+      };
+
+      running = false;
+      demoFinished = false;
+      lastTime = null;
+      step = 0;
+      prediction = null;
+
+      dropBtn.disabled = false;
+      nextBtn.disabled = true;
+      elasticAnswer.disabled = true;
+      inelasticAnswer.disabled = true;
+      sameAnswer.disabled = true;
+
+      draw();
+    }
+
+    function roundedRect(x, y, w, h, r, fill, stroke) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+      if (stroke) {
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+
+    function drawTextBox(x, y, w, h, title, lines, options = {}) {
+      roundedRect(x, y, w, h, 14, options.fill || "rgba(255,255,255,0.94)", options.stroke || "#cbd5e1");
+
+      ctx.fillStyle = options.titleColor || "#111827";
+      ctx.font = "bold 20px Arial";
+      ctx.textAlign = "left";
+      ctx.fillText(title, x + 18, y + 30);
+
+      ctx.fillStyle = "#1f2937";
+      ctx.font = options.font || "16px Arial";
+
+      let lineY = y + 60;
+      for (const line of lines) {
+        ctx.fillText(line, x + 18, lineY);
+        lineY += options.lineHeight || 24;
+      }
+    }
+
+    function drawBall(ball, color, label) {
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#111827";
+      ctx.stroke();
+
+      ctx.fillStyle = "#111827";
+      ctx.beginPath();
+      ctx.arc(ball.x - 9, ball.y - 7, 3.5, 0, Math.PI * 2);
+      ctx.arc(ball.x + 9, ball.y - 7, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "#111827";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      if (label === "Elastic") {
+        ctx.arc(ball.x, ball.y + 1, 12, 0.1 * Math.PI, 0.9 * Math.PI);
+      } else {
+        ctx.arc(ball.x, ball.y + 17, 12, 1.1 * Math.PI, 1.9 * Math.PI);
+      }
+      ctx.stroke();
+
+      ctx.fillStyle = "#111827";
+      ctx.font = "bold 22px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(label, ball.x, 46);
+      ctx.font = "15px Arial";
+      ctx.fillText(label === "Elastic" ? "bounces upward" : "stops after impact", ball.x, 70);
+    }
+
+    function drawVector(x, y, length, direction, label, color) {
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 5;
+      ctx.font = "bold 16px Arial";
+      ctx.textAlign = "left";
+
+      const endY = direction === "down" ? y + length : y - length;
+
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x, endY);
+      ctx.stroke();
+
+      ctx.beginPath();
+      if (direction === "down") {
+        ctx.moveTo(x - 10, endY - 14);
+        ctx.lineTo(x, endY);
+        ctx.lineTo(x + 10, endY - 14);
+      } else {
+        ctx.moveTo(x - 10, endY + 14);
+        ctx.lineTo(x, endY);
+        ctx.lineTo(x + 10, endY + 14);
+      }
+      ctx.fill();
+
+      ctx.fillText(label, x + 16, y + (endY - y) / 2 + 5);
+      ctx.restore();
+    }
+
+    function drawGroundAndGuides() {
+      // Floor
+      ctx.strokeStyle = "#111827";
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(80, groundY + radius);
+      ctx.lineTo(canvas.width - 80, groundY + radius);
+      ctx.stroke();
+
+      ctx.fillStyle = "#64748b";
+      ctx.font = "16px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("floor", canvas.width / 2, groundY + radius + 28);
+
+      // Starting line
+      ctx.strokeStyle = "#94a3b8";
+      ctx.setLineDash([7, 6]);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(110, startY);
+      ctx.lineTo(canvas.width - 110, startY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = "#475569";
+      ctx.font = "14px Arial";
+      ctx.textAlign = "left";
+      ctx.fillText("same starting height", 115, startY - 10);
+    }
+
+    function drawMainInstruction() {
+      if (step === 0) {
+        drawTextBox(270, 490, 560, 118, "Step 1: Watch the collision.", [
+          "Both balls start from the same height.",
+          "Click “Drop Both Balls” and observe what happens after impact."
+        ], { fill: "rgba(239,246,255,0.96)", stroke: "#2563eb" });
+      }
+
+      if (step === 1) {
+        drawTextBox(230, 490, 640, 125, "Step 2: Initial velocity before impact", [
+          "Right before hitting the floor, both balls move downward.",
+          "Because downward is negative: vi = -4.4 m/s for both balls.",
+          "Same mass and same initial velocity means same initial momentum."
+        ], { fill: "rgba(239,246,255,0.96)", stroke: "#2563eb" });
+      }
+
+      if (step === 2) {
+        drawTextBox(250, 490, 600, 118, "Step 3: Make a prediction", [
+          "Which ball had the greater change in momentum?",
+          "Choose Elastic, Inelastic, or Same using the buttons below."
+        ], { fill: "rgba(254,249,195,0.96)", stroke: "#ca8a04" });
+      }
+
+      if (step === 3) {
+        const predictionLine = prediction
+          ? "Your prediction: " + prediction
+          : "No prediction chosen yet.";
+
+        drawTextBox(210, 485, 680, 140, "Step 4: Final velocity after the collision", [
+          predictionLine,
+          "Elastic Ball: vf = +3.5 m/s because it bounces upward.",
+          "Inelastic Ball: vf = 0 m/s because it stops."
+        ], { fill: "rgba(240,253,244,0.96)", stroke: "#16a34a" });
+      }
+
+      if (step === 4) {
+        drawTextBox(65, 485, 970, 140, "Step 5: Calculate change in momentum", [
+          "Use Δp = |m(vf - vi)|.  Both balls have m = 0.10 kg and vi = -4.4 m/s.",
+          "Elastic:   Δp = |0.10(3.5 - (-4.4))| = 0.79 kg·m/s",
+          "Inelastic: Δp = |0.10(0 - (-4.4))| = 0.44 kg·m/s"
+        ], { fill: "rgba(255,255,255,0.96)", stroke: "#475569", font: "17px Arial" });
+      }
+
+      if (step === 5) {
+        drawTextBox(65, 480, 970, 150, "Step 6: Final momentum and conclusion", [
+          "Elastic final momentum:   pf = mvf = 0.10(3.5) = +0.35 kg·m/s",
+          "Inelastic final momentum: pf = mvf = 0.10(0) = 0 kg·m/s",
+          "The Elastic Ball has the greater Δp because its momentum changes direction."
+        ], { fill: "rgba(220,252,231,0.96)", stroke: "#16a34a", font: "17px Arial" });
+      }
+    }
+
+    function drawEquationPanels() {
+      if (step >= 4) {
+        drawTextBox(75, 115, 420, 150, "Elastic Ball", [
+          "vi = -4.4 m/s",
+          "vf = +3.5 m/s",
+          "Δp = |m(vf - vi)|",
+          "Δp = 0.79 kg·m/s"
+        ], { fill: "rgba(255,251,235,0.96)", stroke: "#f59e0b", titleColor: "#92400e", font: "17px Arial" });
+
+        drawTextBox(605, 115, 420, 150, "Inelastic Ball", [
+          "vi = -4.4 m/s",
+          "vf = 0 m/s",
+          "Δp = |m(vf - vi)|",
+          "Δp = 0.44 kg·m/s"
+        ], { fill: "rgba(239,246,255,0.96)", stroke: "#3b82f6", titleColor: "#1d4ed8", font: "17px Arial" });
+      }
+    }
+
+    function drawFinalMomentumBars() {
+      if (step >= 5) {
+        const baseY = 342;
+        const leftX = 150;
+        const rightX = 680;
+
+        ctx.font = "bold 17px Arial";
+        ctx.textAlign = "left";
+        ctx.fillStyle = "#111827";
+        ctx.fillText("Final momentum pf", 455, 310);
+
+        // Elastic bar upward positive
+        ctx.fillStyle = "#92400e";
+        ctx.fillText("Elastic: +0.35 kg·m/s", leftX, baseY - 55);
+        drawVector(leftX + 250, baseY, 58, "up", "pf up", "#92400e");
+
+        // Inelastic zero
+        ctx.fillStyle = "#1d4ed8";
+        ctx.fillText("Inelastic: 0 kg·m/s", rightX, baseY - 55);
+        ctx.strokeStyle = "#1d4ed8";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(rightX + 250 - 16, baseY);
+        ctx.lineTo(rightX + 250 + 16, baseY);
+        ctx.stroke();
+        ctx.fillText("pf = 0", rightX + 280, baseY + 5);
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawGroundAndGuides();
+
+      drawBall(elasticBall, "#facc15", "Elastic");
+      drawBall(inelasticBall, "#60a5fa", "Inelastic");
+
+      // Velocity vector displays by lesson step.
+      if (step >= 1 && step < 3) {
+        drawVector(elasticBall.x + 48, elasticBall.y - 12, 80, "down", "vi = -4.4 m/s", "#dc2626");
+        drawVector(inelasticBall.x + 48, inelasticBall.y - 12, 80, "down", "vi = -4.4 m/s", "#dc2626");
+      }
+
+      if (step >= 3) {
+        drawVector(elasticBall.x + 48, elasticBall.y + 12, 75, "up", "vf = +3.5 m/s", "#16a34a");
+
+        ctx.strokeStyle = "#1d4ed8";
+        ctx.fillStyle = "#1d4ed8";
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(inelasticBall.x + 28, inelasticBall.y);
+        ctx.lineTo(inelasticBall.x + 68, inelasticBall.y);
+        ctx.stroke();
+
+        ctx.font = "bold 16px Arial";
+        ctx.textAlign = "left";
+        ctx.fillText("vf = 0 m/s", inelasticBall.x + 80, inelasticBall.y + 5);
+      }
+
+      drawEquationPanels();
+      drawFinalMomentumBars();
+      drawMainInstruction();
+    }
+
+    function update(dt) {
+      // Elastic ball falls, then bounces.
+      elasticBall.vy += canvasG * dt;
+      elasticBall.y += elasticBall.vy * dt;
+
+      if (elasticBall.y >= groundY && !elasticBall.bounced) {
+        elasticBall.y = groundY;
+        elasticBall.vy = -elasticBall.vy * restitution;
+        elasticBall.bounced = true;
+      }
+
+      // Inelastic ball falls, then stops.
+      if (!inelasticBall.stopped) {
+        inelasticBall.vy += canvasG * dt;
+        inelasticBall.y += inelasticBall.vy * dt;
+
+        if (inelasticBall.y >= groundY) {
+          inelasticBall.y = groundY;
+          inelasticBall.vy = 0;
+          inelasticBall.stopped = true;
+        }
+      }
+
+      // Stop after the elastic ball clearly bounces upward.
+      if (elasticBall.bounced && elasticBall.vy > 0 && elasticBall.y > 250) {
+        finishDrop();
+      }
+    }
+
+    function animate(ts) {
+      if (!running) return;
+
+      if (lastTime === null) lastTime = ts;
+      const dt = Math.min((ts - lastTime) / 1000, 0.03);
+      lastTime = ts;
+
+      update(dt);
+      draw();
+
+      requestAnimationFrame(animate);
+    }
+
+    function startDrop() {
+      resetDemo();
+      running = true;
+      step = 0;
+      dropBtn.disabled = true;
+      requestAnimationFrame(animate);
+    }
+
+    function finishDrop() {
+      running = false;
+      demoFinished = true;
+      step = 1;
+
+      nextBtn.disabled = false;
+      dropBtn.disabled = true;
+      elasticAnswer.disabled = true;
+      inelasticAnswer.disabled = true;
+      sameAnswer.disabled = true;
+
+      // Freeze balls in clear final positions.
+      elasticBall.y = 270;
+      inelasticBall.y = groundY;
+      draw();
+    }
+
+    function nextStep() {
+      if (!demoFinished) return;
+
+      if (step === 1) {
+        step = 2;
+        elasticAnswer.disabled = false;
+        inelasticAnswer.disabled = false;
+        sameAnswer.disabled = false;
+      } else if (step === 2) {
+        step = 3;
+        elasticAnswer.disabled = true;
+        inelasticAnswer.disabled = true;
+        sameAnswer.disabled = true;
+      } else if (step === 3) {
+        step = 4;
+      } else if (step === 4) {
+        step = 5;
+        nextBtn.disabled = true;
+      }
+
+      draw();
+    }
+
+    function choosePrediction(choice) {
+      prediction = choice;
+
+      if (choice === "Elastic Ball") {
+        prediction = "Elastic Ball";
+      } else if (choice === "Inelastic Ball") {
+        prediction = "Inelastic Ball";
+      } else {
+        prediction = "Same Change";
+      }
+
+      elasticAnswer.disabled = true;
+      inelasticAnswer.disabled = true;
+      sameAnswer.disabled = true;
+      step = 3;
+      draw();
+    }
+
+    resetBtn.addEventListener("click", resetDemo);
+    dropBtn.addEventListener("click", startDrop);
+    nextBtn.addEventListener("click", nextStep);
+
+    elasticAnswer.addEventListener("click", () => choosePrediction("Elastic Ball"));
+    inelasticAnswer.addEventListener("click", () => choosePrediction("Inelastic Ball"));
+    sameAnswer.addEventListener("click", () => choosePrediction("Same Change"));
+
+    resetDemo();
+  </script>
+</body>
+</html>
