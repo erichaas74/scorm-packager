@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Elastic Momentum Prediction Playground</title>
+  <title>Elastic Collision Prediction Playground</title>
   <style>
     :root {
       --navy: #172033;
@@ -100,11 +100,9 @@
     .canvas-start {
       position: absolute;
       left: 50%;
-      bottom: 8px;
-      transform: translateX(-50%);
-      z-index: 10;
-      opacity: 1;
-      background: var(--blue);
+      top: 10%;
+      transform: translate(-50%, -50%);
+      z-index: 2;
       box-shadow: 0 10px 24px rgba(37, 99, 235, 0.24);
     }
 
@@ -118,21 +116,6 @@
       margin-bottom: 10px;
       min-height: 24px;
       font-weight: 700;
-      padding: 9px 11px;
-      border-radius: 8px;
-      border: 1px solid transparent;
-    }
-
-    #message.good {
-      color: #166534;
-      background: #dcfce7;
-      border-color: #86efac;
-    }
-
-    #message.revise {
-      color: #991b1b;
-      background: #fee2e2;
-      border-color: #fca5a5;
     }
 
     .choices {
@@ -345,7 +328,6 @@
             color: #111827;
         }
         .cell-m { width: 64px; }
-        .cell-total { width: 128px; }
         .cell-v { width: 76px; }
         .cell-op { width: 32px; color: #111827; }
         .cell-coef { width: 48px; }
@@ -410,7 +392,7 @@
 <body>
   <div class="game">
     <div class="top">
-      <div class="top-title">Elastic Collision Momentum</div>
+      <div class="top-title">Perfectly Elastic Collision</div>
       <div class="scenario-title" id="scenarioTitle"></div>
       <div class="top-info">
         <button id="resetBtn" class="secondary">Reset Scenario</button>
@@ -420,7 +402,7 @@
 
     <div class="canvas-stage">
       <canvas id="mainCanvas" width="1100" height="294"></canvas>
-      <button id="startBtn" class="canvas-start">Start Collision</button>
+      <button id="startBtn" class="canvas-start">Start to Collision</button>
     </div>
 
       <div id="resultPanel" class="result-panel hidden">
@@ -429,26 +411,51 @@
                 <div id="equations-wrapper">
                     <div id="momentum-section" class="equation-section">
                       <!-- Momentum Section -->
-                      <div class="section-title" id="equationTitle">Total Momentum Before = Total Momentum After</div>
+                      <div class="section-title">Total Momentum Before = Total Momentum After</div>
                       <div class="eq-row">
                           <div id="mom-grid" class="eq-grid text-cyan">
                               <div id="m_m1" class="cell cell-m">m<sub>A</sub></div>
-                              <div id="m_v1" class="cell cell-v"><i>v</i><sub>Ai</sub></div>
+                              <div id="m_v1" class="cell cell-v">v<sub>A</sub></div>
                               <div class="cell cell-op">+</div>
                               <div id="m_m2" class="cell cell-m text-rose">m<sub>B</sub></div>
-                              <div id="m_v2" class="cell cell-v text-rose"><i>v</i><sub>Bi</sub></div>
+                              <div id="m_v2" class="cell cell-v text-rose">v<sub>B</sub></div>
                               <div class="cell cell-op">=</div>
                               <div id="m_m3" class="cell cell-m">m<sub>A</sub></div>
-                              <div id="m_v3" class="cell cell-v"><i>v</i><sub>Af</sub></div>
+                              <div id="m_v3" class="cell cell-v">v'<sub>A</sub></div>
                               <div class="cell cell-op">+</div>
                               <div id="m_m4" class="cell cell-m text-rose">m<sub>B</sub></div>
-                              <div id="m_v4" class="cell cell-v text-rose"><i>v</i><sub>Bf</sub></div>
+                              <div id="m_v4" class="cell cell-v text-rose">v'<sub>B</sub></div>
                           </div>
                           <div id="mom-result" class="result-overlay text-green">
                           </div>
                       </div>
                     </div>
 
+                    <div id="ke-section" class="equation-section hidden">
+                      <!-- Kinetic Energy Section -->
+                      <div class="section-title">Total Kinetic Energy Before = Total Kinetic Energy After</div>
+                      <div class="eq-row">
+                          <div id="ke-grid" class="eq-grid text-cyan">
+                              <div class="cell cell-coef">1/2</div>
+                              <div id="k_m1" class="cell cell-m">m<sub>A</sub></div>
+                              <div id="k_v1" class="cell cell-v">v<sub>A</sub><sup>2</sup></div>
+                              <div class="cell cell-op">+</div>
+                              <div class="cell cell-coef text-rose">1/2</div>
+                              <div id="k_m2" class="cell cell-m text-rose">m<sub>B</sub></div>
+                              <div id="k_v2" class="cell cell-v text-rose">v<sub>B</sub><sup>2</sup></div>
+                              <div class="cell cell-op">=</div>
+                              <div class="cell cell-coef">1/2</div>
+                              <div id="k_m3" class="cell cell-m">m<sub>A</sub></div>
+                              <div id="k_v3" class="cell cell-v">v'<sub>A</sub><sup>2</sup></div>
+                              <div class="cell cell-op">+</div>
+                              <div class="cell cell-coef text-rose">1/2</div>
+                              <div id="k_m4" class="cell cell-m text-rose">m<sub>B</sub></div>
+                              <div id="k_v4" class="cell cell-v text-rose">v'<sub>B</sub><sup>2</sup></div>
+                          </div>
+                          <div id="ke-result" class="result-overlay text-green">
+                          </div>
+                      </div>
+                    </div>
                 </div>
             </div>
       </div>
@@ -515,75 +522,71 @@
       m_m3: document.getElementById("m_m3"),
       m_v3: document.getElementById("m_v3"),
       m_m4: document.getElementById("m_m4"),
-      m_v4: document.getElementById("m_v4")
+      m_v4: document.getElementById("m_v4"),
+      k_m1: document.getElementById("k_m1"),
+      k_v1: document.getElementById("k_v1"),
+      k_m2: document.getElementById("k_m2"),
+      k_v2: document.getElementById("k_v2"),
+      k_m3: document.getElementById("k_m3"),
+      k_v3: document.getElementById("k_v3"),
+      k_m4: document.getElementById("k_m4"),
+      k_v4: document.getElementById("k_v4")
     };
     const momGrid = document.getElementById("mom-grid");
+    const keGrid = document.getElementById("ke-grid");
     const momResult = document.getElementById("mom-result");
+    const keResult = document.getElementById("ke-result");
     const momentumSection = document.getElementById("momentum-section");
-    const equationTitle = document.getElementById("equationTitle");
+    const keSection = document.getElementById("ke-section");
 
     const scenarios = [
       {
         title: "Equal Mass Transfer",
         description: "Cart A moves right into identical Cart B at rest.",
         m1: 1, u1: 3, m2: 1, u2: 0,
-        askFor: "B",
-        colors: { aFill: "#93c5fd", aStroke: "#2563eb", bFill: "#fdba74", bStroke: "#d97706" },
-        explanation: "Cart A stops after impact, so momentum predicts Cart B's final velocity."
+        explanation: "Equal masses exchange velocities. Cart A stops, and Cart B takes Cart A's original speed."
       },
       {
         title: "Equal Mass Head-On",
         description: "Two identical carts move toward each other with equal speeds.",
         m1: 1, u1: 2, m2: 1, u2: -2,
-        askFor: "B",
-        colors: { aFill: "#a7f3d0", aStroke: "#059669", bFill: "#f0abfc", bStroke: "#c026d3" },
-        explanation: "Cart A reverses direction after impact, so momentum predicts Cart B's final velocity."
+        explanation: "Equal masses exchange velocities. Each cart reverses direction with the same speed."
       },
       {
         title: "Light Cart Hits Heavy Cart",
         description: "A light Cart A moves right into a heavier Cart B at rest.",
         m1: 1, u1: 4, m2: 4, u2: 0,
-        askFor: "B",
-        colors: { aFill: "#bfdbfe", aStroke: "#1d4ed8", bFill: "#fecaca", bStroke: "#dc2626" },
-        explanation: "Cart A rebounds left after impact, so momentum predicts the heavy cart's final velocity."
+        explanation: "The light cart rebounds left, while the heavy cart moves right slowly."
       },
       {
         title: "Heavy Cart Hits Light Cart",
         description: "A heavy Cart A moves right into a lighter Cart B at rest.",
         m1: 4, u1: 3, m2: 1, u2: 0,
-        askFor: "B",
-        colors: { aFill: "#ddd6fe", aStroke: "#7c3aed", bFill: "#fde68a", bStroke: "#ca8a04" },
-        explanation: "Cart A keeps moving right after impact, so momentum predicts the light cart's final velocity."
+        explanation: "The heavy cart keeps moving right, and the lighter cart launches right faster."
       },
       {
-        title: "Rear-End Collision",
+        title: "Rear-End Elastic Collision",
         description: "Cart A is behind Cart B and moving faster in the same direction.",
         m1: 2, u1: 4, m2: 1, u2: 1,
-        askFor: "B",
-        colors: { aFill: "#99f6e4", aStroke: "#0f766e", bFill: "#fed7aa", bStroke: "#ea580c" },
-        explanation: "Cart A slows after impact, so momentum predicts Cart B's faster final velocity."
+        explanation: "The faster rear cart transfers motion to the front cart. Cart A slows down, and Cart B speeds up."
       },
       {
         title: "Unequal Head-On Collision",
         description: "A light Cart A moves right into a heavier Cart B moving left slowly.",
         m1: 1, u1: 3, m2: 3, u2: -1,
-        askFor: "B",
-        colors: { aFill: "#c4b5fd", aStroke: "#6d28d9", bFill: "#bbf7d0", bStroke: "#16a34a" },
-        explanation: "Cart A rebounds left after impact, so momentum predicts Cart B's final velocity."
+        explanation: "The lighter cart rebounds left strongly, while the heavier cart changes direction and moves right slowly."
       }
     ];
 
     let scenarioIndex = 0;
     let current = null;
     let options = [];
-    let momentumOptions = [];
     let selected = -1;
-    let stage = "setup"; // setup, movingToCollision, momentumChoice, choose, result
+    let stage = "setup"; // setup, movingToCollision, choose, result
     let stageStart = 0;
     let clock = 0;
     let collisionData = null;
     let equationTimers = [];
-    let advanceTimer = null;
     let evaluatingChoice = false;
 
     const trackY = 196;
@@ -602,20 +605,8 @@
       return m1 * v1 + m2 * v2;
     }
 
-    function targetCart(s) {
-      return s.askFor === "A" ? "A" : "B";
-    }
-
-    function givenCart(s) {
-      return targetCart(s) === "A" ? "B" : "A";
-    }
-
-    function cartFinalVelocity(final, cart) {
-      return cart === "A" ? final.v1 : final.v2;
-    }
-
-    function finalMomentum(s, option) {
-      return momentum(s.m1, option.v1, s.m2, option.v2);
+    function kineticEnergy(m1, v1, m2, v2) {
+      return 0.5 * m1 * v1 * v1 + 0.5 * m2 * v2 * v2;
     }
 
     function fmt(value, digits = 2) {
@@ -632,40 +623,10 @@
       return v > 0 ? "right" : "left";
     }
 
-    function cartStyle(cart, s = current) {
-      const colors = s && s.colors ? s.colors : scenarios[0].colors;
-      return cart === "A"
-        ? { fill: colors.aFill, stroke: colors.aStroke }
-        : { fill: colors.bFill, stroke: colors.bStroke };
-    }
-
-    function cartStroke(cart, s = current) {
-      return cartStyle(cart, s).stroke;
-    }
-
-    function velocityLabelHtml(cart, phase) {
-      return `<i>v</i><sub>${cart}${phase}</sub>`;
-    }
-
-    function velocityLabel(cart, phase, value, prefix = "") {
-      return {
-        kind: "velocity",
-        prefix,
-        cart,
-        phase,
-        value
-      };
-    }
-
     function loadScenario(index) {
-      if (advanceTimer) {
-        window.clearTimeout(advanceTimer);
-        advanceTimer = null;
-      }
       scenarioIndex = (index + scenarios.length) % scenarios.length;
       current = scenarios[scenarioIndex];
       options = buildOptions(current);
-      momentumOptions = buildMomentumOptions(current);
       selected = -1;
       evaluatingChoice = false;
       stage = "setup";
@@ -675,8 +636,6 @@
       nextBtn.textContent = "Next Scenario " + (scenarioIndex + 1) + " / " + scenarios.length;
       scenarioTitle.textContent = current.title;
       message.textContent = "";
-      message.className = "";
-      message.style.display = "none";
       choicesEl.classList.add("hidden");
       startBtn.disabled = false;
       resultPanel.classList.add("hidden");
@@ -687,96 +646,60 @@
     }
 
     function buildOptions(s) {
-      const final = elasticFinal(s.m1, s.u1, s.m2, s.u2);
-      const target = targetCart(s);
-      const correct = cartFinalVelocity(final, target);
-      const spread = Math.max(0.75, Math.abs(correct) * 0.25 + 0.55);
+      const correct = elasticFinal(s.m1, s.u1, s.m2, s.u2);
+      const pBefore = momentum(s.m1, s.u1, s.m2, s.u2);
+      const common = momentum(s.m1, s.u1, s.m2, s.u2) / (s.m1 + s.m2);
+      const lowerEnergyV1 = correct.v1 + (common - correct.v1) * 0.65;
+      const higherEnergyV1 = correct.v1 + (correct.v1 - common) * 0.45;
+      const extraLowerEnergyV1 = correct.v1 + (common - correct.v1) * 0.4;
+      const extraHigherEnergyV1 = correct.v1 + (correct.v1 - common) * 0.75;
 
       const candidates = [
-        makeFinalVelocityChoice(s, final, correct, "correct", "Momentum result", true),
-        makeFinalVelocityChoice(s, final, correct + spread, "tooFast", "Too much final momentum", false),
-        makeFinalVelocityChoice(s, final, correct - spread, "tooSlow", "Too little final momentum", false),
-        makeFinalVelocityChoice(s, final, correct + spread * 1.65, "muchTooFast", "Too much final momentum", false),
-        makeFinalVelocityChoice(s, final, correct - spread * 1.65, "muchTooSlow", "Too little final momentum", false)
+        {
+          type: "correct",
+          label: "Correct elastic result",
+          v1: correct.v1,
+          v2: correct.v2,
+          correct: true
+        },
+        makeMomentumChoice(s, pBefore, lowerEnergyV1, "momentumOnly", "Momentum conserved, energy lost"),
+        makeMomentumChoice(s, pBefore, higherEnergyV1, "energyIncrease", "Energy increases: impossible"),
+        makeMomentumChoice(s, pBefore, extraLowerEnergyV1, "momentumOnlyExtra", "Momentum conserved, energy changed"),
+        makeMomentumChoice(s, pBefore, extraHigherEnergyV1, "energyIncreaseExtra", "Too much kinetic energy")
       ];
 
       const picked = [candidates[0]];
       for (const candidate of candidates.slice(1)) {
         if (picked.length >= 3) break;
+        if (!isUsableElasticDistractor(candidate)) continue;
         if (isDistinct(candidate, picked)) picked.push(candidate);
       }
 
       return shuffle(picked);
     }
 
-    function buildMomentumOptions(s) {
-      const correct = momentum(s.m1, s.u1, s.m2, s.u2);
-      const candidates = [
-        makeMomentumChoice(correct, "correct", true),
-        makeMomentumChoice(momentum(s.m1, -s.u1, s.m2, s.u2), "wrongSign1", false),
-        makeMomentumChoice(momentum(s.m1, s.u1, s.m2, -s.u2), "wrongSign2", false),
-        makeMomentumChoice(momentum(s.m1, -s.u1, s.m2, -s.u2), "wrongSignBoth", false)
-      ];
-
-      const picked = [candidates[0]];
-      for (const candidate of candidates.slice(1)) {
-        if (picked.length >= 3) break;
-        if (isDistinctMomentum(candidate, picked)) picked.push(candidate);
-      }
-
-      const fallbackStep = Math.max(1, Math.abs(s.m1 * s.u1), Math.abs(s.m2 * s.u2));
-      const fallbackValues = [
-        -correct,
-        correct + fallbackStep,
-        correct - fallbackStep,
-        correct + 2 * fallbackStep,
-        correct - 2 * fallbackStep
-      ];
-
-      for (const value of fallbackValues) {
-        if (picked.length >= 3) break;
-        const candidate = makeMomentumChoice(value, "signErrorFallback", false);
-        if (isDistinctMomentum(candidate, picked)) picked.push(candidate);
-      }
-
-      return shuffle(picked);
-    }
-
-    function makeMomentumChoice(value, type, correct) {
-      return {
-        type,
-        value,
-        correct
-      };
-    }
-
-    function isDistinctMomentum(candidate, picked) {
-      return picked.every(item => Math.abs(item.value - candidate.value) > 0.05);
-    }
-
-    function makeFinalVelocityChoice(s, final, targetVelocity, type, label, correct) {
-      const target = targetCart(s);
-      const given = givenCart(s);
-      const givenVelocity = cartFinalVelocity(final, given);
-      const v1 = target === "A" ? targetVelocity : givenVelocity;
-      const v2 = target === "B" ? targetVelocity : givenVelocity;
-
+    function makeMomentumChoice(s, pBefore, v1, type, label) {
       return {
         type,
         label,
-        target,
-        given,
-        targetVelocity,
-        givenVelocity,
         v1,
-        v2,
-        correct
+        v2: (pBefore - s.m1 * v1) / s.m2,
+        correct: false
       };
+    }
+
+    function isUsableElasticDistractor(option) {
+      return keepsCartsSeparated(option) && Math.abs(option.v2 - option.v1) > 0.25;
+    }
+
+    function keepsCartsSeparated(option) {
+      return option.v2 + 0.05 >= option.v1;
     }
 
     function isDistinct(candidate, picked) {
       return picked.every(item => {
-        return Math.abs(item.targetVelocity - candidate.targetVelocity) > 0.35;
+        const distance = Math.abs(item.v1 - candidate.v1) + Math.abs(item.v2 - candidate.v2);
+        return distance > 0.75;
       });
     }
 
@@ -836,26 +759,11 @@
           choiceLabels[i].textContent = "";
           continue;
         }
-        choiceLabels[i].innerHTML = `Predict ${velocityLabelHtml(options[i].target, "f")} = ${fmt(options[i].targetVelocity)} m/s`;
-      }
-    }
-
-    function updateMomentumChoiceLabels() {
-      for (let i = 0; i < 3; i++) {
-        if (!momentumOptions[i]) {
-          choiceLabels[i].textContent = "";
-          continue;
-        }
-        choiceLabels[i].innerHTML = `p<sub>before</sub> = ${fmt(momentumOptions[i].value)} kg&middot;m/s`;
+        choiceLabels[i].textContent = `Final: A ${fmt(options[i].v1)} m/s, B ${fmt(options[i].v2)} m/s`;
       }
     }
 
     function chooseCard(index) {
-      if (stage === "momentumChoice") {
-        chooseMomentumCard(index);
-        return;
-      }
-
       if (stage !== "choose" || evaluatingChoice) return;
 
       selected = index;
@@ -872,79 +780,18 @@
       message.textContent = "";
     }
 
-    function showBeforeMomentumStep() {
-      const s = current;
-
-      resetEquationGrid();
-      resultPanel.classList.remove("hidden");
-      equationTitle.textContent = "Total Momentum Before Collision";
-      momentumSection.classList.remove("hidden");
-      momGrid.style.opacity = "1";
-      momResult.style.opacity = "0";
-      message.textContent = "";
-      choicesEl.classList.remove("hidden");
-      updateMomentumChoiceLabels();
-
-      queueEquationStep(() => {
-        equationCells.m_m1.innerHTML = fmt(s.m1, 0);
-        equationCells.m_v1.innerHTML = fmt(s.u1);
-        equationCells.m_m2.innerHTML = fmt(s.m2, 0);
-        equationCells.m_v2.innerHTML = fmt(s.u2);
-        equationCells.m_m3.innerHTML = "p<sub>before</sub>";
-        equationCells.m_v3.innerHTML = "?";
-        equationCells.m_m4.innerHTML = "";
-        equationCells.m_v4.innerHTML = "";
-      }, 200);
-    }
-
-    function chooseMomentumCard(index) {
-      if (evaluatingChoice || !momentumOptions[index]) return;
-
-      selected = index;
-      evaluatingChoice = true;
-      const option = momentumOptions[index];
-      const correctIndex = momentumOptions.findIndex(item => item.correct);
-
-      cards.forEach(card => card.classList.add("disabled"));
-      updateMomentumChoiceLabels();
-
-      queueEquationStep(() => {
-        equationCells.m_v3.innerHTML = fmt(option.value);
-        momResult.className = `result-overlay ${option.correct ? "text-green" : "text-red"}`;
-        momResult.textContent = option.correct
-          ? `p before = ${fmt(option.value)} kg·m/s`
-          : `p before is ${fmt(momentumOptions[correctIndex].value)} kg·m/s`;
-        momResult.style.opacity = "1";
-
-        if (option.correct) {
-          cards[index].classList.add("correct");
-        } else {
-          cards[index].classList.add("wrong");
-          if (correctIndex !== -1) cards[correctIndex].classList.add("correct");
-        }
-      }, 250);
-
-      queueEquationStep(() => {
-        selected = -1;
-        evaluatingChoice = false;
-        resetCards();
-        updateChoiceLabels(true);
-        stage = "choose";
-        stageStart = clock;
-        resultPanel.classList.add("hidden");
-        resetEquationGrid();
-      }, 1850);
-    }
-
     function showEquationMath(option, index) {
       const s = current;
       const pBefore = momentum(s.m1, s.u1, s.m2, s.u2);
-      const pAfter = finalMomentum(s, option);
+      const pAfter = momentum(s.m1, option.v1, s.m2, option.v2);
+      const keBefore = kineticEnergy(s.m1, s.u1, s.m2, s.u2);
+      const keAfter = kineticEnergy(s.m1, option.v1, s.m2, option.v2);
       const momentumConserved = nearlyEqual(pBefore, pAfter);
+      const energyConserved = nearlyEqual(keBefore, keAfter);
 
       resetEquationGrid();
-      equationTitle.textContent = "Total Momentum Before = Total Momentum After";
       momentumSection.classList.remove("hidden");
+      keSection.classList.add("hidden");
       momGrid.style.opacity = "1";
       momResult.style.opacity = "0";
 
@@ -954,9 +801,9 @@
         equationCells.m_m2.innerHTML = fmt(s.m2, 0);
         equationCells.m_v2.innerHTML = fmt(s.u2);
         equationCells.m_m3.innerHTML = fmt(s.m1, 0);
-        equationCells.m_v3.innerHTML = option.target === "A" ? fmt(option.targetVelocity) : fmt(option.givenVelocity);
+        equationCells.m_v3.innerHTML = fmt(option.v1);
         equationCells.m_m4.innerHTML = fmt(s.m2, 0);
-        equationCells.m_v4.innerHTML = option.target === "B" ? fmt(option.targetVelocity) : fmt(option.givenVelocity);
+        equationCells.m_v4.innerHTML = fmt(option.v2);
       }, 250);
 
       queueEquationStep(() => {
@@ -966,37 +813,39 @@
       }, 1150);
 
       queueEquationStep(() => {
+        momentumSection.classList.add("hidden");
+        keSection.classList.remove("hidden");
+      }, 3000);
+
+      queueEquationStep(() => {
+        equationCells.k_m1.innerHTML = fmt(s.m1, 0);
+        equationCells.k_v1.innerHTML = `(${fmt(s.u1)})<sup>2</sup>`;
+        equationCells.k_m2.innerHTML = fmt(s.m2, 0);
+        equationCells.k_v2.innerHTML = `(${fmt(s.u2)})<sup>2</sup>`;
+        equationCells.k_m3.innerHTML = fmt(s.m1, 0);
+        equationCells.k_v3.innerHTML = `(${fmt(option.v1)})<sup>2</sup>`;
+        equationCells.k_m4.innerHTML = fmt(s.m2, 0);
+        equationCells.k_v4.innerHTML = `(${fmt(option.v2)})<sup>2</sup>`;
+      }, 3250);
+
+      queueEquationStep(() => {
+        keResult.className = `result-overlay ${energyConserved ? "text-green" : "text-red"}`;
+        keResult.textContent = `${fmt(keBefore)} = ${fmt(keAfter)} ${energyConserved ? "conserved" : "not conserved"}`;
+        keResult.style.opacity = "1";
+      }, 4150);
+
+      queueEquationStep(() => {
         evaluatingChoice = false;
-        const correctIndex = options.findIndex(item => item.correct);
-        if (momentumConserved) {
+        if (momentumConserved && energyConserved) {
           cards[index].classList.add("correct");
+          stage = "result";
+          stageStart = clock;
         } else {
           cards[index].classList.add("wrong");
-          if (correctIndex !== -1) cards[correctIndex].classList.add("correct");
+          cards.forEach(card => card.classList.remove("disabled"));
+          selected = -1;
         }
-        showFeedback(momentumConserved);
-        stage = "result";
-        stageStart = clock;
-        scheduleNextScenario();
-      }, 2450);
-    }
-
-    function showFeedback(isCorrect) {
-      const nextIndex = (scenarioIndex + 1) % scenarios.length;
-      const nextTitle = scenarios[nextIndex].title;
-      message.style.display = "block";
-      message.className = isCorrect ? "good" : "revise";
-      message.textContent = isCorrect
-        ? `Correct. Loading ${nextTitle} next...`
-        : `Not quite. The conserved-momentum choice is highlighted. Loading ${nextTitle} next...`;
-    }
-
-    function scheduleNextScenario() {
-      if (advanceTimer) window.clearTimeout(advanceTimer);
-      advanceTimer = window.setTimeout(() => {
-        advanceTimer = null;
-        loadScenario(scenarioIndex + 1);
-      }, 2600);
+      }, 5200);
     }
 
     function queueEquationStep(callback, delay) {
@@ -1010,13 +859,21 @@
     function resetEquationGrid() {
       const symbols = {
         m_m1: "m<sub>A</sub>",
-        m_v1: "<i>v</i><sub>Ai</sub>",
+        m_v1: "v<sub>A</sub>",
         m_m2: "m<sub>B</sub>",
-        m_v2: "<i>v</i><sub>Bi</sub>",
+        m_v2: "v<sub>B</sub>",
         m_m3: "m<sub>A</sub>",
-        m_v3: "<i>v</i><sub>Af</sub>",
+        m_v3: "v'<sub>A</sub>",
         m_m4: "m<sub>B</sub>",
-        m_v4: "<i>v</i><sub>Bf</sub>"
+        m_v4: "v'<sub>B</sub>",
+        k_m1: "m<sub>A</sub>",
+        k_v1: "v<sub>A</sub><sup>2</sup>",
+        k_m2: "m<sub>B</sub>",
+        k_v2: "v<sub>B</sub><sup>2</sup>",
+        k_m3: "m<sub>A</sub>",
+        k_v3: "v'<sub>A</sub><sup>2</sup>",
+        k_m4: "m<sub>B</sub>",
+        k_v4: "v'<sub>B</sub><sup>2</sup>"
       };
 
       for (const [id, value] of Object.entries(symbols)) {
@@ -1025,10 +882,42 @@
       equationTimers.forEach(timer => window.clearTimeout(timer));
       equationTimers = [];
       momResult.textContent = "";
+      keResult.textContent = "";
       momResult.style.opacity = "0";
+      keResult.style.opacity = "0";
       momGrid.style.opacity = "1";
-      equationTitle.textContent = "Total Momentum Before = Total Momentum After";
+      keGrid.style.opacity = "1";
       momentumSection.classList.remove("hidden");
+      keSection.classList.add("hidden");
+    }
+
+    function showMath() {
+      return;
+
+      const s = current;
+      const final = elasticFinal(s.m1, s.u1, s.m2, s.u2);
+      const pBefore = momentum(s.m1, s.u1, s.m2, s.u2);
+      const pAfter = momentum(s.m1, final.v1, s.m2, final.v2);
+      const keBefore = kineticEnergy(s.m1, s.u1, s.m2, s.u2);
+      const keAfter = kineticEnergy(s.m1, final.v1, s.m2, final.v2);
+
+      resultExplanation.textContent = current.explanation;
+
+      aVelocityMath.innerHTML =
+        `Before: ${fmt(s.u1)} m/s ${directionWord(s.u1)}<br>` +
+        `After: ${fmt(final.v1)} m/s ${directionWord(final.v1)}`;
+
+      bVelocityMath.innerHTML =
+        `Before: ${fmt(s.u2)} m/s ${directionWord(s.u2)}<br>` +
+        `After: ${fmt(final.v2)} m/s ${directionWord(final.v2)}`;
+
+      momentumMath.innerHTML =
+        `Before: ${fmt(pBefore)} kg·m/s<br>` +
+        `After: ${fmt(pAfter)} kg·m/s`;
+
+      energyMath.innerHTML =
+        `Before: ${fmt(keBefore)} J<br>` +
+        `After: ${fmt(keAfter)} J`;
     }
 
     function drawMain() {
@@ -1056,13 +945,14 @@
         x2 = lerp(d.startX2, d.collisionX2, eased);
 
         if (t >= 1) {
-          stage = "momentumChoice";
+          stage = "choose";
           stageStart = clock;
-          showBeforeMomentumStep();
+          choicesEl.classList.remove("hidden");
+          message.textContent = "";
         }
       }
 
-      if (stage === "momentumChoice" || stage === "choose") {
+      if (stage === "choose") {
         x1 = d.collisionX1;
         x2 = d.collisionX2;
         v1 = s.u1;
@@ -1094,25 +984,19 @@
         }
       }
 
-      const styleA = cartStyle("A", s);
-      const styleB = cartStyle("B", s);
-      if (stage === "momentumChoice" || stage === "choose" || (stage === "result" && resultPhase === "after")) {
-        drawStartingGhosts(s, d, styleA, styleB);
-      }
-      drawCart(ctx, x1, trackY - cartH / 2, d.w1, cartH, "A", s.m1, styleA.fill, styleA.stroke);
-      drawCart(ctx, x2, trackY - cartH / 2, d.w2, cartH, "B", s.m2, styleB.fill, styleB.stroke);
+      drawCart(ctx, x1, trackY - cartH / 2, d.w1, cartH, "A", s.m1, "#93c5fd", "#2563eb");
+      drawCart(ctx, x2, trackY - cartH / 2, d.w2, cartH, "B", s.m2, "#fdba74", "#d97706");
       if (showCollisionBurst) drawCollisionBurst();
 
       if (stage === "setup" || stage === "movingToCollision" || (stage === "result" && resultPhase === "before")) {
-        drawVelocityArrow(ctx, x1, trackY - 95, s.u1, styleA.stroke, velocityLabel("A", "i", `= ${fmt(s.u1)} m/s`));
-        drawVelocityArrow(ctx, x2, trackY - 95, s.u2, styleB.stroke, velocityLabel("B", "i", `= ${fmt(s.u2)} m/s`));
-      } else if (stage === "momentumChoice") {
-        drawText(ctx, "Choose total momentum before collision", mainCanvas.width / 2, 72, 15, "#0f766e", "center");
+        drawVelocityArrow(ctx, x1, trackY - 95, s.u1, "#2563eb", `vA = ${fmt(s.u1)} m/s`);
+        drawVelocityArrow(ctx, x2, trackY - 95, s.u2, "#d97706", `vB = ${fmt(s.u2)} m/s`);
       } else if (stage === "choose") {
-        drawFinalVelocityPrompt(final);
+        drawVelocityArrow(ctx, x1, trackY - 95, v1, "#2563eb", `vA = ${fmt(v1)} m/s`);
+        drawVelocityArrow(ctx, x2, trackY - 95, v2, "#d97706", `vB = ${fmt(v2)} m/s`);
       } else {
-        drawVelocityArrow(ctx, x1, trackY - 95, v1, styleA.stroke, velocityLabel("A", "f", `= ${fmt(v1)} m/s`));
-        drawVelocityArrow(ctx, x2, trackY - 95, v2, styleB.stroke, velocityLabel("B", "f", `= ${fmt(v2)} m/s`));
+        drawVelocityArrow(ctx, x1, trackY - 95, v1, "#2563eb", `vA' = ${fmt(v1)} m/s`);
+        drawVelocityArrow(ctx, x2, trackY - 95, v2, "#d97706", `vB' = ${fmt(v2)} m/s`);
       }
 
     }
@@ -1165,7 +1049,7 @@
 
     function drawCollisionBurst() {
       const center = collisionData.collisionPoint;
-      const y = trackY + 48 - mainCanvas.height * 0.08;
+      const y = trackY + 48;
       ctx.strokeStyle = "#dc2626";
       ctx.fillStyle = "rgba(254,226,226,0.95)";
       ctx.lineWidth = 4;
@@ -1188,64 +1072,26 @@
       ctx.stroke();
     }
 
-    function drawStartingGhosts(s, d, styleA, styleB) {
-      ctx.globalAlpha = 0.22;
-      drawCart(ctx, d.startX1, trackY - cartH / 2, d.w1, cartH, "A", s.m1, styleA.fill, styleA.stroke);
-      drawCart(ctx, d.startX2, trackY - cartH / 2, d.w2, cartH, "B", s.m2, styleB.fill, styleB.stroke);
-      ctx.globalAlpha = 0.62;
-      drawVelocityArrow(ctx, d.startX1, trackY - 145, s.u1, styleA.stroke, velocityLabel("A", "i", `= ${fmt(s.u1)} m/s`, "start "));
-      drawVelocityArrow(ctx, d.startX2, trackY - 145, s.u2, styleB.stroke, velocityLabel("B", "i", `= ${fmt(s.u2)} m/s`, "start "));
-      ctx.globalAlpha = 1;
-    }
-
-    function drawFinalVelocityPrompt(final) {
-      const target = targetCart(current);
-      const given = givenCart(current);
-      const d = collisionData;
-      const givenX = given === "A" ? d.collisionX1 : d.collisionX2;
-      const targetX = target === "A" ? d.collisionX1 : d.collisionX2;
-      const v = cartFinalVelocity(final, given);
-      const color = cartStroke(given);
-      drawVelocityArrow(ctx, givenX, trackY - 102, v, color, velocityLabel(given, "f", `= ${fmt(v)} m/s`, "given "));
-      drawQuestionVelocity(ctx, targetX, trackY - 102, "#0f766e", velocityLabel(target, "f", "= ?"));
-    }
-
-    function drawQuestionVelocity(drawCtx, x, y, color, label) {
-      drawCtx.font = "bold 15px Arial";
-      const textWidth = measureCanvasLabel(drawCtx, label, 15) + 18;
-      roundedRect(drawCtx, x - textWidth / 2, y - 16, textWidth, 30, 8);
-      drawCtx.fillStyle = "rgba(255,255,255,0.96)";
-      drawCtx.strokeStyle = color;
-      drawCtx.lineWidth = 2;
-      drawCtx.fill();
-      drawCtx.stroke();
-      drawCanvasLabel(drawCtx, label, x, y + 5, 15, color, "center");
-    }
-
     function drawAfterGhosts(final) {
       const d = collisionData;
-      const styleA = cartStyle("A");
-      const styleB = cartStyle("B");
       ctx.globalAlpha = 0.18;
-      drawCart(ctx, d.collisionX1, trackY - cartH / 2, d.w1, cartH, "A", current.m1, styleA.fill, styleA.stroke);
-      drawCart(ctx, d.collisionX2, trackY - cartH / 2, d.w2, cartH, "B", current.m2, styleB.fill, styleB.stroke);
+      drawCart(ctx, d.collisionX1, trackY - cartH / 2, d.w1, cartH, "A", current.m1, "#93c5fd", "#2563eb");
+      drawCart(ctx, d.collisionX2, trackY - cartH / 2, d.w2, cartH, "B", current.m2, "#fdba74", "#d97706");
       ctx.globalAlpha = 1;
 
       ctx.setLineDash([6, 7]);
       ctx.lineWidth = 3;
-      ctx.strokeStyle = styleA.stroke;
-      ctx.globalAlpha = 0.45;
+      ctx.strokeStyle = "rgba(37,99,235,0.45)";
       ctx.beginPath();
       ctx.moveTo(d.collisionX1, trackY - cartH / 2);
       ctx.lineTo(d.collisionX1 + final.v1 * afterScale * 2.4, trackY - cartH / 2);
       ctx.stroke();
 
-      ctx.strokeStyle = styleB.stroke;
+      ctx.strokeStyle = "rgba(217,119,6,0.45)";
       ctx.beginPath();
       ctx.moveTo(d.collisionX2, trackY - cartH / 2 + 12);
       ctx.lineTo(d.collisionX2 + final.v2 * afterScale * 2.4, trackY - cartH / 2 + 12);
       ctx.stroke();
-      ctx.globalAlpha = 1;
       ctx.setLineDash([]);
     }
 
@@ -1272,8 +1118,6 @@
 
         if (stage === "setup" || stage === "movingToCollision") {
           drawMiniWaiting(cctx, c.width, c.height);
-        } else if (stage === "momentumChoice") {
-          drawMiniMomentumChoice(cctx, c.width, c.height, momentumOptions[i]);
         } else {
           drawMiniAfterPath(cctx, c.width, c.height, options[i], i);
         }
@@ -1284,30 +1128,8 @@
       drawText(cctx, "after-collision path", width / 2, 66, 14, "#94a3b8", "center");
     }
 
-    function drawMiniMomentumChoice(cctx, width, height, option) {
-      if (!option) return;
-
-      drawText(cctx, "total momentum before", width / 2, 46, 13, "#475569", "center");
-      cctx.font = "bold 22px Arial";
-      const value = `${fmt(option.value)} kg·m/s`;
-      const textWidth = cctx.measureText(value).width + 24;
-      cctx.fillStyle = "rgba(255,255,255,0.96)";
-      cctx.strokeStyle = option.correct && selected !== -1 ? "#16a34a" : "#64748b";
-      cctx.lineWidth = 2;
-      roundedRect(cctx, width / 2 - textWidth / 2, 61, textWidth, 36, 8);
-      cctx.fill();
-      cctx.stroke();
-      drawText(cctx, value, width / 2, 86, 20, "#172033", "center");
-
-      if (selected !== -1) {
-        drawText(cctx, option.correct ? "correct p before" : "wrong sign", width / 2, 137, 12, option.correct ? "#15803d" : "#64748b", "center");
-      }
-    }
-
     function drawMiniAfterPath(cctx, width, height, option, index) {
       const s = current;
-      const styleA = cartStyle("A", s);
-      const styleB = cartStyle("B", s);
       const w1 = 48 + s.m1 * 6;
       const w2 = 48 + s.m2 * 6;
       const startA = width / 2 - w2 / 2;
@@ -1322,41 +1144,33 @@
       x2 = clamp(x2, -35, width + 35);
 
       cctx.setLineDash([4, 5]);
-      cctx.strokeStyle = styleA.stroke;
-      cctx.globalAlpha = 0.38;
+      cctx.strokeStyle = "rgba(37,99,235,0.38)";
       cctx.lineWidth = 2;
       cctx.beginPath();
       cctx.moveTo(startA, 80);
       cctx.lineTo(x1, 80);
       cctx.stroke();
 
-      cctx.strokeStyle = styleB.stroke;
+      cctx.strokeStyle = "rgba(217,119,6,0.38)";
       cctx.beginPath();
       cctx.moveTo(startB, 91);
       cctx.lineTo(x2, 91);
       cctx.stroke();
       cctx.setLineDash([]);
-      cctx.globalAlpha = 1;
 
       cctx.globalAlpha = 0.22;
-      drawMiniCart(cctx, startA, 80, w1, 38, "A", s.m1, styleA.fill, styleA.stroke);
-      drawMiniCart(cctx, startB, 80, w2, 38, "B", s.m2, styleB.fill, styleB.stroke);
+      drawMiniCart(cctx, startA, 80, w1, 38, "A", s.m1, "#93c5fd", "#2563eb");
+      drawMiniCart(cctx, startB, 80, w2, 38, "B", s.m2, "#fdba74", "#d97706");
       cctx.globalAlpha = 1;
 
-      drawMiniCart(cctx, x1, 80, w1, 38, "A", s.m1, styleA.fill, styleA.stroke);
-      drawMiniCart(cctx, x2, 80, w2, 38, "B", s.m2, styleB.fill, styleB.stroke);
+      drawMiniCart(cctx, x1, 80, w1, 38, "A", s.m1, "#93c5fd", "#2563eb");
+      drawMiniCart(cctx, x2, 80, w2, 38, "B", s.m2, "#fdba74", "#d97706");
 
-      const aLabel = option.target === "A"
-        ? velocityLabel("A", "f", `= ${fmt(option.v1)} m/s`)
-        : velocityLabel("A", "f", `= ${fmt(option.v1)} m/s`, "given ");
-      const bLabel = option.target === "B"
-        ? velocityLabel("B", "f", `= ${fmt(option.v2)} m/s`)
-        : velocityLabel("B", "f", `= ${fmt(option.v2)} m/s`, "given ");
-      drawMiniVelocityArrow(cctx, x1, 40, option.v1, option.target === "A" ? "#0f766e" : styleA.stroke, aLabel, "above");
-      drawMiniVelocityArrow(cctx, x2, 20, option.v2, option.target === "B" ? "#0f766e" : styleB.stroke, bLabel, "below");
+      drawMiniVelocityArrow(cctx, x1, 40, option.v1, "#2563eb", `vA = ${fmt(option.v1)} m/s`, "above");
+      drawMiniVelocityArrow(cctx, x2, 20, option.v2, "#d97706", `vB = ${fmt(option.v2)} m/s`, "below");
 
       if (selected !== -1) {
-        drawText(cctx, option.correct ? "momentum result" : option.label, width / 2, 137, 12, option.correct ? "#15803d" : "#64748b", "center");
+        drawText(cctx, option.correct ? "elastic result" : option.label, width / 2, 137, 12, option.correct ? "#15803d" : "#64748b", "center");
       }
     }
 
@@ -1400,56 +1214,6 @@
       drawCtx.fillText(`${mass} kg`, x, y + 12);
     }
 
-    function isVelocityLabel(label) {
-      return label && typeof label === "object" && label.kind === "velocity";
-    }
-
-    function measureCanvasLabel(drawCtx, label, size) {
-      if (!isVelocityLabel(label)) return drawCtx.measureText(label).width;
-
-      const subSize = Math.max(8, Math.round(size * 0.72));
-      drawCtx.font = `bold ${size}px Arial`;
-      const prefixWidth = drawCtx.measureText(label.prefix || "").width;
-      drawCtx.font = `italic bold ${size}px Georgia`;
-      const vWidth = drawCtx.measureText("v").width;
-      drawCtx.font = `bold ${subSize}px Arial`;
-      const subWidth = drawCtx.measureText(`${label.cart}${label.phase}`).width;
-      drawCtx.font = `bold ${size}px Arial`;
-      const valueWidth = drawCtx.measureText(` ${label.value}`).width;
-      return prefixWidth + vWidth + subWidth + valueWidth;
-    }
-
-    function drawCanvasLabel(drawCtx, label, x, y, size, color, align = "center") {
-      if (!isVelocityLabel(label)) {
-        drawText(drawCtx, label, x, y, size, color, align);
-        return;
-      }
-
-      const totalWidth = measureCanvasLabel(drawCtx, label, size);
-      const subSize = Math.max(8, Math.round(size * 0.72));
-      let cursor = align === "center" ? x - totalWidth / 2 : x;
-
-      drawCtx.fillStyle = color;
-      drawCtx.textAlign = "left";
-
-      drawCtx.font = `bold ${size}px Arial`;
-      const prefix = label.prefix || "";
-      drawCtx.fillText(prefix, cursor, y);
-      cursor += drawCtx.measureText(prefix).width;
-
-      drawCtx.font = `italic bold ${size}px Georgia`;
-      drawCtx.fillText("v", cursor, y);
-      cursor += drawCtx.measureText("v").width;
-
-      drawCtx.font = `bold ${subSize}px Arial`;
-      drawCtx.fillText(`${label.cart}${label.phase}`, cursor, y + size * 0.35);
-      cursor += drawCtx.measureText(`${label.cart}${label.phase}`).width;
-
-      drawCtx.font = `bold ${size}px Arial`;
-      drawCtx.fillText(` ${label.value}`, cursor, y);
-      drawCtx.textAlign = align;
-    }
-
     function drawVelocityArrow(drawCtx, x, y, v, color, label) {
       if (Math.abs(v) < 0.05) {
         drawText(drawCtx, label, x, y - 22, 13, color, "center");
@@ -1475,14 +1239,14 @@
 
     function drawMiniVelocityLabel(drawCtx, label, x, y, color) {
       drawCtx.font = "bold 10px Arial";
-      const textWidth = measureCanvasLabel(drawCtx, label, 10) + 8;
+      const textWidth = drawCtx.measureText(label).width + 8;
       drawCtx.fillStyle = "rgba(255,255,255,0.94)";
       drawCtx.strokeStyle = color;
       drawCtx.lineWidth = 1;
       roundedRect(drawCtx, x - textWidth / 2, y - 11, textWidth, 16, 5);
       drawCtx.fill();
       drawCtx.stroke();
-      drawCanvasLabel(drawCtx, label, x, y + 1, 10, color, "center");
+      drawText(drawCtx, label, x, y + 1, 10, color, "center");
     }
 
     function drawArrow(drawCtx, x1, y1, x2, y2, color, label) {
@@ -1512,22 +1276,18 @@
         const lx = (x1 + x2) / 2;
         const ly = y1 - 16;
         drawCtx.font = "bold 13px Arial";
-        const textWidth = measureCanvasLabel(drawCtx, label, 12) + 14;
+        const textWidth = drawCtx.measureText(label).width + 14;
         drawCtx.fillStyle = "rgba(255,255,255,0.94)";
         drawCtx.strokeStyle = color;
         drawCtx.lineWidth = 2;
         roundedRect(drawCtx, lx - textWidth / 2, ly - 13, textWidth, 24, 6);
         drawCtx.fill();
         drawCtx.stroke();
-        drawCanvasLabel(drawCtx, label, lx, ly + 5, 12, color, "center");
+        drawText(drawCtx, label, lx, ly + 5, 12, color, "center");
       }
     }
 
     function drawText(drawCtx, text, x, y, size, color, align) {
-      if (isVelocityLabel(text)) {
-        drawCanvasLabel(drawCtx, text, x, y, size, color, align);
-        return;
-      }
       drawCtx.fillStyle = color;
       drawCtx.font = "bold " + size + "px Arial";
       drawCtx.textAlign = align;
