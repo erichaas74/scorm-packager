@@ -71,14 +71,10 @@
     }
 
     .lab {
-      display: grid;
-      grid-template-columns: minmax(320px, 470px) 1fr;
-      gap: 18px;
-      align-items: stretch;
+      display: block;
     }
 
-    .canvas-panel,
-    .control-panel {
+    .canvas-panel {
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -92,9 +88,15 @@
       padding: 16px;
     }
 
-    canvas {
+    .canvas-stage {
+      position: relative;
       width: 100%;
-      max-width: 420px;
+      max-width: 700px;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
       aspect-ratio: 7 / 8;
       background: #fdfefe;
       border: 1px solid var(--line);
@@ -102,11 +104,48 @@
       touch-action: none;
     }
 
-    .control-panel {
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
+    .step-flow {
+      position: absolute;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      width: min(520px, calc(100% - 36px));
+    }
+
+    .step-button {
+      text-align: center;
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      box-shadow: 0 8px 18px rgba(36, 52, 71, 0.18);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .step-button:hover {
+      filter: brightness(0.96);
+    }
+
+    .step-button.slow-step {
+      background: var(--top);
+    }
+
+    .step-button.fast-step {
+      background: var(--bottom);
+    }
+
+    .step-button.is-active {
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.72), 0 8px 18px rgba(36, 52, 71, 0.18);
+    }
+
+    .step-button.fast-step.is-active {
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.72), 0 8px 18px rgba(36, 52, 71, 0.18);
+    }
+
+    .step-button:disabled {
+      opacity: 0.7;
     }
 
     .section-title {
@@ -234,6 +273,7 @@
         padding-top: 18px;
       }
       .topbar { flex-direction: column-reverse; }
+      .step-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .actions, .readout-grid { grid-template-columns: 1fr; }
     }
   </style>
@@ -243,76 +283,20 @@
     <div class="topbar">
       <div>
         <h1>Inertia &amp; Tension Lab</h1>
-        <p class="subtitle">Press a pull test and compare the force carried by each string. The top string also supports the 1 kg mass, while the bottom string carries the pull from your hand.</p>
+        <p class="subtitle">Choose either pull in any order. Each run resets the lab first, then shows which string carries the larger force.</p>
       </div>
       <a class="home-btn" href="index.html">Back to Menu</a>
     </div>
 
     <section class="lab" aria-label="Interactive inertia and tension lab">
       <div class="canvas-panel">
-        <canvas id="labCanvas" width="700" height="800" aria-label="Mass suspended between two strings with tension labels"></canvas>
-      </div>
-
-      <div class="control-panel">
-        <section>
-          <div class="section-title">Pull Test</div>
-          <div class="actions">
-            <button id="slow-pull" type="button">Slow Pull</button>
-            <button id="quick-pull" class="quick" type="button">Quick Pull</button>
-            <button id="manual-pull" class="manual" type="button">You Pull</button>
+        <div class="canvas-stage">
+          <canvas id="labCanvas" width="700" height="800" aria-label="Mass suspended between two strings with tension labels"></canvas>
+          <div class="step-flow" aria-label="Pull tests">
+            <button id="slow-pull" class="step-button slow-step" type="button">Slow Pull</button>
+            <button id="quick-pull" class="step-button fast-step" type="button">Fast Pull</button>
           </div>
-        </section>
-
-        <section>
-          <div class="section-title">String Tension</div>
-          <div class="readout-grid">
-            <div class="readout">
-              <strong>Top String</strong>
-              <span id="top-readout" class="top-value">9.8 N</span>
-            </div>
-            <div class="readout">
-              <strong>Bottom String</strong>
-              <span id="bottom-readout" class="bottom-value">0.0 N</span>
-            </div>
-            <div class="readout">
-              <strong>Your Pull Distance</strong>
-              <span id="pull-distance-readout">0 px</span>
-            </div>
-          </div>
-        </section>
-
-        <section class="status" id="status-panel" aria-live="polite">
-          <h2>Ready to test</h2>
-          <p>The mass weighs 9.8 N. Before you pull, the top string carries that weight and the bottom string carries no tension.</p>
-        </section>
-
-        <section>
-          <div class="section-title">Model Values</div>
-          <div class="formula">
-            <div class="formula-row">
-              <span>Mass weight</span>
-              <strong>9.8 N</strong>
-            </div>
-            <div class="formula-row">
-              <span>Slow pull force</span>
-              <strong>15.0 N</strong>
-            </div>
-            <div class="formula-row">
-              <span>Quick yank peak force</span>
-              <strong>45.0 N</strong>
-            </div>
-            <div class="formula-row">
-              <span>You pull conversion</span>
-              <strong>0.35 N / px</strong>
-            </div>
-            <div class="formula-row">
-              <span>String strength</span>
-              <strong>22.0 N</strong>
-            </div>
-          </div>
-        </section>
-
-        <button id="reset-lab" class="reset" type="button">Reset</button>
+        </div>
       </div>
     </section>
   </main>
@@ -354,19 +338,23 @@
       dragStartY: 0,
       manualActive: false,
       manualPointerId: null,
-      massY: 190,
+      massY: 220,
       velocity: 0,
       startTime: 0,
       duration: 1000,
       animationFrame: null
     };
 
+    const stepFlow = {
+      running: null
+    };
+
     const layout = {
-      supportY: 74,
+      supportY: 82,
       centerX: canvas.width / 2,
       massWidth: 130,
       massHeight: 110,
-      topStringStartY: 84, // Attached just under the ceiling support
+      topStringStartY: 120,
       topStringLength: 94,
       bottomStringLength: 170
     };
@@ -375,21 +363,35 @@
       return value.toFixed(1) + ' N';
     }
 
+    function updateStepControls() {
+      if (slowPullButton) {
+        slowPullButton.disabled = false;
+        slowPullButton.classList.toggle('is-active', stepFlow.running === 'slow');
+        slowPullButton.classList.remove('is-done');
+      }
+
+      if (quickPullButton) {
+        quickPullButton.disabled = false;
+        quickPullButton.classList.toggle('is-active', stepFlow.running === 'quick');
+        quickPullButton.classList.remove('is-done');
+      }
+    }
+
     function setStatus(title, body, variant) {
+      if (!statusPanel) return;
       const className = variant ? ' class="' + variant + '"' : '';
       statusPanel.innerHTML = '<h2' + className + '>' + title + '</h2><p>' + body + '</p>';
     }
 
     function updateReadouts() {
-      topReadout.textContent = formatForce(state.topTension);
-      bottomReadout.textContent = formatForce(state.bottomTension);
-      pullDistanceReadout.textContent = Math.round(state.dragDistance) + ' px';
+      if (topReadout) topReadout.textContent = formatForce(state.topTension);
+      if (bottomReadout) bottomReadout.textContent = formatForce(state.bottomTension);
+      if (pullDistanceReadout) pullDistanceReadout.textContent = Math.round(state.dragDistance) + ' px';
     }
 
     function setButtonsDisabled(disabled) {
-      slowPullButton.disabled = disabled;
-      quickPullButton.disabled = disabled;
-      manualPullButton.disabled = disabled;
+      updateStepControls();
+      if (manualPullButton) manualPullButton.disabled = disabled;
     }
 
     function drawRoundedRect(x, y, width, height, radius) {
@@ -445,46 +447,58 @@
     }
 
     function drawStrengthGauge() {
-      const x = 70;
-      const y = 686;
-      const width = 560;
-      const height = 22;
+      const x = 152;
+      const y = 10;
+      const width = 390;
+      const height = 9;
+      const gap = 17;
       const maxForce = 50;
       const topWidth = Math.min(width, width * state.topTension / maxForce);
       const bottomWidth = Math.min(width, width * state.bottomTension / maxForce);
       const strengthX = x + width * model.stringStrength / maxForce;
 
+      ctx.save();
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.86)';
+      ctx.strokeStyle = '#d6e0ea';
+      ctx.lineWidth = 1;
+      drawRoundedRect(52, 4, 596, 39, 7);
+      ctx.stroke();
+
       ctx.fillStyle = '#e9eef4';
-      drawRoundedRect(x, y, width, height, 8);
+      drawRoundedRect(x, y, width, height, 5);
       if (topWidth > 0) {
         ctx.fillStyle = '#1565c0';
-        drawRoundedRect(x, y, topWidth, height, 8);
+        drawRoundedRect(x, y, topWidth, height, 5);
       }
 
       ctx.fillStyle = '#e9eef4';
-      drawRoundedRect(x, y + 44, width, height, 8);
+      drawRoundedRect(x, y + gap, width, height, 5);
       if (bottomWidth > 0) {
         ctx.fillStyle = '#d96c1c';
-        drawRoundedRect(x, y + 44, bottomWidth, height, 8);
+        drawRoundedRect(x, y + gap, bottomWidth, height, 5);
       }
 
       ctx.strokeStyle = '#c0392b';
-      ctx.lineWidth = 4;
+      ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.moveTo(strengthX, y - 8);
-      ctx.lineTo(strengthX, y + 74);
+      ctx.moveTo(strengthX, y - 4);
+      ctx.lineTo(strengthX, y + gap + height + 4);
       ctx.stroke();
 
       ctx.fillStyle = '#243447';
-      ctx.font = '700 18px Segoe UI, sans-serif';
-      ctx.textAlign = 'left';
+      ctx.font = '700 13px Segoe UI, sans-serif';
+      ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
-      ctx.fillText('Top tension', x, y - 18);
-      ctx.fillText('Bottom tension', x, y + 26);
+      ctx.fillText('Top tension', x - 12, y + height / 2);
+      ctx.fillText('Bottom tension', x - 12, y + gap + height / 2);
 
       ctx.fillStyle = '#c0392b';
-      ctx.textAlign = 'center';
-      ctx.fillText('22 N break point', strengthX, y + 94);
+      ctx.font = '700 12px Segoe UI, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('22 N break', x + width + 12, y + gap / 2 + height);
+
+      ctx.restore();
     }
 
     // --- NEW REALISTIC VISUAL FUNCTIONS ---
@@ -622,17 +636,13 @@
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       drawGrid();
 
-      const ceilingGrad = ctx.createLinearGradient(86, 46, 86, 84);
+      const supportTop = layout.supportY;
+      const supportHeight = 38;
+      const ceilingGrad = ctx.createLinearGradient(86, supportTop, 86, supportTop + supportHeight);
       ceilingGrad.addColorStop(0, '#8e9eab');
       ceilingGrad.addColorStop(1, '#eef2f3');
       ctx.fillStyle = ceilingGrad;
-      drawRoundedRect(86, 46, 528, 38, 4);
-      
-      ctx.fillStyle = '#2c3e50';
-      ctx.font = '800 18px Segoe UI, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('RIGID SUPPORT', layout.centerX, 65);
+      drawRoundedRect(86, supportTop, 528, supportHeight, 4);
 
       const massX = layout.centerX - layout.massWidth / 2;
       const massBottomY = state.massY + layout.massHeight;
@@ -652,7 +662,7 @@
         drawArrow(layout.centerX, bottomEndY + 15, bottomEndY + 92, '#c0392b');
         ctx.fillStyle = '#c0392b';
         ctx.font = '800 22px Segoe UI, sans-serif';
-        ctx.fillText(state.mode === 'quick' ? 'quick yank' : state.mode === 'manual' ? 'you pull' : 'slow pull', layout.centerX, bottomEndY + 122);
+        ctx.fillText(state.mode === 'quick' ? 'fast pull' : state.mode === 'manual' ? 'you pull' : 'slow pull', layout.centerX, bottomEndY + 122);
       }
 
       drawLabel(48, 132, 'Top string', state.topTension, '#1565c0');
@@ -677,7 +687,7 @@
       state.dragStartY = 0;
       state.manualActive = false;
       state.manualPointerId = null;
-      state.massY = 190;
+      state.massY = 220;
       state.velocity = 0;
       state.animationFrame = null;
       particles.length = 0; // Clear stray particles
@@ -686,6 +696,20 @@
       updateReadouts();
       setStatus('Ready to test', 'The mass weighs 9.8 N. Before you pull, the top string carries that weight and the bottom string carries no tension.');
       draw();
+    }
+
+    function completeStep(mode) {
+      if (stepFlow.running !== mode) return;
+
+      stepFlow.running = null;
+      updateStepControls();
+    }
+
+    function runStep(mode) {
+      stepFlow.running = mode;
+      updateStepControls();
+      resetLab();
+      startPull(mode);
     }
 
     function startPull(mode) {
@@ -698,7 +722,7 @@
       state.topBroken = false;
       state.bottomBroken = false;
       state.pullOffset = 0;
-      state.massY = 190;
+      state.massY = 220;
       state.velocity = 0;
       state.startTop = model.weight;
       state.startBottom = 0;
@@ -709,7 +733,7 @@
 
       setButtonsDisabled(true);
       setStatus(
-        isSlow ? 'Slow pull running' : 'Quick pull running',
+        isSlow ? 'Slow pull running' : 'Fast pull running',
         isSlow
           ? 'The applied pull transfers through the mass, so the top string must hold the mass weight plus your pull.'
           : 'The mass resists the sudden motion, so the bottom string briefly takes nearly the full yank while the top string stays near the weight.'
@@ -749,7 +773,7 @@
         const bottomEndY = massBottomY + layout.bottomStringLength + state.pullOffset;
         spawnParticles(layout.centerX, (massBottomY + bottomEndY) / 2);
 
-        setStatus('Bottom string breaks', 'Top tension stays near the 9.8 N weight, but bottom tension spikes to <span class="danger">45.0 N</span>. The quick yank breaks the bottom string first.', 'danger');
+        setStatus('Bottom string breaks', 'Top tension stays near the 9.8 N weight, but bottom tension spikes to <span class="danger">45.0 N</span>. The fast pull breaks the bottom string first.', 'danger');
         setButtonsDisabled(false);
         
         state.animationFrame = requestAnimationFrame(function particleLoop() {
@@ -758,6 +782,7 @@
             state.animationFrame = requestAnimationFrame(particleLoop);
           } else {
             state.animationFrame = null;
+            completeStep('quick');
           }
         });
       }
@@ -775,13 +800,19 @@
 
       setButtonsDisabled(false);
       state.animationFrame = null;
+      if (state.mode === 'slow') {
+        state.massY = 220;
+        state.velocity = 0;
+        draw();
+        completeStep('slow');
+      }
     }
 
     function startManualPull() {
       resetLab();
       state.mode = 'manual';
       setButtonsDisabled(true);
-      resetButton.disabled = false;
+      if (resetButton) resetButton.disabled = false;
       setStatus('You pull the string', 'Drag downward from the lower string. Distance becomes force: every pixel adds 0.35 N of pull to the bottom string and to the top string along with the mass weight.');
       draw();
     }
@@ -852,21 +883,23 @@
     canvas.addEventListener('pointerup', finishManualPull);
     canvas.addEventListener('pointercancel', finishManualPull);
 
-    slowPullButton.addEventListener('click', function() {
-      resetLab();
-      startPull('slow');
-    });
+    if (slowPullButton) {
+      slowPullButton.addEventListener('click', function() {
+        runStep('slow');
+      });
+    }
 
-    quickPullButton.addEventListener('click', function() {
-      resetLab();
-      startPull('quick');
-    });
+    if (quickPullButton) {
+      quickPullButton.addEventListener('click', function() {
+        runStep('quick');
+      });
+    }
 
-    manualPullButton.addEventListener('click', startManualPull);
-
-    resetButton.addEventListener('click', resetLab);
+    if (manualPullButton) manualPullButton.addEventListener('click', startManualPull);
+    if (resetButton) resetButton.addEventListener('click', resetLab);
 
     resetLab();
+    updateStepControls();
   </script>
 </body>
 </html>

@@ -3,93 +3,140 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Elastic vs Inelastic Ball Momentum Demo</title>
+  <title>Change in Momentum Walkthrough</title>
   <style>
+    :root {
+      --bg: #f7f9fc;
+      --panel: #ffffff;
+      --line: #d8e0ea;
+      --text: #172033;
+      --muted: #526070;
+      --blue: #2563eb;
+      --blue-dark: #1d4ed8;
+      --teal: #0f766e;
+      --green: #15803d;
+      --amber: #b45309;
+      --red: #b91c1c;
+      --shadow: 0 18px 42px rgba(31, 42, 68, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      width: 1130px;
+      height: 736px;
+    }
+
     body {
       margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f4f7fb;
-      color: #111827;
+      width: 1130px;
+      height: 736px;
+      overflow: hidden;
+      font-family: Arial, Helvetica, sans-serif;
+      background: transparent;
+      color: var(--text);
     }
 
-    header {
-      background: #111827;
-      color: white;
-      padding: 16px 24px;
-      text-align: center;
+    .stage {
+      width: 1130px;
+      height: 736px;
+      overflow: hidden;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
     }
 
-    h1 {
-      margin: 0;
-      font-size: 28px;
-    }
+    .stage { padding: 14px; }
 
-    .subtitle {
-      margin-top: 6px;
-      font-size: 16px;
-      opacity: 0.9;
-    }
-
-    .wrap {
-      max-width: 1120px;
-      margin: 18px auto;
-      padding: 0 14px;
-    }
-
-    .card {
-      background: white;
-      border-radius: 14px;
-      padding: 16px;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+    .canvas-shell {
+      position: relative;
+      width: 1100px;
+      height: 650px;
     }
 
     canvas {
-      width: 100%;
-      height: auto;
-      border: 2px solid #d1d5db;
-      border-radius: 12px;
+      width: 1100px;
+      height: 650px;
+      border: 2px solid #cbd5e1;
+      border-radius: 8px;
       background: linear-gradient(#dbeafe, #eff6ff);
       display: block;
     }
 
     .controls {
-      display: flex;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: minmax(110px, 150px) minmax(260px, 1fr) minmax(150px, 220px);
       gap: 10px;
-      margin-top: 14px;
-      align-items: center;
-      justify-content: center;
+      margin: 0 0 12px;
+      align-items: stretch;
     }
 
     button {
+      min-height: 44px;
       border: none;
-      border-radius: 10px;
-      padding: 11px 15px;
-      font-size: 15px;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.94rem;
       cursor: pointer;
-      background: #2563eb;
+      background: var(--blue);
       color: white;
-      font-weight: bold;
+      font-weight: 700;
     }
 
-    button:hover {
-      background: #1d4ed8;
+    button:hover { background: var(--blue-dark); }
+
+    button.secondary { background: #4b5563; }
+    button.secondary:hover { background: #374151; }
+
+    button.answer { background: var(--teal); }
+    button.answer:hover { background: #115e59; }
+
+    button.choice-button {
+      min-height: 38px;
+      background: #ffffff;
+      color: var(--text);
+      border: 1px solid #b7c2d0;
+      text-align: left;
     }
 
-    button.secondary {
-      background: #4b5563;
+    button.choice-button:hover {
+      background: #eff6ff;
+      border-color: var(--blue);
     }
 
-    button.secondary:hover {
-      background: #374151;
+    button.choice-button.is-selected {
+      background: #dbeafe;
+      border-color: var(--blue);
+      color: #1e3a8a;
     }
 
-    button.answer {
-      background: #0f766e;
+    button.choice-button.is-correct {
+      background: #dcfce7;
+      border-color: rgba(21, 128, 61, 0.45);
+      color: #14532d;
     }
 
-    button.answer:hover {
-      background: #115e59;
+    button.choice-button.is-wrong {
+      background: #fef3c7;
+      border-color: rgba(180, 83, 9, 0.45);
+      color: #78350f;
+    }
+
+    button.choice-button.primary-action {
+      min-height: 72px;
+      justify-content: center;
+      text-align: center;
+      background: #15803d;
+      border-color: #166534;
+      color: #ffffff;
+      font-size: clamp(1.2rem, 3vw, 1.7rem);
+      box-shadow: 0 12px 28px rgba(21, 128, 61, 0.26);
+    }
+
+    button.choice-button.primary-action:hover {
+      background: #166534;
+      border-color: #14532d;
     }
 
     button:disabled {
@@ -97,85 +144,579 @@
       cursor: not-allowed;
     }
 
-    .note {
-      text-align: center;
-      margin-top: 10px;
-      color: #4b5563;
-      font-size: 14px;
-      line-height: 1.4;
+    .question-overlay {
+      position: absolute;
+      left: 22px;
+      right: 22px;
+      overflow: auto;
+      padding: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.55);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.94);
+      box-shadow: 0 16px 34px rgba(15, 23, 42, 0.18);
+      backdrop-filter: blur(10px);
     }
+
+    .question-overlay {
+      bottom: 22px;
+      max-height: 48%;
+    }
+
+    .feedback-overlay {
+      min-height: 44px;
+      overflow: auto;
+      padding: 10px 12px;
+      border: 1px solid rgba(148, 163, 184, 0.55);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.94);
+    }
+
+    .question-overlay p {
+      margin: 0 0 12px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .choice-area {
+      display: grid;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .choice-group {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fbfdff;
+    }
+
+    .choice-buttons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+    }
+
+    .feedback {
+      min-height: 42px;
+      margin: 0;
+      padding: 11px 12px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background: #f8fafc;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .feedback.good {
+      border-color: rgba(21, 128, 61, 0.3);
+      background: #f0fdf4;
+      color: #14532d;
+    }
+
+    .feedback.needs-work {
+      border-color: rgba(180, 83, 9, 0.36);
+      background: #fffbeb;
+      color: #78350f;
+    }
+
+    .feedback.answer-key {
+      border-color: rgba(37, 99, 235, 0.28);
+      background: #eff6ff;
+      color: #1e3a8a;
+    }
+
+    .formula {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(37, 99, 235, 0.09);
+      color: #1e40af;
+      font-weight: 700;
+      max-width: 100%;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+
+    .feedback-formula {
+      margin-top: 8px;
+    }
+
+    .feedback-overlay .feedback {
+      min-height: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+    }
+
   </style>
 </head>
 <body>
-  <header>
-    <h1>Elastic vs Inelastic Ball Momentum Demo</h1>
-    <div class="subtitle">Watch the collision, compare velocity vectors, then calculate change in momentum.</div>
-  </header>
+  <section class="stage" aria-label="Collision animation">
+    <div class="controls">
+      <button id="resetBtn" class="secondary">Reset</button>
+      <div id="feedbackOverlay" class="feedback-overlay" aria-live="polite">
+        <div id="feedback" class="feedback">Start by dropping both balls.</div>
+        <div id="feedbackFormula" class="feedback-formula"></div>
+      </div>
+      <button id="nextBtn" disabled>Next Step</button>
+    </div>
 
-  <main class="wrap">
-    <section class="card">
+    <div class="canvas-shell">
       <canvas id="demoCanvas" width="1100" height="650"></canvas>
-
-      <div class="controls">
-        <button id="resetBtn" class="secondary">Reset</button>
-        <button id="dropBtn">1. Drop Both Balls</button>
-        <button id="nextBtn" disabled>Next Step</button>
-        <button id="elasticAnswer" class="answer" disabled>Predict: Elastic Ball</button>
-        <button id="inelasticAnswer" class="answer" disabled>Predict: Inelastic Ball</button>
-        <button id="sameAnswer" class="answer" disabled>Predict: Same</button>
+      <div id="questionOverlay" class="question-overlay" aria-live="polite">
+        <div id="questionBody"></div>
+        <div id="choiceArea" class="choice-area"></div>
       </div>
-
-      <div class="note">
-        Positive velocity is upward. Negative velocity is downward. Both balls use the same mass and the same speed right before impact.
-      </div>
-    </section>
-  </main>
+    </div>
+  </section>
 
   <script>
     const canvas = document.getElementById("demoCanvas");
     const ctx = canvas.getContext("2d");
 
     const resetBtn = document.getElementById("resetBtn");
-    const dropBtn = document.getElementById("dropBtn");
     const nextBtn = document.getElementById("nextBtn");
-    const elasticAnswer = document.getElementById("elasticAnswer");
-    const inelasticAnswer = document.getElementById("inelasticAnswer");
-    const sameAnswer = document.getElementById("sameAnswer");
+    const questionBody = document.getElementById("questionBody");
+    const choiceArea = document.getElementById("choiceArea");
+    const feedback = document.getElementById("feedback");
+    const feedbackFormula = document.getElementById("feedbackFormula");
 
-    // Momentum calculation values.
-    // Positive velocity = upward. Negative velocity = downward.
+    // Calculation values use the student's Step 2 sign convention.
     const mass = 0.10;       // kg
-    const vi = -4.4;         // m/s, downward right before impact
-    const elasticVf = 3.5;   // m/s, upward after bounce
-    const inelasticVf = 0;   // m/s, stopped after impact
+    const impactSpeed = 4.4; // m/s
+    const elasticReboundSpeed = 3.5; // m/s
+    const inelasticStopSpeed = 0; // m/s
 
-    const elasticPi = mass * vi;
-    const inelasticPi = mass * vi;
-
-    const elasticPf = mass * elasticVf;
-    const inelasticPf = mass * inelasticVf;
-
-    const elasticDeltaP = Math.abs(elasticPf - elasticPi);
-    const inelasticDeltaP = Math.abs(inelasticPf - inelasticPi);
-
-    // Canvas animation values.
     const groundY = 400;
     const radius = 30;
     const startY = 95;
     const elasticX = 310;
     const inelasticX = 785;
-    const canvasG = 1700; // px/s^2 for animation timing
+    const canvasG = 1700;
     const restitution = 0.78;
+    const preImpactY = groundY - 8;
+    const postImpactY = groundY - 45;
+    const reboundPeakY = Math.round(groundY - (groundY - startY) * restitution * restitution);
+    const impactSpeedPx = Math.sqrt(2 * canvasG * (groundY - startY));
 
     let elasticBall;
     let inelasticBall;
     let running = false;
     let demoFinished = false;
     let lastTime = null;
+    let animationPhase = "idle";
+    let simPhase = "start";
     let step = 0;
     let prediction = null;
+    let signConvention = null;
+    let answers = {};
+    let autoAdvanceTimer = null;
+    let autoAdvanceStep = null;
+    let previewReplayTimer = null;
+    let celebrationActive = false;
+    let confettiPieces = [];
 
-    function resetDemo() {
+    const questionSteps = {
+      0: {
+        label: "Step 1 of 6",
+        body: `
+          <p>Question: Which ball has the largest change in momentum?</p>
+        `,
+        feedbackFormula: "change in momentum Δp = pf - pi",
+        completeFeedback: "Prediction saved. The walkthrough will start the calculation steps next.",
+        groups: [
+          {
+            id: "prediction",
+            prompt: "",
+            neutral: true,
+            choices: [
+              { value: "Elastic Ball", label: "Elastic Ball", correct: true },
+              { value: "Inelastic Ball", label: "Inelastic Ball", correct: true },
+              { value: "Same Change", label: "Same", correct: true }
+            ]
+          }
+        ]
+      },
+      1: {
+        label: "Step 2 of 6",
+        body: `
+          <p>Before impact, both balls are moving downward. Choose the sign convention you want to use for the rest of the problem.</p>
+        `,
+        groups: [
+          {
+            id: "viSign",
+            prompt: "",
+            choices: [
+              { value: "downPositive", label: "Downward is positive", correct: true },
+              { value: "downNegative", label: "Downward is negative", correct: true }
+            ]
+          }
+        ]
+      },
+      2: {
+        label: "Step 3 of 6",
+        body: `
+          <p>Now use your sign convention to calculate the initial momentum for either ball.</p>
+        `,
+        feedbackFormula: "pi = mvi",
+        groups: [
+          {
+            id: "initialMomentum",
+            prompt: "",
+            choices: []
+          }
+        ]
+      },
+      3: {
+        label: "Step 4 of 6",
+        body: `
+          <p>Calculate the elastic ball's change in momentum first.</p>
+        `,
+        feedbackFormula: "|change in momentum| = |m(vf - vi)|",
+        groups: [
+          {
+            id: "elasticDelta",
+            prompt: "",
+            choices: [
+              { value: "0.35", label: "Elastic: 0.35 kg*m/s" },
+              { value: "0.44", label: "Elastic: 0.44 kg*m/s" },
+              { value: "0.79", label: "Elastic: 0.79 kg*m/s", correct: true }
+            ]
+          }
+        ]
+      },
+      4: {
+        label: "Step 5 of 6",
+        body: `
+          <p>Now calculate the inelastic ball's change in momentum.</p>
+        `,
+        feedbackFormula: "|change in momentum| = |m(vf - vi)|",
+        groups: [
+          {
+            id: "inelasticDelta",
+            prompt: "",
+            choices: [
+              { value: "0", label: "Inelastic: 0 kg*m/s" },
+              { value: "0.44", label: "Inelastic: 0.44 kg*m/s", correct: true },
+              { value: "0.79", label: "Inelastic: 0.79 kg*m/s" }
+            ]
+          }
+        ]
+      },
+      5: {
+        label: "Step 6 of 6",
+        body: `
+          <p>The numbers show the elastic ball has the larger change in momentum. Choose the best explanation.</p>
+        `,
+        groups: [
+          {
+            id: "reasonChoice",
+            prompt: "Why is the elastic ball's change larger?",
+            choices: [
+              { value: "mass", label: "It has a larger mass." },
+              { value: "height", label: "It started from a greater height." },
+              { value: "direction", label: "Its momentum changes direction from downward to upward.", correct: true },
+              { value: "zero", label: "Its final momentum is zero." }
+            ]
+          }
+        ]
+      }
+    };
+
+    const finalStep = Object.keys(questionSteps).length - 1;
+    const autoAdvanceDelayMs = 1500;
+    const previewReplayDelayMs = 1000;
+    const celebrationMessage = "Congratulations! You understand that something that bounces has a greater change in momentum.";
+
+    function clearAutoAdvance() {
+      if (autoAdvanceTimer !== null) {
+        clearTimeout(autoAdvanceTimer);
+        autoAdvanceTimer = null;
+      }
+      autoAdvanceStep = null;
+    }
+
+    function clearPreviewReplay() {
+      if (previewReplayTimer !== null) {
+        clearTimeout(previewReplayTimer);
+        previewReplayTimer = null;
+      }
+    }
+
+    function clearCelebration() {
+      celebrationActive = false;
+      confettiPieces = [];
+    }
+
+    function canAutoAdvance(stepNumber = step) {
+      const readyToAdvance = stepNumber === 0 ? true : demoFinished && !running;
+      return readyToAdvance && stepNumber < finalStep && isStepComplete(stepNumber);
+    }
+
+    function syncAutoAdvance() {
+      if (!canAutoAdvance()) {
+        clearAutoAdvance();
+        return;
+      }
+
+      if (autoAdvanceTimer !== null && autoAdvanceStep === step) return;
+
+      clearAutoAdvance();
+
+      const scheduledStep = step;
+      autoAdvanceStep = scheduledStep;
+      autoAdvanceTimer = setTimeout(() => {
+        autoAdvanceTimer = null;
+        autoAdvanceStep = null;
+        if (step === scheduledStep && canAutoAdvance(scheduledStep)) {
+          nextStep();
+        }
+      }, autoAdvanceDelayMs);
+    }
+
+    function hasSignConvention() {
+      return signConvention === "downPositive" || signConvention === "downNegative";
+    }
+
+    function isDownPositive() {
+      return signConvention === "downPositive";
+    }
+
+    function currentInitialVelocity() {
+      return (isDownPositive() ? 1 : -1) * impactSpeed;
+    }
+
+    function currentElasticFinalVelocity() {
+      return (isDownPositive() ? -1 : 1) * elasticReboundSpeed;
+    }
+
+    function currentInelasticFinalVelocity() {
+      return inelasticStopSpeed;
+    }
+
+    function currentInitialMomentum() {
+      return mass * currentInitialVelocity();
+    }
+
+    function currentElasticFinalMomentum() {
+      return mass * currentElasticFinalVelocity();
+    }
+
+    function currentInelasticFinalMomentum() {
+      return mass * currentInelasticFinalVelocity();
+    }
+
+    function currentElasticDeltaP() {
+      return Math.abs(currentElasticFinalMomentum() - currentInitialMomentum());
+    }
+
+    function currentInelasticDeltaP() {
+      return Math.abs(currentInelasticFinalMomentum() - currentInitialMomentum());
+    }
+
+    function formatSigned(value, decimals) {
+      const threshold = Math.pow(10, -decimals) / 2;
+      if (Math.abs(value) < threshold) return "0";
+      return (value > 0 ? "+" : "") + value.toFixed(decimals);
+    }
+
+    function formatVelocity(value) {
+      return formatSigned(value, 1) + " m/s";
+    }
+
+    function formatMomentum(value) {
+      return formatSigned(value, 2) + " kg*m/s";
+    }
+
+    function formatMagnitude(value) {
+      return value.toFixed(2) + " kg*m/s";
+    }
+
+    function initialMomentumChoices() {
+      const correctValue = formatSigned(currentInitialMomentum(), 2);
+      const oppositeValue = formatSigned(-currentInitialMomentum(), 2);
+
+      return [
+        { value: correctValue, label: correctValue + " kg*m/s", correct: true },
+        { value: oppositeValue, label: oppositeValue + " kg*m/s" },
+        { value: "0", label: "0 kg*m/s" }
+      ];
+    }
+
+    function getChoices(group) {
+      if (group.id === "initialMomentum") {
+        return initialMomentumChoices();
+      }
+
+      return group.choices;
+    }
+
+    function signConventionFeedback() {
+      if (isDownPositive()) {
+        return "You chose downward as positive. Keep downward values positive and upward values negative for the rest of the problem.";
+      }
+
+      return "You chose downward as negative. Keep downward values negative and upward values positive for the rest of the problem.";
+    }
+
+    function completeFeedbackForStep(stepNumber) {
+      const current = questionSteps[stepNumber];
+
+      if (stepNumber === 0) {
+        return "";
+      }
+
+      if (stepNumber === 1) {
+        return signConventionFeedback();
+      }
+
+      if (stepNumber === 2) {
+        return "Correct. Initial momentum is pi = 0.10("
+          + formatSigned(currentInitialVelocity(), 1)
+          + ") = "
+          + formatMomentum(currentInitialMomentum())
+          + " for both balls.";
+      }
+
+      if (stepNumber === 3) {
+        return "Correct. Elastic: " + formatMagnitude(currentElasticDeltaP()) + ".";
+      }
+
+      if (stepNumber === 4) {
+        return "Correct. Inelastic: " + formatMagnitude(currentInelasticDeltaP()) + ".";
+      }
+
+      if (stepNumber === 5) {
+        if (isDownPositive()) {
+          return "Correct. The elastic ball changes from positive downward momentum to negative upward momentum, so the momentum vector changes more.";
+        }
+
+        return "Correct. The elastic ball changes from negative downward momentum to positive upward momentum, so the momentum vector changes more.";
+      }
+
+      return current.completeFeedback || "Correct.";
+    }
+
+    function feedbackFormulaForStep(stepNumber) {
+      const current = questionSteps[stepNumber];
+
+      if (stepNumber === 2 && hasSignConvention()) {
+        return "pi = 0.10(" + formatSigned(currentInitialVelocity(), 1) + ")";
+      }
+
+      if (stepNumber === 3 && hasSignConvention()) {
+        return "Elastic: |0.10("
+          + formatSigned(currentElasticFinalVelocity(), 1)
+          + " - ("
+          + formatSigned(currentInitialVelocity(), 1)
+          + "))|";
+      }
+
+      if (stepNumber === 4 && hasSignConvention()) {
+        return "Inelastic: |0.10(0 - ("
+          + formatSigned(currentInitialVelocity(), 1)
+          + "))|";
+      }
+
+      return current.feedbackFormula || "";
+    }
+
+    function setFeedback(message, state) {
+      feedback.className = "feedback" + (state ? " " + state : "");
+      feedback.textContent = message;
+    }
+
+    function getCurrentAnswers() {
+      if (!answers[step]) answers[step] = {};
+      return answers[step];
+    }
+
+    function findChoice(group, value) {
+      return getChoices(group).find((choice) => choice.value === value);
+    }
+
+    function isStepComplete(stepNumber) {
+      const current = questionSteps[stepNumber];
+      if (!current || !current.groups.length) return demoFinished;
+      const stepAnswers = answers[stepNumber] || {};
+      const requiredGroups = current.groups.filter((group) => !group.optional);
+
+      if (!requiredGroups.length) return demoFinished;
+
+      return requiredGroups.every((group) => {
+        const selected = stepAnswers[group.id];
+        const choice = findChoice(group, selected);
+        return Boolean(choice && choice.correct);
+      });
+    }
+
+    function renderChoiceGroups() {
+      const current = questionSteps[step];
+      const stepAnswers = answers[step] || {};
+      const disableChoices = running && step !== 0 ? " disabled" : "";
+
+      choiceArea.innerHTML = current.groups.map((group) => {
+        const buttons = getChoices(group).map((choice) => {
+          const isSelected = stepAnswers[group.id] === choice.value;
+          const stateClass = isSelected
+            ? (choice.correct ? " is-selected is-correct" : " is-selected is-wrong")
+            : "";
+          const primaryClass = choice.primary ? " primary-action" : "";
+
+          return `
+            <button
+              class="choice-button${stateClass}${primaryClass}"
+              type="button"
+              data-group-id="${group.id}"
+              data-choice-value="${choice.value}"
+              ${disableChoices}
+            >${choice.label}</button>
+          `;
+        }).join("");
+
+        return `
+          <div class="choice-group">
+            <div class="choice-buttons">${buttons}</div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function updateControls() {
+      const current = questionSteps[step];
+      nextBtn.textContent = step >= finalStep ? current.label : current.label + ": Next";
+      nextBtn.disabled = running || !demoFinished || step >= finalStep || !isStepComplete(step);
+      syncAutoAdvance();
+    }
+
+    function renderQuestionPanel() {
+      const current = questionSteps[step];
+      const formula = feedbackFormulaForStep(step);
+      questionBody.innerHTML = current.body;
+      feedbackFormula.innerHTML = formula
+        ? `<span class="formula">${formula}</span>`
+        : "";
+      renderChoiceGroups();
+
+      if (step === 0) {
+        setFeedback("", "");
+      } else if (isStepComplete(step)) {
+        setFeedback(completeFeedbackForStep(step), "good");
+      } else {
+        setFeedback("Choose an answer on the canvas.", "");
+      }
+    }
+
+    function setStep(nextStep) {
+      clearAutoAdvance();
+      clearPreviewReplay();
+      step = nextStep;
+      renderQuestionPanel();
+      updateControls();
+      draw();
+    }
+
+    function resetBallsToStart() {
       elasticBall = {
         x: elasticX,
         y: startY,
@@ -189,20 +730,24 @@
         vy: 0,
         stopped: false
       };
+    }
+
+    function resetDemo() {
+      clearAutoAdvance();
+      clearPreviewReplay();
+      clearCelebration();
+      resetBallsToStart();
 
       running = false;
       demoFinished = false;
       lastTime = null;
-      step = 0;
+      animationPhase = "idle";
+      simPhase = "start";
       prediction = null;
-
-      dropBtn.disabled = false;
-      nextBtn.disabled = true;
-      elasticAnswer.disabled = true;
-      inelasticAnswer.disabled = true;
-      sameAnswer.disabled = true;
-
-      draw();
+      signConvention = null;
+      answers = {};
+      setStep(0);
+      startPredictionReplay();
     }
 
     function roundedRect(x, y, w, h, r, fill, stroke) {
@@ -227,7 +772,7 @@
     }
 
     function drawTextBox(x, y, w, h, title, lines, options = {}) {
-      roundedRect(x, y, w, h, 14, options.fill || "rgba(255,255,255,0.94)", options.stroke || "#cbd5e1");
+      roundedRect(x, y, w, h, 8, options.fill || "rgba(255,255,255,0.94)", options.stroke || "#cbd5e1");
 
       ctx.fillStyle = options.titleColor || "#111827";
       ctx.font = "bold 20px Arial";
@@ -254,20 +799,9 @@
       ctx.stroke();
 
       ctx.fillStyle = "#111827";
-      ctx.beginPath();
-      ctx.arc(ball.x - 9, ball.y - 7, 3.5, 0, Math.PI * 2);
-      ctx.arc(ball.x + 9, ball.y - 7, 3.5, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.strokeStyle = "#111827";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      if (label === "Elastic") {
-        ctx.arc(ball.x, ball.y + 1, 12, 0.1 * Math.PI, 0.9 * Math.PI);
-      } else {
-        ctx.arc(ball.x, ball.y + 17, 12, 1.1 * Math.PI, 1.9 * Math.PI);
-      }
-      ctx.stroke();
+      ctx.font = "bold 15px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("0.1 kg", ball.x, ball.y + 5);
 
       ctx.fillStyle = "#111827";
       ctx.font = "bold 22px Arial";
@@ -308,8 +842,116 @@
       ctx.restore();
     }
 
+    function drawSignArrow(x, centerY, length, direction, sign, color) {
+      const startY = direction === "down" ? centerY - length / 2 : centerY + length / 2;
+      const endY = direction === "down" ? centerY + length / 2 : centerY - length / 2;
+
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(x, startY);
+      ctx.lineTo(x, endY);
+      ctx.stroke();
+
+      ctx.beginPath();
+      if (direction === "down") {
+        ctx.moveTo(x - 8, endY - 11);
+        ctx.lineTo(x, endY);
+        ctx.lineTo(x + 8, endY - 11);
+      } else {
+        ctx.moveTo(x - 8, endY + 11);
+        ctx.lineTo(x, endY);
+        ctx.lineTo(x + 8, endY + 11);
+      }
+      ctx.fill();
+
+      ctx.font = "bold 20px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(sign, x + 16, centerY + 7);
+      ctx.restore();
+    }
+
+    function drawSignConventionKey() {
+      if (!hasSignConvention()) return;
+
+      const boxX = 1030;
+      const boxY = 112;
+      roundedRect(boxX, boxY, 52, 158, 8, "rgba(255,255,255,0.92)", "#94a3b8");
+
+      ctx.fillStyle = "#334155";
+      ctx.font = "bold 13px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("+/-", boxX + 26, boxY + 23);
+
+      drawSignArrow(
+        boxX + 26,
+        boxY + 68,
+        42,
+        isDownPositive() ? "down" : "up",
+        "+",
+        "#16a34a"
+      );
+
+      drawSignArrow(
+        boxX + 26,
+        boxY + 126,
+        42,
+        isDownPositive() ? "up" : "down",
+        "-",
+        "#dc2626"
+      );
+    }
+
+    function createConfetti() {
+      const colors = ["#facc15", "#22c55e", "#3b82f6", "#ec4899", "#f97316", "#a855f7"];
+      confettiPieces = [];
+
+      for (let i = 0; i < 150; i += 1) {
+        confettiPieces.push({
+          x: Math.random() * canvas.width,
+          y: -Math.random() * canvas.height,
+          vx: -45 + Math.random() * 90,
+          vy: 95 + Math.random() * 170,
+          size: 5 + Math.random() * 7,
+          angle: Math.random() * Math.PI * 2,
+          spin: -5 + Math.random() * 10,
+          color: colors[i % colors.length]
+        });
+      }
+    }
+
+    function updateConfetti(dt) {
+      if (!celebrationActive) return;
+
+      for (const piece of confettiPieces) {
+        piece.x += piece.vx * dt;
+        piece.y += piece.vy * dt;
+        piece.angle += piece.spin * dt;
+
+        if (piece.y > canvas.height + 30) {
+          piece.y = -20 - Math.random() * 120;
+          piece.x = Math.random() * canvas.width;
+        }
+      }
+    }
+
+    function drawConfetti() {
+      if (!celebrationActive) return;
+
+      ctx.save();
+      for (const piece of confettiPieces) {
+        ctx.translate(piece.x, piece.y);
+        ctx.rotate(piece.angle);
+        ctx.fillStyle = piece.color;
+        ctx.fillRect(-piece.size / 2, -piece.size / 2, piece.size, piece.size * 0.55);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+      }
+      ctx.restore();
+    }
+
     function drawGroundAndGuides() {
-      // Floor
       ctx.strokeStyle = "#111827";
       ctx.lineWidth = 5;
       ctx.beginPath();
@@ -322,137 +964,130 @@
       ctx.textAlign = "center";
       ctx.fillText("floor", canvas.width / 2, groundY + radius + 28);
 
-      // Starting line
-      ctx.strokeStyle = "#94a3b8";
-      ctx.setLineDash([7, 6]);
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(110, startY);
-      ctx.lineTo(canvas.width - 110, startY);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      ctx.fillStyle = "#475569";
-      ctx.font = "14px Arial";
-      ctx.textAlign = "left";
-      ctx.fillText("same starting height", 115, startY - 10);
     }
 
-    function drawMainInstruction() {
-      if (step === 0) {
-        drawTextBox(270, 490, 560, 118, "Step 1: Watch the collision.", [
-          "Both balls start from the same height.",
-          "Click “Drop Both Balls” and observe what happens after impact."
-        ], { fill: "rgba(239,246,255,0.96)", stroke: "#2563eb" });
-      }
+    function drawElasticEquationPanel(x, y, compact = false) {
+      const lines = compact
+        ? [
+          "vi = " + formatVelocity(currentInitialVelocity()),
+          "vf = " + formatVelocity(currentElasticFinalVelocity())
+        ]
+        : [
+        "vi = " + formatVelocity(currentInitialVelocity()),
+        "vf = " + formatVelocity(currentElasticFinalVelocity()),
+        "|change in p| = |m(vf - vi)|",
+        "|change in p| = " + formatMagnitude(currentElasticDeltaP())
+      ];
 
-      if (step === 1) {
-        drawTextBox(230, 490, 640, 125, "Step 2: Initial velocity before impact", [
-          "Right before hitting the floor, both balls move downward.",
-          "Because downward is negative: vi = -4.4 m/s for both balls.",
-          "Same mass and same initial velocity means same initial momentum."
-        ], { fill: "rgba(239,246,255,0.96)", stroke: "#2563eb" });
-      }
+      drawTextBox(x, y, compact ? 255 : 420, compact ? 112 : 150, "Elastic Ball", lines, {
+        fill: "rgba(255,251,235,0.96)",
+        stroke: "#f59e0b",
+        titleColor: "#92400e",
+        font: "17px Arial"
+      });
+    }
 
-      if (step === 2) {
-        drawTextBox(250, 490, 600, 118, "Step 3: Make a prediction", [
-          "Which ball had the greater change in momentum?",
-          "Choose Elastic, Inelastic, or Same using the buttons below."
-        ], { fill: "rgba(254,249,195,0.96)", stroke: "#ca8a04" });
-      }
+    function drawInelasticEquationPanel(x, y, compact = false) {
+      const lines = compact
+        ? [
+          "vi = " + formatVelocity(currentInitialVelocity()),
+          "vf = " + formatVelocity(currentInelasticFinalVelocity())
+        ]
+        : [
+        "vi = " + formatVelocity(currentInitialVelocity()),
+        "vf = " + formatVelocity(currentInelasticFinalVelocity()),
+        "|change in p| = |m(vf - vi)|",
+        "|change in p| = " + formatMagnitude(currentInelasticDeltaP())
+      ];
 
-      if (step === 3) {
-        const predictionLine = prediction
-          ? "Your prediction: " + prediction
-          : "No prediction chosen yet.";
-
-        drawTextBox(210, 485, 680, 140, "Step 4: Final velocity after the collision", [
-          predictionLine,
-          "Elastic Ball: vf = +3.5 m/s because it bounces upward.",
-          "Inelastic Ball: vf = 0 m/s because it stops."
-        ], { fill: "rgba(240,253,244,0.96)", stroke: "#16a34a" });
-      }
-
-      if (step === 4) {
-        drawTextBox(65, 485, 970, 140, "Step 5: Calculate change in momentum", [
-          "Use Δp = |m(vf - vi)|.  Both balls have m = 0.10 kg and vi = -4.4 m/s.",
-          "Elastic:   Δp = |0.10(3.5 - (-4.4))| = 0.79 kg·m/s",
-          "Inelastic: Δp = |0.10(0 - (-4.4))| = 0.44 kg·m/s"
-        ], { fill: "rgba(255,255,255,0.96)", stroke: "#475569", font: "17px Arial" });
-      }
-
-      if (step === 5) {
-        drawTextBox(65, 480, 970, 150, "Step 6: Final momentum and conclusion", [
-          "Elastic final momentum:   pf = mvf = 0.10(3.5) = +0.35 kg·m/s",
-          "Inelastic final momentum: pf = mvf = 0.10(0) = 0 kg·m/s",
-          "The Elastic Ball has the greater Δp because its momentum changes direction."
-        ], { fill: "rgba(220,252,231,0.96)", stroke: "#16a34a", font: "17px Arial" });
-      }
+      drawTextBox(x, y, compact ? 255 : 420, compact ? 112 : 150, "Inelastic Ball", lines, {
+        fill: "rgba(239,246,255,0.96)",
+        stroke: "#3b82f6",
+        titleColor: "#1d4ed8",
+        font: "17px Arial"
+      });
     }
 
     function drawEquationPanels() {
-      if (step >= 4) {
-        drawTextBox(75, 115, 420, 150, "Elastic Ball", [
-          "vi = -4.4 m/s",
-          "vf = +3.5 m/s",
-          "Δp = |m(vf - vi)|",
-          "Δp = 0.79 kg·m/s"
-        ], { fill: "rgba(255,251,235,0.96)", stroke: "#f59e0b", titleColor: "#92400e", font: "17px Arial" });
-
-        drawTextBox(605, 115, 420, 150, "Inelastic Ball", [
-          "vi = -4.4 m/s",
-          "vf = 0 m/s",
-          "Δp = |m(vf - vi)|",
-          "Δp = 0.44 kg·m/s"
-        ], { fill: "rgba(239,246,255,0.96)", stroke: "#3b82f6", titleColor: "#1d4ed8", font: "17px Arial" });
+      if (step === 3) {
+        drawElasticEquationPanel(20, 220, true);
+      } else if (step === 4) {
+        drawInelasticEquationPanel(825, 220, true);
       }
     }
 
-    function drawFinalMomentumBars() {
-      if (step >= 5) {
-        const baseY = 342;
-        const leftX = 150;
-        const rightX = 680;
+    function drawZeroMomentum(x, y, label, color) {
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(x - 18, y);
+      ctx.lineTo(x + 18, y);
+      ctx.stroke();
 
-        ctx.font = "bold 17px Arial";
-        ctx.textAlign = "left";
-        ctx.fillStyle = "#111827";
-        ctx.fillText("Final momentum pf", 455, 310);
+      ctx.font = "bold 16px Arial";
+      ctx.textAlign = "left";
+      ctx.fillText(label, x + 28, y + 5);
+      ctx.restore();
+    }
 
-        // Elastic bar upward positive
-        ctx.fillStyle = "#92400e";
-        ctx.fillText("Elastic: +0.35 kg·m/s", leftX, baseY - 55);
-        drawVector(leftX + 250, baseY, 58, "up", "pf up", "#92400e");
+    function drawMomentumChangeSummary() {
+      if (step !== 5) return;
 
-        // Inelastic zero
-        ctx.fillStyle = "#1d4ed8";
-        ctx.fillText("Inelastic: 0 kg·m/s", rightX, baseY - 55);
-        ctx.strokeStyle = "#1d4ed8";
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(rightX + 250 - 16, baseY);
-        ctx.lineTo(rightX + 250 + 16, baseY);
-        ctx.stroke();
-        ctx.fillText("pf = 0", rightX + 280, baseY + 5);
-      }
+      ctx.font = "bold 18px Arial";
+      ctx.textAlign = "left";
+
+      ctx.fillStyle = "#92400e";
+      ctx.fillText("Elastic momentum", 90, 118);
+      drawVector(120, 150, 76, "down", "pi = " + formatMomentum(currentInitialMomentum()), "#dc2626");
+      drawVector(260, 300, 62, "up", "pf = " + formatMomentum(currentElasticFinalMomentum()), "#16a34a");
+      ctx.fillStyle = "#111827";
+      ctx.font = "bold 17px Arial";
+      ctx.fillText("total change = " + formatMagnitude(currentElasticDeltaP()), 90, 350);
+
+      ctx.fillStyle = "#1d4ed8";
+      ctx.font = "bold 18px Arial";
+      ctx.fillText("Inelastic momentum", 610, 118);
+      drawVector(640, 150, 76, "down", "pi = " + formatMomentum(currentInitialMomentum()), "#dc2626");
+      drawZeroMomentum(790, 300, "pf = " + formatMomentum(currentInelasticFinalMomentum()), "#1d4ed8");
+      ctx.fillStyle = "#111827";
+      ctx.font = "bold 17px Arial";
+      ctx.fillText("total change = " + formatMagnitude(currentInelasticDeltaP()), 610, 350);
+    }
+
+    function drawReboundHeightMarker() {
+      if (simPhase !== "reboundHeight") return;
+
+      ctx.strokeStyle = "#64748b";
+      ctx.setLineDash([7, 6]);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(35, reboundPeakY);
+      ctx.lineTo(225, reboundPeakY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = "#334155";
+      ctx.font = "bold 16px Arial";
+      ctx.textAlign = "left";
+      ctx.fillText("rebound height", 45, reboundPeakY - 12);
+
     }
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
       drawGroundAndGuides();
-
       drawBall(elasticBall, "#facc15", "Elastic");
       drawBall(inelasticBall, "#60a5fa", "Inelastic");
 
-      // Velocity vector displays by lesson step.
-      if (step >= 1 && step < 3) {
-        drawVector(elasticBall.x + 48, elasticBall.y - 12, 80, "down", "vi = -4.4 m/s", "#dc2626");
-        drawVector(inelasticBall.x + 48, inelasticBall.y - 12, 80, "down", "vi = -4.4 m/s", "#dc2626");
+      if (!celebrationActive && step >= 1 && step < 4 && hasSignConvention()) {
+        drawVector(elasticBall.x + 48, elasticBall.y - 12, 80, "down", "vi = " + formatVelocity(currentInitialVelocity()), "#dc2626");
+        drawVector(inelasticBall.x + 48, inelasticBall.y - 12, 80, "down", "vi = " + formatVelocity(currentInitialVelocity()), "#dc2626");
       }
 
-      if (step >= 3) {
-        drawVector(elasticBall.x + 48, elasticBall.y + 12, 75, "up", "vf = +3.5 m/s", "#16a34a");
+      if (!celebrationActive && step >= 3 && step < 5 && simPhase !== "reboundHeight") {
+        drawVector(elasticBall.x + 48, elasticBall.y + 12, 75, "up", "vf = " + formatVelocity(currentElasticFinalVelocity()), "#16a34a");
 
         ctx.strokeStyle = "#1d4ed8";
         ctx.fillStyle = "#1d4ed8";
@@ -467,23 +1102,95 @@
         ctx.fillText("vf = 0 m/s", inelasticBall.x + 80, inelasticBall.y + 5);
       }
 
-      drawEquationPanels();
-      drawFinalMomentumBars();
-      drawMainInstruction();
+      if (!celebrationActive) {
+        drawReboundHeightMarker();
+        drawEquationPanels();
+        drawMomentumChangeSummary();
+        drawSignConventionKey();
+      }
+
+      drawConfetti();
     }
 
-    function update(dt) {
-      // Elastic ball falls, then bounces.
+    function setPreImpactStop() {
+      elasticBall.y = preImpactY;
+      elasticBall.vy = 0;
+      elasticBall.bounced = false;
+      inelasticBall.y = preImpactY;
+      inelasticBall.vy = 0;
+      inelasticBall.stopped = false;
+      simPhase = "preImpact";
+    }
+
+    function setPostImpactStop() {
+      elasticBall.y = postImpactY;
+      elasticBall.vy = 0;
+      elasticBall.bounced = true;
+      inelasticBall.y = groundY;
+      inelasticBall.vy = 0;
+      inelasticBall.stopped = true;
+      simPhase = "postImpact";
+    }
+
+    function updateToPreImpact(dt) {
       elasticBall.vy += canvasG * dt;
       elasticBall.y += elasticBall.vy * dt;
 
-      if (elasticBall.y >= groundY && !elasticBall.bounced) {
-        elasticBall.y = groundY;
-        elasticBall.vy = -elasticBall.vy * restitution;
-        elasticBall.bounced = true;
+      inelasticBall.vy += canvasG * dt;
+      inelasticBall.y += inelasticBall.vy * dt;
+
+      if (elasticBall.y >= preImpactY || inelasticBall.y >= preImpactY) {
+        running = false;
+        animationPhase = "idle";
+        demoFinished = true;
+        setPreImpactStop();
+        setStep(1);
+      }
+    }
+
+    function schedulePredictionReplay() {
+      clearPreviewReplay();
+      if (step !== 0) return;
+
+      previewReplayTimer = setTimeout(() => {
+        previewReplayTimer = null;
+        if (step === 0) {
+          startPredictionReplay();
+        }
+      }, previewReplayDelayMs);
+    }
+
+    function startPredictionReplay() {
+      if (step !== 0 || running) return;
+
+      clearPreviewReplay();
+      resetBallsToStart();
+      running = true;
+      animationPhase = "fullSimulationPreview";
+      simPhase = "preview";
+      lastTime = null;
+      setFeedback("", "");
+      renderChoiceGroups();
+      updateControls();
+      requestAnimationFrame(animate);
+    }
+
+    function updateFullSimulationPreview(dt) {
+      if (!elasticBall.bounced) {
+        elasticBall.vy += canvasG * dt;
+        elasticBall.y += elasticBall.vy * dt;
+
+        if (elasticBall.y >= groundY) {
+          elasticBall.y = groundY;
+          elasticBall.vy = -Math.abs(elasticBall.vy) * restitution;
+          elasticBall.bounced = true;
+          simPhase = "postImpact";
+        }
+      } else {
+        elasticBall.vy += canvasG * dt;
+        elasticBall.y += elasticBall.vy * dt;
       }
 
-      // Inelastic ball falls, then stops.
       if (!inelasticBall.stopped) {
         inelasticBall.vy += canvasG * dt;
         inelasticBall.y += inelasticBall.vy * dt;
@@ -495,10 +1202,142 @@
         }
       }
 
-      // Stop after the elastic ball clearly bounces upward.
-      if (elasticBall.bounced && elasticBall.vy > 0 && elasticBall.y > 250) {
-        finishDrop();
+      if (elasticBall.bounced && (elasticBall.vy >= 0 || elasticBall.y <= reboundPeakY)) {
+        running = false;
+        animationPhase = "idle";
+        elasticBall.y = reboundPeakY;
+        elasticBall.vy = 0;
+        simPhase = "reboundHeight";
+        setFeedback("", "");
+        renderChoiceGroups();
+        updateControls();
+        draw();
+        schedulePredictionReplay();
       }
+    }
+
+    function startCelebration() {
+      clearAutoAdvance();
+      clearPreviewReplay();
+      resetBallsToStart();
+      createConfetti();
+      celebrationActive = true;
+      running = true;
+      animationPhase = "celebrationReplay";
+      simPhase = "celebration";
+      lastTime = null;
+      setFeedback(celebrationMessage, "good");
+      renderChoiceGroups();
+      updateControls();
+      requestAnimationFrame(animate);
+    }
+
+    function updateCelebrationReplay(dt) {
+      if (!elasticBall.bounced) {
+        elasticBall.vy += canvasG * dt;
+        elasticBall.y += elasticBall.vy * dt;
+
+        if (elasticBall.y >= groundY) {
+          elasticBall.y = groundY;
+          elasticBall.vy = -Math.abs(elasticBall.vy) * restitution;
+          elasticBall.bounced = true;
+          simPhase = "postImpact";
+        }
+      } else {
+        elasticBall.vy += canvasG * dt;
+        elasticBall.y += elasticBall.vy * dt;
+      }
+
+      if (!inelasticBall.stopped) {
+        inelasticBall.vy += canvasG * dt;
+        inelasticBall.y += inelasticBall.vy * dt;
+
+        if (inelasticBall.y >= groundY) {
+          inelasticBall.y = groundY;
+          inelasticBall.vy = 0;
+          inelasticBall.stopped = true;
+        }
+      }
+
+      if (elasticBall.bounced && (elasticBall.vy >= 0 || elasticBall.y <= reboundPeakY)) {
+        running = false;
+        animationPhase = "idle";
+        elasticBall.y = reboundPeakY;
+        elasticBall.vy = 0;
+        simPhase = "reboundHeight";
+        setFeedback(celebrationMessage, "good");
+        renderChoiceGroups();
+        updateControls();
+        draw();
+      }
+    }
+
+    function updateThroughImpact(dt) {
+      if (!elasticBall.bounced) {
+        elasticBall.vy += canvasG * dt;
+        elasticBall.y += elasticBall.vy * dt;
+
+        if (elasticBall.y >= groundY) {
+          elasticBall.y = groundY;
+          elasticBall.vy = -Math.abs(elasticBall.vy) * restitution;
+          elasticBall.bounced = true;
+        }
+      } else {
+        elasticBall.vy += canvasG * dt;
+        elasticBall.y += elasticBall.vy * dt;
+      }
+
+      if (!inelasticBall.stopped) {
+        inelasticBall.vy += canvasG * dt;
+        inelasticBall.y += inelasticBall.vy * dt;
+
+        if (inelasticBall.y >= groundY) {
+          inelasticBall.y = groundY;
+          inelasticBall.vy = 0;
+          inelasticBall.stopped = true;
+        }
+      }
+
+      if (elasticBall.bounced && elasticBall.y <= postImpactY) {
+        running = false;
+        animationPhase = "idle";
+        setPostImpactStop();
+        setFeedback("Stopped just after impact. Now compare the final velocities.", "");
+        setStep(3);
+      }
+    }
+
+    function updateToReboundHeight(dt) {
+      elasticBall.vy += canvasG * dt;
+      elasticBall.y += elasticBall.vy * dt;
+
+      if (elasticBall.vy >= 0 || elasticBall.y <= reboundPeakY) {
+        running = false;
+        animationPhase = "idle";
+        elasticBall.y = reboundPeakY;
+        elasticBall.vy = 0;
+        simPhase = "reboundHeight";
+        setFeedback("Elastic ball reached rebound height. At that top point its velocity is momentarily 0 m/s.", "answer-key");
+        renderChoiceGroups();
+        updateControls();
+        draw();
+      }
+    }
+
+    function update(dt) {
+      if (animationPhase === "toPreImpact") {
+        updateToPreImpact(dt);
+      } else if (animationPhase === "fullSimulationPreview") {
+        updateFullSimulationPreview(dt);
+      } else if (animationPhase === "celebrationReplay") {
+        updateCelebrationReplay(dt);
+      } else if (animationPhase === "throughImpact") {
+        updateThroughImpact(dt);
+      } else if (animationPhase === "toReboundHeight") {
+        updateToReboundHeight(dt);
+      }
+
+      updateConfetti(dt);
     }
 
     function animate(ts) {
@@ -510,83 +1349,172 @@
 
       update(dt);
       draw();
-
       requestAnimationFrame(animate);
     }
 
     function startDrop() {
-      resetDemo();
+      if (running) return;
+
+      startPredictionReplay();
+    }
+
+    function startImpact() {
+      if (running) return;
+
+      clearAutoAdvance();
+      if (simPhase !== "preImpact") {
+        setPreImpactStop();
+      }
+
       running = true;
-      step = 0;
-      dropBtn.disabled = true;
+      animationPhase = "throughImpact";
+      lastTime = null;
+      elasticBall.vy = impactSpeedPx;
+      inelasticBall.vy = impactSpeedPx;
+      setFeedback("Watch the collision. The next stop is just after impact.", "");
+      renderChoiceGroups();
+      updateControls();
       requestAnimationFrame(animate);
     }
 
-    function finishDrop() {
-      running = false;
-      demoFinished = true;
-      step = 1;
+    function startReboundHeight() {
+      if (running) return;
 
-      nextBtn.disabled = false;
-      dropBtn.disabled = true;
-      elasticAnswer.disabled = true;
-      inelasticAnswer.disabled = true;
-      sameAnswer.disabled = true;
+      clearAutoAdvance();
+      if (simPhase !== "postImpact") {
+        setPostImpactStop();
+      }
 
-      // Freeze balls in clear final positions.
-      elasticBall.y = 270;
-      inelasticBall.y = groundY;
-      draw();
+      running = true;
+      animationPhase = "toReboundHeight";
+      lastTime = null;
+      elasticBall.vy = -Math.sqrt(2 * canvasG * (postImpactY - reboundPeakY));
+      setFeedback("Watch the elastic ball travel back upward to its rebound height.", "");
+      renderChoiceGroups();
+      updateControls();
+      requestAnimationFrame(animate);
     }
 
     function nextStep() {
+      if (step >= finalStep) return;
+
+      clearAutoAdvance();
+      if (step === 0) {
+        if (!isStepComplete(step)) {
+          setFeedback("Choose a prediction on the canvas before moving on.", "needs-work");
+          return;
+        }
+
+        clearPreviewReplay();
+        running = false;
+        animationPhase = "idle";
+        demoFinished = true;
+        setPreImpactStop();
+        setStep(1);
+        return;
+      }
+
       if (!demoFinished) return;
 
-      if (step === 1) {
-        step = 2;
-        elasticAnswer.disabled = false;
-        inelasticAnswer.disabled = false;
-        sameAnswer.disabled = false;
-      } else if (step === 2) {
-        step = 3;
-        elasticAnswer.disabled = true;
-        inelasticAnswer.disabled = true;
-        sameAnswer.disabled = true;
-      } else if (step === 3) {
-        step = 4;
-      } else if (step === 4) {
-        step = 5;
-        nextBtn.disabled = true;
+      if (!isStepComplete(step)) {
+        setFeedback("Answer the question on the canvas before moving on.", "needs-work");
+        return;
       }
 
-      draw();
+      if (step === 2 && simPhase === "preImpact") {
+        startImpact();
+        return;
+      }
+
+      if (simPhase === "reboundHeight" && step >= 3) {
+        setPostImpactStop();
+      }
+
+      setStep(step + 1);
     }
 
-    function choosePrediction(choice) {
-      prediction = choice;
-
-      if (choice === "Elastic Ball") {
-        prediction = "Elastic Ball";
-      } else if (choice === "Inelastic Ball") {
-        prediction = "Inelastic Ball";
-      } else {
-        prediction = "Same Change";
+    function wrongFeedbackForStep() {
+      if (step === 1) {
+        return "Choose one sign convention and keep it consistent for the rest of the problem.";
       }
 
-      elasticAnswer.disabled = true;
-      inelasticAnswer.disabled = true;
-      sameAnswer.disabled = true;
-      step = 3;
+      if (step === 2) {
+        return "Use p = mv with m = 0.10 kg and vi = " + formatVelocity(currentInitialVelocity()) + ".";
+      }
+
+      if (step === 3) {
+        return "For the elastic ball, subtract the signed initial velocity from the signed upward final velocity.";
+      }
+
+      if (step === 4) {
+        return "For the inelastic ball, the final velocity is 0, but you still subtract the signed initial velocity.";
+      }
+
+      if (step === 5) {
+        return "Look at the sign of momentum before and after impact. One ball reverses direction; the other only goes to zero.";
+      }
+
+      return "Try that one again.";
+    }
+
+    function handleChoiceClick(event) {
+      const button = event.target.closest(".choice-button");
+      if (!button) return;
+
+      const current = questionSteps[step];
+      const group = current.groups.find((item) => item.id === button.dataset.groupId);
+      if (!group) return;
+
+      const choice = findChoice(group, button.dataset.choiceValue);
+      if (!choice) return;
+
+      if (choice.action === "drop") {
+        startDrop();
+        return;
+      }
+
+      if (choice.action === "rebound") {
+        startReboundHeight();
+        return;
+      }
+
+      const stepAnswers = getCurrentAnswers();
+      stepAnswers[group.id] = choice.value;
+
+      if (group.id === "viSign") {
+        signConvention = choice.value;
+        answers[2] = {};
+      }
+
+      if (group.id === "prediction") {
+        prediction = choice.value;
+      }
+
+      renderChoiceGroups();
+
+      if (step === finalStep && group.id === "reasonChoice" && choice.correct) {
+        startCelebration();
+        return;
+      }
+
+      if (isStepComplete(step)) {
+        setFeedback(
+          completeFeedbackForStep(step),
+          "good"
+        );
+      } else if (choice.correct) {
+        setFeedback("Good. Answer the remaining question on the canvas.", "good");
+      } else {
+        setFeedback(wrongFeedbackForStep(), "needs-work");
+      }
+
+      updateControls();
       draw();
     }
 
     resetBtn.addEventListener("click", resetDemo);
-    dropBtn.addEventListener("click", startDrop);
     nextBtn.addEventListener("click", nextStep);
-
-    elasticAnswer.addEventListener("click", () => choosePrediction("Elastic Ball"));
-    inelasticAnswer.addEventListener("click", () => choosePrediction("Inelastic Ball"));
-    sameAnswer.addEventListener("click", () => choosePrediction("Same Change"));
+    choiceArea.addEventListener("click", handleChoiceClick);
 
     resetDemo();
   </script>

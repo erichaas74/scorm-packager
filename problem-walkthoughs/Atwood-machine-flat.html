@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Flat Table Pulley Numeric Steps</title>
+<style>
+  html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #f8fafc;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    touch-action: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const G = 9.8;
+
+let problem = null;
+let step = 0;
+let selectedChoice = null;
+let advancing = false;
+let hintShown = false;
+let completed = Array(7).fill(false);
+let hitTargets = [];
+let choiceCache = {};
+let blockOffset = 0;
+let animStart = null;
+let animRAF = null;
+
+function startMotionAnimation() {
+  cancelMotion();
+  animRAF = requestAnimationFrame(motionFrame);
+}
+
+function cancelMotion() {
+  if (animRAF !== null) cancelAnimationFrame(animRAF);
+  animRAF = null;
+  animStart = null;
+  blockOffset = 0;
+}
+
+function motionFrame(ts) {
+  if (animStart === null) animStart = ts;
+  const t = (ts - animStart) / 1000;
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  const scale = Math.min(W / 1400, H / 830);
+  const saved = blockOffset;
+  blockOffset = 0;
+  const g0 = makeGeometry(W, H);
+  blockOffset = saved;
+  const panelTop = H - 172 * scale;
+  const tableLimit = (g0.pulley.x - g0.pulley.r - 24 * scale) - (g0.blockCenter.x + g0.blockW / 2);
+  const hangLimit = panelTop - (g0.hanging.y + g0.hanging.h / 2) - 12 * scale;
+  const maxTravel = Math.max(40 * scale, Math.min(tableLimit, hangLimit));
+  const aPx = problem.a * 55 * scale;
+  const tMax = Math.sqrt(2 * maxTravel / aPx);
+  const tc = t % (tMax + 1.0);
+  blockOffset = tc <= tMax ? 0.5 * aPx * tc * tc : maxTravel;
+  draw();
+  animRAF = requestAnimationFrame(motionFrame);
+}
+
+function randStep(min, max, step) {
+  const count = Math.round((max - min) / step);
+  return round1(min + Math.floor(Math.random() * (count + 1)) * step);
+}
+
+function round1(v) {
+  return Math.round(v * 10) / 10;
+}
+
+function format1(v) {
+  return round1(v).toFixed(1);
+}
+
+function generateProblem() {
+  let p;
+  do {
+    const ms = randStep(4, 16, 0.5);
+    const mh = randStep(4, 16, 0.5);
+    const mu = randStep(0.1, 0.6, 0.05);
+    const ws = round1(ms * G);
+    const wh = round1(mh * G);
+    const fn = ws;
+    const ff = round1(mu * fn);
+    const fnet = round1(wh - ff);
+    const mtotal = round1(ms + mh);
+    const a = round1(fnet / mtotal);
+    p = { ms, mh, mu: round1(mu), ws, wh, fn, ff, fnet, mtotal, a };
+  } while (p.fnet <= 2 || p.a <= 0.2 || p.a >= 6.0);
+  return p;
+}
+
+function getStepData(i) {
+  const p = problem;
+  switch (i) {
+    case 0:
+      return buildStep({
+        title: "Find the table block weight",
+        question: `What is the weight of the block on the table mₛ?`,
+        unit: "N",
+        value: p.ws,
+        equations: [
+          `Wₛ = mₛg`,
+          `Wₛ = ${format1(p.ms)} × 9.8`,
+          completed[i] ? `Wₛ = ${format1(p.ws)} N` : `Wₛ = ?`
+        ],
+        distractors: [p.wh, p.ms, p.ws * 1.1, p.ws * 0.9]
+      });
+    case 1:
+      return buildStep({
+        title: "Find the hanging weight",
+        question: `What is the weight of the hanging mass mₕ?`,
+        unit: "N",
+        value: p.wh,
+        equations: [
+          `Wₕ = mₕg`,
+          `Wₕ = ${format1(p.mh)} × 9.8`,
+          completed[i] ? `Wₕ = ${format1(p.wh)} N` : `Wₕ = ?`
+        ],
+        distractors: [p.ws, p.mh, p.wh * 1.1, p.wh * 0.9]
+      });
+    case 2:
+      return buildStep({
+        title: "Find the normal force",
+        question: `What is the normal force on the table block?`,
+        unit: "N",
+        value: p.fn,
+        equations: [
+          `Fₙ = Wₛ = mₛg  (flat table)`,
+          `Fₙ = ${format1(p.ms)} × 9.8`,
+          completed[i] ? `Fₙ = ${format1(p.fn)} N` : `Fₙ = ?`
+        ],
+        distractors: [p.wh, p.mtotal * G, p.fn * 1.15, p.fn * 0.85]
+      });
+    case 3:
+      return buildStep({
+        title: "Find the friction force",
+        question: `What is the friction force on the table block?`,
+        unit: "N",
+        value: p.ff,
+        equations: [
+          `Ff = μFₙ`,
+          `Ff = ${format1(p.mu)} × ${format1(p.fn)}`,
+          completed[i] ? `Ff = ${format1(p.ff)} N` : `Ff = ?`
+        ],
+        distractors: [p.mu * p.wh, p.fn, p.ff * 1.2, p.ff * 0.8]
+      });
+    case 4:
+      return buildStep({
+        title: "Find the net force",
+        question: `What is the net force for the whole system?`,
+        unit: "N",
+        value: p.fnet,
+        equations: [
+          `Fnet = mₕg − Ff`,
+          `Fnet = ${format1(p.wh)} − ${format1(p.ff)}`,
+          completed[i] ? `Fnet = ${format1(p.fnet)} N` : `Fnet = ?`
+        ],
+        distractors: [p.wh + p.ff, p.wh, p.fnet * 1.2, p.fnet * 0.8]
+      });
+    case 5:
+      return buildStep({
+        title: "Find the total mass",
+        question: `What total mass goes in the denominator?`,
+        unit: "kg",
+        value: p.mtotal,
+        equations: [
+          `mtotal = mₛ + mₕ`,
+          `mtotal = ${format1(p.ms)} + ${format1(p.mh)}`,
+          completed[i] ? `mtotal = ${format1(p.mtotal)} kg` : `mtotal = ?`
+        ],
+        distractors: [Math.abs(p.ms - p.mh), p.ms, p.mh, p.mtotal * 1.1]
+      });
+    case 6:
+    default:
+      return buildStep({
+        title: "Solve for acceleration",
+        question: `What is the acceleration of the system?`,
+        unit: "m/s²",
+        value: p.a,
+        equations: [
+          `a = Fnet / mtotal`,
+          `a = ${format1(p.fnet)} / ${format1(p.mtotal)}`,
+          completed[i] ? `a = ${format1(p.a)} m/s²` : `a = ?`
+        ],
+        distractors: [p.fnet / p.mh, p.fnet / p.ms, p.a * 1.25, p.a * 0.75]
+      });
+  }
+}
+
+function buildStep(config) {
+  const correct = round1(config.value);
+  if (!choiceCache[step]) {
+    let values = [correct];
+    config.distractors.forEach(v => {
+      const num = round1(v);
+      if (num >= 0 && Math.abs(num - correct) > 0.04 && !values.some(x => Math.abs(x - num) < 0.04)) {
+        values.push(num);
+      }
+    });
+    while (values.length < 4) {
+      const tweak = round1(correct * (0.65 + Math.random() * 0.7) + (Math.random() * 3 - 1.5));
+      if (tweak >= 0 && !values.some(x => Math.abs(x - tweak) < 0.04)) values.push(tweak);
+    }
+    choiceCache[step] = values.slice(0, 4).sort(() => Math.random() - 0.5);
+  }
+  const values = choiceCache[step];
+  const correctIndex = values.findIndex(v => Math.abs(v - correct) < 0.04);
+  const choices = values.map(v => `${format1(v)} ${config.unit}`);
+  return {
+    title: config.title,
+    question: config.question,
+    equations: config.equations,
+    choices,
+    correctIndex
+  };
+}
+
+function newProblem() {
+  cancelMotion();
+  problem = generateProblem();
+  step = 0;
+  selectedChoice = null;
+  advancing = false;
+  hintShown = false;
+  completed = Array(7).fill(false);
+  choiceCache = {};
+  draw();
+}
+
+function resize() {
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  canvas.width = Math.floor(window.innerWidth * dpr);
+  canvas.height = Math.floor(window.innerHeight * dpr);
+  canvas.style.width = window.innerWidth + "px";
+  canvas.style.height = window.innerHeight + "px";
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  draw();
+}
+
+window.addEventListener("resize", resize);
+canvas.addEventListener("pointerdown", handlePointer);
+window.addEventListener("keydown", e => {
+  if ((e.key === "ArrowRight" || e.key === " ") && completed[step]) nextStep();
+  if (e.key === "ArrowLeft") previousStep();
+  if (e.key.toLowerCase() === "n") newProblem();
+});
+
+function handlePointer(e) {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  for (const target of hitTargets) {
+    if (x >= target.x && x <= target.x + target.w && y >= target.y && y <= target.y + target.h) {
+      if (target.type === "choice") chooseAnswer(target.index);
+      if (target.type === "next" && completed[step]) nextStep();
+      if (target.type === "prev") previousStep();
+      if (target.type === "new") newProblem();
+      if (target.type === "hint") { hintShown = !hintShown; draw(); }
+      return;
+    }
+  }
+}
+
+function chooseAnswer(index) {
+  if (advancing) return;
+  selectedChoice = index;
+  completed[step] = true;
+  draw();
+  if (step === 6) {
+    startMotionAnimation();
+    return;
+  }
+  if (step < 6) {
+    advancing = true;
+    const scheduledStep = step;
+    setTimeout(() => {
+      advancing = false;
+      if (step === scheduledStep) nextStep();
+    }, 1200);
+  }
+}
+
+function nextStep() {
+  if (step < 6) {
+    step += 1;
+    selectedChoice = null;
+    hintShown = false;
+  }
+  if (step === 6 && completed[6]) startMotionAnimation();
+  else { cancelMotion(); draw(); }
+}
+
+function previousStep() {
+  if (step > 0) {
+    step -= 1;
+    selectedChoice = null;
+    hintShown = false;
+  }
+  cancelMotion();
+  draw();
+}
+
+function draw() {
+  if (!problem) return;
+  hitTargets = [];
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  const g = makeGeometry(W, H);
+  ctx.clearRect(0, 0, W, H);
+  drawBackground(W, H);
+  drawTable(g);
+  drawPulleyAndRope(g);
+  drawMasses(g);
+  drawProgressiveVectors(g);
+  drawEquationOverlay(W, H);
+  drawQuestionPanel(W, H);
+  drawTopNavButtons(W, H);
+}
+
+function makeGeometry(W, H) {
+  const scale = Math.min(W / 1400, H / 830);
+  const tableY = H * 0.48;
+  const tableLeft = W * 0.08;
+  const tableRight = W * 0.58;
+  const tableThick = 26 * scale;
+  const legBottom = Math.min(H * 0.86, tableY + 320 * scale);
+
+  const blockW = 150 * scale;
+  const blockH = 95 * scale;
+  const blockCenter = {
+    x: tableLeft + (tableRight - tableLeft) * 0.42 + blockOffset,
+    y: tableY - blockH / 2
+  };
+
+  const pulleyR = 40 * scale;
+  const pulley = {
+    x: tableRight + 58 * scale,
+    y: blockCenter.y,
+    r: pulleyR
+  };
+
+  const ropeDownX = pulley.x + pulleyR * 0.75;
+  const hangingW = 135 * scale;
+  const hangingH = 135 * scale;
+  const hanging = {
+    x: ropeDownX,
+    y: pulley.y + 150 * scale + blockOffset,
+    w: hangingW,
+    h: hangingH
+  };
+
+  return { W, H, scale, tableY, tableLeft, tableRight, tableThick, legBottom, blockW, blockH, blockCenter, pulley, ropeDownX, hanging };
+}
+
+function drawBackground(W, H) {
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, "#fdfeff");
+  grad.addColorStop(0.55, "#eef4fb");
+  grad.addColorStop(1, "#dce8f5");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  const glow = ctx.createRadialGradient(W * 0.72, H * 0.12, 0, W * 0.72, H * 0.12, W * 0.55);
+  glow.addColorStop(0, "rgba(255,255,255,0.75)");
+  glow.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function drawTable(g) {
+  ctx.save();
+  ctx.lineJoin = "round";
+
+  const legW = 22 * g.scale;
+  const legInset = 34 * g.scale;
+  ctx.fillStyle = "#8b5e34";
+  ctx.strokeStyle = "#5f3f1d";
+  ctx.lineWidth = 3 * g.scale;
+  const legXs = [g.tableLeft + legInset, g.tableRight - legInset - legW];
+  legXs.forEach(lx => {
+    ctx.beginPath();
+    ctx.rect(lx, g.tableY + g.tableThick, legW, g.legBottom - g.tableY - g.tableThick);
+    ctx.fill();
+    ctx.stroke();
+  });
+
+  ctx.shadowColor = "rgba(15, 23, 42, 0.22)";
+  ctx.shadowBlur = 20 * g.scale;
+  ctx.shadowOffsetY = 8 * g.scale;
+  const grd = ctx.createLinearGradient(0, g.tableY, 0, g.tableY + g.tableThick);
+  grd.addColorStop(0, "#c68a4d");
+  grd.addColorStop(0.4, "#a9713a");
+  grd.addColorStop(1, "#8b5e34");
+  ctx.fillStyle = grd;
+  roundRect(g.tableLeft, g.tableY, g.tableRight - g.tableLeft, g.tableThick, 6 * g.scale, true, false);
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.strokeStyle = "#5f3f1d";
+  ctx.lineWidth = 3 * g.scale;
+  roundRect(g.tableLeft, g.tableY, g.tableRight - g.tableLeft, g.tableThick, 6 * g.scale, false, true);
+
+  ctx.strokeStyle = "rgba(51, 65, 85, 0.35)";
+  ctx.lineWidth = 3 * g.scale;
+  ctx.beginPath();
+  ctx.moveTo(g.tableLeft - 60 * g.scale, g.legBottom);
+  ctx.lineTo(g.W - 60 * g.scale, g.legBottom);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawPulleyAndRope(g) {
+  ctx.save();
+  ctx.lineCap = "round";
+
+  ctx.strokeStyle = "#475569";
+  ctx.lineWidth = 9 * g.scale;
+  ctx.beginPath();
+  ctx.moveTo(g.tableRight, g.tableY + 4 * g.scale);
+  ctx.lineTo(g.pulley.x, g.pulley.y);
+  ctx.stroke();
+
+  ctx.strokeStyle = "#b98a48";
+  ctx.lineWidth = 7 * g.scale;
+  ctx.beginPath();
+  ctx.moveTo(g.blockCenter.x + g.blockW / 2, g.blockCenter.y);
+  ctx.lineTo(g.pulley.x, g.pulley.y - g.pulley.r * 0.15);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(g.ropeDownX, g.pulley.y + g.pulley.r * 0.55);
+  ctx.lineTo(g.ropeDownX, g.hanging.y - g.hanging.h / 2);
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(255, 235, 205, 0.55)";
+  ctx.lineWidth = 2 * g.scale;
+  ctx.beginPath();
+  ctx.moveTo(g.blockCenter.x + g.blockW / 2, g.blockCenter.y - 2 * g.scale);
+  ctx.lineTo(g.pulley.x, g.pulley.y - g.pulley.r * 0.15 - 2 * g.scale);
+  ctx.stroke();
+
+  ctx.shadowColor = "rgba(15, 23, 42, 0.3)";
+  ctx.shadowBlur = 10 * g.scale;
+  ctx.shadowOffsetY = 4 * g.scale;
+  const discGrad = ctx.createRadialGradient(
+    g.pulley.x - g.pulley.r * 0.35, g.pulley.y - g.pulley.r * 0.35, g.pulley.r * 0.1,
+    g.pulley.x, g.pulley.y, g.pulley.r
+  );
+  discGrad.addColorStop(0, "#f8fafc");
+  discGrad.addColorStop(0.7, "#cbd5e1");
+  discGrad.addColorStop(1, "#94a3b8");
+  ctx.fillStyle = discGrad;
+  ctx.beginPath();
+  ctx.arc(g.pulley.x, g.pulley.y, g.pulley.r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.strokeStyle = "#1e293b";
+  ctx.lineWidth = 4 * g.scale;
+  ctx.stroke();
+
+  ctx.strokeStyle = "#64748b";
+  ctx.lineWidth = 2.5 * g.scale;
+  ctx.beginPath();
+  ctx.arc(g.pulley.x, g.pulley.y, g.pulley.r * 0.7, 0, Math.PI * 2);
+  ctx.stroke();
+  for (let i = 0; i < 4; i++) {
+    const a = i * Math.PI / 2 + Math.PI / 4;
+    ctx.beginPath();
+    ctx.moveTo(g.pulley.x + Math.cos(a) * g.pulley.r * 0.18, g.pulley.y + Math.sin(a) * g.pulley.r * 0.18);
+    ctx.lineTo(g.pulley.x + Math.cos(a) * g.pulley.r * 0.66, g.pulley.y + Math.sin(a) * g.pulley.r * 0.66);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = "#1e293b";
+  ctx.beginPath();
+  ctx.arc(g.pulley.x, g.pulley.y, g.pulley.r * 0.15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawMasses(g) {
+  drawTableBlock(g);
+  drawHangingBlock(g);
+}
+
+function drawTableBlock(g) {
+  const c = g.blockCenter;
+  ctx.save();
+  ctx.shadowColor = "rgba(127, 29, 29, 0.35)";
+  ctx.shadowBlur = 12 * g.scale;
+  ctx.shadowOffsetY = 5 * g.scale;
+  const grd = ctx.createLinearGradient(c.x, c.y - g.blockH / 2, c.x, c.y + g.blockH / 2);
+  grd.addColorStop(0, "#fecaca");
+  grd.addColorStop(0.5, "#f87171");
+  grd.addColorStop(1, "#dc2626");
+  ctx.fillStyle = grd;
+  roundRect(c.x - g.blockW / 2, c.y - g.blockH / 2, g.blockW, g.blockH, 10 * g.scale, true, false);
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.strokeStyle = "#991b1b";
+  ctx.lineWidth = 3.5 * g.scale;
+  roundRect(c.x - g.blockW / 2, c.y - g.blockH / 2, g.blockW, g.blockH, 10 * g.scale, false, true);
+  ctx.strokeStyle = "rgba(255,255,255,0.5)";
+  ctx.lineWidth = 2 * g.scale;
+  ctx.beginPath();
+  ctx.moveTo(c.x - g.blockW / 2 + 10 * g.scale, c.y - g.blockH / 2 + 5 * g.scale);
+  ctx.lineTo(c.x + g.blockW / 2 - 10 * g.scale, c.y - g.blockH / 2 + 5 * g.scale);
+  ctx.stroke();
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `bold ${32 * g.scale}px Arial`;
+  ctx.fillText("mₛ", c.x, c.y - 12 * g.scale);
+  ctx.font = `bold ${21 * g.scale}px Arial`;
+  ctx.fillText(`${format1(problem.ms)} kg`, c.x, c.y + 20 * g.scale);
+  ctx.restore();
+}
+
+function drawHangingBlock(g) {
+  const h = g.hanging;
+  ctx.save();
+  ctx.shadowColor = "rgba(127, 29, 29, 0.35)";
+  ctx.shadowBlur = 12 * g.scale;
+  ctx.shadowOffsetY = 5 * g.scale;
+  const grd = ctx.createLinearGradient(h.x, h.y - h.h / 2, h.x, h.y + h.h / 2);
+  grd.addColorStop(0, "#fecaca");
+  grd.addColorStop(0.5, "#f87171");
+  grd.addColorStop(1, "#dc2626");
+  ctx.fillStyle = grd;
+  roundRect(h.x - h.w / 2, h.y - h.h / 2, h.w, h.h, 10 * g.scale, true, false);
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.strokeStyle = "#991b1b";
+  ctx.lineWidth = 3.5 * g.scale;
+  roundRect(h.x - h.w / 2, h.y - h.h / 2, h.w, h.h, 10 * g.scale, false, true);
+  ctx.strokeStyle = "rgba(255,255,255,0.5)";
+  ctx.lineWidth = 2 * g.scale;
+  ctx.beginPath();
+  ctx.moveTo(h.x - h.w / 2 + 10 * g.scale, h.y - h.h / 2 + 5 * g.scale);
+  ctx.lineTo(h.x + h.w / 2 - 10 * g.scale, h.y - h.h / 2 + 5 * g.scale);
+  ctx.stroke();
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `bold ${34 * g.scale}px Arial`;
+  ctx.fillText("mₕ", h.x, h.y - 16 * g.scale);
+  ctx.font = `bold ${21 * g.scale}px Arial`;
+  ctx.fillText(`${format1(problem.mh)} kg`, h.x, h.y + 22 * g.scale);
+  ctx.restore();
+}
+
+function drawProgressiveVectors(g) {
+  const c = g.blockCenter;
+  const h = g.hanging;
+  const p = problem;
+
+  const finished = completed[6];
+  if (!finished && completed[0]) {
+    arrow(c.x, c.y - 10 * g.scale, c.x, c.y + g.blockH / 2 + 110 * g.scale, "#111827", `mₛg = ${format1(p.ws)} N`, g.scale, 0, 1.2, 0, -g.W * 0.03);
+  }
+  if (!finished && completed[1]) {
+    arrow(h.x, h.y, h.x, h.y + 138 * g.scale, "#2563eb", `mₕg = ${format1(p.wh)} N`, g.scale, 0, 1.3);
+  }
+  if (!finished && completed[2]) {
+    arrow(c.x, c.y, c.x, c.y - g.blockH / 2 - 110 * g.scale, "#7e22ce", `Fₙ = ${format1(p.fn)} N`, g.scale, 0, 1.22);
+  }
+  if (!finished && completed[3]) {
+    const fy = c.y + g.blockH / 2 - 6 * g.scale;
+    arrow(c.x, fy, c.x - 155 * g.scale, fy, "#ea580c", `Ff = ${format1(p.ff)} N`, g.scale, -1, 0.7);
+  }
+  if (finished) {
+    const ay = c.y - g.blockH / 2 - 48 * g.scale;
+    arrow(c.x + g.blockW / 2, ay, c.x + g.blockW / 2 + 150 * g.scale, ay, "#16a34a", `a = ${format1(p.a)} m/s²`, g.scale, -1, 0.55);
+    const hax = h.x + h.w / 2 + 34 * g.scale;
+    arrow(hax, h.y - 100 * g.scale, hax, h.y + 150 * g.scale, "#16a34a", `a = ${format1(p.a)} m/s²`, g.scale, 1, 0.45);
+  }
+}
+
+function arrow(x1, y1, x2, y2, color, label, scale, labelSide = 1, labelT = 0.55, labelAngle = 0, labelDx = 0, labelDy = 0) {
+  const head = 17 * scale;
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+  ctx.save();
+  ctx.shadowColor = "rgba(15, 23, 42, 0.28)";
+  ctx.shadowBlur = 5 * scale;
+  ctx.shadowOffsetY = 2 * scale;
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 6.5 * scale;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2 - Math.cos(angle) * head * 0.55, y2 - Math.sin(angle) * head * 0.55);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - head * Math.cos(angle - Math.PI / 7), y2 - head * Math.sin(angle - Math.PI / 7));
+  ctx.lineTo(x2 - head * Math.cos(angle + Math.PI / 7), y2 - head * Math.sin(angle + Math.PI / 7));
+  ctx.closePath();
+  ctx.fill();
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+
+  if (label) {
+    ctx.font = `bold ${19 * scale}px Arial`;
+    const tw = ctx.measureText(label).width;
+    const padX = 10 * scale;
+    const pillH = 30 * scale;
+    const pillW = tw + padX * 2;
+
+    const mx = x1 + (x2 - x1) * labelT;
+    const my = y1 + (y2 - y1) * labelT;
+    const off = 28 * scale;
+    let lx = mx + (labelSide === 0 ? 0 : Math.sin(angle) * off * labelSide) + labelDx;
+    let ly = my + (labelSide === 0 ? 0 : -Math.cos(angle) * off * labelSide) + labelDy;
+
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    lx = Math.max(pillW / 2 + 4, Math.min(W - pillW / 2 - 4, lx));
+    ly = Math.max(pillH / 2 + 4, Math.min(H - pillH / 2 - 4, ly));
+
+    ctx.translate(lx, ly);
+    ctx.rotate(labelAngle);
+    ctx.shadowColor = "rgba(15, 23, 42, 0.2)";
+    ctx.shadowBlur = 7 * scale;
+    ctx.shadowOffsetY = 2 * scale;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+    roundRect(-pillW / 2, -pillH / 2, pillW, pillH, pillH / 2, true, false);
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2 * scale;
+    roundRect(-pillW / 2, -pillH / 2, pillW, pillH, pillH / 2, false, true);
+    ctx.fillStyle = color;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label, 0, 0);
+  }
+  ctx.restore();
+}
+
+function drawEquationOverlay(W, H) {
+  const scale = Math.min(W / 1400, H / 830);
+  const data = getStepData(step);
+  const x = 28 * scale;
+  const y = 24 * scale;
+  const boxW = Math.min(W * 0.46, 660 * scale);
+  const boxH = hintShown ? (84 + data.equations.length * 30 + 14) * scale : 78 * scale;
+
+  ctx.save();
+  ctx.shadowColor = "rgba(15, 23, 42, 0.18)";
+  ctx.shadowBlur = 16 * scale;
+  ctx.shadowOffsetY = 5 * scale;
+  ctx.fillStyle = "rgba(255, 255, 255, 0.97)";
+  roundRect(x, y, boxW, boxH, 16 * scale, true, false);
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.strokeStyle = "rgba(15, 23, 42, 0.35)";
+  ctx.lineWidth = 2 * scale;
+  roundRect(x, y, boxW, boxH, 16 * scale, false, true);
+
+  ctx.fillStyle = "#1d4ed8";
+  ctx.beginPath();
+  ctx.arc(x + 40 * scale, y + 39 * scale, 22 * scale, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `bold ${26 * scale}px Arial`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(String(step + 1), x + 40 * scale, y + 40 * scale);
+
+  ctx.fillStyle = "#111827";
+  ctx.font = `bold ${24 * scale}px Arial`;
+  ctx.textAlign = "left";
+  ctx.fillText(data.title, x + 76 * scale, y + 40 * scale);
+
+  const hintW = 92 * scale;
+  const hintH = 38 * scale;
+  const hintX = x + boxW - hintW - 16 * scale;
+  const hintY = y + 20 * scale;
+  const hintGrd = ctx.createLinearGradient(hintX, hintY, hintX, hintY + hintH);
+  if (hintShown) {
+    hintGrd.addColorStop(0, "#fbbf24");
+    hintGrd.addColorStop(1, "#f59e0b");
+  } else {
+    hintGrd.addColorStop(0, "#fef3c7");
+    hintGrd.addColorStop(1, "#fde68a");
+  }
+  ctx.fillStyle = hintGrd;
+  roundRect(hintX, hintY, hintW, hintH, 10 * scale, true, false);
+  ctx.strokeStyle = "#d97706";
+  ctx.lineWidth = 2 * scale;
+  roundRect(hintX, hintY, hintW, hintH, 10 * scale, false, true);
+  ctx.fillStyle = "#78350f";
+  ctx.font = `bold ${17 * scale}px Arial`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(hintShown ? "Hide" : "Hint", hintX + hintW / 2, hintY + hintH / 2);
+  hitTargets.push({ type: "hint", x: hintX, y: hintY, w: hintW, h: hintH });
+
+  if (hintShown) {
+    ctx.font = `${20 * scale}px Arial`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    let textY = y + 96 * scale;
+    data.equations.forEach(line => {
+      ctx.fillStyle = completed[step] ? "#111827" : "#475569";
+      wrapText(line, x + 28 * scale, textY, boxW - 56 * scale, 26 * scale, 2);
+      textY += 30 * scale;
+    });
+  }
+  ctx.restore();
+}
+
+function drawQuestionPanel(W, H) {
+  const scale = Math.min(W / 1400, H / 830);
+  const pad = 20 * scale;
+  const cols = W < 760 ? 2 : 4;
+  const rows = Math.ceil(4 / cols);
+  const choiceH = 52 * scale;
+  const gap = 12 * scale;
+  const panelH = 62 * scale + rows * choiceH + (rows - 1) * gap + 18 * scale;
+  const x = pad;
+  const y = H - panelH - pad;
+  const w = W - pad * 2;
+  const h = panelH;
+  const data = getStepData(step);
+
+  ctx.save();
+  ctx.shadowColor = "rgba(15, 23, 42, 0.18)";
+  ctx.shadowBlur = 16 * scale;
+  ctx.shadowOffsetY = 5 * scale;
+  ctx.fillStyle = "rgba(255,255,255,0.97)";
+  roundRect(x, y, w, h, 16 * scale, true, false);
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.strokeStyle = "rgba(15,23,42,0.35)";
+  ctx.lineWidth = 2 * scale;
+  roundRect(x, y, w, h, 16 * scale, false, true);
+
+  ctx.fillStyle = "#111827";
+  ctx.font = `bold ${22 * scale}px Arial`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  wrapText(data.question, x + 24 * scale, y + 14 * scale, w - 48 * scale, 26 * scale, 1);
+
+  const top = y + 54 * scale;
+  const choiceW = (w - 48 * scale - gap * (cols - 1)) / cols;
+
+  data.choices.forEach((choice, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const bx = x + 24 * scale + col * (choiceW + gap);
+    const by = top + row * (choiceH + gap);
+    drawChoiceButton(bx, by, choiceW, choiceH, choice, i, scale, i === data.correctIndex);
+    hitTargets.push({ type: "choice", index: i, x: bx, y: by, w: choiceW, h: choiceH });
+  });
+
+  ctx.restore();
+}
+
+function drawTopNavButtons(W, H) {
+  const scale = Math.min(W / 1400, H / 830);
+  const pad = 24 * scale;
+  const y = pad;
+  const bh = 42 * scale;
+  const gap = 14 * scale;
+  const newW = 92 * scale;
+  const nextW = 106 * scale;
+  const backW = 104 * scale;
+  const newX = W - pad - newW;
+  const nextX = newX - gap - nextW;
+  const backX = nextX - gap - backW;
+  drawNavButton(backX, y, backW, bh, "Back", step > 0, "prev", scale);
+  drawNavButton(nextX, y, nextW, bh, "Next", completed[step] && step < 6, "next", scale);
+  drawNavButton(newX, y, newW, bh, "New", true, "new", scale);
+
+  ctx.save();
+  ctx.font = `bold ${19 * scale}px Arial`;
+  const muLabel = `μ = ${format1(problem.mu)}`;
+  const muW = ctx.measureText(muLabel).width + 32 * scale;
+  const muX = backX - gap - muW;
+  ctx.shadowColor = "rgba(15, 23, 42, 0.15)";
+  ctx.shadowBlur = 8 * scale;
+  ctx.shadowOffsetY = 3 * scale;
+  ctx.fillStyle = "rgba(255, 255, 255, 0.97)";
+  roundRect(muX, y, muW, bh, 10 * scale, true, false);
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.strokeStyle = "#475569";
+  ctx.lineWidth = 2 * scale;
+  roundRect(muX, y, muW, bh, 10 * scale, false, true);
+  ctx.fillStyle = "#111827";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(muLabel, muX + muW / 2, y + bh / 2);
+  ctx.restore();
+}
+
+function drawChoiceButton(x, y, w, h, label, index, scale, isCorrect) {
+  const isSelected = selectedChoice === index;
+  const good = completed[step] && isCorrect;
+  const bad = isSelected && !isCorrect;
+
+  ctx.save();
+  const grd = ctx.createLinearGradient(x, y, x, y + h);
+  if (good) {
+    grd.addColorStop(0, "#ecfdf5");
+    grd.addColorStop(1, "#d1fae5");
+  } else if (bad) {
+    grd.addColorStop(0, "#fef2f2");
+    grd.addColorStop(1, "#fee2e2");
+  } else {
+    grd.addColorStop(0, "#ffffff");
+    grd.addColorStop(1, "#f1f5f9");
+  }
+  ctx.shadowColor = "rgba(15, 23, 42, 0.12)";
+  ctx.shadowBlur = 6 * scale;
+  ctx.shadowOffsetY = 2 * scale;
+  ctx.fillStyle = grd;
+  roundRect(x, y, w, h, 12 * scale, true, false);
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.strokeStyle = good ? "#16a34a" : bad ? "#dc2626" : "#94a3b8";
+  ctx.lineWidth = (isSelected || good) ? 3.5 * scale : 2 * scale;
+  roundRect(x, y, w, h, 12 * scale, false, true);
+
+  ctx.fillStyle = good ? "#166534" : bad ? "#991b1b" : "#111827";
+  ctx.font = `bold ${20 * scale}px Arial`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(label, x + w / 2, y + h / 2);
+  ctx.restore();
+}
+
+function drawNavButton(x, y, w, h, label, enabled, type, scale) {
+  ctx.save();
+  const grd = ctx.createLinearGradient(x, y, x, y + h);
+  if (enabled) {
+    grd.addColorStop(0, "#1e40af");
+    grd.addColorStop(1, "#1d4ed8");
+  } else {
+    grd.addColorStop(0, "#e2e8f0");
+    grd.addColorStop(1, "#cbd5e1");
+  }
+  ctx.shadowColor = enabled ? "rgba(29, 78, 216, 0.35)" : "rgba(15, 23, 42, 0.1)";
+  ctx.shadowBlur = 8 * scale;
+  ctx.shadowOffsetY = 3 * scale;
+  ctx.fillStyle = grd;
+  roundRect(x, y, w, h, 10 * scale, true, false);
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.strokeStyle = enabled ? "#1e3a8a" : "#94a3b8";
+  ctx.lineWidth = 2 * scale;
+  roundRect(x, y, w, h, 10 * scale, false, true);
+  ctx.fillStyle = enabled ? "#ffffff" : "#64748b";
+  ctx.font = `bold ${17 * scale}px Arial`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(label, x + w / 2, y + h / 2);
+  if (enabled) hitTargets.push({ type, x, y, w, h });
+  ctx.restore();
+}
+
+function wrapText(text, x, y, maxWidth, lineHeight, maxLines = 3) {
+  const words = String(text).split(" ");
+  let line = "";
+  let lines = [];
+  for (let n = 0; n < words.length; n++) {
+    const testLine = line + words[n] + " ";
+    if (ctx.measureText(testLine).width > maxWidth && n > 0) {
+      lines.push(line.trim());
+      line = words[n] + " ";
+    } else {
+      line = testLine;
+    }
+  }
+  lines.push(line.trim());
+  if (lines.length > maxLines) {
+    lines = lines.slice(0, maxLines);
+    lines[maxLines - 1] = lines[maxLines - 1].replace(/\s+\S*$/, "…");
+  }
+  lines.forEach((ln, i) => ctx.fillText(ln, x, y + i * lineHeight));
+}
+
+function roundRect(x, y, w, h, r, fill, stroke) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+  if (fill) ctx.fill();
+  if (stroke) ctx.stroke();
+}
+
+problem = generateProblem();
+resize();
+</script>
+</body>
+</html>
