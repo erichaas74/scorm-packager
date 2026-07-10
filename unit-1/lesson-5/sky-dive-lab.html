@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unit 1 Lesson 5 - Skydiving Motion Graphs</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #cbd5e1;
+      --soft: #f8fafc;
+      --blue: #2563eb;
+      --green: #059669;
+      --purple: #7c3aed;
+      --red: #dc2626;
+      --amber: #d97706;
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--ink);
+      background: #eef6ff;
+    }
+    header {
+      padding: 20px clamp(16px, 4vw, 40px);
+      background: #0f172a;
+      color: white;
+    }
+    header p { margin: 6px 0 0; color: #cbd5e1; max-width: 900px; line-height: 1.5; }
+    h1 { margin: 0; font-size: clamp(1.5rem, 3vw, 2.25rem); }
+    h2 { margin: 0 0 10px; font-size: 1.1rem; }
+    main {
+      display: grid;
+      grid-template-columns: minmax(280px, 420px) minmax(360px, 1fr);
+      gap: 16px;
+      padding: 16px clamp(12px, 3vw, 28px) 28px;
+      max-width: 1260px;
+      margin: 0 auto;
+    }
+    section {
+      background: white;
+      border: 1px solid #dbeafe;
+      border-radius: var(--radius);
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+      overflow: hidden;
+    }
+    .panel-head {
+      padding: 12px 14px;
+      border-bottom: 1px solid #e2e8f0;
+      background: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .panel-body { padding: 14px; }
+    .stage-wrap {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+    canvas {
+      width: 100%;
+      display: block;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+    }
+    #simCanvas {
+      height: 520px;
+      background: linear-gradient(#38bdf8 0%, #93c5fd 48%, #e0f2fe 78%, #86efac 100%);
+    }
+    #graphCanvas { height: 330px; }
+    .trial-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    button {
+      border: 0;
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      font-weight: 800;
+      cursor: pointer;
+      color: white;
+      background: var(--blue);
+    }
+    button:hover { filter: brightness(0.96); }
+    button:disabled { background: #94a3b8; cursor: not-allowed; }
+    .secondary { background: #334155; }
+    .green { background: var(--green); }
+    .purple { background: var(--purple); }
+    .red { background: var(--red); }
+    .amber { background: var(--amber); color: #111827; }
+    .active-trial { outline: 3px solid #facc15; outline-offset: 1px; }
+    .readouts {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin: 12px 0;
+    }
+    .readout {
+      border: 1px solid #dbeafe;
+      border-radius: var(--radius);
+      padding: 9px;
+      background: #f8fafc;
+    }
+    .readout span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .readout strong {
+      display: block;
+      margin-top: 3px;
+      font-size: 1rem;
+    }
+    .directions {
+      margin: 0;
+      padding-left: 20px;
+      color: #334155;
+      line-height: 1.45;
+    }
+    .toggle-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    .data-table th,
+    .data-table td {
+      border: 1px solid #dbeafe;
+      padding: 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .data-table th { background: #eff6ff; color: #1e3a8a; }
+    .data-table td:nth-child(n+2) { font-family: Consolas, monospace; }
+    .status {
+      min-height: 42px;
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e3a8a;
+      font-weight: 700;
+      line-height: 1.35;
+      margin-bottom: 12px;
+    }
+    .evidence-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 125px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 10px;
+      font-family: Consolas, monospace;
+      font-size: 0.85rem;
+    }
+    .small-note { color: var(--muted); font-size: 0.86rem; line-height: 1.4; margin: 8px 0 0; }
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+      .stage-wrap { grid-template-columns: 1fr; }
+      #simCanvas { height: 430px; max-width: 260px; margin: 0 auto; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Unit 1 Lesson 5: Skydiving Motion Graphs</h1>
+    <p>Run fixed skydiving trials, compare the velocity-time and acceleration-time graphs, and use the recorded values to answer the Buzz assessment questions.</p>
+  </header>
+
+  <main>
+    <section>
+      <div class="panel-head">
+        <h2>Student Directions</h2>
+      </div>
+      <div class="panel-body">
+        <ol class="directions">
+          <li>Run Trial A, Trial B, and Trial C. Let each trial finish or click Record Current Trial after the graph levels out.</li>
+          <li>Use Velocity Graph and Acceleration Graph to compare how the shape changes during free fall, dive position, and parachute deployment.</li>
+          <li>Copy the Buzz Data Summary into your notes, then answer the Buzz questions.</li>
+          <li>Download the evidence image if your teacher asks for a screenshot upload.</li>
+        </ol>
+      </div>
+
+      <div class="panel-head">
+        <h2>Simulation</h2>
+      </div>
+      <div class="panel-body">
+        <div class="stage-wrap">
+          <canvas id="simCanvas" width="220" height="520" aria-label="Skydiver falling simulation"></canvas>
+          <div>
+            <div class="trial-grid">
+              <button id="trialA" class="green">Trial A: Spread Fall</button>
+              <button id="trialB" class="purple">Trial B: Dive Pose</button>
+              <button id="trialC" class="red">Trial C: Parachute at 10 s</button>
+              <button id="resetBtn" class="secondary">Reset Trial</button>
+            </div>
+            <div class="status" id="statusBox">Choose a trial to begin.</div>
+            <div class="readouts">
+              <div class="readout"><span>Time</span><strong id="timeReadout">0.0 s</strong></div>
+              <div class="readout"><span>Altitude</span><strong id="altReadout">2000 m</strong></div>
+              <div class="readout"><span>Velocity</span><strong id="velReadout">0.0 m/s</strong></div>
+              <div class="readout"><span>Acceleration</span><strong id="accReadout">9.8 m/s^2</strong></div>
+            </div>
+            <div class="toggle-row">
+              <button id="graphVelBtn">Velocity Graph</button>
+              <button id="graphAccBtn" class="secondary">Acceleration Graph</button>
+              <button id="recordBtn" class="amber">Record Current Trial</button>
+            </div>
+            <canvas id="graphCanvas" width="660" height="330" aria-label="Motion graph"></canvas>
+            <p class="small-note">The model includes gravity and air resistance. Terminal velocity is reached when acceleration is near 0 m/s^2 because drag balances weight.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="panel-head">
+        <h2>Buzz Data Summary</h2>
+        <span id="completeCount">0/3 trials recorded</span>
+      </div>
+      <div class="panel-body">
+        <table class="data-table" aria-label="Skydiving trial data">
+          <thead>
+            <tr>
+              <th>Value</th>
+              <th>Trial A</th>
+              <th>Trial B</th>
+              <th>Trial C</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><th>Body position / event</th><td id="aMode">Spread fall</td><td id="bMode">Dive pose</td><td id="cMode">Parachute at 10 s</td></tr>
+            <tr><th>Estimated terminal velocity</th><td id="aTerminal">--</td><td id="bTerminal">--</td><td id="cTerminal">--</td></tr>
+            <tr><th>Time when acceleration first stays near 0</th><td id="aTermTime">--</td><td id="bTermTime">--</td><td id="cTermTime">--</td></tr>
+            <tr><th>Maximum speed before parachute</th><td id="aMax">--</td><td id="bMax">--</td><td id="cMax">--</td></tr>
+            <tr><th>Landing speed</th><td id="aLanding">--</td><td id="bLanding">--</td><td id="cLanding">--</td></tr>
+            <tr><th>Total fall time</th><td id="aFallTime">--</td><td id="bFallTime">--</td><td id="cFallTime">--</td></tr>
+          </tbody>
+        </table>
+        <div class="evidence-actions">
+          <button id="copyBtn">Copy Values for Buzz</button>
+          <button id="downloadBtn" class="secondary">Download Evidence Image</button>
+        </div>
+        <p class="small-note">Buzz questions should use these recorded values with a reasonable tolerance because students may record after slightly different graph moments.</p>
+        <textarea id="copyBox" readonly aria-label="Copyable Buzz data summary"></textarea>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const simCanvas = document.getElementById('simCanvas');
+    const simCtx = simCanvas.getContext('2d');
+    const graphCanvas = document.getElementById('graphCanvas');
+    const graphCtx = graphCanvas.getContext('2d');
+
+    const trials = {
+      A: { label: 'Trial A: Spread Fall', mode: 'Spread fall', drag: 0.25, chuteTime: null, button: 'trialA', color: '#059669' },
+      B: { label: 'Trial B: Dive Pose', mode: 'Dive pose', drag: 0.16, chuteTime: null, button: 'trialB', color: '#7c3aed' },
+      C: { label: 'Trial C: Parachute at 10 s', mode: 'Parachute at 10 s', drag: 0.25, chuteTime: 10, button: 'trialC', color: '#dc2626' }
+    };
+
+    const mass = 80;
+    const gravity = 9.8;
+    const chuteDrag = 9.68;
+    const startAltitude = 2000;
+    const dt = 0.025;
+    let state;
+    let graphMode = 'velocity';
+    let animationId = null;
+    let records = {};
+
+    function makeState(trialKey) {
+      return {
+        trialKey,
+        config: trials[trialKey],
+        time: 0,
+        altitude: startAltitude,
+        velocity: 0,
+        acceleration: gravity,
+        drag: trials[trialKey].drag,
+        chuteDeployed: false,
+        landed: false,
+        running: true,
+        history: [{ t: 0, v: 0, a: gravity, alt: startAltitude }]
+      };
+    }
+
+    function startTrial(trialKey) {
+      state = makeState(trialKey);
+      Object.values(trials).forEach(t => document.getElementById(t.button).classList.remove('active-trial'));
+      document.getElementById(state.config.button).classList.add('active-trial');
+      setStatus(state.config.label + ' is running. Watch the graph shape as speed changes.');
+      if (!animationId) animate();
+    }
+
+    function resetTrial() {
+      const key = state ? state.trialKey : 'A';
+      state = makeState(key);
+      state.running = false;
+      setStatus('Trial reset. Click a trial button to run again.');
+      drawAll();
+    }
+
+    function stepPhysics() {
+      if (!state || !state.running || state.landed) return;
+      if (state.config.chuteTime !== null && !state.chuteDeployed && state.time >= state.config.chuteTime) {
+        state.chuteDeployed = true;
+        state.drag = chuteDrag;
+        setStatus('Parachute deployed at 10 s. Notice velocity drops and acceleration briefly becomes upward.');
+      }
+      const dragForce = state.drag * state.velocity * state.velocity;
+      const netForce = mass * gravity - dragForce;
+      state.acceleration = netForce / mass;
+      state.velocity = Math.max(0, state.velocity + state.acceleration * dt);
+      state.altitude -= state.velocity * dt;
+      state.time += dt;
+      if (state.altitude <= 0) {
+        state.altitude = 0;
+        state.landed = true;
+        state.running = false;
+        state.history.push({ t: state.time, v: state.velocity, a: 0, alt: 0 });
+        setStatus(state.config.label + ' finished. Click Record Current Trial to save the values.');
+        return;
+      }
+      if (state.history.length === 0 || state.time - state.history[state.history.length - 1].t >= 0.1) {
+        state.history.push({ t: state.time, v: state.velocity, a: state.acceleration, alt: state.altitude });
+      }
+      if (state.time > 90) {
+        state.running = false;
+        setStatus('The trial paused after 90 seconds. Record the current values or reset.');
+      }
+    }
+
+    function estimateTerminal(history) {
+      if (!history.length) return null;
+      const near = history.find(p => Math.abs(p.a) < 0.25 && p.t > 3);
+      const last = history[history.length - 1];
+      return {
+        velocity: near ? near.v : last.v,
+        time: near ? near.t : last.t
+      };
+    }
+
+    function recordCurrentTrial() {
+      if (!state) {
+        setStatus('Choose and run a trial before recording.');
+        return;
+      }
+      const history = state.history;
+      const terminal = estimateTerminal(history);
+      const maxSpeed = history.reduce((max, p) => Math.max(max, p.v), 0);
+      const landing = state.landed ? history[history.length - 1].v : state.velocity;
+      records[state.trialKey] = {
+        mode: state.config.mode,
+        terminalVelocity: terminal.velocity,
+        terminalTime: terminal.time,
+        maxSpeed,
+        landingSpeed: landing,
+        fallTime: state.time
+      };
+      updateTable();
+      setStatus(state.config.label + ' recorded. Run the remaining trials or copy the Buzz data.');
+    }
+
+    function format(value, unit) {
+      if (value === undefined || value === null || Number.isNaN(value)) return '--';
+      return value.toFixed(1) + ' ' + unit;
+    }
+
+    function updateTable() {
+      ['A', 'B', 'C'].forEach(key => {
+        const r = records[key];
+        document.getElementById(key.toLowerCase() + 'Terminal').textContent = r ? format(r.terminalVelocity, 'm/s') : '--';
+        document.getElementById(key.toLowerCase() + 'TermTime').textContent = r ? format(r.terminalTime, 's') : '--';
+        document.getElementById(key.toLowerCase() + 'Max').textContent = r ? format(r.maxSpeed, 'm/s') : '--';
+        document.getElementById(key.toLowerCase() + 'Landing').textContent = r ? format(r.landingSpeed, 'm/s') : '--';
+        document.getElementById(key.toLowerCase() + 'FallTime').textContent = r ? format(r.fallTime, 's') : '--';
+      });
+      document.getElementById('completeCount').textContent = Object.keys(records).length + '/3 trials recorded';
+      document.getElementById('copyBox').value = buildCopyText();
+    }
+
+    function buildCopyText() {
+      const lines = ['Unit 1 Lesson 5 Skydiving Motion Graphs Data'];
+      ['A', 'B', 'C'].forEach(key => {
+        const r = records[key];
+        lines.push('');
+        lines.push('Trial ' + key + ' - ' + trials[key].mode);
+        if (!r) {
+          lines.push('Not recorded yet');
+          return;
+        }
+        lines.push('Estimated terminal velocity: ' + format(r.terminalVelocity, 'm/s'));
+        lines.push('Time acceleration first stays near 0: ' + format(r.terminalTime, 's'));
+        lines.push('Maximum speed before parachute/landing: ' + format(r.maxSpeed, 'm/s'));
+        lines.push('Landing speed: ' + format(r.landingSpeed, 'm/s'));
+        lines.push('Total fall time: ' + format(r.fallTime, 's'));
+      });
+      return lines.join('\n');
+    }
+
+    function setStatus(text) {
+      document.getElementById('statusBox').textContent = text;
+    }
+
+    function drawSimulation() {
+      simCtx.clearRect(0, 0, simCanvas.width, simCanvas.height);
+      const y = state ? 35 + (1 - state.altitude / startAltitude) * 420 : 35;
+      const speed = state ? state.velocity : 0;
+      const centerX = simCanvas.width / 2;
+
+      simCtx.fillStyle = 'rgba(255,255,255,0.75)';
+      for (let i = 0; i < 5; i++) {
+        const cy = (i * 115 + (state ? state.time * speed * 0.04 : 0)) % 560 - 30;
+        drawCloud(35 + (i % 2) * 120, cy, 0.75 + (i % 3) * 0.15);
+      }
+      simCtx.fillStyle = '#16a34a';
+      simCtx.fillRect(0, 480, simCanvas.width, 40);
+      simCtx.fillStyle = '#166534';
+      simCtx.fillRect(0, 480, simCanvas.width, 6);
+
+      if (state && state.chuteDeployed && !state.landed) {
+        simCtx.strokeStyle = '#f8fafc';
+        simCtx.lineWidth = 1.5;
+        simCtx.beginPath();
+        simCtx.moveTo(centerX - 44, y - 60); simCtx.lineTo(centerX - 9, y - 12);
+        simCtx.moveTo(centerX + 44, y - 60); simCtx.lineTo(centerX + 9, y - 12);
+        simCtx.stroke();
+        simCtx.beginPath();
+        simCtx.arc(centerX, y - 58, 52, Math.PI, 0);
+        simCtx.fillStyle = '#ef4444';
+        simCtx.fill();
+      }
+
+      simCtx.save();
+      simCtx.translate(centerX, Math.min(y, 458));
+      if (state && state.trialKey === 'B' && !state.chuteDeployed && !state.landed) simCtx.rotate(Math.PI);
+      simCtx.fillStyle = '#facc15';
+      simCtx.beginPath();
+      simCtx.arc(0, -17, 8, 0, Math.PI * 2);
+      simCtx.fill();
+      simCtx.fillStyle = '#1e293b';
+      simCtx.fillRect(-8, -10, 16, 24);
+      simCtx.strokeStyle = '#1e293b';
+      simCtx.lineWidth = 4;
+      simCtx.lineCap = 'round';
+      simCtx.beginPath();
+      if (state && state.chuteDeployed) {
+        simCtx.moveTo(-7, -4); simCtx.lineTo(-17, -22);
+        simCtx.moveTo(7, -4); simCtx.lineTo(17, -22);
+      } else if (state && state.trialKey === 'B') {
+        simCtx.moveTo(-7, -4); simCtx.lineTo(-10, 14);
+        simCtx.moveTo(7, -4); simCtx.lineTo(10, 14);
+      } else {
+        simCtx.moveTo(-7, -4); simCtx.lineTo(-20, -16);
+        simCtx.moveTo(7, -4); simCtx.lineTo(20, -16);
+      }
+      simCtx.moveTo(-4, 12); simCtx.lineTo(-12, 28);
+      simCtx.moveTo(4, 12); simCtx.lineTo(12, 28);
+      simCtx.stroke();
+      simCtx.restore();
+
+      if (state && !state.landed) {
+        drawArrow(centerX + 48, y - 5, centerX + 48, y + 45, '#dc2626', 'Fg');
+        const dragLength = Math.min(95, Math.max(4, Math.abs(mass * state.acceleration - mass * gravity) / 9));
+        drawArrow(centerX - 48, y + 5, centerX - 48, y - dragLength, '#2563eb', 'Fd');
+      }
+    }
+
+    function drawCloud(x, y, scale) {
+      simCtx.beginPath();
+      simCtx.arc(x, y, 18 * scale, 0, Math.PI * 2);
+      simCtx.arc(x + 18 * scale, y - 8 * scale, 24 * scale, 0, Math.PI * 2);
+      simCtx.arc(x + 38 * scale, y, 17 * scale, 0, Math.PI * 2);
+      simCtx.fill();
+    }
+
+    function drawArrow(x1, y1, x2, y2, color, label) {
+      simCtx.strokeStyle = color;
+      simCtx.fillStyle = color;
+      simCtx.lineWidth = 3;
+      simCtx.beginPath();
+      simCtx.moveTo(x1, y1);
+      simCtx.lineTo(x2, y2);
+      simCtx.stroke();
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+      simCtx.beginPath();
+      simCtx.moveTo(x2, y2);
+      simCtx.lineTo(x2 - 8 * Math.cos(angle - Math.PI / 6), y2 - 8 * Math.sin(angle - Math.PI / 6));
+      simCtx.lineTo(x2 - 8 * Math.cos(angle + Math.PI / 6), y2 - 8 * Math.sin(angle + Math.PI / 6));
+      simCtx.closePath();
+      simCtx.fill();
+      simCtx.font = 'bold 12px Arial';
+      simCtx.fillText(label, x2 + 5, y2);
+    }
+
+    function drawGraph() {
+      graphCtx.clearRect(0, 0, graphCanvas.width, graphCanvas.height);
+      const history = state ? state.history : [];
+      const pad = { l: 52, r: 12, t: 16, b: 38 };
+      const w = graphCanvas.width - pad.l - pad.r;
+      const h = graphCanvas.height - pad.t - pad.b;
+      const maxTime = Math.max(20, history.length ? history[history.length - 1].t : 20);
+      const values = history.map(p => graphMode === 'velocity' ? p.v : p.a);
+      let yMin = graphMode === 'velocity' ? 0 : -25;
+      let yMax = graphMode === 'velocity' ? 100 : 12;
+      values.forEach(v => {
+        yMin = Math.min(yMin, Math.floor(v / 10) * 10);
+        yMax = Math.max(yMax, Math.ceil(v / 10) * 10);
+      });
+      if (yMax === yMin) yMax = yMin + 10;
+
+      graphCtx.strokeStyle = '#e2e8f0';
+      graphCtx.lineWidth = 1;
+      graphCtx.font = '12px Arial';
+      graphCtx.fillStyle = '#64748b';
+      for (let i = 0; i <= 5; i++) {
+        const x = pad.l + (i / 5) * w;
+        const y = pad.t + (i / 5) * h;
+        graphCtx.beginPath(); graphCtx.moveTo(x, pad.t); graphCtx.lineTo(x, pad.t + h); graphCtx.stroke();
+        graphCtx.beginPath(); graphCtx.moveTo(pad.l, y); graphCtx.lineTo(pad.l + w, y); graphCtx.stroke();
+        graphCtx.fillText((maxTime * i / 5).toFixed(0), x - 8, pad.t + h + 22);
+        graphCtx.fillText((yMax - (yMax - yMin) * i / 5).toFixed(0), 8, y + 4);
+      }
+      const zeroY = pad.t + h - ((0 - yMin) / (yMax - yMin)) * h;
+      if (zeroY >= pad.t && zeroY <= pad.t + h) {
+        graphCtx.strokeStyle = '#94a3b8';
+        graphCtx.setLineDash([5, 5]);
+        graphCtx.beginPath(); graphCtx.moveTo(pad.l, zeroY); graphCtx.lineTo(pad.l + w, zeroY); graphCtx.stroke();
+        graphCtx.setLineDash([]);
+      }
+      graphCtx.strokeStyle = '#0f172a';
+      graphCtx.lineWidth = 2;
+      graphCtx.beginPath();
+      graphCtx.moveTo(pad.l, pad.t);
+      graphCtx.lineTo(pad.l, pad.t + h);
+      graphCtx.lineTo(pad.l + w, pad.t + h);
+      graphCtx.stroke();
+      graphCtx.fillStyle = '#0f172a';
+      graphCtx.fillText('Time (s)', pad.l + w / 2 - 24, graphCanvas.height - 8);
+      graphCtx.save();
+      graphCtx.translate(16, pad.t + h / 2 + 45);
+      graphCtx.rotate(-Math.PI / 2);
+      graphCtx.fillText(graphMode === 'velocity' ? 'Velocity (m/s)' : 'Acceleration (m/s^2)', 0, 0);
+      graphCtx.restore();
+
+      graphCtx.strokeStyle = graphMode === 'velocity' ? '#059669' : '#7c3aed';
+      graphCtx.lineWidth = 3;
+      graphCtx.beginPath();
+      history.forEach((p, i) => {
+        const val = graphMode === 'velocity' ? p.v : p.a;
+        const x = pad.l + (p.t / maxTime) * w;
+        const y = pad.t + h - ((val - yMin) / (yMax - yMin)) * h;
+        if (i === 0) graphCtx.moveTo(x, y);
+        else graphCtx.lineTo(x, y);
+      });
+      graphCtx.stroke();
+    }
+
+    function updateReadouts() {
+      const s = state || makeState('A');
+      document.getElementById('timeReadout').textContent = s.time.toFixed(1) + ' s';
+      document.getElementById('altReadout').textContent = s.altitude.toFixed(0) + ' m';
+      document.getElementById('velReadout').textContent = s.velocity.toFixed(1) + ' m/s';
+      document.getElementById('accReadout').textContent = s.acceleration.toFixed(1) + ' m/s^2';
+    }
+
+    function drawAll() {
+      if (!state) state = makeState('A');
+      drawSimulation();
+      drawGraph();
+      updateReadouts();
+    }
+
+    function animate() {
+      for (let i = 0; i < 2; i++) stepPhysics();
+      drawAll();
+      animationId = requestAnimationFrame(animate);
+    }
+
+    function copyValues() {
+      updateTable();
+      const box = document.getElementById('copyBox');
+      box.select();
+      navigator.clipboard && navigator.clipboard.writeText(box.value);
+      setStatus('Buzz data copied. You can paste the values into the assessment or your notes.');
+    }
+
+    function downloadEvidence() {
+      const evidence = document.createElement('canvas');
+      evidence.width = 1000;
+      evidence.height = 720;
+      const ctx = evidence.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, evidence.width, evidence.height);
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 26px Arial';
+      ctx.fillText('Unit 1 Lesson 5 Skydiving Motion Graphs Evidence', 30, 42);
+      ctx.drawImage(simCanvas, 30, 70, 220, 520);
+      ctx.drawImage(graphCanvas, 280, 70, 660, 330);
+      ctx.font = '16px Consolas';
+      ctx.fillStyle = '#1e293b';
+      buildCopyText().split('\n').slice(0, 26).forEach((line, i) => ctx.fillText(line, 280, 430 + i * 20));
+      const link = document.createElement('a');
+      link.download = 'unit-1-lesson-5-skydiving-evidence.png';
+      link.href = evidence.toDataURL('image/png');
+      link.click();
+    }
+
+    document.getElementById('trialA').addEventListener('click', () => startTrial('A'));
+    document.getElementById('trialB').addEventListener('click', () => startTrial('B'));
+    document.getElementById('trialC').addEventListener('click', () => startTrial('C'));
+    document.getElementById('resetBtn').addEventListener('click', resetTrial);
+    document.getElementById('recordBtn').addEventListener('click', recordCurrentTrial);
+    document.getElementById('copyBtn').addEventListener('click', copyValues);
+    document.getElementById('downloadBtn').addEventListener('click', downloadEvidence);
+    document.getElementById('graphVelBtn').addEventListener('click', () => {
+      graphMode = 'velocity';
+      document.getElementById('graphVelBtn').classList.remove('secondary');
+      document.getElementById('graphAccBtn').classList.add('secondary');
+      drawGraph();
+    });
+    document.getElementById('graphAccBtn').addEventListener('click', () => {
+      graphMode = 'acceleration';
+      document.getElementById('graphAccBtn').classList.remove('secondary');
+      document.getElementById('graphVelBtn').classList.add('secondary');
+      drawGraph();
+    });
+
+    state = makeState('A');
+    state.running = false;
+    updateTable();
+    drawAll();
+  </script>
+</body>
+</html>

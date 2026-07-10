@@ -103,6 +103,64 @@ var deliveryMystery = (function() {
           { value:'2', label:'Graph C', keyframes:[{t:0,x:40},{t:2,x:10},{t:5,x:10},{t:8,x:55}], duration:8 },
           { value:'3', label:'Graph D', keyframes:[{t:0,x:20},{t:2,x:20},{t:5,x:50},{t:8,x:20}], duration:8 }
         ] }
+      ,
+      { id:9, duration:16, deliveryHouse:6, porchPirateMode:true, guiltySuspect:'Suspect A',
+        title:'Case 10: The Decoy Drop (2 Vans)',
+        mission:'Two vans, one pirate. Watch the Gray Express van. Who steals its package?',
+        clues:['The Express van delivers at House 6.', 'Suspect A arrives after the drop.'],
+        successExplanation:'Suspect A reached House 6 after the Express van dropped the package.',
+        wrongExplanation:'Watch the timing. The thief arrives AFTER the delivery.',
+        dropTime:8, theftTime:11,
+        keyframes:[{t:0,x:0},{t:4,x:20},{t:7,x:20},{t:16,x:70}],
+        extraEntities:[
+          { id:'truck2', name:'Express', type:'vehicle', color:'#475569',
+            keyframes:[{t:0,x:0},{t:3,x:40},{t:4,x:40},{t:8,x:60},{t:12,x:60},{t:16,x:0}] },
+          { id:'suspectA', name:'Suspect A', color:'#10b981',
+            keyframes:[{t:0,x:0},{t:10,x:50},{t:16,x:80}] }
+        ] },
+      { id:10, duration:12, deliveryHouse:3,
+        title:'Case 11: The Getaway Car',
+        mission:'The mail van drops a package, and a fast getaway car steals it! Click the house where the theft happened.',
+        clues:['The mail van stops for 3 seconds.', 'The getaway car is much faster (steeper slope) and stops briefly at the same house.'],
+        successExplanation:'House 3 is correct. The getaway car stopped there exactly when the package was waiting.',
+        wrongExplanation:'Find where the fast red line stops at the same position the blue line stopped earlier.',
+        keyframes:[{t:0,x:0},{t:3,x:30},{t:6,x:30},{t:10,x:70},{t:12,x:70}],
+        extraEntities:[
+          { id:'truck2', name:'Getaway', type:'vehicle', color:'#dc2626',
+            keyframes:[{t:3,x:0},{t:5,x:30},{t:6,x:30},{t:8,x:70},{t:12,x:70}] }
+        ] },
+      { id:11, duration:15, deliveryHouse:4, porchPirateMode:true, guiltySuspect:'Suspect B',
+        title:'Case 12: Intersection Hand-off',
+        mission:'The vans meet to transfer a package. Who steals it after they leave?',
+        clues:['The intersection of the blue and gray lines is the hand-off location.', 'Find who visits that house AFTER the vans leave.'],
+        successExplanation:'Suspect B reached House 4 at t=11s, after the vans left the package at t=9s.',
+        wrongExplanation:'Suspect A passed by too early. The thief arrives after the hand-off is complete.',
+        dropTime:8, theftTime:11,
+        keyframes:[{t:0,x:0},{t:6,x:40},{t:9,x:40},{t:15,x:70}],
+        extraEntities:[
+          { id:'truck2', name:'Express', type:'vehicle', color:'#475569',
+            keyframes:[{t:0,x:70},{t:6,x:40},{t:9,x:40},{t:15,x:0}] },
+          { id:'suspectA', name:'Suspect A', color:'#10b981',
+            keyframes:[{t:0,x:20},{t:6,x:50},{t:15,x:50}] },
+          { id:'suspectB', name:'Suspect B', color:'#a855f7',
+            keyframes:[{t:4,x:10},{t:13,x:55},{t:15,x:55}] }
+        ] },
+      { id:12, duration:16, deliveryHouse:5, porchPirateMode:true, guiltySuspect:'Suspect B',
+        title:'Case 13: Double Heist Chaos',
+        mission:'Both vans make drops, both packages are stolen! Who stole the EXPRESS van\'s package at House 5?',
+        clues:['Focus ONLY on the Gray Express van\'s delivery.', 'Suspect B arrives at House 5 after the Express van drops.'],
+        successExplanation:'Suspect B stole the Express package at House 5. (Suspect A stole the Mail package at House 2).',
+        wrongExplanation:'Trace the delivery stop first, then see which suspect crosses that position later.',
+        dropTime:7, theftTime:12,
+        keyframes:[{t:0,x:0},{t:4,x:20},{t:7,x:20},{t:16,x:60}],
+        extraEntities:[
+          { id:'truck2', name:'Express', type:'vehicle', color:'#475569',
+            keyframes:[{t:0,x:10},{t:4,x:50},{t:7,x:50},{t:12,x:70},{t:16,x:70}] },
+          { id:'suspectA', name:'Suspect A', color:'#10b981',
+            keyframes:[{t:0,x:0},{t:12,x:40},{t:16,x:40}] },
+          { id:'suspectB', name:'Suspect B', color:'#a855f7',
+            keyframes:[{t:0,x:20},{t:6,x:20},{t:14,x:60},{t:16,x:60}] }
+        ] }
     ];
 
     var currentScenarioId = 0;
@@ -126,6 +184,7 @@ var deliveryMystery = (function() {
     var suspectAEl, suspectBEl, suspectAPackage, suspectBPackage;
     var themeToggleBtn, truckBodyBg, truckText, truckCabBg;
     var graphChoiceContainer, graphChoiceGrid;
+    var extraEntityEls = {};
     var practiceHintsVisible = false;
     var practiceAdvanceTimer = null;
 
@@ -293,6 +352,37 @@ var deliveryMystery = (function() {
       return null;
     }
 
+    function getExtraEntityElement(ent) {
+      if (ent.id === 'A' || ent.id === 'suspectA') return suspectAEl;
+      if (ent.id === 'B' || ent.id === 'suspectB') return suspectBEl;
+      if (extraEntityEls[ent.id]) return extraEntityEls[ent.id];
+      var el = document.createElement('div');
+      el.className = 'absolute bottom-8 w-20 h-12 z-20 transition-transform';
+      el.style.display = 'none';
+      el.style.left = '-100px';
+      el.style.transform = 'translateX(-50%)';
+      var color = ent.color || '#475569';
+      var label = ent.name || 'Van';
+      el.innerHTML =
+        '<div class="relative w-full h-full">' +
+          '<div class="absolute bottom-2 left-0 w-[70%] h-8 rounded-l-md rounded-tr-sm border-2 border-slate-900 shadow-md flex items-center justify-center text-[9px] font-black text-white" style="background:' + color + '">' + label + '</div>' +
+          '<div class="absolute bottom-2 right-1 w-[33%] h-7 rounded-tr-lg rounded-br-sm border-2 border-slate-900 shadow-md" style="background:' + color + '">' +
+            '<div class="absolute top-1 right-1 w-3 h-3 bg-sky-200 border border-slate-900 rounded-sm opacity-90"></div>' +
+          '</div>' +
+          '<div class="absolute bottom-0 left-2 w-5 h-5 bg-slate-800 rounded-full border-2 border-slate-300"></div>' +
+          '<div class="absolute bottom-0 right-1 w-5 h-5 bg-slate-800 rounded-full border-2 border-slate-300"></div>' +
+        '</div>';
+      document.getElementById('sim-stage').appendChild(el);
+      extraEntityEls[ent.id] = el;
+      return el;
+    }
+
+    function hideExtraEntityElements() {
+      Object.keys(extraEntityEls).forEach(function(id) {
+        extraEntityEls[id].style.display = 'none';
+      });
+    }
+
     function toggleTheme() {
       isPrimeTheme = !isPrimeTheme;
       if (isPrimeTheme) {
@@ -435,6 +525,7 @@ var deliveryMystery = (function() {
       standalonePackage.style.transform = 'rotate(0deg)';
       suspectAEl.style.display = 'none';
       suspectBEl.style.display = 'none';
+      hideExtraEntityElements();
       suspectAPackage.style.display = 'none';
       suspectBPackage.style.display = 'none';
       suspectControls.classList.add('hidden');
@@ -519,11 +610,19 @@ var deliveryMystery = (function() {
       }
       if (scenario.extraEntities) {
         scenario.extraEntities.forEach(function(ent) {
-          var el = ent.id === 'A' ? suspectAEl : suspectBEl;
+          var el = getExtraEntityElement(ent);
           var entKin = getKinematicsFor(ent.keyframes, currentTime, false);
           if (entKin) {
             el.style.display = 'flex';
             el.style.left = 'calc(' + ((entKin.x / 70) * 100) + '% - 16px)';
+            if (ent.type === 'vehicle') {
+              el.style.left = ((entKin.x / 70) * 100) + '%';
+              var vehicleBody = el.querySelector('.relative');
+              if (vehicleBody) {
+                if (entKin.v < -0.1) vehicleBody.style.transform = 'scaleX(-1)';
+                else if (entKin.v > 0.1) vehicleBody.style.transform = 'scaleX(1)';
+              }
+            }
           } else {
             el.style.display = 'none';
           }
@@ -756,6 +855,7 @@ var deliveryMystery = (function() {
         if (standalonePackage) standalonePackage.classList.add('hidden');
         if (suspectAEl) suspectAEl.style.display = 'none';
         if (suspectBEl) suspectBEl.style.display = 'none';
+        hideExtraEntityElements();
         if (graphChoiceContainer) graphChoiceContainer.classList.add('hidden');
         return;
       }

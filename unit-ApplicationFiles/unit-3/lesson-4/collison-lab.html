@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Unit 3 Lesson 4 - Collision Lab: Elastic and Inelastic Collisions</title>
+  <title>Unit 3 Lesson 4 - Collision Lab Simulator</title>
   <style>
     :root {
       --bg: #eef2f5;
@@ -69,19 +69,6 @@
       font-weight: 700;
     }
 
-    .goals-card {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      box-shadow: var(--shadow);
-      padding: 14px 18px;
-      margin-bottom: 18px;
-      line-height: 1.5;
-    }
-
-    .goals-card ul { margin: 8px 0 0; padding-left: 22px; }
-    .goals-card li { margin-bottom: 4px; }
-
     .stage-tabs {
       display: grid;
       grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -115,28 +102,6 @@
       box-shadow: 0 8px 18px rgba(21, 101, 192, 0.22);
     }
 
-    .stage-tab .chip {
-      display: inline-block;
-      min-width: 20px;
-      margin-left: 4px;
-      border-radius: 999px;
-      font-size: 0.8rem;
-    }
-
-    .stage-tab .chip.done { color: #b7f5d3; }
-    .stage-tab.is-active .chip.done { color: #b7f5d3; }
-    .stage-tab:not(.is-active) .chip.done { color: var(--ok); }
-
-    .trial-directions {
-      background: #fdf6e3;
-      border: 1px solid #e5d6a4;
-      border-left: 6px solid var(--gold);
-      border-radius: 8px;
-      padding: 12px 16px;
-      margin-bottom: 14px;
-      line-height: 1.5;
-    }
-
     .lab-card {
       background: var(--panel);
       border: 1px solid var(--line);
@@ -146,61 +111,42 @@
       margin-bottom: 18px;
     }
 
-    .controls-row {
-      display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+    .setup-strip {
+      display: flex;
+      flex-wrap: wrap;
       gap: 10px;
+      align-items: center;
       margin-bottom: 12px;
-      align-items: end;
     }
 
-    .control {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 9px 10px;
-      background: #f8fafc;
-    }
-
-    .control.ball1-box { border-top: 4px solid var(--ball1); }
-    .control.ball2-box { border-top: 4px solid var(--ball2); }
-
-    .control label {
-      display: block;
+    .setup-strip .strip-title {
       font-size: 0.78rem;
-      font-weight: 800;
-      color: var(--muted);
-      margin-bottom: 5px;
-      letter-spacing: 0.02em;
-    }
-
-    .control input[type="number"] {
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 7px 8px;
-      font: inherit;
-      font-weight: 700;
-      color: var(--ink);
-      background: #fff;
-    }
-
-    .control input[type="number"]:disabled {
-      background: #e8edf3;
-      color: #7c8aa0;
-    }
-
-    .elasticity-box {
-      text-align: center;
-    }
-
-    .elasticity-lock {
-      display: block;
-      font-size: 1.2rem;
       font-weight: 900;
-      padding: 7px 0;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
     }
 
-    .elasticity-box input[type="range"] { width: 100%; }
+    .setup-chip {
+      border: 2px solid var(--line);
+      border-radius: 999px;
+      padding: 8px 15px;
+      background: #f8fafc;
+      font-weight: 800;
+      font-size: 0.92rem;
+    }
+
+    .setup-chip.ball1-chip { border-color: var(--ball1); color: var(--ball1); }
+    .setup-chip.ball2-chip { border-color: var(--ball2); color: var(--ball2); }
+
+    .setup-chip.slider-chip {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      color: var(--ink);
+    }
+
+    .setup-chip.slider-chip input[type="range"] { width: 150px; }
 
     .sim-stage {
       border: 1px solid var(--line);
@@ -239,6 +185,81 @@
     button.action:hover { filter: brightness(0.96); transform: translateY(-1px); }
     button.action:disabled { cursor: not-allowed; opacity: 0.55; transform: none; }
     button.action.secondary { background: #607d8b; }
+    button.action.hint { background: var(--gold); }
+    button.action.guide { background: var(--ok); }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: rgba(31, 45, 61, 0.55);
+      display: grid;
+      place-items: center;
+      padding: 20px;
+    }
+
+    .overlay[hidden] { display: none; }
+
+    .overlay-panel {
+      position: relative;
+      width: min(580px, 100%);
+      max-height: 85vh;
+      overflow: auto;
+      background: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 18px 48px rgba(36, 52, 71, 0.35);
+      padding: 22px 24px;
+      line-height: 1.55;
+    }
+
+    .overlay-panel h2 {
+      margin-bottom: 10px;
+      color: #1f2d3d;
+      padding-right: 36px;
+    }
+
+    .overlay-panel ul, .overlay-panel ol {
+      margin: 10px 0 0;
+      padding-left: 22px;
+    }
+
+    .overlay-panel li { margin-bottom: 7px; }
+
+    .overlay-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 32px;
+      height: 32px;
+      border: 0;
+      border-radius: 50%;
+      background: #eef2f5;
+      color: var(--muted);
+      font-size: 1.15rem;
+      font-weight: 900;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .overlay-close:hover { background: #dfe8f1; color: var(--ink); }
+
+    .guide-current {
+      background: #fdf6e3;
+      border: 1px solid #e5d6a4;
+      border-left: 5px solid var(--gold);
+      border-radius: 6px;
+      padding: 10px 13px;
+      margin-bottom: 12px;
+    }
+
+    .sign-rule {
+      background: #fdeeee;
+      border: 1px solid #eac3c8;
+      border-left: 5px solid var(--ball1);
+      border-radius: 6px;
+      padding: 10px 13px;
+      margin-top: 12px;
+    }
 
     .run-message {
       flex: 1 1 240px;
@@ -254,7 +275,7 @@
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 10px;
-      margin-top: 12px;
+      margin-bottom: 12px;
     }
 
     .readout {
@@ -301,171 +322,9 @@
     }
     .explore-totals th { background: #e9eef5; font-size: 0.85rem; }
 
-    .chart-card {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      box-shadow: var(--shadow);
-      padding: 16px;
-      margin-bottom: 18px;
-    }
-
-    .chart-card h2 { margin-bottom: 6px; }
-
-    .chart-help {
-      color: var(--muted);
-      line-height: 1.5;
-      margin-bottom: 12px;
-    }
-
-    .snap-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 14px;
-    }
-
-    .snap-row figure {
-      margin: 0;
-      border: 1px dashed var(--line);
-      border-radius: 8px;
-      padding: 8px;
-      background: #fdfefe;
-    }
-
-    .snap-row figcaption {
-      font-size: 0.82rem;
-      font-weight: 800;
-      color: var(--muted);
-      margin-bottom: 6px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .snap-row canvas {
-      display: block;
-      width: 100%;
-      height: auto;
-      aspect-ratio: 440 / 150;
-    }
-
-    .chart-scroll { overflow-x: auto; }
-
-    table.data-chart {
-      width: 100%;
-      min-width: 760px;
-      border-collapse: collapse;
-      background: #fff;
-    }
-
-    .data-chart th, .data-chart td {
-      border: 1px solid #c8d3e1;
-      padding: 8px;
-      text-align: center;
-      vertical-align: middle;
-    }
-
-    .data-chart th {
-      background: #e9eef5;
-      font-size: 0.84rem;
-      line-height: 1.3;
-    }
-
-    .data-chart td.auto {
-      font-weight: 800;
-      font-variant-numeric: tabular-nums;
-      background: #f6f9fc;
-    }
-
-    .data-chart td.auto.ball1-cell { color: var(--ball1); }
-    .data-chart td.auto.ball2-cell { color: var(--ball2); }
-
-    .data-chart .cell-label {
-      display: inline-block;
-      font-weight: 800;
-      margin-right: 5px;
-      color: var(--muted);
-    }
-
-    .data-chart input {
-      width: 108px;
-      border: 2px solid var(--line);
-      border-radius: 6px;
-      padding: 7px 8px;
-      font: inherit;
-      font-weight: 700;
-      text-align: center;
-      color: var(--ink);
-    }
-
-    .data-chart input:disabled { background: #eef1f5; }
-    .data-chart input.cell-ok { border-color: var(--ok); background: #ecfbf3; }
-    .data-chart input.cell-bad { border-color: var(--danger); background: #fdf0ee; }
-
-    .chart-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      align-items: center;
-      margin-top: 14px;
-    }
-
-    .chart-status { font-weight: 800; line-height: 1.4; }
-    .chart-status.good { color: var(--ok); }
-    .chart-status.warn { color: var(--danger); }
-
-    .evidence-card {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-left: 6px solid var(--ok);
-      border-radius: 8px;
-      box-shadow: var(--shadow);
-      padding: 16px;
-      margin-bottom: 18px;
-      line-height: 1.55;
-    }
-
-    .evidence-card h2 { margin-bottom: 8px; }
-
-    .trial-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin: 10px 0 12px;
-    }
-
-    .trial-chip {
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      padding: 6px 13px;
-      font-weight: 800;
-      font-size: 0.88rem;
-      background: #f2f5f9;
-      color: var(--muted);
-    }
-
-    .trial-chip.done {
-      background: #ecfbf3;
-      border-color: var(--ok);
-      color: var(--ok);
-    }
-
-    .evidence-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-    }
-
-    button.action.evidence { background: var(--ok); }
-
-    .copy-note { font-weight: 700; color: var(--ok); min-height: 20px; }
-
     @media (max-width: 820px) {
       .stage-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .controls-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .readout-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .snap-row { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -473,55 +332,37 @@
   <main class="page">
     <div class="topbar">
       <div>
-        <h1>Collision Lab: Elastic &amp; Inelastic Collisions</h1>
-        <p class="subtitle">Set up each collision, press <strong>Run Collision</strong>, then fill in the data chart for that trial. Momentum arrows are attached to each ball, and the lab captures your before-and-after vector sketches automatically.</p>
+        <h1>Collision Lab Simulator</h1>
+        <p class="subtitle">Each trial has <strong>fixed starting conditions</strong> shown above the track. Press <strong>Run Collision</strong>, watch the momentum arrows, and use the results to prove momentum is conserved and to examine when kinetic energy is conserved. The lab shows <strong>magnitudes and direction arrows only &mdash; never + or &minus; signs</strong>. When you record values in Buzz, you supply the sign yourself: right = positive (+), left = negative (&minus;).</p>
       </div>
       <a class="home-btn" href="../index.html">&larr; Back to Unit 3</a>
     </div>
 
-    <section class="goals-card">
-      <h2>Learning Goals</h2>
-      <ul>
-        <li>Construct appropriate vector representations of "before-and-after" collisions.</li>
-        <li>Differentiate between elastic and perfectly inelastic collisions.</li>
-        <li>Discover when kinetic energy is conserved in collisions.</li>
-      </ul>
-      <p class="subtitle" style="margin-top:10px;">Right is the positive direction. Use <strong>p = mv</strong> (keep the sign!) and <strong>KE = &frac12;mv&sup2;</strong> (always positive). Round every entry to 2 decimal places.</p>
-    </section>
-
     <nav class="stage-tabs" aria-label="Choose a trial">
-      <button class="stage-tab is-active" type="button" data-trial-tab="t1">Trial 1: Stationary Target <span class="chip" data-chip="t1"></span></button>
-      <button class="stage-tab" type="button" data-trial-tab="t2">Trial 2: Head-On <span class="chip" data-chip="t2"></span></button>
-      <button class="stage-tab" type="button" data-trial-tab="t3">Trial 3: Rear-End <span class="chip" data-chip="t3"></span></button>
-      <button class="stage-tab" type="button" data-trial-tab="t4">Trial 4: Custom Setup <span class="chip" data-chip="t4"></span></button>
+      <button class="stage-tab is-active" type="button" data-trial-tab="t1">Trial 1: Stationary Target</button>
+      <button class="stage-tab" type="button" data-trial-tab="t2">Trial 2: Head-On</button>
+      <button class="stage-tab" type="button" data-trial-tab="t3">Trial 3: Rear-End</button>
+      <button class="stage-tab" type="button" data-trial-tab="t4">Trial 4: Head-On Stick</button>
       <button class="stage-tab" type="button" data-trial-tab="explore">Explore: 50% Elasticity</button>
     </nav>
 
-    <div class="trial-directions" data-trial-directions></div>
-
     <section class="lab-card" aria-label="Collision simulator">
-      <div class="controls-row">
-        <div class="control ball1-box">
-          <label for="m1">Ball 1 mass m&#8321; (kg)</label>
-          <input type="number" id="m1" min="0.1" max="3" step="0.1" value="1.0">
-        </div>
-        <div class="control ball1-box">
-          <label for="v1">Ball 1 velocity v&#8321; (m/s)</label>
-          <input type="number" id="v1" min="-5" max="5" step="0.1" value="3.0">
-        </div>
-        <div class="control ball2-box">
-          <label for="m2">Ball 2 mass m&#8322; (kg)</label>
-          <input type="number" id="m2" min="0.1" max="3" step="0.1" value="2.0">
-        </div>
-        <div class="control ball2-box">
-          <label for="v2">Ball 2 velocity v&#8322; (m/s)</label>
-          <input type="number" id="v2" min="-5" max="5" step="0.1" value="0">
-        </div>
-        <div class="control elasticity-box">
-          <label for="elasticity">Elasticity</label>
-          <span class="elasticity-lock" data-elasticity-lock>100%</span>
-          <input type="range" id="elasticity" min="0" max="100" step="5" value="50" hidden>
-        </div>
+      <div class="setup-strip" aria-label="Fixed trial setup">
+        <span class="strip-title">Fixed setup:</span>
+        <span class="setup-chip ball1-chip" data-setup-b1></span>
+        <span class="setup-chip ball2-chip" data-setup-b2></span>
+        <span class="setup-chip" data-setup-e></span>
+        <span class="setup-chip slider-chip" data-setup-slider hidden>
+          <label for="elasticity">Elasticity: <span data-e-label>50</span>%</label>
+          <input type="range" id="elasticity" min="0" max="100" step="5" value="50">
+        </span>
+      </div>
+
+      <div class="readout-grid">
+        <div class="readout"><strong>Ball 1 velocity now</strong><span class="v1-color" data-read-v1>3.00 m/s &rarr;</span></div>
+        <div class="readout"><strong>Ball 2 velocity now</strong><span class="v2-color" data-read-v2>0.00 m/s</span></div>
+        <div class="readout"><strong>Final v&#8321;&prime; (after collision)</strong><span class="v1-color" data-read-v1f>&mdash;</span></div>
+        <div class="readout"><strong>Final v&#8322;&prime; (after collision)</strong><span class="v2-color" data-read-v2f>&mdash;</span></div>
       </div>
 
       <div class="sim-stage">
@@ -531,14 +372,9 @@
       <div class="sim-actions">
         <button class="action" type="button" data-run>Run Collision</button>
         <button class="action secondary" type="button" data-reset>Reset Positions</button>
+        <button class="action guide" type="button" data-open-overlay="guide">&#128203; Guide</button>
+        <button class="action hint" type="button" data-open-overlay="hint">&#128161; Hint</button>
         <span class="run-message" data-run-message></span>
-      </div>
-
-      <div class="readout-grid">
-        <div class="readout"><strong>Ball 1 velocity now</strong><span class="v1-color" data-read-v1>+3.00 m/s</span></div>
-        <div class="readout"><strong>Ball 2 velocity now</strong><span class="v2-color" data-read-v2>0.00 m/s</span></div>
-        <div class="readout"><strong>Final v&#8321;&prime; (after collision)</strong><span class="v1-color" data-read-v1f>&mdash;</span></div>
-        <div class="readout"><strong>Final v&#8322;&prime; (after collision)</strong><span class="v2-color" data-read-v2f>&mdash;</span></div>
       </div>
 
       <div class="explore-totals" data-explore-totals hidden>
@@ -556,198 +392,100 @@
         <p style="margin-top:8px;" data-explore-summary></p>
       </div>
     </section>
-
-    <section class="chart-card" data-chart-section>
-      <h2 data-chart-title>Trial 1 Data Chart</h2>
-      <p class="chart-help">The lab records your masses and initial velocities when you run the collision. You fill in the rest: read the final velocities from the readouts above, then <strong>calculate</strong> the momentum and kinetic energy totals yourself. The checker marks each box &check; or &cross; &mdash; it never gives the answer away.</p>
-
-      <div class="snap-row">
-        <figure>
-          <figcaption>Sketch: balls before collision</figcaption>
-          <canvas data-snap-before width="440" height="150"></canvas>
-        </figure>
-        <figure>
-          <figcaption>Sketch: balls after collision</figcaption>
-          <canvas data-snap-after width="440" height="150"></canvas>
-        </figure>
-      </div>
-
-      <div class="chart-scroll">
-        <table class="data-chart">
-          <thead>
-            <tr>
-              <th>Masses<br>(kg)</th>
-              <th>Initial Velocities<br>(m/s)</th>
-              <th>Initial Total<br>Momentum (kg&middot;m/s)</th>
-              <th>Initial Total<br>Kinetic Energy (J)</th>
-              <th>Final Velocities<br>(m/s)</th>
-              <th>Final Total<br>Momentum (kg&middot;m/s)</th>
-              <th>Final Total<br>Kinetic Energy (J)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="auto ball1-cell" data-cell-m1>m&#8321; = &mdash;</td>
-              <td class="auto ball1-cell" data-cell-v1>v&#8321; = &mdash;</td>
-              <td rowspan="2"><input data-entry="pI" inputmode="decimal" placeholder="?" disabled aria-label="Initial total momentum"></td>
-              <td rowspan="2"><input data-entry="keI" inputmode="decimal" placeholder="?" disabled aria-label="Initial total kinetic energy"></td>
-              <td><span class="cell-label">v&#8321;&prime; =</span><input data-entry="v1f" inputmode="decimal" placeholder="?" disabled aria-label="Final velocity of ball 1"></td>
-              <td rowspan="2"><input data-entry="pF" inputmode="decimal" placeholder="?" disabled aria-label="Final total momentum"></td>
-              <td rowspan="2"><input data-entry="keF" inputmode="decimal" placeholder="?" disabled aria-label="Final total kinetic energy"></td>
-            </tr>
-            <tr>
-              <td class="auto ball2-cell" data-cell-m2>m&#8322; = &mdash;</td>
-              <td class="auto ball2-cell" data-cell-v2>v&#8322; = &mdash;</td>
-              <td><span class="cell-label">v&#8322;&prime; =</span><input data-entry="v2f" inputmode="decimal" placeholder="?" disabled aria-label="Final velocity of ball 2"></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="chart-actions">
-        <button class="action" type="button" data-check-chart disabled>Check My Chart</button>
-        <span class="chart-status" data-chart-status>Run the collision to unlock this chart.</span>
-      </div>
-    </section>
-
-    <section class="evidence-card">
-      <h2>Lab Evidence for Buzz</h2>
-      <p>Complete all four trial charts (the Explore tab is for the hypothesis question and has no chart). Then download your evidence image and answer the Buzz assessment questions.</p>
-      <div class="trial-chips">
-        <span class="trial-chip" data-evchip="t1">Trial 1</span>
-        <span class="trial-chip" data-evchip="t2">Trial 2</span>
-        <span class="trial-chip" data-evchip="t3">Trial 3</span>
-        <span class="trial-chip" data-evchip="t4">Trial 4</span>
-      </div>
-      <div class="evidence-actions">
-        <button class="action evidence" type="button" data-download-evidence>Download Evidence Image</button>
-        <button class="action secondary" type="button" data-copy-values>Copy Values for Buzz</button>
-        <span class="copy-note" data-copy-note></span>
-      </div>
-      <p style="margin-top:12px;"><strong>When you finish:</strong> return to the Buzz questions, answer the analysis questions using your data, and upload the evidence image where asked.</p>
-    </section>
   </main>
+
+  <div class="overlay" data-overlay="guide" hidden>
+    <div class="overlay-panel" role="dialog" aria-modal="true" aria-label="Trial guide">
+      <button class="overlay-close" type="button" data-close-overlay aria-label="Close guide">&times;</button>
+      <h2>&#128203; Trial Guide</h2>
+      <div class="guide-current" data-guide-trial></div>
+      <ol>
+        <li>Check the trial's <strong>fixed starting conditions</strong> in the setup bar &mdash; masses, speeds, and directions are set for you.</li>
+        <li>Press <strong>Run Collision</strong> and watch the momentum arrows attached to each ball.</li>
+        <li>Read the final velocities from the readouts &mdash; each shows a speed and a direction arrow.</li>
+        <li>Record the values in your Buzz data chart, adding the signs yourself (see the Hint). Use your before/after totals to prove momentum is conserved and to see when kinetic energy is conserved.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="overlay" data-overlay="hint" hidden>
+    <div class="overlay-panel" role="dialog" aria-modal="true" aria-label="Hint: directions and signs">
+      <button class="overlay-close" type="button" data-close-overlay aria-label="Close hint">&times;</button>
+      <h2>&#128161; Hint: Direction Matters!</h2>
+      <p>Every speed and momentum in this lab is shown as a <strong>magnitude with a direction arrow</strong> &mdash; the lab never shows + or &minus; signs. You supply the sign yourself whenever you record or calculate.</p>
+      <ul>
+        <li>Each trial's starting directions are fixed &mdash; read them from the arrows in the setup bar and on the balls.</li>
+        <li>Momentum keeps the sign: <strong>p = mv</strong>.</li>
+        <li>Kinetic energy is always positive: <strong>KE = &frac12;mv&sup2;</strong> (squaring removes the sign).</li>
+      </ul>
+      <div class="sign-rule"><strong>The sign rule:</strong> right (&rarr;) = positive (+), left (&larr;) = negative (&minus;).</div>
+    </div>
+  </div>
 
   <script>
     (() => {
       'use strict';
 
-      // ---------- Trial definitions ----------
+      // ---------- Trial definitions (fixed initial conditions) ----------
       const TRIALS = {
         t1: {
-          title: 'Trial 1 Data Chart',
-          tabLabel: 'Trial 1',
           e: 1,
-          lockV2: true,
-          hasChart: true,
-          directions: '<strong>Trial 1 (Stationary Target): 100% Elasticity</strong> &mdash; Set Ball 2 velocity to 0 (locked for you), move Ball 1 toward it, and use <em>different</em> masses.',
-          defaults: { m1: 1.0, v1: 3.0, m2: 2.0, v2: 0 },
-          validate(s) {
-            if (s.v1 <= 0) return 'Ball 1 must move to the right (positive velocity) so it reaches Ball 2.';
-            if (Math.abs(s.m1 - s.m2) < 0.05) return 'Trial 1 asks for two different masses. Change m₁ or m₂.';
-            return null;
-          }
+          directions: '<strong>Trial 1 (Stationary Target): 100% Elasticity</strong> &mdash; Ball 1 (1.0 kg) moves right at 3.00 m/s toward Ball 2 (2.0 kg), which starts at rest. Run the collision, record the final velocities, and prove the total momentum did not change.',
+          defaults: { m1: 1.0, v1: 3.0, m2: 2.0, v2: 0 }
         },
         t2: {
-          title: 'Trial 2 Data Chart',
-          tabLabel: 'Trial 2',
           e: 1,
-          lockV2: false,
-          hasChart: true,
-          directions: '<strong>Trial 2 (Head-On): 100% Elasticity</strong> &mdash; Set both balls to move directly toward each other using any masses. Ball 1 needs a positive velocity and Ball 2 needs a negative velocity.',
-          defaults: { m1: 1.0, v1: 3.0, m2: 1.5, v2: -2.0 },
-          validate(s) {
-            if (!(s.v1 > 0 && s.v2 < 0)) return 'Head-on means Ball 1 moves right (+) and Ball 2 moves left (−).';
-            return null;
-          }
+          directions: '<strong>Trial 2 (Head-On): 100% Elasticity</strong> &mdash; Ball 1 (1.0 kg) moves right at 3.00 m/s while Ball 2 (1.5 kg) moves left at 2.00 m/s. Compare total momentum and total kinetic energy before and after the collision.',
+          defaults: { m1: 1.0, v1: 3.0, m2: 1.5, v2: -2.0 }
         },
         t3: {
-          title: 'Trial 3 Data Chart',
-          tabLabel: 'Trial 3',
           e: 0,
-          lockV2: false,
-          hasChart: true,
-          directions: '<strong>Trial 3 (Rear-End): 0% Elasticity</strong> &mdash; Move both balls in the same direction with Ball 1 moving faster so it catches Ball 2, using any masses.',
-          defaults: { m1: 1.5, v1: 4.0, m2: 1.0, v2: 1.5 },
-          validate(s) {
-            if (!(s.v2 > 0 && s.v1 > s.v2)) return 'Rear-end means both balls move right (+) and Ball 1 is faster than Ball 2.';
-            return null;
-          }
+          directions: '<strong>Trial 3 (Rear-End): 0% Elasticity</strong> &mdash; Ball 1 (1.5 kg) moves right at 4.00 m/s and catches Ball 2 (1.0 kg) moving right at 1.50 m/s. The balls stick together. Is momentum still conserved? Is kinetic energy?',
+          defaults: { m1: 1.5, v1: 4.0, m2: 1.0, v2: 1.5 }
         },
         t4: {
-          title: 'Trial 4 Data Chart',
-          tabLabel: 'Trial 4',
           e: 0,
-          lockV2: false,
-          hasChart: true,
-          directions: '<strong>Trial 4 (Custom Setup): 0% Elasticity</strong> &mdash; Choose your own masses and starting velocities, as long as the balls collide.',
-          defaults: { m1: 2.0, v1: 2.5, m2: 0.5, v2: -1.5 },
-          validate(s) {
-            if (!(s.v1 - s.v2 > 0.05)) return 'With those velocities the balls never collide. Ball 1 must approach Ball 2 (v₁ greater than v₂).';
-            return null;
-          }
+          directions: '<strong>Trial 4 (Head-On Stick): 0% Elasticity</strong> &mdash; Ball 1 (2.0 kg) moves right at 2.50 m/s while Ball 2 (0.5 kg) moves left at 1.50 m/s. The balls stick together. Check total momentum and kinetic energy again.',
+          defaults: { m1: 2.0, v1: 2.5, m2: 0.5, v2: -1.5 }
         },
         explore: {
-          title: 'Explore Mode',
-          tabLabel: 'Explore',
           e: 0.5,
-          lockV2: false,
-          hasChart: false,
           adjustableE: true,
-          directions: '<strong>Explore (Hypothesis Testing): 50% Elasticity</strong> &mdash; Predict what will happen to total momentum and total kinetic energy at 50% elasticity <em>before</em> you run it. Then run the collision and compare. System totals are computed for you in this mode only.',
-          defaults: { m1: 1.5, v1: 3.0, m2: 1.0, v2: -3.0 },
-          validate(s) {
-            if (!(s.v1 - s.v2 > 0.05)) return 'With those velocities the balls never collide. Ball 1 must approach Ball 2 (v₁ greater than v₂).';
-            return null;
-          }
+          directions: '<strong>Explore (Hypothesis Testing)</strong> &mdash; Ball 1 (1.5 kg) moves right at 3.00 m/s while Ball 2 (1.0 kg) moves left at 3.00 m/s. Slide the elasticity anywhere from 0% to 100%. Predict what will happen to total momentum and total kinetic energy <em>before</em> you run it, then compare. System totals are computed for you in this mode only.',
+          defaults: { m1: 1.5, v1: 3.0, m2: 1.0, v2: -3.0 }
         }
       };
 
-      const TRIAL_ORDER = ['t1', 't2', 't3', 't4'];
-      const STORE_KEY = 'u3l4-collision-lab-v1';
-
       // ---------- State ----------
-      const state = {
-        active: 't1',
-        trials: {}
-      };
-      TRIAL_ORDER.forEach(id => {
-        state.trials[id] = { setup: null, finals: null, entries: {}, done: false };
-      });
+      const state = { active: 't1' };
 
       // ---------- Elements ----------
       const $ = sel => document.querySelector(sel);
       const canvas = $('#simCanvas');
       const ctx = canvas.getContext('2d');
-      const inM1 = $('#m1'), inV1 = $('#v1'), inM2 = $('#m2'), inV2 = $('#v2');
       const inE = $('#elasticity');
-      const eLock = $('[data-elasticity-lock]');
-      const dirBox = $('[data-trial-directions]');
+      const setupB1 = $('[data-setup-b1]'), setupB2 = $('[data-setup-b2]');
+      const setupE = $('[data-setup-e]');
+      const setupSlider = $('[data-setup-slider]');
+      const eLabel = $('[data-e-label]');
+      const guideTrial = $('[data-guide-trial]');
       const runBtn = $('[data-run]');
       const resetBtn = $('[data-reset]');
       const runMsg = $('[data-run-message]');
       const readV1 = $('[data-read-v1]'), readV2 = $('[data-read-v2]');
       const readV1f = $('[data-read-v1f]'), readV2f = $('[data-read-v2f]');
-      const chartSection = $('[data-chart-section]');
-      const chartTitle = $('[data-chart-title]');
-      const cellM1 = $('[data-cell-m1]'), cellM2 = $('[data-cell-m2]');
-      const cellV1 = $('[data-cell-v1]'), cellV2 = $('[data-cell-v2]');
-      const entryInputs = {};
-      document.querySelectorAll('[data-entry]').forEach(el => { entryInputs[el.dataset.entry] = el; });
-      const checkBtn = $('[data-check-chart]');
-      const chartStatus = $('[data-chart-status]');
-      const snapBefore = $('[data-snap-before]');
-      const snapAfter = $('[data-snap-after]');
       const exploreBox = $('[data-explore-totals]');
       const expPB = $('[data-explore-p-before]'), expKB = $('[data-explore-ke-before]');
       const expPA = $('[data-explore-p-after]'), expKA = $('[data-explore-ke-after]');
       const expSummary = $('[data-explore-summary]');
-      const copyNote = $('[data-copy-note]');
 
       // ---------- Formatting helpers ----------
+      // Vector displays never show +/- signs: magnitude plus a direction arrow.
+      // Students convert direction to sign themselves (right = +, left = -).
       const round2 = v => Math.round(v * 100) / 100;
-      const fmtSigned = v => (v > 0 ? '+' : '') + v.toFixed(2);
       const fmtPlain = v => v.toFixed(2);
+      const dirArrow = v => (v > 0 ? ' →' : v < 0 ? ' ←' : '');
+      const fmtMag = (v, unit) => Math.abs(v).toFixed(2) + ' ' + unit + dirArrow(v);
 
       // ---------- Physics ----------
       const WORLD_W = 10;                       // meters of track
@@ -774,22 +512,7 @@
       let lastTs = null;
 
       function currentSetup() {
-        return {
-          m1: round2(parseFloat(inM1.value) || 0),
-          v1: round2(parseFloat(inV1.value) || 0),
-          m2: round2(parseFloat(inM2.value) || 0),
-          v2: TRIALS[state.active].lockV2 ? 0 : round2(parseFloat(inV2.value) || 0)
-        };
-      }
-
-      function setupValid(s) {
-        if (!(s.m1 >= 0.1 && s.m1 <= 3 && s.m2 >= 0.1 && s.m2 <= 3)) {
-          return 'Masses must be between 0.1 and 3.0 kg.';
-        }
-        if (Math.abs(s.v1) > 5 || Math.abs(s.v2) > 5) {
-          return 'Keep velocities between −5.0 and +5.0 m/s.';
-        }
-        return TRIALS[state.active].validate(s);
+        return { ...TRIALS[state.active].defaults };
       }
 
       function stopRun() {
@@ -802,11 +525,6 @@
       function startRun() {
         const trial = TRIALS[state.active];
         const s = currentSetup();
-        const err = setupValid(s);
-        if (err) {
-          setRunMessage(err, 'warn');
-          return;
-        }
         stopRun();
         const e = trial.adjustableE ? (parseInt(inE.value, 10) / 100) : trial.e;
         sim = {
@@ -821,13 +539,9 @@
         setRunMessage('Running…', '');
         readV1f.innerHTML = '&mdash;';
         readV2f.innerHTML = '&mdash;';
-        if (trial.hasChart) {
-          drawSnapshot(snapBefore, s.m1, s.v1, s.m2, s.v2, false);
-          clearSnapshot(snapAfter, 'Waiting for the collision…');
-        }
         if (trial.adjustableE) {
           const before = totals(s.m1, s.v1, s.m2, s.v2);
-          expPB.textContent = fmtSigned(round2(before.p)) + ' kg·m/s';
+          expPB.textContent = fmtMag(round2(before.p), 'kg·m/s');
           expKB.textContent = fmtPlain(round2(before.ke)) + ' J';
           expPA.innerHTML = '&mdash;'; expKA.innerHTML = '&mdash;';
           expSummary.textContent = '';
@@ -903,7 +617,7 @@
         if (done) {
           sim.running = false;
           if (sim.collided) {
-            setRunMessage('Run complete. Fill in the chart for this trial.', 'good');
+            setRunMessage('Run complete. Record the final velocities in your Buzz data chart.', 'good');
           } else {
             setRunMessage('The balls never collided. Adjust the velocities and run again.', 'warn');
           }
@@ -914,26 +628,13 @@
       function onCollision() {
         const trial = TRIALS[state.active];
         const s = sim.s;
-        readV1f.textContent = fmtSigned(sim.finals.v1f) + ' m/s';
-        readV2f.textContent = fmtSigned(sim.finals.v2f) + ' m/s';
+        readV1f.textContent = fmtMag(sim.finals.v1f, 'm/s');
+        readV2f.textContent = fmtMag(sim.finals.v2f, 'm/s');
 
-        if (trial.hasChart) {
-          const st = state.trials[state.active];
-          st.setup = { ...s };
-          st.finals = { ...sim.finals };
-          st.done = false;
-          fillAutoCells(st);
-          setInputsEnabled(true);
-          clearCheckMarks();
-          chartStatus.textContent = 'Chart unlocked — enter your values, then press Check My Chart.';
-          chartStatus.className = 'chart-status';
-          drawSnapshot(snapAfter, s.m1, sim.finals.v1f, s.m2, sim.finals.v2f, sim.stuck);
-          updateChips();
-          save();
-        } else {
+        if (trial.adjustableE) {
           const after = totals(s.m1, sim.finals.v1f, s.m2, sim.finals.v2f);
           const before = totals(s.m1, s.v1, s.m2, s.v2);
-          expPA.textContent = fmtSigned(round2(after.p)) + ' kg·m/s';
+          expPA.textContent = fmtMag(round2(after.p), 'kg·m/s');
           expKA.textContent = fmtPlain(round2(after.ke)) + ' J';
           const kept = before.ke > 0 ? Math.round((after.ke / before.ke) * 100) : 100;
           expSummary.innerHTML = 'Momentum kept: <strong>100%</strong> (always). Kinetic energy kept: <strong>' + kept + '%</strong> of the original ' + fmtPlain(round2(before.ke)) + ' J.';
@@ -964,7 +665,7 @@
         c.lineCap = 'butt';
       }
 
-      function drawBallOn(c, cx, cy, rPx, i, label) {
+      function drawBallOn(c, cx, cy, rPx, i, massText, label) {
         c.save();
         const grad = c.createRadialGradient(cx - rPx * 0.35, cy - rPx * 0.35, rPx * 0.15, cx, cy, rPx);
         const base = ballColor(i);
@@ -978,10 +679,10 @@
         c.fill();
         c.stroke();
         c.fillStyle = '#ffffff';
-        c.font = 'bold ' + Math.max(13, rPx * 0.62) + 'px "Segoe UI", Arial';
+        c.font = 'bold ' + Math.max(11, rPx * 0.42) + 'px "Segoe UI", Arial';
         c.textAlign = 'center';
         c.textBaseline = 'middle';
-        c.fillText(String(i), cx, cy + 1);
+        c.fillText(massText, cx, cy + 1);
         if (label) {
           c.fillStyle = '#243447';
           c.font = 'bold 13px "Segoe UI", Arial';
@@ -993,7 +694,6 @@
       const P_SCALE = 13; // px per kg·m/s for momentum arrows
 
       function drawScene() {
-        const trial = TRIALS[state.active];
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         // Track and ruler
@@ -1022,14 +722,7 @@
         ctx.fillRect(0, TRACK_Y - 74, 6, 74);
         ctx.fillRect(canvas.width - 6, TRACK_Y - 74, 6, 74);
 
-        // Elasticity banner
-        const trialE = sim ? sim.e : (trial.adjustableE ? parseInt(inE.value, 10) / 100 : trial.e);
-        ctx.fillStyle = '#5d6f82';
-        ctx.font = 'bold 14px "Segoe UI", Arial';
-        ctx.textAlign = 'left';
-        ctx.fillText('Elasticity: ' + Math.round(trialE * 100) + '%   |   right = positive direction →', 14, 26);
-
-        // Ball state (live sim or preview from inputs)
+        // Ball state (live sim or the trial's fixed setup)
         let s, x1, x2, v1, v2;
         if (sim) {
           s = sim.s; x1 = sim.x1; x2 = sim.x2; v1 = sim.v1; v2 = sim.v2;
@@ -1041,8 +734,8 @@
         const y1 = TRACK_Y - r1 * PXM;
         const y2 = TRACK_Y - r2 * PXM;
 
-        drawBallOn(ctx, x1 * PXM, y1, r1 * PXM, 1, s.m1.toFixed(1) + ' kg');
-        drawBallOn(ctx, x2 * PXM, y2, r2 * PXM, 2, s.m2.toFixed(1) + ' kg');
+        drawBallOn(ctx, x1 * PXM, y1, r1 * PXM, 1, s.m1.toFixed(1) + ' kg', 'Ball 1');
+        drawBallOn(ctx, x2 * PXM, y2, r2 * PXM, 2, s.m2.toFixed(1) + ' kg', 'Ball 2');
 
         // Momentum arrows attached to each ball
         const p1 = s.m1 * v1, p2 = s.m2 * v2;
@@ -1052,8 +745,8 @@
         ctx.fillStyle = '#8a6410';
         ctx.font = 'bold 12px "Segoe UI", Arial';
         ctx.textAlign = 'center';
-        if (Math.abs(p1) > 0.01) ctx.fillText('p₁ = ' + fmtSigned(round2(p1)), x1 * PXM, y1 - r1 * PXM - 12);
-        if (Math.abs(p2) > 0.01) ctx.fillText('p₂ = ' + fmtSigned(round2(p2)), x2 * PXM, y2 - r2 * PXM - 12);
+        if (Math.abs(p1) > 0.01) ctx.fillText('p₁ = ' + fmtPlain(Math.abs(round2(p1))), x1 * PXM, y1 - r1 * PXM - 12);
+        if (Math.abs(p2) > 0.01) ctx.fillText('p₂ = ' + fmtPlain(Math.abs(round2(p2))), x2 * PXM, y2 - r2 * PXM - 12);
 
         if (sim && sim.collided) {
           ctx.fillStyle = '#1f8a5b';
@@ -1066,158 +759,8 @@
       function updateLiveReadouts() {
         const v1 = sim ? sim.v1 : currentSetup().v1;
         const v2 = sim ? sim.v2 : currentSetup().v2;
-        readV1.textContent = fmtSigned(round2(v1)) + ' m/s';
-        readV2.textContent = fmtSigned(round2(v2)) + ' m/s';
-      }
-
-      // ---------- Snapshot sketches ----------
-      function clearSnapshot(cv, message) {
-        const c = cv.getContext('2d');
-        c.clearRect(0, 0, cv.width, cv.height);
-        c.fillStyle = '#9aa7b6';
-        c.font = 'italic 14px "Segoe UI", Arial';
-        c.textAlign = 'center';
-        c.fillText(message, cv.width / 2, cv.height / 2);
-      }
-
-      function drawSnapshot(cv, m1, v1, m2, v2, stuck) {
-        const c = cv.getContext('2d');
-        c.clearRect(0, 0, cv.width, cv.height);
-        const y = 92;
-        c.strokeStyle = '#c9d3df';
-        c.lineWidth = 2;
-        c.beginPath();
-        c.moveTo(10, y + 30);
-        c.lineTo(cv.width - 10, y + 30);
-        c.stroke();
-
-        const r1 = Math.max(14, 12 + 9 * Math.cbrt(m1));
-        const r2 = Math.max(14, 12 + 9 * Math.cbrt(m2));
-        let x1 = cv.width * 0.30, x2 = cv.width * 0.70;
-        if (stuck) {
-          x1 = cv.width / 2 - r1;
-          x2 = cv.width / 2 + r2;
-        }
-
-        drawBallOn(c, x1, y + 30 - r1, r1, 1, null);
-        drawBallOn(c, x2, y + 30 - r2, r2, 2, null);
-
-        const snapScale = 7;
-        const p1 = m1 * v1, p2 = m2 * v2;
-        drawArrow(c, x1 + Math.sign(p1) * r1, y + 30 - r1, p1 * snapScale, '#b47d10');
-        drawArrow(c, x2 + Math.sign(p2) * r2, y + 30 - r2, p2 * snapScale, '#b47d10');
-
-        c.fillStyle = '#243447';
-        c.font = 'bold 12px "Segoe UI", Arial';
-        c.textAlign = 'center';
-        c.fillText(m1.toFixed(1) + ' kg, v = ' + fmtSigned(v1) + ' m/s', x1, 22);
-        c.fillText(m2.toFixed(1) + ' kg, v = ' + fmtSigned(v2) + ' m/s', x2, 40);
-        c.fillStyle = '#8a6410';
-        c.font = 'bold 11px "Segoe UI", Arial';
-        c.fillText('p₁ = ' + fmtSigned(round2(p1)) + ' kg·m/s', stuck ? cv.width * 0.25 : x1, cv.height - 8);
-        c.fillText('p₂ = ' + fmtSigned(round2(p2)) + ' kg·m/s', stuck ? cv.width * 0.75 : x2, cv.height - 8);
-      }
-
-      // ---------- Chart ----------
-      function fillAutoCells(st) {
-        cellM1.innerHTML = 'm₁ = ' + (st.setup ? st.setup.m1.toFixed(1) : '—');
-        cellM2.innerHTML = 'm₂ = ' + (st.setup ? st.setup.m2.toFixed(1) : '—');
-        cellV1.innerHTML = 'v₁ = ' + (st.setup ? fmtSigned(st.setup.v1) : '—');
-        cellV2.innerHTML = 'v₂ = ' + (st.setup ? fmtSigned(st.setup.v2) : '—');
-      }
-
-      function setInputsEnabled(on) {
-        Object.values(entryInputs).forEach(el => { el.disabled = !on; });
-        checkBtn.disabled = !on;
-      }
-
-      function clearCheckMarks() {
-        Object.values(entryInputs).forEach(el => el.classList.remove('cell-ok', 'cell-bad'));
-      }
-
-      function expectedFor(st) {
-        const { m1, v1, m2, v2 } = st.setup;
-        const { v1f, v2f } = st.finals;
-        const before = totals(m1, v1, m2, v2);
-        const after = totals(m1, v1f, m2, v2f); // from displayed (rounded) finals
-        return {
-          v1f, v2f,
-          pI: round2(before.p), keI: round2(before.ke),
-          pF: round2(after.p), keF: round2(after.ke)
-        };
-      }
-
-      const tolFor = (key, expected) =>
-        (key === 'v1f' || key === 'v2f') ? 0.051 : Math.max(0.15, Math.abs(expected) * 0.02);
-
-      function checkChart() {
-        const st = state.trials[state.active];
-        if (!st.setup || !st.finals) return;
-        const exp = expectedFor(st);
-        let allGood = true;
-        let anyEmpty = false;
-
-        Object.keys(entryInputs).forEach(key => {
-          const el = entryInputs[key];
-          const raw = el.value.trim().replace(',', '.');
-          st.entries[key] = el.value;
-          el.classList.remove('cell-ok', 'cell-bad');
-          if (raw === '') { anyEmpty = true; allGood = false; return; }
-          const val = parseFloat(raw);
-          if (!isFinite(val)) { el.classList.add('cell-bad'); allGood = false; return; }
-          if (Math.abs(val - exp[key]) <= tolFor(key, exp[key])) {
-            el.classList.add('cell-ok');
-          } else {
-            el.classList.add('cell-bad');
-            allGood = false;
-          }
-        });
-
-        st.done = allGood;
-        if (allGood) {
-          chartStatus.textContent = '✓ ' + TRIALS[state.active].tabLabel + ' chart complete!';
-          chartStatus.className = 'chart-status good';
-        } else if (anyEmpty) {
-          chartStatus.textContent = 'Fill in every box, then check again.';
-          chartStatus.className = 'chart-status warn';
-        } else {
-          chartStatus.textContent = 'Some boxes are not right yet. Check your signs (+/−) and your p = mv and KE = ½mv² work, then try again.';
-          chartStatus.className = 'chart-status warn';
-        }
-        updateChips();
-        save();
-      }
-
-      function loadChartFor(id) {
-        const trial = TRIALS[id];
-        chartSection.hidden = !trial.hasChart;
-        if (!trial.hasChart) return;
-        chartTitle.textContent = trial.title;
-        const st = state.trials[id];
-        fillAutoCells(st);
-        clearCheckMarks();
-        Object.keys(entryInputs).forEach(key => {
-          entryInputs[key].value = st.entries[key] || '';
-        });
-        const unlocked = !!(st.setup && st.finals);
-        setInputsEnabled(unlocked);
-        if (st.done) {
-          chartStatus.textContent = '✓ ' + trial.tabLabel + ' chart complete!';
-          chartStatus.className = 'chart-status good';
-        } else if (unlocked) {
-          chartStatus.textContent = 'Enter your values, then press Check My Chart.';
-          chartStatus.className = 'chart-status';
-        } else {
-          chartStatus.textContent = 'Run the collision to unlock this chart.';
-          chartStatus.className = 'chart-status';
-        }
-        if (st.setup) {
-          drawSnapshot(snapBefore, st.setup.m1, st.setup.v1, st.setup.m2, st.setup.v2, false);
-          drawSnapshot(snapAfter, st.setup.m1, st.finals.v1f, st.setup.m2, st.finals.v2f, trial.e === 0);
-        } else {
-          clearSnapshot(snapBefore, 'Run the collision to capture the before sketch.');
-          clearSnapshot(snapAfter, 'Run the collision to capture the after sketch.');
-        }
+        readV1.textContent = fmtMag(round2(v1), 'm/s');
+        readV2.textContent = fmtMag(round2(v2), 'm/s');
       }
 
       // ---------- Tabs ----------
@@ -1230,40 +773,30 @@
           btn.classList.toggle('is-active', btn.dataset.trialTab === id);
         });
 
-        dirBox.innerHTML = trial.directions;
-
-        const st = state.trials[id];
-        const seed = (st && st.setup) ? st.setup : trial.defaults;
-        inM1.value = seed.m1;
-        inV1.value = seed.v1;
-        inM2.value = seed.m2;
-        inV2.value = trial.lockV2 ? 0 : seed.v2;
-        inV2.disabled = trial.lockV2;
-
-        if (trial.adjustableE) {
-          eLock.hidden = true;
-          inE.hidden = false;
-          eLock.textContent = '';
-          updateEloLabel();
-        } else {
-          eLock.hidden = false;
-          inE.hidden = true;
-          eLock.textContent = Math.round(trial.e * 100) + '% (locked)';
-          document.querySelector('.elasticity-box label').textContent = 'Elasticity';
-        }
+        guideTrial.innerHTML = trial.directions;
+        renderSetupStrip(trial);
 
         exploreBox.hidden = !trial.adjustableE;
         readV1f.innerHTML = '&mdash;';
         readV2f.innerHTML = '&mdash;';
         setRunMessage('', '');
-        loadChartFor(id);
         drawScene();
         updateLiveReadouts();
       }
 
-      function updateEloLabel() {
-        const label = document.querySelector('.elasticity-box label');
-        label.textContent = 'Elasticity: ' + inE.value + '%';
+      function renderSetupStrip(trial) {
+        const d = trial.defaults;
+        setupB1.textContent = 'Ball 1: ' + d.m1.toFixed(1) + ' kg, ' + fmtMag(d.v1, 'm/s');
+        setupB2.textContent = 'Ball 2: ' + d.m2.toFixed(1) + ' kg, ' + (d.v2 === 0 ? 'at rest' : fmtMag(d.v2, 'm/s'));
+        if (trial.adjustableE) {
+          setupE.hidden = true;
+          setupSlider.hidden = false;
+          eLabel.textContent = inE.value;
+        } else {
+          setupE.hidden = false;
+          setupSlider.hidden = true;
+          setupE.textContent = 'Elasticity: ' + Math.round(trial.e * 100) + '%';
+        }
       }
 
       function setRunMessage(text, cls) {
@@ -1271,183 +804,30 @@
         runMsg.className = 'run-message' + (cls ? ' ' + cls : '');
       }
 
-      function updateChips() {
-        TRIAL_ORDER.forEach(id => {
-          const done = state.trials[id].done;
-          const chip = document.querySelector('[data-chip="' + id + '"]');
-          chip.textContent = done ? '✓' : '';
-          chip.classList.toggle('done', done);
-          const evchip = document.querySelector('[data-evchip="' + id + '"]');
-          evchip.classList.toggle('done', done);
-          evchip.textContent = TRIALS[id].tabLabel + (done ? ' ✓' : '');
-        });
-      }
-
-      // ---------- Evidence ----------
-      function evidenceText() {
-        const lines = ['Collision Lab data (right = positive):'];
-        TRIAL_ORDER.forEach(id => {
-          const st = state.trials[id];
-          const t = TRIALS[id];
-          if (!st.setup) {
-            lines.push(t.tabLabel + ': not run yet');
-            return;
-          }
-          const e = expectedFor(st);
-          lines.push(
-            t.tabLabel + ' (' + Math.round(t.e * 100) + '% elasticity)' + (st.done ? ' [chart complete]' : ' [chart not verified]') +
-            ': m1=' + st.setup.m1.toFixed(1) + ' kg, m2=' + st.setup.m2.toFixed(1) + ' kg' +
-            ', v1=' + fmtSigned(st.setup.v1) + ', v2=' + fmtSigned(st.setup.v2) +
-            ', v1′=' + fmtSigned(st.finals.v1f) + ', v2′=' + fmtSigned(st.finals.v2f) + ' m/s' +
-            ', p_i=' + fmtSigned(e.pI) + ', p_f=' + fmtSigned(e.pF) + ' kg·m/s' +
-            ', KE_i=' + fmtPlain(e.keI) + ', KE_f=' + fmtPlain(e.keF) + ' J'
-          );
-        });
-        return lines.join('\n');
-      }
-
-      function copyValues() {
-        const text = evidenceText();
-        const flash = () => {
-          copyNote.textContent = 'Copied! Paste into Buzz where asked.';
-          setTimeout(() => { copyNote.textContent = ''; }, 3500);
-        };
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(text).then(flash, () => fallbackCopy(text, flash));
-        } else {
-          fallbackCopy(text, flash);
-        }
-      }
-
-      function fallbackCopy(text, done) {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        try { document.execCommand('copy'); done(); } catch (e) { /* best effort */ }
-        document.body.removeChild(ta);
-      }
-
-      function downloadEvidence() {
-        const rowH = 168, headH = 84;
-        const cv = document.createElement('canvas');
-        cv.width = 1080;
-        cv.height = headH + rowH * TRIAL_ORDER.length + 20;
-        const c = cv.getContext('2d');
-
-        c.fillStyle = '#ffffff';
-        c.fillRect(0, 0, cv.width, cv.height);
-        c.fillStyle = '#1f2d3d';
-        c.font = 'bold 26px "Segoe UI", Arial';
-        c.textAlign = 'left';
-        c.fillText('Collision Lab Evidence — Elastic & Inelastic Collisions', 24, 40);
-        c.font = '15px "Segoe UI", Arial';
-        c.fillStyle = '#5d6f82';
-        c.fillText('Generated ' + new Date().toLocaleString() + '   |   right = positive direction', 24, 66);
-
-        TRIAL_ORDER.forEach((id, i) => {
-          const st = state.trials[id];
-          const t = TRIALS[id];
-          const y0 = headH + i * rowH;
-
-          c.strokeStyle = '#c9d3df';
-          c.lineWidth = 1.5;
-          c.strokeRect(16, y0, cv.width - 32, rowH - 12);
-
-          c.fillStyle = st.done ? '#1f8a5b' : '#c0392b';
-          c.font = 'bold 18px "Segoe UI", Arial';
-          const status = st.setup ? (st.done ? '✓ chart complete' : 'chart not verified') : 'not run';
-          c.fillText(t.tabLabel + ' — ' + Math.round(t.e * 100) + '% elasticity — ' + status, 32, y0 + 30);
-
-          if (st.setup) {
-            const e = expectedFor(st);
-            c.fillStyle = '#243447';
-            c.font = '15px "Segoe UI", Arial';
-            c.fillText(
-              'm₁ = ' + st.setup.m1.toFixed(1) + ' kg   v₁ = ' + fmtSigned(st.setup.v1) + ' m/s      ' +
-              'm₂ = ' + st.setup.m2.toFixed(1) + ' kg   v₂ = ' + fmtSigned(st.setup.v2) + ' m/s', 32, y0 + 60);
-            c.fillText(
-              'v₁′ = ' + fmtSigned(st.finals.v1f) + ' m/s      v₂′ = ' + fmtSigned(st.finals.v2f) + ' m/s', 32, y0 + 86);
-            c.fillText(
-              'p before = ' + fmtSigned(e.pI) + ' kg·m/s      p after = ' + fmtSigned(e.pF) + ' kg·m/s', 32, y0 + 112);
-            c.fillText(
-              'KE before = ' + fmtPlain(e.keI) + ' J      KE after = ' + fmtPlain(e.keF) + ' J', 32, y0 + 138);
-
-            // Mini before/after momentum diagrams
-            drawMiniDiagram(c, 700, y0 + 18, st.setup.m1, st.setup.v1, st.setup.m2, st.setup.v2, false, 'before');
-            drawMiniDiagram(c, 700, y0 + 84, st.setup.m1, st.finals.v1f, st.setup.m2, st.finals.v2f, t.e === 0, 'after');
-          }
-        });
-
-        const link = document.createElement('a');
-        link.download = 'collision-lab-evidence.png';
-        link.href = cv.toDataURL('image/png');
-        link.click();
-      }
-
-      function drawMiniDiagram(c, x0, y0, m1, v1, m2, v2, stuck, label) {
-        const w = 350, h = 56;
-        c.save();
-        c.strokeStyle = '#e1e8f0';
-        c.strokeRect(x0, y0, w, h);
-        c.fillStyle = '#8a97a8';
-        c.font = 'bold 11px "Segoe UI", Arial';
-        c.textAlign = 'left';
-        c.fillText(label, x0 + 6, y0 + 14);
-
-        const y = y0 + h / 2 + 8;
-        const r1 = 9 + 5 * Math.cbrt(m1);
-        const r2 = 9 + 5 * Math.cbrt(m2);
-        let x1 = x0 + w * 0.3, x2 = x0 + w * 0.7;
-        if (stuck) { x1 = x0 + w / 2 - r1; x2 = x0 + w / 2 + r2; }
-
-        drawBallOn(c, x1, y, r1, 1, null);
-        drawBallOn(c, x2, y, r2, 2, null);
-        const sc = 4;
-        drawArrow(c, x1 + Math.sign(v1 * m1) * r1, y, m1 * v1 * sc, '#b47d10');
-        drawArrow(c, x2 + Math.sign(v2 * m2) * r2, y, m2 * v2 * sc, '#b47d10');
-        c.restore();
-      }
-
-      // ---------- Persistence ----------
-      function save() {
-        try {
-          const out = {};
-          TRIAL_ORDER.forEach(id => {
-            const st = state.trials[id];
-            out[id] = { setup: st.setup, finals: st.finals, entries: st.entries, done: st.done };
-          });
-          localStorage.setItem(STORE_KEY, JSON.stringify(out));
-        } catch (e) { /* storage unavailable — ignore */ }
-      }
-
-      function load() {
-        try {
-          const raw = localStorage.getItem(STORE_KEY);
-          if (!raw) return;
-          const data = JSON.parse(raw);
-          TRIAL_ORDER.forEach(id => {
-            if (data[id]) state.trials[id] = Object.assign(state.trials[id], data[id]);
-          });
-        } catch (e) { /* corrupted storage — start fresh */ }
-      }
-
       // ---------- Wire-up ----------
       document.querySelectorAll('[data-trial-tab]').forEach(btn => {
         btn.addEventListener('click', () => selectTrial(btn.dataset.trialTab));
       });
 
-      [inM1, inV1, inM2, inV2].forEach(el => {
-        el.addEventListener('input', () => {
-          if (!sim) { drawScene(); updateLiveReadouts(); }
+      document.querySelectorAll('[data-open-overlay]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelector('[data-overlay="' + btn.dataset.openOverlay + '"]').hidden = false;
         });
       });
 
+      document.querySelectorAll('[data-overlay]').forEach(ov => {
+        ov.addEventListener('click', e => { if (e.target === ov) ov.hidden = true; });
+        ov.querySelector('[data-close-overlay]').addEventListener('click', () => { ov.hidden = true; });
+      });
+
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+          document.querySelectorAll('[data-overlay]').forEach(ov => { ov.hidden = true; });
+        }
+      });
+
       inE.addEventListener('input', () => {
-        updateEloLabel();
-        if (!sim) drawScene();
+        eLabel.textContent = inE.value;
       });
 
       runBtn.addEventListener('click', startRun);
@@ -1460,13 +840,7 @@
         updateLiveReadouts();
       });
 
-      checkBtn.addEventListener('click', checkChart);
-      document.querySelector('[data-download-evidence]').addEventListener('click', downloadEvidence);
-      document.querySelector('[data-copy-values]').addEventListener('click', copyValues);
-
       // ---------- Init ----------
-      load();
-      updateChips();
       selectTrial('t1');
     })();
   </script>
