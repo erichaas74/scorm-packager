@@ -167,7 +167,7 @@ var deliveryMystery = (function() {
         el.className = 'absolute bottom-0 w-16 h-20 house-btn flex flex-col items-center justify-end group z-10';
         el.setAttribute('role', 'button');
         el.setAttribute('tabindex', '0');
-        el.setAttribute('aria-label', 'House ' + house.num + ' at ' + house.x + ' metres');
+        el.setAttribute('aria-label', 'House ' + house.num + ' at ' + house.x + ' meters');
         var leftPercent = (house.x / 70) * 100;
         el.style.left = 'calc(' + leftPercent + '% - 32px)';
         // Build the clickable house markup for each house button.
@@ -913,7 +913,7 @@ var deliveryMystery = (function() {
     return {
       keyframes: [{t:0,x:0},{t:arriveT,x:fakeX},{t:t2,x:fakeX},{t:t3,x:realX},{t:t4,x:realX},{t:t4+afterT,x:endX}],
       duration: t4 + afterT,
-      prompt: 'The truck made two stops. A delivery takes more than 2 seconds. At which house number did the truck deliver the package?',
+      prompt: 'The truck made two stops. A delivery takes more than 2 seconds. Click on the house that the truck delivered the package to.',
       answer: String(realHouse), tolerance: 0, unit: '', inputType: 'house',
       hint: 'Find the flat section on the position graph that lasts more than 2 seconds. Read the y-value (position) of that flat section and match it to a house.'
     };
@@ -978,7 +978,7 @@ var deliveryMystery = (function() {
     return {
       keyframes: [{t:0,x:0},{t:tMid,x:x1},{t:holdEnd,x:x1},{t:holdEnd+afterT,x:endX}],
       duration: holdEnd + afterT,
-      prompt: 'What was the truck\u2019s position (in metres) at t\u202f=\u202f' + askT + '\u202fs?',
+      prompt: 'What was the truck\u2019s position (in meters) at t\u202f=\u202f' + askT + '\u202fs?',
       answer: posAtT, tolerance: 0, unit: 'm', inputType: 'number',
       hint: 'Find t\u202f=\u202f' + askT + ' on the horizontal axis, go straight up to the position line, then read across to the vertical axis.'
     };
@@ -999,7 +999,7 @@ var deliveryMystery = (function() {
     return {
       keyframes: [{t:0,x:startX},{t:t1,x:midX},{t:t2,x:midX},{t:t2+t3dur,x:endX}],
       duration: t2 + t3dur,
-      prompt: 'What was the truck\u2019s total displacement (final position minus initial position) in metres?',
+      prompt: 'What was the truck\u2019s total displacement (final position minus initial position) in meters?',
       answer: displacement, tolerance: 0, unit: 'm', inputType: 'number',
       hint: 'Displacement = final position \u2212 initial position. Read the starting and ending y-values on the position-time graph.'
     };
@@ -1123,7 +1123,7 @@ var deliveryMystery = (function() {
     return {
       keyframes: [{t:0,x:0},{t:tPeak,x:peakX},{t:tPeak+tRetDur,x:returnX}],
       duration: tPeak + tRetDur,
-      prompt: 'What was the total DISTANCE the truck traveled (not displacement)? Remember: distance counts every metre even when going backwards.',
+      prompt: 'What was the total DISTANCE the truck traveled (not displacement)? Remember: distance counts every meter even when going backwards.',
       answer: distance, tolerance: 0, unit: 'm', inputType: 'number',
       hint: 'Distance = forward distance + backward distance. The truck went from 0 to ' + peakX + '\u202fm, then back to ' + returnX + '\u202fm. Add both segment lengths.'
     };
@@ -1470,19 +1470,19 @@ var deliveryMystery = (function() {
   var QUESTION_DEFS = [
     { id:'q1',  title:'Q1: How long did the truck stop?',       typeBadge:'STOP DURATION',    generate: function() { var q = genStopDuration(); q.hideVelocity = true; return q; } },
     { id:'q2',  title:'Q2: Which house got the delivery?',      typeBadge:'DELIVERY HOUSE',   generate: function() { var q = genDeliveryHouse(); q.hideVelocity = true; return q; } },
-    { id:'q3',  title:'Q3: Read the velocity',                  typeBadge:'READ VELOCITY',    generate: function() { var q = genReadVelocity(); q.hidePosition = true; return q; } },
+    { id:'q3',  title:'Q3: Read the velocity',                  typeBadge:'READ VELOCITY',    primeTruck:true, generate: function() { var q = genReadVelocity(); q.hidePosition = true; return q; } },
     { id:'q4',  title:'Q4: Greatest positive velocity',         typeBadge:'COMPARE SLOPES',   generate: function() { var q = genGreatestVelocity(); q.hideVelocity = true; return q; } },
     { id:'q5',  title:'Q5: Position at a specific time',        typeBadge:'READ POSITION',    generate: function() { var q = genPositionAtTime(); q.hideVelocity = true; return q; } },
-    { id:'q6',  title:'Q6: Total displacement',                 typeBadge:'DISPLACEMENT',     generate: function() { var q = genTotalDisplacement(); q.hideVelocity = true; return q; } },
+    { id:'q6',  title:'Q6: Total displacement',                 typeBadge:'DISPLACEMENT',     primeTruck:true, generate: function() { var q = genTotalDisplacement(); q.hideVelocity = true; return q; } },
     { id:'q7',  title:'Q7: When did the truck turn around?',    typeBadge:'DIRECTION CHANGE', generate: function() { var q = genDirectionChange(); q.hideVelocity = false; q.hidePosition = false; return q; } },
     { id:'q8',  title:'Q8: Negative velocity interval',         typeBadge:'NEG. VELOCITY',    generate: function() { var q = genNegativeVelocityInterval(); q.hidePosition = true; return q; } },
-    { id:'q9',  title:'Q9: Average velocity',                   typeBadge:'AVG. VELOCITY',    generate: function() { var q = genAverageVelocity(); q.hideVelocity = true; return q; } },
+    { id:'q9',  title:'Q9: Average velocity',                   typeBadge:'AVG. VELOCITY',    primeTruck:true, generate: function() { var q = genAverageVelocity(); q.hideVelocity = true; return q; } },
     { id:'q10', title:'Q10: Total distance traveled',           typeBadge:'DISTANCE vs DISP.',generate: function() { var q = genTotalDistance(); q.hideVelocity = true; return q; } },
     { id:'q11', title:'Q11: Time at a specific position',       typeBadge:'TIME FROM POSITION',generate: function() { var q = genTimeAtPosition(); q.hideVelocity = true; return q; } },
-    { id:'q12', title:'Q12: Average speed',                     typeBadge:'AVG. SPEED',       generate: function() { var q = genAverageSpeed(); q.hideVelocity = true; return q; } },
+    { id:'q12', title:'Q12: Average speed',                     typeBadge:'AVG. SPEED',       primeTruck:true, generate: function() { var q = genAverageSpeed(); q.hideVelocity = true; return q; } },
     { id:'q13', title:'Q13: Pass count at a house',             typeBadge:'REPEATED POSITION',generate: function() { var q = genPassCountHouse(); q.hideVelocity = true; return q; } },
     { id:'q14', title:'Q14: Match the graph to the motion',     typeBadge:'GRAPH MATCH',       generate: function() { var q = genGraphMatch(); q.hideVelocity = true; q.hidePosition = true; return q; } },
-    { id:'q15', title:'Q15: Match the velocity graph',          typeBadge:'VELOCITY GRAPH',    generate: function() { var q = genVelocityGraphMatch(); q.hideVelocity = true; q.hidePosition = true; return q; } }
+    { id:'q15', title:'Q15: Match the velocity graph',          typeBadge:'VELOCITY GRAPH',    primeTruck:true, generate: function() { var q = genVelocityGraphMatch(); q.hideVelocity = true; q.hidePosition = true; return q; } }
   ];
 
   var state = {
@@ -1494,10 +1494,12 @@ var deliveryMystery = (function() {
   };
 
   var els = {};
+
   function cacheEls() {
     els.prevQ       = document.getElementById('prev-question');
     els.nextQ       = document.getElementById('next-question');
     els.qSelect     = document.getElementById('question-select');
+    els.qStatusSummary = document.getElementById('question-status-summary');
     els.checkBtn    = document.getElementById('check-answer');
     els.hintBtn     = document.getElementById('hint-btn');
     els.responseCard= document.getElementById('response-card');
@@ -1509,6 +1511,9 @@ var deliveryMystery = (function() {
     els.resetBtn    = document.getElementById('assess-reset-btn');
     els.timeReadout = document.getElementById('quiz-time-readout');
     els.truck       = document.getElementById('truck');
+    els.truckBodyBg = document.getElementById('truckBodyBg');
+    els.truckText   = document.getElementById('truckText');
+    els.truckCabBg  = document.getElementById('truckCabBg');
     els.housesWrap  = document.getElementById('housesContainer');
     els.posCanvas   = document.getElementById('posCanvas');
     els.velCanvas   = document.getElementById('velCanvas');
@@ -1525,10 +1530,47 @@ var deliveryMystery = (function() {
     els.graphsRow       = document.getElementById('sim-graphs-row');
     els.completionCard  = document.getElementById('completion-card');
     els.finalScoreDisp  = document.getElementById('final-score-display');
+    els.submitScoreBtn  = document.getElementById('submit-score-buzz');
+    els.scormStatus     = document.getElementById('scorm-submit-status');
     els.responseArea.addEventListener('paste', function(e) {
       if (e.target.tagName === 'INPUT') e.preventDefault();
     });
     document.addEventListener('copy', function(e) { e.preventDefault(); });
+  }
+
+  function setClasses(el, removeList, addList) {
+    if (!el) return;
+    removeList.forEach(function(cls) { el.classList.remove(cls); });
+    addList.forEach(function(cls) { el.classList.add(cls); });
+  }
+
+  function setAssessmentTruckTheme(usePrime) {
+    setClasses(
+      els.truckBodyBg,
+      ['from-white', 'to-slate-100', 'border-blue-800', 'text-blue-800', 'from-slate-700', 'to-slate-800', 'border-blue-400', 'text-blue-400'],
+      usePrime ? ['from-slate-700', 'to-slate-800', 'border-blue-400', 'text-blue-400'] : ['from-white', 'to-slate-100', 'border-blue-800', 'text-blue-800']
+    );
+    setClasses(
+      els.truckCabBg,
+      ['from-blue-700', 'to-blue-900', 'border-blue-800', 'from-slate-800', 'to-slate-900', 'border-slate-900'],
+      usePrime ? ['from-slate-800', 'to-slate-900', 'border-slate-900'] : ['from-blue-700', 'to-blue-900', 'border-blue-800']
+    );
+    if (!els.truckText) return;
+    els.truckText.textContent = usePrime ? 'prime' : 'US MAIL';
+    if (usePrime) {
+      els.truckText.classList.remove('tracking-wider');
+      els.truckText.classList.add('tracking-normal', 'italic', 'lowercase', 'text-sm');
+    } else {
+      els.truckText.classList.remove('tracking-normal', 'italic', 'lowercase', 'text-sm');
+      els.truckText.classList.add('tracking-wider');
+    }
+  }
+
+  function setStageResponseMode(mode) {
+    if (!els.simStage) return;
+    els.simStage.classList.remove('response-visible', 'response-choice', 'response-note');
+    if (!mode || mode === 'empty') return;
+    els.simStage.classList.add('response-visible', mode === 'choice' ? 'response-choice' : 'response-note');
   }
 
   function currentScenario() { return state.questions[state.currentIndex].scenario; }
@@ -1701,12 +1743,16 @@ var deliveryMystery = (function() {
   function renderGraphChoiceGrid(sc) {
     if (!els.graphChoiceGrid || !sc.graphChoices) return;
     els.graphChoiceGrid.innerHTML = sc.graphChoices.map(function(choice, i) {
-      return '<label class="graph-choice-item">' +
+      return '<label class="graph-choice-item" data-choice-value="' + choice.value + '">' +
         '<span class="graph-choice-label"><input type="radio" name="quiz-graph-choice" value="' + choice.value + '" />' +
         '<span>' + choice.label + '</span></span>' +
         '<span class="graph-choice-canvas-wrap"><canvas id="graph-choice-canvas-' + i + '"></canvas></span>' +
       '</label>';
     }).join('');
+    var inputs = els.graphChoiceGrid.querySelectorAll('input[name="quiz-graph-choice"]');
+    inputs.forEach(function(input) {
+      input.addEventListener('change', function() { submitAnswer(input.value); });
+    });
     setTimeout(function() { drawGraphChoiceCanvases(sc); }, 0);
   }
 
@@ -1806,8 +1852,64 @@ var deliveryMystery = (function() {
 
   function buildQuestions() {
     state.questions = QUESTION_DEFS.map(function(def) {
-      return { def: def, scenario: def.generate() };
+      return { def: def, scenario: normalizeAssessmentScenario(def.generate()) };
     });
+  }
+
+  function normalizeAssessmentScenario(sc) {
+    if (sc.inputType === 'number') {
+      sc.inputType = 'choice';
+      sc.answer = formatChoiceNumber(sc.answer);
+      sc.choices = buildNumericChoices(sc);
+    } else if (sc.inputType === 'house') {
+      sc.lockAssessmentPlayback = true;
+      sc.answer = String(sc.answer);
+    }
+    return sc;
+  }
+
+  function formatChoiceNumber(value) {
+    var numeric = Number(value);
+    if (!isFinite(numeric)) return String(value);
+    var rounded = round(numeric, 2);
+    return String(rounded).replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1');
+  }
+
+  function choiceLabelForNumber(value, unit) {
+    return formatChoiceNumber(value) + (unit ? ' ' + unit : '');
+  }
+
+  function buildNumericChoices(sc) {
+    var answer = Number(sc.answer);
+    var unit = sc.unit || '';
+    var allowNegative = /displacement|velocity|backwards|negative/i.test(sc.prompt || '') || unit === 'm/s';
+    var step = unit === 'm' ? 5 : 1;
+    if (unit === 'm/s' && Math.abs(answer % 1) > 0.001) step = 0.5;
+    var offsets = [step, -step, step * 2, -step * 2, step * 3, -step * 3, step * 4, -step * 4];
+    var values = {};
+    var choices = [];
+
+    function add(value) {
+      var numeric = Number(value);
+      if (!isFinite(numeric)) return;
+      if (!allowNegative && numeric < 0) return;
+      var formatted = formatChoiceNumber(numeric);
+      if (values[formatted]) return;
+      values[formatted] = true;
+      choices.push({ value: formatted, label: choiceLabelForNumber(numeric, unit) });
+    }
+
+    add(answer);
+    offsets.forEach(function(offset) { add(answer + offset); });
+    var fallback = 0;
+    while (choices.length < 4 && fallback < 12) {
+      add(answer + ((fallback + 1) * step));
+      fallback++;
+    }
+
+    var correct = choices[0];
+    var distractors = shuffledCopy(choices.slice(1)).slice(0, 3);
+    return shuffledCopy([correct].concat(distractors));
   }
 
   function currentQ() { return state.questions[state.currentIndex]; }
@@ -1828,10 +1930,61 @@ var deliveryMystery = (function() {
     return sum / state.questions.length;
   }
 
+  function earnedPoints() {
+    if (!state.questions.length) return 0;
+    var points = 0;
+    state.questions.forEach(function(q) {
+      var b = bestScore(q.def.id);
+      points += (b !== null ? b : 0) / 100;
+    });
+    return round(points, 2);
+  }
+
+  function formatPoints(points) {
+    var rounded = round(points, 2);
+    return String(rounded).replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1');
+  }
+
+  function maxPoints() {
+    return state.questions.length || 15;
+  }
+
+  function scorePercentFromPoints(points) {
+    var max = maxPoints();
+    return max ? Math.round((points / max) * 100) : 0;
+  }
+
   function updateScoreBadge() {
-    var score = Math.round(overallScore());
-    if (els.topScore) els.topScore.textContent = 'Score: ' + score + '%';
-    if (els.overallDisp) els.overallDisp.textContent = 'Overall: ' + score + '%';
+    var points = earnedPoints();
+    var percent = scorePercentFromPoints(points);
+    if (els.topScore) els.topScore.textContent = 'Score: ' + formatPoints(points) + ' / ' + maxPoints();
+    if (els.overallDisp) els.overallDisp.textContent = 'Overall: ' + percent + '%';
+  }
+
+  function questionStatus(q) {
+    var logs = state.attemptLogs[q.def.id] || [];
+    if (!logs.length) return 'todo';
+    var best = bestScore(q.def.id);
+    return best >= 80 ? 'ok' : 'retry';
+  }
+
+  function updateQuestionSelectStatus() {
+    if (!els.qSelect || !state.questions.length) return;
+    var counts = { ok: 0, retry: 0, todo: 0 };
+    state.questions.forEach(function(q, i) {
+      var status = questionStatus(q);
+      counts[status]++;
+      var opt = els.qSelect.options[i];
+      if (!opt) return;
+      opt.textContent = q.def.title;
+      opt.className = 'status-' + status;
+    });
+    var currentStatus = questionStatus(currentQ());
+    els.qSelect.classList.remove('status-todo', 'status-ok', 'status-retry');
+    els.qSelect.classList.add('status-' + currentStatus);
+    if (els.qStatusSummary) {
+      els.qStatusSummary.textContent = (counts.ok + counts.retry) + ' / ' + state.questions.length;
+    }
   }
 
   function isAllAttempted() {
@@ -1842,19 +1995,50 @@ var deliveryMystery = (function() {
 
   function syncScormProgress() {
     if (typeof SCORM === 'undefined') return;
-    var score = Math.round(overallScore());
-    SCORM.setScore(score, 0, 100);
-    // Keep status incomplete so Buzz does not auto-complete the assignment.
-    SCORM.setStatus('incomplete');
+    var points = earnedPoints();
+    var complete = isAllAttempted();
+    SCORM.setScore(points, 0, maxPoints());
+    SCORM.setStatus(complete ? 'completed' : 'incomplete');
+    SCORM.setValue('cmi.core.lesson_location', complete ? 'complete' : 'assessment');
+    SCORM.setValue('cmi.comments', 'Motion Graphs Lab score: ' + formatPoints(points) + ' / ' + maxPoints());
+    SCORM.commit();
+  }
+
+  function renderScormStatus(message) {
+    if (!els.scormStatus) return;
+    if (message) {
+      els.scormStatus.textContent = message;
+      return;
+    }
+    if (isAllAttempted()) {
+      els.scormStatus.textContent = 'Submitted to Buzz: ' + formatPoints(earnedPoints()) + ' / ' + maxPoints() + '. You can retry questions and resubmit.';
+    } else {
+      els.scormStatus.textContent = 'Score saves automatically. Complete all 15 questions to submit completion.';
+    }
   }
 
   function checkCompletion() {
-    if (!isAllAttempted()) return;
-    var score = Math.round(overallScore());
-    if (els.finalScoreDisp) els.finalScoreDisp.textContent = score + '%';
+    if (!isAllAttempted()) {
+      renderScormStatus();
+      return;
+    }
+    var points = earnedPoints();
+    if (els.finalScoreDisp) {
+      els.finalScoreDisp.textContent = formatPoints(points) + ' / ' + maxPoints() + ' (' + scorePercentFromPoints(points) + '%)';
+    }
+    renderScormStatus();
     if (els.completionCard) {
       els.completionCard.classList.remove('hidden');
       els.completionCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+
+  function submitScoreToBuzz() {
+    syncScormProgress();
+    if (isAllAttempted()) {
+      renderScormStatus('Submitted to Buzz: ' + formatPoints(earnedPoints()) + ' / ' + maxPoints() + '.');
+    } else {
+      renderScormStatus('Complete all 15 questions before submitting completion to Buzz.');
     }
   }
 
@@ -1867,16 +2051,18 @@ var deliveryMystery = (function() {
     var q = currentQ(), sc = q.scenario;
 
     els.qSelect.value = String(state.currentIndex);
+    updateQuestionSelectStatus();
+    setAssessmentTruckTheme(!!q.def.primeTruck);
     if (els.assessmentDirectionsBanner) els.assessmentDirectionsBanner.textContent = sc.prompt;
-    els.hintBtn.classList.toggle('hidden', !(sc.hint && !state.hintUsed[q.def.id]));
+    if (els.hintBtn) els.hintBtn.classList.toggle('hidden', !(state.isActive && sc.hint && !state.hintUsed[q.def.id]));
     setGraphPanelVisibility(sc);
     renderResponseArea(); resetAnim();
     if (sc.inputType !== 'house') disableHouseClicks();
     els.feedbackSum.textContent = '';
     els.feedbackSum.className = 'feedback-summary';
     els.feedbackList.innerHTML = '';
-    if (sc.inputType === 'graph-choice') unlockPlayback();
-    else lockPlayback();
+    if (sc.lockAssessmentPlayback) lockPlayback();
+    else unlockPlayback();
   }
 
   function lockPlayback() {
@@ -1907,6 +2093,7 @@ var deliveryMystery = (function() {
     els.qSelect.innerHTML = state.questions.map(function(q, i) {
       return '<option value="' + i + '">' + q.def.title + '</option>';
     }).join('');
+    updateQuestionSelectStatus();
   }
 
   function renderResponseArea() {
@@ -1914,21 +2101,39 @@ var deliveryMystery = (function() {
     // Hide the response-help text for assessment questions
     els.responseHelp.textContent = '';
     els.responseHelp.style.display = 'none';
+    if (els.checkBtn) els.checkBtn.classList.add('hidden');
+    clearResponseHighlights();
+    clearHouseHighlights();
     els.responseArea.innerHTML = '';
+    if (!state.isActive) {
+      setStageResponseMode('empty');
+      return;
+    }
     if (sc.inputType === 'number') {
+      setStageResponseMode('note');
       els.responseArea.innerHTML = '<input id="quiz-numeric-input" class="response-input" type="number" step="0.1" placeholder="Your answer" />';
+      if (els.checkBtn) els.checkBtn.classList.remove('hidden');
     } else if (sc.inputType === 'choice') {
+      setStageResponseMode('choice');
       var html = '<div class="choice-list">';
-      sc.choices.forEach(function(c) {
-        html += '<label class="choice-item"><input type="radio" name="quiz-choice" value="' + c.value + '" /><span>' + c.label + '</span></label>';
+      sc.choices.forEach(function(c, i) {
+        var marker = String.fromCharCode(65 + i);
+        html += '<button type="button" class="choice-item" data-choice-value="' + c.value + '">' +
+          '<span class="choice-marker">' + marker + '</span><span>' + c.label + '</span></button>';
       });
       html += '</div>';
       els.responseArea.innerHTML = html;
+      var choiceButtons = els.responseArea.querySelectorAll('.choice-item[data-choice-value]');
+      choiceButtons.forEach(function(btn) {
+        btn.addEventListener('click', function() { submitAnswer(btn.getAttribute('data-choice-value')); });
+      });
     } else if (sc.inputType === 'graph-choice') {
-      els.responseArea.innerHTML = '<p class="text-slate-500 text-sm font-semibold">Choose the matching graph in the graphing section below.</p>';
+      setStageResponseMode('note');
+      els.responseArea.innerHTML = '<p class="stage-note">Click the matching graph in the graphing section below.</p>';
       renderGraphChoiceGrid(sc);
     } else if (sc.inputType === 'house') {
-      els.responseArea.innerHTML = '<p id="house-selection" class="text-slate-500 text-sm italic">No house selected yet.</p>';
+      setStageResponseMode('note');
+      els.responseArea.innerHTML = '<p id="house-selection" class="stage-note">Click on the house that the truck delivered the package to.</p>';
       enableHouseClicks();
     }
   }
@@ -1954,6 +2159,35 @@ var deliveryMystery = (function() {
     return null;
   }
 
+  function clearResponseHighlights() {
+    document.querySelectorAll('.choice-item.correct-choice, .choice-item.wrong-choice, .graph-choice-item.correct-choice, .graph-choice-item.wrong-choice').forEach(function(el) {
+      el.classList.remove('correct-choice', 'wrong-choice');
+    });
+  }
+
+  function clearHouseHighlights() {
+    if (!els.housesWrap) return;
+    Array.prototype.forEach.call(els.housesWrap.children, function(houseEl) {
+      houseEl.classList.remove('assessment-correct', 'assessment-wrong');
+    });
+  }
+
+  function markSelectedResponse(sc, response, passed) {
+    var resultClass = passed ? 'correct-choice' : 'wrong-choice';
+    clearResponseHighlights();
+    if (sc.inputType === 'choice') {
+      var choice = els.responseArea.querySelector('.choice-item[data-choice-value="' + response + '"]');
+      if (choice) choice.classList.add(resultClass);
+    } else if (sc.inputType === 'graph-choice' && els.graphChoiceGrid) {
+      var graphChoice = els.graphChoiceGrid.querySelector('.graph-choice-item[data-choice-value="' + response + '"]');
+      if (graphChoice) graphChoice.classList.add(resultClass);
+    } else if (sc.inputType === 'house') {
+      clearHouseHighlights();
+      var houseEl = els.housesWrap && els.housesWrap.children[Number(response) - 1];
+      if (houseEl) houseEl.classList.add(passed ? 'assessment-correct' : 'assessment-wrong');
+    }
+  }
+
   function enableHouseClicks() {
     if (els.housesWrap) els.housesWrap.style.pointerEvents = '';
     state.selectedHouse = null;
@@ -1973,7 +2207,7 @@ var deliveryMystery = (function() {
       selEl.textContent = 'Selected: House ' + houseNum;
       selEl.className = 'text-blue-700 text-sm font-bold';
     }
-    submitAnswer();
+    submitAnswer(String(houseNum));
   }
 
   function grade(sc, response) {
@@ -1983,8 +2217,7 @@ var deliveryMystery = (function() {
       var score = err <= tol ? 100 : round(Math.max(0, 100 * (1 - err / (tol * 4 || 1))), 1);
       var feedback = [];
       if (err <= tol) feedback.push('Correct!');
-      else feedback.push(response < correct ? 'Your answer is a bit low.' : 'Your answer is a bit high.');
-      feedback.push('Correct answer: ' + correct + ' ' + (sc.unit || ''));
+      else feedback.push('Not quite. Review the graph and try again.');
       return { score: score, passed: score >= 80, feedback: feedback, responseSummary: 'Entered ' + response + ' ' + (sc.unit || '') };
     }
     var isCorrect = String(response) === String(sc.answer);
@@ -1999,22 +2232,14 @@ var deliveryMystery = (function() {
     var fb = [];
     if (isCorrect) fb.push('Correct!');
     else {
-      fb.push('Not quite.');
-      if (sc.inputType === 'house') {
-        fb.push('The correct answer is: House ' + sc.answer);
-      } else {
-        var correctLabel = '';
-        if (sc.choices) sc.choices.forEach(function(c) { if (String(c.value) === String(sc.answer)) correctLabel = c.label; });
-        if (!correctLabel && sc.graphChoices) sc.graphChoices.forEach(function(c) { if (String(c.value) === String(sc.answer)) correctLabel = c.label; });
-        if (correctLabel) fb.push('The correct answer is: ' + correctLabel);
-      }
+      fb.push('Not quite. Review the graph and try again.');
     }
     return { score: isCorrect ? 100 : 0, passed: isCorrect, feedback: fb, responseSummary: 'Chose: ' + (choiceLabel || response) };
   }
 
-  function submitAnswer() {
+  function submitAnswer(responseOverride) {
     var q = currentQ(), sc = q.scenario;
-    var response = getResponse();
+    var response = responseOverride !== undefined ? responseOverride : getResponse();
     if (response === null || (typeof response === 'number' && isNaN(response))) {
       els.feedbackSum.textContent = 'Enter a response first.';
       els.feedbackSum.className = 'feedback-summary bad';
@@ -2022,6 +2247,7 @@ var deliveryMystery = (function() {
       return;
     }
     var result = grade(sc, response);
+    markSelectedResponse(sc, response, result.passed);
     var usedHint = !!state.hintUsed[q.def.id];
     if (usedHint) {
       result.score = round(result.score * 0.5, 1);
@@ -2033,20 +2259,22 @@ var deliveryMystery = (function() {
     state.attemptLogs[q.def.id] = logs;
     saveLogs(state.attemptLogs);
     syncScormProgress();
+    updateQuestionSelectStatus();
 
     els.feedbackSum.textContent = (result.passed ? 'Passed' : 'Keep trying') + ' \u00B7 ' + result.score.toFixed(1) + '%';
     els.feedbackSum.className = 'feedback-summary ' + (result.score >= 85 ? 'good' : result.score >= 65 ? 'mid' : 'bad');
     els.feedbackList.innerHTML = result.feedback.map(function(f) { return '<li>' + f + '</li>'; }).join('');
 
     if (usedHint) {
-      q.scenario = q.def.generate();
+      q.scenario = normalizeAssessmentScenario(q.def.generate());
       state.hintUsed[q.def.id] = false;
       els.feedbackSum.textContent = result.score.toFixed(1) + '% (hint \u2014 \u00BD credit) \u2022 New values loaded \u2014 retry for full credit!';
       els.feedbackSum.className = 'feedback-summary mid';
       if (els.assessmentDirectionsBanner) els.assessmentDirectionsBanner.textContent = q.scenario.prompt;
+      setAssessmentTruckTheme(!!q.def.primeTruck);
       setGraphPanelVisibility(q.scenario);
       renderResponseArea(); resetAnim();
-      els.hintBtn.classList.toggle('hidden', !q.scenario.hint);
+      if (els.hintBtn) els.hintBtn.classList.toggle('hidden', !(state.isActive && q.scenario.hint && !state.hintUsed[q.def.id]));
     }
 
     updateScoreBadge(); checkCompletion();
@@ -2064,19 +2292,20 @@ var deliveryMystery = (function() {
     var q = currentQ(), sc = q.scenario;
     if (!sc.hint || state.hintUsed[q.def.id]) return;
     state.hintUsed[q.def.id] = true;
-    unlockPlayback();
+    if (!sc.lockAssessmentPlayback) unlockPlayback();
     els.feedbackSum.textContent = 'Hint used \u2014 this attempt is worth \u00BD credit. Retry for full credit.';
     els.feedbackSum.className = 'feedback-summary mid';
     els.feedbackList.innerHTML = '<li>' + sc.hint + '</li>';
-    els.hintBtn.classList.add('hidden');
+    if (els.hintBtn) els.hintBtn.classList.add('hidden');
   }
 
   function attachEvents() {
     els.prevQ.addEventListener('click', function() { loadQuestion(state.currentIndex - 1); });
     els.nextQ.addEventListener('click', function() { loadQuestion(state.currentIndex + 1); });
     els.qSelect.addEventListener('change', function(e) { loadQuestion(Number(e.target.value)); });
-    els.checkBtn.addEventListener('click', submitAnswer);
-    els.hintBtn.addEventListener('click', onHint);
+    if (els.checkBtn) els.checkBtn.addEventListener('click', submitAnswer);
+    if (els.hintBtn) els.hintBtn.addEventListener('click', onHint);
+    if (els.submitScoreBtn) els.submitScoreBtn.addEventListener('click', submitScoreToBuzz);
     els.playBtn.addEventListener('click', togglePlay);
     els.resetBtn.addEventListener('click', resetAnim);
     window.addEventListener('resize', function() { drawGraphsFull(); });
@@ -2090,10 +2319,18 @@ var deliveryMystery = (function() {
       state.animReq = null;
       if (els.truck) els.truck.classList.remove('moving');
       if (els.playBtn) els.playBtn.innerHTML = '\u25B6 Play';
+      if (els.hintBtn) els.hintBtn.classList.add('hidden');
+      setAssessmentTruckTheme(false);
+      clearHouseHighlights();
+      if (els.responseArea) els.responseArea.innerHTML = '';
+      setStageResponseMode('empty');
       return;
     }
-    if (state.questions.length) setGraphPanelVisibility(currentScenario());
-    resetAnim(); drawGraphsFull();
+    if (state.questions.length) {
+      loadQuestion(state.currentIndex);
+    } else {
+      resetAnim(); drawGraphsFull();
+    }
   }
 
   function init() {
@@ -2102,9 +2339,17 @@ var deliveryMystery = (function() {
     buildQuestions(); populateSelect(); attachEvents();
     loadQuestion(0); updateScoreBadge();
     syncScormProgress();
+    checkCompletion();
   }
 
-  window.motionSim = { start: init, overallScore: overallScore, setActive: setActive, handleHouseClick: handleHouseClick };
+  window.motionSim = {
+    start: init,
+    overallScore: overallScore,
+    earnedPoints: earnedPoints,
+    syncScormProgress: syncScormProgress,
+    setActive: setActive,
+    handleHouseClick: handleHouseClick
+  };
 })();
 
 

@@ -113,21 +113,53 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             "Value Panels": {
                 listDisplay: { label: "Show Values", type: "select", options: ["Hidden", "Symbols", "Values"], value: "Values" },
                 showXValuesPanel: { label: "Show X Panel", type: "checkbox", value: true },
+                xPanelTitle: { label: "X Panel Title", type: "textarea", value: "X Values", rows: 1, livePreview: true },
                 xPanelShowDisplacement: { label: "  X: Δx displacement", type: "checkbox", value: true },
                 xPanelShowV0:           { label: "  X: v₀ₓ initial velocity", type: "checkbox", value: true },
                 xPanelShowV:            { label: "  X: vₓ velocity", type: "checkbox", value: true },
                 xPanelShowA:            { label: "  X: aₓ acceleration", type: "checkbox", value: true },
                 xPanelShowT:            { label: "  X: t time", type: "checkbox", value: true },
                 showYValuesPanel: { label: "Show Y Panel", type: "checkbox", value: true },
+                yPanelTitle: { label: "Y Panel Title", type: "textarea", value: "Y Values", rows: 1, livePreview: true },
                 yPanelShowDisplacement: { label: "  Y: Δy displacement", type: "checkbox", value: true },
                 yPanelShowHmax:         { label: "  Y: hₘₐₓ max height", type: "checkbox", value: true },
                 yPanelShowV0:           { label: "  Y: v₀ᵧ initial velocity", type: "checkbox", value: true },
                 yPanelShowV:            { label: "  Y: vᵧ velocity", type: "checkbox", value: true },
                 yPanelShowA:            { label: "  Y: aᵧ acceleration", type: "checkbox", value: true },
                 yPanelShowT:            { label: "  Y: t time", type: "checkbox", value: true },
+                xRowModeDisplacement: { label: "  X: Δx show as", type: "select", options: this.getValueRowModeOptions(), value: "Auto" },
+                xRowModeV0:           { label: "  X: v₀ₓ show as", type: "select", options: this.getValueRowModeOptions(), value: "Auto" },
+                xRowModeV:            { label: "  X: vₓ show as", type: "select", options: this.getValueRowModeOptions(), value: "Auto" },
+                xRowModeA:            { label: "  X: aₓ show as", type: "select", options: this.getValueRowModeOptions(), value: "Auto" },
+                xRowModeT:            { label: "  X: t show as", type: "select", options: this.getValueRowModeOptions(), value: "Auto" },
+                yRowModeDisplacement: { label: "  Y: Δy show as", type: "select", options: this.getValueRowModeOptions(), value: "Auto" },
+                yRowModeHmax:         { label: "  Y: hₘₐₓ show as", type: "select", options: this.getValueRowModeOptions(), value: "Auto" },
+                yRowModeV0:           { label: "  Y: v₀ᵧ show as", type: "select", options: this.getValueRowModeOptions(), value: "Auto" },
+                yRowModeV:            { label: "  Y: vᵧ show as", type: "select", options: this.getValueRowModeOptions(), value: "Auto" },
+                yRowModeA:            { label: "  Y: aᵧ show as", type: "select", options: this.getValueRowModeOptions(), value: "Auto" },
+                yRowModeT:            { label: "  Y: t show as", type: "select", options: this.getValueRowModeOptions(), value: "Auto" },
                 valuesPanelLayout: { label: "Panel Layout", type: "select", options: ["Current Layout", "Left Stack", "Right Stack", "Bottom Corners", "Split Corners (X Top-Left)", "Split Corners (X Bottom-Left)"], value: "Current Layout" },
                 valuesPanelOffsetX: { label: "Panel Offset X (px)", type: "number", value: 0, step: 5 },
                 valuesPanelOffsetY: { label: "Panel Offset Y (px)", type: "number", value: 0, step: 5 }
+            },
+            "Equation Box": {
+                showEquations: { label: "Show Equation Box", type: "checkbox", value: false },
+                eqShowVfEquation:           { label: "  Eq 1: v = v₀ + at", type: "checkbox", value: true },
+                eqShowDisplacementEquation: { label: "  Eq 2: Δy = v₀t + ½at²", type: "checkbox", value: true },
+                eqShowVSquaredEquation:     { label: "  Eq 3: v² = v₀² + 2aΔy", type: "checkbox", value: true },
+                eqShowAvgVelocityEquation:  { label: "  Eq 4: Δy = ½(v₀ + v)t", type: "checkbox", value: true },
+                customEquationText: {
+                    label: "Custom Equations (one per line, replaces list)",
+                    type: "textarea",
+                    value: "",
+                    rows: 3,
+                    livePreview: true,
+                    placeholder: "Leave empty to use the standard kinematic equations."
+                },
+                equationHighlight: { label: "Highlight Equation", type: "select", options: ["None", "Eq 1", "Eq 2", "Eq 3", "Eq 4"], value: "None" },
+                equationPanelPlacement: { label: "Panel Placement (flat launch)", type: "select", options: ["Bottom Right", "Bottom Left", "Top Right", "Top Left", "Top Center", "Bottom Center"], value: "Bottom Right" },
+                equationPanelOffsetX: { label: "Equation Offset X (px)", type: "number", value: 0, step: 5 },
+                equationPanelOffsetY: { label: "Equation Offset Y (px)", type: "number", value: 0, step: 5 }
             },
             ...this.getProblemSetupImportControls()
         });
@@ -150,6 +182,10 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         });
         this.updateCustomProblemVisibility();
         this.drawPreview();
+    }
+
+    getValueRowModeOptions() {
+        return ["Auto", "Show Value", "Show ?", "Symbol Only"];
     }
 
     getDefaultSettings() {
@@ -183,11 +219,6 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             showMaxHeight: false,
             showComponents: false,
             useProjectileXValues: false,
-            showEquations: false,
-            equationPanelPlacement: "Bottom Right",
-            equationPanelOffsetX: 0,
-            equationPanelOffsetY: 0,
-            equationHighlight: "None",
             accelerationPlacement: "Auto",
             accelerationOffsetX: 0,
             accelerationOffsetY: 0,
@@ -454,6 +485,24 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             valuesPanelOffsetY: ['valuesyoffset'],
             showXValuesPanel: ['showxvalues'],
             showYValuesPanel: ['showyvalues'],
+            xPanelTitle: ['xpaneltitle', 'xvaluestitle'],
+            yPanelTitle: ['ypaneltitle', 'yvaluestitle'],
+            xRowModeDisplacement: ['xdxmode', 'xdisplacementmode'],
+            xRowModeV0: ['xv0mode'],
+            xRowModeV: ['xvmode'],
+            xRowModeA: ['xamode'],
+            xRowModeT: ['xtmode'],
+            yRowModeDisplacement: ['ydymode', 'ydisplacementmode'],
+            yRowModeHmax: ['yhmaxmode'],
+            yRowModeV0: ['yv0mode'],
+            yRowModeV: ['yvmode'],
+            yRowModeA: ['yamode'],
+            yRowModeT: ['ytmode'],
+            eqShowVfEquation: ['showeq1', 'equation1'],
+            eqShowDisplacementEquation: ['showeq2', 'equation2'],
+            eqShowVSquaredEquation: ['showeq3', 'equation3'],
+            eqShowAvgVelocityEquation: ['showeq4', 'equation4'],
+            customEquationText: ['customequations', 'equationtext'],
             showEquations: ['equations', 'showequationbox'],
             equationPanelPlacement: ['equationplacement', 'equationboxplacement'],
             equationPanelOffsetX: ['equationxoffset'],
@@ -1102,18 +1151,37 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             : rowsTopOffset;
     }
 
-    getEquationLines() {
+    getEquationLineEntries() {
+        const custom = String(this.inputs.customEquationText || '')
+            .split('\n')
+            .map(line => line.trim())
+            .filter(Boolean);
+        if (custom.length) {
+            return custom.map((text, index) => ({ key: `Eq ${index + 1}`, text }));
+        }
+
         if (this.useSimpleProjectileXValues()) {
-            return ['Δx = vt'];
+            return [{ key: 'Eq 1', text: 'Δx = vt' }];
         }
 
         const d = 'Δy';
         return [
-            'v = v₀ + at',
-            `${d} = v₀t + ½at²`,
-            `v² = v₀² + 2a${d}`,
-            `${d} = ½(v₀ + v)t`
-        ];
+            { key: 'Eq 1', text: 'v = v₀ + at',       show: this.inputs.eqShowVfEquation !== false },
+            { key: 'Eq 2', text: `${d} = v₀t + ½at²`, show: this.inputs.eqShowDisplacementEquation !== false },
+            { key: 'Eq 3', text: `v² = v₀² + 2a${d}`, show: this.inputs.eqShowVSquaredEquation !== false },
+            { key: 'Eq 4', text: `${d} = ½(v₀ + v)t`, show: this.inputs.eqShowAvgVelocityEquation !== false }
+        ].filter(entry => entry.show !== false);
+    }
+
+    getEquationLines() {
+        return this.getEquationLineEntries().map(entry => entry.text);
+    }
+
+    // Maps the user-selected highlight (keyed to the full equation list) onto the
+    // filtered list actually drawn, since drawEquationBox highlights by index.
+    getEquationHighlightKey(entries = this.getEquationLineEntries()) {
+        const index = entries.findIndex(entry => entry.key === this.inputs.equationHighlight);
+        return index >= 0 ? `Eq ${index + 1}` : 'None';
     }
 
     getValuesPanelLayouts(xRowCount = 0, yRowCount = 0) {
@@ -1789,33 +1857,35 @@ export default class Module2DKinematics extends KinematicsModuleBase {
             a:            this.inputs.yPanelShowA !== false,
             t:            this.inputs.yPanelShowT !== false
         };
-        const xRows = this.getXValueKeys().filter(k => xKeyVisible[k] !== false).map(key => ({
-            text: this.getAxisVarLabel("x", key, model, includeValue),
-            axis: "x",
-            key,
-            valueText: includeValue ? this.getValueTextFromRow(this.getAxisVarLabel("x", key, model, includeValue)) : "",
-            anchorId: `value:x:${key}:row`,
-            valueAnchorId: includeValue ? `value:x:${key}` : null,
-            focusKeys: this.getAxisValueFocusKeys("x", key)
-        }));
+        const buildRow = (axis, key) => {
+            const rowMode = this.getValueRowMode(axis, key);
+            const text = this.getAxisVarLabel(axis, key, model, includeValue, rowMode);
+            // A row carries a hoverable/animatable value anchor whenever anything
+            // follows the "=" — a number or a "?" — matching the old Values-mode behavior.
+            const rowHasValue = /=\s*\S/.test(text);
+            return {
+                text,
+                axis,
+                key,
+                valueText: rowHasValue ? this.getValueTextFromRow(text) : "",
+                anchorId: `value:${axis}:${key}:row`,
+                valueAnchorId: rowHasValue ? `value:${axis}:${key}` : null,
+                focusKeys: this.getAxisValueFocusKeys(axis, key)
+            };
+        };
+        const xRows = this.getXValueKeys()
+            .filter(k => xKeyVisible[k] !== false)
+            .map(key => buildRow("x", key));
         const yRows = ["displacement", "hmax", "v0", "v", "a", "t"]
             .filter(k => yKeyVisible[k] !== false)
-            .map(key => ({
-                text: this.getAxisVarLabel("y", key, model, includeValue),
-                axis: "y",
-                key,
-                valueText: includeValue ? this.getValueTextFromRow(this.getAxisVarLabel("y", key, model, includeValue)) : "",
-                anchorId: `value:y:${key}:row`,
-                valueAnchorId: includeValue ? `value:y:${key}` : null,
-                focusKeys: this.getAxisValueFocusKeys("y", key)
-            }));
+            .map(key => buildRow("y", key));
 
         const panelLayout = this.getValuesPanelLayouts(xRows.length, yRows.length);
         const panelWidth = 148 * this.getCanvasTextScale();
 
         if (this.inputs.showXValuesPanel) {
             this.drawAxisValuePanel(ctx, {
-                title: "X Values",
+                title: String(this.inputs.xPanelTitle ?? '').trim() || "X Values",
                 rows: xRows,
                 x: panelLayout.xPanel.x,
                 y: panelLayout.xPanel.y,
@@ -1826,7 +1896,7 @@ export default class Module2DKinematics extends KinematicsModuleBase {
 
         if (this.inputs.showYValuesPanel) {
             this.drawAxisValuePanel(ctx, {
-                title: "Y Values",
+                title: String(this.inputs.yPanelTitle ?? '').trim() || "Y Values",
                 rows: yRows,
                 x: panelLayout.yPanel.x,
                 y: panelLayout.yPanel.y,
@@ -1834,6 +1904,25 @@ export default class Module2DKinematics extends KinematicsModuleBase {
                 model
             });
         }
+    }
+
+    // Per-row content mode for the X/Y values panels:
+    //   Auto        — follow the global "Show Values" mode and the unknown-flags
+    //   Show Value  — always print the number, even if flagged unknown
+    //   Show ?      — always print "?", even if the value is known
+    //   Symbol Only — print just "symbol ="
+    getValueRowMode(axis, key) {
+        const suffixByKey = {
+            displacement: 'Displacement',
+            hmax: 'Hmax',
+            v0: 'V0',
+            v: 'V',
+            a: 'A',
+            t: 'T'
+        };
+        const suffix = suffixByKey[key];
+        if (!suffix) return 'Auto';
+        return this.inputs[`${axis}RowMode${suffix}`] || 'Auto';
     }
 
     getAxisValueFocusKeys(axis, key) {
@@ -1846,9 +1935,13 @@ export default class Module2DKinematics extends KinematicsModuleBase {
         return [key];
     }
 
-    getAxisVarLabel(axis, key, model, includeValue = true) {
+    getAxisVarLabel(axis, key, model, includeValue = true, rowMode = 'Auto') {
         const symbol = this.getAxisSymbol(axis, key, model);
-        if (!includeValue) return `${symbol} =`;
+        if (rowMode === 'Symbol Only') return `${symbol} =`;
+        if (rowMode === 'Show ?') return `${symbol} = ?`;
+
+        const forceValue = rowMode === 'Show Value';
+        if (!includeValue && !forceValue) return `${symbol} =`;
 
         const isX = axis === "x";
         const dy = model.yf - model.yi;
@@ -1891,7 +1984,7 @@ export default class Module2DKinematics extends KinematicsModuleBase {
 
         const item = valueMap[key];
         if (!item) return `${symbol} = ?`;
-        if (item.unknown && !this.isAxisValueSolvedByWork(axis, key, model)) return `${symbol} = ?`;
+        if (!forceValue && item.unknown && !this.isAxisValueSolvedByWork(axis, key, model)) return `${symbol} = ?`;
         return `${symbol} = ${this.formatNumber(item.value)} ${item.unit}`;
     }
 

@@ -130,7 +130,14 @@ const stepExportMethods = {
         const filenameBase = `work-step-${String(stepNumber).padStart(2, '0')}-${this.sanitizeExportFilenamePart(step.title, 'walkthrough')}`;
 
         const setting = this.getStepSetting(step);
-        const restoreInputs = this.applyTemporaryInputOverrides(this.getStepDisplayOverrides(step));
+        const exportFlightSources = ['full-flight', 'step-window', 'custom-range', 'hover-animation'];
+        const freezeMotion = setting.showLaunch === false && exportFlightSources.includes(setting.animationSource);
+        const restoreInputs = this.applyTemporaryInputOverrides({
+            ...this.getStepDisplayOverrides(step),
+            // Match Play Step: freeze the projectile at launch while time-driven
+            // overlays (given-value fly-ins, hover animations) keep advancing.
+            ...(freezeMotion ? { stopAnimation: 'Custom Time', customStopTime: 0 } : {})
+        });
         const restoreExportSettings = this.applyTemporaryExportOverrides(getStepExportOverrides(this.getStepSettingsStore(), step));
         const { startTime, endTime } = this.getStepAnimationTimeRange(steps, stepIndex);
         this.prepareStepAnimationContext(step);

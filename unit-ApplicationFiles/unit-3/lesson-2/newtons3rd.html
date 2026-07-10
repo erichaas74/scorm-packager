@@ -1,474 +1,436 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Newton's Space Walk</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #050505; color: #e5e7eb; overflow: hidden; margin: 0; }
-        canvas { touch-action: none; cursor: crosshair; }
-        .glass-panel {
-            background: rgba(15, 23, 42, 0.8);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .btn-space {
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .btn-space:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-        }
-        .btn-space:active:not(:disabled) { transform: translateY(0); }
-        .btn-space:disabled { opacity: 0.3; cursor: not-allowed; }
-        .selected-item { border-color: #3b82f6; background: rgba(59, 130, 246, 0.2); }
-        
-        .success-glow {
-            box-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
-        }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Newton's Spacewalk Momentum Choice Lab</title>
+<style>
+  :root{
+    --bg:#050816; --panel:rgba(15,23,42,.9); --panel2:rgba(30,41,59,.88);
+    --line:rgba(255,255,255,.14); --text:#e5e7eb; --muted:#94a3b8;
+    --blue:#38bdf8; --green:#22c55e; --yellow:#facc15; --red:#f87171; --purple:#a78bfa;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; overflow:hidden; background:var(--bg); color:var(--text); font-family:Inter,Arial,sans-serif;}
+  canvas{position:fixed; inset:0; width:100vw; height:100vh; display:block;}
+  .topbar{position:fixed; top:16px; left:16px; right:16px; display:flex; justify-content:space-between; align-items:flex-start; pointer-events:none; z-index:2;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:16px; box-shadow:0 14px 40px rgba(0,0,0,.32); backdrop-filter:blur(12px); pointer-events:auto;}
+  .title{padding:14px 16px; max-width:520px;}
+  h1{font-size:18px; margin:0 0 4px; color:var(--blue); letter-spacing:.3px;}
+  .small{font-size:12px; color:var(--muted); line-height:1.35;}
+  .readout{padding:14px 18px; text-align:right; min-width:240px;}
+  .readout .label{font-size:11px; text-transform:uppercase; letter-spacing:1.4px; color:var(--muted);}
+  .readout .value{font-size:24px; font-weight:800; color:var(--green); font-variant-numeric:tabular-nums;}
+  .hintBtn{position:fixed; top:105px; left:16px; z-index:4; background:#2563eb; box-shadow:0 10px 30px rgba(0,0,0,.35);}
+  .panel{position:fixed; left:16px; right:16px; bottom:16px; padding:12px; z-index:3; overflow:visible;}
+  .bottomHeader{display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:8px;}
+  .bottomHeader h2{font-size:13px; margin:0; color:white; text-transform:uppercase; letter-spacing:.9px;}
+  .bottomActions{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+  .section{background:rgba(2,6,23,.42); border:1px solid rgba(255,255,255,.09); border-radius:14px; padding:12px; margin-bottom:12px;}
+  .section h2{font-size:13px; margin:0 0 8px; color:white; text-transform:uppercase; letter-spacing:.9px;}
+  .data{font-size:12px; color:#cbd5e1; display:flex; justify-content:space-between; gap:8px; padding:5px 0; border-bottom:1px dashed rgba(255,255,255,.08);}
+  .data:last-child{border-bottom:0}.data b{color:white; font-variant-numeric:tabular-nums;}
+  .formula{font-family:"Consolas","Courier New",monospace; font-size:12px; color:#dbeafe; background:rgba(30,64,175,.22); border:1px solid rgba(96,165,250,.25); border-radius:10px; padding:9px; line-height:1.45;}
+  .choices{display:grid; grid-template-columns:repeat(4,1fr); gap:9px; margin-top:8px;}
+  .choice{width:100%; border-radius:14px; border:2px solid rgba(148,163,184,.18); background:rgba(15,23,42,.82); color:white; padding:10px; text-align:left; cursor:pointer; transition:.15s transform,.15s border-color,.15s background;}
+  .choice:hover{transform:translateY(-1px); border-color:rgba(56,189,248,.7); background:rgba(30,41,59,.92);}
+  .choice.selected{border-color:var(--blue); box-shadow:0 0 0 3px rgba(56,189,248,.16);}
+  .choice.good{border-color:var(--green); background:rgba(22,101,52,.35);}
+  .choice.bad{border-color:var(--red); background:rgba(127,29,29,.3);}
+  .choiceTop{display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:14px; font-weight:800;}
+  .choiceTop span:first-child{font-size:24px;}
+  .choiceMeta{font-size:11px; color:#cbd5e1; margin-top:5px; display:grid; grid-template-columns:1fr 1fr; gap:4px 10px;}
+  .pill{font-size:11px; color:#0f172a; background:#e2e8f0; border-radius:999px; padding:3px 7px; font-weight:900; white-space:nowrap;}
+  .btnrow{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
+  button{border:0; border-radius:999px; padding:10px 13px; font-weight:800; color:white; background:#334155; cursor:pointer; font-size:12px; letter-spacing:.2px;}
+  button:hover{filter:brightness(1.1)}button:disabled{opacity:.4; cursor:not-allowed}.primary{background:#2563eb}.green{background:#16a34a}.red{background:#991b1b}.ghost{background:#1e293b}
+  .feedback{font-size:12px; line-height:1.35; padding:10px; border-radius:12px; background:rgba(15,23,42,.8); color:#cbd5e1; min-height:46px;}
+  .feedback.good{color:#bbf7d0; background:rgba(22,101,52,.35)}.feedback.bad{color:#fecaca; background:rgba(127,29,29,.35)}.feedback.warn{color:#fef3c7; background:rgba(113,63,18,.35)}
+  .hintOverlay{position:fixed; inset:0; background:rgba(2,6,23,.62); z-index:10; display:none; align-items:center; justify-content:center; padding:20px;}
+  .hintOverlay.show{display:flex;}
+  .hintCard{width:min(720px,94vw); max-height:86vh; overflow:auto; padding:16px;}
+  .hintTop{display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px;}
+  .hintTop h2{margin:0; color:var(--blue); font-size:18px;}
+  .hintGrid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  @media(max-width:900px){.choices{grid-template-columns:1fr 1fr}.panel{left:10px; right:10px; bottom:10px}.readout{display:none}.hintGrid{grid-template-columns:1fr}.hintBtn{top:92px}.choiceMeta{grid-template-columns:1fr}.bottomHeader{align-items:flex-start; flex-direction:column}}
+</style>
 </head>
-<body class="h-screen w-screen flex flex-col items-center justify-center">
+<body>
+<canvas id="spaceCanvas"></canvas>
 
-    <div id="ui-layer" class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-6">
-        <div class="flex justify-between items-start pointer-events-auto">
-            <div class="glass-panel p-4 rounded-xl max-w-sm">
-                <div id="level-display" class="text-blue-400 font-bold text-xs uppercase tracking-tighter mb-1">Level 1: The Drift</div>
-                <p class="text-[10px] text-gray-400 leading-relaxed italic">
-                    "For every action, there is an equal and opposite reaction."
-                </p>
-            </div>
+<div class="topbar">
+  <div class="card title">
+    <h1>Newton's Spacewalk Momentum Choice Lab</h1>
+    <div id="levelSub" class="small">Choose the object and throw velocity. Only one choice gets the astronaut back in time without docking too fast.</div>
+  </div>
+  <div class="card readout">
+    <div class="label">Astronaut speed after throw</div>
+    <div id="velocityOut" class="value">0.20 m/s</div>
+    <div id="statusOut" class="small">Pick one choice</div>
+  </div>
+</div>
 
-            <div id="status-panel" class="glass-panel p-4 rounded-xl text-right">
-                <div class="text-xs uppercase tracking-widest text-gray-500">Current Velocity</div>
-                <div id="velocity-display" class="text-2xl font-mono text-green-400">0.00 m/s</div>
-            </div>
-        </div>
+<button id="hintBtn" class="hintBtn">Hint / Mission Data</button>
 
-        <div class="flex flex-col items-center gap-4 pointer-events-auto">
-            <div id="message-box" class="glass-panel px-6 py-3 rounded-full text-sm font-medium text-blue-300">
-                Choose an object to throw...
-            </div>
-
-            <div id="inventory" class="flex gap-4">
-                <button onclick="selectItem('wrench')" id="btn-wrench" class="btn-space glass-panel p-3 rounded-2xl flex flex-col items-center w-24 border-2 border-transparent">
-                    <span class="text-lg mb-1">🔧</span>
-                    <span class="text-[10px] font-bold">WRENCH</span>
-                    <span id="count-wrench" class="text-[8px] opacity-60">Infinite</span>
-                </button>
-                <button onclick="selectItem('rope')" id="btn-rope" class="btn-space glass-panel p-3 rounded-2xl flex flex-col items-center w-24 border-2 border-transparent">
-                    <span class="text-lg mb-1">🪢</span>
-                    <span class="text-[10px] font-bold">ROPE</span>
-                    <span id="count-rope" class="text-[8px] opacity-60">Infinite</span>
-                </button>
-                <button onclick="selectItem('radar')" id="btn-radar" class="btn-space glass-panel p-3 rounded-2xl flex flex-col items-center w-24 border-2 border-transparent">
-                    <span class="text-lg mb-1">📡</span>
-                    <span class="text-[10px] font-bold">RADAR</span>
-                    <span id="count-radar" class="text-[8px] opacity-60">Infinite</span>
-                </button>
-                <button onclick="selectItem('gold')" id="btn-gold" class="btn-space glass-panel p-3 rounded-2xl flex flex-col items-center w-24 border-2 border-transparent">
-                    <span class="text-lg mb-1">🪙</span>
-                    <span class="text-[10px] font-bold text-yellow-400">GOLD</span>
-                    <span id="count-gold" class="text-[8px] opacity-60">Infinite</span>
-                </button>
-            </div>
-
-            <div id="action-hint" class="text-xs text-gray-500 bg-black/40 px-3 py-1 rounded-full opacity-0 transition-opacity">
-                Click and drag to aim your throw
-            </div>
-
-            <div class="flex gap-4">
-                <button id="reset-btn" onclick="resetSim()" class="hidden bg-slate-800 text-white font-bold py-2 px-8 rounded-full hover:bg-slate-700 transition-colors border border-white/20">
-                    RETRY MISSION
-                </button>
-                <button id="next-btn" onclick="startNextMission()" class="hidden bg-green-500 text-white font-bold py-2 px-8 rounded-full hover:bg-green-400 transition-colors success-glow">
-                    NEXT MISSION
-                </button>
-            </div>
-        </div>
+<div id="hintOverlay" class="hintOverlay">
+  <div class="card hintCard">
+    <div class="hintTop">
+      <h2>Mission Data + Momentum Rule</h2>
+      <button id="closeHintBtn" class="ghost">Close</button>
     </div>
+    <div class="hintGrid">
+      <div class="section">
+        <h2>Mission data</h2>
+        <div class="data"><span>Mission</span><b id="missionName">Level 1</b></div>
+        <div class="data"><span>Astronaut mass</span><b id="massData">100 kg</b></div>
+        <div class="data"><span>Distance to airlock</span><b id="distanceData">20 m left</b></div>
+        <div class="data"><span>Initial velocity</span><b id="initialVData">0.20 m/s left</b></div>
+        <div class="data"><span>Time limit</span><b id="timeData">24 s</b></div>
+        <div class="data"><span>Safe docking speed</span><b id="safeData">0.80–1.20 m/s</b></div>
+      </div>
 
-    <canvas id="gameCanvas" class="absolute inset-0"></canvas>
+      <div class="section">
+        <h2>Momentum rule</h2>
+        <div class="formula">
+          Δv<sub>astronaut</sub> = −(m<sub>object</sub> / m<sub>astronaut</sub>)v<sub>throw</sub><br>
+          Heavier object = bigger push, but lower max throw speed.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-    <script src="scorm-wrapper.js"></script>
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const velocityDisplay = document.getElementById('velocity-display');
-        const messageBox = document.getElementById('message-box');
-        const actionHint = document.getElementById('action-hint');
-        const resetBtn = document.getElementById('reset-btn');
-        const nextBtn = document.getElementById('next-btn');
-        const levelDisplay = document.getElementById('level-display');
+<div class="card panel">
+  <div class="bottomHeader">
+    <h2>Pick one answer</h2>
+    <div class="bottomActions">
+      <button class="green" id="runBtn" disabled>Run Selected Choice</button>
+      <button class="ghost" id="resetBtn">Reset</button>
+      <button class="primary" id="nextBtn">Next Level</button>
+      <button class="red" id="answerBtn">Show Answer</button>
+    </div>
+  </div>
+  <div id="choiceBox" class="choices"></div>
+  <div id="feedback" class="feedback" style="margin-top:10px;">Select one object and velocity, then run the trial to see what happens.</div>
+</div>
 
-        let width, height;
-        let stars = [];
-        let gameState = 'PLAYING'; // PLAYING, FINISHED
-        let interactionState = 'IDLE'; // IDLE, AIMING
-        let selectedItem = null;
-        let mousePos = { x: 0, y: 0 };
-        let isMouseDown = false;
-        let currentLevel = 0;
+<script>
+const canvas = document.getElementById('spaceCanvas');
+const ctx = canvas.getContext('2d');
+const velocityOut = document.getElementById('velocityOut');
+const statusOut = document.getElementById('statusOut');
+const feedback = document.getElementById('feedback');
+const choiceBox = document.getElementById('choiceBox');
+const runBtn = document.getElementById('runBtn');
+const resetBtn = document.getElementById('resetBtn');
+const answerBtn = document.getElementById('answerBtn');
+const nextBtn = document.getElementById('nextBtn');
+const missionName = document.getElementById('missionName');
+const massData = document.getElementById('massData');
+const distanceData = document.getElementById('distanceData');
+const initialVData = document.getElementById('initialVData');
+const timeData = document.getElementById('timeData');
+const safeData = document.getElementById('safeData');
+const levelSub = document.getElementById('levelSub');
+const hintBtn = document.getElementById('hintBtn');
+const hintOverlay = document.getElementById('hintOverlay');
+const closeHintBtn = document.getElementById('closeHintBtn');
 
-        const levels = [
-            { name: "Level 1: Basic Drift", vx: -0.2, vy: 0, shipY: 0.5, moving: false },
-            { name: "Level 2: Speeding Away", vx: -0.6, vy: 0, shipY: 0.5, moving: false },
-            { name: "Level 3: Diagonal Tumble", vx: -0.3, vy: -0.3, shipY: 0.5, moving: false },
-            { name: "Level 4: Moving Shuttle", vx: -0.3, vy: 0.1, shipY: 0.5, moving: true },
-            { name: "Level 5: Deep Space Chaos", vx: -0.5, vy: -0.4, shipY: 0.5, moving: true, shipSpeed: 2 }
-        ];
-        const scormProgress = { completedLevels: {} };
+let W = innerWidth, H = innerHeight, stars = [];
+const PX_PER_M = 24;
+const missions = [
+  {
+    name:'Level 1: Start Drifting Back',
+    prompt:'The astronaut is already drifting slowly toward the ship. Pick the object and speed that gets him there safely.',
+    astronautMass:100, shipX:-20, shipY:0, initialVx:-0.20, initialVy:0, timeLimit:24, safeMin:0.80, safeMax:1.20,
+    choices:[
+      {id:'A', emoji:'🔧', object:'Wrench', mass:5, maxSpeed:12.0, throwSpeed:10.0, result:'too slow'},
+      {id:'B', emoji:'🧰', object:'Toolbox', mass:15, maxSpeed:7.0, throwSpeed:4.0, result:'too slow'},
+      {id:'C', emoji:'📡', object:'Radar Dish', mass:25, maxSpeed:4.5, throwSpeed:3.2, result:'correct'},
+      {id:'D', emoji:'🪙', object:'Gold Bar', mass:50, maxSpeed:3.0, throwSpeed:3.0, result:'too fast'}
+    ]
+  },
+  {
+    name:'Level 2: Reverse the Drift',
+    prompt:'Now the astronaut is already moving away from the ship. Pick the throw that changes his velocity enough to turn him around without docking too fast.',
+    astronautMass:100, shipX:-20, shipY:0, initialVx:0.25, initialVy:0, timeLimit:26, safeMin:0.80, safeMax:1.20,
+    liveDrift:true, resetTooFarX:8, resetTooCloseX:-18.5,
+    choices:[
+      {id:'A', emoji:'🔧', object:'Wrench', mass:5, maxSpeed:12.0, throwSpeed:12.0, result:'too slow'},
+      {id:'B', emoji:'🧰', object:'Toolbox', mass:15, maxSpeed:7.0, throwSpeed:6.0, result:'too slow'},
+      {id:'C', emoji:'📡', object:'Radar Dish', mass:25, maxSpeed:4.5, throwSpeed:3.5, result:'too slow'},
+      {id:'D', emoji:'🪙', object:'Gold Bar', mass:50, maxSpeed:3.0, throwSpeed:2.4, result:'correct'}
+    ]
+  }
+];
+let currentLevel = 0;
+let mission = missions[currentLevel];
+let choices = mission.choices;
+let selectedId = null;
+let state = 'ready';
+let simTime = 0;
+let astronaut, projectile;
 
-        const astronaut = {
-            x: 0, y: 0,
-            vx: 0, vy: 0,
-            mass: 100,
-            rotation: 0
-        };
+function getChoice(){ return choices.find(c => c.id === selectedId); }
+function directionText(v){ if(Math.abs(v)<0.005) return '0 m/s'; return `${Math.abs(v).toFixed(2)} m/s ${v<0?'left':'right'}`; }
+function updateMissionPanel(){
+  missionName.textContent = mission.name;
+  levelSub.textContent = mission.prompt;
+  massData.textContent = `${mission.astronautMass} kg`;
+  distanceData.textContent = `${Math.abs(mission.shipX).toFixed(0)} m left`;
+  initialVData.textContent = directionText(mission.initialVx);
+  timeData.textContent = `${mission.timeLimit} s`;
+  safeData.textContent = `${mission.safeMin.toFixed(2)}–${mission.safeMax.toFixed(2)} m/s`;
+}
+function compute(c){
+  const deltaV = -(c.mass / mission.astronautMass) * c.throwSpeed;
+  const finalVx = mission.initialVx + deltaV;
+  const speed = Math.abs(finalVx);
+  const arrivalTime = Math.abs(mission.shipX / finalVx);
+  const reachesInTime = finalVx < 0 && arrivalTime <= mission.timeLimit;
+  const safeSpeed = speed >= mission.safeMin && speed <= mission.safeMax;
+  const possible = c.throwSpeed <= c.maxSpeed;
+  return {deltaV, finalVx, speed, arrivalTime, reachesInTime, safeSpeed, possible};
+}
+function worldToScreen(xm,ym){ return {x: W*0.64 + xm*PX_PER_M, y:H*0.50 - ym*PX_PER_M}; }
+function setFeedback(msg, cls=''){ feedback.className = 'feedback' + (cls ? ' ' + cls : ''); feedback.innerHTML = msg; }
+function buildChoices(){
+  choices = mission.choices;
+  choiceBox.innerHTML = '';
+  choices.forEach(c => {
+    const r = compute(c);
+    const btn = document.createElement('button');
+    btn.className = 'choice';
+    btn.id = 'choice-' + c.id;
+    btn.innerHTML = `
+      <div class="choiceTop"><div><span>${c.emoji}</span> ${c.id}. ${c.object}</div><div class="pill">throw ${c.throwSpeed.toFixed(1)} m/s</div></div>
+      <div class="choiceMeta">
+        <div>mass: <b>${c.mass} kg</b></div><div>max throw: <b>${c.maxSpeed.toFixed(1)} m/s</b></div>
+        <div>astronaut speed: <b>${r.speed.toFixed(2)} m/s</b></div><div>arrival: <b>${r.arrivalTime.toFixed(1)} s</b></div>
+      </div>`;
+    btn.addEventListener('click', () => selectChoice(c.id));
+    choiceBox.appendChild(btn);
+  });
+}
+function selectChoice(id){
+  selectedId = id;
+  document.querySelectorAll('.choice').forEach(b => b.classList.remove('selected','good','bad'));
+  document.getElementById('choice-' + id).classList.add('selected');
+  const c = getChoice(), r = compute(c);
+  runBtn.disabled = false;
+  resetObjects(false);
+  setFeedback(`Selected ${c.object} at ${c.throwSpeed.toFixed(1)} m/s. Initial velocity: ${directionText(mission.initialVx)}. Predicted velocity after throw: ${directionText(r.finalVx)}. Run it to test.`, '');
+}
+function resetObjects(clearSelection=true){
+  astronaut = {x:0,y:0,vx:mission.initialVx,vy:0,rot:0};
+  projectile = null;
+  simTime = 0;
+  state = 'ready';
+  if(clearSelection){
+    selectedId = null;
+    runBtn.disabled = true;
+    document.querySelectorAll('.choice').forEach(b => b.classList.remove('selected','good','bad'));
+    const msg = mission.liveDrift
+      ? 'The astronaut is already drifting away. Pick one object and velocity before he gets too far.'
+      : 'Select one object and velocity, then run the trial to see what happens.';
+    setFeedback(msg, mission.liveDrift ? 'warn' : '');
+  }
+  updateReadout();
+}
 
-        const ship = { x: 0, y: 0, targetY: 0, direction: 1 };
-        const items = {
-            wrench: { name: 'Wrench', mass: 1, emoji: '🔧' },
-            rope: { name: 'Rope', mass: 2, emoji: '🪢' },
-            radar: { name: 'Radar Dish', mass: 25, emoji: '📡' },
-            gold: { name: 'Gold Bar', mass: 50, emoji: '🪙' }
-        };
-        let activeProjectiles = [];
+function autoResetLevelDrift(reason){
+  const keepSelection = selectedId;
+  astronaut = {x:0,y:0,vx:mission.initialVx,vy:0,rot:0};
+  projectile = null;
+  simTime = 0;
+  state = 'ready';
+  if(keepSelection){
+    selectedId = keepSelection;
+    document.querySelectorAll('.choice').forEach(b => b.classList.remove('selected','good','bad'));
+    document.getElementById('choice-' + keepSelection).classList.add('selected');
+    runBtn.disabled = false;
+  }
+  setFeedback(reason + ' The animation reset to the starting point.', 'warn');
+}
+function runSelected(){
+  const c = getChoice();
+  if(!c) return;
+  const r = compute(c);
+  astronaut.vx = r.finalVx;
+  astronaut.vy = 0;
+  projectile = {x:0,y:0,vx:c.throwSpeed + astronaut.vx, vy:0, rot:0, emoji:c.emoji};
+  simTime = 0;
+  state = 'running';
+  document.querySelectorAll('.choice').forEach(b => b.classList.remove('good','bad'));
+  setFeedback(`Running ${c.object}. Watch the time and docking speed.`, '');
+}
+function showAnswer(){
+  document.querySelectorAll('.choice').forEach(b => b.classList.remove('selected','good','bad'));
+  choices.forEach(c => document.getElementById('choice-' + c.id).classList.add(c.result === 'correct' ? 'good' : 'bad'));
+  const correct = choices.find(c => c.result === 'correct');
+  selectedId = correct.id;
+  runBtn.disabled = false;
+  const r = compute(correct);
+  setFeedback(`Correct choice: ${correct.id}, ${correct.object} at ${correct.throwSpeed.toFixed(1)} m/s. Final velocity is ${directionText(r.finalVx)}, arrival time is ${r.arrivalTime.toFixed(1)} s, and docking speed is ${r.speed.toFixed(2)} m/s.`, 'good');
+}
+function updateReadout(){
+  const speed = Math.hypot(astronaut.vx, astronaut.vy);
+  velocityOut.textContent = `${speed.toFixed(2)} m/s`;
+  if(state === 'running') statusOut.textContent = `t = ${simTime.toFixed(1)} s`;
+  else if(mission.liveDrift && state === 'ready') statusOut.textContent = `drifting: x = ${astronaut.x.toFixed(1)} m`;
+  else statusOut.textContent = selectedId ? 'Choice selected' : 'Pick one choice';
+}
+function resize(){ W = canvas.width = innerWidth; H = canvas.height = innerHeight; makeStars(); }
+function makeStars(){
+  stars = Array.from({length:180},()=>({
+    x:Math.random()*W,
+    y:Math.random()*H,
+    r:Math.random()*1.8+.3,
+    a:Math.random()*.8+.2,
+    vx:-(Math.random()*6 + 2),
+    vy:(Math.random()-.5)*0.8
+  }));
+}
+function updateStars(dt){
+  for(const s of stars){
+    s.x += s.vx * dt;
+    s.y += s.vy * dt;
+    if(s.x < -4){
+      s.x = W + 4;
+      s.y = Math.random()*H;
+    }
+    if(s.y < -4) s.y = H + 4;
+    if(s.y > H + 4) s.y = -4;
+  }
+}
+function drawArrow(x1,y1,x2,y2,color,label){
+  const dx=x2-x1, dy=y2-y1, ang=Math.atan2(dy,dx), len=Math.hypot(dx,dy);
+  if(len<3) return;
+  ctx.save(); ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=3; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x2-12*Math.cos(ang-.55),y2-12*Math.sin(ang-.55)); ctx.lineTo(x2-12*Math.cos(ang+.55),y2-12*Math.sin(ang+.55)); ctx.closePath(); ctx.fill();
+  if(label){ ctx.font='bold 12px Arial'; ctx.fillText(label,x2+8,y2-8); }
+  ctx.restore();
+}
+function drawShip(){
+  const s=worldToScreen(mission.shipX,mission.shipY); ctx.save(); ctx.translate(s.x,s.y);
+  ctx.fillStyle='#e2e8f0'; ctx.strokeStyle='#64748b'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(-70,-24); ctx.lineTo(45,-24); ctx.lineTo(78,0); ctx.lineTo(45,24); ctx.lineTo(-70,24); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#38bdf8'; ctx.beginPath(); ctx.arc(-20,0,12,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#ef4444'; ctx.beginPath(); ctx.moveTo(-62,-24); ctx.lineTo(-92,-48); ctx.lineTo(-25,-24); ctx.fill(); ctx.beginPath(); ctx.moveTo(-62,24); ctx.lineTo(-92,48); ctx.lineTo(-25,24); ctx.fill();
+  ctx.fillStyle='#0f172a'; ctx.font='bold 12px Arial'; ctx.fillText('AIRLOCK',4,4);
+  ctx.strokeStyle='rgba(34,197,94,.75)'; ctx.setLineDash([8,8]); ctx.lineWidth=3; ctx.beginPath(); ctx.arc(0,0,34,0,Math.PI*2); ctx.stroke();
+  ctx.restore();
+}
+function drawAstronaut(){
+  const p=worldToScreen(astronaut.x,astronaut.y); ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(astronaut.rot);
+  ctx.strokeStyle='white'; ctx.lineWidth=7; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-9,-4); ctx.lineTo(-24,10); ctx.stroke(); ctx.beginPath(); ctx.moveTo(9,-4); ctx.lineTo(24,10); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-6,14); ctx.lineTo(-15,32); ctx.stroke(); ctx.beginPath(); ctx.moveTo(6,14); ctx.lineTo(15,32); ctx.stroke();
+  ctx.fillStyle='#cbd5e1'; ctx.fillRect(-22,-11,10,23);
+  ctx.fillStyle='white'; ctx.beginPath(); ctx.roundRect(-13,-15,26,31,8); ctx.fill();
+  ctx.beginPath(); ctx.arc(0,-25,12,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#0f172a'; ctx.beginPath(); ctx.roundRect(-8,-29,16,9,4); ctx.fill();
+  ctx.restore();
+  drawArrow(p.x,p.y,p.x+astronaut.vx*105,p.y,'#22c55e','v astronaut');
+}
+function drawProjectile(){
+  if(!projectile) return;
+  const p=worldToScreen(projectile.x,projectile.y); ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(projectile.rot); ctx.font='30px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(projectile.emoji,0,0); ctx.restore();
+}
+function drawPrediction(){
+  const start=worldToScreen(0,0), end=worldToScreen(mission.shipX,mission.shipY);
+  ctx.save(); ctx.strokeStyle='rgba(167,139,250,.8)'; ctx.lineWidth=2; ctx.setLineDash([8,9]); ctx.beginPath(); ctx.moveTo(start.x,start.y); ctx.lineTo(end.x,end.y); ctx.stroke();
+  if(mission.liveDrift){
+    const far=worldToScreen(mission.resetTooFarX,0), close=worldToScreen(mission.resetTooCloseX,0);
+    ctx.setLineDash([5,7]); ctx.strokeStyle='rgba(248,113,113,.65)';
+    ctx.beginPath(); ctx.moveTo(far.x,0); ctx.lineTo(far.x,H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(close.x,0); ctx.lineTo(close.x,H); ctx.stroke();
+    ctx.fillStyle='rgba(248,113,113,.9)'; ctx.font='bold 11px Arial';
+    ctx.fillText('reset: too far',far.x-35,H*.50+76);
+    ctx.fillText('reset: too close',close.x-42,H*.50+76);
+  }
+  ctx.restore();
+  if(state === 'ready' && selectedId){
+    const c=getChoice();
+    const p=worldToScreen(astronaut.x,astronaut.y);
+    drawArrow(p.x,p.y,p.x+c.throwSpeed*40,p.y,'#facc15','throw object');
+  }
+}
+function drawGrid(){
+  const origin=worldToScreen(0,0); ctx.save(); ctx.strokeStyle='rgba(148,163,184,.08)'; ctx.lineWidth=1;
+  for(let m=-35;m<=10;m+=5){ const x=origin.x+m*PX_PER_M; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for(let m=-10;m<=10;m+=5){ const y=origin.y-m*PX_PER_M; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  ctx.strokeStyle='rgba(148,163,184,.25)'; ctx.beginPath(); ctx.moveTo(0,origin.y); ctx.lineTo(W,origin.y); ctx.stroke(); ctx.restore();
+}
+function drawLabels(){
+  const a=worldToScreen(0,0), s=worldToScreen(mission.shipX,mission.shipY); ctx.save(); ctx.fillStyle='#cbd5e1'; ctx.font='12px Arial';
+  ctx.fillText('astronaut start',a.x-40,a.y+55); ctx.fillText('target airlock',s.x-35,s.y+55); ctx.fillStyle='#94a3b8';
+  ctx.fillText(mission.initialVx > 0 ? 'Level 2: astronaut is moving before the choice. If he drifts too far or docks too fast, the animation resets.' : 'Throw object right → astronaut reacts left',18,H-92); ctx.restore();
+}
+function updatePhysics(dt){
+  if(state === 'ready' && mission.liveDrift){
+    simTime += dt;
+    astronaut.x += mission.initialVx * dt;
+    astronaut.rot += mission.initialVx * .025;
+    if(astronaut.x >= mission.resetTooFarX){
+      autoResetLevelDrift('Too far from the ship.');
+    } else if(astronaut.x <= mission.resetTooCloseX){
+      autoResetLevelDrift('Too close to the airlock before making a controlled choice.');
+    }
+    return;
+  }
+  if(state !== 'running') return;
+  simTime += dt;
+  astronaut.x += astronaut.vx * dt;
+  astronaut.rot += astronaut.vx * .025;
+  if(projectile){ projectile.x += projectile.vx * dt; projectile.rot += dt * 2.5; }
+  const c = getChoice();
+  const r = compute(c);
+  if(mission.liveDrift && astronaut.x >= mission.resetTooFarX){
+    document.getElementById('choice-' + c.id).classList.add('bad');
+    autoResetLevelDrift(`${c.object} did not reverse the drift. Too far from the ship.`);
+    return;
+  }
+  if(astronaut.x <= mission.shipX){
+    state = 'done';
+    astronaut.x = mission.shipX;
+    const choiceBtn = document.getElementById('choice-' + c.id);
+    const correct = r.reachesInTime && r.safeSpeed && r.possible;
+    choiceBtn.classList.add(correct ? 'good' : 'bad');
+    if(correct){
+      setFeedback(`Success. ${c.object} at ${c.throwSpeed.toFixed(1)} m/s reaches the ship in ${r.arrivalTime.toFixed(1)} s with safe docking speed ${r.speed.toFixed(2)} m/s.`, 'good');
+    } else if(!r.safeSpeed){
+      setFeedback(`${c.object} gets there, but too fast. Docking speed is ${r.speed.toFixed(2)} m/s, above the safe limit of ${mission.safeMax.toFixed(2)} m/s. The animation reset.`, 'bad');
+      setTimeout(() => { if(state === 'done') autoResetLevelDrift('Docking was too fast.'); }, 900);
+    } else {
+      setFeedback(`${c.object} reaches the ship, but it does not meet the mission limits.`, 'bad');
+    }
+  } else if(simTime > mission.timeLimit){
+    state = 'done';
+    document.getElementById('choice-' + c.id).classList.add('bad');
+    const remaining = Math.abs(mission.shipX - astronaut.x);
+    setFeedback(`${c.object} is too slow. Time ran out at ${mission.timeLimit} s with ${remaining.toFixed(1)} m still to go.`, 'bad');
+  }
+}
+let last = performance.now();
+function loop(now){
+  const dt = Math.min((now-last)/1000, .05); last = now;
+  updatePhysics(dt); updateStars(dt); updateReadout();
+  ctx.clearRect(0,0,W,H);
+  stars.forEach(s=>{ctx.fillStyle=`rgba(255,255,255,${s.a})`; ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fill();});
+  drawGrid(); drawPrediction(); drawShip(); drawProjectile(); drawAstronaut(); drawLabels();
+  requestAnimationFrame(loop);
+}
 
-        function drawArrow(ctx, fromX, fromY, toX, toY, color, width = 2) {
-            const headLength = 15;
-            const dx = toX - fromX;
-            const dy = toY - fromY;
-            const angle = Math.atan2(dy, dx);
-            
-            ctx.strokeStyle = color;
-            ctx.fillStyle = color;
-            ctx.lineWidth = width;
-            
-            ctx.beginPath();
-            ctx.moveTo(fromX, fromY);
-            ctx.lineTo(toX, toY);
-            ctx.stroke();
-            
-            ctx.beginPath();
-            ctx.moveTo(toX, toY);
-            ctx.lineTo(toX - headLength * Math.cos(angle - Math.PI / 6), toY - headLength * Math.sin(angle - Math.PI / 6));
-            ctx.lineTo(toX - headLength * Math.cos(angle + Math.PI / 6), toY - headLength * Math.sin(angle + Math.PI / 6));
-            ctx.closePath();
-            ctx.fill();
-        }
-
-        function init() {
-            width = canvas.width = window.innerWidth;
-            height = canvas.height = window.innerHeight;
-            
-            stars = [];
-            for(let i=0; i<200; i++) {
-                stars.push({
-                    x: Math.random() * width,
-                    y: Math.random() * height,
-                    size: Math.random() * 2,
-                    opacity: Math.random()
-                });
-            }
-            loadLevel(currentLevel);
-        }
-
-        function loadLevel(idx) {
-            const lvl = levels[idx];
-            levelDisplay.innerText = lvl.name;
-            astronaut.x = width * 0.85; // Start a bit further back to give room for multiple throws
-            astronaut.y = height * 0.5;
-            astronaut.vx = lvl.vx;
-            astronaut.vy = lvl.vy;
-            astronaut.rotation = 0;
-            
-            ship.x = width * 0.1;
-            ship.y = height * lvl.shipY;
-            ship.targetY = height * lvl.shipY;
-            
-            resetSimUI();
-        }
-
-        function resetSimUI() {
-            activeProjectiles = [];
-            gameState = 'PLAYING';
-            interactionState = 'IDLE';
-            selectedItem = null;
-            resetBtn.classList.add('hidden');
-            nextBtn.classList.add('hidden');
-            messageBox.innerText = "Choose an object to throw...";
-            messageBox.classList.remove('text-green-400', 'text-red-500');
-            
-            document.querySelectorAll('.btn-space').forEach(b => {
-                b.disabled = false;
-                b.classList.remove('selected-item');
-            });
-        }
-
-        function startNextMission() {
-            currentLevel = (currentLevel + 1) % levels.length;
-            loadLevel(currentLevel);
-        }
-
-        function resetSim() {
-            loadLevel(currentLevel);
-        }
-
-        function loadSCORMProgress() {
-            if (!window.SCORM) return;
-
-            const raw = window.SCORM.getValue('cmi.suspend_data');
-            if (!raw) return;
-
-            try {
-                const data = JSON.parse(raw);
-                if (data && data.lesson === 'unit3-lesson2' && data.completedLevels) {
-                    scormProgress.completedLevels = data.completedLevels;
-                }
-            } catch (error) {
-                // Ignore older or unrelated suspend data.
-            }
-        }
-
-        function saveSCORMProgress() {
-            if (!window.SCORM) return;
-
-            const completedCount = Object.keys(scormProgress.completedLevels).length;
-            const score = Math.round((completedCount / levels.length) * 100);
-            window.SCORM.setValue('cmi.suspend_data', JSON.stringify({
-                lesson: 'unit3-lesson2',
-                completedLevels: scormProgress.completedLevels
-            }));
-            window.SCORM.setScore(score, 0, 100);
-            window.SCORM.setStatus(completedCount >= levels.length ? 'completed' : 'incomplete');
-            window.SCORM.commit();
-        }
-
-        function markSCORMMissionComplete() {
-            scormProgress.completedLevels[currentLevel] = true;
-            saveSCORMProgress();
-        }
-
-        window.addEventListener('resize', init);
-        window.addEventListener('mousedown', () => { if (interactionState === 'AIMING') isMouseDown = true; });
-        window.addEventListener('mousemove', (e) => { mousePos.x = e.clientX; mousePos.y = e.clientY; });
-        window.addEventListener('mouseup', () => {
-            if (isMouseDown && interactionState === 'AIMING') {
-                isMouseDown = false;
-                executeThrow();
-            }
-        });
-
-        function selectItem(itemKey) {
-            if (gameState !== 'PLAYING') return;
-            selectedItem = itemKey;
-            document.querySelectorAll('.btn-space').forEach(b => b.classList.remove('selected-item'));
-            document.getElementById('btn-' + itemKey).classList.add('selected-item');
-            interactionState = 'AIMING';
-            messageBox.innerText = "Click and drag to aim your throw!";
-            actionHint.style.opacity = '1';
-        }
-
-        function executeThrow() {
-            const dx = mousePos.x - astronaut.x;
-            const dy = mousePos.y - astronaut.y;
-            const dist = Math.sqrt(dx*dx + dy*dy);
-            
-            const power = Math.min(dist / 10, 15);
-            const throwVx = (dx / dist) * power;
-            const throwVy = (dy / dist) * power;
-
-            const itemData = items[selectedItem];
-
-            // Newton's 3rd Law: Action = -Reaction
-            // m1v1 = -m2v2 => deltaV_astro = -(m_obj * v_obj) / m_astro
-            const deltaVx = -(itemData.mass * throwVx) / astronaut.mass;
-            const deltaVy = -(itemData.mass * throwVy) / astronaut.mass;
-
-            astronaut.vx += deltaVx;
-            astronaut.vy += deltaVy;
-
-            activeProjectiles.push({
-                x: astronaut.x,
-                y: astronaut.y,
-                vx: throwVx + astronaut.vx,
-                vy: throwVy + astronaut.vy,
-                type: selectedItem,
-                rotation: 0
-            });
-
-            messageBox.innerText = `Thrown! Use another object for a correction?`;
-            
-            // Clean up interaction but keep game playing
-            interactionState = 'IDLE';
-            selectedItem = null;
-            document.querySelectorAll('.btn-space').forEach(b => b.classList.remove('selected-item'));
-            actionHint.style.opacity = '0';
-        }
-
-        function drawShip() {
-            const lvl = levels[currentLevel];
-            if (lvl.moving && gameState !== 'FINISHED') {
-                const speed = lvl.shipSpeed || 1;
-                ship.y += ship.direction * speed;
-                if (ship.y > height * 0.8 || ship.y < height * 0.2) ship.direction *= -1;
-            }
-
-            ctx.save();
-            ctx.translate(ship.x, ship.y - 25);
-            
-            // Rocket body
-            ctx.fillStyle = '#f1f5f9';
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.lineTo(120, 0);
-            ctx.lineTo(150, 25); 
-            ctx.lineTo(120, 50);
-            ctx.lineTo(0, 50);
-            ctx.closePath();
-            ctx.fill();
-
-            ctx.fillStyle = '#475569';
-            ctx.fillRect(-15, 10, 15, 30);
-
-            // Fins
-            ctx.fillStyle = '#ef4444';
-            ctx.beginPath(); 
-            ctx.moveTo(10, 0); ctx.lineTo(-20, -15); ctx.lineTo(40, 0); ctx.fill();
-            ctx.beginPath(); 
-            ctx.moveTo(10, 50); ctx.lineTo(-20, 65); ctx.lineTo(40, 50); ctx.fill();
-
-            // Window
-            ctx.fillStyle = '#38bdf8';
-            ctx.strokeStyle = '#94a3b8';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(80, 25, 12, 0, Math.PI * 2);
-            ctx.fill(); ctx.stroke();
-
-            ctx.fillStyle = '#94a3b8';
-            ctx.font = 'bold 9px Inter';
-            ctx.fillText("AIRLOCK", 10, 30);
-
-            ctx.restore();
-        }
-
-        function drawAstronaut() {
-            ctx.save();
-            ctx.translate(astronaut.x, astronaut.y);
-            ctx.rotate(astronaut.rotation);
-
-            // Backpack
-            ctx.fillStyle = '#94a3b8';
-            ctx.beginPath(); ctx.roundRect(-18, -12, 10, 25, 4); ctx.fill();
-
-            // Limbs
-            ctx.strokeStyle = 'white'; ctx.lineWidth = 7; ctx.lineCap = 'round';
-            ctx.beginPath(); ctx.moveTo(-10, -5); ctx.lineTo(-22, 8); ctx.stroke(); 
-            ctx.beginPath(); ctx.moveTo(10, -5); ctx.lineTo(22, 8); ctx.stroke();  
-            ctx.beginPath(); ctx.moveTo(-6, 15); ctx.lineTo(-12, 32); ctx.stroke(); 
-            ctx.beginPath(); ctx.moveTo(6, 15); ctx.lineTo(12, 32); ctx.stroke();  
-
-            // Torso
-            ctx.fillStyle = 'white';
-            ctx.beginPath(); ctx.roundRect(-12, -15, 24, 32, 8); ctx.fill();
-
-            // Helmet
-            ctx.fillStyle = 'white';
-            ctx.beginPath(); ctx.arc(0, -22, 11, 0, Math.PI * 2); ctx.fill();
-
-            // Visor
-            ctx.fillStyle = '#1e293b'; 
-            ctx.beginPath(); ctx.roundRect(-8, -27, 16, 10, 4); ctx.fill();
-            
-            ctx.fillStyle = 'rgba(255,255,255,0.2)';
-            ctx.beginPath(); ctx.roundRect(-5, -25, 4, 3, 1); ctx.fill();
-
-            ctx.restore();
-
-            if (isMouseDown && interactionState === 'AIMING') {
-                drawArrow(ctx, astronaut.x, astronaut.y, mousePos.x, mousePos.y, '#3b82f6', 3);
-                ctx.font = 'bold 12px Inter';
-                ctx.fillStyle = '#60a5fa';
-                ctx.fillText("ACTION: THROW DIRECTION", mousePos.x + 15, mousePos.y);
-            }
-        }
-
-        function drawProjectiles() {
-            activeProjectiles.forEach(p => {
-                ctx.save();
-                ctx.translate(p.x, p.y);
-                ctx.rotate(p.rotation);
-                ctx.font = '30px Inter';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(items[p.type].emoji, 0, 0);
-                ctx.restore();
-            });
-        }
-
-        function animate() {
-            ctx.clearRect(0, 0, width, height);
-
-            // Stars
-            stars.forEach(s => {
-                ctx.fillStyle = `rgba(255, 255, 255, ${s.opacity})`;
-                ctx.fillRect(s.x, s.y, s.size, s.size);
-            });
-
-            drawShip();
-            drawProjectiles();
-            drawAstronaut();
-
-            if (gameState !== 'FINISHED') {
-                // Movement
-                astronaut.x += astronaut.vx;
-                astronaut.y += astronaut.vy;
-                astronaut.rotation += astronaut.vx * 0.01;
-
-                activeProjectiles.forEach(p => {
-                    p.x += p.vx; p.y += p.vy; p.rotation += 0.1;
-                });
-
-                // Update UI
-                velocityDisplay.innerText = `${(Math.sqrt(astronaut.vx**2 + astronaut.vy**2) * 10).toFixed(2)} m/s`;
-
-                // Success check (Airlock collision)
-                const dx = astronaut.x - (ship.x + 40);
-                const dy = astronaut.y - ship.y;
-                const dist = Math.sqrt(dx*dx + dy*dy);
-                
-                if (dist < 60) {
-                    gameState = 'FINISHED';
-                    messageBox.innerText = "MISSION SUCCESS! You reached the rocket.";
-                    messageBox.classList.add('text-green-400');
-                    resetBtn.classList.remove('hidden');
-                    nextBtn.classList.remove('hidden');
-                    document.querySelectorAll('.btn-space').forEach(b => b.disabled = true);
-                    markSCORMMissionComplete();
-                }
-
-                // Failure check
-                if (astronaut.x > width + 500 || astronaut.x < -500 || astronaut.y > height + 500 || astronaut.y < -500) {
-                    gameState = 'FINISHED';
-                    messageBox.innerText = "LOST IN SPACE. Try more massive objects next time.";
-                    messageBox.classList.add('text-red-500');
-                    resetBtn.classList.remove('hidden');
-                    document.querySelectorAll('.btn-space').forEach(b => b.disabled = true);
-                }
-            }
-
-            requestAnimationFrame(animate);
-        }
-
-        window.onload = () => {
-            loadSCORMProgress();
-            init();
-            animate();
-        };
-    </script>
+hintBtn.addEventListener('click', () => hintOverlay.classList.add('show'));
+closeHintBtn.addEventListener('click', () => hintOverlay.classList.remove('show'));
+hintOverlay.addEventListener('click', (e) => { if(e.target === hintOverlay) hintOverlay.classList.remove('show'); });
+runBtn.addEventListener('click', runSelected);
+resetBtn.addEventListener('click', () => resetObjects(true));
+nextBtn.addEventListener('click', () => { currentLevel = (currentLevel + 1) % missions.length; mission = missions[currentLevel]; updateMissionPanel(); buildChoices(); resetObjects(true); });
+answerBtn.addEventListener('click', showAnswer);
+addEventListener('resize', resize);
+updateMissionPanel(); buildChoices(); resize(); resetObjects(true); requestAnimationFrame(loop);
+</script>
 </body>
 </html>

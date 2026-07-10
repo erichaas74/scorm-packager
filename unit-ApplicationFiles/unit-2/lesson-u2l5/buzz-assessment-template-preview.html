@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unit 2 Lesson 5 - Inertia Demo</title>
+  <style>
+    :root {
+      --bg: #eef2f5;
+      --panel: #ffffff;
+      --ink: #243447;
+      --muted: #5d6f82;
+      --line: #c9d3df;
+      --top: #1565c0;
+      --bottom: #d96c1c;
+      --danger: #c0392b;
+      --ok: #1f8a5b;
+      --shadow: 0 8px 24px rgba(36, 52, 71, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    .page {
+      width: min(1040px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 24px 0 34px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    h1 {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      line-height: 1.05;
+      color: #1f2d3d;
+    }
+
+    .subtitle {
+      max-width: 690px;
+      margin-top: 10px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .home-btn {
+      flex: 0 0 auto;
+      color: var(--ink);
+      text-decoration: none;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 12px;
+      background: rgba(255, 255, 255, 0.7);
+      font-weight: 700;
+    }
+
+    .lab {
+      display: block;
+    }
+
+    .canvas-panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .canvas-panel {
+      display: grid;
+      place-items: center;
+      min-height: 520px;
+      padding: 16px;
+    }
+
+    .canvas-stage {
+      position: relative;
+      width: 100%;
+      max-width: 700px;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      aspect-ratio: 7 / 8;
+      background: #fdfefe;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      touch-action: none;
+    }
+
+    .step-flow {
+      position: absolute;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      width: min(520px, calc(100% - 36px));
+    }
+
+    .step-button {
+      text-align: center;
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      box-shadow: 0 8px 18px rgba(36, 52, 71, 0.18);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .step-button:hover {
+      filter: brightness(0.96);
+    }
+
+    .step-button.slow-step {
+      background: var(--top);
+    }
+
+    .step-button.fast-step {
+      background: var(--bottom);
+    }
+
+    .step-button.is-active {
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.72), 0 8px 18px rgba(36, 52, 71, 0.18);
+    }
+
+    .step-button.fast-step.is-active {
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.72), 0 8px 18px rgba(36, 52, 71, 0.18);
+    }
+
+    .step-button:disabled {
+      opacity: 0.7;
+    }
+
+    .section-title {
+      font-size: 0.82rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 13px 14px;
+      color: #fff;
+      background: var(--top);
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.16s ease, filter 0.16s ease;
+    }
+
+    button:hover {
+      filter: brightness(0.96);
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+      transform: none;
+    }
+
+    .quick { background: var(--bottom); }
+    .manual { background: #1f8a5b; }
+    .reset { width: 100%; background: #607d8b; }
+
+    .readout-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .readout {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #f8fafc;
+    }
+
+    .readout strong {
+      display: block;
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+
+    .readout span {
+      display: block;
+      font-size: 1.8rem;
+      font-weight: 900;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .top-value { color: var(--top); }
+    .bottom-value { color: var(--bottom); }
+
+    .status {
+      min-height: 126px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fbfcfe;
+      line-height: 1.55;
+    }
+
+    .status h2 {
+      font-size: 1.1rem;
+      margin-bottom: 6px;
+    }
+
+    .status p + p { margin-top: 8px; }
+    .status .ok { color: var(--ok); font-weight: 800; }
+    .status .danger { color: var(--danger); font-weight: 800; }
+
+    .formula {
+      display: grid;
+      gap: 9px;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 0.95rem;
+    }
+
+    .formula-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      padding-bottom: 9px;
+      border-bottom: 1px solid #e4eaf0;
+    }
+
+    .formula-row:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .formula-row strong { color: var(--ink); }
+
+    .stage-tabs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin: 0 0 18px;
+      background: #dfe8f1;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .stage-tab {
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.74);
+      border: 1px solid transparent;
+      border-radius: 9px;
+      padding: 12px 14px;
+      font-weight: 900;
+      text-align: center;
+    }
+
+    .stage-tab.is-active {
+      color: #fff;
+      background: var(--top);
+      border-color: #0f4f99;
+      box-shadow: 0 8px 18px rgba(21, 101, 192, 0.22);
+    }
+
+    .stage-panel[hidden] {
+      display: none;
+    }
+
+    .level2-lab {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+
+    .level2-header {
+      margin-bottom: 14px;
+    }
+
+    .level2-header h2 {
+      font-size: clamp(1.35rem, 3vw, 2rem);
+      margin-bottom: 6px;
+    }
+
+    .level2-stage {
+      position: relative;
+      min-height: 360px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: linear-gradient(#f7fbff 0 70%, #d7e7d1 70% 100%);
+    }
+
+    .tabletop {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 82px;
+      height: 18px;
+      background: #8d6748;
+      border-top: 3px solid #6a4a32;
+      box-shadow: 0 -8px 18px rgba(36, 52, 71, 0.12);
+    }
+
+    .cup {
+      position: absolute;
+      left: 50%;
+      bottom: 86px;
+      width: 150px;
+      height: 145px;
+      transform: translateX(-50%);
+      border: 8px solid #2563a9;
+      border-top: 0;
+      border-radius: 0 0 42px 42px;
+      background: linear-gradient(90deg, rgba(37, 99, 169, 0.1), rgba(37, 99, 169, 0.24));
+    }
+
+    .cup:before {
+      content: "";
+      position: absolute;
+      left: -18px;
+      right: -18px;
+      top: -18px;
+      height: 28px;
+      border: 8px solid #2563a9;
+      border-radius: 50%;
+      background: #f7fbff;
+    }
+
+    .index-card {
+      position: absolute;
+      left: calc(50% - 150px);
+      bottom: 226px;
+      width: 300px;
+      height: 32px;
+      border: 2px solid #d6b86f;
+      border-radius: 4px;
+      background:
+        repeating-linear-gradient(0deg, transparent 0 7px, rgba(37, 99, 169, 0.1) 8px 9px),
+        #fff4be;
+      box-shadow: 0 8px 18px rgba(36, 52, 71, 0.16);
+    }
+
+    .penny {
+      position: absolute;
+      left: calc(50% - 24px);
+      bottom: 258px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 4px solid #9a4b20;
+      background: radial-gradient(circle at 32% 28%, #ffd7a2 0 18%, #c26a2e 19% 100%);
+      box-shadow: 0 8px 16px rgba(36, 52, 71, 0.2);
+      display: grid;
+      place-items: center;
+      color: #7b3515;
+      font-weight: 900;
+    }
+
+    .penny:after {
+      content: "1c";
+      font-size: 0.95rem;
+    }
+
+    .level2-stage.slow-run .index-card,
+    .level2-stage.slow-run .penny {
+      animation: slow-card-pull 1.8s ease-in-out forwards;
+    }
+
+    .level2-stage.quick-run .index-card {
+      animation: quick-card-pull 0.62s ease-in forwards;
+    }
+
+    .level2-stage.quick-run .penny {
+      animation: penny-drop 1.15s ease-in 0.18s forwards;
+    }
+
+    .level2-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .level2-result {
+      min-height: 86px;
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfe;
+      padding: 13px;
+      line-height: 1.5;
+    }
+
+    .level2-result strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--ink);
+    }
+
+    @keyframes slow-card-pull {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(130px); }
+    }
+
+    @keyframes quick-card-pull {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(360px); }
+    }
+
+    @keyframes penny-drop {
+      0% { transform: translate(0, 0); }
+      18% { transform: translate(0, 0); }
+      100% { transform: translate(0, 142px); }
+    }
+
+    @media (max-width: 840px) {
+      .lab { grid-template-columns: 1fr; }
+      .canvas-panel { min-height: auto; }
+    }
+
+    @media (max-width: 560px) {
+      .page {
+        width: min(100% - 20px, 1040px);
+        padding-top: 18px;
+      }
+      .topbar { flex-direction: column-reverse; }
+      .stage-tabs, .step-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .actions, .readout-grid { grid-template-columns: 1fr; }
+      .level2-actions { grid-template-columns: 1fr; }
+    }
+  </style>
+  <style>
+    .buzz-wrap {
+      width: min(1040px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 22px 0 0;
+    }
+
+    .buzz-directions,
+    .question-card {
+      background: #ffffff;
+      border: 1px solid #c9d3df;
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(36, 52, 71, 0.08);
+    }
+
+    .buzz-directions {
+      padding: 16px 18px;
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+
+    .buzz-directions h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.55rem, 3vw, 2.25rem);
+    }
+
+    .buzz-directions ol {
+      margin: 8px 0 0;
+      padding-left: 22px;
+    }
+
+    .buzz-directions li {
+      margin-bottom: 6px;
+    }
+
+    .question-card {
+      width: min(1040px, calc(100% - 28px));
+      margin: 16px auto;
+      padding: 14px;
+      border-left: 5px solid #1565c0;
+    }
+  </style>
+</head>
+<body>
+  <div class="buzz-wrap">
+    <section class="buzz-directions">
+      <h1>Unit 2 Lesson 5: Inertia Demo</h1>
+      <ol>
+        <li>Use the stage bar to switch between <strong>Level 1: Cup and Penny</strong> and <strong>Level 2: String Tension</strong>.</li>
+        <li>Level 1: Run <strong>Slow Pull</strong> and <strong>Fast Pull</strong>. Watch whether the penny moves with the card or drops into the cup.</li>
+        <li>Level 2: Run <strong>Slow Pull</strong> and <strong>Fast Pull</strong>. Record which string breaks first and the tension shown for each pull.</li>
+        <li>Use both demos to explain why quick pulls can behave differently from slow pulls.</li>
+      </ol>
+    </section>
+  </div>
+
+  <main class="page">
+    <div class="topbar">
+      <div>
+        <h1>Inertia &amp; Tension Lab</h1>
+        <p class="subtitle">Choose either pull in any order. Each run resets the lab first, then shows which string carries the larger force.</p>
+      </div>
+    </div>
+
+    <nav class="stage-tabs" aria-label="Choose demo level">
+      <button class="stage-tab is-active" type="button" data-stage-button="1">Level 1: Cup and Penny</button>
+      <button class="stage-tab" type="button" data-stage-button="2">Level 2: String Tension</button>
+    </nav>
+
+    <section class="lab stage-panel" data-stage-panel="2" aria-label="Interactive inertia and tension lab" hidden>
+      <div class="canvas-panel">
+        <div class="canvas-stage">
+          <canvas id="labCanvas" width="700" height="800" aria-label="Mass suspended between two strings with tension labels"></canvas>
+          <div class="step-flow" aria-label="Pull tests">
+            <button id="slow-pull" class="step-button slow-step" type="button">Slow Pull</button>
+            <button id="quick-pull" class="step-button fast-step" type="button">Fast Pull</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="level2-lab stage-panel" data-stage-panel="1" data-card-lab aria-label="Cup, card, and penny inertia demo">
+      <div class="level2-header">
+        <h2>Level 1: Cup, Card, and Penny</h2>
+        <p class="subtitle">The same inertia idea shows up with a penny resting on an index card over a cup. Compare a slow pull with a quick pull.</p>
+      </div>
+
+      <div class="level2-stage" data-card-stage>
+        <div class="tabletop"></div>
+        <div class="cup" aria-hidden="true"></div>
+        <div class="index-card" aria-hidden="true"></div>
+        <div class="penny" aria-hidden="true"></div>
+      </div>
+
+      <div class="level2-actions">
+        <button class="step-button slow-step" type="button" data-card-slow>Slow Pull</button>
+        <button class="step-button fast-step" type="button" data-card-quick>Fast Pull</button>
+      </div>
+
+      <div class="level2-result" data-card-result>
+        <strong>Ready to test</strong>
+        Try the slow pull and quick pull. Watch whether the penny moves with the card or drops into the cup.
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('labCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const topReadout = document.getElementById('top-readout');
+    const bottomReadout = document.getElementById('bottom-readout');
+    const pullDistanceReadout = document.getElementById('pull-distance-readout');
+    const statusPanel = document.getElementById('status-panel');
+    const slowPullButton = document.getElementById('slow-pull');
+    const quickPullButton = document.getElementById('quick-pull');
+    const manualPullButton = document.getElementById('manual-pull');
+    const resetButton = document.getElementById('reset-lab');
+
+    const particles = [];
+
+    const model = {
+      weight: 9.8,
+      slowPull: 15,
+      quickPull: 45,
+      manualForcePerPixel: 0.35,
+      maxManualDrag: 140,
+      stringStrength: 22
+    };
+
+    const state = {
+      mode: 'ready',
+      topTension: model.weight,
+      bottomTension: 0,
+      targetTop: model.weight,
+      targetBottom: 0,
+      topBroken: false,
+      bottomBroken: false,
+      pullOffset: 0,
+      dragDistance: 0,
+      dragStartY: 0,
+      manualActive: false,
+      manualPointerId: null,
+      massY: 220,
+      velocity: 0,
+      startTime: 0,
+      duration: 1000,
+      animationFrame: null
+    };
+
+    const stepFlow = {
+      running: null
+    };
+
+    const layout = {
+      supportY: 82,
+      centerX: canvas.width / 2,
+      massWidth: 130,
+      massHeight: 110,
+      topStringStartY: 120,
+      topStringLength: 94,
+      bottomStringLength: 170
+    };
+
+    function formatForce(value) {
+      return value.toFixed(1) + ' N';
+    }
+
+    function updateStepControls() {
+      if (slowPullButton) {
+        slowPullButton.disabled = false;
+        slowPullButton.classList.toggle('is-active', stepFlow.running === 'slow');
+        slowPullButton.classList.remove('is-done');
+      }
+
+      if (quickPullButton) {
+        quickPullButton.disabled = false;
+        quickPullButton.classList.toggle('is-active', stepFlow.running === 'quick');
+        quickPullButton.classList.remove('is-done');
+      }
+    }
+
+    function setStatus(title, body, variant) {
+      if (!statusPanel) return;
+      const className = variant ? ' class="' + variant + '"' : '';
+      statusPanel.innerHTML = '<h2' + className + '>' + title + '</h2><p>' + body + '</p>';
+    }
+
+    function updateReadouts() {
+      if (topReadout) topReadout.textContent = formatForce(state.topTension);
+      if (bottomReadout) bottomReadout.textContent = formatForce(state.bottomTension);
+      if (pullDistanceReadout) pullDistanceReadout.textContent = Math.round(state.dragDistance) + ' px';
+    }
+
+    function setButtonsDisabled(disabled) {
+      updateStepControls();
+      if (manualPullButton) manualPullButton.disabled = disabled;
+    }
+
+    function drawRoundedRect(x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawArrow(x, yStart, yEnd, color) {
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 7;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x, yStart);
+      ctx.lineTo(x, yEnd);
+      ctx.stroke();
+
+      const direction = yEnd > yStart ? 1 : -1;
+      ctx.beginPath();
+      ctx.moveTo(x, yEnd);
+      ctx.lineTo(x - 14, yEnd - direction * 22);
+      ctx.lineTo(x + 14, yEnd - direction * 22);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawLabel(x, y, title, value, color) {
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#d6e0ea';
+      ctx.lineWidth = 2;
+      drawRoundedRect(x, y, 198, 78, 8);
+      ctx.stroke();
+
+      ctx.fillStyle = '#5d6f82';
+      ctx.font = '700 22px Segoe UI, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(title, x + 18, y + 13);
+
+      ctx.fillStyle = color;
+      ctx.font = '900 30px Segoe UI, sans-serif';
+      ctx.fillText(formatForce(value), x + 18, y + 40);
+    }
+
+    function drawStrengthGauge() {
+      const x = 152;
+      const y = 10;
+      const width = 390;
+      const height = 9;
+      const gap = 17;
+      const maxForce = 50;
+      const topWidth = Math.min(width, width * state.topTension / maxForce);
+      const bottomWidth = Math.min(width, width * state.bottomTension / maxForce);
+      const strengthX = x + width * model.stringStrength / maxForce;
+
+      ctx.save();
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.86)';
+      ctx.strokeStyle = '#d6e0ea';
+      ctx.lineWidth = 1;
+      drawRoundedRect(52, 4, 596, 39, 7);
+      ctx.stroke();
+
+      ctx.fillStyle = '#e9eef4';
+      drawRoundedRect(x, y, width, height, 5);
+      if (topWidth > 0) {
+        ctx.fillStyle = '#1565c0';
+        drawRoundedRect(x, y, topWidth, height, 5);
+      }
+
+      ctx.fillStyle = '#e9eef4';
+      drawRoundedRect(x, y + gap, width, height, 5);
+      if (bottomWidth > 0) {
+        ctx.fillStyle = '#d96c1c';
+        drawRoundedRect(x, y + gap, bottomWidth, height, 5);
+      }
+
+      ctx.strokeStyle = '#c0392b';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(strengthX, y - 4);
+      ctx.lineTo(strengthX, y + gap + height + 4);
+      ctx.stroke();
+
+      ctx.fillStyle = '#243447';
+      ctx.font = '700 13px Segoe UI, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Top tension', x - 12, y + height / 2);
+      ctx.fillText('Bottom tension', x - 12, y + gap + height / 2);
+
+      ctx.fillStyle = '#c0392b';
+      ctx.font = '700 12px Segoe UI, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('22 N break', x + width + 12, y + gap / 2 + height);
+
+      ctx.restore();
+    }
+
+    // --- NEW REALISTIC VISUAL FUNCTIONS ---
+    function drawGrid() {
+      ctx.strokeStyle = '#e0e5ec';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < canvas.width; x += 20) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+      }
+      for (let y = 0; y < canvas.height; y += 20) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+      }
+    }
+
+    function drawHookedMass(x, y, width, height) {
+      const grad = ctx.createLinearGradient(x, y, x + width, y);
+      grad.addColorStop(0, '#73511f');
+      grad.addColorStop(0.2, '#d6a848');
+      grad.addColorStop(0.5, '#fce095');
+      grad.addColorStop(0.8, '#d6a848');
+      grad.addColorStop(1, '#4a3311');
+
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 8;
+      ctx.beginPath(); ctx.arc(x + width / 2, y - 8, 12, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x + width / 2, y + height + 8, 12, 0, Math.PI * 2); ctx.stroke();
+
+      ctx.fillStyle = grad;
+      drawRoundedRect(x, y, width, height, 6);
+
+      ctx.fillStyle = '#4a3311';
+      ctx.font = '900 32px Segoe UI, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('1 kg', x + width / 2, y + height / 2 - 8);
+      ctx.font = '700 19px Segoe UI, sans-serif';
+      ctx.fillText('9.8 N', x + width / 2, y + height / 2 + 28);
+    }
+
+    function drawRealisticString(x, yStart, yEnd, tension, broken) {
+      if (broken) {
+        const midY = (yStart + yEnd) / 2;
+        ctx.strokeStyle = '#d4b88c';
+        ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.moveTo(x, yStart); ctx.lineTo(x - 10, midY - 15); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, yStart); ctx.lineTo(x + 12, midY - 10); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + 8, midY + 12); ctx.lineTo(x, yEnd); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x - 12, midY + 18); ctx.lineTo(x, yEnd); ctx.stroke();
+        return;
+      }
+
+      let baseColor = '#d4b88c';
+      if (tension > 18) baseColor = '#e67e22'; 
+      if (tension >= 21) baseColor = '#c0392b';
+
+      ctx.strokeStyle = baseColor;
+      ctx.lineWidth = 10;
+      ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x, yStart); ctx.lineTo(x, yEnd); ctx.stroke();
+
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+      ctx.lineWidth = 2;
+      for (let y = yStart + 4; y < yEnd - 4; y += 8) {
+        ctx.beginPath(); ctx.moveTo(x - 5, y); ctx.lineTo(x + 5, y + 6); ctx.stroke();
+      }
+    }
+
+    function drawBrokenTopString(x, yStart, massTopY) {
+      const breakY = yStart + layout.topStringLength * 0.5;
+      const lowerLength = layout.topStringLength * 0.5;
+      const lowerEndY = massTopY - 12;
+      const lowerStartY = lowerEndY - lowerLength;
+
+      ctx.strokeStyle = '#d4b88c';
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x, yStart); ctx.lineTo(x - 10, breakY - 15); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, yStart); ctx.lineTo(x + 12, breakY - 10); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + 8, lowerStartY); ctx.lineTo(x, lowerEndY); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x - 12, lowerStartY + 6); ctx.lineTo(x, lowerEndY); ctx.stroke();
+    }
+
+    function spawnParticles(x, y) {
+      particles.length = 0; 
+      for (let i = 0; i < 25; i++) {
+        particles.push({
+          x: x + (Math.random() - 0.5) * 15,
+          y: y + (Math.random() - 0.5) * 15,
+          vx: (Math.random() - 0.5) * 12,
+          vy: (Math.random() - 1.2) * 8,
+          life: 1.0,
+          decay: 0.015 + Math.random() * 0.02,
+          size: 4 + Math.random() * 10,
+          angle: Math.random() * Math.PI * 2,
+          spin: (Math.random() - 0.5) * 0.8,
+          color: Math.random() > 0.5 ? '#d4b88c' : '#c0392b' 
+        });
+      }
+    }
+
+    function drawParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.4;
+        p.angle += p.spin;
+        p.life -= p.decay;
+
+        if (p.life <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.angle);
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-p.size / 2, 0);
+        ctx.lineTo(p.size / 2, 0);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // --- MAIN RENDER LOOP ---
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = '#f7fafc';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawGrid();
+
+      const supportTop = layout.supportY;
+      const supportHeight = 38;
+      const ceilingGrad = ctx.createLinearGradient(86, supportTop, 86, supportTop + supportHeight);
+      ceilingGrad.addColorStop(0, '#8e9eab');
+      ceilingGrad.addColorStop(1, '#eef2f3');
+      ctx.fillStyle = ceilingGrad;
+      drawRoundedRect(86, supportTop, 528, supportHeight, 4);
+
+      const massX = layout.centerX - layout.massWidth / 2;
+      const massBottomY = state.massY + layout.massHeight;
+      const bottomEndY = massBottomY + layout.bottomStringLength + state.pullOffset;
+
+      if (state.topBroken) {
+        drawBrokenTopString(layout.centerX, layout.topStringStartY, state.massY);
+      } else {
+        drawRealisticString(layout.centerX, layout.topStringStartY, state.massY - 12, state.topTension, false);
+      }
+      drawRealisticString(layout.centerX, massBottomY + 12, bottomEndY, state.bottomTension, state.bottomBroken);
+
+      drawHookedMass(massX, state.massY, layout.massWidth, layout.massHeight);
+      drawParticles();
+
+      if (state.mode !== 'ready') {
+        drawArrow(layout.centerX, bottomEndY + 15, bottomEndY + 92, '#c0392b');
+        ctx.fillStyle = '#c0392b';
+        ctx.font = '800 22px Segoe UI, sans-serif';
+        ctx.fillText(state.mode === 'quick' ? 'fast pull' : state.mode === 'manual' ? 'you pull' : 'slow pull', layout.centerX, bottomEndY + 122);
+      }
+
+      drawLabel(48, 132, 'Top string', state.topTension, '#1565c0');
+      drawLabel(454, 378, 'Bottom string', state.bottomTension, '#d96c1c');
+      drawStrengthGauge();
+    }
+
+    function resetLab() {
+      if (state.animationFrame) {
+        cancelAnimationFrame(state.animationFrame);
+      }
+
+      state.mode = 'ready';
+      state.topTension = model.weight;
+      state.bottomTension = 0;
+      state.targetTop = model.weight;
+      state.targetBottom = 0;
+      state.topBroken = false;
+      state.bottomBroken = false;
+      state.pullOffset = 0;
+      state.dragDistance = 0;
+      state.dragStartY = 0;
+      state.manualActive = false;
+      state.manualPointerId = null;
+      state.massY = 220;
+      state.velocity = 0;
+      state.animationFrame = null;
+      particles.length = 0; // Clear stray particles
+
+      setButtonsDisabled(false);
+      updateReadouts();
+      setStatus('Ready to test', 'The mass weighs 9.8 N. Before you pull, the top string carries that weight and the bottom string carries no tension.');
+      draw();
+    }
+
+    function completeStep(mode) {
+      if (stepFlow.running !== mode) return;
+
+      stepFlow.running = null;
+      updateStepControls();
+    }
+
+    function runStep(mode) {
+      stepFlow.running = mode;
+      updateStepControls();
+      resetLab();
+      startPull(mode);
+    }
+
+    function startPull(mode) {
+      if (state.animationFrame) {
+        cancelAnimationFrame(state.animationFrame);
+      }
+
+      const isSlow = mode === 'slow';
+      state.mode = mode;
+      state.topBroken = false;
+      state.bottomBroken = false;
+      state.pullOffset = 0;
+      state.massY = 220;
+      state.velocity = 0;
+      state.startTop = model.weight;
+      state.startBottom = 0;
+      state.targetTop = isSlow ? model.weight + model.slowPull : model.weight;
+      state.targetBottom = isSlow ? model.slowPull : model.quickPull;
+      state.startTime = performance.now();
+      state.duration = isSlow ? 1200 : 560;
+
+      setButtonsDisabled(true);
+      setStatus(
+        isSlow ? 'Slow pull running' : 'Fast pull running',
+        isSlow
+          ? 'The applied pull transfers through the mass, so the top string must hold the mass weight plus your pull.'
+          : 'The mass resists the sudden motion, so the bottom string briefly takes nearly the full yank while the top string stays near the weight.'
+      );
+
+      state.animationFrame = requestAnimationFrame(stepPull);
+    }
+
+    function stepPull(timestamp) {
+      const progress = Math.min(1, (timestamp - state.startTime) / state.duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+
+      state.topTension = state.startTop + (state.targetTop - state.startTop) * eased;
+      state.bottomTension = state.startBottom + (state.targetBottom - state.startBottom) * eased;
+      state.pullOffset = (state.mode === 'quick' ? 52 : 30) * eased;
+
+      if (progress < 1) {
+        updateReadouts();
+        draw();
+        state.animationFrame = requestAnimationFrame(stepPull);
+        return;
+      }
+
+      state.topTension = state.targetTop;
+      state.bottomTension = state.targetBottom;
+      updateReadouts();
+
+      if (state.mode === 'slow') {
+        state.topBroken = true;
+        spawnParticles(layout.centerX, (layout.topStringStartY + state.massY) / 2);
+        
+        setStatus('Top string breaks', 'Top tension = 9.8 N weight + 15.0 N pull = <span class="danger">24.8 N</span>. That is above the 22.0 N break point, while the bottom string only carries 15.0 N.', 'danger');
+        state.animationFrame = requestAnimationFrame(stepFall);
+      } else {
+        state.bottomBroken = true;
+        const massBottomY = state.massY + layout.massHeight;
+        const bottomEndY = massBottomY + layout.bottomStringLength + state.pullOffset;
+        spawnParticles(layout.centerX, (massBottomY + bottomEndY) / 2);
+
+        setStatus('Bottom string breaks', 'Top tension stays near the 9.8 N weight, but bottom tension spikes to <span class="danger">45.0 N</span>. The fast pull breaks the bottom string first.', 'danger');
+        setButtonsDisabled(false);
+        
+        state.animationFrame = requestAnimationFrame(function particleLoop() {
+          draw();
+          if (particles.length > 0) {
+            state.animationFrame = requestAnimationFrame(particleLoop);
+          } else {
+            state.animationFrame = null;
+            completeStep('quick');
+          }
+        });
+      }
+    }
+
+    function stepFall() {
+      state.velocity += 0.55;
+      state.massY += state.velocity;
+      draw();
+
+      if (state.massY < 520 || particles.length > 0) {
+        state.animationFrame = requestAnimationFrame(stepFall);
+        return;
+      }
+
+      setButtonsDisabled(false);
+      state.animationFrame = null;
+      if (state.mode === 'slow') {
+        state.massY = 220;
+        state.velocity = 0;
+        draw();
+        completeStep('slow');
+      }
+    }
+
+    function startManualPull() {
+      resetLab();
+      state.mode = 'manual';
+      setButtonsDisabled(true);
+      if (resetButton) resetButton.disabled = false;
+      setStatus('You pull the string', 'Drag downward from the lower string. Distance becomes force: every pixel adds 0.35 N of pull to the bottom string and to the top string along with the mass weight.');
+      draw();
+    }
+
+    function getCanvasPoint(event) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (event.clientX - rect.left) * canvas.width / rect.width,
+        y: (event.clientY - rect.top) * canvas.height / rect.height
+      };
+    }
+
+    function isNearBottomString(point) {
+      const massBottomY = state.massY + layout.massHeight;
+      const bottomEndY = massBottomY + layout.bottomStringLength + state.pullOffset;
+      return Math.abs(point.x - layout.centerX) < 60 && point.y >= massBottomY && point.y <= bottomEndY + 90;
+    }
+
+    function updateManualPull(point) {
+      state.dragDistance = Math.min(model.maxManualDrag, Math.max(0, point.y - state.dragStartY));
+      state.pullOffset = state.dragDistance;
+      const pullForce = state.dragDistance * model.manualForcePerPixel;
+      state.bottomTension = pullForce;
+      state.topTension = model.weight + pullForce;
+      updateReadouts();
+
+      if (!state.topBroken && state.topTension >= model.stringStrength) {
+        state.topBroken = true;
+        state.manualActive = false;
+        if (state.manualPointerId !== null && canvas.hasPointerCapture(state.manualPointerId)) {
+          canvas.releasePointerCapture(state.manualPointerId);
+        }
+        state.manualPointerId = null;
+        spawnParticles(layout.centerX, layout.topStringStartY + layout.topStringLength * 0.5);
+        setStatus('Top string breaks', 'Your drag distance reached ' + Math.round(state.dragDistance) + ' px, which becomes <span class="danger">' + formatForce(pullForce) + '</span> of pull. The top string must carry that plus the 9.8 N weight, so it passes the 22.0 N break point.', 'danger');
+        state.animationFrame = requestAnimationFrame(stepFall);
+        return;
+      }
+
+      setStatus('You pull the string', Math.round(state.dragDistance) + ' px of drag x 0.35 N/px = <span class="ok">' + formatForce(pullForce) + '</span> of pull. Top string tension is weight + your pull = ' + formatForce(state.topTension) + '.');
+      draw();
+    }
+
+    canvas.addEventListener('pointerdown', function(event) {
+      if (state.mode !== 'manual' || state.topBroken || state.bottomBroken) return;
+      const point = getCanvasPoint(event);
+      if (!isNearBottomString(point)) return;
+      canvas.setPointerCapture(event.pointerId);
+      state.manualActive = true;
+      state.manualPointerId = event.pointerId;
+      state.dragStartY = point.y - state.dragDistance;
+    });
+
+    canvas.addEventListener('pointermove', function(event) {
+      if (!state.manualActive) return;
+      updateManualPull(getCanvasPoint(event));
+    });
+
+    function finishManualPull(event) {
+      if (!state.manualActive) return;
+      state.manualActive = false;
+      if (canvas.hasPointerCapture(event.pointerId)) {
+        canvas.releasePointerCapture(event.pointerId);
+      }
+      state.manualPointerId = null;
+    }
+
+    canvas.addEventListener('pointerup', finishManualPull);
+    canvas.addEventListener('pointercancel', finishManualPull);
+
+    if (slowPullButton) {
+      slowPullButton.addEventListener('click', function() {
+        runStep('slow');
+      });
+    }
+
+    if (quickPullButton) {
+      quickPullButton.addEventListener('click', function() {
+        runStep('quick');
+      });
+    }
+
+    if (manualPullButton) manualPullButton.addEventListener('click', startManualPull);
+    if (resetButton) resetButton.addEventListener('click', resetLab);
+
+    resetLab();
+    updateStepControls();
+
+    const stageButtons = Array.from(document.querySelectorAll('[data-stage-button]'));
+    const stagePanels = Array.from(document.querySelectorAll('[data-stage-panel]'));
+
+    function resetCardStage() {
+      const cardStage = document.querySelector('[data-card-stage]');
+      const cardResult = document.querySelector('[data-card-result]');
+      if (cardStage) cardStage.classList.remove('slow-run', 'quick-run');
+      if (cardResult) {
+        cardResult.innerHTML = '<strong>Ready to test</strong>Try the slow pull and quick pull. Watch whether the penny moves with the card or drops into the cup.';
+      }
+    }
+
+    function setStage(stage) {
+      stageButtons.forEach(function(button) {
+        button.classList.toggle('is-active', button.dataset.stageButton === stage);
+      });
+      stagePanels.forEach(function(panel) {
+        panel.hidden = panel.dataset.stagePanel !== stage;
+      });
+      resetLab();
+      if (stage === '1') resetCardStage();
+    }
+
+    stageButtons.forEach(function(button) {
+      button.addEventListener('click', function() {
+        setStage(button.dataset.stageButton);
+      });
+    });
+
+    const cardLab = document.querySelector('[data-card-lab]');
+    if (cardLab) {
+      const cardStage = cardLab.querySelector('[data-card-stage]');
+      const cardResult = cardLab.querySelector('[data-card-result]');
+      const cardSlowButton = cardLab.querySelector('[data-card-slow]');
+      const cardQuickButton = cardLab.querySelector('[data-card-quick]');
+
+      function runCardDemo(mode) {
+        cardStage.classList.remove('slow-run', 'quick-run');
+        void cardStage.offsetWidth;
+        cardStage.classList.add(mode === 'quick' ? 'quick-run' : 'slow-run');
+        if (mode === 'quick') {
+          cardResult.innerHTML = '<strong>Quick pull: penny falls into the cup</strong>The card moves away so fast that friction does not have enough time to carry the penny along. The penny tends to stay at rest, then gravity pulls it straight down into the cup.';
+        } else {
+          cardResult.innerHTML = '<strong>Slow pull: penny stays on the card</strong>The slow pull gives friction enough time to move the penny with the index card, so the penny rides along instead of dropping into the cup.';
+        }
+      }
+
+      cardSlowButton.addEventListener('click', function() {
+        runCardDemo('slow');
+      });
+
+      cardQuickButton.addEventListener('click', function() {
+        runCardDemo('quick');
+      });
+    }
+  </script>
+
+  <div class="question-card"><strong>Buzz Question 1:</strong> Level 1 Slow Pull penny observation</div>
+  <div class="question-card"><strong>Buzz Question 2:</strong> Level 1 Fast Pull penny observation</div>
+  <div class="question-card"><strong>Buzz Question 3:</strong> Explain the cup, card, and penny result</div>
+  <div class="question-card"><strong>Buzz Question 4:</strong> Level 2 Slow Pull string break observation</div>
+  <div class="question-card"><strong>Buzz Question 5:</strong> Level 2 Slow Pull top tension value</div>
+  <div class="question-card"><strong>Buzz Question 6:</strong> Level 2 Fast Pull string break observation</div>
+  <div class="question-card"><strong>Buzz Question 7:</strong> Level 2 Fast Pull bottom tension value</div>
+  <div class="question-card"><strong>Buzz Question 8:</strong> Explain why slow pull breaks the top string</div>
+  <div class="question-card"><strong>Buzz Question 9:</strong> Explain why quick pull breaks the bottom string</div>
+  <div class="question-card"><strong>Buzz Question 10:</strong> Identify inertia as the shared physics idea</div>
+  <div class="question-card"><strong>Buzz Question 11:</strong> Upload demo evidence</div>
+</body>
+</html>

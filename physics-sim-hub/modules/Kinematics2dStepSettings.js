@@ -19,27 +19,74 @@ export const FOCUS_VALUE_LABELS = {
     ay:     'Gravity aᵧ'
 };
 
+const VALUE_ROW_MODE_OPTIONS = ['Auto', 'Show Value', 'Show ?', 'Symbol Only'];
+
 export const STEP_DISPLAY_FIELDS = [
-    { key: 'stopAnimation', label: 'Stop Animation At', type: 'select', options: ['End of Flight', 'Max Height', 'Custom Time'] },
-    { key: 'customStopTime', label: 'Custom Stop Time (s)', type: 'number', step: 0.1, default: 5 },
-    { key: 'timingMode', label: 'Overlay Timing', type: 'select', options: ['Always', 'At End', 'At Max Height', 'At Custom Time'] },
-    { key: 'trailStyle', label: 'Trail Style', type: 'select', options: ['Dotted', 'Solid', 'None'] },
-    { key: 'rulerStyle', label: 'Ruler Style', type: 'select', options: ['None', 'Simple', 'Detailed'] },
-    { key: 'workAnalysisStepDuration', label: 'Step Duration (s)', type: 'number', step: 0.1, default: 2.2 },
-    { key: 'showVectorBreakdown', label: 'Vector Breakdown', type: 'bool' },
-    { key: 'showFinalVectorAdditionZoom', label: 'Final Vector Zoom', type: 'bool' },
-    { key: 'showVelocityVectors', label: 'Velocity Vectors', type: 'bool' },
-    { key: 'showInitialVelocityVector', label: 'Launch Vector', type: 'bool' },
-    { key: 'showAngleArc', label: 'Launch Angle Arc', type: 'bool' },
-    { key: 'showComponents', label: 'Live Vx/Vy', type: 'bool' },
-    { key: 'showDistanceMarkers', label: 'X/Y Distance Lines', type: 'bool' },
-    { key: 'showMaxHeight', label: 'Max Height Line', type: 'bool' },
-    { key: 'showAccelerationVector', label: 'Acceleration Vector', type: 'bool' },
-    { key: 'showTimerDisplay', label: 'Canvas Timer', type: 'bool' },
-    { key: 'showEquations', label: 'Equation Box', type: 'bool' },
-    { key: 'showProblemLabels', label: 'Problem Labels', type: 'bool' },
-    { key: 'showGhostFrames', label: 'Ghost Frames', type: 'bool' },
-    { key: 'showLaunchCannon', label: 'Launch Cannon', type: 'bool' }
+    // ── General scene ────────────────────────────────────────────────────────
+    { key: 'stopAnimation', label: 'Stop Animation At', type: 'select', options: ['End of Flight', 'Max Height', 'Custom Time'], group: 'Scene' },
+    { key: 'customStopTime', label: 'Custom Stop Time (s)', type: 'number', step: 0.1, default: 5, group: 'Scene' },
+    { key: 'timingMode', label: 'Overlay Timing', type: 'select', options: ['Always', 'At End', 'At Max Height', 'At Custom Time'], group: 'Scene' },
+    { key: 'trailStyle', label: 'Trail Style', type: 'select', options: ['Dotted', 'Solid', 'None'], group: 'Scene' },
+    { key: 'rulerStyle', label: 'Ruler Style', type: 'select', options: ['None', 'Simple', 'Detailed'], group: 'Scene' },
+    { key: 'workAnalysisStepDuration', label: 'Step Duration (s)', type: 'number', step: 0.1, default: 2.2, group: 'Scene' },
+    { key: 'showVectorBreakdown', label: 'Vector Breakdown', type: 'bool', group: 'Scene' },
+    { key: 'showFinalVectorAdditionZoom', label: 'Final Vector Zoom', type: 'bool', group: 'Scene' },
+    { key: 'showVelocityVectors', label: 'Velocity Vectors', type: 'bool', group: 'Scene' },
+    { key: 'showInitialVelocityVector', label: 'Launch Vector', type: 'bool', group: 'Scene' },
+    { key: 'showAngleArc', label: 'Launch Angle Arc', type: 'bool', group: 'Scene' },
+    { key: 'showComponents', label: 'Live Vx/Vy', type: 'bool', group: 'Scene' },
+    { key: 'showDistanceMarkers', label: 'X/Y Distance Lines', type: 'bool', group: 'Scene' },
+    { key: 'showMaxHeight', label: 'Max Height Line', type: 'bool', group: 'Scene' },
+    { key: 'showAccelerationVector', label: 'Acceleration Vector', type: 'bool', group: 'Scene' },
+    { key: 'showTimerDisplay', label: 'Canvas Timer', type: 'bool', group: 'Scene' },
+    { key: 'showProblemLabels', label: 'Problem Labels', type: 'bool', group: 'Scene' },
+    { key: 'showGhostFrames', label: 'Ghost Frames', type: 'bool', group: 'Scene' },
+    { key: 'showLaunchCannon', label: 'Launch Cannon', type: 'bool', group: 'Scene' },
+
+    // ── Values box (X/Y panels) ──────────────────────────────────────────────
+    { key: 'listDisplay', label: 'Values Mode', type: 'select', options: ['Hidden', 'Symbols', 'Values'], group: 'Values Box' },
+    { key: 'valuesPanelLayout', label: 'Panel Layout', type: 'select', options: ['Current Layout', 'Left Stack', 'Right Stack', 'Bottom Corners', 'Split Corners (X Top-Left)', 'Split Corners (X Bottom-Left)'], group: 'Values Box' },
+    { key: 'valuesPanelOffsetX', label: 'Panels X Offset', type: 'number', step: 5, group: 'Values Box' },
+    { key: 'valuesPanelOffsetY', label: 'Panels Y Offset', type: 'number', step: 5, group: 'Values Box' },
+    { key: 'xRowModeDisplacement', label: 'X: Δx Show As', type: 'select', options: VALUE_ROW_MODE_OPTIONS, group: 'Values Box' },
+    { key: 'xRowModeV0', label: 'X: v₀ₓ Show As', type: 'select', options: VALUE_ROW_MODE_OPTIONS, group: 'Values Box' },
+    { key: 'xRowModeV', label: 'X: vₓ Show As', type: 'select', options: VALUE_ROW_MODE_OPTIONS, group: 'Values Box' },
+    { key: 'xRowModeA', label: 'X: aₓ Show As', type: 'select', options: VALUE_ROW_MODE_OPTIONS, group: 'Values Box' },
+    { key: 'xRowModeT', label: 'X: t Show As', type: 'select', options: VALUE_ROW_MODE_OPTIONS, group: 'Values Box' },
+    { key: 'yRowModeDisplacement', label: 'Y: Δy Show As', type: 'select', options: VALUE_ROW_MODE_OPTIONS, group: 'Values Box' },
+    { key: 'yRowModeHmax', label: 'Y: hₘₐₓ Show As', type: 'select', options: VALUE_ROW_MODE_OPTIONS, group: 'Values Box' },
+    { key: 'yRowModeV0', label: 'Y: v₀ᵧ Show As', type: 'select', options: VALUE_ROW_MODE_OPTIONS, group: 'Values Box' },
+    { key: 'yRowModeV', label: 'Y: vᵧ Show As', type: 'select', options: VALUE_ROW_MODE_OPTIONS, group: 'Values Box' },
+    { key: 'yRowModeA', label: 'Y: aᵧ Show As', type: 'select', options: VALUE_ROW_MODE_OPTIONS, group: 'Values Box' },
+    { key: 'yRowModeT', label: 'Y: t Show As', type: 'select', options: VALUE_ROW_MODE_OPTIONS, group: 'Values Box' },
+    { key: 'showXValuesPanel', label: 'X Panel', type: 'bool', group: 'Values Box' },
+    { key: 'showYValuesPanel', label: 'Y Panel', type: 'bool', group: 'Values Box' },
+    { key: 'xPanelShowDisplacement', label: 'X: Δx Row', type: 'bool', group: 'Values Box' },
+    { key: 'xPanelShowV0', label: 'X: v₀ₓ Row', type: 'bool', group: 'Values Box' },
+    { key: 'xPanelShowV', label: 'X: vₓ Row', type: 'bool', group: 'Values Box' },
+    { key: 'xPanelShowA', label: 'X: aₓ Row', type: 'bool', group: 'Values Box' },
+    { key: 'xPanelShowT', label: 'X: t Row', type: 'bool', group: 'Values Box' },
+    { key: 'yPanelShowDisplacement', label: 'Y: Δy Row', type: 'bool', group: 'Values Box' },
+    { key: 'yPanelShowHmax', label: 'Y: hₘₐₓ Row', type: 'bool', group: 'Values Box' },
+    { key: 'yPanelShowV0', label: 'Y: v₀ᵧ Row', type: 'bool', group: 'Values Box' },
+    { key: 'yPanelShowV', label: 'Y: vᵧ Row', type: 'bool', group: 'Values Box' },
+    { key: 'yPanelShowA', label: 'Y: aᵧ Row', type: 'bool', group: 'Values Box' },
+    { key: 'yPanelShowT', label: 'Y: t Row', type: 'bool', group: 'Values Box' },
+
+    // ── Equation box ─────────────────────────────────────────────────────────
+    { key: 'equationHighlight', label: 'Highlight Equation', type: 'select', options: ['None', 'Eq 1', 'Eq 2', 'Eq 3', 'Eq 4'], group: 'Equation Box' },
+    { key: 'equationPanelPlacement', label: 'Panel Placement', type: 'select', options: ['Bottom Right', 'Bottom Left', 'Top Right', 'Top Left', 'Top Center', 'Bottom Center'], group: 'Equation Box' },
+    { key: 'equationPanelOffsetX', label: 'Equation X Offset', type: 'number', step: 5, group: 'Equation Box' },
+    { key: 'equationPanelOffsetY', label: 'Equation Y Offset', type: 'number', step: 5, group: 'Equation Box' },
+    { key: 'showEquations', label: 'Equation Box', type: 'bool', group: 'Equation Box' },
+    { key: 'eqShowVfEquation', label: 'Eq 1: v = v₀ + at', type: 'bool', group: 'Equation Box' },
+    { key: 'eqShowDisplacementEquation', label: 'Eq 2: Δy = v₀t + ½at²', type: 'bool', group: 'Equation Box' },
+    { key: 'eqShowVSquaredEquation', label: 'Eq 3: v² = v₀² + 2aΔy', type: 'bool', group: 'Equation Box' },
+    { key: 'eqShowAvgVelocityEquation', label: 'Eq 4: Δy = ½(v₀ + v)t', type: 'bool', group: 'Equation Box' },
+
+    // ── Given-value animation ────────────────────────────────────────────────
+    { key: 'givenValueAnimationSpeed', label: 'Given Anim Speed', type: 'number', step: 0.05, default: 0.65, group: 'Givens' },
+    { key: 'animateGivenValues', label: 'Animate Given Values', type: 'bool', group: 'Givens' }
 ];
 
 const BASE_STEP_SETTING = {
@@ -357,6 +404,64 @@ function sectionTitle(text) {
     return `<h5 style="font-size:0.63rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin:0 0 0.45rem;">${esc(text)}</h5>`;
 }
 
+// Renders the Display Overrides section grouped by field.group. Selects get a
+// leading "(global)" option: choosing it removes the override so the step falls
+// back to the main control panel's setting.
+function buildDisplayOverrideGroups(displayOverrides, accent) {
+    const groups = [];
+    STEP_DISPLAY_FIELDS.forEach((field) => {
+        const name = field.group || 'Scene';
+        if (!groups.includes(name)) groups.push(name);
+    });
+
+    return groups.map((groupName) => {
+        const fields = STEP_DISPLAY_FIELDS.filter(field => (field.group || 'Scene') === groupName);
+        const inputFields = fields.filter(field => field.type !== 'bool');
+        const boolFields = fields.filter(field => field.type === 'bool');
+
+        const inputGrid = inputFields.length ? `
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0.35rem 0.55rem;">
+                ${inputFields.map((field) => {
+                    const hasOverride = field.key in displayOverrides;
+                    let control;
+                    if (field.type === 'number') {
+                        const value = displayOverrides[field.key] ?? field.default ?? '';
+                        control = numberInput(`data-step-display="${esc(field.key)}"`, value, { step: field.step ?? 1 });
+                    } else {
+                        const current = hasOverride ? String(displayOverrides[field.key]) : '';
+                        control = `<select data-step-display="${esc(field.key)}" style="width:100%;border:1px solid ${hasOverride ? accent : 'var(--border)'};border-radius:0.4rem;padding:0.28rem 0.45rem;font-size:0.76rem;font-weight:600;background:white;color:var(--text-primary);" title="${hasOverride ? 'Override active' : 'Using global setting'}">
+                            <option value=""${hasOverride ? '' : ' selected'}>(global)</option>
+                            ${field.options.map(option => `<option value="${esc(option)}"${current === option ? ' selected' : ''}>${esc(option)}</option>`).join('')}
+                        </select>`;
+                    }
+                    return `<div><label style="font-size:0.61rem;font-weight:700;color:${hasOverride ? '#0f172a' : 'var(--text-muted)'};text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:0.12rem;">${esc(field.label)}</label>${control}</div>`;
+                }).join('')}
+            </div>` : '';
+
+        const boolGrid = boolFields.length ? `
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0.1rem 0.4rem;margin-top:0.5rem;">
+                ${boolFields.map((field) => {
+                    const hasOverride = field.key in displayOverrides;
+                    const triVal = hasOverride ? (displayOverrides[field.key] ? 'yes' : 'no') : 'default';
+                    return `<label style="display:flex;align-items:center;gap:0.3rem;padding:0.18rem 0.1rem;border-radius:0.3rem;">
+                        <select data-step-tri="${esc(field.key)}" style="width:42px;font-size:0.65rem;padding:0.08rem 0.1rem;border:1px solid var(--border);border-radius:0.3rem;background:white;color:var(--text-primary);cursor:pointer;flex-shrink:0;" title="${hasOverride ? 'Override active' : 'Using global setting'}">
+                            <option value="default" ${triVal === 'default' ? 'selected' : ''}>-</option>
+                            <option value="yes" ${triVal === 'yes' ? 'selected' : ''}>On</option>
+                            <option value="no" ${triVal === 'no' ? 'selected' : ''}>Off</option>
+                        </select>
+                        <span style="font-size:0.7rem;color:${hasOverride ? '#0f172a' : 'var(--text-secondary)'};font-weight:${hasOverride ? '700' : '600'};line-height:1.2;">${esc(field.label)}</span>
+                    </label>`;
+                }).join('')}
+            </div>` : '';
+
+        return `<div style="margin-bottom:0.65rem;">
+            <div style="font-size:0.6rem;font-weight:800;text-transform:uppercase;letter-spacing:0.07em;color:${accent};margin:0.2rem 0 0.35rem;">${esc(groupName)}</div>
+            ${inputGrid}
+            ${boolGrid}
+        </div>`;
+    }).join('');
+}
+
 export function buildStepSettingsPanel(state) {
     const { currentSteps, activeStepId, stepSettings } = state;
     if (!currentSteps || !currentSteps.length) {
@@ -513,29 +618,7 @@ export function buildStepSettingsPanel(state) {
 
                 <section style="padding-top:0.55rem;border-top:1px solid var(--border-subtle);">
                     ${sectionTitle('Display Overrides')}
-                    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0.35rem 0.55rem;">
-                        ${STEP_DISPLAY_FIELDS.filter(field => field.type !== 'bool').map((field) => {
-                            const value = displayOverrides[field.key] ?? field.default ?? field.options?.[0] ?? '';
-                            const control = field.type === 'number'
-                                ? numberInput(`data-step-display="${esc(field.key)}"`, value, { step: field.step ?? 1 })
-                                : `<select data-step-display="${esc(field.key)}" style="width:100%;border:1px solid var(--border);border-radius:0.4rem;padding:0.28rem 0.45rem;font-size:0.76rem;font-weight:600;background:white;color:var(--text-primary);">${field.options.map(option => `<option value="${esc(option)}"${value === option ? ' selected' : ''}>${esc(option)}</option>`).join('')}</select>`;
-                            return `<div><label style="font-size:0.61rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:0.12rem;">${esc(field.label)}</label>${control}</div>`;
-                        }).join('')}
-                    </div>
-                    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0.1rem 0.4rem;margin-top:0.5rem;">
-                        ${STEP_DISPLAY_FIELDS.filter(field => field.type === 'bool').map((field) => {
-                            const hasOverride = field.key in displayOverrides;
-                            const triVal = hasOverride ? (displayOverrides[field.key] ? 'yes' : 'no') : 'default';
-                            return `<label style="display:flex;align-items:center;gap:0.3rem;padding:0.18rem 0.1rem;border-radius:0.3rem;">
-                                <select data-step-tri="${esc(field.key)}" style="width:42px;font-size:0.65rem;padding:0.08rem 0.1rem;border:1px solid var(--border);border-radius:0.3rem;background:white;color:var(--text-primary);cursor:pointer;flex-shrink:0;" title="${hasOverride ? 'Override active' : 'Using global setting'}">
-                                    <option value="default" ${triVal === 'default' ? 'selected' : ''}>-</option>
-                                    <option value="yes" ${triVal === 'yes' ? 'selected' : ''}>On</option>
-                                    <option value="no" ${triVal === 'no' ? 'selected' : ''}>Off</option>
-                                </select>
-                                <span style="font-size:0.7rem;color:${hasOverride ? '#0f172a' : 'var(--text-secondary)'};font-weight:${hasOverride ? '700' : '600'};line-height:1.2;">${esc(field.label)}</span>
-                            </label>`;
-                        }).join('')}
-                    </div>
+                    ${buildDisplayOverrideGroups(displayOverrides, accent)}
                 </section>
 
                 <section style="display:flex;gap:0.45rem;flex-wrap:wrap;padding-top:0.55rem;border-top:1px solid var(--border-subtle);">
@@ -621,7 +704,8 @@ export function bindStepSettingsPanelEvents(container, state, handlers = {}) {
             if (!ms) return;
             if (!ms.displayOverrides) ms.displayOverrides = {};
             const value = el.type === 'number' ? parseMaybeNumber(el.value) : el.value;
-            if (value === null) delete ms.displayOverrides[el.dataset.stepDisplay];
+            // null (blank number) or '' ("(global)" select option) clears the override.
+            if (value === null || value === '') delete ms.displayOverrides[el.dataset.stepDisplay];
             else ms.displayOverrides[el.dataset.stepDisplay] = value;
             handlers.onSettingChange?.();
         });

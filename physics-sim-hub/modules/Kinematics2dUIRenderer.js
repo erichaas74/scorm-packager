@@ -127,18 +127,13 @@ drawAxisValuePanel(ctx, { title, rows, x, y, width, model = null }) {
 drawEquationPanel(ctx, model) {
     if (!this.inputs.showEquations) return;
 
-    const d = 'Δy';
-    const eqs = [
-        'v = v₀ + at',
-        `${d} = v₀t + ½at²`,
-        `v² = v₀² + 2a${d}`,
-        `${d} = ½(v₀ + v)t`
-    ];
+    const entries = this.getEquationLineEntries();
+    if (!entries.length) return;
 
     const panel = this.getEquationPanelLayout(model);
     this.drawEquationBox(ctx, {
-        equations: this.getEquationLines(model),
-        highlightKey: this.inputs.equationHighlight,
+        equations: entries.map(entry => entry.text),
+        highlightKey: this.getEquationHighlightKey(entries),
         x: panel.x,
         y: panel.y,
         width: panel.width,

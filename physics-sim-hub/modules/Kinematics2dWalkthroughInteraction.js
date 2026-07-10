@@ -151,9 +151,10 @@ const walkthroughInteractionMethods = {
         const setting = this.getStepSetting(step);
         const displayOverrides = this.getStepDisplayOverrides(step);
 
-        // Tear down any live step hover loop from a previous step before applying
-        // new overrides, so the restore functions don't fight each other.
-        this._cleanupStepHoverPreview?.();
+        // Tear down any live step hover loop AND any running play animation
+        // before applying new overrides — their cleanup callbacks restore saved
+        // inputs and would clobber the overrides if they fired later.
+        this.stopPreview();
 
         const restoreInputs = this.applyTemporaryInputOverrides(displayOverrides);
         const canvasStep = this.getWalkthroughCanvasStep(step);
@@ -166,7 +167,6 @@ const walkthroughInteractionMethods = {
             this._hoverAnimStartMs = performance.now() - 1500;
         }
 
-        this.stopPreview();
         this.ctx.fillStyle = this.config.backgroundColor;
         this.ctx.fillRect(0, 0, this.width, this.height);
         this.activeWalkthroughStep = canvasStep;
@@ -251,16 +251,18 @@ const walkthroughInteractionMethods = {
 
         const setting = this.getStepSetting(step);
 
-        const flightSources = ['full-flight', 'step-window', 'custom-range'];
-        if (setting.showLaunch === false && flightSources.includes(setting.animationSource)) {
-            return { startTime: 0, endTime: 3 };
-        }
-
         const restoreInputs = this.applyTemporaryInputOverrides(this.getStepDisplayOverrides(step));
         const previousStep = this.activeWalkthroughStep;
         if (step?.animatedPanel) this.activeWalkthroughStep = this.getWalkthroughCanvasStep(step);
 
         try {
+            const flightSources = ['full-flight', 'step-window', 'custom-range'];
+            if (setting.showLaunch === false && flightSources.includes(setting.animationSource)) {
+                // Motion is frozen at launch for these clips; make the window long
+                // enough for the given-value fly-in animation to complete.
+                const transferDuration = this.getProblemValueTransferDuration?.() || 0;
+                return { startTime: 0, endTime: Math.max(3, transferDuration + 0.5) };
+            }
             const { startTime, endTime } = resolveStepTimeRange(this, steps, stepIndex, setting);
             return { startTime, endTime };
         } finally {
@@ -295,27 +297,32 @@ const walkthroughInteractionMethods = {
         const idx = stepIndex ?? this.getStepState(steps).stepIndex;
         const step = steps[idx];
         if (!step) return;
-        const { startTime, endTime } = this.getStepAnimationTimeRange(steps, idx);
+
+        // Stop any running play animation or step-hover preview FIRST, so their
+        // cleanup callbacks (input restores, walkthrough-context clearing) run
+        // before this play snapshots input state — not in the middle of it.
+        this.stopPreview();
+
         const setting = this.getStepSetting(step);
-        const displayOverrides = this.getStepDisplayOverrides(step);
-        const restoreInputs = this.applyTemporaryInputOverrides(displayOverrides);
-
-        this.prepareStepAnimationContext(step);
-
-        const savedHoverKey = this.hoveredValueKey;
-        if (setting.hoverKey) {
-            this.hoveredValueKey = setting.hoverKey;
-            this._hoverAnimStartMs = performance.now();
-        }
+        const { startTime, endTime } = this.getStepAnimationTimeRange(steps, idx);
 
         const flightSources = ['full-flight', 'step-window', 'custom-range', 'hover-animation'];
-        const freezeAtStart = setting.showLaunch === false && flightSources.includes(setting.animationSource);
+        const freezeMotion = setting.showLaunch === false && flightSources.includes(setting.animationSource);
+        const displayOverrides = {
+            ...this.getStepDisplayOverrides(step),
+            // Freeze the projectile at launch while time still advances, so
+            // time-driven overlays (given-value fly-ins, hover animations)
+            // keep playing instead of the whole frame being pinned to t = 0.
+            ...(freezeMotion ? { stopAnimation: 'Custom Time', customStopTime: 0 } : {})
+        };
+        const restoreInputs = this.applyTemporaryInputOverrides(displayOverrides);
+        const savedHoverKey = this.hoveredValueKey;
 
         const speed = Math.max(0.1, Number(setting.playbackSpeed) || 1);
         const wallEndTime = startTime + ((endTime - startTime) / speed);
         this.playSegment(startTime, wallEndTime, {
             onFrame: (t) => {
-                const mappedTime = freezeAtStart ? 0 : Math.min(endTime, startTime + ((t - startTime) * speed));
+                const mappedTime = Math.min(endTime, startTime + ((t - startTime) * speed));
                 this.drawFrame(this.ctx, mappedTime);
                 if (setting.showExplanation === true && typeof this.drawStepPanel === 'function') {
                     this.drawStepPanel(this.ctx, step);
@@ -328,6 +335,15 @@ const walkthroughInteractionMethods = {
                 restoreInputs();
             }
         });
+
+        // playSegment() begins with stopPreview(), whose step-hover cleanup
+        // clears activeWalkthroughStep — so the step context and hover key must
+        // be applied AFTER it starts, or step overlays never render.
+        this.prepareStepAnimationContext(step);
+        if (setting.hoverKey) {
+            this.hoveredValueKey = setting.hoverKey;
+            this._hoverAnimStartMs = performance.now();
+        }
     }
 
 };

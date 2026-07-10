@@ -1,0 +1,808 @@
+﻿Buzz Assessment Text-File Reference for LLMs
+Last verified against official Agilix Help Center articles on 2026-03-18.
+Purpose
+This document is a generation spec for an LLM that must produce Buzz question text that can be pasted into the Text editor or Edit all questions screen in Buzz Assessments. This guide is written to maximize copy-paste success.
+1) Non-negotiable generation rules
+1. Start every question with a Type: line.
+2. Put all properties immediately after Type: and before the question prompt.
+3. Put the question prompt next.
+4. Put any feedback blocks immediately after the prompt.
+5. Put the answer section after the prompt and feedback.
+6. Separate questions with a blank line.
+7. For any continuation line in the question body, feedback body, choice body, or match body, indent the continuation line with 3 leading spaces.
+8. Use [----] only for Inline MC, MA, or MT questions.
+9. Use ___ or longer underscore runs only for Fill in the Blank (F) blanks.
+10. Preserve Buzz property names exactly as documented: Type, Options, Label, Score, Var, Image, Coords, Rubric, Passage, MaxFiles, FileTypes, etc.
+11. Do not invent property names or option names.
+12. Do not mix visual-editor wording with text-editor syntax.
+13. When unsure, prefer the simplest valid text-editor form over advanced formatting.
+2) Core structure of every question
+Buzz text questions are built from five parts:
+1. Question type (required)
+2. Properties (optional, but often needed)
+3. Question prompt (required)
+4. Feedback blocks (optional)
+5. Type-specific answers / choices / matches / order data
+Minimal example
+Type: MC
+1) What is the capital of Sweden?
+*a. Stockholm
+b. Oslo
+c. Helsinki
+
+3) Global formatting rules
+Multi-line text
+Questions, choices, matches, and feedback can all be multi-line. Use 3 leading spaces on continuation lines.
+Type: MC
+1) This is a multi-line question.
+  The second line must begin with 3 spaces.
+*a. Correct choice
+b. Wrong choice
+
+Plain text characters
+In plain text, you do not need to encode <, >, or &.
+Rich text
+Buzz supports rich formatted text in many question bodies and choices, but for highest reliability in generated banks, prefer plain text unless you intentionally need HTML or media tokens. If embedding external interactive apps or simulations, standard HTML <iframe> tags can be included in the question prompt. Prefer plain text otherwise.
+Inline placeholders
+Only MC, MA, and MT support Options: Inline placeholders. Use exactly:
+[----]
+
+Fill-in blanks
+For F, create blanks with 3 or more underscores.
+__________
+
+Recommended: make the underscore run about as long as the expected answer.
+4) Supported question type codes
+C   Custom
+E   Essay
+UP  File upload
+F   Fill in the blank
+MT  Matching
+MA  Multiple answer
+MC  Multiple choice
+O   Ordering
+P   Passage
+
+5) Question properties reference
+5A) General properties
+Type:
+Required on every question.
+Type: MC
+
+Score:
+Numeric point value for the question.
+Score: 5
+
+For MA, MT, and O, Buzz also supports partial credit forms:
+Score: Partial
+Score: Partial, Round
+
+Label:
+Applies to MC and MA. Allowed values:
+Label: 1
+Label: A
+Label: a
+Label: I
+
+Groups:
+Comma-separated list of group IDs.
+Groups: review,unit1,retake
+
+Objectives:
+Comma-separated objective IDs.
+Objectives: OBJ-1,OBJ-2
+
+Calculator:
+Question-level calculator access.
+Calculator: Basic
+Calculator: Standard
+Calculator: Scientific
+Calculator: Basic, Scientific
+
+Options:
+Comma-separated option list. Only use valid options for that question type.
+Meta-NAME:
+Custom metadata value.
+Meta-author: Eric Haas
+
+Passage:
+Attach a question to a passage by HREF.
+Passage: passage1
+
+Custom:
+Custom rendering URL or path.
+Custom: [https://example.com/custom-question](https://example.com/custom-question)
+
+ExtraCredit
+The property table documents ExtraCredit as a question scoring property. In text files, keep it as a property line only if your domain uses it and you have verified the exact import behavior. Conservative form:
+ExtraCredit
+
+If your domain expects the visual-editor toggle only, omit it from generated text.
+Var:
+Declares a variable range or list.
+Var: x = 1..10
+Var: y = 0..20,2
+Var: color = red,blue,green
+Var: animalgroup.animals = dog,cat,bird
+
+5B) Options by type
+Only use these documented option values:
+DragAndDrop           MT, O
+Graphic               MA, MT
+Horizontal            O
+Inline                MA, MC, MT
+MaintainOrder         MA, MC, O
+MaintainQuestionOrder P
+Multiple              F
+RemoveUsedChoices     MT
+ShowCorrect           F
+Side                  P
+Single                P
+Workspace             all except E and P
+
+Important combinations
+Options: Inline
+Options: DragAndDrop
+Options: DragAndDrop, Horizontal
+Options: DragAndDrop, RemoveUsedChoices
+Options: DragAndDrop, Inline, MaintainOrder
+Options: Graphic
+Options: DragAndDrop, Graphic
+Options: Side
+Options: Side, Single
+
+5C) Graphic / upload / essay / numeric properties
+Essay
+Height: 400
+Rubric: Rubric1.xml
+MinWords: 75
+MaxWords: 300
+
+File upload
+MaxFiles: 2
+FileTypes: pdf|docx|png
+
+Fill in the Blank numeric grading
+Figures: 3
+
+Graphic questions
+For MA, Graphic and MT, Graphic:
+Image: Assets/diagram.png
+Coords: (10,10,20,15) (40,10,20,15)
+
+For MA, Graphic only, additional hotspot styling is allowed:
+BorderColor: #FFFFFF
+BorderStyle: dotted
+BorderWidth: 3
+SelectedColor: #00FF36
+SelectedStyle: solid
+SelectedWidth: 5
+
+For MA, Graphic, hotspot shapes may be rectangular or circular:
+Coords: rect(71.93,74.66,25.28,17.53) circle(61.59,54.79,14.35,17.43)
+
+Coords values are percentages in this order:
+left, top, width, height
+
+6) Variables and math generation
+6A) Variable declarations
+Range variables
+Var: a = 1..10
+Var: t = 0..5,0.5
+Var: m = -10..10,2
+
+Use this pattern:
+Var: NAME = START..END[,STEP]
+
+Notes:
+* Start and end are inclusive.
+* Default step is 1 if omitted.
+* Variable names should not contain spaces or special characters.
+List variables
+Var: color = red,blue,green
+Var: animalgroup.animals = dog,cow,crow,goose
+Var: animalgroup.terms = pack,herd,murder,flock
+
+Use this pattern:
+Var: [GROUP.]NAME = VALUE[,VALUE]+ 
+
+Grouped lists align by list position.
+6B) Referencing variables
+Insert a variable value into displayed text
+$m$
+$t$
+$animalgroup.animals$
+
+Show a computed value to students
+Use $eval(...,0) when the result should be displayed inside the stem or an answer choice.
+$eval($m$*$a$,0)
+
+Grade a computed answer in Fill in the Blank
+Use eval(...) in the answer key.
+a. eval($m$*$a$)
+
+Literal Dollar Signs
+Do not use the $ symbol for currency or standard text, as Buzz will attempt to parse it as a variable. Use the word "dollars" instead.
+Best practical rule
+* Use $eval(...) for displayed generated values.
+* Use eval(...) for fill-in answer evaluation.
+6C) Supported math operations
+Buzz documents these operations:
++  -  * /  ^
+pi
+e
+|x| or abs(x)
+cos(x)
+sin(x)
+tan(x)
+sec(x)
+csc(x)
+cot(x)
+asin(x)
+acos(x)
+atan(x)
+sqrt(x)
+x^(1/n)
+ln(x)
+log(x)
+log_(x)(y)
+eval(x)
+floor(x)
+ceil(x)
+
+Notes:
+* Trig uses radians.
+* eval(x) can compute variable expressions inside answers.
+Examples:
+eval($vi$ + $a$*$t$)
+eval($vi$*$t$ + 0.5*$a$*$t$^2)
+eval(sqrt($x$))
+eval(2*pi*$r$)
+
+7) Feedback syntax
+Feedback lines go immediately after the question prompt.
+Standard feedback blocks
+@[Always] message
+@[When answer is correct] message
+@[When answer is incorrect] message
+
+Example:
+Type: MA
+1) Which are cephalopods?
+@[When answer is correct] Good work.
+@[When answer is incorrect] Review octopus, squid, and cuttlefish.
+*a. Octopus
+*b. Squid
+*c. Cuttlefish
+d. Crab
+
+Choice-specific feedback
+For MC and MA, put @ on the line directly under a choice.
+Type: MC
+Options: Inline
+1) The capital of Sweden is [----].
+*a. Stockholm
+@ That's correct.
+b. Oslo
+@ Oslo is the capital of Norway.
+c. Helsinki
+@ Helsinki is the capital of Finland.
+
+Custom feedback conditions
+Buzz documents these condition variables:
+score
+teacher
+answer
+answer1
+answer2
+...
+answercorrect1
+answercorrect2
+...
+
+Documented operators:
+=
+<>
+<
+<=
+>
+>=
+
+Examples:
+@[answercorrect1=false] Review the first section.
+@[score<=0.5] Review Unit 3 activities.
+@[LowScores: score<=0.5] Review the notes.
+
+If multiple feedback lines share a group name, Buzz applies the first matched condition in that group.
+8) Type-by-type generation rules
+8A) Multiple Choice (MC)
+Required pattern
+* Use Type: MC
+* Mark the single correct choice with *
+* Use one choice per line
+Basic example
+Type: MC
+Label: a
+1) What is the capital of Sweden?
+*a. Stockholm
+b. Oslo
+c. Helsinki
+
+Fixed-position choice
+Use x. to force a choice to stay in its listed position.
+Type: MC
+Label: a
+1) What is the capital of Sweden?
+*a. Stockholm
+b. Oslo
+c. Helsinki
+x. None of the above
+
+Keep all choices in authored order
+Options: MaintainOrder
+
+Inline dropdown form
+Type: MC
+Options: Inline
+1) The capital of Sweden is [----].
+*a. Stockholm
+b. Oslo
+c. Helsinki
+
+LLM rules for MC
+* Exactly one choice should be marked correct.
+* Do not use [----] unless Options: Inline is present.
+* If using x., use it only for a fixed-position distractor/choice.
+8B) Multiple Answer (MA)
+Required pattern
+* Use Type: MA
+* Mark every correct choice with *
+Basic example
+Type: MA
+Label: a
+1) Which are mammals?
+*a. Dog
+*b. Cat
+c. Eagle
+d. Trout
+
+Partial credit
+Type: MA
+Score: Partial
+1) Select all valid answers.
+*a. Correct 1
+*b. Correct 2
+c. Wrong
+d. Wrong
+
+Inline clickable form
+Type: MA
+Options: Inline
+1) Which are cephalopods? [----] [----] [----]
+*a. Octopus
+*b. Squid
+*c. Cuttlefish
+d. Crab
+
+Graphic hotspot form
+Type: MA
+Options: Graphic
+Image: Assets/ocean.png
+Coords: rect(73.89,4.5,24.51,13.67) circle(61.59,54.79,14.35,17.43)
+BorderColor: #FFFFFF
+BorderWidth: 3
+BorderStyle: dotted
+SelectedColor: #00FF36
+SelectedWidth: 5
+1) Select all organisms that create their own light.
+a. Dolphin
+*b. Lantern shark
+c. Comb jelly
+*d. Angler fish
+
+LLM rules for MA
+* One or more choices may be correct.
+* Use Score: Partial only when partial credit is desired.
+* Use Graphic only when you also supply Image: and Coords:.
+8C) Fill in the Blank (F)
+Required pattern
+* Use Type: F or a documented subtype.
+* Put blanks in the prompt using 3 or more underscores.
+* Put answer lines below.
+* By default, answers map to blanks in order.
+Basic example
+Type: F
+1) The capital of Sweden is __________.
+a. Stockholm
+
+Supported subtypes
+Type: F, IgnoreCase
+Type: F, Match
+Type: F, Equivalent
+Type: F, Number
+Type: F, RegEx
+
+Meaning of subtypes
+* IgnoreCase: exact match ignoring case.
+* Match: normalized expression-tree match.
+* Equivalent: mathematically equivalent expressions accepted.
+* Number: numeric interval checking.
+* RegEx: regular-expression matching.
+Numeric example
+Type: F, Number
+Figures: 3
+1) What is g near Earth? __________ m/s^2
+a. 9.79..9.81
+
+Important numeric rule
+By default, F, Number accepts answers within 1% of the correct answer unless you specify your own range using start..end. For F, Number answers where the correct value is 0, explicitly define a tolerance range (e.g., -0.01..0.01) to account for varying student precision.
+Multiple blanks and multiple answers
+Use Options: Multiple when one blank has more than one acceptable answer.
+Type: F, IgnoreCase
+Score: 10
+Options: Multiple
+1) __________ is the capital of Finland, and __________ is the capital of Sweden.
+[.6]a. Helsingfors
+[.5] Helsinki
+[.4]b. Stockholm
+
+Weighted blank scoring
+You may assign weighted credit using prefixes like [.6] before a blank label.
+Math-expression examples
+Type: F, Number
+1) Calculate force: __________
+a. eval($m$*$a$)
+
+Type: F, Equivalent
+1) Write an equivalent expression for __________.
+a. 2x
+
+LLM rules for F
+* Never use [----] in F.
+* Never use choice markers like *a. in F answer keys.
+* Always use F, IgnoreCase for text-based fill-in blanks unless exact capitalization is explicitly required.
+* Use Options: Multiple only when a blank has multiple valid answers.
+* Use F, Number for numeric calculation questions.
+* Use eval(...) for computed fill-in answers.
+8D) Matching (MT)
+Required pattern
+* Use Type: MT
+* Standard syntax is:
+a. left = right
+
+Basic dropdown example
+Type: MT
+1) Match the animals with their sounds.
+a. dog = woof
+b. cat = meow
+c. bird = chirp
+d. = moo
+
+A blank left side creates a distractor.
+Drag-and-drop form
+Type: MT
+Options: DragAndDrop, RemoveUsedChoices
+1) Match the animals with their sounds.
+a. dog = woof
+b. cat = meow
+c. bird = chirp
+d. = moo
+
+Inline drag-and-drop form
+Type: MT
+Options: DragAndDrop, Inline, MaintainOrder
+1) The dog [----] chased the cat [----] that chased the bird [----].
+a. 1 = woof
+b. 3 = chirp
+c. 2 = meow
+d. = moo
+
+Important rule: in inline matching, the left side is the blank number, not the visible text.
+Graphic drag-and-drop form
+Type: MT
+Options: DragAndDrop, RemoveUsedChoices, Graphic
+Image: Assets/diagram.png
+Coords: (3.66,18.57,40.99,22.89) (55.33,11.18,43.04,28.29)
+1) Match the labels to the image targets.
+a. target 1 = Label A
+b. target 2 = Label B
+c. = Distractor
+
+LLM rules for MT
+* Use left = right syntax exactly.
+* Use d. = distractor for distractors.
+* Use Options: DragAndDrop for drag interactions.
+* Use RemoveUsedChoices only with matching.
+* Use Graphic only with matching when you also provide Image: and Coords:.
+* Use Inline with [----] only when the interaction is inline.
+8E) Ordering (O)
+Required pattern
+Prefix each option with the correct order number and an underscore.
+1_a.
+2_b.
+3_c.
+
+Basic example
+Type: O
+Options: MaintainOrder
+1) Sort these from smallest to largest.
+2_a. meter
+1_b. centimeter
+3_c. kilometer
+
+Vertical drag-and-drop
+Type: O
+Options: DragAndDrop
+1) Put these in order.
+2_a. second
+1_b. first
+3_c. third
+
+Horizontal drag-and-drop
+Type: O
+Options: DragAndDrop, Horizontal
+Label: a
+1) Put these stages in order.
+a. start
+b. middle
+c. end
+
+Important note: Buzz’s documentation explicitly describes ordered-number prefixes for normal ordering questions. The examples for drag-and-drop ordering focus on the visual editor. For copy-paste text generation, safest practice is to continue using numbered prefixes unless you have verified the shorter drag-and-drop form in your domain.
+LLM rules for O
+* Use order prefixes like 1_a. for reliable text-editor generation.
+* Use Options: DragAndDrop for draggable ordering.
+* Add Horizontal only for left-to-right ordering layout.
+* Use Score: Partial or Score: Partial, Round only if desired.
+8F) Essay (E)
+Required pattern
+Type: E
+1) Explain Newton's First Law.
+a. A strong answer should explain inertia and balanced forces.
+
+Common properties
+Height: 300
+Rubric: Rubric1.xml
+MinWords: 75
+MaxWords: 250
+
+Important restriction
+Essay questions are not available in Practice questions activities.
+LLM rules for E
+* Use only in Assessments.
+* The a. line is an example answer for graders, not an auto-graded key.
+8G) File Upload (UP)
+Required pattern
+Type: UP
+MaxFiles: 2
+FileTypes: pdf|png|jpg
+1) Upload your graph and lab work.
+
+Important rules
+* File upload questions are not available in Practice questions activities.
+* Students upload files from their computer, not cloud links.
+* Buzz enforces a 100 MB upload limit.
+* The visual editor article says allowed extensions are space-separated there, but the text-editor property table documents FileTypes as pipe-separated. For generated text files, use the text-editor form:
+FileTypes: pdf|docx|png
+
+LLM rules for UP
+* Use only in Assessments.
+* Keep MaxFiles from 1 to 5.
+* Use extensions without periods.
+* Use | separators in generated text files.
+8H) Passage (P)
+Important behavior
+A Passage is not an interactive question template. It has no score, no answer key, no interaction, and no feedback.
+Example
+Type: P
+Options: Side, Single
+1) Insert the reading passage here.
+  Continuation lines need 3 leading spaces.
+
+Passage-related options
+Options: Side
+Options: Side, Single
+Options: MaintainQuestionOrder
+
+LLM rules for P
+* Do not add answer choices.
+* Do not add Score:.
+* Do not add feedback blocks.
+* Use Passage: on non-P questions to associate them with a passage.
+8I) Custom (C)
+Example
+Type: C
+Custom: [https://example.com/custom-question](https://example.com/custom-question)
+Var: row = 0..7
+Var: col = 0..7
+1) Indicate all valid moves.
+a. {Color1: Black, Color2: Red}
+
+LLM rules for C
+* Use only if the course/domain already supports a known custom renderer.
+* Do not invent custom payload structures unless the user provides them.
+9) Drag-and-drop rules summary
+Drag-and-drop is not its own Buzz type. It is an option.
+Valid drag-and-drop patterns
+Ordering drag-and-drop
+Type: O
+Options: DragAndDrop
+
+Ordering horizontal drag-and-drop
+Type: O
+Options: DragAndDrop, Horizontal
+
+Matching drag-and-drop
+Type: MT
+Options: DragAndDrop
+
+Matching drag-and-drop with disappearing used choices
+Type: MT
+Options: DragAndDrop, RemoveUsedChoices
+
+Matching inline drag-and-drop
+Type: MT
+Options: DragAndDrop, Inline, MaintainOrder
+
+Matching graphic drag-and-drop
+Type: MT
+Options: DragAndDrop, Graphic
+Image: Assets/diagram.png
+Coords: (...)
+
+Do not generate
+* Options: DragAndDrop for MC, MA, F, E, UP, or P
+* Options: Horizontal for anything except O
+* Options: RemoveUsedChoices for anything except MT
+10) Common failure modes an LLM should avoid
+1. Forgetting the Type: line.
+2. Putting properties after the question body instead of before it.
+3. Using [----] in F questions.
+4. Using underscores in inline MC, MA, or MT instead of [----].
+5. Forgetting * on correct MC / MA answers.
+6. Marking more than one correct choice in MC.
+7. Forgetting order prefixes in O text syntax.
+8. Writing a = b instead of a. left = right in MT.
+9. Using RemoveUsedChoices on non-matching questions.
+10. Using Graphic without Image: and Coords:.
+11. Using FileTypes: with commas instead of pipes in generated text.
+12. Using file extensions with dots, such as .pdf.
+13. Using Essay or File upload inside Practice questions activities.
+14. Mixing $eval(...) and eval(...) the wrong way.
+15. Forgetting 3-space indentation for continuation lines.
+16. Adding answer keys to P passage questions.
+17. Adding score/feedback to P passage questions.
+18. Inventing unsupported properties like Tolerance: or ChoicesTitle: in text files.
+19. Using a literal $ for currency, causing a variable parsing error.
+11) Safe generation checklist for an LLM
+Before finalizing a Buzz text bank, verify all of the following:
+* Every question begins with Type:.
+* Every property name is officially documented.
+* Every option value is officially documented for that question type.
+* MC has exactly one * answer.
+* MA has one or more * answers.
+* F uses underscores in the prompt and answer lines below.
+* F, Number uses either a number, a range, or eval(...).
+* MT uses label. left = right syntax.
+* O uses correct order prefixes if using text syntax.
+* Inline questions include [----] placeholders.
+* Graphic questions include both Image: and Coords:.
+* UP uses FileTypes: without periods and with | separators.
+* No Practice-only bank includes E or UP.
+* Multi-line continuation lines begin with exactly 3 spaces.
+* No unsupported custom syntax has been introduced.
+12) Output contract for a Buzz-generating LLM
+When asked to generate Buzz text, the model should follow this contract:
+1. Output only valid Buzz text unless the user asks for explanation.
+2. Do not add prose before or after the question bank.
+3. Use blank lines between questions.
+4. Prefer plain text over advanced formatting.
+5. Use official property names and official option names only.
+6. Use the simplest valid structure for the requested question type.
+7. For math questions:
+   * use Var: declarations first,
+   * use $name$ to display variable values,
+   * use $eval(...,0) to display computed values,
+   * use eval(...) in fill-in answer keys.
+8. For ambiguous drag-and-drop ordering text, prefer the safer numbered-order syntax.
+9. For file upload text syntax, prefer FileTypes: with pipe separators.
+10. If a requested feature is not clearly documented in text syntax, avoid inventing it.
+13) Ready-to-copy master examples
+MC
+Type: MC
+Label: a
+1) What is the SI unit of force?
+*a. newton
+b. joule
+c. watt
+d. pascal
+
+MA
+Type: MA
+Score: Partial
+Label: a
+1) Which quantities are vectors?
+*a. velocity
+*b. acceleration
+c. speed
+d. distance
+
+F exact
+Type: F
+1) The SI unit of mass is __________.
+a. kilogram
+
+F numeric with eval
+Var: m = 2..10
+Var: a = 1..5
+Type: F, Number
+1) Calculate force: __________ N
+a. eval($m$*$a$)
+
+F equivalent
+Type: F, Equivalent
+1) Write an equivalent expression for __________.
+a. 2x
+
+MT dropdown
+Type: MT
+1) Match each quantity to its SI unit.
+a. force = newton
+b. energy = joule
+c. power = watt
+d. = meter
+
+MT inline drag and drop
+Type: MT
+Options: DragAndDrop, Inline, MaintainOrder
+1) Force is measured in [----], energy is measured in [----].
+a. 1 = newtons
+b. 2 = joules
+c. = watts
+
+O
+Type: O
+Options: MaintainOrder
+1) Put these metric prefixes in order from smallest to largest.
+1_a. milli
+2_b. centi
+3_c. kilo
+
+E
+Type: E
+Height: 300
+MinWords: 50
+1) Explain the difference between speed and velocity.
+a. A strong answer explains that speed is scalar and velocity includes direction.
+
+UP
+Type: UP
+MaxFiles: 1
+FileTypes: pdf|png|jpg
+1) Upload your lab graph.
+
+P
+Type: P
+Options: Side
+1) Newton's First Law states that an object remains at rest or in uniform motion unless acted on by a net external force.
+
+14) Recommended generation strategy
+When generating a large bank:
+1. Decide the question type first.
+2. Add only the properties required for that type.
+3. Generate the prompt.
+4. Add feedback only if requested.
+5. Generate answers in the exact required syntax.
+6. Run the checklist in Section 11.
+7. Output pure Buzz text.
+15) Official source list used for this guide
+The rules in this document were compiled from official Agilix Help Center articles, especially:
+* How do I use the Text editor for questions in Assessment or Practice question activities?
+* How do I use assessment variables?
+* How do I set up Fill in the Blank questions?
+* How do I set up Matching questions?
+* How do I set up Ordering questions?
+* How do I set up File upload questions?
+* How do I set up passages for assessments and practice questions?
+* How do I set up feedback for Assessment/Practice question activities?
+16) Best short prompt to give another LLM
+Generate Buzz assessment text only. Use official text-editor syntax. Start each question with Type:. Put all properties before the prompt. Use [----] only for Inline MC/MA/MT. Use underscores only for Fill in the Blank. Use * to mark correct MC/MA choices. Use a. left = right syntax for Matching. Use numbered order prefixes for Ordering. Use Var: declarations for variables, $name$ for displayed variable values, $eval(...,0) for displayed computed values, and eval(...) for Fill in the Blank answer keys. Use only documented property names and option names. Output pure Buzz text with blank lines between questions and no explanation.

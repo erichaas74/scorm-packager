@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Finding the Coefficient of Friction from Demos</title>
+  <title>Friction Force Lab: Static vs Kinetic</title>
   <style>
     :root {
       --bg: #eef3f9;
@@ -13,13 +13,10 @@
       --line: #d7e1ef;
       --blue: #2563eb;
       --blue-dark: #1d4ed8;
-      --ramp: #2f80ed;
-      --block: #8d99a8;
       --friction: #dc2626;
       --tension: #16a34a;
       --normal: #7c3aed;
       --weight: #111827;
-      --warn: #f59e0b;
       --good: #15803d;
       --bad: #b91c1c;
       --shadow: 0 16px 36px rgba(22, 34, 51, 0.12);
@@ -71,19 +68,10 @@
       border-color: var(--blue-dark);
     }
 
-    button.subtle {
-      background: #fff;
-    }
-
-    button.demo-tab {
-      text-align: left;
-      padding: 10px 12px;
-    }
-
-    button.demo-tab.active {
-      background: #dbeafe;
-      border-color: #93c5fd;
-      color: #1e3a8a;
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
     }
 
     input,
@@ -103,7 +91,8 @@
       accent-color: var(--blue);
     }
 
-    input[type="checkbox"] {
+    input[type="checkbox"],
+    input[type="radio"] {
       width: 18px;
       min-height: 18px;
       accent-color: var(--blue);
@@ -115,6 +104,83 @@
       padding: 16px;
     }
 
+    .hidden {
+      display: none !important;
+    }
+
+    /* ── Start + guide overlays ─────────────────────────── */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(3px);
+    }
+
+    .overlay-card {
+      width: min(520px, 100%);
+      background: #fff;
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 30px 70px rgba(15, 23, 42, 0.35);
+      border-top: 6px solid var(--blue);
+    }
+
+    .overlay-card h2 {
+      margin: 0 0 10px;
+      font-size: 1.35rem;
+    }
+
+    .overlay-card p {
+      margin: 0 0 12px;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 0.95rem;
+    }
+
+    .overlay-kicker {
+      color: var(--blue);
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+
+    .overlay-icon {
+      font-size: 2.6rem;
+      margin-bottom: 10px;
+    }
+
+    .guide-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 18px;
+      gap: 10px;
+    }
+
+    .guide-dots {
+      display: flex;
+      gap: 7px;
+    }
+
+    .guide-dots span {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #cbd5e1;
+    }
+
+    .guide-dots span.on {
+      background: var(--blue);
+    }
+
+    /* ── Header ─────────────────────────────────────────── */
     .topbar {
       display: grid;
       grid-template-columns: 1fr auto;
@@ -127,7 +193,6 @@
       margin: 0;
       font-size: clamp(1.45rem, 2.5vw, 2.15rem);
       line-height: 1.05;
-      letter-spacing: 0;
     }
 
     .subtitle {
@@ -137,45 +202,16 @@
       line-height: 1.4;
     }
 
-    .score-strip {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(110px, 1fr));
-      gap: 8px;
-      min-width: 480px;
-    }
-
-    .metric {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #fff;
-      padding: 9px 10px;
-      box-shadow: 0 8px 18px rgba(22, 34, 51, 0.06);
-    }
-
-    .metric .label {
-      color: var(--muted);
-      font-size: 0.73rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-
-    .metric .value {
-      margin-top: 3px;
-      font-size: 1.05rem;
-      font-weight: 800;
-    }
-
+    /* ── Layout panels ──────────────────────────────────── */
     .main-grid {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 390px;
+      grid-template-columns: minmax(0, 1fr) minmax(420px, 520px);
       gap: 14px;
       align-items: stretch;
     }
 
     .stage-panel,
-    .side-panel,
-    .bottom-panel {
+    .graph-wrap {
       border: 1px solid var(--line);
       border-radius: 8px;
       background: var(--panel);
@@ -183,7 +219,6 @@
     }
 
     .stage-panel {
-      min-height: 590px;
       padding: 12px;
       display: flex;
       flex-direction: column;
@@ -226,119 +261,73 @@
       color: #92400e;
     }
 
-    .status-pill.bad {
-      background: #fee2e2;
-      color: var(--bad);
+    .stage-tools {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .stage-tools select {
+      width: 160px;
+      min-height: 32px;
+      padding: 5px 8px;
+      font-size: 0.85rem;
+    }
+
+    .stage-tools button {
+      min-height: 30px;
+      padding: 4px 12px;
+      font-size: 0.8rem;
+    }
+
+    .canvas-wrap {
+      position: relative;
+      display: flex;
+      flex-direction: column;
     }
 
     #simCanvas {
       width: 100%;
-      height: 100%;
-      min-height: 520px;
+      height: 420px;
       display: block;
       border: 1px solid var(--line);
       border-radius: 8px;
       background: linear-gradient(#eaf4ff, #ffffff 58%, #f1f5f9);
     }
 
-    .side-panel {
-      display: flex;
-      flex-direction: column;
-      min-height: 590px;
-      overflow: hidden;
-    }
-
-    .tabs {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 7px;
-      padding: 12px;
-      border-bottom: 1px solid var(--line);
-      background: #f8fafc;
-    }
-
-    .side-scroll {
-      overflow: auto;
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .card {
+    .canvas-controls {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      background: rgba(255, 255, 255, 0.93);
       border: 1px solid var(--line);
       border-radius: 8px;
-      background: #fff;
-      padding: 12px;
-    }
-
-    .card h2,
-    .card h3 {
-      margin: 0 0 10px;
-      font-size: 0.98rem;
-    }
-
-    .control-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 9px;
-    }
-
-    .control-grid.single {
-      grid-template-columns: 1fr;
-    }
-
-    .control {
+      padding: 8px;
       display: flex;
-      flex-direction: column;
-      gap: 5px;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 8px 18px rgba(22, 34, 51, 0.10);
     }
 
-    .control label,
-    .check-line {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
+    .canvas-controls button {
+      min-height: 34px;
+      padding: 5px 14px;
+      font-size: 0.85rem;
+    }
+
+    .canvas-controls .cf-label {
       color: var(--muted);
       font-size: 0.78rem;
-      font-weight: 700;
-      line-height: 1.25;
-    }
-
-    .check-line {
-      align-items: center;
-      justify-content: flex-start;
-      color: var(--ink);
-      font-size: 0.83rem;
-      margin: 8px 0;
-    }
-
-    .readout-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-    }
-
-    .readout {
-      border: 1px solid #e7edf6;
-      border-radius: 8px;
-      background: #f8fafc;
-      padding: 8px;
-    }
-
-    .readout span {
-      display: block;
-      color: var(--muted);
-      font-size: 0.72rem;
-      font-weight: 700;
+      font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.03em;
+      margin-left: 6px;
     }
 
-    .readout strong {
-      display: block;
-      margin-top: 3px;
-      font-size: 1.02rem;
+    .canvas-controls .cf-btn {
+      padding: 5px 12px;
     }
 
     .prompt-list {
@@ -346,147 +335,7 @@
       padding-left: 18px;
       color: var(--muted);
       font-size: 0.88rem;
-      line-height: 1.45;
-    }
-
-    .equation-box {
-      margin-top: 10px;
-      border: 1px dashed #a7b7cf;
-      border-radius: 8px;
-      background: #f8fbff;
-      padding: 9px;
-      color: #23334d;
-      font-size: 0.86rem;
-      line-height: 1.45;
-    }
-
-    .teacher-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 7px;
-      margin-top: 8px;
-    }
-
-    .surface-row {
-      display: grid;
-      grid-template-columns: 1fr 78px 78px;
-      gap: 6px;
-      align-items: center;
-      margin-bottom: 6px;
-      font-size: 0.8rem;
-      color: var(--muted);
-      font-weight: 700;
-    }
-
-    .bottom-panel {
-      margin-top: 14px;
-      padding: 12px;
-      display: grid;
-      grid-template-columns: minmax(360px, 0.95fr) minmax(420px, 1.05fr);
-      gap: 12px;
-      align-items: stretch;
-    }
-
-    .graph-wrap {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #fff;
-      padding: 10px;
-      min-height: 250px;
-    }
-
-    .graph-wrap.hidden {
-      display: none;
-    }
-
-    #graphCanvas {
-      display: block;
-      width: 100%;
-      height: 210px;
-      border-radius: 8px;
-      border: 1px solid #e5edf7;
-      background: #fbfdff;
-    }
-
-    .answer-panel {
-      display: grid;
-      grid-template-rows: auto auto 1fr;
-      gap: 10px;
-      min-width: 0;
-    }
-
-    .answer-row {
-      display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 8px;
-      align-items: end;
-    }
-
-    .feedback {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #f8fafc;
-      padding: 10px;
-      min-height: 48px;
-      font-weight: 800;
-      line-height: 1.35;
-    }
-
-    .feedback.good {
-      background: #dcfce7;
-      border-color: #86efac;
-      color: var(--good);
-    }
-
-    .feedback.bad {
-      background: #fee2e2;
-      border-color: #fecaca;
-      color: var(--bad);
-    }
-
-    .feedback.warn {
-      background: #fef3c7;
-      border-color: #fde68a;
-      color: #92400e;
-    }
-
-    .data-card {
-      overflow: auto;
-      min-height: 150px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.78rem;
-      min-width: 760px;
-    }
-
-    th,
-    td {
-      border: 1px solid #e5edf7;
-      padding: 7px 8px;
-      text-align: left;
-      white-space: nowrap;
-    }
-
-    th {
-      background: #eff6ff;
-      color: #1e3a8a;
-      font-size: 0.72rem;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-
-    td.empty {
-      color: var(--muted);
-      text-align: center;
-    }
-
-    .toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
+      line-height: 1.5;
     }
 
     .mini-note {
@@ -496,8 +345,39 @@
       line-height: 1.4;
     }
 
-    .hidden {
-      display: none !important;
+    /* ── Graph panel ────────────────────────────────────── */
+    .graph-wrap {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .graph-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    #graphCanvas {
+      display: block;
+      flex: 1;
+      min-width: 0;
+      width: 100%;
+      height: 420px;
+      border-radius: 8px;
+      border: 1px solid #e5edf7;
+      background: #fbfdff;
+    }
+
+    #velMeter {
+      display: block;
+      flex: none;
+      width: 92px;
+      height: 420px;
+      border-radius: 8px;
+      border: 1px solid #e5edf7;
+      background: #fbfdff;
     }
 
     @media (max-width: 1120px) {
@@ -505,28 +385,13 @@
         grid-template-columns: 1fr;
       }
 
-      .score-strip {
-        min-width: 0;
-      }
-
       .main-grid {
         grid-template-columns: 1fr;
       }
 
-      .side-panel {
-        min-height: 0;
-      }
-
-      .tabs {
-        grid-template-columns: repeat(3, 1fr);
-      }
-
-      button.demo-tab {
-        text-align: center;
-      }
-
-      .bottom-panel {
-        grid-template-columns: 1fr;
+      #graphCanvas,
+      #velMeter {
+        height: 260px;
       }
     }
 
@@ -535,174 +400,105 @@
         padding: 10px;
       }
 
-      .score-strip {
-        grid-template-columns: repeat(2, 1fr);
-      }
-
-      .tabs {
-        grid-template-columns: 1fr;
-      }
-
-      .stage-panel {
-        min-height: 430px;
+      .canvas-controls {
+        position: static;
+        margin-top: 8px;
       }
 
       #simCanvas {
-        min-height: 360px;
+        height: 360px;
       }
 
-      .control-grid,
-      .teacher-grid,
-      .answer-row {
-        grid-template-columns: 1fr;
-      }
-
-      .bottom-panel {
+      .graph-wrap {
         padding: 10px;
       }
     }
   </style>
 </head>
 <body>
-  <main class="app">
+  <!-- Start overlay -->
+  <div class="overlay" id="startOverlay">
+    <div class="overlay-card" style="text-align:center;">
+      <div class="overlay-icon">&#129521;</div>
+      <h2>Friction Force Lab</h2>
+      <p>Pull a block with a spring scale, watch the force-time graph, and collect the data you need to find the coefficients of static and kinetic friction. Then answer the lab questions to finish.</p>
+      <button class="primary" id="startBtn" type="button" style="width:100%; min-height:46px; font-size:1.05rem;">Start Lab</button>
+    </div>
+  </div>
+
+  <!-- Lab procedure overlay -->
+  <div class="overlay hidden" id="procOverlay">
+    <div class="overlay-card">
+      <div class="overlay-kicker">Lab Procedure</div>
+      <h2>How to complete this lab</h2>
+      <ol class="prompt-list" style="margin-bottom:16px;">
+        <li>Choose a material. Each block has its own mass, shown on the block.</li>
+        <li>Click <strong>Constant Velocity Pull</strong>. The pull slowly grows to a peak, the block breaks loose, then it slides at constant velocity.</li>
+        <li>Try each <strong>Constant Force Pull</strong> (Low, Medium, High) and compare the motion on the graph and the velocity meter. Which pulls make the block move? Why not all of them?</li>
+        <li>Read the <strong>peak force</strong> and the <strong>constant sliding force</strong> from the numbers on the graph.</li>
+        <li>Repeat with the other materials, and calculate the coefficients of friction as your teacher directs. <strong>Show Hint</strong> marks the forces on the graph if you get stuck.</li>
+      </ol>
+      <button class="primary" id="procCloseBtn" type="button" style="width:100%;">Close</button>
+    </div>
+  </div>
+
+  <!-- Guide overlay -->
+  <div class="overlay hidden" id="guideOverlay">
+    <div class="overlay-card">
+      <div class="overlay-kicker" id="guideStepLabel">Step 1 of 4</div>
+      <h2 id="guideTitle"></h2>
+      <p id="guideBody"></p>
+      <div class="guide-nav">
+        <button id="guidePrev" type="button">Back</button>
+        <div class="guide-dots" id="guideDots"></div>
+        <button class="primary" id="guideNext" type="button">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <main class="app hidden" id="app">
     <header class="topbar">
       <div>
-        <h1>Finding the Coefficient of Friction from Demos</h1>
-        <p class="subtitle">Collect angle, mass, and force data from three classroom demos. Use the measurements to compare static friction, maximum static friction, and kinetic friction.</p>
-      </div>
-      <div class="score-strip" aria-label="Current lab readouts">
-        <div class="metric">
-          <div class="label">Surface</div>
-          <div class="value" id="topSurface">Wood</div>
-        </div>
-        <div class="metric">
-          <div class="label">Static</div>
-          <div class="value" id="topStatic">mu_s 0.42</div>
-        </div>
-        <div class="metric">
-          <div class="label">Kinetic</div>
-          <div class="value" id="topKinetic">mu_k 0.30</div>
-        </div>
-        <div class="metric">
-          <div class="label">Motion</div>
-          <div class="value" id="topMotion">Stuck</div>
-        </div>
+        <h1>Friction Force Lab: Static vs Kinetic</h1>
+        <p class="subtitle">Pull a block across different surfaces with a force scale. Watch the force-time graph to find the peak force and the constant sliding force, then use them to find the coefficients of friction.</p>
       </div>
     </header>
 
     <section class="main-grid" aria-label="Simulation work area">
-      <section class="stage-panel">
-        <div class="stage-header">
-          <h2 class="demo-title" id="stageTitle">Demo 1: Tilt Board Method</h2>
-          <div class="status-pill" id="statusPill">Static friction holding</div>
+    <section class="stage-panel">
+      <div class="stage-header">
+        <h2 class="demo-title">Pulling a Block with a Force Scale</h2>
+        <div class="stage-tools">
+          <select id="surfaceSelect" aria-label="Surface"></select>
+          <button id="procBtn" type="button">Lab Procedure</button>
+          <button id="showGuideBtn" type="button">Guide</button>
+          <div class="status-pill warn" id="statusPill">Stuck</div>
         </div>
-        <canvas id="simCanvas" width="900" height="560" aria-label="Interactive physics animation"></canvas>
-      </section>
-
-      <aside class="side-panel">
-        <div class="tabs" role="tablist" aria-label="Demo modes">
-          <button class="demo-tab active" id="tab1" data-demo="1">Demo 1: Tilt Board</button>
-          <button class="demo-tab" id="tab2" data-demo="2">Demo 2: Atwood Ramp</button>
-          <button class="demo-tab" id="tab3" data-demo="3">Demo 3: Force Scale</button>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="simCanvas" width="900" height="520" aria-label="Interactive friction animation"></canvas>
+        <div class="canvas-controls">
+          <button class="primary" id="constVelBtn" type="button">Constant Velocity Pull</button>
+          <span class="cf-label">Constant Force Pull:</span>
+          <button class="cf-btn" type="button" data-force="0.6">Low</button>
+          <button class="cf-btn" type="button" data-force="1.02">Medium</button>
+          <button class="cf-btn" type="button" data-force="1.35">High</button>
+          <button id="resetGraphBtn" type="button">Reset Trial</button>
         </div>
-
-        <div class="side-scroll">
-          <section class="card">
-            <h2>Controls</h2>
-            <div id="controlsMount"></div>
-          </section>
-
-          <section class="card">
-            <h2>Live Demo Data</h2>
-            <div class="readout-grid" id="readoutMount"></div>
-            <div class="equation-box" id="equationBox"></div>
-          </section>
-
-          <section class="card">
-            <h2>Student Task</h2>
-            <ol class="prompt-list" id="promptMount"></ol>
-          </section>
-
-          <details class="card" id="teacherPanel">
-            <summary><strong>Teacher Options</strong></summary>
-            <div class="mini-note">Adjust the hidden demo values or export the student table.</div>
-            <div id="surfaceEditor" aria-label="Surface coefficient editor"></div>
-            <div class="teacher-grid">
-              <button id="randomUnknownBtn" type="button">Randomize Unknown</button>
-              <button id="resetDemoBtn" type="button">Reset Demo</button>
-              <button id="exportCsvBtn" type="button">Export CSV</button>
-              <button id="clearDataBtn" type="button">Clear Table</button>
-            </div>
-            <label class="check-line"><input id="hideAnswersToggle" type="checkbox" /> Hide answer values</label>
-            <label class="check-line"><input id="showEquationsToggle" type="checkbox" checked /> Show equations</label>
-          </details>
-        </div>
-      </aside>
+      </div>
     </section>
 
-    <section class="bottom-panel">
-      <div class="graph-wrap" id="graphWrap">
-        <div class="stage-header">
-          <h2 class="demo-title">Force-Time Graph</h2>
-          <label class="check-line"><input id="graphLabelsToggle" type="checkbox" checked /> Show graph labels</label>
-        </div>
+    <section class="graph-wrap" aria-label="Force-time graph">
+      <div class="stage-header">
+        <h2 class="demo-title">Force-Time Graph</h2>
+        <button id="hintBtn" type="button" style="min-height:30px; padding:4px 12px; font-size:0.8rem;">Show Hint</button>
+      </div>
+      <div class="graph-row">
         <canvas id="graphCanvas" width="700" height="250" aria-label="Force versus time graph"></canvas>
+        <canvas id="velMeter" width="92" height="250" aria-label="Velocity meter"></canvas>
       </div>
-
-      <div class="answer-panel">
-        <section class="card">
-          <h2>Check Your Calculation</h2>
-          <div class="answer-row">
-            <div class="control">
-              <label for="muSInput">Calculated mu_s</label>
-              <input id="muSInput" type="number" step="0.01" placeholder="0.00" />
-            </div>
-            <div class="control">
-              <label for="muKInput">Calculated mu_k</label>
-              <input id="muKInput" type="number" step="0.01" placeholder="0.00" />
-            </div>
-            <div class="control">
-              <label for="frictionDirSelect">Friction direction</label>
-              <select id="frictionDirSelect">
-                <option value="">Choose</option>
-                <option value="up">Up ramp</option>
-                <option value="down">Down ramp</option>
-                <option value="none">Not needed</option>
-              </select>
-            </div>
-            <button class="primary" id="checkBtn" type="button">Check Answer</button>
-            <button id="recordBtn" type="button">Record Trial</button>
-          </div>
-          <div class="feedback" id="feedbackBox">Enter your coefficient, then check or record the trial.</div>
-        </section>
-
-        <section class="card data-card">
-          <div class="stage-header">
-            <h2 class="demo-title">Student Data Table</h2>
-            <div class="toolbar">
-              <button id="sampleRowBtn" class="subtle" type="button">Use Demo Data</button>
-            </div>
-          </div>
-          <table aria-label="Student data table">
-            <thead>
-              <tr>
-                <th>Demo</th>
-                <th>Surface</th>
-                <th>Mass</th>
-                <th>Angle</th>
-                <th>Hanging Mass</th>
-                <th>Peak Force</th>
-                <th>Constant Force</th>
-                <th>Calculated mu_s</th>
-                <th>Calculated mu_k</th>
-              </tr>
-            </thead>
-            <tbody id="dataBody">
-              <tr><td class="empty" colspan="9">No trials recorded yet.</td></tr>
-            </tbody>
-          </table>
-        </section>
-      </div>
+      <p class="mini-note hidden" id="hintNote"><strong>Hint:</strong> The dashed red line marks the static friction peak. The dashed green line marks the kinetic sliding force. Calculate <strong>mu_s = peak force / normal force</strong> and <strong>mu_k = sliding force / normal force</strong>.</p>
+    </section>
     </section>
   </main>
 
@@ -711,40 +507,28 @@
     const g = 9.81;
 
     const surfaces = {
-      wood: { name: 'Wood', muS: 0.42, muK: 0.30, color: '#b77942' },
-      rubber: { name: 'Rubber', muS: 0.80, muK: 0.65, color: '#374151' },
-      plastic: { name: 'Plastic', muS: 0.28, muK: 0.20, color: '#6ee7b7' },
-      sandpaper: { name: 'Sandpaper', muS: 0.95, muK: 0.75, color: '#c08457' },
-      unknown: { name: 'Unknown A', muS: 0.55, muK: 0.41, color: '#94a3b8', unknown: true }
+      wood: { name: 'Wood', mass: 5.0, muS: 0.42, muK: 0.25, color: '#b77942' },
+      rubber: { name: 'Rubber', mass: 6.0, muS: 0.80, muK: 0.55, color: '#374151' },
+      plastic: { name: 'Plastic', mass: 3.0, muS: 0.28, muK: 0.15, color: '#6ee7b7' },
+      sandpaper: { name: 'Sandpaper', mass: 8.0, muS: 0.95, muK: 0.62, color: '#c08457' },
+      unknown: { name: 'Unknown A', mass: 5.0, muS: 0.55, muK: 0.35, color: '#94a3b8' }
     };
 
     const state = {
-      demo: 1,
       activeSurface: 'wood',
-      hideAnswers: false,
-      showEquations: true,
-      showGraphLabels: true,
-      records: [],
-      demo1: {
-        angle: 12,
-        mass: 4.0,
-        observedAngle: null
-      },
-      demo2: {
-        angle: 22,
-        blockMass: 3.0,
-        hangingMass: 1.20,
-        stringPhase: 0
-      },
-      demo3: {
+      showHint: false,
+      completed: false,
+      sim: {
         mass: 5.0,
         pullForce: 0,
         appliedForce: 0,
         velocity: 0,
         position: 0,
-        mode: 'manual',
+        mode: 'idle',
         autoStart: 0,
+        forceFactor: 1.02,
         graphStart: performance.now(),
+        moveStart: null,
         graphData: [],
         peakForce: 0,
         constantForce: 0,
@@ -757,30 +541,13 @@
     const ctx = canvas.getContext('2d');
     const graphCanvas = document.getElementById('graphCanvas');
     const graphCtx = graphCanvas.getContext('2d');
+    const velCanvas = document.getElementById('velMeter');
+    const velCtx = velCanvas.getContext('2d');
 
-    const controlsMount = document.getElementById('controlsMount');
-    const readoutMount = document.getElementById('readoutMount');
-    const promptMount = document.getElementById('promptMount');
-    const equationBox = document.getElementById('equationBox');
-    const graphWrap = document.getElementById('graphWrap');
     const statusPill = document.getElementById('statusPill');
-    const stageTitle = document.getElementById('stageTitle');
-    const feedbackBox = document.getElementById('feedbackBox');
-    const dataBody = document.getElementById('dataBody');
-    const muSInput = document.getElementById('muSInput');
-    const muKInput = document.getElementById('muKInput');
-    const frictionDirSelect = document.getElementById('frictionDirSelect');
 
     function clamp(value, min, max) {
       return Math.max(min, Math.min(max, value));
-    }
-
-    function rad(degrees) {
-      return degrees * Math.PI / 180;
-    }
-
-    function deg(radians) {
-      return radians * 180 / Math.PI;
     }
 
     function fmt(value, digits = 2, suffix = '') {
@@ -790,10 +557,6 @@
 
     function surface() {
       return surfaces[state.activeSurface];
-    }
-
-    function answerText(value, digits = 2, suffix = '') {
-      return state.hideAnswers ? 'hidden' : fmt(value, digits, suffix);
     }
 
     function resizeCanvasToDisplay(canvasEl, context) {
@@ -809,1028 +572,193 @@
       return { width: rect.width, height: rect.height };
     }
 
-    function setFeedback(text, kind) {
-      feedbackBox.textContent = text;
-      feedbackBox.className = 'feedback ' + (kind || '');
-    }
-
     function setStatus(text, kind) {
       statusPill.textContent = text;
       statusPill.className = 'status-pill ' + (kind || '');
-      document.getElementById('topMotion').textContent = text.replace(/^Demo\s\d:\s/, '');
     }
 
-    function setStage(title) {
-      stageTitle.textContent = title;
+    /* ── Start overlay + guide ─────────────────────────────── */
+    const GUIDE_STEPS = [
+      {
+        title: 'Meet the equipment',
+        body: 'A block sits on a horizontal surface. A spring scale pulls it to the right and shows the applied force in newtons. Friction pushes back against the pull. The force arrows on the block update live.'
+      },
+      {
+        title: 'Run the pulls',
+        body: 'Pick a material - each block has its own mass, printed right on it. Click Constant Velocity Pull: the pulling force grows until the block breaks loose, then settles so the block slides at constant velocity. Then try the three Constant Force Pulls (Low, Medium, High). Each one holds a steady force - watch which pulls move the block and what the motion does. Why does one of them never move the block at all?'
+      },
+      {
+        title: 'Read the force-time graph',
+        body: 'The line color shows the motion: blue while the block is stuck, orange while it speeds up, green while it slides at constant velocity. The force climbs to a peak the instant the block breaks loose, then LESS force keeps it moving - that drop is the key idea of this lab. The velocity meter beside the graph shows whether the block moves at constant velocity or keeps speeding up. Use the numbers on the graph axes to read both forces. Stuck? The Show Hint button marks them for you.'
+      },
+      {
+        title: 'Find the coefficients',
+        body: 'Read the peak force and the constant sliding force from the graph numbers for each surface you test, then calculate the coefficients of friction the way your teacher showed you. The measured values stay hidden so you practice reading the graph - the Show Hint button reveals them along with the formulas.'
+      }
+    ];
+
+    let guideIndex = 0;
+
+    function renderGuide() {
+      document.getElementById('guideStepLabel').textContent = 'Step ' + (guideIndex + 1) + ' of ' + GUIDE_STEPS.length;
+      document.getElementById('guideTitle').textContent = GUIDE_STEPS[guideIndex].title;
+      document.getElementById('guideBody').textContent = GUIDE_STEPS[guideIndex].body;
+      document.getElementById('guidePrev').disabled = guideIndex === 0;
+      document.getElementById('guideNext').textContent = guideIndex === GUIDE_STEPS.length - 1 ? 'Start Collecting' : 'Next';
+      document.getElementById('guideDots').innerHTML = GUIDE_STEPS
+        .map((_, i) => '<span class="' + (i === guideIndex ? 'on' : '') + '"></span>')
+        .join('');
     }
 
-    function updateTopReadouts() {
+    function openGuide() {
+      guideIndex = 0;
+      renderGuide();
+      document.getElementById('guideOverlay').classList.remove('hidden');
+    }
+
+    document.getElementById('startBtn').addEventListener('click', () => {
+      document.getElementById('startOverlay').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+      drawScene();
+      drawGraph();
+    });
+
+    document.getElementById('showGuideBtn').addEventListener('click', openGuide);
+
+    document.getElementById('procBtn').addEventListener('click', () => {
+      document.getElementById('procOverlay').classList.remove('hidden');
+    });
+
+    document.getElementById('procCloseBtn').addEventListener('click', () => {
+      document.getElementById('procOverlay').classList.add('hidden');
+    });
+
+    document.getElementById('guidePrev').addEventListener('click', () => {
+      guideIndex = Math.max(0, guideIndex - 1);
+      renderGuide();
+    });
+
+    document.getElementById('guideNext').addEventListener('click', () => {
+      if (guideIndex >= GUIDE_STEPS.length - 1) {
+        document.getElementById('guideOverlay').classList.add('hidden');
+        return;
+      }
+      guideIndex += 1;
+      renderGuide();
+    });
+
+    /* ── Controls ──────────────────────────────────────────── */
+    function renderSurfaceSelect() {
+      const select = document.getElementById('surfaceSelect');
+      select.innerHTML = Object.entries(surfaces)
+        .map(([key, s]) => '<option value="' + key + '"' + (key === state.activeSurface ? ' selected' : '') + '>' + s.name + '</option>')
+        .join('');
+    }
+
+    document.getElementById('surfaceSelect').addEventListener('change', (event) => {
+      state.activeSurface = event.target.value;
+      state.sim.mass = surface().mass;
+      resetTrial();
+    });
+
+    function startPull(mode) {
+      resetTrial();
+      state.sim.mode = mode;
+      state.sim.autoStart = performance.now();
+      state.sim.graphStart = performance.now();
+      state.sim.pullForce = 0;
+    }
+
+    document.getElementById('constVelBtn').addEventListener('click', () => startPull('constVel'));
+    document.querySelectorAll('.cf-btn').forEach((button) => {
+      button.addEventListener('click', () => {
+        startPull('constForce');
+        state.sim.forceFactor = Number(button.dataset.force);
+      });
+    });
+    document.getElementById('resetGraphBtn').addEventListener('click', () => resetTrial());
+
+    document.getElementById('hintBtn').addEventListener('click', () => {
+      state.showHint = !state.showHint;
+      document.getElementById('hintBtn').textContent = state.showHint ? 'Hide Hint' : 'Show Hint';
+      document.getElementById('hintNote').classList.toggle('hidden', !state.showHint);
+    });
+
+    function resetTrial() {
+      const sim = state.sim;
+      sim.pullForce = 0;
+      sim.appliedForce = 0;
+      sim.mode = 'idle';
+      sim.graphData = [];
+      sim.graphStart = performance.now();
+      sim.moveStart = null;
+      sim.peakForce = 0;
+      sim.constantForce = 0;
+      sim.hasMoved = false;
+      sim.motion = 'stuck';
+      sim.velocity = 0;
+      sim.position = 0;
+    }
+
+    function markLabComplete() {
+      if (state.completed) return;
+      state.completed = true;
+      if (window.SCORM) {
+        window.SCORM.setScore(100, 0, 100);
+        window.SCORM.setStatus('completed');
+      }
+    }
+
+    /* ── Physics ───────────────────────────────────────────── */
+    function forceData() {
       const s = surface();
-      document.getElementById('topSurface').textContent = s.name;
-      document.getElementById('topStatic').textContent = state.hideAnswers ? 'mu_s hidden' : 'mu_s ' + fmt(s.muS, 2);
-      document.getElementById('topKinetic').textContent = state.hideAnswers ? 'mu_k hidden' : 'mu_k ' + fmt(s.muK, 2);
-    }
-
-    function surfaceSelectHtml() {
-      return `
-        <div class="control">
-          <label for="surfaceSelect">Surface <span>${surface().name}</span></label>
-          <select id="surfaceSelect">
-            ${Object.entries(surfaces).map(([key, s]) => `<option value="${key}" ${key === state.activeSurface ? 'selected' : ''}>${s.name}</option>`).join('')}
-          </select>
-        </div>
-      `;
-    }
-
-    function renderControls() {
-      if (state.demo === 1) {
-        controlsMount.innerHTML = `
-          <div class="control-grid single">
-            ${surfaceSelectHtml()}
-            <div class="control">
-              <label for="angleSlider1">Ramp angle <span>${fmt(state.demo1.angle, 1, ' deg')}</span></label>
-              <input id="angleSlider1" type="range" min="0" max="55" step="0.1" value="${state.demo1.angle}" />
-            </div>
-            <div class="readout">
-              <span>Object mass</span>
-              <strong>${fmt(state.demo1.mass, 1, ' kg')}</strong>
-            </div>
-            <button id="slowTiltBtn" type="button">Slowly Increase Angle</button>
-          </div>
-        `;
-      }
-
-      if (state.demo === 2) {
-        controlsMount.innerHTML = `
-          <div class="control-grid single">
-            ${surfaceSelectHtml()}
-            <div class="control">
-              <label for="angleSlider2">Ramp angle <span>${fmt(state.demo2.angle, 1, ' deg')}</span></label>
-              <input id="angleSlider2" type="range" min="5" max="45" step="0.1" value="${state.demo2.angle}" />
-            </div>
-            <div class="control-grid">
-              <div class="control">
-                <label for="blockMassInput">Block mass</label>
-                <input id="blockMassInput" type="number" min="0.5" max="12" step="0.1" value="${state.demo2.blockMass}" />
-              </div>
-              <div class="control">
-                <label for="hangingMassInput">Hanging mass</label>
-                <input id="hangingMassInput" type="number" min="0" max="12" step="0.01" value="${state.demo2.hangingMass.toFixed(2)}" />
-              </div>
-            </div>
-            <div class="control-grid">
-              <button class="mass-add" data-delta="-0.10" type="button">-100 g</button>
-              <button class="mass-add" data-delta="0.10" type="button">+100 g</button>
-              <button class="mass-add" data-delta="-0.50" type="button">-500 g</button>
-              <button class="mass-add" data-delta="0.50" type="button">+500 g</button>
-            </div>
-          </div>
-        `;
-      }
-
-      if (state.demo === 3) {
-        controlsMount.innerHTML = `
-          <div class="control-grid single">
-            ${surfaceSelectHtml()}
-            <div class="control">
-              <label for="massInput3">Block mass</label>
-              <input id="massInput3" type="number" min="0.5" max="15" step="0.1" value="${state.demo3.mass}" />
-            </div>
-            <div class="control">
-              <label for="pullSlider">Pulling force <span>${fmt(state.demo3.pullForce, 1, ' N')}</span></label>
-              <input id="pullSlider" type="range" min="0" max="100" step="0.5" value="${state.demo3.pullForce}" />
-            </div>
-            <div class="control-grid">
-              <button id="autoPullBtn" type="button">Auto Pull</button>
-              <button id="constantPullBtn" type="button">Set Constant Velocity</button>
-              <button id="resetGraphBtn" type="button">Reset Graph</button>
-              <button id="stopPullBtn" type="button">Stop Pull</button>
-            </div>
-          </div>
-        `;
-      }
-
-      attachControlEvents();
-    }
-
-    function attachControlEvents() {
-      const surfaceSelect = document.getElementById('surfaceSelect');
-      if (surfaceSelect) {
-        surfaceSelect.addEventListener('change', () => {
-          state.activeSurface = surfaceSelect.value;
-          resetDemo(false);
-          renderAll();
-        });
-      }
-
-      const angle1 = document.getElementById('angleSlider1');
-      if (angle1) {
-        angle1.addEventListener('input', () => {
-          state.demo1.angle = Number(angle1.value);
-          const critical = deg(Math.atan(surface().muS));
-          if (state.demo1.observedAngle === null && state.demo1.angle >= critical) {
-            state.demo1.observedAngle = critical;
-          }
-          renderAll();
-        });
-      }
-
-      const slowTilt = document.getElementById('slowTiltBtn');
-      if (slowTilt) {
-        slowTilt.addEventListener('click', () => {
-          state.demo1.angle = 0;
-          state.demo1.observedAngle = null;
-          const start = performance.now();
-          const run = (now) => {
-            if (state.demo !== 1) return;
-            const elapsed = (now - start) / 1000;
-            state.demo1.angle = clamp(elapsed * 8, 0, 55);
-            const critical = deg(Math.atan(surface().muS));
-            if (state.demo1.angle >= critical) {
-              state.demo1.angle = critical;
-              state.demo1.observedAngle = critical;
-              renderAll();
-              return;
-            }
-            renderAll();
-            requestAnimationFrame(run);
-          };
-          requestAnimationFrame(run);
-        });
-      }
-
-      const angle2 = document.getElementById('angleSlider2');
-      if (angle2) {
-        angle2.addEventListener('input', () => {
-          state.demo2.angle = Number(angle2.value);
-          renderAll();
-        });
-      }
-
-      const blockMass = document.getElementById('blockMassInput');
-      if (blockMass) {
-        blockMass.addEventListener('input', () => {
-          state.demo2.blockMass = clamp(Number(blockMass.value) || 0.5, 0.5, 12);
-          renderAll();
-        });
-      }
-
-      const hangingMass = document.getElementById('hangingMassInput');
-      if (hangingMass) {
-        hangingMass.addEventListener('input', () => {
-          state.demo2.hangingMass = clamp(Number(hangingMass.value) || 0, 0, 12);
-          renderAll();
-        });
-      }
-
-      document.querySelectorAll('.mass-add').forEach((button) => {
-        button.addEventListener('click', () => {
-          state.demo2.hangingMass = clamp(state.demo2.hangingMass + Number(button.dataset.delta), 0, 12);
-          renderAll();
-        });
-      });
-
-      const mass3 = document.getElementById('massInput3');
-      if (mass3) {
-        mass3.addEventListener('input', () => {
-          state.demo3.mass = clamp(Number(mass3.value) || 0.5, 0.5, 15);
-          resetGraph();
-          renderAll();
-        });
-      }
-
-      const pullSlider = document.getElementById('pullSlider');
-      if (pullSlider) {
-        pullSlider.addEventListener('input', () => {
-          state.demo3.mode = 'manual';
-          state.demo3.pullForce = Number(pullSlider.value);
-          renderAll();
-        });
-      }
-
-      const autoPull = document.getElementById('autoPullBtn');
-      if (autoPull) {
-        autoPull.addEventListener('click', () => {
-          resetGraph();
-          state.demo3.mode = 'auto';
-          state.demo3.autoStart = performance.now();
-          state.demo3.graphStart = performance.now();
-          state.demo3.pullForce = 0;
-        });
-      }
-
-      const constantPull = document.getElementById('constantPullBtn');
-      if (constantPull) {
-        constantPull.addEventListener('click', () => {
-          state.demo3.mode = 'manual';
-          state.demo3.hasMoved = true;
-          state.demo3.pullForce = surface().muK * state.demo3.mass * g;
-          state.demo3.constantForce = state.demo3.pullForce;
-          renderAll();
-        });
-      }
-
-      const resetGraphBtn = document.getElementById('resetGraphBtn');
-      if (resetGraphBtn) resetGraphBtn.addEventListener('click', () => {
-        resetGraph();
-        renderAll();
-      });
-
-      const stopPullBtn = document.getElementById('stopPullBtn');
-      if (stopPullBtn) stopPullBtn.addEventListener('click', () => {
-        state.demo3.mode = 'manual';
-        state.demo3.pullForce = 0;
-        renderAll();
-      });
-    }
-
-    function renderReadouts() {
-      let readouts = [];
-
-      if (state.demo === 1) {
-        const critical = deg(Math.atan(surface().muS));
-        const seen = state.demo1.observedAngle !== null;
-        readouts = [
-          ['Angle now', fmt(state.demo1.angle, 1, ' deg')],
-          ['Critical angle', seen ? fmt(state.demo1.observedAngle, 1, ' deg') : 'not reached'],
-          ['Normal force', fmt(state.demo1.mass * g * Math.cos(rad(state.demo1.angle)), 1, ' N')],
-          ['Max static friction', answerText(surface().muS * state.demo1.mass * g * Math.cos(rad(state.demo1.angle)), 1, ' N')]
-        ];
-        equationBox.innerHTML = state.showEquations
-          ? 'At the instant motion begins: <strong>mu_s = tan(theta)</strong>. Static friction is at its maximum value.'
-          : 'Equations hidden by teacher option.';
-      }
-
-      if (state.demo === 2) {
-        const d = atwoodData();
-        readouts = [
-          ['Ramp force', fmt(d.downRamp, 1, ' N')],
-          ['Tension', fmt(d.tension, 1, ' N')],
-          ['Normal force', fmt(d.normal, 1, ' N')],
-          ['Required mu', answerText(d.requiredMu, 2)]
-        ];
-        equationBox.innerHTML = state.showEquations
-          ? 'Balanced means acceleration is zero: <strong>mu = |m_h g - m_b g sin(theta)| / (m_b g cos(theta))</strong>. Friction points opposite the motion that would happen.'
-          : 'Equations hidden by teacher option.';
-      }
-
-      if (state.demo === 3) {
-        const d = forceScaleData();
-        readouts = [
-          ['Spring scale', fmt(d.scaleReading, 1, ' N')],
-          ['Normal force', fmt(d.normal, 1, ' N')],
-          ['Peak force', d.peakForce > 0 ? fmt(d.peakForce, 1, ' N') : 'not found'],
-          ['Sliding force', d.constantForce > 0 ? fmt(d.constantForce, 1, ' N') : 'not found']
-        ];
-        equationBox.innerHTML = state.showEquations
-          ? 'On a horizontal surface: <strong>mu_s = peak force / normal force</strong> and <strong>mu_k = constant sliding force / normal force</strong>.'
-          : 'Equations hidden by teacher option.';
-      }
-
-      readoutMount.innerHTML = readouts.map(([label, value]) => `
-        <div class="readout">
-          <span>${label}</span>
-          <strong>${value}</strong>
-        </div>
-      `).join('');
-    }
-
-    function renderPrompts() {
-      const prompts = {
-        1: [
-          'Slowly increase the board angle until the block just begins to slide.',
-          'Record the critical angle at the instant of motion.',
-          'Calculate mu_s with tan(theta) and compare surfaces.'
-        ],
-        2: [
-          'Adjust the hanging mass until the ramp system is balanced or at the edge of motion.',
-          'Record ramp angle, block mass, and hanging mass.',
-          'Calculate the coefficient and identify whether friction acts up or down the ramp.'
-        ],
-        3: [
-          'Pull the block and watch the force-time graph rise to a static friction peak.',
-          'Identify the lower constant force while the block slides at constant velocity.',
-          'Calculate mu_s and mu_k, then explain why mu_s is usually greater than mu_k.'
-        ]
-      };
-      promptMount.innerHTML = prompts[state.demo].map((text) => `<li>${text}</li>`).join('');
-    }
-
-    function renderTeacherPanel() {
-      const rows = Object.entries(surfaces).map(([key, s]) => `
-        <div class="surface-row">
-          <span>${s.name}</span>
-          <input class="teacher-mu" data-surface="${key}" data-kind="muS" type="number" min="0.01" max="2" step="0.01" value="${s.muS.toFixed(2)}" aria-label="${s.name} static coefficient" />
-          <input class="teacher-mu" data-surface="${key}" data-kind="muK" type="number" min="0.01" max="2" step="0.01" value="${s.muK.toFixed(2)}" aria-label="${s.name} kinetic coefficient" />
-        </div>
-      `).join('');
-
-      document.getElementById('surfaceEditor').innerHTML = `
-        <div class="surface-row"><span>Surface</span><span>mu_s</span><span>mu_k</span></div>
-        ${rows}
-      `;
-
-      document.querySelectorAll('.teacher-mu').forEach((input) => {
-        input.addEventListener('input', () => {
-          const s = surfaces[input.dataset.surface];
-          const value = clamp(Number(input.value) || 0.01, 0.01, 2);
-          s[input.dataset.kind] = value;
-          if (s.muK > s.muS) s.muK = s.muS;
-          renderAll();
-        });
-      });
-
-      document.getElementById('hideAnswersToggle').checked = state.hideAnswers;
-      document.getElementById('showEquationsToggle').checked = state.showEquations;
-    }
-
-    function attachGlobalEvents() {
-      document.querySelectorAll('.demo-tab').forEach((button) => {
-        button.addEventListener('click', () => {
-          state.demo = Number(button.dataset.demo);
-          setFeedback('Enter your coefficient, then check or record the trial.', '');
-          renderAll();
-        });
-      });
-
-      document.getElementById('checkBtn').addEventListener('click', () => checkAnswer(false));
-      document.getElementById('recordBtn').addEventListener('click', () => recordTrial(false));
-      document.getElementById('sampleRowBtn').addEventListener('click', fillInputsFromDemo);
-      document.getElementById('graphLabelsToggle').addEventListener('change', (event) => {
-        state.showGraphLabels = event.target.checked;
-        drawGraph();
-      });
-      document.getElementById('randomUnknownBtn').addEventListener('click', () => {
-        surfaces.unknown.muS = Number((0.25 + Math.random() * 0.75).toFixed(2));
-        surfaces.unknown.muK = Number(clamp(surfaces.unknown.muS - (0.08 + Math.random() * 0.18), 0.08, surfaces.unknown.muS - 0.02).toFixed(2));
-        state.activeSurface = 'unknown';
-        resetDemo(false);
-        setFeedback('Unknown surface randomized. Student answer values are now hidden only if Hide answer values is on.', 'warn');
-        renderAll();
-      });
-      document.getElementById('resetDemoBtn').addEventListener('click', () => {
-        resetDemo(true);
-        renderAll();
-      });
-      document.getElementById('exportCsvBtn').addEventListener('click', exportCsv);
-      document.getElementById('clearDataBtn').addEventListener('click', () => {
-        state.records = [];
-        renderTable();
-      });
-      document.getElementById('hideAnswersToggle').addEventListener('change', (event) => {
-        state.hideAnswers = event.target.checked;
-        renderAll();
-      });
-      document.getElementById('showEquationsToggle').addEventListener('change', (event) => {
-        state.showEquations = event.target.checked;
-        renderAll();
-      });
-
-      window.addEventListener('resize', () => {
-        drawScene();
-        drawGraph();
-      });
-    }
-
-    function resetDemo(clearFeedback) {
-      if (state.demo === 1) {
-        state.demo1.angle = 12;
-        state.demo1.observedAngle = null;
-      }
-      if (state.demo === 2) {
-        state.demo2.angle = 22;
-        state.demo2.blockMass = 3.0;
-        state.demo2.hangingMass = 1.20;
-      }
-      if (state.demo === 3) {
-        state.demo3.pullForce = 0;
-        state.demo3.appliedForce = 0;
-        state.demo3.velocity = 0;
-        state.demo3.position = 0;
-        state.demo3.mode = 'manual';
-        resetGraph();
-      }
-      if (clearFeedback) setFeedback('Demo reset. Collect a fresh trial.', '');
-    }
-
-    function resetGraph() {
-      state.demo3.graphData = [];
-      state.demo3.graphStart = performance.now();
-      state.demo3.peakForce = 0;
-      state.demo3.constantForce = 0;
-      state.demo3.hasMoved = false;
-      state.demo3.motion = 'stuck';
-      state.demo3.velocity = 0;
-      state.demo3.position = 0;
-    }
-
-    function atwoodData() {
-      const theta = rad(state.demo2.angle);
-      const blockMass = state.demo2.blockMass;
-      const hangingMass = state.demo2.hangingMass;
-      const downRamp = blockMass * g * Math.sin(theta);
-      const normal = blockMass * g * Math.cos(theta);
-      const tension = hangingMass * g;
-      const difference = tension - downRamp;
-      const maxStatic = surface().muS * normal;
-      const requiredMu = Math.abs(difference) / normal;
-      let frictionDirection = 'none';
-      if (Math.abs(difference) > 0.15) {
-        frictionDirection = difference > 0 ? 'down' : 'up';
-      }
-      let status = 'Balanced';
-      let kind = 'good';
-      if (Math.abs(difference) > maxStatic) {
-        status = difference > 0 ? 'Not balanced: block moves up' : 'Not balanced: block moves down';
-        kind = 'bad';
-      } else if (Math.abs(Math.abs(difference) - maxStatic) < normal * 0.035) {
-        status = 'At max static friction';
-        kind = 'warn';
-      }
-      return { downRamp, normal, tension, difference, maxStatic, requiredMu, frictionDirection, status, kind };
-    }
-
-    function forceScaleData() {
-      const s = surface();
-      const normal = state.demo3.mass * g;
-      const maxStatic = s.muS * normal;
-      const kinetic = s.muK * normal;
-      const scaleReading = state.demo3.appliedForce;
+      const normal = state.sim.mass * g;
       return {
         normal,
-        maxStatic,
-        kinetic,
-        scaleReading,
-        peakForce: state.demo3.peakForce,
-        constantForce: state.demo3.constantForce
+        maxStatic: s.muS * normal,
+        kinetic: s.muK * normal
       };
-    }
-
-    function currentExpected() {
-      if (state.demo === 1) {
-        const critical = state.demo1.observedAngle === null ? deg(Math.atan(surface().muS)) : state.demo1.observedAngle;
-        return {
-          muS: Math.tan(rad(critical)),
-          muK: null,
-          direction: null
-        };
-      }
-
-      if (state.demo === 2) {
-        const d = atwoodData();
-        return {
-          muS: d.requiredMu,
-          muK: null,
-          direction: d.frictionDirection
-        };
-      }
-
-      const d = forceScaleData();
-      const peak = d.peakForce || d.maxStatic;
-      const constant = d.constantForce || d.kinetic;
-      return {
-        muS: peak / d.normal,
-        muK: constant / d.normal,
-        direction: null
-      };
-    }
-
-    function checkAnswer(quiet) {
-      const expected = currentExpected();
-      const enteredS = Number(muSInput.value);
-      const enteredK = Number(muKInput.value);
-      const tol = 0.035;
-      let ok = false;
-      let message = 'Check which force is friction and which force is the normal force.';
-      let kind = 'bad';
-
-      if (state.demo === 1) {
-        ok = Number.isFinite(enteredS) && Math.abs(enteredS - expected.muS) <= tol;
-        if (!ok) {
-          const critical = state.demo1.observedAngle === null ? deg(Math.atan(surface().muS)) : state.demo1.observedAngle;
-          if (Math.abs(enteredS - Math.sin(rad(critical))) <= tol) {
-            message = 'Do not divide by weight unless the surface is horizontal.';
-          } else {
-            message = 'For the ramp angle method, use tan(angle).';
-          }
-        }
-      }
-
-      if (state.demo === 2) {
-        const directionOk = !expected.direction || expected.direction === 'none' || frictionDirSelect.value === expected.direction;
-        ok = Number.isFinite(enteredS) && Math.abs(enteredS - expected.muS) <= tol && directionOk;
-        if (!directionOk) {
-          message = 'Friction acts opposite the motion that would happen without friction.';
-        } else if (Number.isFinite(enteredS)) {
-          const d = atwoodData();
-          const weightBased = Math.abs(d.difference) / (state.demo2.blockMass * g);
-          if (Math.abs(enteredS - weightBased) <= tol && Math.abs(weightBased - expected.muS) > tol) {
-            message = 'Do not divide by weight unless the surface is horizontal.';
-          }
-        } else if (!ok) {
-          message = 'Check which force is friction and which force is the normal force.';
-        }
-      }
-
-      if (state.demo === 3) {
-        const sOk = Number.isFinite(enteredS) && Math.abs(enteredS - expected.muS) <= tol;
-        const kOk = Number.isFinite(enteredK) && Math.abs(enteredK - expected.muK) <= tol;
-        ok = sOk && kOk;
-        if (!ok && Number.isFinite(enteredS) && Math.abs(enteredS - expected.muS * g) <= 0.5) {
-          message = 'Check which force is friction and which force is the normal force.';
-        }
-      }
-
-      if (ok) {
-        message = 'Good. Your coefficient matches the demo data.';
-        kind = 'good';
-        markProgress();
-      }
-
-      if (!quiet) setFeedback(message, kind);
-      return ok;
-    }
-
-    function fillInputsFromDemo() {
-      if (state.hideAnswers) {
-        setFeedback('Answers are hidden by the teacher option.', 'warn');
-        return;
-      }
-      const expected = currentExpected();
-      if (expected.muS !== null) muSInput.value = expected.muS.toFixed(2);
-      if (expected.muK !== null) muKInput.value = expected.muK.toFixed(2);
-      if (expected.direction) frictionDirSelect.value = expected.direction;
-      setFeedback('Demo values copied into the calculator. Use this after students have made their own attempt.', 'warn');
-    }
-
-    function recordTrial(requireCorrect) {
-      if (requireCorrect && !checkAnswer(true)) return;
-
-      const row = makeRecord();
-      state.records.push(row);
-      renderTable();
-      setFeedback('Trial recorded in the student data table.', 'good');
-      markProgress();
-    }
-
-    function makeRecord() {
-      const enteredS = Number(muSInput.value);
-      const enteredK = Number(muKInput.value);
-      const surfaceName = surface().name;
-      const base = {
-        demo: state.demo,
-        surface: surfaceName,
-        mass: '',
-        angle: '',
-        hangingMass: '',
-        peakForce: '',
-        constantForce: '',
-        muS: Number.isFinite(enteredS) ? enteredS : '',
-        muK: Number.isFinite(enteredK) ? enteredK : ''
-      };
-
-      if (state.demo === 1) {
-        const critical = state.demo1.observedAngle === null ? deg(Math.atan(surface().muS)) : state.demo1.observedAngle;
-        base.mass = state.demo1.mass;
-        base.angle = critical;
-      }
-
-      if (state.demo === 2) {
-        base.mass = state.demo2.blockMass;
-        base.angle = state.demo2.angle;
-        base.hangingMass = state.demo2.hangingMass;
-      }
-
-      if (state.demo === 3) {
-        const d = forceScaleData();
-        base.mass = state.demo3.mass;
-        base.peakForce = d.peakForce || d.maxStatic;
-        base.constantForce = d.constantForce || d.kinetic;
-      }
-
-      return base;
-    }
-
-    function renderTable() {
-      if (state.records.length === 0) {
-        dataBody.innerHTML = '<tr><td class="empty" colspan="9">No trials recorded yet.</td></tr>';
-        return;
-      }
-
-      dataBody.innerHTML = state.records.map((row) => `
-        <tr>
-          <td>${row.demo}</td>
-          <td>${row.surface}</td>
-          <td>${row.mass === '' ? '--' : fmt(row.mass, 2, ' kg')}</td>
-          <td>${row.angle === '' ? '--' : fmt(row.angle, 1, ' deg')}</td>
-          <td>${row.hangingMass === '' ? '--' : fmt(row.hangingMass, 2, ' kg')}</td>
-          <td>${row.peakForce === '' ? '--' : fmt(row.peakForce, 1, ' N')}</td>
-          <td>${row.constantForce === '' ? '--' : fmt(row.constantForce, 1, ' N')}</td>
-          <td>${row.muS === null || row.muS === '' ? '--' : fmt(row.muS, 2)}</td>
-          <td>${row.muK === null || row.muK === '' ? '--' : fmt(row.muK, 2)}</td>
-        </tr>
-      `).join('');
-    }
-
-    function exportCsv() {
-      const headers = ['Demo number', 'Surface', 'Mass', 'Angle', 'Hanging mass', 'Peak force', 'Constant force', 'Calculated mu_s', 'Calculated mu_k'];
-      const rows = state.records.map((row) => [
-        row.demo,
-        row.surface,
-        row.mass,
-        row.angle,
-        row.hangingMass,
-        row.peakForce,
-        row.constantForce,
-        row.muS,
-        row.muK
-      ]);
-      const csv = [headers, ...rows].map((row) => row.map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'friction-demo-data.csv';
-      link.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function markProgress() {
-      if (window.SCORM) {
-        const uniqueDemos = new Set(state.records.map((row) => row.demo));
-        const score = Math.min(100, Math.round((uniqueDemos.size / 3) * 100));
-        window.SCORM.setScore(score, 0, 100);
-        if (uniqueDemos.size >= 3) {
-          window.SCORM.setStatus('completed');
-        } else {
-          window.SCORM.setStatus('incomplete');
-        }
-      }
-    }
-
-    function drawScene() {
-      const size = resizeCanvasToDisplay(canvas, ctx);
-      ctx.clearRect(0, 0, size.width, size.height);
-      drawClassroomBackground(size.width, size.height);
-      if (state.demo === 1) drawTiltBoard(size.width, size.height);
-      if (state.demo === 2) drawAtwoodRamp(size.width, size.height);
-      if (state.demo === 3) drawForceScale(size.width, size.height);
-    }
-
-    function drawClassroomBackground(w, h) {
-      ctx.fillStyle = '#eaf4ff';
-      ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, h * 0.55, w, h * 0.45);
-      ctx.strokeStyle = '#dbe5f2';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(0, h * 0.55);
-      ctx.lineTo(w, h * 0.55);
-      ctx.stroke();
-      ctx.fillStyle = '#f1f5f9';
-      ctx.fillRect(0, h - 36, w, 36);
-    }
-
-    function arrow(fromX, fromY, toX, toY, color, label, labelOffsetX = 0, labelOffsetY = 0, lineWidth = 4) {
-      const head = 13;
-      const angle = Math.atan2(toY - fromY, toX - fromX);
-      ctx.save();
-      ctx.strokeStyle = color;
-      ctx.fillStyle = color;
-      ctx.lineWidth = lineWidth;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(fromX, fromY);
-      ctx.lineTo(toX, toY);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(toX, toY);
-      ctx.lineTo(toX - head * Math.cos(angle - Math.PI / 6), toY - head * Math.sin(angle - Math.PI / 6));
-      ctx.lineTo(toX - head * Math.cos(angle + Math.PI / 6), toY - head * Math.sin(angle + Math.PI / 6));
-      ctx.closePath();
-      ctx.fill();
-      if (label) {
-        ctx.font = 'bold 14px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(label, toX + labelOffsetX, toY + labelOffsetY);
-      }
-      ctx.restore();
-    }
-
-    function label(text, x, y, color = '#132033', align = 'center') {
-      ctx.save();
-      ctx.font = 'bold 14px Arial';
-      ctx.fillStyle = color;
-      ctx.textAlign = align;
-      ctx.fillText(text, x, y);
-      ctx.restore();
-    }
-
-    function drawBlock(cx, cy, width, height, angle) {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(angle);
-      ctx.fillStyle = 'rgba(0,0,0,0.13)';
-      ctx.fillRect(-width / 2 + 5, -height / 2 + 6, width, height);
-      ctx.fillStyle = '#8d99a8';
-      ctx.strokeStyle = '#5b6472';
-      ctx.lineWidth = 2;
-      ctx.fillRect(-width / 2, -height / 2, width, height);
-      ctx.strokeRect(-width / 2, -height / 2, width, height);
-      ctx.fillStyle = '#e5e7eb';
-      ctx.fillRect(-width / 2 + 10, -height / 2 + 8, width - 20, 6);
-      ctx.restore();
-    }
-
-    function drawTiltBoard(w, h) {
-      setStage('Demo 1: Tilt Board Method');
-      const s = surface();
-      const angle = rad(state.demo1.angle);
-      const critical = deg(Math.atan(s.muS));
-      const sliding = state.demo1.angle >= critical;
-      if (sliding && state.demo1.observedAngle === null) state.demo1.observedAngle = critical;
-      setStatus(sliding ? 'Object starts sliding' : 'Static friction holding', sliding ? 'warn' : 'good');
-
-      const pivot = { x: w * 0.16, y: h * 0.74 };
-      const length = w * 0.55;
-      const end = {
-        x: pivot.x + length * Math.cos(angle),
-        y: pivot.y - length * Math.sin(angle)
-      };
-      const boardThickness = 18;
-      const along = { x: Math.cos(angle), y: -Math.sin(angle) };
-      const normal = { x: Math.sin(angle), y: Math.cos(angle) };
-      const blockTravel = sliding ? clamp((state.demo1.angle - critical) / 10, 0, 1) : 0;
-      const blockDistance = length * (0.45 + blockTravel * 0.30);
-      const blockCenter = {
-        x: pivot.x + along.x * blockDistance - normal.x * 26,
-        y: pivot.y + along.y * blockDistance - normal.y * 26
-      };
-
-      ctx.save();
-      ctx.lineCap = 'round';
-      ctx.strokeStyle = '#9aa8ba';
-      ctx.lineWidth = 10;
-      ctx.beginPath();
-      ctx.moveTo(pivot.x, pivot.y + 4);
-      ctx.lineTo(end.x, end.y + 4);
-      ctx.stroke();
-      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--ramp').trim();
-      ctx.lineWidth = boardThickness;
-      ctx.beginPath();
-      ctx.moveTo(pivot.x, pivot.y);
-      ctx.lineTo(end.x, end.y);
-      ctx.stroke();
-      ctx.restore();
-
-      ctx.fillStyle = '#334155';
-      ctx.beginPath();
-      ctx.moveTo(pivot.x - 25, pivot.y + 8);
-      ctx.lineTo(pivot.x + 25, pivot.y + 8);
-      ctx.lineTo(pivot.x, pivot.y + 46);
-      ctx.closePath();
-      ctx.fill();
-
-      drawSurfaceTexture(pivot.x, pivot.y, end.x, end.y, s.color);
-      drawBlock(blockCenter.x, blockCenter.y, 82, 48, -angle);
-
-      ctx.save();
-      ctx.strokeStyle = '#475569';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(pivot.x, pivot.y, 70, -angle, 0);
-      ctx.stroke();
-      ctx.restore();
-      label(fmt(state.demo1.angle, 1, ' deg'), pivot.x + 82, pivot.y - 18, '#1e3a8a');
-
-      const markX = pivot.x + length * 0.75 * Math.cos(rad(critical));
-      const markY = pivot.y - length * 0.75 * Math.sin(rad(critical));
-      ctx.save();
-      ctx.strokeStyle = '#f59e0b';
-      ctx.lineWidth = 3;
-      ctx.setLineDash([7, 6]);
-      ctx.beginPath();
-      ctx.moveTo(pivot.x, pivot.y);
-      ctx.lineTo(markX, markY);
-      ctx.stroke();
-      ctx.restore();
-      label('Starts sliding at ' + answerText(critical, 1, ' deg'), w * 0.43, h * 0.18, '#92400e');
-    }
-
-    function drawSurfaceTexture(x1, y1, x2, y2, color) {
-      ctx.save();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 3;
-      ctx.setLineDash([9, 11]);
-      ctx.beginPath();
-      ctx.moveTo(x1, y1 - 15);
-      ctx.lineTo(x2, y2 - 15);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    function drawAtwoodRamp(w, h) {
-      setStage('Demo 2: Balanced Atwood Ramp and Pulley');
-      const d = atwoodData();
-      setStatus(d.status, d.kind);
-
-      const angle = rad(state.demo2.angle);
-      const pivot = { x: w * 0.12, y: h * 0.76 };
-      const length = w * 0.48;
-      const top = { x: pivot.x + length * Math.cos(angle), y: pivot.y - length * Math.sin(angle) };
-      const along = { x: Math.cos(angle), y: -Math.sin(angle) };
-      const normal = { x: Math.sin(angle), y: Math.cos(angle) };
-      const moving = d.status.indexOf('Not balanced') === 0;
-      const slidePhase = moving ? Math.sin(performance.now() / 250) * 12 : 0;
-      const blockDistance = length * 0.52 + slidePhase * (d.difference > 0 ? 1 : -1);
-      const blockCenter = {
-        x: pivot.x + along.x * blockDistance - normal.x * 27,
-        y: pivot.y + along.y * blockDistance - normal.y * 27
-      };
-      const pulley = { x: top.x + 38, y: top.y - 18 };
-      const massY = pulley.y + 118 + (moving ? Math.sin(performance.now() / 220) * 10 : 0);
-
-      ctx.save();
-      ctx.lineCap = 'round';
-      ctx.strokeStyle = '#9aa8ba';
-      ctx.lineWidth = 10;
-      ctx.beginPath();
-      ctx.moveTo(pivot.x, pivot.y + 4);
-      ctx.lineTo(top.x, top.y + 4);
-      ctx.stroke();
-      ctx.strokeStyle = '#2f80ed';
-      ctx.lineWidth = 18;
-      ctx.beginPath();
-      ctx.moveTo(pivot.x, pivot.y);
-      ctx.lineTo(top.x, top.y);
-      ctx.stroke();
-      ctx.restore();
-
-      drawSurfaceTexture(pivot.x, pivot.y, top.x, top.y, surface().color);
-      drawBlock(blockCenter.x, blockCenter.y, 78, 48, -angle);
-
-      ctx.save();
-      ctx.strokeStyle = '#1f2937';
-      ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.arc(pulley.x, pulley.y, 28, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.lineWidth = 2;
-      const spokeAngle = moving ? performance.now() / 220 : 0;
-      for (let i = 0; i < 4; i += 1) {
-        const a = spokeAngle + i * Math.PI / 2;
-        ctx.beginPath();
-        ctx.moveTo(pulley.x, pulley.y);
-        ctx.lineTo(pulley.x + Math.cos(a) * 25, pulley.y + Math.sin(a) * 25);
-        ctx.stroke();
-      }
-      ctx.strokeStyle = '#16a34a';
-      ctx.setLineDash(moving ? [10, 8] : []);
-      ctx.lineDashOffset = moving ? -state.demo2.stringPhase : 0;
-      ctx.beginPath();
-      ctx.moveTo(blockCenter.x + along.x * 50, blockCenter.y + along.y * 50);
-      ctx.lineTo(pulley.x - 24, pulley.y);
-      ctx.arc(pulley.x, pulley.y, 24, Math.PI, Math.PI / 2, true);
-      ctx.lineTo(pulley.x, massY - 34);
-      ctx.stroke();
-      ctx.restore();
-
-      ctx.save();
-      ctx.fillStyle = '#64748b';
-      ctx.strokeStyle = '#334155';
-      ctx.lineWidth = 2;
-      ctx.fillRect(pulley.x - 24, massY - 34, 48, 68);
-      ctx.strokeRect(pulley.x - 24, massY - 34, 48, 68);
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 13px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText(fmt(state.demo2.hangingMass, 2, ' kg'), pulley.x, massY + 5);
-      ctx.restore();
-
-      const origin = { x: blockCenter.x, y: blockCenter.y };
-      arrow(origin.x, origin.y, origin.x + along.x * 92, origin.y + along.y * 92, '#16a34a', 'T', 14, -4);
-      arrow(origin.x, origin.y, origin.x, origin.y + 88, '#111827', 'W', 12, 5);
-      arrow(origin.x, origin.y, origin.x + normal.x * 82, origin.y + normal.y * 82, '#7c3aed', 'N', 12, 4);
-      const frictionSign = d.frictionDirection === 'up' ? 1 : -1;
-      if (d.frictionDirection !== 'none') {
-        arrow(origin.x, origin.y, origin.x + along.x * 78 * frictionSign, origin.y + along.y * 78 * frictionSign, '#dc2626', 'friction', frictionSign > 0 ? 30 : -26, 5);
-      }
-
-      arrow(pulley.x + 82, massY, pulley.x + 82, massY - 72, '#16a34a', 'T', 15, 0);
-      arrow(pulley.x + 82, massY, pulley.x + 82, massY + 72, '#111827', 'm_h g', 22, 6);
-
-      label('Balanced / Not Balanced: ' + d.status, w * 0.46, h * 0.14, d.kind === 'bad' ? '#b91c1c' : '#15803d');
-    }
-
-    function drawForceScale(w, h) {
-      setStage('Demo 3: Pulling Block with Force Scale');
-      const d = forceScaleData();
-      const motionText = state.demo3.motion === 'stuck' ? 'Stuck' : state.demo3.motion === 'constant' ? 'Constant velocity' : 'Speeding up';
-      setStatus(motionText, state.demo3.motion === 'stuck' ? 'warn' : state.demo3.motion === 'constant' ? 'good' : '');
-
-      const floorY = h * 0.68;
-      ctx.fillStyle = '#e2e8f0';
-      ctx.fillRect(0, floorY, w, 20);
-      ctx.strokeStyle = '#94a3b8';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(0, floorY);
-      ctx.lineTo(w, floorY);
-      ctx.stroke();
-
-      const x = w * 0.18 + state.demo3.position;
-      const y = floorY - 42;
-      drawBlock(x, y, 94, 70, 0);
-      ctx.fillStyle = surface().color;
-      ctx.fillRect(x - 46, floorY - 5, 92, 6);
-
-      const scaleX = x + 135;
-      const scaleY = y;
-      ctx.save();
-      ctx.strokeStyle = '#16a34a';
-      ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.moveTo(x + 48, y);
-      ctx.lineTo(scaleX - 45, scaleY);
-      ctx.stroke();
-      ctx.fillStyle = '#f8fafc';
-      ctx.strokeStyle = '#334155';
-      ctx.lineWidth = 2;
-      ctx.fillRect(scaleX - 44, scaleY - 22, 88, 44);
-      ctx.strokeRect(scaleX - 44, scaleY - 22, 88, 44);
-      ctx.fillStyle = '#111827';
-      ctx.font = 'bold 16px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText(fmt(d.scaleReading, 1, ' N'), scaleX, scaleY + 5);
-      ctx.restore();
-
-      arrow(x, y - 8, x + 120, y - 8, '#16a34a', 'Applied force', 48, -6);
-      if (state.demo3.appliedForce > 0.1) arrow(x, y + 22, x - 92, y + 22, '#dc2626', state.demo3.motion === 'stuck' ? 'Static friction' : 'Kinetic friction', -56, 5);
-      arrow(x - 16, y, x - 16, y - 88, '#7c3aed', 'Normal', 28, 0);
-      arrow(x + 16, y, x + 16, y + 88, '#111827', 'Weight', 30, 5);
-
-      drawSmallForceGraph(w * 0.63, h * 0.16, w * 0.28, h * 0.28, d);
-      label('Motion indicator: ' + motionText, w * 0.50, h * 0.15, '#1e3a8a');
-    }
-
-    function drawSmallForceGraph(x, y, w, h, d) {
-      ctx.save();
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      ctx.strokeStyle = '#cbd5e1';
-      ctx.fillRect(x, y, w, h);
-      ctx.strokeRect(x, y, w, h);
-      label('Force-time graph', x + w / 2, y + 22, '#132033');
-      ctx.translate(x + 28, y + h - 28);
-      const gw = w - 48;
-      const gh = h - 58;
-      ctx.strokeStyle = '#94a3b8';
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(gw, 0);
-      ctx.moveTo(0, 0);
-      ctx.lineTo(0, -gh);
-      ctx.stroke();
-      drawGraphLine(ctx, gw, gh, d.maxStatic * 1.25);
-      ctx.restore();
-    }
-
-    function drawGraphLine(context, gw, gh, maxForce) {
-      const data = state.demo3.graphData;
-      if (data.length < 2) return;
-      const maxTime = Math.max(5, data[data.length - 1].t);
-      context.save();
-      context.strokeStyle = '#2563eb';
-      context.lineWidth = 3;
-      context.beginPath();
-      data.forEach((point, index) => {
-        const x = (point.t / maxTime) * gw;
-        const y = -(point.f / maxForce) * gh;
-        if (index === 0) context.moveTo(x, y);
-        else context.lineTo(x, y);
-      });
-      context.stroke();
-      context.restore();
     }
 
     function updatePhysics(now, dt) {
-      if (state.demo === 2) {
-        state.demo2.stringPhase = (state.demo2.stringPhase + dt * 45) % 18;
+      const d = forceData();
+      const sim = state.sim;
+      const wasPulling = sim.mode !== 'idle';
+
+      if (sim.mode === 'constVel') {
+        const t = (now - sim.autoStart) / 1000;
+        if (!sim.hasMoved) {
+          // Force grows until static friction is beaten
+          sim.pullForce = Math.min((t / 2.6) * d.maxStatic * 1.04, d.maxStatic * 1.04);
+        } else {
+          // The instant the block breaks loose, less force is needed: drop to kinetic
+          if (!sim.moveStart) sim.moveStart = now;
+          const tm = (now - sim.moveStart) / 1000;
+          if (tm < 0.55) {
+            sim.pullForce = sim.peakForce - (tm / 0.55) * (sim.peakForce - d.kinetic);
+          } else if (tm < 4.0) {
+            sim.pullForce = d.kinetic;
+            sim.constantForce = d.kinetic;
+            markLabComplete();
+          } else {
+            sim.mode = 'idle';
+            sim.pullForce = 0;
+          }
+        }
       }
 
-      if (state.demo !== 3) return;
-
-      const d = forceScaleData();
-      const sim = state.demo3;
-      if (sim.mode === 'auto') {
+      if (sim.mode === 'constForce') {
         const t = (now - sim.autoStart) / 1000;
+        // Target below max static never moves the block; at or above it, the block
+        // breaks loose and keeps speeding up because kinetic friction is smaller
+        const target = d.maxStatic * (sim.forceFactor || 1.02);
         if (t < 2.6) {
-          sim.pullForce = (t / 2.6) * d.maxStatic * 1.04;
-        } else if (t < 3.15) {
-          sim.pullForce = d.maxStatic * 1.04 - ((t - 2.6) / 0.55) * (d.maxStatic * 1.04 - d.kinetic);
+          sim.pullForce = (t / 2.6) * target;
+        } else if (t < 6.5) {
+          sim.pullForce = target;
         } else {
-          sim.pullForce = d.kinetic;
-          sim.constantForce = d.kinetic;
+          sim.mode = 'idle';
+          sim.pullForce = 0;
         }
       }
 
@@ -1850,19 +778,247 @@
           sim.velocity = Math.max(42, sim.velocity || 42);
           sim.constantForce = d.kinetic;
         } else {
-          sim.motion = net > 0 ? 'speeding' : 'stuck';
           sim.velocity = clamp(sim.velocity + (net / sim.mass) * dt * 22, 0, 210);
+          sim.motion = net > 0 ? 'speeding' : (sim.velocity > 0.5 ? 'slowing' : 'stuck');
         }
         sim.position += sim.velocity * dt;
         if (sim.position > 330) sim.position = 0;
       }
 
-      const graphT = (now - sim.graphStart) / 1000;
-      const last = sim.graphData[sim.graphData.length - 1];
-      if (!last || graphT - last.t >= 0.06) {
-        sim.graphData.push({ t: graphT, f: sim.appliedForce, motion: sim.motion });
-        if (sim.graphData.length > 170) sim.graphData.shift();
+      if (wasPulling) {
+        const graphT = (now - sim.graphStart) / 1000;
+        const last = sim.graphData[sim.graphData.length - 1];
+        if (!last || graphT - last.t >= 0.06) {
+          sim.graphData.push({ t: graphT, f: sim.appliedForce, motion: sim.motion });
+          if (sim.graphData.length > 220) sim.graphData.shift();
+        }
       }
+    }
+
+    /* ── Drawing ───────────────────────────────────────────── */
+    function arrow(fromX, fromY, toX, toY, color, labelText, labelOffsetX = 0, labelOffsetY = 0, lineWidth = 4) {
+      const head = 13;
+      const angle = Math.atan2(toY - fromY, toX - fromX);
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = lineWidth;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(fromX, fromY);
+      ctx.lineTo(toX, toY);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(toX, toY);
+      ctx.lineTo(toX - head * Math.cos(angle - Math.PI / 6), toY - head * Math.sin(angle - Math.PI / 6));
+      ctx.lineTo(toX - head * Math.cos(angle + Math.PI / 6), toY - head * Math.sin(angle + Math.PI / 6));
+      ctx.closePath();
+      ctx.fill();
+      if (labelText) {
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(labelText, toX + labelOffsetX, toY + labelOffsetY);
+      }
+      ctx.restore();
+    }
+
+    function label(text, x, y, color = '#132033', align = 'center') {
+      ctx.save();
+      ctx.font = 'bold 14px Arial';
+      ctx.fillStyle = color;
+      ctx.textAlign = align;
+      ctx.fillText(text, x, y);
+      ctx.restore();
+    }
+
+    function isLightColor(hex) {
+      const n = parseInt(hex.slice(1), 16);
+      const r = (n >> 16) & 255;
+      const g = (n >> 8) & 255;
+      const b = n & 255;
+      return (0.299 * r + 0.587 * g + 0.114 * b) > 150;
+    }
+
+    function drawBlock(cx, cy, width, height) {
+      const s = surface();
+      const textColor = isLightColor(s.color) ? '#132033' : '#ffffff';
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.fillStyle = 'rgba(0,0,0,0.13)';
+      ctx.fillRect(-width / 2 + 5, -height / 2 + 6, width, height);
+      ctx.fillStyle = s.color;
+      ctx.strokeStyle = '#1f2937';
+      ctx.lineWidth = 2;
+      ctx.fillRect(-width / 2, -height / 2, width, height);
+      ctx.strokeRect(-width / 2, -height / 2, width, height);
+      ctx.fillStyle = 'rgba(255,255,255,0.30)';
+      ctx.fillRect(-width / 2 + 10, -height / 2 + 8, width - 20, 6);
+      ctx.fillStyle = textColor;
+      ctx.font = 'bold 13px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(s.name, 0, -4);
+      ctx.fillText(fmt(state.sim.mass, 1, ' kg'), 0, 16);
+      ctx.restore();
+    }
+
+    function drawScene() {
+      const size = resizeCanvasToDisplay(canvas, ctx);
+      const w = size.width;
+      const h = size.height;
+      ctx.clearRect(0, 0, w, h);
+
+      ctx.fillStyle = '#eaf4ff';
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, h * 0.42, w, h * 0.58);
+      ctx.strokeStyle = '#dbe5f2';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, h * 0.42);
+      ctx.lineTo(w, h * 0.42);
+      ctx.stroke();
+
+      const sim = state.sim;
+      const motionText = sim.motion === 'stuck' ? 'Stuck' : sim.motion === 'constant' ? 'Constant velocity' : sim.motion === 'slowing' ? 'Slowing down' : 'Speeding up';
+      setStatus(motionText, sim.motion === 'stuck' ? 'warn' : sim.motion === 'constant' ? 'good' : '');
+
+      const floorY = h * 0.55;
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillRect(0, floorY, w, 20);
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, floorY);
+      ctx.lineTo(w, floorY);
+      ctx.stroke();
+
+      const x = w * 0.18 + sim.position;
+      const y = floorY - 42;
+      drawBlock(x, y, 94, 70);
+      ctx.fillStyle = surface().color;
+      ctx.fillRect(x - 46, floorY - 5, 92, 6);
+
+      drawSpringScale(x, y, sim.appliedForce, forceData().maxStatic);
+
+      if (sim.appliedForce > 0.1) {
+        arrow(x, y - 48, x + 120, y - 48, '#16a34a', 'Applied force', -60, -10);
+      }
+      if (sim.appliedForce > 0.1 || sim.velocity > 0.5) {
+        arrow(x, y + 22, x - 92, y + 22, '#dc2626');
+        label(sim.motion === 'stuck' ? 'Static friction' : 'Kinetic friction', Math.max(60, x - 138), y + 10, '#dc2626');
+      }
+      arrow(x - 32, y, x - 32, y - 88, '#7c3aed', 'Normal', 28, 0);
+      arrow(x + 32, y, x + 32, y + 88, '#111827', 'Weight', 30, 5);
+
+      label('Surface: ' + surface().name, w * 0.62, Math.max(24, floorY - 180), '#1e3a8a');
+      label('Motion: ' + motionText, w * 0.62, Math.max(48, floorY - 152), '#334155');
+    }
+
+    function drawSpringScale(x, y, force, maxStatic) {
+      const caseW = 250;
+      const caseH = 50;
+      const caseX = x + 72;
+      const caseY = y - caseH / 2;
+      const step = [5, 10, 20, 25, 50].find((s) => s * 4 >= Math.max(20, maxStatic * 1.25)) || 50;
+      const scaleMax = step * 4;
+      const innerL = caseX + 16;
+      const innerR = caseX + caseW - 16;
+      const innerW = innerR - innerL;
+      const t = clamp(force / scaleMax, 0, 1);
+      const mx = innerL + innerW * t;
+
+      ctx.save();
+
+      // hook and rod connecting the block to the scale
+      ctx.strokeStyle = '#4b5563';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(x + 47, y);
+      ctx.lineTo(caseX, y);
+      ctx.stroke();
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(x + 53, y, 5, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // scale case
+      ctx.fillStyle = '#e2e5ea';
+      ctx.strokeStyle = '#111827';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect(caseX, caseY, caseW, caseH, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      // internal rod up to the marker
+      ctx.strokeStyle = '#6b7280';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(caseX + 4, y);
+      ctx.lineTo(mx, y);
+      ctx.stroke();
+
+      // spring coil from the marker to the right end (stretches as force grows)
+      ctx.strokeStyle = '#111827';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(mx, y);
+      const coilEnd = caseX + caseW;
+      const coilW = coilEnd - mx;
+      const nCoils = 9;
+      for (let i = 1; i < nCoils; i += 1) {
+        ctx.lineTo(mx + (coilW * i) / nCoils, y + (i % 2 === 0 ? -5 : 5));
+      }
+      ctx.lineTo(coilEnd, y);
+      ctx.stroke();
+
+      // cord and loop out the right side
+      ctx.beginPath();
+      ctx.moveTo(coilEnd, y);
+      ctx.lineTo(coilEnd + 34, y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(coilEnd + 40, y, 6, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // minor tick marks (5 per major division)
+      ctx.strokeStyle = '#dc2626';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 20; i += 1) {
+        if (i % 5 === 0) continue;
+        const tx = innerL + (innerW * i) / 20;
+        ctx.beginPath();
+        ctx.moveTo(tx, y - 4);
+        ctx.lineTo(tx, y + 4);
+        ctx.stroke();
+      }
+
+      // major tick marks and newton numbers
+      ctx.fillStyle = '#dc2626';
+      ctx.lineWidth = 2;
+      ctx.font = 'bold 11px Arial';
+      ctx.textAlign = 'center';
+      for (let i = 0; i <= 4; i += 1) {
+        const tx = innerL + (innerW * i) / 4;
+        ctx.beginPath();
+        ctx.moveTo(tx, y - 8);
+        ctx.lineTo(tx, y + 8);
+        ctx.stroke();
+        ctx.fillText(String((scaleMax * i) / 4), tx, caseY + 13);
+      }
+      ctx.fillText('Newtons', caseX + caseW / 2, caseY + caseH - 5);
+
+      // white marker that slides along the scale
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#111827';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.ellipse(mx, y, 5, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.restore();
+      label('Spring scale', caseX + caseW / 2, caseY - 10, '#334155');
     }
 
     function drawGraph() {
@@ -1873,14 +1029,16 @@
       graphCtx.fillStyle = '#fbfdff';
       graphCtx.fillRect(0, 0, w, h);
 
-      const d = forceScaleData();
+      const d = forceData();
       const padL = 52;
       const padR = 20;
       const padT = 22;
       const padB = 42;
       const gw = w - padL - padR;
       const gh = h - padT - padB;
-      const maxForce = Math.max(20, d.maxStatic * 1.25, ...state.demo3.graphData.map((point) => point.f * 1.1));
+      const rawMax = Math.max(20, d.maxStatic * 1.25, ...state.sim.graphData.map((point) => point.f * 1.1));
+      const tickStep = [5, 10, 20, 25, 50].find((step) => step * 4 >= rawMax) || Math.ceil(rawMax / 4);
+      const maxForce = tickStep * 4;
 
       graphCtx.save();
       graphCtx.translate(padL, h - padB);
@@ -1902,35 +1060,65 @@
       graphCtx.lineTo(0, -gh);
       graphCtx.stroke();
 
-      graphCtx.strokeStyle = '#dc2626';
-      graphCtx.setLineDash([8, 6]);
-      let yPeak = -(d.maxStatic / maxForce) * gh;
-      graphCtx.beginPath();
-      graphCtx.moveTo(0, yPeak);
-      graphCtx.lineTo(gw, yPeak);
-      graphCtx.stroke();
+      const yPeak = -(d.maxStatic / maxForce) * gh;
+      const yK = -(d.kinetic / maxForce) * gh;
+      if (state.showHint) {
+        graphCtx.strokeStyle = '#dc2626';
+        graphCtx.setLineDash([8, 6]);
+        graphCtx.beginPath();
+        graphCtx.moveTo(0, yPeak);
+        graphCtx.lineTo(gw, yPeak);
+        graphCtx.stroke();
 
-      graphCtx.strokeStyle = '#16a34a';
-      let yK = -(d.kinetic / maxForce) * gh;
-      graphCtx.beginPath();
-      graphCtx.moveTo(0, yK);
-      graphCtx.lineTo(gw, yK);
-      graphCtx.stroke();
-      graphCtx.setLineDash([]);
+        graphCtx.strokeStyle = '#16a34a';
+        graphCtx.beginPath();
+        graphCtx.moveTo(0, yK);
+        graphCtx.lineTo(gw, yK);
+        graphCtx.stroke();
+        graphCtx.setLineDash([]);
+      }
 
-      drawGraphLine(graphCtx, gw, gh, maxForce);
+      const data = state.sim.graphData;
+      const maxTime = data.length >= 2 ? Math.max(5, data[data.length - 1].t) : 5;
+
+      // Axis tick numbers so students can read forces off the graph
+      graphCtx.fillStyle = '#5f6f86';
+      graphCtx.font = '11px Arial';
+      graphCtx.textAlign = 'right';
+      for (let i = 0; i <= 4; i += 1) {
+        graphCtx.fillText(((maxForce * i) / 4).toFixed(0), -6, -(i / 4) * gh + 4);
+      }
+      graphCtx.textAlign = 'center';
+      for (let i = 0; i <= 4; i += 1) {
+        graphCtx.fillText(((maxTime * i) / 4).toFixed(1), (i / 4) * gw, 16);
+      }
+
+      if (data.length >= 2) {
+        const motionColors = { stuck: '#2563eb', speeding: '#f59e0b', constant: '#16a34a', slowing: '#64748b' };
+        graphCtx.lineWidth = 3;
+        graphCtx.lineCap = 'round';
+        for (let i = 1; i < data.length; i += 1) {
+          graphCtx.strokeStyle = motionColors[data[i].motion] || '#2563eb';
+          graphCtx.beginPath();
+          graphCtx.moveTo((data[i - 1].t / maxTime) * gw, -(data[i - 1].f / maxForce) * gh);
+          graphCtx.lineTo((data[i].t / maxTime) * gw, -(data[i].f / maxForce) * gh);
+          graphCtx.stroke();
+        }
+      }
       graphCtx.restore();
 
-      if (state.showGraphLabels) {
-        graphCtx.fillStyle = '#132033';
+      graphCtx.fillStyle = '#132033';
+      graphCtx.font = 'bold 12px Arial';
+      graphCtx.textAlign = 'center';
+      graphCtx.fillText('Time (s)', padL + gw / 2, h - 6);
+      graphCtx.save();
+      graphCtx.translate(15, padT + gh / 2);
+      graphCtx.rotate(-Math.PI / 2);
+      graphCtx.fillText('Force (N)', 0, 0);
+      graphCtx.restore();
+
+      if (state.showHint) {
         graphCtx.font = 'bold 12px Arial';
-        graphCtx.textAlign = 'center';
-        graphCtx.fillText('Time (s)', padL + gw / 2, h - 10);
-        graphCtx.save();
-        graphCtx.translate(15, padT + gh / 2);
-        graphCtx.rotate(-Math.PI / 2);
-        graphCtx.fillText('Force (N)', 0, 0);
-        graphCtx.restore();
         graphCtx.textAlign = 'right';
         graphCtx.fillStyle = '#dc2626';
         graphCtx.fillText('static peak', padL + gw - 4, h - padB + yPeak - 6);
@@ -1939,39 +1127,91 @@
       }
     }
 
-    function renderAll() {
-      document.querySelectorAll('.demo-tab').forEach((button) => {
-        button.classList.toggle('active', Number(button.dataset.demo) === state.demo);
-      });
-      graphWrap.classList.toggle('hidden', state.demo !== 3);
-      frictionDirSelect.parentElement.classList.toggle('hidden', state.demo !== 2);
-      muKInput.parentElement.classList.toggle('hidden', state.demo !== 3);
-      renderControls();
-      renderReadouts();
-      renderPrompts();
-      renderTeacherPanel();
-      renderTable();
-      updateTopReadouts();
-      drawScene();
-      drawGraph();
+    function drawVelMeter() {
+      const size = resizeCanvasToDisplay(velCanvas, velCtx);
+      const w = size.width;
+      const h = size.height;
+      velCtx.clearRect(0, 0, w, h);
+      velCtx.fillStyle = '#fbfdff';
+      velCtx.fillRect(0, 0, w, h);
+
+      const padT = 26;
+      const padB = 40;
+      const gh = h - padT - padB;
+      const barW = 20;
+      const barX = w * 0.60 - barW / 2;
+      const vMax = 5;
+      const v = clamp(state.sim.velocity / 42, 0, vMax);
+      const moving = state.sim.velocity > 0.5;
+
+      let label = 'stopped';
+      let color = '#94a3b8';
+      if (moving && state.sim.motion === 'constant') {
+        label = 'constant';
+        color = '#16a34a';
+      } else if (moving && state.sim.motion === 'speeding') {
+        label = 'speeding up';
+        color = '#f59e0b';
+      } else if (moving) {
+        label = 'slowing';
+        color = '#64748b';
+      }
+
+      velCtx.fillStyle = '#132033';
+      velCtx.font = 'bold 11px Arial';
+      velCtx.textAlign = 'center';
+      velCtx.fillText('Velocity', w / 2, 16);
+
+      velCtx.font = '10px Arial';
+      velCtx.strokeStyle = '#cbd5e1';
+      velCtx.lineWidth = 1;
+      for (let i = 0; i <= vMax; i += 1) {
+        const y = padT + gh - (i / vMax) * gh;
+        velCtx.beginPath();
+        velCtx.moveTo(barX - 6, y);
+        velCtx.lineTo(barX + barW + 4, y);
+        velCtx.stroke();
+        velCtx.fillStyle = '#5f6f86';
+        velCtx.textAlign = 'right';
+        velCtx.fillText(String(i), barX - 9, y + 3);
+      }
+
+      velCtx.fillStyle = '#e2e8f0';
+      velCtx.fillRect(barX, padT, barW, gh);
+      const fillH = (v / vMax) * gh;
+      velCtx.fillStyle = color;
+      velCtx.fillRect(barX, padT + gh - fillH, barW, fillH);
+      velCtx.strokeStyle = '#94a3b8';
+      velCtx.strokeRect(barX, padT, barW, gh);
+
+      velCtx.textAlign = 'center';
+      velCtx.fillStyle = '#132033';
+      velCtx.font = 'bold 12px Arial';
+      velCtx.fillText(fmt(v, 1) + ' m/s', w / 2, h - 22);
+      velCtx.font = 'bold 10px Arial';
+      velCtx.fillStyle = color;
+      velCtx.fillText(label, w / 2, h - 8);
     }
 
+    /* ── Main loop ─────────────────────────────────────────── */
     let lastFrame = performance.now();
     function loop(now) {
       const dt = Math.min(0.05, (now - lastFrame) / 1000);
       lastFrame = now;
       updatePhysics(now, dt);
-      if (state.demo === 3 || state.demo === 2) {
-        renderReadouts();
-        updateTopReadouts();
-      }
       drawScene();
       drawGraph();
+      drawVelMeter();
       requestAnimationFrame(loop);
     }
 
-    attachGlobalEvents();
-    renderAll();
+    window.addEventListener('resize', () => {
+      drawScene();
+      drawGraph();
+      drawVelMeter();
+    });
+
+    renderSurfaceSelect();
     if (window.SCORM) window.SCORM.setStatus('incomplete');
     requestAnimationFrame(loop);
   </script>
