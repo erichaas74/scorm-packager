@@ -1,0 +1,366 @@
+const fs = require('fs');
+const path = require('path');
+
+const lessons = [
+  {
+    dir: 'unit-1/lesson-3',
+    template: 'u1l3-galileo-buzz-assessment-template.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'buzz-assessment-template-preview.html'
+  },
+  {
+    dir: 'unit-1/lesson-5',
+    template: 'u1l5-skydiver-buzz-assessment-template.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'buzz-assessment-template-preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-2/lesson-u2l1',
+    template: 'buzz-assessment-template-for-buzz.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'buzz-assessment-template-preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-2/lesson-u2l2',
+    template: 'buzz-assessment-template-for-buzz.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'buzz-assessment-template-preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-2/lesson-u2l3',
+    template: 'buzz-assessment-template-for-buzz.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'buzz-assessment-template-preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-2/lesson-u2l5',
+    template: 'buzz-assessment-template-for-buzz.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'buzz-assessment-template-preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-3/lesson-1',
+    template: 'buzz-assessment-template-for-buzz.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'buzz-assessment-template-preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-3/lesson-4',
+    template: 'buzz-assessment-template-for-buzz.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'buzz-assessment-template-preview.html'
+  }
+];
+
+const slotPattern = /<a:question\s*><\/a:question>|<a:question\s*\/>/gi;
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function parseQuestions(text) {
+  const normalized = text.replace(/\r\n/g, '\n').trim();
+
+  if (!/^Type:\s*/.test(normalized) && /^Question\s+\d+:/m.test(normalized)) {
+    return parseLegacyQuestionList(normalized);
+  }
+
+  const blocks = normalized
+    .split(/\n\s*\n(?=Type:\s*)/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  return blocks.map((block, index) => parseQuestionBlock(block, index + 1));
+}
+
+function parseLegacyQuestionList(text) {
+  const firstQuestion = text.search(/^Question\s+\d+:/m);
+  const questionText = firstQuestion >= 0 ? text.slice(firstQuestion) : text;
+  const blocks = questionText
+    .split(/\n\s*\n(?=Question\s+\d+:)/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  return blocks.map((block, index) => {
+    const lines = block.split('\n');
+    const titleMatch = lines[0].match(/^Question\s+\d+:\s*(.*)$/);
+    const title = titleMatch ? titleMatch[1].trim() : `Question ${index + 1}`;
+    const fieldMap = {};
+    const details = [];
+    let prompt = '';
+
+    for (const line of lines.slice(1)) {
+      const match = line.match(/^([^:]+):\s*(.*)$/);
+      if (!match) {
+        if (line.trim()) details.push(line.trim());
+        continue;
+      }
+
+      const key = match[1].trim();
+      const value = match[2].trim();
+      if (key === 'Prompt') {
+        prompt = value;
+      } else if (key === 'Grading guide') {
+        details.push(`a. ${value}`);
+      } else if (key === 'Points') {
+        fieldMap.Score = value;
+      } else {
+        fieldMap[key] = value;
+      }
+    }
+
+    const fields = [
+      { key: 'Type', value: fieldMap.Type || 'Question' },
+      { key: 'Score', value: fieldMap.Score || '' }
+    ].filter((field) => field.value);
+
+    return {
+      index: index + 1,
+      fields,
+      fieldMap,
+      prompt: `${index + 1}) ${title}${prompt ? ` - ${prompt}` : ''}`,
+      details
+    };
+  });
+}
+
+function parseQuestionBlock(block, index) {
+  const lines = block.split('\n');
+  const fields = [];
+  const body = [];
+  let readingFields = true;
+
+  for (const line of lines) {
+    const fieldMatch = line.match(/^([A-Za-z][A-Za-z0-9 -]*):\s*(.*)$/);
+    if (readingFields && fieldMatch) {
+      fields.push({ key: fieldMatch[1], value: fieldMatch[2] });
+    } else {
+      readingFields = false;
+      body.push(line);
+    }
+  }
+
+  const fieldMap = Object.fromEntries(fields.map((field) => [field.key, field.value]));
+  const promptIndex = body.findIndex((line) => /^\d+\)\s*/.test(line.trim()));
+  const prompt = promptIndex >= 0 ? body[promptIndex].trim() : `Question ${index}`;
+  const details = promptIndex >= 0 ? body.slice(promptIndex + 1) : body;
+
+  return {
+    index,
+    fields,
+    fieldMap,
+    prompt,
+    details: details.filter((line) => line.trim())
+  };
+}
+
+function renderFieldChips(question) {
+  const shownKeys = new Set(['Type', 'Score', 'Figures', 'Height', 'MaxFiles', 'FileTypes', 'MinWords']);
+  const chips = question.fields
+    .filter((field) => shownKeys.has(field.key))
+    .map((field) => `<span class="buzz-preview-chip">${escapeHtml(field.key)}: ${escapeHtml(field.value)}</span>`);
+
+  return chips.length ? `<div class="buzz-preview-chips">${chips.join('')}</div>` : '';
+}
+
+function renderDetailLine(line) {
+  const trimmed = line.trim();
+  const correctOption = trimmed.match(/^\*([a-z])\.\s*(.*)$/i);
+  const option = trimmed.match(/^([a-z])\.\s*(.*)$/i);
+
+  if (/^@\[(.*?)\]\s*(.*)$/.test(trimmed)) {
+    const match = trimmed.match(/^@\[(.*?)\]\s*(.*)$/);
+    return `<div class="buzz-preview-feedback"><strong>${escapeHtml(match[1])}</strong> ${escapeHtml(match[2])}</div>`;
+  }
+
+  if (/^@\s*/.test(trimmed)) {
+    return `<div class="buzz-preview-feedback">${escapeHtml(trimmed.replace(/^@\s*/, ''))}</div>`;
+  }
+
+  if (correctOption) {
+    return `<div class="buzz-preview-option correct"><span>${escapeHtml(correctOption[1].toUpperCase())}</span><p>${escapeHtml(correctOption[2])}</p></div>`;
+  }
+
+  if (option) {
+    return `<div class="buzz-preview-option"><span>${escapeHtml(option[1].toUpperCase())}</span><p>${escapeHtml(option[2])}</p></div>`;
+  }
+
+  return `<p class="buzz-preview-detail">${escapeHtml(trimmed)}</p>`;
+}
+
+function renderQuestion(question) {
+  const type = question.fieldMap.Type || 'Question';
+  const score = question.fieldMap.Score || '';
+  const details = question.details.map(renderDetailLine).join('\n');
+
+  return `
+    <div class="buzz-preview-question" data-buzz-preview-question="${question.index}">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question ${question.index}</strong>
+        <span>${escapeHtml(type)}${score ? ` - ${escapeHtml(score)} point${score === '1' ? '' : 's'}` : ''}</span>
+      </div>
+      ${renderFieldChips(question)}
+      <div class="buzz-preview-prompt">${escapeHtml(question.prompt)}</div>
+      ${details ? `<div class="buzz-preview-details">${details}</div>` : '<div class="buzz-preview-placeholder">Upload question or external response field.</div>'}
+    </div>`;
+}
+
+function previewStyles() {
+  return `
+  <style id="buzz-preview-question-styles">
+    .buzz-preview-question {
+      border: 1px solid #c8d3e1;
+      border-left: 5px solid #2563a9;
+      border-radius: 8px;
+      padding: 12px;
+      margin: 8px 0;
+      background: #fff;
+      color: #172033;
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.45;
+      box-shadow: 0 6px 18px rgba(23, 32, 51, 0.08);
+    }
+    .buzz-preview-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+      color: #1f3b57;
+    }
+    .buzz-preview-head strong {
+      font-size: 0.95rem;
+    }
+    .buzz-preview-head span {
+      color: #5d687c;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+    .buzz-preview-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .buzz-preview-chip {
+      border: 1px solid #d8e0ec;
+      border-radius: 999px;
+      padding: 3px 8px;
+      background: #f3f7fc;
+      color: #334155;
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+    .buzz-preview-prompt {
+      margin: 0 0 10px;
+      color: #111827;
+      font-size: 0.98rem;
+      font-weight: 700;
+    }
+    .buzz-preview-details {
+      display: grid;
+      gap: 6px;
+    }
+    .buzz-preview-option {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr);
+      gap: 8px;
+      align-items: start;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 8px;
+      background: #f8fafc;
+    }
+    .buzz-preview-option span {
+      display: inline-flex;
+      width: 24px;
+      height: 24px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: #dbeafe;
+      color: #1e3a8a;
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+    .buzz-preview-option.correct {
+      border-color: #86efac;
+      background: #f0fdf4;
+    }
+    .buzz-preview-option.correct span {
+      background: #16a34a;
+      color: #fff;
+    }
+    .buzz-preview-option p,
+    .buzz-preview-detail {
+      margin: 0;
+      color: #1f2937;
+      font-size: 0.92rem;
+    }
+    .buzz-preview-feedback {
+      border-left: 3px solid #93c5fd;
+      padding: 6px 8px;
+      background: #eff6ff;
+      color: #1e3a8a;
+      font-size: 0.86rem;
+    }
+    .buzz-preview-placeholder {
+      border: 1px dashed #cbd5e1;
+      border-radius: 6px;
+      padding: 10px;
+      color: #64748b;
+      background: #f8fafc;
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+  </style>`;
+}
+
+function buildPreview(lesson) {
+  const lessonDir = path.join(process.cwd(), lesson.dir);
+  const templatePath = path.join(lessonDir, lesson.template);
+  const questionsPath = path.join(lessonDir, lesson.questions);
+  const outputPath = path.join(lessonDir, lesson.output);
+
+  const template = fs.readFileSync(templatePath, 'utf8');
+  const questions = parseQuestions(fs.readFileSync(questionsPath, 'utf8'));
+  let slotIndex = 0;
+
+  const withQuestions = template.replace(slotPattern, () => {
+    const question = questions[slotIndex] || {
+      index: slotIndex + 1,
+      fieldMap: { Type: 'Missing preview question' },
+      fields: [{ key: 'Type', value: 'Missing preview question' }],
+      prompt: `No question block found for slot ${slotIndex + 1}.`,
+      details: []
+    };
+    slotIndex += 1;
+    return renderQuestion(question);
+  });
+
+  if (slotIndex === 0) {
+    throw new Error(`${lesson.dir}: template did not contain any Buzz question slots.`);
+  }
+
+  const output = withQuestions.replace(/<\/head>/i, `${previewStyles()}\n</head>`);
+  fs.writeFileSync(outputPath, output, 'utf8');
+
+  return {
+    lesson: lesson.dir,
+    slots: slotIndex,
+    questions: questions.length,
+    output: path.relative(process.cwd(), outputPath)
+  };
+}
+
+const results = lessons.map(buildPreview);
+for (const result of results) {
+  const status = result.slots === result.questions ? 'ok' : 'check';
+  console.log(`${status}: ${result.output} (${result.slots} slots, ${result.questions} questions)`);
+}

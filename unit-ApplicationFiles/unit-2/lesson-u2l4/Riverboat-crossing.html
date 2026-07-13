@@ -47,7 +47,7 @@
         let isPlaying = false;
         let lastTime = 0;
         let showTelemetry = false;
-        let vectorMode = 1;
+        let vectorMode = 0;
         const vectorModeNames = ['No Hint', 'Full Vector Addition', 'Resultant Components', 'Drift Decomposition'];
         
         let scale = 10, originX = 0, originY = 0, waterParticles = [];
@@ -62,8 +62,8 @@
         const mission = {
             level: 1, phase: 'setup', message: '', hits: 0, stars: 0,
             staminaMax: 0, staminaLeft: 0,
+            startZone: { x: 0, y: 0, radius: 5.5 },
             baby: { x: 0, y: 0, radius: 4.5, rescued: false },
-            returnZone: { x: 0, y: 0, radius: 5.5 },
             obstacles: []
         };
 
@@ -125,69 +125,130 @@
             }
         }
 
+        class SpeedReadout {
+            constructor(id) {
+                this.id = id; this.x = 0; this.y = 0; this.w = 0; this.h = 0;
+            }
+            setBounds(x, y, w, h = 48) { this.x = x; this.y = y; this.w = w; this.h = h; }
+            update() {}
+            draw(ctx) {
+                ctx.fillStyle = '#cbd5e1'; ctx.font = '500 12px Inter'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+                ctx.fillText('Fixed Speeds', this.x, this.y + 12);
+
+                const rowY = this.y + 32;
+                ctx.fillStyle = '#94a3b8'; ctx.font = '500 12px Inter'; ctx.textBaseline = 'middle';
+                ctx.fillText('Swimmer', this.x, rowY);
+                ctx.fillText('Current', this.x + this.w * 0.5, rowY);
+
+                ctx.fillStyle = '#7dd3fc'; ctx.font = '600 13px monospace'; ctx.textAlign = 'right';
+                ctx.fillText(params.vBoat.toFixed(1) + ' m/s', this.x + this.w * 0.42, rowY);
+                ctx.fillText(params.vRiver.toFixed(1) + ' m/s', this.x + this.w, rowY);
+
+                ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(this.x, this.y + this.h - 6); ctx.lineTo(this.x + this.w, this.y + this.h - 6); ctx.stroke();
+            }
+        }
+
         const genRockShape = (baseRadius) => {
             const pts = []; const sides = 6 + Math.floor(Math.random() * 4);
             for (let i = 0; i < sides; i++) pts.push({ a: (i / sides) * Math.PI * 2, r: baseRadius * (0.6 + Math.random() * 0.5) });
             return pts;
         };
 
+        const makeRapid = (x, y, radius, rotation, rockDist = 5.0) => ({
+            type: 'rapid', x, y, radius, rotation, hit: false, isMoving: false, rockDist,
+            rock1Shape: genRockShape(4.0), rock2Shape: genRockShape(4.0)
+        });
+
+        const lowerLaneY = p => p.width * 0.55;
+
+        function drawVectorArrow(fx, fy, tx, ty, color, width = 3, headLen = 10) {
+            const dx = tx - fx, dy = ty - fy;
+            if (Math.abs(dx) < 0.1 && Math.abs(dy) < 0.1) return;
+            const angle = Math.atan2(dy, dx);
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(fx, fy);
+            ctx.lineTo(tx, ty);
+            ctx.lineTo(tx - headLen * Math.cos(angle - Math.PI/6), ty - headLen * Math.sin(angle - Math.PI/6));
+            ctx.moveTo(tx, ty);
+            ctx.lineTo(tx - headLen * Math.cos(angle + Math.PI/6), ty - headLen * Math.sin(angle + Math.PI/6));
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawVectorLabel(text, x, y, color, align = 'left') {
+            ctx.save();
+            ctx.font = '700 13px Inter';
+            ctx.textAlign = align;
+            ctx.textBaseline = 'middle';
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = 'rgba(2, 6, 23, 0.85)';
+            ctx.strokeText(text, x, y);
+            ctx.fillStyle = color;
+            ctx.fillText(text, x, y);
+            ctx.restore();
+        }
+
         const LEVEL_CONFIGS = {
             1: {
                 title: 'Level 1: Dangerous Rapids',
-                startMsg: 'Reach the finish ring. Avoid the rocky rapids scattered downstream.',
+                swimSpeed: 5,
+                currentSpeed: 3,
+                start: p => ({ x: 0, y: lowerLaneY(p), radius: 5.5 }),
+                target: p => ({ x: p.width, y: lowerLaneY(p), radius: 5.5 }),
+                startMsg: 'Reach the finish ring. Aim upstream to offset the current and avoid the rapids around the finish.',
                 successMsg: s => `Level 1 clear. Rapids avoided with ${s.toFixed(0)}m stamina left.`,
                 obstacles: p => {
-                    const rapids = [];
-                    for (let i = 0; i < 6; i++) {
-                        const rockDist = 5.0 + Math.random() * 3.0; // WIDER SPREAD
-                        rapids.push({
-                            type: 'rapid', x: p.width * (0.2 + Math.random() * 0.6), y: p.width * 0.25 + Math.random() * (p.width * 0.7),
-                            radius: rockDist + 4.0, // LARGER COLLISION RADIUS
-                            rotation: Math.random() * Math.PI * 2, hit: false, isMoving: false,
-                            rockDist: rockDist, 
-                            rock1Shape: genRockShape(4.0), // LARGER ROCKS
-                            rock2Shape: genRockShape(4.0)
-                        });
-                    }
-                    return rapids;
+                    const finishY = lowerLaneY(p);
+                    return [
+                        makeRapid(p.width * 0.74, finishY - 12, 7.0, -0.35),
+                        makeRapid(p.width * 0.91, finishY - 21, 7.0, 0.25),
+                        makeRapid(p.width * 0.74, finishY + 12, 7.0, 0.35),
+                        makeRapid(p.width * 0.91, finishY + 21, 7.0, -0.25)
+                    ];
                 }
             },
             2: {
-                title: 'Level 2: Floating Debris',
-                startMsg: 'Reach the finish ring. Avoid the floating debris moving with the current.',
-                successMsg: s => `Level 2 clear. Floating debris avoided. ${s.toFixed(0)}m stamina left.`,
-                obstacles: p => [ { type: 'log', x: p.width * 0.5, y: -10, radius: 5.2, rotation: 0.2, hit: false, isMoving: true } ]
-            },
-            3: {
-                title: 'Level 3: Baby Rescue',
-                startMsg: 'Swim to the baby, carry them back, and avoid the 2 floating logs.',
-                successMsg: s => `Baby saved! Evaded obstacles with ${s.toFixed(0)}m stamina left.`,
+                title: 'Level 2: Floating Logs',
+                swimSpeed: 5,
+                currentSpeed: 3,
+                start: p => ({ x: 0, y: lowerLaneY(p), radius: 5.5 }),
+                target: p => ({ x: p.width, y: lowerLaneY(p), radius: 5.5 }),
+                startMsg: 'Get across the river to the finish ring without hitting the floating logs.',
+                successMsg: s => `Level 2 clear. Crossed without hitting the logs. ${s.toFixed(0)}m stamina left.`,
                 obstacles: p => [
-                    { type: 'log', x: p.width * 0.35, y: -20, radius: 5.2, rotation: 0.5, hit: false, isMoving: true },
-                    { type: 'log', x: p.width * 0.75, y: 15, radius: 6.0, rotation: -0.3, hit: false, isMoving: true }
+                    { type: 'log', x: p.width * 0.42, y: lowerLaneY(p) - 15.5, radius: 7.4, rotation: 0.45, hit: false, isMoving: true },
+                    { type: 'log', x: p.width * 0.72, y: lowerLaneY(p) - 26.5, radius: 7.0, rotation: -0.25, hit: false, isMoving: true }
                 ]
             },
-            4: {
-                title: 'Level 4: Intercept!',
-                startMsg: 'The baby is floating down the river! Intercept the baby before they wash away, then return.',
-                successMsg: s => `Amazing intercept! Baby saved with ${s.toFixed(0)}m stamina left.`,
+            3: {
+                title: 'Level 3: Catch the Baby',
+                swimSpeed: 5,
+                currentSpeed: 3,
+                start: p => ({ x: 0, y: lowerLaneY(p), radius: 5.5 }),
+                target: p => ({ x: p.width * 0.65, y: lowerLaneY(p) - 28, radius: 4.5 }),
+                startMsg: 'The baby is floating down the river! Intercept the baby before they wash away.',
+                successMsg: s => `Amazing intercept! Baby caught with ${s.toFixed(0)}m stamina left.`,
                 obstacles: p => [
-                    { type: 'log', x: p.width * 0.5, y: -40, radius: 5.5, rotation: 1.2, hit: false, isMoving: true },
-                    { type: 'rapid', x: p.width * 0.3, y: p.width * 0.8, radius: 9.0, rotation: 0.5, hit: false, isMoving: false, rockDist: 5.0, rock1Shape: genRockShape(4.0), rock2Shape: genRockShape(4.0) }
+                    { type: 'log', x: p.width * 0.5, y: lowerLaneY(p) - 52, radius: 5.5, rotation: 1.2, hit: false, isMoving: true }
                 ]
             }
         };
 
-        let btnL1, btnL2, btnL3, btnL4, btnPlay, btnReset, btnVector, btnData, sldSpeed, sldAngle;
+        let btnL1, btnL2, btnL3, btnPlay, btnReset, btnVector, btnData, speedReadout, sldAngle;
 
         function buildUI() {
             uiElements = [
                 btnL1 = new Button('l1', 'L1', () => setLevel(1)),
                 btnL2 = new Button('l2', 'L2', () => setLevel(2)),
                 btnL3 = new Button('l3', 'L3', () => setLevel(3)),
-                btnL4 = new Button('l4', 'L4', () => setLevel(4)),
-                sldSpeed = new Slider('s_speed', 'Swim Speed', 0, 20, 0.5, 'vBoat', ' m/s'),
-                sldAngle = new Slider('s_angle', 'Heading (θ)', -85, 85, 1, 'angleDeg', '°'),
+                speedReadout = new SpeedReadout('fixed_speed'),
+                sldAngle = new Slider('s_angle', 'Heading (theta)', -85, 85, 1, 'angleDeg', ' deg'),
                 btnVector = new Button('vector', 'Hint: ' + vectorModeNames[vectorMode], () => {
                     vectorMode = (vectorMode + 1) % 4; btnVector.text = 'Hint: ' + vectorModeNames[vectorMode];
                 }),
@@ -195,7 +256,7 @@
                 btnPlay = new Button('play', 'START MISSION', togglePlayPause),
                 btnReset = new Button('reset', 'RESET', resetSimulation)
             ];
-            btnL1.fontSize = btnL2.fontSize = btnL3.fontSize = btnL4.fontSize = 12;
+            btnL1.fontSize = btnL2.fontSize = btnL3.fontSize = 12;
             btnVector.bgColor = btnData.bgColor = '#0f172a';
             btnPlay.bgColor = '#0284c7'; btnPlay.hoverColor = '#0369a1';
             btnReset.bgColor = '#334155'; btnReset.hoverColor = '#475569';
@@ -222,14 +283,13 @@
             const innerW = bounds.sidebar.w - 40;
             let currentY = bounds.sidebar.y + 60; // Skip Title
 
-            const btnW = (innerW - 30) / 4;
+            const btnW = (innerW - 20) / 3;
             btnL1.setBounds(padX, currentY, btnW, 32);
             btnL2.setBounds(padX + btnW + 10, currentY, btnW, 32);
             btnL3.setBounds(padX + btnW*2 + 20, currentY, btnW, 32);
-            btnL4.setBounds(padX + btnW*3 + 30, currentY, btnW, 32);
             currentY += 45 + 95; // Skip Status Box
 
-            sldSpeed.setBounds(padX, currentY, innerW); currentY += 50;
+            speedReadout.setBounds(padX, currentY, innerW); currentY += 50;
             sldAngle.setBounds(padX, currentY, innerW); currentY += 50;
 
             const halfW = (innerW - 10) / 2;
@@ -250,30 +310,36 @@
             }
         }
 
-        function setLevel(lvl) { mission.level = lvl; resetSimulation(); }
+        function setLevel(lvl) {
+            if (!LEVEL_CONFIGS[lvl]) return;
+            mission.level = lvl; resetSimulation();
+        }
         
         function recalculatePhysics() {
             params.angleRad = params.angleDeg * (Math.PI / 180);
-            params.effectiveBoatSpeed = (mission.level >= 3 && mission.baby.rescued) ? params.vBoat * 0.7 : params.vBoat;
+            params.effectiveBoatSpeed = params.vBoat;
             params.vResultantX = params.effectiveBoatSpeed * Math.cos(params.angleRad);
             params.vResultantY = params.effectiveBoatSpeed * Math.sin(params.angleRad) + params.vRiver;
             params.vResultantMag = Math.hypot(params.vResultantX, params.vResultantY);
         }
 
         function resetSimulation() {
-            isPlaying = false;
-            physics.time = 0; physics.x = 0; physics.y = 0; physics.trail = [];
             const config = LEVEL_CONFIGS[mission.level];
-            mission.phase = 'setup'; mission.message = config.startMsg; mission.hits = 0; mission.stars = 0;
+            params.vBoat = config.swimSpeed;
+            params.vRiver = config.currentSpeed;
+            const start = config.start ? config.start(params) : { x: 0, y: 0, radius: 5.5 };
 
-            let tX = params.width, tY = 0, tR = 5.5;
-            if (mission.level === 3) { tY = params.width * 0.6 + 10; tR = 4.5; }
-            else if (mission.level === 4) { tX = params.width * 0.65; tY = -15; tR = 4.5; }
+            isPlaying = false;
+            physics.time = 0; physics.x = start.x; physics.y = start.y; physics.trail = [];
+            mission.phase = 'setup'; mission.message = config.startMsg; mission.hits = 0; mission.stars = 0;
+            mission.startZone = { x: start.x, y: start.y, radius: start.radius || 5.5 };
+
+            const target = config.target ? config.target(params) : { x: params.width, y: lowerLaneY(params), radius: 5.5 };
+            let tX = target.x, tY = target.y, tR = target.radius;
             
             mission.baby = { x: tX, y: tY, radius: tR, rescued: false };
-            mission.returnZone = { x: 0, y: 0, radius: 5.5 };
             mission.obstacles = config.obstacles(params);
-            mission.staminaMax = Math.round(params.width * (mission.level === 4 ? 3.0 : 2.5) + 40);
+            mission.staminaMax = Math.round(params.width * (mission.level === 3 ? 3.0 : 2.5) + 40);
             mission.staminaLeft = mission.staminaMax;
 
             recalculatePhysics(); updateUIState();
@@ -281,8 +347,8 @@
 
         function togglePlayPause() {
             if (mission.phase === 'success' || mission.phase === 'fail') { resetSimulation(); return; }
-            if (mission.phase === 'setup' || mission.phase === 'rescued') {
-                mission.phase = mission.phase === 'setup' ? 'outbound' : 'return'; isPlaying = true;
+            if (mission.phase === 'setup') {
+                mission.phase = 'outbound'; isPlaying = true;
             } else { isPlaying = !isPlaying; }
             if (isPlaying) lastTime = performance.now();
             updateUIState();
@@ -290,14 +356,13 @@
 
         function updateUIState() {
             btnL1.isActive = mission.level === 1; btnL2.isActive = mission.level === 2;
-            btnL3.isActive = mission.level === 3; btnL4.isActive = mission.level === 4;
+            btnL3.isActive = mission.level === 3;
             const activeSwim = isPlaying || mission.phase === 'success' || mission.phase === 'fail';
-            sldSpeed.disabled = sldAngle.disabled = activeSwim;
+            sldAngle.disabled = activeSwim;
 
             if (mission.phase === 'success' || mission.phase === 'fail') {
                 btnPlay.text = 'PLAY AGAIN'; btnPlay.bgColor = mission.phase === 'success' ? '#059669' : '#b91c1c';
             } else if (isPlaying) { btnPlay.text = 'PAUSE'; btnPlay.bgColor = '#d97706'; } 
-            else if (mission.phase === 'rescued') { btnPlay.text = 'BEGIN RETURN'; btnPlay.bgColor = '#2563eb'; } 
             else if (physics.time > 0) { btnPlay.text = 'RESUME'; btnPlay.bgColor = '#0284c7'; } 
             else { btnPlay.text = 'START MISSION'; btnPlay.bgColor = '#0284c7'; }
         }
@@ -305,9 +370,8 @@
         function checkCollisions() {
             for (let obs of mission.obstacles) {
                 if (!obs.hit && Math.hypot(physics.x - obs.x, physics.y - obs.y) <= obs.radius + 1.5) {
-                    obs.hit = true; mission.hits++; mission.staminaLeft = Math.max(0, mission.staminaLeft - 20);
-                    if (mission.hits >= 2) return failMission('Debris hit! Rescue failed.');
-                    mission.message = 'Debris hit! Stamina penalty. One more hit ends the mission.';
+                    obs.hit = true; mission.hits++;
+                    return failMission(obs.type === 'log' ? 'Hit a floating log! Try a safer heading.' : 'Hit the rapids! Try a safer heading.');
                 }
             }
             return false;
@@ -335,7 +399,7 @@
                 }
             });
 
-            if (mission.level === 4 && !mission.baby.rescued) {
+            if (mission.level === 3 && !mission.baby.rescued) {
                 mission.baby.y += params.vRiver * dt;
                 if (mission.baby.y > (bounds.sim.h - originY) / scale + 5) return failMission('The baby drifted too far downstream!');
             }
@@ -345,14 +409,10 @@
             if (!mission.baby.rescued) {
                 if (Math.hypot(physics.x - mission.baby.x, physics.y - mission.baby.y) <= mission.baby.radius) {
                     mission.baby.rescued = true;
-                    if (mission.level >= 3) {
-                        mission.phase = 'rescued'; mission.message = 'Baby secure! Set return heading and launch.';
-                        isPlaying = false; recalculatePhysics(); updateUIState();
-                    } else succeedMission(LEVEL_CONFIGS[mission.level].successMsg(mission.staminaLeft));
-                } else if (physics.x > params.width + 10) failMission('Missed the target! Swam past the far bank.');
-            } else if (mission.level >= 3 && mission.phase === 'return') {
-                if (Math.hypot(physics.x - mission.returnZone.x, physics.y - mission.returnZone.y) <= mission.returnZone.radius) succeedMission(LEVEL_CONFIGS[mission.level].successMsg(mission.staminaLeft));
-                else if (physics.x < -10) failMission('Missed the launch zone! Swept away.');
+                    succeedMission(LEVEL_CONFIGS[mission.level].successMsg(mission.staminaLeft));
+                } else if (physics.x > params.width + 10) {
+                    failMission(mission.level === 3 ? 'Missed the baby! Swam past the intercept point.' : 'Missed the target! Swam past the far bank.');
+                }
             }
         }
 
@@ -412,6 +472,13 @@
                 let y = originY + i * scale; if (y > bounds.sim.y + bounds.sim.h) break;
                 ctx.fillText(i + 'm', rLeft - 8, y + 3); ctx.fillRect(rLeft - 5, y, 5, 1);
             }
+
+            const riverW = params.width * scale;
+            const arrowX = rRight - Math.max(56, riverW * 0.13);
+            const arrowTop = bounds.sim.y + Math.max(36, bounds.sim.h * 0.08);
+            const arrowLen = Math.max(54, Math.min(bounds.sim.h * 0.24, params.vRiver * 34));
+            drawVectorArrow(arrowX, arrowTop, arrowX, arrowTop + arrowLen, '#38bdf8', 6, 16);
+            drawVectorLabel('Water velocity = ' + params.vRiver.toFixed(1) + ' m/s', arrowX + 18, arrowTop + arrowLen * 0.5, '#bae6fd');
         }
 
         function drawBabyGraphic(ctx, r) {
@@ -486,19 +553,17 @@
                 ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2; ctx.setLineDash([4, 4]); ctx.stroke(); ctx.setLineDash([]);
             }
 
-            if (mission.level >= 3) {
-                const zx = originX + mission.returnZone.x * scale, zy = originY + mission.returnZone.y * scale, zr = mission.returnZone.radius * scale;
-                ctx.beginPath(); ctx.arc(zx, zy, zr, 0, Math.PI*2); ctx.fillStyle = 'rgba(34, 197, 94, 0.2)'; ctx.fill();
-                ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 2; ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
-                ctx.fillStyle = '#86efac'; ctx.font='11px Inter'; ctx.textAlign='left'; ctx.fillText('LAUNCH', zx + zr + 5, zy);
-            }
+            const sx = originX + mission.startZone.x * scale, sy = originY + mission.startZone.y * scale, sr = mission.startZone.radius * scale;
+            ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI*2); ctx.fillStyle = 'rgba(34, 197, 94, 0.15)'; ctx.fill();
+            ctx.strokeStyle = '#86efac'; ctx.lineWidth = 2; ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
+            ctx.fillStyle = '#bbf7d0'; ctx.font='11px Inter'; ctx.textAlign='left'; ctx.fillText('Start', sx + sr + 5, sy);
 
             if (!mission.baby.rescued) {
                 const tx = originX + mission.baby.x * scale, ty = originY + mission.baby.y * scale, tr = mission.baby.radius * scale;
-                if (mission.level >= 3) {
+                if (mission.level === 3) {
                     ctx.save();
                     ctx.translate(tx, ty);
-                    ctx.rotate(mission.level === 4 ? Math.sin(physics.time * 2) * 0.3 : 0.2); 
+                    ctx.rotate(Math.sin(physics.time * 2) * 0.3); 
                     
                     drawBabyGraphic(ctx, tr);
                     
@@ -558,37 +623,36 @@
                 ctx.restore();
             });
 
-            const bx = originX + physics.x * scale, by = originY + physics.y * scale, carrying = mission.level >= 3 && mission.baby.rescued;
+            const bx = originX + physics.x * scale, by = originY + physics.y * scale;
             ctx.save(); ctx.translate(bx, by); ctx.rotate(params.angleRad);
-            ctx.fillStyle = carrying ? '#f59e0b' : '#22c55e'; ctx.strokeStyle = carrying ? '#b45309' : '#14532d'; ctx.lineWidth = 2;
+            ctx.fillStyle = '#22c55e'; ctx.strokeStyle = '#14532d'; ctx.lineWidth = 2;
             ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-10, -8); ctx.lineTo(-8, 0); ctx.lineTo(-10, 8); ctx.closePath(); ctx.fill(); ctx.stroke();
-            if (carrying) {
-                ctx.save();
-                ctx.translate(0, -10); // Position attached to the side of the swimmer
-                ctx.rotate(-Math.PI / 2); // Orient so the baby is upright
-                drawBabyGraphic(ctx, 4); // Draw the baby at a smaller scale (radius = 4)
-                ctx.restore();
-            }
             ctx.restore();
 
-            if (vectorMode > 0 && !isPlaying) {
+            const vectorSetupVisible = !isPlaying && mission.phase !== 'success' && mission.phase !== 'fail';
+            if (vectorSetupVisible) {
+                const swimVs = 8;
+                const swimX = params.effectiveBoatSpeed * Math.cos(params.angleRad) * swimVs;
+                const swimY = params.effectiveBoatSpeed * Math.sin(params.angleRad) * swimVs;
+                drawVectorArrow(bx, by, bx + swimX, by + swimY, '#f97316', 4, 12);
+                drawVectorLabel('Swimmer velocity = ' + params.effectiveBoatSpeed.toFixed(1) + ' m/s', bx + swimX + 8, by + swimY - 10, '#fed7aa');
+            }
+
+            if (vectorMode > 0 && vectorSetupVisible) {
                 const vs = 5, resX = params.vResultantX * vs, resY = params.vResultantY * vs;
-                const drawArrow = (fx, fy, tx, ty, color) => {
-                    const dx = tx - fx, dy = ty - fy; if (Math.abs(dx) < 0.1 && Math.abs(dy) < 0.1) return;
-                    const len = 10, angle = Math.atan2(dy, dx);
-                    ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(tx, ty);
-                    ctx.lineTo(tx - len * Math.cos(angle - Math.PI/6), ty - len * Math.sin(angle - Math.PI/6)); ctx.moveTo(tx, ty);
-                    ctx.lineTo(tx - len * Math.cos(angle + Math.PI/6), ty - len * Math.sin(angle + Math.PI/6));
-                    ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.stroke();
-                };
                 if (vectorMode === 1) {
                     const vbx = params.effectiveBoatSpeed * Math.cos(params.angleRad) * vs, vby = params.effectiveBoatSpeed * Math.sin(params.angleRad) * vs;
-                    drawArrow(bx, by, bx + vbx, by + vby, '#ef4444'); drawArrow(bx + vbx, by + vby, bx + vbx, by + vby + params.vRiver * vs, '#3b82f6'); drawArrow(bx, by, bx + resX, by + resY, '#22c55e');
+                    drawVectorArrow(bx + vbx, by + vby, bx + vbx, by + vby + params.vRiver * vs, '#38bdf8');
+                    drawVectorArrow(bx, by, bx + resX, by + resY, '#22c55e');
                 } else if (vectorMode === 2) {
-                    drawArrow(bx, by, bx + resX, by, '#f97316'); drawArrow(bx + resX, by, bx + resX, by + resY, '#a855f7'); drawArrow(bx, by, bx + resX, by + resY, '#22c55e');
+                    drawVectorArrow(bx, by, bx + resX, by, '#f97316');
+                    drawVectorArrow(bx + resX, by, bx + resX, by + resY, '#a855f7');
+                    drawVectorArrow(bx, by, bx + resX, by + resY, '#22c55e');
                 } else if (vectorMode === 3) {
                     const vby = params.effectiveBoatSpeed * Math.sin(params.angleRad) * vs, vry = params.vRiver * vs, off1 = 25, off2 = -25;
-                    drawArrow(bx + off1, by, bx + off1, by + vby, '#d946ef'); drawArrow(bx + off1, by + vby, bx + off1, by + vby + vry, '#3b82f6'); drawArrow(bx + off2, by, bx + off2, by + resY, '#a855f7');
+                    drawVectorArrow(bx + off1, by, bx + off1, by + vby, '#d946ef');
+                    drawVectorArrow(bx + off1, by + vby, bx + off1, by + vby + vry, '#38bdf8');
+                    drawVectorArrow(bx + off2, by, bx + off2, by + resY, '#a855f7');
                     ctx.beginPath(); ctx.moveTo(bx+off2, by); ctx.lineTo(bx+off1, by); ctx.moveTo(bx+off2, by+resY); ctx.lineTo(bx+off1, by+resY); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]);
                 }
             }
@@ -611,7 +675,7 @@
                 ctx.fillStyle = color; ctx.font = '500 13px monospace'; ctx.textAlign = 'right'; ctx.fillText(val, x + w - 15, y + yOff);
             };
 
-            const phaseL = {setup:'Setup', outbound:'Outbound', rescued:'Rescued', return:'Return', success:'Success', fail:'Failed'};
+            const phaseL = {setup:'Setup', outbound:'Outbound', success:'Success', fail:'Failed'};
             stat('Phase', phaseL[mission.phase], 45);
             stat('Time', physics.time.toFixed(2) + ' s', 65);
             stat('Ground Speed', params.vResultantMag.toFixed(2) + ' m/s', 85, '#4ade80');

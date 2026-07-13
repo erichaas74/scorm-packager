@@ -359,7 +359,7 @@ const MotionGraphsLab = (function() {
           duration: leaveT + afterT, hideVelocity: true,
           prompt: 'Watch the animation and read the graphs. How many seconds did the truck stop at the delivery house?',
           answer: stopLen, inputType: 'number', unit: 's', tolerance: 0,
-          hint: 'On the position-time graph, a flat horizontal line means the truck is stopped. Count the seconds from where the line goes flat to where it starts moving again.'
+          hint: 'Zoom in on the graph.'
         };
     }},
     { id:'q2', title:'Q2: Which house got the delivery?', generate: () => {

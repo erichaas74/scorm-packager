@@ -992,7 +992,7 @@ var deliveryMystery = (function() {
       duration: leaveT + afterT,
       prompt: 'Watch the animation and read the graphs. How many seconds did the truck stop at the delivery house?',
       answer: stopLen, tolerance: 0, unit: 's', inputType: 'number',
-      hint: 'On the position-time graph, a flat horizontal line means the truck is stopped. Count the seconds from where the line goes flat to where it starts moving again.'
+      hint: 'Zoom in on the graph.'
     };
   }
 

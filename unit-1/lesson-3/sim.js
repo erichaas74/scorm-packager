@@ -26,10 +26,10 @@
     var BALL_RADIUS_CM     = 5;
     var VERTICAL_PADDING   = 30;
     var PASS_THRESHOLD     = 80;
-    var TEXT_IDS           = ['ta-trend', 'ta-accel', 'ta-intratio', 'ta-galileo', 'ta-errors', 'ta-waterclock'];
+    var TEXT_IDS           = [];
     var MIN_RESPONSE_CHARS = 20;
-    var HINT_THRESHOLD_1   = 2;    // wrong attempts before formula hint appears
-    var HINT_THRESHOLD_2   = 4;    // wrong attempts before computed-value hint appears
+    var HINT_THRESHOLD_1   = 2;    // wrong attempts before a hint appears
+    var HINT_THRESHOLD_2   = 4;    // wrong attempts before stronger hints appear
     var WALK_STEPS = [
         {
             title: 'Measure the fall',
@@ -44,8 +44,8 @@
             body: 'The interval distances should follow an odd-number pattern, and the total distance ratios should line up with square numbers like <b>1, 4, 9, 16</b>. Use those patterns to check your work.'
         },
         {
-            title: 'Finish analysis and submit',
-            body: 'Once the table is complete, the analysis section unlocks. Answer the written prompts using evidence from your data, then submit when your score is ready.'
+            title: 'Use your data in Buzz',
+            body: 'Once the table is complete, answer the native Buzz assessment questions below the lab.'
         }
     ];
 
@@ -234,8 +234,7 @@
     function hintText(col, time, level) {
         var tf = time.toFixed(1);
         if (col === 'dist') {
-            if (level === 1) return 'Hint: Drag the scrubber to ' + tf + 's. Read the ball\u2019s position on the tape measure (in cm).';
-            return 'Hint: d = \u00BD \u00D7 981 \u00D7 ' + tf + '\u00B2 \u2248 ' + (0.5 * G * time * time).toFixed(1) + ' cm';
+            return 'Hint: Zoom in on the graph.';
         }
         if (col === 'interval') {
             if (level === 1) return 'Hint: Subtract the distance in the row above from this row\u2019s distance.';
@@ -355,7 +354,8 @@
         if (currentStage === 1 && allValid('dist'))     { currentStage = 2; unlockColumn('interval');  updateGuidance(2); reportScore(); }
         if (currentStage === 2 && allValid('interval')) { currentStage = 3; unlockColumn('intratio');  updateGuidance(3); reportScore(); }
         if (currentStage === 3 && allValid('intratio')) { currentStage = 4; unlockColumn('ratio');     updateGuidance(4); reportScore(); }
-        if (currentStage === 4 && allValid('ratio'))    { currentStage = 5; unlockAnalysis(); updateGuidance(5); reportScore(); }
+        if (currentStage === 4 && allValid('ratio'))    { currentStage = 5; updateGuidance(5); updateCompletedChart(); reportScore(); }
+        if (currentStage >= 5) updateCompletedChart();
     }
 
     function unlockColumn(col) {
@@ -418,9 +418,118 @@
         } else if (stage === 5) {
             banner.classList.remove('bg-indigo-900/80', 'border-indigo-500', 'text-indigo-100');
             banner.classList.add('bg-green-900/80', 'border-green-500', 'text-green-100');
-            title.textContent = 'Data Collection Complete! \uD83C\uDF89';
-            text.textContent  = 'Excellent work! The table is complete. Proceed to the Lab Analysis and Discussion sections below.';
+            title.textContent = 'Data Collection Complete';
+            text.textContent  = 'The data table is complete. Download the evidence image, then return to Buzz and answer the assessment questions.';
         }
+    }
+
+    function getCellValue(time, col) {
+        if (time === 0.0) return col === 'dist' ? '0' : '---';
+        var input = document.querySelector('input[data-time="' + time.toFixed(1) + '"][data-col="' + col + '"]');
+        return input && input.value !== '' ? input.value : '---';
+    }
+
+    function formatChartValue(time, col) {
+        var value = getCellValue(time, col);
+        if (value === '---') return value;
+        var num = parseFloat(value);
+        if (isNaN(num)) return value;
+        if (col === 'intratio' || col === 'ratio') return num.toFixed(2);
+        return num.toFixed(1);
+    }
+
+    function updateCompletedChart() {
+        var section = document.getElementById('screenshot-chart');
+        var body = document.getElementById('completed-chart-body');
+        if (!section || !body) return;
+        if (currentStage < 5) {
+            section.classList.add('hidden');
+            return;
+        }
+
+        body.innerHTML = '';
+        times.forEach(function (time) {
+            var row = document.createElement('tr');
+            row.innerHTML =
+                '<td>' + time.toFixed(1) + '</td>' +
+                '<td>' + formatChartValue(time, 'dist') + '</td>' +
+                '<td>' + formatChartValue(time, 'interval') + '</td>' +
+                '<td>' + formatChartValue(time, 'intratio') + '</td>' +
+                '<td>' + formatChartValue(time, 'ratio') + '</td>';
+            body.appendChild(row);
+        });
+        section.classList.remove('hidden');
+    }
+
+    function downloadCompletedChart() {
+        updateCompletedChart();
+        var canvasEl = document.createElement('canvas');
+        var scale = 2;
+        var width = 1100;
+        var rowHeight = 54;
+        var top = 120;
+        var left = 40;
+        var colWidths = [140, 240, 240, 220, 260];
+        var height = top + rowHeight * (times.length + 1) + 70;
+        canvasEl.width = width * scale;
+        canvasEl.height = height * scale;
+        var imageCtx = canvasEl.getContext('2d');
+        imageCtx.scale(scale, scale);
+        imageCtx.fillStyle = '#ffffff';
+        imageCtx.fillRect(0, 0, width, height);
+        imageCtx.fillStyle = '#0f172a';
+        imageCtx.font = 'bold 34px Arial, sans-serif';
+        imageCtx.fillText('Completed Galileo Data Chart', left, 52);
+        imageCtx.fillStyle = '#475569';
+        imageCtx.font = '18px Arial, sans-serif';
+        imageCtx.fillText('Unit 1 Lesson 3 - Acceleration Lab Evidence', left, 84);
+
+        var headers = ['Time (s)', 'Distance Dropped (cm)', 'Interval Distance (cm)', 'Interval Ratio', 'Total Distance Ratio'];
+        var x = left;
+        imageCtx.strokeStyle = '#cbd5e1';
+        imageCtx.lineWidth = 1;
+        imageCtx.textAlign = 'center';
+        imageCtx.textBaseline = 'middle';
+        headers.forEach(function (header, index) {
+            imageCtx.fillStyle = '#e8f1fb';
+            imageCtx.fillRect(x, top, colWidths[index], rowHeight);
+            imageCtx.strokeRect(x, top, colWidths[index], rowHeight);
+            imageCtx.fillStyle = '#1f3b57';
+            imageCtx.font = 'bold 16px Arial, sans-serif';
+            imageCtx.fillText(header, x + colWidths[index] / 2, top + rowHeight / 2);
+            x += colWidths[index];
+        });
+
+        times.forEach(function (time, rowIndex) {
+            var rowY = top + rowHeight * (rowIndex + 1);
+            var values = [
+                time.toFixed(1),
+                formatChartValue(time, 'dist'),
+                formatChartValue(time, 'interval'),
+                formatChartValue(time, 'intratio'),
+                formatChartValue(time, 'ratio')
+            ];
+            x = left;
+            values.forEach(function (value, colIndex) {
+                imageCtx.fillStyle = rowIndex % 2 === 0 ? '#ffffff' : '#f8fafc';
+                imageCtx.fillRect(x, rowY, colWidths[colIndex], rowHeight);
+                imageCtx.strokeRect(x, rowY, colWidths[colIndex], rowHeight);
+                imageCtx.fillStyle = '#172033';
+                imageCtx.font = '18px Arial, sans-serif';
+                imageCtx.fillText(value, x + colWidths[colIndex] / 2, rowY + rowHeight / 2);
+                x += colWidths[colIndex];
+            });
+        });
+
+        imageCtx.textAlign = 'left';
+        imageCtx.fillStyle = '#475569';
+        imageCtx.font = '15px Arial, sans-serif';
+        imageCtx.fillText('Upload this image to the final Buzz question.', left, height - 28);
+
+        var link = document.createElement('a');
+        link.download = 'unit-1-lesson-3-galileo-evidence.png';
+        link.href = canvasEl.toDataURL('image/png');
+        link.click();
     }
 
     function unlockAnalysis() {
@@ -470,7 +579,7 @@
 
     /* ── Scoring ──────────────────────────────────────────────────────── */
     function getScore() {
-        return Math.min((currentStage - 1) * 20, 80) + getTextScore();
+        return currentStage >= 5 ? 100 : Math.min((currentStage - 1) * 25, 75);
     }
 
     function updateSubmitButton() {
@@ -513,7 +622,7 @@
         submitted = true;
         var score = getScore();
         if (score > bestScore) bestScore = score;
-        scoreBadge.textContent = 'Score: ' + bestScore + '%';
+        if (scoreBadge) scoreBadge.textContent = 'Score: ' + bestScore + '%';
         showSubmittedState();
         saveSuspendData();
         if (typeof SCORM !== 'undefined') {
@@ -527,7 +636,7 @@
     function reportScore() {
         var score = getScore();
         if (score > bestScore) bestScore = score;
-        scoreBadge.textContent = 'Score: ' + bestScore + '%';
+        if (scoreBadge) scoreBadge.textContent = 'Score: ' + bestScore + '%';
         if (typeof SCORM !== 'undefined') {
             SCORM.setScore(bestScore, 0, 100);
             SCORM.setStatus(bestScore >= PASS_THRESHOLD ? 'passed' : 'failed');
@@ -587,7 +696,7 @@
             if (target >= 2) { unlockColumn('interval');  updateGuidance(2); }
             if (target >= 3) { unlockColumn('intratio');  updateGuidance(3); }
             if (target >= 4) { unlockColumn('ratio');     updateGuidance(4); }
-            if (target >= 5) { updateGuidance(5); unlockAnalysis(); }
+            if (target >= 5) { updateGuidance(5); updateCompletedChart(); }
             currentStage = target;
 
             if (data.responses) {
@@ -598,7 +707,7 @@
                 initTextAreaFeedback();
             }
 
-            scoreBadge.textContent = 'Score: ' + bestScore + '%';
+            if (scoreBadge) scoreBadge.textContent = 'Score: ' + bestScore + '%';
             revalidateAll();
             reportScore();    // sync current score to Buzz after full restore
 
@@ -613,6 +722,32 @@
     }
 
     /* ── Event Listeners ──────────────────────────────────────────────── */
+    function isEditableTarget(target) {
+        return target && (
+            target.tagName === 'INPUT' ||
+            target.tagName === 'TEXTAREA' ||
+            target.isContentEditable
+        );
+    }
+
+    function installClipboardGuards() {
+        document.addEventListener('copy', function (e) { e.preventDefault(); }, true);
+        document.addEventListener('cut', function (e) { e.preventDefault(); }, true);
+        document.addEventListener('paste', function (e) {
+            if (isEditableTarget(e.target)) e.preventDefault();
+        }, true);
+        document.addEventListener('drop', function (e) {
+            if (isEditableTarget(e.target)) e.preventDefault();
+        }, true);
+        document.addEventListener('beforeinput', function (e) {
+            if (e.inputType === 'insertFromPaste' || e.inputType === 'insertFromDrop') e.preventDefault();
+        }, true);
+        document.addEventListener('keydown', function (e) {
+            var key = String(e.key || '').toLowerCase();
+            if ((e.ctrlKey || e.metaKey) && (key === 'c' || key === 'v' || key === 'x')) e.preventDefault();
+        }, true);
+    }
+
     zoomButton.addEventListener('click', function () {
         isZoomed = !isZoomed;
         if (isZoomed) {
@@ -660,49 +795,62 @@
         }
     });
 
-    document.getElementById('app-root').addEventListener('paste', function (e) {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') e.preventDefault();
-    });
-    document.addEventListener('copy', function (e) { e.preventDefault(); });
+    installClipboardGuards();
 
-    document.getElementById('submit-btn').addEventListener('click', submitAssignment);
-    showWalkthroughBtn.addEventListener('click', openWalkthrough);
-    walkPrevBtn.addEventListener('click', function () {
-        if (walkStep > 0) {
-            walkStep--;
-            renderWalkthrough();
-        }
-    });
-    walkNextBtn.addEventListener('click', function () {
-        if (walkStep >= WALK_STEPS.length - 1) closeWalkthrough();
-        else {
-            walkStep++;
-            renderWalkthrough();
-        }
-    });
-    walkthroughOverlay.addEventListener('click', function (e) {
-        if (e.target === walkthroughOverlay) closeWalkthrough();
-    });
+    var submitBtn = document.getElementById('submit-btn');
+    if (submitBtn) submitBtn.addEventListener('click', submitAssignment);
+    var downloadChartBtn = document.getElementById('download-chart-btn');
+    if (downloadChartBtn) downloadChartBtn.addEventListener('click', downloadCompletedChart);
+    if (showWalkthroughBtn) showWalkthroughBtn.addEventListener('click', openWalkthrough);
+    if (walkPrevBtn) {
+        walkPrevBtn.addEventListener('click', function () {
+            if (walkStep > 0) {
+                walkStep--;
+                renderWalkthrough();
+            }
+        });
+    }
+    if (walkNextBtn) {
+        walkNextBtn.addEventListener('click', function () {
+            if (walkStep >= WALK_STEPS.length - 1) closeWalkthrough();
+            else {
+                walkStep++;
+                renderWalkthrough();
+            }
+        });
+    }
+    if (walkthroughOverlay) {
+        walkthroughOverlay.addEventListener('click', function (e) {
+            if (e.target === walkthroughOverlay) closeWalkthrough();
+        });
+    }
 
-    document.getElementById('analysis-content').addEventListener('input', function (e) {
-        if (e.target.tagName === 'TEXTAREA') {
-            updateCharCount(e.target);
-            reportScore();
-            saveSuspendData();
-        }
-    });
+    var analysisContent = document.getElementById('analysis-content');
+    if (analysisContent) {
+        analysisContent.addEventListener('input', function (e) {
+            if (e.target.tagName === 'TEXTAREA') {
+                updateCharCount(e.target);
+                reportScore();
+                saveSuspendData();
+            }
+        });
+    }
 
     window.addEventListener('resize', setupCanvas);
 
     /* ── Init ─────────────────────────────────────────────────────────── */
-    document.getElementById('btn-start').addEventListener('click', function () {
-        document.getElementById('start-screen').style.display = 'none';
-        document.getElementById('app-root').classList.remove('hidden');
-        setupCanvas();
-    });
+    var startScreenButton = document.getElementById('btn-start');
+    if (startScreenButton) {
+        startScreenButton.addEventListener('click', function () {
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('app-root').classList.remove('hidden');
+            setupCanvas();
+        });
+    }
 
     window.addEventListener('load', function () {
         if (typeof SCORM !== 'undefined') SCORM.initialize();
+        if (!startScreenButton) setupCanvas();
         loadSuspendData();
         highlightColumn(currentStage);
         highlightReferenceCell(currentStage);

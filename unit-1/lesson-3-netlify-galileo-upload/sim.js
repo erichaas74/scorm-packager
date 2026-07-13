@@ -28,8 +28,8 @@
     var PASS_THRESHOLD     = 80;
     var TEXT_IDS           = [];
     var MIN_RESPONSE_CHARS = 20;
-    var HINT_THRESHOLD_1   = 2;    // wrong attempts before formula hint appears
-    var HINT_THRESHOLD_2   = 4;    // wrong attempts before computed-value hint appears
+    var HINT_THRESHOLD_1   = 2;    // wrong attempts before a hint appears
+    var HINT_THRESHOLD_2   = 4;    // wrong attempts before stronger hints appear
     var WALK_STEPS = [
         {
             title: 'Measure the fall',
@@ -234,8 +234,7 @@
     function hintText(col, time, level) {
         var tf = time.toFixed(1);
         if (col === 'dist') {
-            if (level === 1) return 'Hint: Drag the scrubber to ' + tf + 's. Read the ball\u2019s position on the tape measure (in cm).';
-            return 'Hint: d = \u00BD \u00D7 981 \u00D7 ' + tf + '\u00B2 \u2248 ' + (0.5 * G * time * time).toFixed(1) + ' cm';
+            return 'Hint: Zoom in on the graph.';
         }
         if (col === 'interval') {
             if (level === 1) return 'Hint: Subtract the distance in the row above from this row\u2019s distance.';

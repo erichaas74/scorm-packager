@@ -1,0 +1,1634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USGA Golf Club CT Compliance Test</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+            background-color: #f3f4f6;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            color: #111827;
+        }
+        .page-header {
+            width: 100%;
+            max-width: 1000px;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        .page-header h1 { font-size: 1.75rem; margin: 0 0 6px; color: #111827; }
+        .page-header p { margin: 0; color: #4b5563; font-size: 0.9rem; }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            padding: 24px;
+            display: grid;
+            grid-template-columns: 3fr 1fr;
+            gap: 24px;
+            margin-bottom: 20px;
+        }
+
+        .directions {
+            grid-column: 1 / -1;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 14px 16px;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            color: #1e3a5f;
+        }
+        .directions h2 { margin: 0 0 6px; font-size: 1rem; color: #1d4ed8; }
+        .directions ol { margin: 6px 0 0; padding-left: 20px; }
+        .directions li { margin-bottom: 4px; }
+
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            background: #eef2f8;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 8px rgba(15,23,42,0.12);
+            border: 1px solid #dbe3ee;
+            aspect-ratio: 16 / 9;
+        }
+        canvas { display: block; width: 100%; height: 100%; }
+
+        .vector-overlay {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(15,23,42,0.88);
+            padding: 12px;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.75rem;
+            border: 1px solid #4b5563;
+            max-width: 220px;
+        }
+        .vector-overlay.hidden { display: none; }
+        .vector-overlay .ov-title { font-weight: 700; margin-bottom: 4px; color: #93c5fd; }
+        .vector-overlay .ov-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+        .vector-overlay .ov-note { margin-top: 6px; color: #fde68a; font-weight: 700; }
+        .dot { width: 12px; height: 12px; border-radius: 999px; display: inline-block; flex: none; }
+        .dot-red { background: #ef4444; }
+        .dot-yellow { background: #facc15; }
+
+        .controls-panel {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .control-label { display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 4px; }
+        .slider-scale { display: flex; justify-content: space-between; font-size: 0.75rem; color: #6b7280; margin-bottom: 4px; }
+        .mat-name { font-weight: 700; }
+        .mat-soft { color: #7c3aed; }
+        .mat-limit { color: #2563eb; }
+        .mat-stiff { color: #1e293b; }
+        .mat-mystery { color: #c026d3; }
+        .control-note { font-size: 10px; color: #6b7280; margin: 4px 0 0; }
+
+        input[type=range] { width: 100%; accent-color: #2563eb; }
+        input[type=range]:disabled { opacity: 0.4; }
+
+        .btn {
+            border: 0;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-weight: 700;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: background-color .15s, filter .15s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+        }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn-blue { background: #2563eb; color: white; }
+        .btn-blue:hover:not(:disabled) { background: #1d4ed8; }
+        .btn-gray { background: #e5e7eb; color: #1f2937; }
+        .btn-gray:hover:not(:disabled) { background: #d1d5db; }
+        .btn-mystery { background: #a21caf; color: white; }
+        .btn-mystery:hover:not(:disabled) { background: #86198f; }
+        .btn-row { display: flex; gap: 8px; }
+        .btn-row .btn { flex: 1; }
+
+        .mystery-box {
+            border: 2px dashed #d8b4fe;
+            background: #faf5ff;
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .mystery-box h3 { margin: 0 0 6px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: #a21caf; }
+        .mystery-box p { margin: 0 0 8px; font-size: 11px; color: #6b21a8; line-height: 1.4; }
+        .mystery-box .btn { width: 100%; }
+
+        .readout-box {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .readout-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: #64748b;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .sensor-status { font-weight: 700; color: #0f172a; font-size: 0.95rem; }
+        .readout-sub { font-size: 0.7rem; color: #6b7280; line-height: 1.45; }
+
+        .graph-section {
+            grid-column: 1 / -1;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            height: 270px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        .graph-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px; }
+        .graph-header h3 { margin: 0; font-size: 0.875rem; color: #1f2937; }
+        .graph-header p { margin: 0; font-size: 0.75rem; color: #6b7280; }
+        .legend { display: flex; gap: 16px; font-size: 0.75rem; font-weight: 600; }
+        .legend span { display: flex; align-items: center; gap: 4px; }
+        .swatch { width: 14px; height: 3px; display: inline-block; }
+        .graph-canvas-wrap { flex: 1; position: relative; width: 100%; height: 100%; }
+        #graphCanvas { position: absolute; inset: 0; width: 100%; height: 100%; border: 1px solid #f1f5f9; border-radius: 4px; cursor: crosshair; }
+
+        .table-section { grid-column: 1 / -1; }
+        .table-section h3 { margin: 0 0 4px; font-size: 0.95rem; color: #1f2937; }
+        .table-section .notebook-note { margin: 0 0 10px; font-size: 0.78rem; color: #6b7280; }
+        .results-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .results-table th, .results-table td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: center; }
+        .results-table th { background: #f1f5f9; color: #334155; font-size: 0.75rem; letter-spacing: 0.4px; }
+        .results-table td:first-child { text-align: left; font-weight: 600; }
+        .results-table .not-tested { color: #94a3b8; }
+        .results-table .cell-tested { color: #166534; font-weight: 700; }
+        .results-table tr.mystery-row td:first-child { color: #a21caf; }
+        .note-input {
+            width: 90px;
+            padding: 5px 7px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-family: Consolas, monospace;
+            font-size: 0.85rem;
+            text-align: center;
+        }
+        .note-input:focus { outline: none; border-color: #2563eb; }
+        .note-select {
+            padding: 5px 7px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            background: white;
+        }
+
+        /* ---------- Question section ---------- */
+        .quiz-container {
+            width: 100%;
+            max-width: 1000px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            padding: 24px;
+            margin-bottom: 40px;
+        }
+        .score-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            background: #0f172a;
+            color: white;
+            border-radius: 8px;
+            padding: 12px 18px;
+            margin-bottom: 20px;
+        }
+        .score-bar .score-num { font-size: 1.3rem; font-weight: 800; font-family: Consolas, monospace; color: #4ade80; }
+        .score-bar .score-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; }
+        .score-bar .save-note { font-size: 0.72rem; color: #64748b; }
+
+        .part-header { margin: 22px 0 10px; }
+        .part-header h2 { margin: 0; font-size: 1.1rem; color: #1d4ed8; }
+        .part-header p { margin: 4px 0 0; font-size: 0.82rem; color: #6b7280; }
+
+        .q-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 14px;
+            position: relative;
+            background: #fff;
+        }
+        .q-card.locked { background: #f8fafc; }
+        .q-card.correct { border-color: #86efac; background: #f0fdf4; }
+        .q-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+        .q-num { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: #2563eb; }
+        .q-pts { font-size: 0.72rem; font-weight: 700; color: #64748b; white-space: nowrap; }
+        .q-prompt { font-size: 0.92rem; line-height: 1.45; color: #111827; margin-bottom: 10px; }
+        .q-lock-msg {
+            font-size: 0.82rem;
+            color: #64748b;
+            background: #f1f5f9;
+            border: 1px dashed #cbd5e1;
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+        .q-options { display: flex; flex-direction: column; gap: 7px; }
+        .q-option {
+            text-align: left;
+            border: 2px solid #e2e8f0;
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 9px 12px;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            cursor: pointer;
+            color: #1f2937;
+            transition: border-color .12s, background .12s;
+            font-family: inherit;
+        }
+        .q-option:hover:not(:disabled) { border-color: #93c5fd; background: #eff6ff; }
+        .q-option.selected { border-color: #2563eb; background: #dbeafe; }
+        .q-option.locked-correct { border-color: #22c55e; background: #dcfce7; }
+        .q-option:disabled { cursor: default; }
+        .num-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .num-input {
+            width: 130px;
+            padding: 9px 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-family: Consolas, monospace;
+        }
+        .num-input:focus { outline: none; border-color: #2563eb; }
+        .num-unit { font-size: 0.85rem; color: #475569; font-weight: 600; }
+        .q-check { margin-top: 10px; }
+        .q-feedback {
+            margin-top: 10px;
+            font-size: 0.82rem;
+            line-height: 1.45;
+            border-radius: 8px;
+            padding: 9px 12px;
+            display: none;
+        }
+        .q-feedback.show { display: block; }
+        .q-feedback.good { background: #dcfce7; color: #14532d; border: 1px solid #bbf7d0; }
+        .q-feedback.bad { background: #fef2f2; color: #7f1d1d; border: 1px solid #fecaca; }
+
+        .finish-banner {
+            display: none;
+            margin-top: 20px;
+            background: #dcfce7;
+            border: 1px solid #86efac;
+            color: #14532d;
+            border-radius: 10px;
+            padding: 16px 18px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            text-align: center;
+            font-weight: 600;
+        }
+        .finish-banner.show { display: block; }
+
+        @media (max-width: 768px) {
+            .container { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="page-header">
+    <h1>USGA Golf Club CT Compliance Test</h1>
+    <p>You are an equipment-testing engineer. Use the pendulum tester to capture force&ndash;time traces, calculate Characteristic Time (CT) from the graph yourself, and rule on a confiscated mystery prototype.</p>
+</div>
+
+<div class="container">
+
+    <div class="directions">
+        <h2>Your Testing Assignment</h2>
+        <ol>
+            <li><b>Part A — Calibration:</b> Test <b>all five known face materials</b> with the Drop Pendulum button. The machine only plots the raw force&ndash;time trace — <b>it does not compute results for you</b>. Hover over the graph to read time and force values, calculate each CT yourself, and record your readings in the Test Log notebook below.</li>
+            <li><b>Part B — The Mystery Prototype:</b> A tour player's driver has been confiscated. Load <b>Prototype X-7</b>, test it, measure its trace, and use your Part A data to decide how stiff its face is and whether it conforms to the USGA limit (CT &le; 257 &micro;s).</li>
+            <li>Answer all 8 questions below the tester. Full credit on the first try; a correct answer after a miss earns half credit. Your score and progress are saved automatically — when every question is complete, you are done and can return to Buzz.</li>
+        </ol>
+    </div>
+
+    <div class="canvas-wrap-col">
+        <div class="canvas-container" id="simWrapper">
+            <canvas id="simCanvas"></canvas>
+            <div id="vectorOverlay" class="vector-overlay hidden">
+                <div class="ov-title">Newton's 3rd Law Pair</div>
+                <div class="ov-row"><span class="dot dot-red"></span> Pendulum pushes on face</div>
+                <div class="ov-row"><span class="dot dot-yellow"></span> Face pushes on pendulum</div>
+                <div class="ov-note">Equal size &mdash; opposite direction</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls-panel">
+        <div>
+            <label class="control-label">Face Material Stiffness</label>
+            <div class="slider-scale">
+                <span>Polymer</span>
+                <span id="matValDisplay" class="mat-name mat-limit">Thin Titanium</span>
+                <span>Steel</span>
+            </div>
+            <input type="range" id="materialSlider" min="1" max="5" value="3" step="1">
+            <p class="control-note">Stiffer materials increase peak force but decrease contact time.</p>
+        </div>
+
+        <div class="mystery-box">
+            <h3>&#128269; Evidence Locker</h3>
+            <p>Confiscated driver <b>Prototype X-7</b>. Face material: <b>unknown</b>. Test it like any other club — then make your ruling.</p>
+            <button id="mysteryBtn" class="btn btn-mystery">Load Prototype X-7</button>
+        </div>
+
+        <div class="btn-row">
+            <button id="dropBtn" class="btn btn-blue">Drop Pendulum</button>
+            <button id="resetBtn" class="btn btn-gray">Reset</button>
+        </div>
+
+        <div class="readout-box">
+            <div class="readout-label">Sensor Output</div>
+            <div id="testStatus" class="sensor-status">Awaiting test</div>
+            <div class="readout-sub" style="margin-top:6px;">This tester plots the raw force&ndash;time trace only. Reading CT and peak force off the graph — and making the PASS/FAIL ruling — is <b>your</b> job, inspector. Limit: CT &le; 257 &micro;s.</div>
+        </div>
+    </div>
+
+    <div class="graph-section">
+        <div class="graph-header">
+            <div>
+                <h3>Accelerometer Signal (Force vs. Time)</h3>
+                <p>Hover over the plotted trace to read the time and force at any point.</p>
+            </div>
+            <div class="legend">
+                <span><span class="swatch" style="background:#9ca3af;"></span> Raw Data</span>
+                <span><span class="swatch" style="background:#2563eb;"></span> Smoothed Curve</span>
+            </div>
+        </div>
+        <div class="graph-canvas-wrap">
+            <canvas id="graphCanvas"></canvas>
+        </div>
+    </div>
+
+    <div class="table-section">
+        <h3>Test Log — Your Notebook</h3>
+        <p class="notebook-note">The tester will not fill this in for you. Record what you measure from each graph. (The notebook is not graded, but you will need it for the questions.)</p>
+        <table class="results-table">
+            <thead>
+                <tr><th>Club Face</th><th>Status</th><th>CT (&micro;s) — your reading</th><th>Peak Force (kN) — your reading</th><th>Your Ruling</th></tr>
+            </thead>
+            <tbody id="resultsBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<div class="quiz-container">
+    <div class="score-bar">
+        <div>
+            <div class="score-label">Activity Score</div>
+            <div class="score-num"><span id="scoreNow">0</span> / <span id="scoreMax">16</span></div>
+        </div>
+        <div>
+            <div class="score-label">Questions Complete</div>
+            <div class="score-num" id="qProgress">0 / 8</div>
+        </div>
+        <div class="save-note" id="saveNote">Progress saves automatically.</div>
+    </div>
+
+    <div id="questionsRoot"></div>
+
+    <div id="finishBanner" class="finish-banner">
+        &#127942; Compliance report filed! You answered all 8 questions and your score has been recorded.
+        You can close this activity and return to Buzz.
+    </div>
+</div>
+
+<script src="scorm-wrapper.js"></script>
+<script>
+    // ================================================================
+    //  SIMULATOR
+    // ================================================================
+    const state = {
+        phase: 'ready', // ready, swinging, rebounding, complete
+        startAngle: Math.PI / 2,
+        angle: Math.PI / 2,
+        angularVelocity: 0,
+
+        gravity: 9.81,
+        pendulumLength: 1.0,
+        mass: 0.197, // kg (USGA standard driver head mass approximation)
+
+        materials: {
+            1: { name: "Soft Polymer",   k: 15800000, damp: 0.04, color: "#a78bfa" },
+            2: { name: "Alloy",          k: 24800000, damp: 0.04, color: "#9ca3af" },
+            3: { name: "Thin Titanium",  k: 32400000, damp: 0.04, color: "#60a5fa" },
+            4: { name: "Thick Titanium", k: 48600000, damp: 0.04, color: "#3b82f6" },
+            5: { name: "Rigid Steel",    k: 86400000, damp: 0.04, color: "#1e3a8a" }
+        },
+        currentMaterial: 3,
+        mysteryMode: false,
+
+        impactData: [],
+        playbackIndex: 0,
+        ctCalculated: 0,
+        peakForce: 0,
+        totalImpulse: 0,
+        reboundVelocity: 0
+    };
+
+    // Hidden prototype profiles. One is drawn at random per student and kept
+    // for the whole attempt. 'closest' is the known-material slider index.
+    const MYSTERY_PROFILES = {
+        A: { k: 31100000, closest: 3 }, // CT 244 us - barely conforming
+        B: { k: 26300000, closest: 2 }, // CT 266 us - barely non-conforming
+        C: { k: 51100000, closest: 4 }, // CT 191 us - clearly conforming
+        D: { k: 17850000, closest: 1 }  // CT 322 us - clearly non-conforming
+    };
+    const CT_LIMIT = 257;
+    const MYSTERY_NAME = 'Prototype X-7';
+
+    // --- DOM Elements ---
+    const simCanvas = document.getElementById('simCanvas');
+    const simCtx = simCanvas.getContext('2d');
+    const graphCanvas = document.getElementById('graphCanvas');
+    const graphCtx = graphCanvas.getContext('2d');
+    const simWrapper = document.getElementById('simWrapper');
+
+    const materialSlider = document.getElementById('materialSlider');
+    const dropBtn = document.getElementById('dropBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const mysteryBtn = document.getElementById('mysteryBtn');
+
+    const matValDisplay = document.getElementById('matValDisplay');
+    const testStatus = document.getElementById('testStatus');
+    const vectorOverlay = document.getElementById('vectorOverlay');
+
+    let centerX, centerY;
+    let scale = 100;
+    let graphCursor = null;
+
+    function currentK() {
+        return state.mysteryMode
+            ? MYSTERY_PROFILES[activity.mysteryId].k
+            : state.materials[state.currentMaterial].k;
+    }
+    function currentFaceColor() {
+        return state.mysteryMode ? '#d946ef' : state.materials[state.currentMaterial].color;
+    }
+    function currentFaceName() {
+        return state.mysteryMode ? MYSTERY_NAME : state.materials[state.currentMaterial].name;
+    }
+
+    // Pure microsecond-resolution impact model. Impact speed is the exact
+    // release-from-90-degrees value so results are identical every run.
+    function simulateImpact(k, collectData) {
+        const damp = 0.04;
+        let x = 0;
+        let v = Math.sqrt(2 * state.gravity * state.pendulumLength);
+        const dt = 1e-6;
+        const c = damp * 2 * Math.sqrt(k * state.mass);
+
+        let maxF = 0, impulse = 0, contactActive = true, contactFrames = 0;
+        const data = collectData ? [] : null;
+
+        for (let i = 0; i <= 1000; i++) {
+            let F_spring = 0;
+            if (x >= 0 && contactActive) {
+                F_spring = Math.max(0, (k * x) + (c * v));
+                if (F_spring > 0) contactFrames++;
+                else contactActive = false;
+            } else {
+                contactActive = false;
+            }
+
+            if (data) {
+                // USGA "ringing" signature (high freq noise on accelerometer)
+                let noise;
+                if (contactActive) {
+                    noise = (Math.sin(i * 0.5) + Math.cos(i * 0.8)) * (F_spring * 0.35 + 200);
+                } else {
+                    const decay = Math.exp(-(i - contactFrames) / 150);
+                    noise = (Math.sin(i * 0.5) + Math.cos(i * 0.8)) * (maxF * 0.15) * decay;
+                }
+                data.push({ t: i, force: F_spring, raw: F_spring + noise, x: Math.max(0, x) });
+            }
+
+            const a = -F_spring / state.mass;
+            v += a * dt;
+            x += v * dt;
+            impulse += F_spring * dt;
+            if (F_spring > maxF) maxF = F_spring;
+        }
+        return { ct: contactFrames, peak: maxF, impulse: impulse, data: data };
+    }
+
+    function resizeCanvas() {
+        const rect = simWrapper.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+
+        simCanvas.width = rect.width * dpr;
+        simCanvas.height = rect.height * dpr;
+        simCtx.scale(dpr, dpr);
+        simCanvas.style.width = `${rect.width}px`;
+        simCanvas.style.height = `${rect.height}px`;
+
+        centerX = rect.width / 2;
+        centerY = 60;
+        scale = (rect.height - 120) / state.pendulumLength;
+
+        const graphRect = graphCanvas.parentElement.getBoundingClientRect();
+        graphCanvas.width = graphRect.width * dpr;
+        graphCanvas.height = graphRect.height * dpr;
+        graphCtx.scale(dpr, dpr);
+        graphCanvas.style.width = `${graphRect.width}px`;
+        graphCanvas.style.height = `${graphRect.height}px`;
+
+        drawScene();
+        if (state.impactData.length > 0) drawGraph();
+        else drawGraphAxes();
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+
+    function updateMaterialDisplay() {
+        if (state.mysteryMode) {
+            matValDisplay.innerText = MYSTERY_NAME;
+            matValDisplay.className = 'mat-name mat-mystery';
+            return;
+        }
+        const val = state.currentMaterial;
+        matValDisplay.innerText = state.materials[val].name;
+        if (val <= 2) matValDisplay.className = 'mat-name mat-soft';
+        else if (val === 3) matValDisplay.className = 'mat-name mat-limit';
+        else matValDisplay.className = 'mat-name mat-stiff';
+    }
+
+    materialSlider.addEventListener('input', (e) => {
+        if (state.phase !== 'ready' && state.phase !== 'complete') return;
+        state.currentMaterial = parseInt(e.target.value);
+        updateMaterialDisplay();
+        drawScene();
+    });
+
+    mysteryBtn.addEventListener('click', () => {
+        if (state.phase !== 'ready' && state.phase !== 'complete') return;
+        state.mysteryMode = !state.mysteryMode;
+        materialSlider.disabled = state.mysteryMode;
+        mysteryBtn.innerText = state.mysteryMode ? 'Return to Known Materials' : 'Load Prototype X-7';
+        clearSensor();
+        state.phase = 'ready';
+        state.angle = state.startAngle;
+        state.angularVelocity = 0;
+        state.impactData = [];
+        updateMaterialDisplay();
+        drawScene();
+        const rect = graphCanvas.parentElement.getBoundingClientRect();
+        graphCtx.clearRect(0, 0, rect.width, rect.height);
+        drawGraphAxes();
+    });
+
+    function clearSensor() {
+        testStatus.innerText = 'Awaiting test';
+    }
+
+    dropBtn.addEventListener('click', () => {
+        if (state.phase === 'ready' || state.phase === 'complete') {
+            state.phase = 'swinging';
+            state.angle = state.startAngle;
+            state.angularVelocity = 0;
+            state.impactData = [];
+            testStatus.innerText = 'Testing…';
+            requestAnimationFrame(physicsLoop);
+        }
+    });
+
+    resetBtn.addEventListener('click', () => {
+        state.phase = 'ready';
+        state.angle = state.startAngle;
+        state.angularVelocity = 0;
+        state.impactData = [];
+        vectorOverlay.classList.add('hidden');
+        clearSensor();
+        drawScene();
+        const rect = graphCanvas.parentElement.getBoundingClientRect();
+        graphCtx.clearRect(0, 0, rect.width, rect.height);
+        drawGraphAxes();
+    });
+
+    const visualDt = 0.016;
+
+    function physicsLoop() {
+        if (state.phase === 'ready' || state.phase === 'complete') return;
+
+        if (state.phase === 'swinging') {
+            const angularAcc = -(state.gravity / state.pendulumLength) * Math.sin(state.angle);
+            state.angularVelocity += angularAcc * visualDt;
+            state.angle += state.angularVelocity * visualDt;
+
+            if (state.angle <= 0) {
+                state.angle = 0;
+                const result = simulateImpact(currentK(), true);
+                state.impactData = result.data;
+                state.ctCalculated = result.ct;
+                state.peakForce = result.peak;
+                state.totalImpulse = result.impulse;
+
+                const tenDegreesRad = 10 * (Math.PI / 180);
+                const reboundHeight = state.pendulumLength * (1 - Math.cos(tenDegreesRad));
+                state.reboundVelocity = Math.sqrt(2 * state.gravity * reboundHeight) / state.pendulumLength;
+
+                processResults();
+                recordTestResult();
+
+                state.phase = 'rebounding';
+                state.angularVelocity = state.reboundVelocity;
+                state.playbackIndex = state.impactData.length;
+
+                vectorOverlay.classList.remove('hidden');
+                setTimeout(() => {
+                    if (state.phase === 'rebounding' || state.phase === 'complete') {
+                        vectorOverlay.classList.add('hidden');
+                    }
+                }, 2500);
+            }
+        }
+        else if (state.phase === 'rebounding') {
+            const angularAcc = -(state.gravity / state.pendulumLength) * Math.sin(state.angle);
+            state.angularVelocity += angularAcc * visualDt;
+            state.angle += state.angularVelocity * visualDt;
+            if (state.angularVelocity <= 0) {
+                state.angularVelocity = 0;
+                state.phase = 'complete';
+            }
+        }
+
+        drawScene();
+        if (state.impactData.length > 0) drawGraph();
+        if (state.phase !== 'complete') requestAnimationFrame(physicsLoop);
+    }
+
+    // The machine reports only that a trace was captured. All numbers stay
+    // hidden: students must read CT and peak force off the graph themselves.
+    function processResults() {
+        testStatus.innerHTML = 'Trace captured: <b>' + currentFaceName() + '</b>. Read your results from the graph below.';
+    }
+
+    // ---------- lab scene ----------
+    function rr(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+    }
+
+    function drawScene() {
+        const rect = simWrapper.getBoundingClientRect();
+        const w = rect.width;
+        const h = rect.height;
+        simCtx.clearRect(0, 0, w, h);
+
+        // --- lab wall ---
+        const wall = simCtx.createLinearGradient(0, 0, 0, h);
+        wall.addColorStop(0, '#f8fafc');
+        wall.addColorStop(1, '#dde6f2');
+        simCtx.fillStyle = wall;
+        simCtx.fillRect(0, 0, w, h);
+
+        // wall panel seams
+        simCtx.strokeStyle = 'rgba(148,163,184,0.25)';
+        simCtx.lineWidth = 1;
+        for (let x = 0; x < w; x += 140) {
+            simCtx.beginPath(); simCtx.moveTo(x, 0); simCtx.lineTo(x, h - 60); simCtx.stroke();
+        }
+
+        // wall sign
+        simCtx.fillStyle = '#1e3a8a';
+        rr(simCtx, 14, 14, 216, 34, 8);
+        simCtx.fill();
+        simCtx.fillStyle = '#ffffff';
+        simCtx.font = 'bold 12px Arial';
+        simCtx.textAlign = 'left';
+        simCtx.fillText('USGA EQUIPMENT TEST LAB', 26, 35);
+
+        // --- floor ---
+        simCtx.fillStyle = '#c7d2e0';
+        simCtx.fillRect(0, h - 60, w, 60);
+        simCtx.strokeStyle = '#adbccd';
+        simCtx.lineWidth = 2;
+        for (let i = 0; i < w + 40; i += 40) {
+            simCtx.beginPath(); simCtx.moveTo(i, h - 60); simCtx.lineTo(i - 20, h); simCtx.stroke();
+        }
+        simCtx.strokeStyle = '#93a6bb';
+        simCtx.lineWidth = 2;
+        simCtx.beginPath(); simCtx.moveTo(0, h - 60); simCtx.lineTo(w, h - 60); simCtx.stroke();
+
+        const pivotX = centerX;
+        const pivotY = centerY;
+        const clubY = pivotY + (state.pendulumLength * scale);
+        const viceX = pivotX + 150;
+
+        // machine shadow
+        simCtx.fillStyle = 'rgba(15,23,42,0.10)';
+        simCtx.beginPath();
+        simCtx.ellipse(pivotX + 60, h - 52, 220, 10, 0, 0, Math.PI * 2);
+        simCtx.fill();
+
+        // --- release-angle protractor ---
+        simCtx.save();
+        simCtx.strokeStyle = 'rgba(100,116,139,0.55)';
+        simCtx.lineWidth = 1.5;
+        simCtx.setLineDash([4, 5]);
+        simCtx.beginPath();
+        simCtx.arc(pivotX, pivotY, 62, Math.PI / 2, Math.PI);
+        simCtx.stroke();
+        simCtx.setLineDash([]);
+        // angle ticks at 0, 30, 60, 90 degrees from vertical
+        for (let deg = 0; deg <= 90; deg += 30) {
+            const th = deg * Math.PI / 180;
+            const dx = -Math.sin(th), dy = Math.cos(th);
+            simCtx.beginPath();
+            simCtx.moveTo(pivotX + dx * 56, pivotY + dy * 56);
+            simCtx.lineTo(pivotX + dx * 68, pivotY + dy * 68);
+            simCtx.stroke();
+        }
+        simCtx.fillStyle = '#64748b';
+        simCtx.font = 'bold 10px Arial';
+        simCtx.textAlign = 'center';
+        simCtx.fillText('90° release', pivotX - 92, pivotY - 8);
+        simCtx.restore();
+
+        // --- support column + base ---
+        const col = simCtx.createLinearGradient(pivotX - 15, 0, pivotX + 15, 0);
+        col.addColorStop(0, '#aab8c9');
+        col.addColorStop(0.5, '#7d8fa0');
+        col.addColorStop(1, '#aab8c9');
+        simCtx.fillStyle = col;
+        simCtx.fillRect(pivotX - 15, pivotY - 20, 30, h - 80 - (pivotY - 20));
+
+        simCtx.fillStyle = '#334155';
+        rr(simCtx, pivotX - 70, h - 84, 140, 26, 6);
+        simCtx.fill();
+        simCtx.fillStyle = '#94a3b8';
+        [-50, 50].forEach(dx => {
+            simCtx.beginPath(); simCtx.arc(pivotX + dx, h - 71, 4, 0, Math.PI * 2); simCtx.fill();
+        });
+
+        // pivot housing with corner bolts
+        simCtx.fillStyle = '#475569';
+        rr(simCtx, pivotX - 28, pivotY - 32, 56, 46, 8);
+        simCtx.fill();
+        simCtx.fillStyle = '#cbd5e1';
+        [[-19, -23], [19, -23], [-19, 5], [19, 5]].forEach(([dx, dy]) => {
+            simCtx.beginPath(); simCtx.arc(pivotX + dx, pivotY + dy, 2.5, 0, Math.PI * 2); simCtx.fill();
+        });
+
+        // --- club shaft + grip (drawn under clamp) ---
+        simCtx.lineCap = 'round';
+        simCtx.lineWidth = 7;
+        simCtx.strokeStyle = '#9fadbd';
+        simCtx.beginPath(); simCtx.moveTo(viceX + 88, clubY); simCtx.lineTo(pivotX + 30, clubY); simCtx.stroke();
+        simCtx.lineWidth = 2;
+        simCtx.strokeStyle = '#e6ecf3';
+        simCtx.beginPath(); simCtx.moveTo(viceX + 84, clubY - 2); simCtx.lineTo(pivotX + 34, clubY - 2); simCtx.stroke();
+        simCtx.lineCap = 'butt';
+
+        // --- vise ---
+        const vice = simCtx.createLinearGradient(viceX, h - 140, viceX, h - 60);
+        vice.addColorStop(0, '#8b9bad');
+        vice.addColorStop(1, '#54657a');
+        simCtx.fillStyle = vice;
+        rr(simCtx, viceX, h - 140, 84, 80, 6);
+        simCtx.fill();
+        simCtx.strokeStyle = '#3b4a5c';
+        simCtx.lineWidth = 1.5;
+        rr(simCtx, viceX, h - 140, 84, 80, 6);
+        simCtx.stroke();
+        // hazard stripes on vise base
+        simCtx.save();
+        simCtx.beginPath();
+        simCtx.rect(viceX + 4, h - 74, 76, 10);
+        simCtx.clip();
+        for (let sx = viceX - 10; sx < viceX + 90; sx += 14) {
+            simCtx.fillStyle = '#facc15';
+            simCtx.fillRect(sx, h - 74, 7, 10);
+            simCtx.fillStyle = '#1f2937';
+            simCtx.fillRect(sx + 7, h - 74, 7, 10);
+        }
+        simCtx.restore();
+
+        // clamp jaws around the shaft
+        const jaw = simCtx.createLinearGradient(0, clubY - 20, 0, clubY + 20);
+        jaw.addColorStop(0, '#7e8ea0');
+        jaw.addColorStop(1, '#4c5c70');
+        simCtx.fillStyle = jaw;
+        rr(simCtx, viceX - 10, clubY - 19, 102, 38, 5);
+        simCtx.fill();
+        simCtx.strokeStyle = '#33415a';
+        simCtx.lineWidth = 1.5;
+        rr(simCtx, viceX - 10, clubY - 19, 102, 38, 5);
+        simCtx.stroke();
+        simCtx.strokeStyle = 'rgba(15,23,42,0.35)';
+        simCtx.beginPath(); simCtx.moveTo(viceX - 6, clubY); simCtx.lineTo(viceX + 88, clubY); simCtx.stroke();
+        simCtx.fillStyle = '#cbd5e1';
+        [12, 76].forEach(dx => {
+            simCtx.beginPath(); simCtx.arc(viceX + dx, clubY - 10, 3, 0, Math.PI * 2); simCtx.fill();
+            simCtx.beginPath(); simCtx.arc(viceX + dx, clubY + 10, 3, 0, Math.PI * 2); simCtx.fill();
+        });
+
+        // --- driver head ---
+        const headGrad = simCtx.createLinearGradient(0, clubY - 30, 0, clubY + 35);
+        headGrad.addColorStop(0, '#5d6f84');
+        headGrad.addColorStop(1, '#26364a');
+        simCtx.fillStyle = headGrad;
+        simCtx.beginPath();
+        simCtx.moveTo(pivotX + 30, clubY - 30);
+        simCtx.lineTo(pivotX, clubY - 25);
+        simCtx.lineTo(pivotX, clubY + 25);
+        simCtx.lineTo(pivotX + 20, clubY + 35);
+        simCtx.lineTo(pivotX + 50, clubY + 15);
+        simCtx.closePath();
+        simCtx.fill();
+        simCtx.strokeStyle = '#111c2c';
+        simCtx.lineWidth = 1.5;
+        simCtx.stroke();
+        // crown highlight
+        simCtx.strokeStyle = 'rgba(255,255,255,0.35)';
+        simCtx.lineWidth = 2;
+        simCtx.beginPath();
+        simCtx.moveTo(pivotX + 28, clubY - 26);
+        simCtx.lineTo(pivotX + 4, clubY - 22);
+        simCtx.stroke();
+
+        // face plate in material color + grooves
+        simCtx.lineWidth = 5;
+        simCtx.strokeStyle = currentFaceColor();
+        simCtx.beginPath();
+        simCtx.moveTo(pivotX, clubY - 25);
+        simCtx.lineTo(pivotX, clubY + 25);
+        simCtx.stroke();
+        simCtx.strokeStyle = 'rgba(255,255,255,0.55)';
+        simCtx.lineWidth = 1;
+        [-14, -6, 2, 10, 18].forEach(dy => {
+            simCtx.beginPath();
+            simCtx.moveTo(pivotX + 3, clubY + dy);
+            simCtx.lineTo(pivotX + 8, clubY + dy + 1);
+            simCtx.stroke();
+        });
+
+        if (state.mysteryMode) {
+            simCtx.fillStyle = '#a21caf';
+            simCtx.font = 'bold 15px Consolas, monospace';
+            simCtx.textAlign = 'center';
+            simCtx.fillText('?', pivotX + 26, clubY + 8);
+            simCtx.font = 'bold 11px Arial';
+            simCtx.fillText(MYSTERY_NAME, viceX + 42, h - 148);
+            simCtx.textAlign = 'left';
+        }
+
+        // --- pendulum arm + mass ---
+        const massX = pivotX - Math.sin(state.angle) * state.pendulumLength * scale;
+        const massY = pivotY + Math.cos(state.angle) * state.pendulumLength * scale;
+
+        simCtx.lineCap = 'round';
+        simCtx.lineWidth = 6;
+        simCtx.strokeStyle = '#1e293b';
+        simCtx.beginPath(); simCtx.moveTo(pivotX, pivotY); simCtx.lineTo(massX, massY); simCtx.stroke();
+        simCtx.lineWidth = 2;
+        simCtx.strokeStyle = '#64748b';
+        simCtx.beginPath(); simCtx.moveTo(pivotX, pivotY); simCtx.lineTo(massX, massY); simCtx.stroke();
+        simCtx.lineCap = 'butt';
+
+        // pivot axle
+        simCtx.fillStyle = '#475569';
+        simCtx.beginPath(); simCtx.arc(pivotX, pivotY, 9, 0, Math.PI * 2); simCtx.fill();
+        simCtx.fillStyle = '#cbd5e1';
+        simCtx.beginPath(); simCtx.arc(pivotX - 2, pivotY - 2, 3.5, 0, Math.PI * 2); simCtx.fill();
+
+        // steel impact mass with highlight
+        const massGrad = simCtx.createRadialGradient(massX - 4, massY - 5, 2, massX, massY, 14);
+        massGrad.addColorStop(0, '#eef2f7');
+        massGrad.addColorStop(0.55, '#9fb0c2');
+        massGrad.addColorStop(1, '#5b6c80');
+        simCtx.fillStyle = massGrad;
+        simCtx.beginPath(); simCtx.arc(massX, massY, 13, 0, Math.PI * 2); simCtx.fill();
+        simCtx.strokeStyle = '#334155';
+        simCtx.lineWidth = 1.5;
+        simCtx.beginPath(); simCtx.arc(massX, massY, 13, 0, Math.PI * 2); simCtx.stroke();
+
+        // accelerometer puck + signal wire
+        simCtx.save();
+        simCtx.translate(massX, massY);
+        simCtx.rotate(-state.angle);
+        simCtx.fillStyle = '#dc2626';
+        rr(simCtx, -6, -21, 12, 9, 2);
+        simCtx.fill();
+        simCtx.strokeStyle = 'rgba(220,38,38,0.55)';
+        simCtx.lineWidth = 1.5;
+        simCtx.beginPath();
+        simCtx.moveTo(0, -21);
+        simCtx.quadraticCurveTo(10, -34, 26, -30);
+        simCtx.stroke();
+        simCtx.restore();
+    }
+
+    // ---------- graph ----------
+    function drawGraphAxes() {
+        const rect = graphCanvas.parentElement.getBoundingClientRect();
+        const w = rect.width;
+        const h = rect.height;
+
+        const paddingX = 40;
+        const graphW = w - paddingX - 10;
+        const graphH = h - 40;
+        const baseY = h - 30;
+
+        // horizontal gridlines + force labels every 5 kN (max 25 kN)
+        graphCtx.font = '10px sans-serif';
+        for (let f = 0; f <= 25000; f += 5000) {
+            const y = baseY - (f / 25000) * graphH;
+            graphCtx.strokeStyle = f === 0 ? '#cbd5e1' : '#e2e8f0';
+            graphCtx.lineWidth = 1;
+            graphCtx.beginPath(); graphCtx.moveTo(paddingX, y); graphCtx.lineTo(w - 10, y); graphCtx.stroke();
+            graphCtx.fillStyle = '#64748b';
+            graphCtx.textAlign = 'right';
+            graphCtx.fillText(String(f / 1000), paddingX - 5, y + 3);
+        }
+
+        // vertical gridlines every 100 us, labels every 200 us
+        for (let t = 0; t <= 1000; t += 100) {
+            const x = paddingX + (t / 1000) * graphW;
+            graphCtx.strokeStyle = (t % 200 === 0) ? '#dbe3ee' : '#eef2f7';
+            graphCtx.lineWidth = 1;
+            graphCtx.beginPath(); graphCtx.moveTo(x, 10); graphCtx.lineTo(x, baseY); graphCtx.stroke();
+            if (t % 200 === 0) {
+                graphCtx.fillStyle = '#64748b';
+                graphCtx.textAlign = 'center';
+                graphCtx.fillText(String(t), x, baseY + 12);
+            }
+        }
+
+        // axes
+        graphCtx.strokeStyle = '#475569';
+        graphCtx.lineWidth = 2;
+        graphCtx.beginPath();
+        graphCtx.moveTo(paddingX, 10);
+        graphCtx.lineTo(paddingX, baseY);
+        graphCtx.lineTo(w - 10, baseY);
+        graphCtx.stroke();
+
+        graphCtx.fillStyle = '#64748b';
+        graphCtx.font = '11px sans-serif';
+        graphCtx.textAlign = 'center';
+        graphCtx.fillText('Time (µs) →', w / 2, h - 6);
+
+        graphCtx.save();
+        graphCtx.translate(12, h / 2);
+        graphCtx.rotate(-Math.PI / 2);
+        graphCtx.fillText('Force (kN)', 0, 0);
+        graphCtx.restore();
+    }
+
+    function drawGraph() {
+        if (state.impactData.length === 0) return;
+
+        const rect = graphCanvas.parentElement.getBoundingClientRect();
+        const w = rect.width;
+        const h = rect.height;
+
+        graphCtx.clearRect(0, 0, w, h);
+        drawGraphAxes();
+
+        const paddingX = 40;
+        const paddingY = 30;
+        const graphW = w - paddingX - 10;
+        const graphH = h - paddingY - 10;
+
+        const maxF = 25000;
+        const xOffset = 0.10;
+
+        const limit = Math.min(state.playbackIndex, state.impactData.length);
+
+        graphCtx.strokeStyle = 'rgba(100, 116, 139, 0.6)';
+        graphCtx.lineWidth = 1.2;
+        graphCtx.beginPath();
+        for (let i = 0; i < limit; i++) {
+            const d = state.impactData[i];
+            const x = paddingX + ((d.t / 1000) + xOffset) * graphW;
+            const y = h - paddingY - (d.raw / maxF) * graphH;
+            const boundedY = Math.max(10, Math.min(h - paddingY, y));
+            if (i === 0) {
+                graphCtx.moveTo(paddingX, h - paddingY);
+                graphCtx.lineTo(x, h - paddingY);
+            } else {
+                graphCtx.lineTo(x, boundedY);
+            }
+        }
+        graphCtx.stroke();
+
+        graphCtx.beginPath();
+        let firstX = null;
+        let lastX = null;
+        for (let i = 0; i < limit; i++) {
+            const d = state.impactData[i];
+            if (d.force > 0) {
+                const x = paddingX + ((d.t / 1000) + xOffset) * graphW;
+                const y = h - paddingY - (d.force / maxF) * graphH;
+                if (firstX === null) {
+                    firstX = x;
+                    graphCtx.moveTo(x, h - paddingY);
+                }
+                graphCtx.lineTo(x, y);
+                lastX = x;
+            }
+        }
+        if (firstX !== null && lastX !== null) {
+            graphCtx.lineTo(lastX, h - paddingY);
+            graphCtx.lineTo(firstX, h - paddingY);
+            graphCtx.fillStyle = 'rgba(37, 99, 235, 0.15)';
+            graphCtx.fill();
+        }
+
+        graphCtx.strokeStyle = '#2563eb';
+        graphCtx.lineWidth = 2.5;
+        graphCtx.beginPath();
+        for (let i = 0; i < limit; i++) {
+            const d = state.impactData[i];
+            if (d.force > 0) {
+                const x = paddingX + ((d.t / 1000) + xOffset) * graphW;
+                const y = h - paddingY - (d.force / maxF) * graphH;
+                if (i === 0 || state.impactData[i - 1].force === 0) graphCtx.moveTo(x, h - paddingY);
+                else graphCtx.lineTo(x, y);
+            }
+        }
+        graphCtx.stroke();
+
+        // Contact start/end markers only — no computed CT value. Students
+        // must read the endpoints off the time axis and subtract.
+        if (state.phase === 'rebounding' || state.phase === 'complete') {
+            const startX = paddingX + xOffset * graphW;
+            const endX = startX + (state.ctCalculated / 1000 * graphW);
+
+            graphCtx.fillStyle = '#ef4444';
+            graphCtx.beginPath(); graphCtx.arc(startX, h - paddingY, 4, 0, Math.PI * 2); graphCtx.fill();
+            graphCtx.beginPath(); graphCtx.arc(endX, h - paddingY, 4, 0, Math.PI * 2); graphCtx.fill();
+
+            graphCtx.strokeStyle = '#ef4444';
+            graphCtx.lineWidth = 1;
+            graphCtx.beginPath(); graphCtx.moveTo(startX, h - paddingY + 15); graphCtx.lineTo(endX, h - paddingY + 15); graphCtx.stroke();
+            graphCtx.beginPath(); graphCtx.moveTo(startX, h - paddingY + 10); graphCtx.lineTo(startX, h - paddingY + 20); graphCtx.stroke();
+            graphCtx.beginPath(); graphCtx.moveTo(endX, h - paddingY + 10); graphCtx.lineTo(endX, h - paddingY + 20); graphCtx.stroke();
+
+            graphCtx.fillStyle = '#ef4444';
+            graphCtx.textAlign = 'center';
+            graphCtx.font = '10px sans-serif';
+            graphCtx.fillText('contact', startX + (endX - startX) / 2, h - paddingY + 27);
+
+            graphCtx.fillStyle = '#1e3a8a';
+            graphCtx.font = '11px sans-serif';
+            graphCtx.fillText('∫ Area = Δp', startX + (endX - startX) / 2, h - paddingY - 20);
+
+            // hover crosshair: a measuring tool, not an answer
+            if (graphCursor) {
+                const cx = Math.max(paddingX, Math.min(w - 10, graphCursor.x));
+                const tAxis = Math.round((cx - paddingX) / graphW * 1000);
+                const idx = tAxis - Math.round(xOffset * 1000);
+                const F = (idx >= 0 && idx < state.impactData.length) ? state.impactData[idx].force : 0;
+
+                graphCtx.save();
+                graphCtx.strokeStyle = 'rgba(15,23,42,0.5)';
+                graphCtx.lineWidth = 1;
+                graphCtx.setLineDash([4, 4]);
+                graphCtx.beginPath(); graphCtx.moveTo(cx, 10); graphCtx.lineTo(cx, h - paddingY); graphCtx.stroke();
+                graphCtx.setLineDash([]);
+
+                const label = 't = ' + tAxis + ' µs   F = ' + (F / 1000).toFixed(1) + ' kN';
+                graphCtx.font = 'bold 11px Consolas, monospace';
+                const tw = graphCtx.measureText(label).width + 14;
+                const boxX = (cx + tw + 8 > w - 10) ? cx - tw - 8 : cx + 8;
+                graphCtx.fillStyle = 'rgba(255,255,255,0.95)';
+                graphCtx.strokeStyle = '#94a3b8';
+                rr(graphCtx, boxX, 14, tw, 20, 4);
+                graphCtx.fill();
+                graphCtx.stroke();
+                graphCtx.fillStyle = '#0f172a';
+                graphCtx.textAlign = 'left';
+                graphCtx.fillText(label, boxX + 7, 28);
+                graphCtx.restore();
+            }
+        }
+    }
+
+    graphCanvas.addEventListener('mousemove', (e) => {
+        const r = graphCanvas.getBoundingClientRect();
+        graphCursor = { x: e.clientX - r.left, y: e.clientY - r.top };
+        if (state.impactData.length > 0) drawGraph();
+    });
+    graphCanvas.addEventListener('mouseleave', () => {
+        graphCursor = null;
+        if (state.impactData.length > 0) drawGraph();
+    });
+
+    // ================================================================
+    //  ACTIVITY: notebook, questions, scoring, SCORM
+    // ================================================================
+    const POINTS_FULL = 2;
+    const POINTS_RETRY = 1;
+    const LS_KEY = 'u3l2-usga-ct-activity';
+
+    const activity = {
+        mysteryId: null,
+        tested: new Set(),     // known material indices that have been dropped
+        mysteryTested: false,
+        questions: {},         // id -> { done, attempts, points }
+        notes: {}              // notebook rows: key -> [ct, peak, ruling]
+    };
+
+    function mysteryResult() {
+        return simulateImpact(MYSTERY_PROFILES[activity.mysteryId].k, false);
+    }
+
+    const QUESTIONS = [
+        {
+            id: 'q1', part: 'A', type: 'mc',
+            unlock: () => activity.tested.size >= 1,
+            lockMsg: 'Run at least one pendulum test to unlock this question.',
+            prompt: 'Suppose that during a test the pendulum pushes on the club face with a peak force of about 10,500 N. At that same instant, what force does the club face exert on the pendulum?',
+            options: [
+                'About 10,500 N in the same direction the pendulum is moving',
+                'Less than 10,500 N, because the club is clamped in the vise and cannot push back hard',
+                'About 10,500 N, directed opposite to the pendulum’s push — they are a Newton’s third law force pair',
+                'Essentially zero — the face receives the force but does not exert one'
+            ],
+            correct: 2,
+            wrongFeedback: 'Not yet. Forces always come in pairs acting on the two different objects — watch the force-pair overlay that flashes at the moment of impact, then try again.',
+            correctFeedback: 'Correct. The face pushes back on the pendulum with an equal-magnitude, opposite-direction force. That is exactly what the overlay shows at impact.'
+        },
+        {
+            id: 'q2', part: 'A', type: 'mc',
+            unlock: () => activity.tested.size >= 3,
+            lockMsg: 'Test at least three different known materials to unlock this question.',
+            prompt: 'As the face material gets stiffer (from Soft Polymer toward Rigid Steel), what happens to the contact time (CT) and the peak force?',
+            options: [
+                'CT gets longer and peak force gets larger',
+                'CT gets shorter and peak force gets larger',
+                'CT gets shorter and peak force gets smaller',
+                'Both stay the same — material does not matter'
+            ],
+            correct: 1,
+            wrongFeedback: 'Not yet. Test a soft face and a stiff face and compare their traces: how wide is each force pulse, and how tall does it reach?',
+            correctFeedback: 'Correct. A stiffer face barely deforms, so the collision is over faster — and the shorter contact time forces the peak force higher for the same momentum change.'
+        },
+        {
+            id: 'q3', part: 'A', type: 'num', unit: 'µs',
+            unlock: () => activity.tested.has(3),
+            lockMsg: 'Test the Thin Titanium face (slider position 3) to unlock this question.',
+            prompt: 'Test the Thin Titanium face. Measure its contact time from the graph: find where the force pulse starts and where it returns to zero (the two red markers), and subtract. Enter CT in µs.',
+            answer: () => simulateImpact(state.materials[3].k, false).ct,
+            tolerance: 8,
+            wrongFeedback: 'Not yet. Hover over the graph: read the time where the force first rises and the time where it drops back to zero, then subtract the two readings. The red markers on the time axis bracket the contact.',
+            correctFeedback: 'Correct. Thin Titanium sits just under the 257 µs limit — this is the kind of face real manufacturers push right to the edge.'
+        },
+        {
+            id: 'q4', part: 'A', type: 'mc',
+            unlock: () => activity.tested.size >= 5,
+            lockMsg: 'Test all five known materials to unlock this question.',
+            prompt: 'The USGA limit is CT ≤ 257 µs. Measure the CT of each of the five known face materials from its graph. Which of them are NON-conforming (fail the test)?',
+            options: [
+                'Soft Polymer only',
+                'Rigid Steel and Thick Titanium',
+                'Soft Polymer and Alloy',
+                'None of them — all five conform'
+            ],
+            correct: 2,
+            wrongFeedback: 'Not yet. Calculate each face’s CT from its graph and compare it to 257 µs — your notebook readings will help. Remember: a LONGER contact time means more trampoline effect, which is what the rule limits.',
+            correctFeedback: 'Correct. The two springiest faces hold the ball too long (CT > 257 µs), giving an illegal trampoline effect. Stiff faces pass easily.'
+        },
+        {
+            id: 'q5', part: 'A', type: 'mc',
+            unlock: () => activity.tested.size >= 3,
+            lockMsg: 'Test at least three different known materials to unlock this question.',
+            prompt: 'Compare the traces for a soft face and a stiff face. The peak forces are wildly different, but the shaded area under the curve (the impulse, ∫F dt) comes out nearly identical in every test. Why?',
+            options: [
+                'The sensor saturates and cannot measure impulses above this value',
+                'Stiffer materials increase the force and the contact time together, so the product is fixed',
+                'Impulse depends only on the mass of the club head, which never changes',
+                'The pendulum’s change in momentum is the same in every test, so a face that pushes with less force simply pushes for more time'
+            ],
+            correct: 3,
+            wrongFeedback: 'Not yet. Impulse = F·Δt = Δp. Every test starts the pendulum from the same 90° release and bounces it back about the same way — so what quantity is forced to be the same?',
+            correctFeedback: 'Correct. Same swing, same momentum change, so ∫F dt is fixed. Force and contact time just trade off against each other — the heart of impulse-momentum thinking.'
+        },
+        {
+            id: 'q6', part: 'B', type: 'num', unit: 'µs',
+            unlock: () => activity.mysteryTested,
+            lockMsg: 'Load Prototype X-7 from the Evidence Locker and test it to unlock this question.',
+            prompt: 'Test Prototype X-7 and measure its contact time from the graph, just as you did in Part A. Enter CT in µs.',
+            answer: () => mysteryResult().ct,
+            tolerance: 8,
+            wrongFeedback: 'Not yet. Load Prototype X-7, drop the pendulum, then hover the graph to find where the force pulse starts and ends. Subtract to get CT.',
+            correctFeedback: 'Recorded. That measurement is the heart of your compliance report.'
+        },
+        {
+            id: 'q7', part: 'B', type: 'mc',
+            unlock: () => activity.mysteryTested,
+            lockMsg: 'Load Prototype X-7 from the Evidence Locker and test it to unlock this question.',
+            prompt: 'Your official ruling: does Prototype X-7 conform to the USGA rule (CT ≤ 257 µs)?',
+            options: [
+                'Conforming — its measured CT is at or below 257 µs, so the club is legal',
+                'Non-conforming — its measured CT is above 257 µs, so the club is illegal'
+            ],
+            correct: () => (mysteryResult().ct <= CT_LIMIT ? 0 : 1),
+            wrongFeedback: 'Not yet. Compare the CT you measured for Prototype X-7 against the 257 µs limit, then re-check your ruling.',
+            correctFeedback: 'Ruling filed. Nice work, inspector — your measurement backs up your decision.'
+        },
+        {
+            id: 'q8', part: 'B', type: 'mc',
+            unlock: () => activity.mysteryTested,
+            lockMsg: 'Load Prototype X-7 from the Evidence Locker and test it to unlock this question.',
+            prompt: 'Based on its CT and peak force, the stiffness of Prototype X-7’s face is closest to which known material?',
+            options: [
+                'Soft Polymer',
+                'Alloy',
+                'Thin Titanium',
+                'Thick Titanium',
+                'Rigid Steel'
+            ],
+            correct: () => MYSTERY_PROFILES[activity.mysteryId].closest - 1,
+            wrongFeedback: 'Not yet. Check your notebook: which known face has a CT and peak force closest to what you measured for Prototype X-7? Remember CT tells you stiffness directly — stiffer means shorter.',
+            correctFeedback: 'Correct. Matching an unknown against calibration data is exactly how real materials identification works.'
+        }
+    ];
+    const MAX_SCORE = QUESTIONS.length * POINTS_FULL;
+
+    function qState(id) {
+        if (!activity.questions[id]) activity.questions[id] = { done: false, attempts: 0, points: 0 };
+        return activity.questions[id];
+    }
+    function totalScore() {
+        return QUESTIONS.reduce((s, q) => s + qState(q.id).points, 0);
+    }
+    function doneCount() {
+        return QUESTIONS.filter(q => qState(q.id).done).length;
+    }
+    function correctIndex(q) {
+        return (typeof q.correct === 'function') ? q.correct() : q.correct;
+    }
+
+    // ---------- persistence ----------
+    function saveProgress() {
+        const data = {
+            v: 1,
+            m: activity.mysteryId,
+            t: Array.from(activity.tested),
+            mt: activity.mysteryTested ? 1 : 0,
+            q: {},
+            n: {}
+        };
+        QUESTIONS.forEach(q => {
+            const s = qState(q.id);
+            if (s.attempts > 0 || s.done) data.q[q.id] = [s.done ? 1 : 0, s.attempts, s.points];
+        });
+        Object.entries(activity.notes).forEach(([k, arr]) => {
+            if (arr.some(v => v !== '')) data.n[k] = arr.map(v => String(v).slice(0, 12));
+        });
+        const json = JSON.stringify(data);
+        const ok = SCORM.setValue('cmi.suspend_data', json);
+        try { localStorage.setItem(LS_KEY, json); } catch (e) { /* private mode etc. */ }
+        document.getElementById('saveNote').innerText = ok
+            ? 'Progress saved to your class account.'
+            : 'Progress saved in this browser.';
+    }
+
+    function loadProgress() {
+        let json = '';
+        try { json = SCORM.getValue('cmi.suspend_data') || ''; } catch (e) { json = ''; }
+        if (!json) {
+            try { json = localStorage.getItem(LS_KEY) || ''; } catch (e) { json = ''; }
+        }
+        if (!json) return;
+        try {
+            const data = JSON.parse(json);
+            if (data.m && MYSTERY_PROFILES[data.m]) activity.mysteryId = data.m;
+            (data.t || []).forEach(i => activity.tested.add(i));
+            activity.mysteryTested = !!data.mt;
+            Object.entries(data.q || {}).forEach(([id, arr]) => {
+                activity.questions[id] = { done: !!arr[0], attempts: arr[1] || 0, points: arr[2] || 0 };
+            });
+            Object.entries(data.n || {}).forEach(([k, arr]) => {
+                activity.notes[k] = [arr[0] || '', arr[1] || '', arr[2] || ''];
+            });
+        } catch (e) {
+            console.warn('Could not restore saved progress:', e);
+        }
+    }
+
+    function reportScore() {
+        SCORM.setScore(totalScore(), 0, MAX_SCORE);
+        if (doneCount() === QUESTIONS.length) {
+            SCORM.setStatus('completed');
+        }
+    }
+
+    // ---------- notebook (student-recorded data; not graded) ----------
+    function recordTestResult() {
+        if (state.mysteryMode) activity.mysteryTested = true;
+        else activity.tested.add(state.currentMaterial);
+        updateNotebookStatus();
+        refreshQuestionCards();
+        saveProgress();
+    }
+
+    function buildNotebook() {
+        const body = document.getElementById('resultsBody');
+        body.innerHTML = '';
+        const rows = [];
+        for (let i = 1; i <= 5; i++) rows.push({ key: String(i), label: state.materials[i].name });
+        rows.push({ key: 'x', label: MYSTERY_NAME + ' (?)', mystery: true });
+
+        rows.forEach(r => {
+            const saved = activity.notes[r.key] || ['', '', ''];
+            const tr = document.createElement('tr');
+            if (r.mystery) tr.className = 'mystery-row';
+
+            const tdName = document.createElement('td');
+            tdName.textContent = r.label;
+            tr.appendChild(tdName);
+
+            const tdSt = document.createElement('td');
+            tdSt.id = 'st-' + r.key;
+            tdSt.className = 'not-tested';
+            tdSt.textContent = 'not tested';
+            tr.appendChild(tdSt);
+
+            [0, 1].forEach(col => {
+                const td = document.createElement('td');
+                const input = document.createElement('input');
+                input.className = 'note-input';
+                input.placeholder = '—';
+                input.value = saved[col];
+                input.addEventListener('change', () => {
+                    if (!activity.notes[r.key]) activity.notes[r.key] = ['', '', ''];
+                    activity.notes[r.key][col] = input.value;
+                    saveProgress();
+                });
+                td.appendChild(input);
+                tr.appendChild(td);
+            });
+
+            const tdSel = document.createElement('td');
+            const sel = document.createElement('select');
+            sel.className = 'note-select';
+            [['', '—'], ['pass', 'PASS'], ['fail', 'FAIL']].forEach(([val, label]) => {
+                const opt = document.createElement('option');
+                opt.value = val;
+                opt.textContent = label;
+                if (saved[2] === val) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            sel.addEventListener('change', () => {
+                if (!activity.notes[r.key]) activity.notes[r.key] = ['', '', ''];
+                activity.notes[r.key][2] = sel.value;
+                saveProgress();
+            });
+            tdSel.appendChild(sel);
+            tr.appendChild(tdSel);
+
+            body.appendChild(tr);
+        });
+    }
+
+    function updateNotebookStatus() {
+        const setSt = (key, tested) => {
+            const el = document.getElementById('st-' + key);
+            if (!el) return;
+            if (tested) { el.textContent = '✓ tested'; el.className = 'cell-tested'; }
+            else { el.textContent = 'not tested'; el.className = 'not-tested'; }
+        };
+        for (let i = 1; i <= 5; i++) setSt(String(i), activity.tested.has(i));
+        setSt('x', activity.mysteryTested);
+    }
+
+    // ---------- question rendering ----------
+    function buildQuestionCards() {
+        const root = document.getElementById('questionsRoot');
+        root.innerHTML = '';
+
+        const partHeaders = {
+            A: { title: 'Part A — Calibration: Known Materials', sub: 'The machine only plots the trace — reading CT and peak force off the graph is your job. Questions unlock as you run tests. Full credit on the first try; half credit for a correct answer after a miss.' },
+            B: { title: 'Part B — The Mystery Prototype', sub: 'Test Prototype X-7 from the Evidence Locker, measure its trace, then file your compliance report. Every student gets their own prototype — trust your own measurements.' }
+        };
+        let lastPart = null;
+
+        QUESTIONS.forEach((q, idx) => {
+            if (q.part !== lastPart) {
+                lastPart = q.part;
+                const ph = document.createElement('div');
+                ph.className = 'part-header';
+                ph.innerHTML = `<h2>${partHeaders[q.part].title}</h2><p>${partHeaders[q.part].sub}</p>`;
+                root.appendChild(ph);
+            }
+            const card = document.createElement('div');
+            card.className = 'q-card';
+            card.id = 'card-' + q.id;
+            card.innerHTML = `
+                <div class="q-top">
+                    <span class="q-num">Question ${idx + 1}</span>
+                    <span class="q-pts" id="pts-${q.id}">${POINTS_FULL} pts</span>
+                </div>
+                <div class="q-prompt">${q.prompt}</div>
+                <div class="q-body" id="body-${q.id}"></div>
+                <div class="q-feedback" id="fb-${q.id}"></div>`;
+            root.appendChild(card);
+        });
+        refreshQuestionCards();
+    }
+
+    function refreshQuestionCards() {
+        QUESTIONS.forEach(q => renderQuestionBody(q));
+        updateScoreBar();
+    }
+
+    function renderQuestionBody(q) {
+        const card = document.getElementById('card-' + q.id);
+        const body = document.getElementById('body-' + q.id);
+        const fb = document.getElementById('fb-' + q.id);
+        const pts = document.getElementById('pts-' + q.id);
+        const s = qState(q.id);
+
+        if (s.done) {
+            card.className = 'q-card correct';
+            pts.innerText = `✅ ${s.points} / ${POINTS_FULL} pts`;
+            if (q.type === 'mc') {
+                body.innerHTML = '';
+                q.options.forEach((opt, i) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'q-option' + (i === correctIndex(q) ? ' locked-correct' : '');
+                    btn.disabled = true;
+                    btn.innerText = opt;
+                    body.appendChild(btn);
+                });
+            } else {
+                body.innerHTML = `<div class="num-row"><input class="num-input" value="${q.answer()}" disabled> <span class="num-unit">${q.unit}</span></div>`;
+            }
+            fb.className = 'q-feedback show good';
+            fb.innerText = q.correctFeedback;
+            return;
+        }
+
+        if (!q.unlock()) {
+            card.className = 'q-card locked';
+            pts.innerText = `${POINTS_FULL} pts`;
+            body.innerHTML = `<div class="q-lock-msg">\u{1F512} ${q.lockMsg}</div>`;
+            fb.className = 'q-feedback';
+            return;
+        }
+
+        // unlocked, not yet answered — only (re)build if currently locked/empty
+        if (body.dataset.built === '1') return;
+        body.dataset.built = '1';
+        card.className = 'q-card';
+
+        if (q.type === 'mc') {
+            body.innerHTML = '';
+            let selected = -1;
+            const optBtns = [];
+            q.options.forEach((opt, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'q-option';
+                btn.innerText = opt;
+                btn.addEventListener('click', () => {
+                    selected = i;
+                    optBtns.forEach((b, j) => b.classList.toggle('selected', j === i));
+                    checkBtn.disabled = false;
+                });
+                optBtns.push(btn);
+                body.appendChild(btn);
+            });
+            const checkBtn = document.createElement('button');
+            checkBtn.className = 'btn btn-blue q-check';
+            checkBtn.innerText = 'Check Answer';
+            checkBtn.disabled = true;
+            checkBtn.addEventListener('click', () => gradeAnswer(q, selected));
+            body.appendChild(checkBtn);
+        } else {
+            body.innerHTML = '';
+            const row = document.createElement('div');
+            row.className = 'num-row';
+            const input = document.createElement('input');
+            input.className = 'num-input';
+            input.type = 'number';
+            input.step = 'any';
+            input.placeholder = '?';
+            const unit = document.createElement('span');
+            unit.className = 'num-unit';
+            unit.innerText = q.unit;
+            const checkBtn = document.createElement('button');
+            checkBtn.className = 'btn btn-blue';
+            checkBtn.innerText = 'Check Answer';
+            checkBtn.addEventListener('click', () => {
+                const val = parseFloat(input.value);
+                if (input.value.trim() === '' || isNaN(val)) return;
+                gradeAnswer(q, val);
+            });
+            row.appendChild(input); row.appendChild(unit); row.appendChild(checkBtn);
+            body.appendChild(row);
+        }
+    }
+
+    function gradeAnswer(q, answer) {
+        const s = qState(q.id);
+        if (s.done) return;
+        s.attempts++;
+
+        let isCorrect;
+        if (q.type === 'mc') {
+            isCorrect = (answer === correctIndex(q));
+        } else {
+            isCorrect = Math.abs(answer - q.answer()) <= q.tolerance;
+        }
+
+        const fb = document.getElementById('fb-' + q.id);
+        if (isCorrect) {
+            s.done = true;
+            s.points = (s.attempts === 1) ? POINTS_FULL : POINTS_RETRY;
+            document.getElementById('body-' + q.id).dataset.built = '';
+            renderQuestionBody(q);
+            updateScoreBar();
+            saveProgress();
+            reportScore();
+        } else {
+            fb.className = 'q-feedback show bad';
+            fb.innerText = q.wrongFeedback + ' (A correct answer now earns ' + POINTS_RETRY + ' of ' + POINTS_FULL + ' points.)';
+            saveProgress();
+        }
+    }
+
+    function updateScoreBar() {
+        document.getElementById('scoreNow').innerText = totalScore();
+        document.getElementById('scoreMax').innerText = MAX_SCORE;
+        document.getElementById('qProgress').innerText = doneCount() + ' / ' + QUESTIONS.length;
+        document.getElementById('finishBanner').className =
+            'finish-banner' + (doneCount() === QUESTIONS.length ? ' show' : '');
+    }
+
+    // ---------- init ----------
+    function initActivity() {
+        if (/[?&]reset=1/.test(location.search)) {
+            try { localStorage.removeItem(LS_KEY); } catch (e) {}
+        }
+        loadProgress();
+
+        if (!activity.mysteryId) {
+            const ids = Object.keys(MYSTERY_PROFILES);
+            activity.mysteryId = ids[Math.floor(Math.random() * ids.length)];
+            saveProgress();
+        }
+
+        // Completion activity: only ever incomplete/completed, never failed.
+        const prev = SCORM.getValue('cmi.core.lesson_status');
+        if (doneCount() === QUESTIONS.length) {
+            SCORM.setScore(totalScore(), 0, MAX_SCORE);
+            SCORM.setStatus('completed');
+        } else if (!prev || prev === 'not attempted' || prev === 'browsed') {
+            SCORM.setStatus('incomplete');
+        }
+
+        buildNotebook();
+        updateNotebookStatus();
+        buildQuestionCards();
+    }
+
+    // The SCORM wrapper initializes on window load; run activity setup after it.
+    window.addEventListener('load', initActivity);
+
+    resizeCanvas();
+    drawGraphAxes();
+    updateMaterialDisplay();
+</script>
+</body>
+</html>

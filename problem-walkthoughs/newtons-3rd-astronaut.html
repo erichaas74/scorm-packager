@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Newton's 3rd Law Space Rescue - 3 Part Canvas</title>
+<style>
+  :root{
+    --bg:#050816;
+    --panel:rgba(15,23,42,.92);
+    --panel2:rgba(30,41,59,.88);
+    --line:rgba(255,255,255,.14);
+    --text:#e5e7eb;
+    --muted:#94a3b8;
+    --blue:#38bdf8;
+    --green:#22c55e;
+    --yellow:#facc15;
+    --red:#f87171;
+    --purple:#a78bfa;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:Inter,Arial,sans-serif;}
+  canvas{position:fixed;inset:0;width:100vw;height:100vh;display:block;}
+  .topbar{position:fixed;top:14px;left:14px;right:14px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;z-index:3;pointer-events:none;}
+  .topLeft{display:flex;align-items:flex-start;gap:12px;pointer-events:auto;flex:1;min-width:0;}
+  .topActions{display:flex;gap:8px;flex-wrap:wrap;pointer-events:auto;justify-content:flex-end;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:0 14px 40px rgba(0,0,0,.35);backdrop-filter:blur(10px);pointer-events:auto;}
+  .title{padding:14px 16px;max-width:690px;}
+  h1{font-size:19px;margin:0 0 5px;color:var(--blue);letter-spacing:.2px;}
+  .small{font-size:12px;color:var(--muted);line-height:1.35;}
+  .readout{padding:14px 18px;min-width:240px;text-align:right;}
+  .label{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);}
+  .bigValue{font-size:24px;font-weight:900;color:var(--green);font-variant-numeric:tabular-nums;}
+  .panel{position:fixed;left:14px;right:14px;bottom:14px;padding:12px;z-index:2;display:none;}
+  .partTabs{display:grid;grid-template-columns:repeat(3,minmax(110px,160px));gap:8px;margin-bottom:0;}
+  .tab{border:1px solid rgba(255,255,255,.13);background:rgba(15,23,42,.78);border-radius:14px;color:#cbd5e1;padding:10px 12px;text-align:left;cursor:pointer;font-weight:800;}
+  .tab.active{border-color:var(--blue);box-shadow:0 0 0 3px rgba(56,189,248,.15);color:#fff;background:rgba(30,64,175,.45)}
+  .tab span{display:block;font-size:11px;color:#94a3b8;font-weight:700;margin-top:2px;}
+  .workArea{display:block;}
+  .promptBox,.bottomRow{display:none;}
+  .panel .choices{margin:0;}
+  .panel .buttons{display:none;}
+  .promptBox{background:rgba(2,6,23,.44);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:12px;}
+  .promptBox h2{margin:0 0 7px;font-size:15px;color:#fff;}
+  .promptBox p{margin:0;color:#cbd5e1;font-size:13px;line-height:1.35;}
+  .formula{margin-top:9px;font-family:Consolas,"Courier New",monospace;font-size:12px;color:#dbeafe;background:rgba(30,64,175,.22);border:1px solid rgba(96,165,250,.25);border-radius:10px;padding:9px;line-height:1.45;}
+  .choices{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+  .choices.part2{grid-template-columns:repeat(4,1fr);}
+  .choice{border:2px solid rgba(148,163,184,.18);border-radius:14px;background:rgba(15,23,42,.82);color:white;padding:10px;text-align:left;cursor:pointer;transition:.15s transform,.15s border-color,.15s background;min-height:78px;}
+  .choice:hover{transform:translateY(-1px);border-color:rgba(56,189,248,.7);background:rgba(30,41,59,.94);}
+  .choice.selected{border-color:var(--blue);box-shadow:0 0 0 3px rgba(56,189,248,.16);}
+  .choice.good{border-color:var(--green);background:rgba(22,101,52,.35);}
+  .choice.bad{border-color:var(--red);background:rgba(127,29,29,.32);}
+  .choiceTop{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px;font-weight:900;}
+  .emoji{font-size:27px;margin-right:3px;}
+  .choiceMeta{font-size:12px;color:#cbd5e1;margin-top:7px;line-height:1.35;}
+  .pill{font-size:11px;color:#0f172a;background:#e2e8f0;border-radius:999px;padding:3px 7px;font-weight:900;white-space:nowrap;}
+  .bottomRow{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:10px;}
+  .buttons{display:flex;gap:8px;flex-wrap:wrap;}
+  button.action{border:0;border-radius:999px;padding:10px 14px;font-weight:900;color:white;background:#334155;cursor:pointer;font-size:12px;letter-spacing:.2px;}
+  button.action:hover{filter:brightness(1.1)}
+  button.action:disabled{opacity:.4;cursor:not-allowed;}
+  .primary{background:#2563eb!important}.green{background:#16a34a!important}.ghost{background:#1e293b!important}.red{background:#991b1b!important}
+  .feedback{font-size:13px;line-height:1.35;padding:10px;border-radius:12px;background:rgba(15,23,42,.8);color:#cbd5e1;min-height:42px;flex:1;}
+  .feedback.good{color:#bbf7d0;background:rgba(22,101,52,.35)}
+  .feedback.bad{color:#fecaca;background:rgba(127,29,29,.35)}
+  .feedback.warn{color:#fef3c7;background:rgba(113,63,18,.35)}
+  .overlay{position:fixed;inset:0;background:rgba(2,6,23,.68);z-index:12;display:none;align-items:center;justify-content:center;padding:20px;}
+  .overlay.show{display:flex;}
+  .overlayCard{width:min(760px,94vw);max-height:84vh;overflow:auto;padding:16px 18px;}
+  .overlayTop{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;}
+  .overlayTop h2{margin:0;color:var(--blue);font-size:18px;}
+  .overlayBody{font-size:13px;line-height:1.45;color:#cbd5e1;}
+  .overlayBody h3{margin:14px 0 6px;color:#fff;font-size:14px;}
+  .overlayBody ul{margin:6px 0 0 18px;padding:0;}
+  .overlayBody li{margin:6px 0;}
+  @media(max-width:1000px){
+    .readout{display:none}.choices.part2{grid-template-columns:repeat(2,1fr)}
+    .panel{max-height:54vh;overflow:auto}.topbar{right:10px;left:10px}
+  }
+  @media(max-width:620px){.partTabs{grid-template-columns:1fr}.choices,.choices.part2{grid-template-columns:1fr}.topbar{flex-direction:column;align-items:stretch}.topLeft,.topActions{width:100%}.topActions{justify-content:flex-start}}
+</style>
+</head>
+<body>
+<canvas id="spaceCanvas"></canvas>
+<div id="subtitle" style="display:none"></div>
+
+<div class="topbar">
+  <div class="topLeft">
+    <div class="card" style="padding:10px 12px;">
+      <div class="partTabs" id="partTabs"></div>
+    </div>
+    <div class="card readout">
+      <div class="label">Astronaut velocity</div>
+      <div id="velocityOut" class="bigValue">0.00 m/s</div>
+      <div id="statusOut" class="small">Make a prediction</div>
+    </div>
+  </div>
+  <div class="topActions">
+    <button class="action green" id="runBtn" disabled>Check + Run</button>
+    <button class="action ghost" id="guideBtn">Guide</button>
+    <button class="action ghost" id="hintBtn">Hint</button>
+  </div>
+</div>
+
+<div class="card panel">
+  <div class="workArea">
+    <div>
+      <div id="choiceBox" class="choices"></div>
+      <div class="bottomRow">
+        <div id="feedback" class="feedback">Choose an answer first.</div>
+        <div class="buttons"></div>
+      </div>
+    </div>
+    <div class="promptBox">
+      <h2 id="partTitle">Part 1</h2>
+      <p id="partPrompt"></p>
+      <div id="formulaBox" class="formula"></div>
+    </div>
+  </div>
+</div>
+
+<div style="display:none"><button id="resetBtn"></button><button id="nextBtn"></button><button id="answerBtn"></button></div>
+
+<div id="guideOverlay" class="overlay">
+  <div class="card overlayCard">
+    <div class="overlayTop">
+      <h2>Guide</h2>
+      <button class="action ghost" id="closeGuideBtn">Close</button>
+    </div>
+    <div id="guideBody" class="overlayBody"></div>
+  </div>
+</div>
+
+<div id="hintOverlay" class="overlay">
+  <div class="card overlayCard">
+    <div class="overlayTop">
+      <h2>Hint</h2>
+      <button class="action ghost" id="closeHintBtn">Close</button>
+    </div>
+    <div id="hintBody" class="overlayBody"></div>
+  </div>
+</div>
+
+<script>
+/*
+  TEACHER EDIT AREA
+  Change the values below to adjust the three-part lesson.
+*/
+const LESSONS = [
+  {
+    id: 1,
+    tabTitle: 'Part 1',
+    tabSub: 'Throw direction',
+    title: 'Part 1: Which direction should you throw the object?',
+    prompt: 'The ship is to the left. The object is fixed: a toolbox. Choose which way the astronaut should throw it to move back toward the ship.',
+    formula: 'Newton\'s 3rd Law: if the astronaut pushes the object one way, the object pushes the astronaut the opposite way.',
+    type: 'direction',
+    shipX: -20,
+    astronautMass: 80,
+    object: { name: 'Toolbox', emoji: '🧰', mass: 12, throwSpeed: 6.0 },
+    initialVx: 0,
+    initialVy: 0,
+    correct: 'right',
+    choices: [
+      { id: 'left', title: 'Throw left', sub: 'Object left. Astronaut right.', throwVx: -6, throwVy: 0 },
+      { id: 'right', title: 'Throw right', sub: 'Object right. Astronaut left.', throwVx: 6, throwVy: 0 },
+      { id: 'up', title: 'Throw up', sub: 'Object up. Astronaut down.', throwVx: 0, throwVy: 6 },
+      { id: 'down', title: 'Throw down', sub: 'Object down. Astronaut up.', throwVx: 0, throwVy: -6 }
+    ]
+  },
+  {
+    id: 2,
+    tabTitle: 'Part 2',
+    tabSub: 'Mass + acceleration',
+    title: 'Part 2: Which object makes the astronaut move faster?',
+    prompt: 'Each object has a different mass and acceleration. Use Newton\'s 2nd Law to find the push force first, then find the astronaut\'s acceleration.',
+    formula: 'Step 1: F = m_object × a_object\nStep 2: a_astronaut = F / m_astronaut',
+    type: 'massAccel',
+    shipX: -20,
+    astronautMass: 80,
+    correct: 'C',
+    choices: [
+      { id: 'A', emoji: '🔩', object: 'Bolt', mass: 2, objectAccel: 12 },
+      { id: 'B', emoji: '🔧', object: 'Wrench', mass: 5, objectAccel: 8 },
+      { id: 'C', emoji: '🧰', object: 'Toolbox', mass: 12, objectAccel: 6 },
+      { id: 'D', emoji: '🪫', object: 'Battery', mass: 20, objectAccel: 3 }
+    ]
+  },
+  {
+    id: 3,
+    tabTitle: 'Part 3',
+    tabSub: 'Throw angle',
+    title: 'Part 3: Tricky vector problem',
+    prompt: 'The astronaut is moving upward. Choose the throw direction. The correct throw is away and up so the astronaut reaction acceleration points below the ship.',
+    formula: 'Throw direction and astronaut acceleration are opposite.\nThe correct throw is away and up, which makes the astronaut accelerate down and left, below the ship.',
+    type: 'movingThrowAngle',
+    shipX: -20,
+    astronautMass: 80,
+    object: { name: 'Radar Dish', emoji: '📡', mass: 20, throwSpeed: 3.0 },
+    initialVx: 0,
+    initialVy: 0.45,
+    burnTime: 2.0,
+    correct: 'awayUp',
+    choices: [
+      { id: 'toward', title: 'Toward', sub: 'Throw toward the ship.', throwVx: -3.0, throwVy: 0 },
+      { id: 'away', title: 'Away', sub: 'Throw away from the ship.', throwVx: 3.0, throwVy: 0 },
+      { id: 'awayUp', title: 'Away and up', sub: 'Throw away and up.', throwVx: 2.4, throwVy: 1.8 },
+      { id: 'awayDown', title: 'Away and down', sub: 'Throw away and down.', throwVx: 2.4, throwVy: -1.8 }
+    ]
+  }
+];
+
+const canvas = document.getElementById('spaceCanvas');
+const ctx = canvas.getContext('2d');
+const subtitle = document.getElementById('subtitle');
+const velocityOut = document.getElementById('velocityOut');
+const statusOut = document.getElementById('statusOut');
+const partTabs = document.getElementById('partTabs');
+const partTitle = document.getElementById('partTitle');
+const partPrompt = document.getElementById('partPrompt');
+const formulaBox = document.getElementById('formulaBox');
+const choiceBox = document.getElementById('choiceBox');
+const feedback = document.getElementById('feedback');
+const runBtn = document.getElementById('runBtn');
+const guideBtn = document.getElementById('guideBtn');
+const hintBtn = document.getElementById('hintBtn');
+const resetBtn = document.getElementById('resetBtn');
+const nextBtn = document.getElementById('nextBtn');
+const answerBtn = document.getElementById('answerBtn');
+const guideOverlay = document.getElementById('guideOverlay');
+const hintOverlay = document.getElementById('hintOverlay');
+const guideBody = document.getElementById('guideBody');
+const hintBody = document.getElementById('hintBody');
+const closeGuideBtn = document.getElementById('closeGuideBtn');
+const closeHintBtn = document.getElementById('closeHintBtn');
+
+let W = innerWidth, H = innerHeight, stars = [];
+let PX_PER_M = 25;
+let currentIndex = 0;
+let lesson = LESSONS[currentIndex];
+let selectedId = null;
+let state = 'ready';
+let simTime = 0;
+let astronaut, objectBody, vectorInfo;
+let canvasChoiceRegions = [];
+
+function selectedChoice(){ return lesson.choices.find(c => c.id === selectedId); }
+function shipDirection(){ return lesson.shipX < 0 ? -1 : 1; }
+function directionFromChoice(choiceId){
+  const choice = lesson.choices.find(c => c.id === choiceId);
+  if(choice && typeof choice.throwVx === 'number'){
+    const mag = Math.hypot(choice.throwVx, choice.throwVy || 0) || 1;
+    return { x: choice.throwVx / mag, y: (choice.throwVy || 0) / mag };
+  }
+  const toward = shipDirection();
+  return { x: choiceId === 'toward' ? toward : -toward, y: 0 };
+}
+function towardShip(vx){ return Math.sign(vx) === shipDirection(); }
+function fmt(n, digits=2){ return Number(n).toFixed(digits); }
+function directionText(vx){
+  if(Math.abs(vx) < 0.005) return '0.00 m/s';
+  return `${Math.abs(vx).toFixed(2)} m/s ${vx < 0 ? 'left' : 'right'}`;
+}
+function vectorText(vx, vy){
+  const horiz = Math.abs(vx) < 0.005 ? '' : `${Math.abs(vx).toFixed(2)} ${vx < 0 ? 'left' : 'right'}`;
+  const vert = Math.abs(vy) < 0.005 ? '' : `${Math.abs(vy).toFixed(2)} ${vy < 0 ? 'down' : 'up'}`;
+  return [horiz, vert].filter(Boolean).join(', ') || '0.00';
+}
+function objectForce(choice){ return choice.mass * choice.objectAccel; }
+function astronautAccel(choice){ return objectForce(choice) / lesson.astronautMass; }
+function deltaVFromThrow(choiceId){
+  const dir = directionFromChoice(choiceId);
+  const speed = lesson.object?.throwSpeed || Math.hypot((lesson.choices.find(c => c.id === choiceId)?.throwVx || 0), (lesson.choices.find(c => c.id === choiceId)?.throwVy || 0));
+  return {
+    vx: -dir.x * (lesson.object.mass / lesson.astronautMass) * speed,
+    vy: -dir.y * (lesson.object.mass / lesson.astronautMass) * speed
+  };
+}
+function accelChoice(choiceId){
+  return lesson.choices.find(c => c.id === choiceId);
+}
+function finalVelocityFromAccelChoice(choiceId){
+  const c = accelChoice(choiceId);
+  const burn = lesson.burnTime || 2.0;
+  return {
+    vx: (lesson.initialVx || 0) + c.ax * burn,
+    vy: (lesson.initialVy || 0) + c.ay * burn
+  };
+}
+function worldToScreen(xm, ym){ return { x: W * 0.58 + xm * PX_PER_M, y: H * 0.43 - ym * PX_PER_M }; }
+
+function getMiniPrompt(){
+  if(lesson.type === 'direction') return 'Choose the throw direction.';
+  if(lesson.type === 'massAccel') return 'Pick the object that makes the astronaut speed up the most.';
+  if(lesson.type === 'movingAngle') return 'Choose the acceleration angle.';
+  if(lesson.type === 'movingThrowAngle') return 'Choose the throw direction.';
+  return 'Choose the direction that makes the final velocity point back to the ship.';
+}
+function getGuideHTML(){
+  if(lesson.type === 'direction'){
+    return `
+      <h3>Goal</h3>
+      <p>Decide which way to throw the fixed object so the astronaut moves back to the ship.</p>
+      <h3>What to do</h3>
+      <ul>
+        <li>Find where the ship is.</li>
+        <li>Remember Newton's 3rd Law: the astronaut moves opposite the throw.</li>
+        <li>Choose one of the four arrow directions.</li>
+        <li>Click <b>Check + Run</b> to test the motion.</li>
+      </ul>
+      <h3>Rule</h3>
+      <p>If the object goes one way, the astronaut reacts the opposite way.</p>`;
+  }
+  if(lesson.type === 'massAccel'){
+    return `
+      <h3>Goal</h3>
+      <p>Pick the object that gives the astronaut the greatest acceleration.</p>
+      <h3>What to do</h3>
+      <ul>
+        <li>For each object, calculate the push force with <b>F = m × a</b>.</li>
+        <li>Then calculate astronaut acceleration with <b>a = F / m_astronaut</b>.</li>
+        <li>Compare the astronaut accelerations.</li>
+        <li>Choose the best object and run it.</li>
+      </ul>
+      <h3>Given</h3>
+      <p>The object mass and object acceleration are given. You figure out the force and astronaut acceleration.</p>`;
+  }
+  if(lesson.type === 'movingAngle'){
+    return `
+      <h3>Goal</h3>
+      <p>The astronaut is moving upward. Choose the acceleration direction that brings the astronaut back to the ship.</p>
+      <h3>What to do</h3>
+      <ul>
+        <li>Notice the initial velocity points upward.</li>
+        <li>Choose an acceleration direction from the four options.</li>
+        <li>The best choice must push the motion <b>left</b> toward the ship and also <b>down</b> to cancel the upward motion.</li>
+        <li>Click <b>Check + Run</b> and compare the initial velocity, acceleration, and final velocity.</li>
+      </ul>
+      <h3>Vector rule</h3>
+      <p><b>v_final = v_initial + aΔt</b></p>`;
+  }
+  if(lesson.type === 'movingThrowAngle'){
+    return `
+      <h3>Goal</h3>
+      <p>The astronaut is moving upward. Choose the best throw direction.</p>
+      <h3>What to do</h3>
+      <ul>
+        <li>Look at the four throw arrows starting on the astronaut.</li>
+        <li>The astronaut accelerates opposite the throw direction.</li>
+        <li>The correct throw is <b>away and up</b>.</li>
+        <li>That makes the astronaut accelerate <b>down and left</b>, below the ship.</li>
+      </ul>`;
+  }
+  return `
+    <h3>Goal</h3>
+    <p>The astronaut is already moving away from the ship. Choose the throw direction that changes the final velocity so it points back toward the ship.</p>
+    <h3>What to do</h3>
+    <ul>
+      <li>Look at the astronaut's initial velocity direction.</li>
+      <li>Use Newton's 3rd Law to decide the direction of the reaction velocity change.</li>
+      <li>Combine the initial velocity and the change in velocity.</li>
+      <li>The correct choice makes the <b>final velocity</b> point toward the ship.</li>
+    </ul>
+    <h3>Vector rule</h3>
+    <p><b>v_final = v_initial + Δv</b></p>`;
+}
+function getHintHTML(){
+  if(lesson.type === 'direction'){
+    return `
+      <ul>
+        <li>The ship is to the left.</li>
+        <li>To move the astronaut left, the object must be thrown right.</li>
+        <li>Up or down will not bring the astronaut back to the ship.</li>
+      </ul>`;
+  }
+  if(lesson.type === 'massAccel'){
+    return `
+      <ul>
+        <li>Do not pick the heaviest object automatically.</li>
+        <li>First compare <b>m × a</b> for each object.</li>
+        <li>The biggest force gives the biggest astronaut acceleration.</li>
+      </ul>`;
+  }
+  if(lesson.type === 'movingAngle'){
+    return `
+      <ul>
+        <li>The ship is left of the astronaut.</li>
+        <li>The astronaut is already moving upward.</li>
+        <li>The best acceleration points <b>down and left</b>, so it is aimed <b>below the ship</b>.</li>
+      </ul>`;
+  }
+  if(lesson.type === 'movingThrowAngle'){
+    return `
+      <ul>
+        <li>The ship is left of the astronaut.</li>
+        <li>The astronaut is already moving upward.</li>
+        <li>The correct throw is <b>away and up</b>.</li>
+        <li>That makes the astronaut accelerate <b>down and left</b>.</li>
+      </ul>`;
+  }
+  return `
+    <ul>
+      <li>The astronaut starts moving right, away from the ship.</li>
+      <li>You need a leftward change in velocity.</li>
+      <li>To make the astronaut move left, the object must be thrown right.</li>
+    </ul>`;
+}
+function refreshHelpContent(){
+  guideBody.innerHTML = getGuideHTML();
+  hintBody.innerHTML = getHintHTML();
+}
+function openOverlay(el){ el.classList.add('show'); }
+function closeOverlay(el){ el.classList.remove('show'); }
+
+function buildTabs(){
+  partTabs.innerHTML = '';
+  LESSONS.forEach((l, i) => {
+    const b = document.createElement('button');
+    b.className = 'tab' + (i === currentIndex ? ' active' : '');
+    b.innerHTML = `${l.tabTitle}<span>${l.tabSub}</span>`;
+    b.addEventListener('click', () => loadLesson(i));
+    partTabs.appendChild(b);
+  });
+}
+function setFeedback(msg, cls=''){
+  feedback.className = 'feedback' + (cls ? ' ' + cls : '');
+  feedback.innerHTML = msg;
+}
+function buildChoices(){
+  choiceBox.className = 'choices' + (lesson.type === 'massAccel' ? ' part2' : '');
+  choiceBox.innerHTML = '';
+  lesson.choices.forEach(choice => {
+    const button = document.createElement('button');
+    button.className = 'choice';
+    button.id = 'choice-' + choice.id;
+    if(lesson.type === 'massAccel'){
+      button.innerHTML = `
+        <div class="choiceTop"><div><span class="emoji">${choice.emoji}</span>${choice.id}. ${choice.object}</div></div>
+        <div class="choiceMeta">
+          mass = <b>${choice.mass} kg</b><br>
+          object acceleration = <b>${choice.objectAccel} m/s²</b><br>
+          <span class="small">Student finds force and astronaut acceleration.</span>
+        </div>`;
+    } else {
+      button.innerHTML = `
+        <div class="choiceTop"><div>${choice.title}</div><span class="pill">${choice.id}</span></div>
+        <div class="choiceMeta">${choice.sub}</div>`;
+    }
+    button.addEventListener('click', () => selectChoice(choice.id));
+    choiceBox.appendChild(button);
+  });
+}
+function selectChoice(id){
+  selectedId = id;
+  state = 'ready';
+  simTime = 0;
+  objectBody = null;
+  vectorInfo = null;
+  document.querySelectorAll('.choice').forEach(b => b.classList.remove('selected','good','bad'));
+  const el = document.getElementById('choice-' + id);
+  if(el) el.classList.add('selected');
+  runBtn.disabled = false;
+
+  if(lesson.type === 'massAccel'){
+    const c = selectedChoice();
+    setFeedback(`Selected ${c.object}. Use F = m × a first, then divide by astronaut mass to find the astronaut acceleration.`, '');
+  } else if(lesson.type === 'movingAngle'){
+    const c = selectedChoice();
+    const finalV = finalVelocityFromAccelChoice(id);
+    setFeedback(`Prediction selected. Initial velocity is ${vectorText(lesson.initialVx || 0, lesson.initialVy || 0)}. Acceleration choice is ${vectorText(c.ax, c.ay)}.`, '');
+    vectorInfo = { initialVx: lesson.initialVx || 0, initialVy: lesson.initialVy || 0, ax: c.ax, ay: c.ay, finalVx: finalV.vx, finalVy: finalV.vy };
+  } else if(lesson.type === 'movingThrowAngle'){
+    const c = selectedChoice();
+    const dv = deltaVFromThrow(id);
+    setFeedback(`Prediction selected. Throw = ${vectorText(c.throwVx || 0, c.throwVy || 0)}. Astronaut reaction will be ${vectorText(dv.vx, dv.vy)}.`, '');
+    vectorInfo = { initialVx: lesson.initialVx || 0, initialVy: lesson.initialVy || 0, deltaVx: dv.vx, deltaVy: dv.vy, finalVx: (lesson.initialVx || 0) + dv.vx, finalVy: (lesson.initialVy || 0) + dv.vy, throwVx: c.throwVx, throwVy: c.throwVy };
+  } else if(lesson.type === 'movingVector'){
+    const dv = deltaVFromThrow(id);
+    const finalV = lesson.initialVx + dv;
+    setFeedback(`Prediction selected. Initial velocity is ${directionText(lesson.initialVx)}. The throw adds Δv = ${directionText(dv)}. Check the final vector.`, '');
+    vectorInfo = { initialVx: lesson.initialVx, deltaVx: dv, finalVx: finalV };
+  } else {
+    const dv = deltaVFromThrow(id);
+    setFeedback(`Prediction selected. The astronaut reaction velocity would be ${vectorText(dv.vx, dv.vy)}. Check it by running the simulation.`, '');
+    vectorInfo = { deltaVx: dv.vx, deltaVy: dv.vy, throwVx: selectedChoice().throwVx, throwVy: selectedChoice().throwVy };
+  }
+  setTimeout(() => {
+    if(selectedId && state === 'ready') runSelected();
+  }, 0);
+}
+function resetObjects(){
+  astronaut = { x: 0, y: 0, vx: lesson.initialVx || 0, vy: lesson.initialVy || 0, ax: 0, ay: 0, rot: 0 };
+  objectBody = null;
+  vectorInfo = null;
+  simTime = 0;
+  state = 'ready';
+  updateReadout();
+}
+function clearSelection(){
+  selectedId = null;
+  runBtn.disabled = true;
+  document.querySelectorAll('.choice').forEach(b => b.classList.remove('selected','good','bad'));
+  resetObjects();
+  if(lesson.type === 'direction'){
+    setFeedback('Choose one arrow.', 'warn');
+  } else if(lesson.type === 'massAccel'){
+    setFeedback('Choose one object.', 'warn');
+  } else {
+    setFeedback('Choose one arrow.', 'warn');
+  }
+}
+function loadLesson(index){
+  currentIndex = index;
+  lesson = LESSONS[currentIndex];
+  subtitle.textContent = 'Choose an answer. Use Guide or Hint if needed.';
+  partTitle.textContent = lesson.tabTitle;
+  partPrompt.textContent = getMiniPrompt();
+  formulaBox.textContent = 'Minimal view. Open Guide for directions or Hint for clues.';
+  refreshHelpContent();
+  buildTabs();
+  buildChoices();
+  clearSelection();
+}
+function runSelected(){
+  if(!selectedId) return;
+  resetObjects();
+  state = 'running';
+
+  if(lesson.type === 'massAccel'){
+    const c = selectedChoice();
+    const F = objectForce(c);
+    const aAst = astronautAccel(c);
+    astronaut.ax = -aAst;
+    objectBody = { x: 0, y: 0, vx: 0, vy: 0, ax: c.objectAccel, ay: 0, emoji: c.emoji, label: c.object };
+    vectorInfo = { force: F, aAst, objectAccel: c.objectAccel };
+    setFeedback(`Running ${c.object}. Force = ${c.mass} kg × ${c.objectAccel} m/s² = ${F.toFixed(0)} N. Astronaut acceleration = ${F.toFixed(0)} N / ${lesson.astronautMass} kg = ${aAst.toFixed(2)} m/s².`, selectedId === lesson.correct ? 'good' : 'bad');
+  } else if(lesson.type === 'movingAngle'){
+    const c = selectedChoice();
+    astronaut.ax = c.ax;
+    astronaut.ay = c.ay;
+    const finalV = finalVelocityFromAccelChoice(selectedId);
+    vectorInfo = { initialVx: lesson.initialVx || 0, initialVy: lesson.initialVy || 0, ax: c.ax, ay: c.ay, finalVx: finalV.vx, finalVy: finalV.vy };
+    const good = selectedId === lesson.correct;
+    setFeedback(good ? `Correct. Aiming the acceleration below the ship adds leftward and downward change, so the final velocity turns back toward the ship.` : `This acceleration does not cancel the upward motion enough. Compare it to an acceleration aimed below the ship.`, good ? 'good' : 'bad');
+  } else if(lesson.type === 'movingThrowAngle'){
+    const choice = selectedChoice();
+    const dv = deltaVFromThrow(selectedId);
+    astronaut.ax = dv.vx / (lesson.burnTime || 2.0);
+    astronaut.ay = dv.vy / (lesson.burnTime || 2.0);
+    objectBody = { x: 0, y: 0, vx: choice.throwVx, vy: choice.throwVy, ax: 0, ay: 0, emoji: lesson.object.emoji, label: lesson.object.name };
+    vectorInfo = { initialVx: lesson.initialVx || 0, initialVy: lesson.initialVy || 0, deltaVx: dv.vx, deltaVy: dv.vy, finalVx: (lesson.initialVx || 0) + dv.vx, finalVy: (lesson.initialVy || 0) + dv.vy, throwVx: choice.throwVx, throwVy: choice.throwVy };
+    const good = selectedId === lesson.correct;
+    setFeedback(good
+      ? `Correct. Initial velocity is upward. The reaction Δv is down-left, so the final velocity becomes ${vectorText(vectorInfo.finalVx, vectorInfo.finalVy)}.`
+      : `Not quite. The correct throw is away and up, creating a down-left reaction Δv.`,
+      good ? 'good' : 'bad');
+  } else {
+    const choice = selectedChoice();
+    const dir = directionFromChoice(selectedId);
+    const dv = deltaVFromThrow(selectedId);
+    astronaut.vx = (lesson.initialVx || 0) + dv.vx;
+    astronaut.vy = (lesson.initialVy || 0) + dv.vy;
+    objectBody = { x: 0, y: 0, vx: choice.throwVx ?? dir.x * lesson.object.throwSpeed, vy: choice.throwVy ?? dir.y * lesson.object.throwSpeed, ax: 0, ay: 0, emoji: lesson.object.emoji, label: lesson.object.name };
+    vectorInfo = { initialVx: lesson.initialVx || 0, initialVy: lesson.initialVy || 0, deltaVx: dv.vx, deltaVy: dv.vy, finalVx: astronaut.vx, finalVy: astronaut.vy, throwVx: objectBody.vx, throwVy: objectBody.vy };
+    const good = selectedId === lesson.correct && towardShip(astronaut.vx);
+    if(lesson.type === 'movingThrowAngle'){
+    const scale = 190;
+    const baseY = p.y - 88;
+    const viX = lesson.initialVx || 0;
+    const viY = lesson.initialVy || 0;
+
+    // Draw true vector addition:
+    // initial velocity + astronaut reaction Δv = final velocity.
+    const origin = { x: p.x, y: baseY };
+    const viEnd = { x: origin.x + viX * scale, y: origin.y - viY * scale };
+
+    drawArrow(origin.x, origin.y, viEnd.x, viEnd.y, '#22c55e', 'initial v');
+
+    if(selectedId || vectorInfo){
+      const dv = vectorInfo
+        ? { vx: vectorInfo.deltaVx || 0, vy: vectorInfo.deltaVy || 0 }
+        : deltaVFromThrow(selectedId);
+      const vfX = viX + dv.vx;
+      const vfY = viY + dv.vy;
+      const vfEnd = { x: origin.x + vfX * scale, y: origin.y - vfY * scale };
+
+      // Δv starts at the head of the initial velocity vector.
+      drawArrow(viEnd.x, viEnd.y, vfEnd.x, vfEnd.y, '#facc15', 'Δv reaction');
+
+      // Final velocity starts at the astronaut/origin.
+      drawArrow(origin.x, origin.y + 38, vfEnd.x, vfEnd.y + 38, '#38bdf8', 'final v');
+
+      // Show the object throw direction separately so students can compare action/reaction.
+      const throwVx = vectorInfo ? vectorInfo.throwVx : selectedChoice().throwVx;
+      const throwVy = vectorInfo ? vectorInfo.throwVy : selectedChoice().throwVy;
+      drawArrow(origin.x, origin.y + 76, origin.x + throwVx * 28, origin.y + 76 - throwVy * 28, '#f97316', 'throw');
+    }
+  }
+  if(lesson.type === 'movingVector'){
+      setFeedback(`Final velocity = initial velocity + throw Δv = ${directionText(lesson.initialVx)} + ${directionText(dv.vx)} = <b>${directionText(astronaut.vx)}</b>.`, good ? 'good' : 'bad');
+    } else {
+      setFeedback(good ? 'Correct. Throw the object right, and the astronaut is pushed left toward the ship.' : 'Not quite. Only the right arrow sends the astronaut back toward the ship.', good ? 'good' : 'bad');
+    }
+  }
+  markAnswer();
+}
+function markAnswer(){
+  document.querySelectorAll('.choice').forEach(b => b.classList.remove('good','bad'));
+  lesson.choices.forEach(c => {
+    const b = document.getElementById('choice-' + c.id);
+    if(!b) return;
+    if(c.id === lesson.correct) b.classList.add('good');
+    else if(selectedId === c.id) b.classList.add('bad');
+  });
+}
+function showAnswer(){
+  selectedId = lesson.correct;
+  document.querySelectorAll('.choice').forEach(b => b.classList.remove('selected','good','bad'));
+  const correctEl = document.getElementById('choice-' + lesson.correct);
+  if(correctEl) correctEl.classList.add('selected','good');
+  runBtn.disabled = false;
+  if(lesson.type === 'massAccel'){
+    const c = selectedChoice();
+    const F = objectForce(c);
+    const a = astronautAccel(c);
+    setFeedback(`Correct: ${c.object}. It gives the largest push force: ${c.mass} kg × ${c.objectAccel} m/s² = ${F.toFixed(0)} N, so astronaut acceleration is ${a.toFixed(2)} m/s².`, 'good');
+  } else if(lesson.type === 'movingAngle'){
+    const c = selectedChoice();
+    const finalV = finalVelocityFromAccelChoice(lesson.correct);
+    vectorInfo = { initialVx: lesson.initialVx || 0, initialVy: lesson.initialVy || 0, ax: c.ax, ay: c.ay, finalVx: finalV.vx, finalVy: finalV.vy };
+    setFeedback(`Correct: aim below the ship. The acceleration points down and left, so it reduces the upward motion and turns the final velocity back toward the ship.`, 'good');
+  } else if(lesson.type === 'movingThrowAngle'){
+    const choice = selectedChoice();
+    const dv = deltaVFromThrow(lesson.correct);
+    vectorInfo = { deltaVx: dv.vx, deltaVy: dv.vy, throwVx: choice.throwVx, throwVy: choice.throwVy };
+    setFeedback('Correct: choose away and up. That makes the astronaut accelerate down and left, below the ship.', 'good');
+  } else if(lesson.type === 'movingVector'){
+    const dv = deltaVFromThrow(lesson.correct);
+    const finalV = lesson.initialVx + dv;
+    vectorInfo = { initialVx: lesson.initialVx, deltaVx: dv, finalVx: finalV };
+    setFeedback(`Correct: throw away from the ship. The reaction adds leftward Δv, changing the final velocity to ${directionText(finalV)}.`, 'good');
+  } else {
+    const choice = selectedChoice();
+    const dv = deltaVFromThrow(lesson.correct);
+    vectorInfo = { deltaVx: dv.vx, deltaVy: dv.vy, throwVx: choice.throwVx, throwVy: choice.throwVy };
+    setFeedback('Correct: choose the right arrow. The object goes right, so the astronaut is pushed left toward the ship.', 'good');
+  }
+  markAnswer();
+}
+function nextLesson(){ loadLesson((currentIndex + 1) % LESSONS.length); }
+function updateReadout(){
+  const speed = Math.hypot(astronaut?.vx || 0, astronaut?.vy || 0);
+  velocityOut.textContent = `${speed.toFixed(2)} m/s`;
+  if(state === 'running') statusOut.textContent = `t = ${simTime.toFixed(1)} s`;
+  else statusOut.textContent = selectedId ? 'Prediction selected' : 'Make a prediction';
+}
+
+function resize(){
+  W = canvas.width = innerWidth;
+  H = canvas.height = innerHeight;
+  PX_PER_M = Math.max(17, Math.min(27, W / 48));
+  makeStars();
+}
+function makeStars(){
+  stars = Array.from({length:180}, () => ({
+    x: Math.random() * W,
+    y: Math.random() * H,
+    r: Math.random() * 1.8 + .3,
+    a: Math.random() * .75 + .2,
+    vx: -(Math.random() * 5 + 1.5),
+    vy: (Math.random() - .5) * .6
+  }));
+}
+function updateStars(dt){
+  for(const s of stars){
+    s.x += s.vx * dt;
+    s.y += s.vy * dt;
+    if(s.x < -5){ s.x = W + 5; s.y = Math.random() * H; }
+    if(s.y < -5) s.y = H + 5;
+    if(s.y > H + 5) s.y = -5;
+  }
+}
+function drawArrow(x1,y1,x2,y2,color,label,thin=false){
+  const dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy);
+  if(len < 4) return;
+  const ang=Math.atan2(dy,dx);
+  ctx.save();
+  ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=thin ? 2 : 4; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  const head = thin ? 9 : 13;
+  ctx.beginPath();
+  ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-head*Math.cos(ang-.55), y2-head*Math.sin(ang-.55));
+  ctx.lineTo(x2-head*Math.cos(ang+.55), y2-head*Math.sin(ang+.55));
+  ctx.closePath(); ctx.fill();
+  if(label){
+    ctx.font='bold 12px Arial';
+    ctx.fillText(label, x2 + 8, y2 - 8);
+  }
+  ctx.restore();
+}
+function drawShip(){
+  const s = worldToScreen(lesson.shipX, 0);
+  ctx.save(); ctx.translate(s.x, s.y);
+  ctx.fillStyle='#e2e8f0'; ctx.strokeStyle='#64748b'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(-72,-24); ctx.lineTo(42,-24); ctx.lineTo(78,0); ctx.lineTo(42,24); ctx.lineTo(-72,24); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#38bdf8'; ctx.beginPath(); ctx.arc(-22,0,12,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#ef4444'; ctx.beginPath(); ctx.moveTo(-62,-24); ctx.lineTo(-95,-48); ctx.lineTo(-25,-24); ctx.fill(); ctx.beginPath(); ctx.moveTo(-62,24); ctx.lineTo(-95,48); ctx.lineTo(-25,24); ctx.fill();
+  ctx.fillStyle='#0f172a'; ctx.font='bold 12px Arial'; ctx.fillText('SHIP',2,4);
+  ctx.strokeStyle='rgba(34,197,94,.75)'; ctx.setLineDash([8,8]); ctx.lineWidth=3; ctx.beginPath(); ctx.arc(0,0,34,0,Math.PI*2); ctx.stroke();
+  ctx.restore();
+}
+function drawAstronaut(){
+  const p = worldToScreen(astronaut.x, astronaut.y);
+  ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(astronaut.rot);
+  ctx.strokeStyle='white'; ctx.lineWidth=7; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-9,-4); ctx.lineTo(-24,10); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(9,-4); ctx.lineTo(24,10); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-6,14); ctx.lineTo(-15,32); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(6,14); ctx.lineTo(15,32); ctx.stroke();
+  ctx.fillStyle='#cbd5e1'; ctx.fillRect(-22,-11,10,23);
+  ctx.fillStyle='white'; ctx.beginPath(); ctx.roundRect(-13,-15,26,31,8); ctx.fill();
+  ctx.beginPath(); ctx.arc(0,-25,12,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#0f172a'; ctx.beginPath(); ctx.roundRect(-8,-29,16,9,4); ctx.fill();
+  ctx.restore();
+  if(Math.hypot(astronaut.vx, astronaut.vy) > .02){
+    drawArrow(p.x, p.y+50, p.x + astronaut.vx * 145, p.y+50 - astronaut.vy * 145, '#22c55e', 'astronaut v');
+  }
+}
+function drawObject(){
+  if(!objectBody) return;
+  const p = worldToScreen(objectBody.x, objectBody.y);
+  ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(simTime * 2.4); ctx.font='32px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(objectBody.emoji,0,0); ctx.restore();
+  if(Math.hypot(objectBody.vx || 0, objectBody.vy || 0) > .05){ drawArrow(p.x, p.y-28, p.x + (objectBody.vx || 0) * 28, p.y-28 - (objectBody.vy || 0) * 28, '#facc15', 'object v', true); }
+  if(objectBody.label){ ctx.save(); ctx.fillStyle='#cbd5e1'; ctx.font='12px Arial'; ctx.textAlign='center'; ctx.fillText(objectBody.label, p.x, p.y+34); ctx.restore(); }
+}
+function drawGrid(){
+  const origin = worldToScreen(0,0);
+  ctx.save(); ctx.strokeStyle='rgba(148,163,184,.08)'; ctx.lineWidth=1;
+  for(let m=-35;m<=12;m+=5){ const x=origin.x+m*PX_PER_M; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for(let m=-10;m<=10;m+=5){ const y=origin.y-m*PX_PER_M; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  ctx.strokeStyle='rgba(148,163,184,.25)'; ctx.beginPath(); ctx.moveTo(0,origin.y); ctx.lineTo(W,origin.y); ctx.stroke(); ctx.restore();
+}
+function drawSceneLabels(){
+  const a = worldToScreen(0,0);
+  const s = worldToScreen(lesson.shipX,0);
+  ctx.save();
+  ctx.fillStyle='#cbd5e1'; ctx.font='12px Arial';
+  ctx.fillText('astronaut start', a.x-40, a.y+78);
+  ctx.fillText('ship / target', s.x-36, s.y+70);
+  ctx.strokeStyle='rgba(167,139,250,.75)'; ctx.setLineDash([8,9]); ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(s.x, s.y); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+function drawVectorInfo(){
+  const p = worldToScreen(0,0);
+  ctx.save();
+  if(lesson.type === 'direction'){
+    if(selectedId){
+      const choice = selectedChoice();
+      const throwVx = choice.throwVx || 0;
+      const throwVy = choice.throwVy || 0;
+      const dvx = vectorInfo ? vectorInfo.deltaVx : deltaVFromThrow(selectedId).vx;
+      const dvy = vectorInfo ? vectorInfo.deltaVy : deltaVFromThrow(selectedId).vy;
+      drawArrow(p.x, p.y-58, p.x + throwVx * 16, p.y-58 - throwVy * 16, '#facc15', 'throw object');
+      drawArrow(p.x, p.y-18, p.x + dvx * 90, p.y-18 - dvy * 90, '#22c55e', 'astronaut reaction');
+    }
+  }
+  if(lesson.type === 'massAccel'){
+    if(vectorInfo){
+      drawArrow(p.x, p.y-42, p.x-115*vectorInfo.aAst, p.y-42, '#22c55e', `a_ast = ${vectorInfo.aAst.toFixed(2)} m/s²`);
+      drawArrow(p.x, p.y-68, p.x+90, p.y-68, '#facc15', `F = ${vectorInfo.force.toFixed(0)} N`);
+    }
+  }
+  if(lesson.type === 'movingAngle'){
+    const baseY = p.y - 72;
+    drawArrow(p.x, baseY, p.x + (lesson.initialVx || 0) * 190, baseY - (lesson.initialVy || 0) * 190, '#22c55e', 'initial v');
+    if(selectedId || vectorInfo){
+      const ax = vectorInfo ? vectorInfo.ax : selectedChoice().ax;
+      const ay = vectorInfo ? vectorInfo.ay : selectedChoice().ay;
+      const finalVx = vectorInfo ? vectorInfo.finalVx : finalVelocityFromAccelChoice(selectedId).vx;
+      const finalVy = vectorInfo ? vectorInfo.finalVy : finalVelocityFromAccelChoice(selectedId).vy;
+      drawArrow(p.x, baseY + 25, p.x + ax * 220, baseY + 25 - ay * 220, '#facc15', 'acceleration');
+      drawArrow(p.x, baseY + 50, p.x + finalVx * 190, baseY + 50 - finalVy * 190, '#38bdf8', 'final v');
+    }
+  }
+  if(lesson.type === 'movingThrowAngle'){
+    const baseY = p.y - 72;
+    drawArrow(p.x, baseY, p.x + (lesson.initialVx || 0) * 190, baseY - (lesson.initialVy || 0) * 190, '#22c55e', 'initial v');
+    if(selectedId || vectorInfo){
+      const throwVx = vectorInfo ? vectorInfo.throwVx : selectedChoice().throwVx;
+      const throwVy = vectorInfo ? vectorInfo.throwVy : selectedChoice().throwVy;
+      const finalVx = vectorInfo ? vectorInfo.finalVx : (lesson.initialVx || 0) + deltaVFromThrow(selectedId).vx;
+      const finalVy = vectorInfo ? vectorInfo.finalVy : (lesson.initialVy || 0) + deltaVFromThrow(selectedId).vy;
+      drawArrow(p.x, baseY + 25, p.x + throwVx * 28, baseY + 25 - throwVy * 28, '#facc15', 'throw');
+      drawArrow(p.x, baseY + 50, p.x + finalVx * 190, baseY + 50 - finalVy * 190, '#38bdf8', 'final v');
+    }
+  }
+  if(lesson.type === 'movingVector'){
+    const baseY = p.y - 72;
+    drawArrow(p.x, baseY, p.x + (lesson.initialVx || 0) * 190, baseY, '#22c55e', 'initial v');
+    if(selectedId || vectorInfo){
+      const dv = vectorInfo ? vectorInfo.deltaVx : deltaVFromThrow(selectedId);
+      const finalV = vectorInfo ? vectorInfo.finalVx : (lesson.initialVx + dv);
+      drawArrow(p.x, baseY + 25, p.x + dv * 190, baseY + 25, '#facc15', 'Δv from throw');
+      drawArrow(p.x, baseY + 50, p.x + finalV * 190, baseY + 50, '#38bdf8', 'final v');
+    }
+  }
+  ctx.restore();
+}
+function drawCanvasChoiceArrows(){
+  canvasChoiceRegions = [];
+  if(!(lesson.type === 'direction' || lesson.type === 'movingAngle' || lesson.type === 'movingThrowAngle') || state === 'running') return;
+  const p = worldToScreen(astronaut.x, astronaut.y);
+  const tailX = p.x;
+  const tailY = p.y;
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  lesson.choices.forEach((c) => {
+    let dx = 0, dy = 0, label = '';
+    if(lesson.type === 'direction'){
+      dx = c.throwVx || 0;
+      dy = c.throwVy || 0;
+      if(c.id === 'left') label = 'toward';
+      else if(c.id === 'right') label = 'away';
+      else label = c.id;
+    } else if(lesson.type === 'movingAngle') {
+      dx = c.ax || 0;
+      dy = c.ay || 0;
+      label = c.id;
+    } else {
+      dx = c.throwVx || 0;
+      dy = c.throwVy || 0;
+      if(c.id === 'toward') label = 'toward';
+      else if(c.id === 'away') label = 'away';
+      else if(c.id === 'awayUp') label = 'away + up';
+      else if(c.id === 'awayDown') label = 'away + down';
+      else label = c.id;
+    }
+    const mag = Math.hypot(dx, dy) || 1;
+    const ux = dx / mag, uy = dy / mag;
+    const len = lesson.type === 'direction' ? 120 : 110;
+    const endX = tailX + ux * len;
+    const endY = tailY - uy * len;
+    const selected = c.id === selectedId;
+
+    ctx.strokeStyle = selected ? '#38bdf8' : 'rgba(226,232,240,.92)';
+    ctx.fillStyle = selected ? '#38bdf8' : 'rgba(226,232,240,.92)';
+    ctx.lineWidth = selected ? 6 : 4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(tailX, tailY);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+    const ang = Math.atan2(endY - tailY, endX - tailX);
+    const head = selected ? 17 : 15;
+    ctx.beginPath();
+    ctx.moveTo(endX, endY);
+    ctx.lineTo(endX - head*Math.cos(ang - 0.55), endY - head*Math.sin(ang - 0.55));
+    ctx.lineTo(endX - head*Math.cos(ang + 0.55), endY - head*Math.sin(ang + 0.55));
+    ctx.closePath();
+    ctx.fill();
+
+    // clickable halo
+    ctx.beginPath();
+    ctx.fillStyle = selected ? 'rgba(56,189,248,.18)' : 'rgba(255,255,255,.08)';
+    ctx.arc(endX, endY, 22, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.strokeStyle = selected ? '#38bdf8' : 'rgba(255,255,255,.22)';
+    ctx.lineWidth = selected ? 3 : 2;
+    ctx.arc(endX, endY, 22, 0, Math.PI * 2);
+    ctx.stroke();
+
+    const pad = 18;
+    const minX = Math.min(tailX, endX) - pad;
+    const minY = Math.min(tailY, endY) - pad;
+    const maxX = Math.max(tailX, endX) + pad;
+    const maxY = Math.max(tailY, endY) + pad;
+    canvasChoiceRegions.push({ id: c.id, x: minX, y: minY, w: maxX - minX, h: maxY - minY });
+
+    // label near arrowhead
+    const lx = endX + ux * 24;
+    const ly = endY - uy * 24;
+    ctx.fillStyle = selected ? 'rgba(37,99,235,.95)' : 'rgba(15,23,42,.88)';
+    ctx.strokeStyle = selected ? '#93c5fd' : 'rgba(255,255,255,.18)';
+    ctx.lineWidth = 2;
+    const labelW = Math.max(44, label.length * 7 + 18);
+    const labelH = 24;
+    ctx.beginPath();
+    ctx.roundRect(lx - labelW/2, ly - labelH/2, labelW, labelH, 12);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#e5e7eb';
+    ctx.font = 'bold 11px Arial';
+    ctx.fillText(label, lx, ly + 1);
+  });
+
+  // center marker and cue
+  ctx.beginPath();
+  ctx.fillStyle = 'rgba(255,255,255,.18)';
+  ctx.arc(tailX, tailY, 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#cbd5e1';
+  ctx.font = 'bold 12px Arial';
+  ctx.fillText('click an arrow', tailX, tailY + 34);
+  ctx.restore();
+}
+
+function drawMassChoicesOnCanvas(){
+  const astronautPos = worldToScreen(astronaut.x, astronaut.y);
+  const boxW = 96, boxH = 72, gap = 14;
+  const totalW = lesson.choices.length * boxW + (lesson.choices.length - 1) * gap;
+  const startX = astronautPos.x - totalW / 2;
+  const y = astronautPos.y + 98;
+
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  canvasChoiceRegions = [];
+
+  lesson.choices.forEach((c, i) => {
+    const x = startX + i * (boxW + gap);
+    const centerX = x + boxW / 2;
+    const centerY = y + boxH / 2;
+    const selected = c.id === selectedId;
+
+    canvasChoiceRegions.push({ id: c.id, x, y, w: boxW, h: boxH });
+
+    ctx.fillStyle = selected ? 'rgba(37,99,235,.30)' : 'rgba(15,23,42,.78)';
+    ctx.strokeStyle = selected ? '#38bdf8' : 'rgba(255,255,255,.22)';
+    ctx.lineWidth = selected ? 3 : 2;
+    ctx.beginPath();
+    ctx.roundRect(x, y, boxW, boxH, 14);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.font = '30px Arial';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(c.emoji, centerX, centerY - 14);
+
+    ctx.font = 'bold 11px Arial';
+    ctx.fillStyle = selected ? '#93c5fd' : '#e5e7eb';
+    ctx.fillText(`${c.id}. ${c.object}`, centerX, centerY + 14);
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '10px Arial';
+    ctx.fillText(`${c.mass} kg, ${c.objectAccel} m/s²`, centerX, centerY + 31);
+  });
+
+  ctx.fillStyle = '#cbd5e1';
+  ctx.font = 'bold 12px Arial';
+  ctx.fillText('click an object', astronautPos.x, y + boxH + 22);
+  ctx.restore();
+}
+function drawFormulaOverlay(){
+  const x = 18, y = 100;
+  ctx.save();
+  ctx.fillStyle='rgba(15,23,42,.72)'; ctx.strokeStyle='rgba(255,255,255,.12)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.roundRect(x,y,320,86,14); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#dbeafe'; ctx.font='bold 13px Consolas, monospace';
+  if(lesson.type === 'direction'){
+    ctx.fillText('Action → object thrown one way', x+14, y+28);
+    ctx.fillText('Reaction → astronaut moves opposite', x+14, y+52);
+  } else if(lesson.type === 'massAccel'){
+    ctx.fillText('F = m_object × a_object', x+14, y+28);
+    ctx.fillText('a_astronaut = F / m_astronaut', x+14, y+52);
+  } else {
+    ctx.fillText('v_final = v_initial + Δv', x+14, y+28);
+    ctx.fillText('Goal: final vector points left', x+14, y+52);
+  }
+  ctx.restore();
+}
+function updatePhysics(dt){
+  if(state !== 'running') return;
+  simTime += dt;
+  const burnTime = lesson.burnTime || 2.0;
+  if(lesson.type === 'massAccel' || lesson.type === 'movingAngle' || lesson.type === 'movingThrowAngle'){
+    if(simTime <= burnTime){
+      astronaut.vx += astronaut.ax * dt;
+      astronaut.vy += astronaut.ay * dt;
+      if(objectBody){
+        objectBody.vx += objectBody.ax * dt;
+        objectBody.vy += objectBody.ay * dt;
+      }
+    } else {
+      astronaut.ax = 0;
+      astronaut.ay = 0;
+      if(objectBody){ objectBody.ax = 0; objectBody.ay = 0; }
+    }
+  }
+  astronaut.x += astronaut.vx * dt;
+  astronaut.y += astronaut.vy * dt;
+  astronaut.rot += astronaut.vx * .025;
+  if(objectBody){
+    objectBody.x += objectBody.vx * dt;
+    objectBody.y += objectBody.vy * dt;
+  }
+  if(simTime > 5.5){ state = 'done'; }
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  stars.forEach(s => { ctx.fillStyle = `rgba(255,255,255,${s.a})`; ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fill(); });
+  drawGrid();
+  drawSceneLabels();
+  drawShip();
+  drawVectorInfo();
+  if(lesson.type === 'massAccel') drawMassChoicesOnCanvas();
+  else drawCanvasChoiceArrows();
+  drawObject();
+  drawAstronaut();
+}
+
+let last = performance.now();
+function loop(now){
+  const dt = Math.min((now-last)/1000, .05); last = now;
+  updateStars(dt);
+  updatePhysics(dt);
+  updateReadout();
+  draw();
+  requestAnimationFrame(loop);
+}
+canvas.addEventListener('click', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  for(const region of canvasChoiceRegions){
+    if(x >= region.x && x <= region.x + region.w && y >= region.y && y <= region.y + region.h){
+      selectChoice(region.id);
+      return;
+    }
+  }
+});
+guideBtn.addEventListener('click', () => openOverlay(guideOverlay));
+hintBtn.addEventListener('click', () => openOverlay(hintOverlay));
+closeGuideBtn.addEventListener('click', () => closeOverlay(guideOverlay));
+closeHintBtn.addEventListener('click', () => closeOverlay(hintOverlay));
+guideOverlay.addEventListener('click', (e) => { if(e.target === guideOverlay) closeOverlay(guideOverlay); });
+hintOverlay.addEventListener('click', (e) => { if(e.target === hintOverlay) closeOverlay(hintOverlay); });
+runBtn.addEventListener('click', runSelected);
+resetBtn.addEventListener('click', clearSelection);
+nextBtn.addEventListener('click', nextLesson);
+answerBtn.addEventListener('click', showAnswer);
+addEventListener('resize', resize);
+
+resize();
+buildTabs();
+loadLesson(0);
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

@@ -5,13 +5,32 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Unit 3 Lesson 4 - Collision Lab Buzz Assessment</title>
   <!--
-    Buzz assessment template: HTML and CSS only (no JavaScript).
-    Five <a:question /> placeholders load the five Buzz questions IN ORDER:
-      Q1-Q4 = numeric-input questions styled as one Trial 1 data chart.
-      Q5    = analysis (essay) question.
-    Buzz setup: do NOT use "one question per page" - at least Questions 1-4
-    must render together so the chart reads as a single table.
-    Only the containers are styled; nothing inside <a:question /> is styled.
+    Buzz assessment template with the collision simulator EMBEDDED.
+    Buzz cannot open linked/hosted files from a template, so each trial
+    section contains its own trimmed simulator (canvas + Run/Reset)
+    locked to that trial's fixed conditions. Velocities show as labeled
+    arrows on the balls. One shared script at the bottom of the file
+    drives all five simulators.
+
+    Fourteen question placeholders (the a:question tags) load fourteen separate
+    Buzz questions IN ORDER, going down the page:
+      Q1  Trial 1 total momentum BEFORE      Q2  Trial 1 total momentum AFTER
+      Q3  Trial 2 total momentum BEFORE      Q4  Trial 2 total momentum AFTER
+      Q5  Trial 3 total momentum BEFORE      Q6  Trial 3 total momentum AFTER
+      Q7  Trial 4 total momentum BEFORE      Q8  Trial 4 total momentum AFTER
+      Q9  Trial 5 total momentum BEFORE      Q10 Trial 5 total momentum AFTER
+      Q11 essay: momentum before vs after    Q12 essay: zero total momentum
+      Q13 essay: is total velocity conserved Q14 essay: why colliding things stop
+
+    Buzz setup: do NOT use "one question per page" - each trial's two
+    questions must render together inside that trial's chart.
+    Each placeholder stays a separate Buzz question; only the surrounding
+    layout is styled, never the internal Buzz question controls.
+
+    NOTE: this template intentionally contains NO solving directions, formulas,
+    or sign-convention hints. Students must bring the method themselves. The
+    standalone practice simulator (collison-lab.html) keeps the Guide and Hint
+    overlays for instruction outside the assessment.
   -->
   <style>
     :root {
@@ -24,6 +43,7 @@
       --ball2: #2563a9;
       --gold: #b47d10;
       --ok: #1f8a5b;
+      --danger: #c0392b;
       --shadow: 0 8px 24px rgba(36, 52, 71, 0.12);
     }
 
@@ -38,18 +58,18 @@
     }
 
     .page {
-      width: min(1060px, calc(100% - 28px));
+      width: min(1080px, calc(100% - 28px));
       margin: 0 auto;
       padding: 24px 0 34px;
     }
 
     h1, h2, h3, p { margin: 0; }
 
-    /* ===== Main title section ===== */
+    /* ===== Main title ===== */
     .title-card {
       background: var(--panel);
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: 10px;
       box-shadow: var(--shadow);
       padding: 18px 20px;
       margin-bottom: 18px;
@@ -62,147 +82,215 @@
       margin-bottom: 8px;
     }
 
-    .title-card .subtitle {
+    .subtitle {
       color: var(--muted);
       line-height: 1.55;
-      max-width: 820px;
+      max-width: 860px;
     }
 
-    /* ===== Learning goals card (moved here from the simulator) ===== */
-    .goals-card {
+    /* ===== Trial sections ===== */
+    .trial-card {
       background: var(--panel);
       border: 1px solid var(--line);
-      border-radius: 8px;
-      box-shadow: var(--shadow);
-      padding: 14px 18px;
-      margin-bottom: 18px;
-      line-height: 1.5;
-    }
-
-    .goals-card ul { margin: 8px 0 0; padding-left: 22px; }
-    .goals-card li { margin-bottom: 4px; }
-
-    .goals-card .subtitle {
-      color: var(--muted);
-      line-height: 1.5;
-    }
-
-    /* ===== Lab directions card ===== */
-    .directions-card {
-      background: #fdf6e3;
-      border: 1px solid #e5d6a4;
-      border-left: 6px solid var(--gold);
-      border-radius: 8px;
-      padding: 14px 18px;
-      margin-bottom: 18px;
-      line-height: 1.55;
-    }
-
-    .directions-card ol { margin: 8px 0 0; padding-left: 24px; }
-    .directions-card li { margin-bottom: 6px; }
-
-    .lab-link {
-      display: inline-block;
-      margin-top: 10px;
-      padding: 11px 18px;
-      border-radius: 8px;
-      background: var(--ball2);
-      color: #ffffff;
-      font-weight: 800;
-      text-decoration: none;
-    }
-
-    /* ===== Chart section: Questions 1-4 ===== */
-    .chart-card {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: 10px;
       box-shadow: var(--shadow);
       padding: 16px 18px;
-      margin-bottom: 18px;
+      margin-bottom: 26px;
     }
 
-    .chart-card > h2 {
-      margin-bottom: 6px;
-      color: #1f2d3d;
-    }
-
-    .chart-card .chart-help {
-      color: var(--muted);
-      line-height: 1.5;
-      margin-bottom: 14px;
-    }
-
-    /* Recorded/set values: the template fills these chart cells in. */
-    .setup-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 16px;
-      background: #ffffff;
-    }
-
-    .setup-table th, .setup-table td {
-      border: 1px solid #c8d3e1;
-      padding: 8px 10px;
-      text-align: center;
-      vertical-align: middle;
-      line-height: 1.4;
-    }
-
-    .setup-table th {
-      background: #e9eef5;
-      font-size: 0.85rem;
-    }
-
-    .setup-table .ball1-row { color: var(--ball1); font-weight: 800; }
-    .setup-table .ball2-row { color: var(--ball2); font-weight: 800; }
-
-    .setup-table .record-cell {
-      color: var(--ink);
-      font-weight: 700;
-      background: #fdf6e3;
-    }
-
-    /* The 2x2 chart of Buzz question cells */
-    .chart-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-    }
-
-    .chart-cell {
-      border: 2px solid #c8d3e1;
-      border-radius: 8px;
-      background: #f8fafc;
-      padding: 12px 14px;
+    .trial-head {
       display: flex;
-      flex-direction: column;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
     }
 
-    .cell-head {
-      font-size: 0.78rem;
+    .trial-badge {
+      font-size: 0.8rem;
       font-weight: 900;
       letter-spacing: 0.06em;
       text-transform: uppercase;
       color: #ffffff;
       background: var(--ball2);
       border-radius: 999px;
-      padding: 4px 12px;
-      align-self: flex-start;
-      margin-bottom: 8px;
+      padding: 5px 14px;
     }
 
-    .cell-title {
-      font-weight: 800;
-      margin-bottom: 4px;
+    .trial-badge.inelastic { background: var(--gold); }
+    .trial-badge.explore { background: var(--ok); }
+
+    .trial-head h2 {
+      font-size: 1.25rem;
       color: #1f2d3d;
     }
 
-    .cell-direction {
+    .trial-desc {
       color: var(--muted);
-      font-size: 0.92rem;
-      line-height: 1.5;
-      margin-bottom: 10px;
+      line-height: 1.55;
+      margin-bottom: 14px;
+    }
+
+    /* ===== Embedded mini simulator ===== */
+    .mini-sim { margin-bottom: 16px; }
+
+    .sim-stage {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: linear-gradient(#f4faff 0 72%, #e3ecdb 72% 100%);
+    }
+
+    .sim-stage canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 940 / 195;
+    }
+
+    .sim-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-top: 12px;
+    }
+
+    button.action {
+      border: 0;
+      border-radius: 8px;
+      padding: 11px 17px;
+      color: #fff;
+      background: var(--ball2);
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.16s ease, filter 0.16s ease;
+    }
+
+    button.action:hover { filter: brightness(0.96); transform: translateY(-1px); }
+    button.action.secondary { background: #607d8b; }
+
+    .run-message {
+      flex: 1 1 220px;
+      min-height: 22px;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    .run-message.good { color: var(--ok); }
+
+    /* ===== Chart tables ===== */
+    .chart-scroll { overflow-x: auto; }
+
+    table.data-chart {
+      width: 100%;
+      min-width: 780px;
+      border-collapse: collapse;
+      background: #ffffff;
+    }
+
+    .data-chart th, .data-chart td {
+      border: 1px solid #c8d3e1;
+      padding: 9px 10px;
+      text-align: center;
+      vertical-align: middle;
+      line-height: 1.4;
+    }
+
+    .data-chart thead th {
+      background: #e9eef5;
+      font-size: 0.84rem;
+    }
+
+    .data-chart .row-head {
+      background: #f6f9fc;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .data-chart .row-head.ball1 { color: var(--ball1); }
+    .data-chart .row-head.ball2 { color: var(--ball2); }
+
+    .data-chart td.given {
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      background: #f6f9fc;
+    }
+
+    .data-chart td.record {
+      background: #fdf6e3;
+      font-weight: 700;
+      min-width: 200px;
+      white-space: nowrap;
+    }
+
+    .rec-label {
+      font-weight: 800;
+      margin-right: 4px;
+    }
+
+    .rec-num {
+      width: 74px;
+      border: 1px solid #c8d3e1;
+      border-radius: 6px;
+      padding: 6px;
+      font: inherit;
+      font-weight: 700;
+      text-align: center;
+      background: #fff;
+    }
+
+    /* Two-choice direction picker: students select the arrow after
+       entering the speed, then convert it to a sign themselves. */
+    .dir-pick {
+      display: inline-flex;
+      gap: 4px;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    .dir-choice {
+      position: relative;
+      cursor: pointer;
+    }
+
+    .dir-choice input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .dir-choice span {
+      display: inline-block;
+      min-width: 34px;
+      padding: 5px 0;
+      border: 2px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      text-align: center;
+      font-weight: 900;
+      user-select: none;
+    }
+
+    .dir-choice input:checked + span {
+      border-color: var(--ball2);
+      background: var(--ball2);
+      color: #fff;
+    }
+
+    /* Correct entry: the cell locks into a plain value-and-arrow display
+       styled like the given initial-velocity cells. */
+    .data-chart td.record.confirmed {
+      background: #f6f9fc;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .data-chart td.q-cell {
+      background: #f8fafc;
+      min-width: 190px;
+      padding: 10px;
     }
 
     /* Container around each Buzz question - do not style inside it. */
@@ -210,168 +298,763 @@
       background: #ffffff;
       border: 1px dashed var(--line);
       border-radius: 6px;
-      padding: 10px;
-      margin-top: auto;
+      padding: 8px;
+      text-align: left;
     }
 
-    /* ===== Question 5 analysis box ===== */
-    .analysis-card {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-left: 6px solid var(--ok);
-      border-radius: 8px;
-      box-shadow: var(--shadow);
-      padding: 16px 18px;
-      margin-bottom: 18px;
+    /* ===== Analysis questions ===== */
+    .analysis-title {
+      font-size: 1.35rem;
+      color: #1f2d3d;
+      margin: 4px 0 14px;
     }
 
-    .analysis-card .cell-head { background: var(--ok); }
+    .analysis-card .q-slot { margin-top: 4px; }
 
-    /* ===== Lab evidence card (moved here from the simulator) ===== */
-    .evidence-card {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-left: 6px solid var(--gold);
-      border-radius: 8px;
-      box-shadow: var(--shadow);
-      padding: 14px 18px;
-      line-height: 1.55;
-    }
-
-    /* ===== Responsive: chart cells stack on smaller screens ===== */
-    @media (max-width: 720px) {
-      .chart-grid { grid-template-columns: 1fr; }
-      .setup-table { font-size: 0.9rem; }
+    /* ===== Responsive ===== */
+    @media (max-width: 620px) {
+      .trial-head h2 { font-size: 1.05rem; }
+      .data-chart th, .data-chart td { padding: 7px 6px; font-size: 0.9rem; }
     }
   </style>
 </head>
 <body>
   <main class="page">
 
-    <!-- ===== Main title section ===== -->
+    <!-- ===== Main title ===== -->
     <header class="title-card">
-      <h1>Unit 3 Lesson 4: Collision Lab &mdash; Elastic &amp; Inelastic Collisions</h1>
-      <p class="subtitle">Run the collisions in the lab simulator, then fill in the data chart below. The chart boxes are real Buzz questions &mdash; enter your numeric answers right in the chart, then finish with the analysis question.</p>
+      <h1>Unit 3 Lesson 4: Collision Lab</h1>
+      <p class="subtitle">Each trial below has its own collision simulator with fixed starting conditions. Run each collision, complete that trial's chart, and answer the questions.</p>
     </header>
 
-    <!-- ===== Learning goals (moved from the simulator; lab template only) ===== -->
-    <section class="goals-card">
-      <h2>Learning Goals</h2>
-      <ul>
-        <li>Construct appropriate vector representations of "before-and-after" collisions.</li>
-        <li>Differentiate between elastic and perfectly inelastic collisions.</li>
-        <li>Discover when kinetic energy is conserved in collisions.</li>
-      </ul>
-      <p class="subtitle" style="margin-top:10px;"><strong>Direction matters!</strong> The simulator shows magnitudes with direction arrows only &mdash; it never shows + or &minus; signs. You convert each direction to a sign yourself: <strong>right (&rarr;) = positive (+), left (&larr;) = negative (&minus;)</strong>. Use <strong>p = mv</strong> (with your signs!) and <strong>KE = &frac12;mv&sup2;</strong> (always positive). Round every answer to 2 decimal places.</p>
-    </section>
+    <!-- ================= Trial 1 ================= -->
+    <section class="trial-card">
+      <div class="trial-head">
+        <span class="trial-badge">Trial 1</span>
+        <h2>Stationary Target &mdash; 100% Elasticity</h2>
+      </div>
+      <p class="trial-desc">Ball 1 (1.0 kg) moves right at 3.00 m/s toward Ball 2 (2.0 kg), which starts at rest.</p>
 
-    <!-- ===== Lab directions ===== -->
-    <section class="directions-card">
-      <h2>How to collect your Trial 1 data</h2>
-      <ol>
-        <li>Open the <strong>Collision Lab Simulator</strong> using the button below (it opens in a new tab).</li>
-        <li>Stay on the <strong>Trial 1: Stationary Target</strong> tab. The starting conditions are <strong>fixed for you</strong> (shown in the simulator's setup bar and in the chart below): m&#8321; = 1.0 kg moving right at 3.0 m/s, m&#8322; = 2.0 kg at rest, elasticity 100%.</li>
-        <li>Press <strong>Run Collision</strong> and watch the momentum arrows.</li>
-        <li>Read the final velocities from the readouts. The readouts show a <strong>speed and a direction arrow</strong> &mdash; no sign. Write each one in the chart's yellow "record" cells as a <em>signed</em> velocity: &rarr; means +, &larr; means &minus;.</li>
-        <li>Calculate the four totals and enter each one in its chart question below. Afterward, run Trials 2&ndash;4 in the simulator &mdash; you will need them for the analysis question.</li>
-      </ol>
-      <!-- Replace the href below with the hosted URL of collison-lab.html before publishing. -->
-      <a class="lab-link" href="REPLACE-WITH-HOSTED-COLLISION-LAB-URL" target="_blank" rel="noopener">Open the Collision Lab Simulator &rarr;</a>
-    </section>
-
-    <!-- ===== Questions 1-4: Trial 1 Data ===== -->
-    <section class="chart-card">
-      <h2>Questions 1&ndash;4: Trial 1 Data</h2>
-      <p class="chart-help">The white cells are filled in for you (the required setup). The yellow cells are values you <strong>record</strong> from the simulator readouts &mdash; the simulator gives you only a magnitude and an arrow, so <strong>you</strong> attach the sign (&rarr; = +, &larr; = &minus;). The four question boxes are where you enter the totals you <strong>calculate</strong> using those signed values.</p>
-
-      <!-- Recorded and set chart values: filled in by the template, not questions. -->
-      <table class="setup-table" aria-label="Trial 1 recorded values">
-        <thead>
-          <tr>
-            <th></th>
-            <th>Mass (kg)</th>
-            <th>Initial Velocity (m/s)</th>
-            <th>Final Velocity (m/s) &mdash; record from the sim</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td class="ball1-row">Ball 1</td>
-            <td class="ball1-row">m&#8321; = 1.0</td>
-            <td class="ball1-row">speed 3.0, moving Right &rarr;<br>so v&#8321; = +3.0</td>
-            <td class="record-cell">v&#8321;&prime; = ________ (speed and arrow from the readout &mdash; you add the sign)</td>
-          </tr>
-          <tr>
-            <td class="ball2-row">Ball 2</td>
-            <td class="ball2-row">m&#8322; = 2.0</td>
-            <td class="ball2-row">v&#8322; = 0 (at rest)</td>
-            <td class="record-cell">v&#8322;&prime; = ________ (speed and arrow from the readout &mdash; you add the sign)</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div class="chart-grid">
-
-        <div class="chart-cell">
-          <span class="cell-head">Question 1</span>
-          <p class="cell-title">Initial Total Momentum (kg&middot;m/s)</p>
-          <p class="cell-direction">Use the starting values: p = m&#8321;v&#8321; + m&#8322;v&#8322;. Enter the number only, rounded to 2 decimals, keeping the sign.</p>
-          <!-- Buzz question 1 loads here: numeric input, initial total momentum -->
-          <div class="q-slot">
-            <a:question />
-          </div>
+      <!-- Trial 1 embedded simulator (fixed conditions via data attributes) -->
+      <div class="mini-sim" data-sim data-m1="1.0" data-v1="3.0" data-m2="2.0" data-v2="0" data-e="1">
+        <div class="sim-stage">
+          <canvas width="940" height="195" aria-label="Trial 1 collision simulator: two balls on a track with labeled velocity arrows"></canvas>
         </div>
-
-        <div class="chart-cell">
-          <span class="cell-head">Question 2</span>
-          <p class="cell-title">Initial Total Kinetic Energy (J)</p>
-          <p class="cell-direction">Use the starting values: KE = &frac12;m&#8321;v&#8321;&sup2; + &frac12;m&#8322;v&#8322;&sup2;. Enter the number only, rounded to 2 decimals.</p>
-          <!-- Buzz question 2 loads here: numeric input, initial total kinetic energy -->
-          <div class="q-slot">
-            <a:question />
-          </div>
+        <div class="sim-actions">
+          <button class="action" type="button" data-run>Run Collision</button>
+          <button class="action secondary" type="button" data-reset>Reset Positions</button>
+          <span class="run-message" data-run-message></span>
         </div>
+      </div>
 
-        <div class="chart-cell">
-          <span class="cell-head">Question 3</span>
-          <p class="cell-title">Final Total Momentum (kg&middot;m/s)</p>
-          <p class="cell-direction">Convert each recorded readout to a signed velocity first (&rarr; = +, &larr; = &minus;), then p&prime; = m&#8321;v&#8321;&prime; + m&#8322;v&#8322;&prime;. Enter the number only, rounded to 2 decimals, keeping the sign.</p>
-          <!-- Buzz question 3 loads here: numeric input, final total momentum -->
-          <div class="q-slot">
-            <a:question />
-          </div>
-        </div>
-
-        <div class="chart-cell">
-          <span class="cell-head">Question 4</span>
-          <p class="cell-title">Final Total Kinetic Energy (J)</p>
-          <p class="cell-direction">Use the final velocities you recorded: KE&prime; = &frac12;m&#8321;v&#8321;&prime;&sup2; + &frac12;m&#8322;v&#8322;&prime;&sup2;. Squaring removes the sign, so kinetic energy is always positive. Enter the number only, rounded to 2 decimals.</p>
-          <!-- Buzz question 4 loads here: numeric input, final total kinetic energy -->
-          <div class="q-slot">
-            <a:question />
-          </div>
-        </div>
-
+      <div class="chart-scroll">
+        <table class="data-chart" aria-label="Trial 1 data chart">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Mass (kg)</th>
+              <th>Initial Velocity (m/s)</th>
+              <th>Total Momentum BEFORE (kg&middot;m/s)</th>
+              <th>Final Velocity (m/s)</th>
+              <th>Total Momentum AFTER (kg&middot;m/s)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th class="row-head ball1">Ball 1</th>
+              <td class="given">1.0</td>
+              <td class="given">3.0 &rarr;</td>
+              <td class="q-cell" rowspan="2">
+                <!-- Buzz question 1 loads here: numeric input, Trial 1 total momentum BEFORE the collision -->
+                <div class="q-slot">
+                  <a:question></a:question>
+                </div>
+              </td>
+              <td class="record" data-check data-val="1.0" data-dir="l">
+                <span class="rec-label">v&#8321;f =</span>
+                <input class="rec-num" type="number" step="1" min="0" aria-label="Ball 1 final speed">
+                <span class="dir-pick" role="group" aria-label="Ball 1 final direction">
+                  <label class="dir-choice"><input type="radio" name="dir-t1-b1" value="r"><span>&rarr;</span></label>
+                  <label class="dir-choice"><input type="radio" name="dir-t1-b1" value="l"><span>&larr;</span></label>
+                </span>
+              </td>
+              <td class="q-cell" rowspan="2">
+                <!-- Buzz question 2 loads here: numeric input, Trial 1 total momentum AFTER the collision -->
+                <div class="q-slot">
+                  <a:question></a:question>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <th class="row-head ball2">Ball 2</th>
+              <td class="given">2.0</td>
+              <td class="given">0 (at rest)</td>
+              <td class="record" data-check data-val="2.0" data-dir="r">
+                <span class="rec-label">v&#8322;f =</span>
+                <input class="rec-num" type="number" step="1" min="0" aria-label="Ball 2 final speed">
+                <span class="dir-pick" role="group" aria-label="Ball 2 final direction">
+                  <label class="dir-choice"><input type="radio" name="dir-t1-b2" value="r"><span>&rarr;</span></label>
+                  <label class="dir-choice"><input type="radio" name="dir-t1-b2" value="l"><span>&larr;</span></label>
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
-    <!-- ===== Question 5: analysis ===== -->
-    <section class="analysis-card">
-      <span class="cell-head">Question 5</span>
-      <p class="cell-title">Analysis: What does Trial 1 show?</p>
-      <p class="cell-direction">Compare your before-and-after totals from the chart above, and use what you saw in Trials 2&ndash;4 of the simulator (including the 0% elasticity trials where the balls stick together).</p>
-      <!-- Buzz question 5 loads here: analysis (essay) question -->
+    <!-- ================= Trial 2 ================= -->
+    <section class="trial-card">
+      <div class="trial-head">
+        <span class="trial-badge">Trial 2</span>
+        <h2>Head-On &mdash; 100% Elasticity</h2>
+      </div>
+      <p class="trial-desc">Ball 1 (1.0 kg) moves right at 3.00 m/s while Ball 2 (1.5 kg) moves left at 2.00 m/s.</p>
+
+      <!-- Trial 2 embedded simulator -->
+      <div class="mini-sim" data-sim data-m1="1.0" data-v1="3.0" data-m2="1.5" data-v2="-2.0" data-e="1">
+        <div class="sim-stage">
+          <canvas width="940" height="195" aria-label="Trial 2 collision simulator: two balls on a track with labeled velocity arrows"></canvas>
+        </div>
+        <div class="sim-actions">
+          <button class="action" type="button" data-run>Run Collision</button>
+          <button class="action secondary" type="button" data-reset>Reset Positions</button>
+          <span class="run-message" data-run-message></span>
+        </div>
+      </div>
+
+      <div class="chart-scroll">
+        <table class="data-chart" aria-label="Trial 2 data chart">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Mass (kg)</th>
+              <th>Initial Velocity (m/s)</th>
+              <th>Total Momentum BEFORE (kg&middot;m/s)</th>
+              <th>Final Velocity (m/s)</th>
+              <th>Total Momentum AFTER (kg&middot;m/s)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th class="row-head ball1">Ball 1</th>
+              <td class="given">1.0</td>
+              <td class="given">3.0 &rarr;</td>
+              <td class="q-cell" rowspan="2">
+                <!-- Buzz question 3 loads here: numeric input, Trial 2 total momentum BEFORE the collision -->
+                <div class="q-slot">
+                  <a:question></a:question>
+                </div>
+              </td>
+              <td class="record" data-check data-val="3.0" data-dir="l">
+                <span class="rec-label">v&#8321;f =</span>
+                <input class="rec-num" type="number" step="1" min="0" aria-label="Ball 1 final speed">
+                <span class="dir-pick" role="group" aria-label="Ball 1 final direction">
+                  <label class="dir-choice"><input type="radio" name="dir-t2-b1" value="r"><span>&rarr;</span></label>
+                  <label class="dir-choice"><input type="radio" name="dir-t2-b1" value="l"><span>&larr;</span></label>
+                </span>
+              </td>
+              <td class="q-cell" rowspan="2">
+                <!-- Buzz question 4 loads here: numeric input, Trial 2 total momentum AFTER the collision -->
+                <div class="q-slot">
+                  <a:question></a:question>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <th class="row-head ball2">Ball 2</th>
+              <td class="given">1.5</td>
+              <td class="given">2.0 &larr;</td>
+              <td class="record" data-check data-val="2.0" data-dir="r">
+                <span class="rec-label">v&#8322;f =</span>
+                <input class="rec-num" type="number" step="1" min="0" aria-label="Ball 2 final speed">
+                <span class="dir-pick" role="group" aria-label="Ball 2 final direction">
+                  <label class="dir-choice"><input type="radio" name="dir-t2-b2" value="r"><span>&rarr;</span></label>
+                  <label class="dir-choice"><input type="radio" name="dir-t2-b2" value="l"><span>&larr;</span></label>
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================= Trial 3 ================= -->
+    <section class="trial-card">
+      <div class="trial-head">
+        <span class="trial-badge">Trial 3</span>
+        <h2>Rear-End &mdash; 100% Elasticity</h2>
+      </div>
+      <p class="trial-desc">Ball 1 (1.5 kg) moves right at 4.00 m/s and catches Ball 2 (1.0 kg) moving right at 1.50 m/s.</p>
+
+      <!-- Trial 3 embedded simulator -->
+      <div class="mini-sim" data-sim data-m1="1.5" data-v1="4.0" data-m2="1.0" data-v2="1.5" data-e="1">
+        <div class="sim-stage">
+          <canvas width="940" height="195" aria-label="Trial 3 collision simulator: two balls on a track with labeled velocity arrows"></canvas>
+        </div>
+        <div class="sim-actions">
+          <button class="action" type="button" data-run>Run Collision</button>
+          <button class="action secondary" type="button" data-reset>Reset Positions</button>
+          <span class="run-message" data-run-message></span>
+        </div>
+      </div>
+
+      <div class="chart-scroll">
+        <table class="data-chart" aria-label="Trial 3 data chart">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Mass (kg)</th>
+              <th>Initial Velocity (m/s)</th>
+              <th>Total Momentum BEFORE (kg&middot;m/s)</th>
+              <th>Final Velocity (m/s)</th>
+              <th>Total Momentum AFTER (kg&middot;m/s)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th class="row-head ball1">Ball 1</th>
+              <td class="given">1.5</td>
+              <td class="given">4.0 &rarr;</td>
+              <td class="q-cell" rowspan="2">
+                <!-- Buzz question 5 loads here: numeric input, Trial 3 total momentum BEFORE the collision -->
+                <div class="q-slot">
+                  <a:question></a:question>
+                </div>
+              </td>
+              <td class="record" data-check data-val="2.0" data-dir="r">
+                <span class="rec-label">v&#8321;f =</span>
+                <input class="rec-num" type="number" step="1" min="0" aria-label="Ball 1 final speed">
+                <span class="dir-pick" role="group" aria-label="Ball 1 final direction">
+                  <label class="dir-choice"><input type="radio" name="dir-t3-b1" value="r"><span>&rarr;</span></label>
+                  <label class="dir-choice"><input type="radio" name="dir-t3-b1" value="l"><span>&larr;</span></label>
+                </span>
+              </td>
+              <td class="q-cell" rowspan="2">
+                <!-- Buzz question 6 loads here: numeric input, Trial 3 total momentum AFTER the collision -->
+                <div class="q-slot">
+                  <a:question></a:question>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <th class="row-head ball2">Ball 2</th>
+              <td class="given">1.0</td>
+              <td class="given">1.5 &rarr;</td>
+              <td class="record" data-check data-val="4.5" data-dir="r">
+                <span class="rec-label">v&#8322;f =</span>
+                <input class="rec-num" type="number" step="0.1" min="0" aria-label="Ball 2 final speed">
+                <span class="dir-pick" role="group" aria-label="Ball 2 final direction">
+                  <label class="dir-choice"><input type="radio" name="dir-t3-b2" value="r"><span>&rarr;</span></label>
+                  <label class="dir-choice"><input type="radio" name="dir-t3-b2" value="l"><span>&larr;</span></label>
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================= Trial 4 ================= -->
+    <section class="trial-card">
+      <div class="trial-head">
+        <span class="trial-badge inelastic">Trial 4</span>
+        <h2>Head-On Stick &mdash; 0% Elasticity</h2>
+      </div>
+      <p class="trial-desc">Ball 1 (2.0 kg) moves right at 2.50 m/s while Ball 2 (0.5 kg) moves left at 1.50 m/s. The balls stick together.</p>
+
+      <!-- Trial 4 embedded simulator -->
+      <div class="mini-sim" data-sim data-m1="2.0" data-v1="2.5" data-m2="0.5" data-v2="-1.5" data-e="0">
+        <div class="sim-stage">
+          <canvas width="940" height="195" aria-label="Trial 4 collision simulator: two balls on a track with labeled velocity arrows"></canvas>
+        </div>
+        <div class="sim-actions">
+          <button class="action" type="button" data-run>Run Collision</button>
+          <button class="action secondary" type="button" data-reset>Reset Positions</button>
+          <span class="run-message" data-run-message></span>
+        </div>
+      </div>
+
+      <div class="chart-scroll">
+        <table class="data-chart" aria-label="Trial 4 data chart">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Mass (kg)</th>
+              <th>Initial Velocity (m/s)</th>
+              <th>Total Momentum BEFORE (kg&middot;m/s)</th>
+              <th>Final Velocity (m/s)</th>
+              <th>Total Momentum AFTER (kg&middot;m/s)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th class="row-head ball1">Ball 1</th>
+              <td class="given">2.0</td>
+              <td class="given">2.5 &rarr;</td>
+              <td class="q-cell" rowspan="2">
+                <!-- Buzz question 7 loads here: numeric input, Trial 4 total momentum BEFORE the collision -->
+                <div class="q-slot">
+                  <a:question></a:question>
+                </div>
+              </td>
+              <td class="record" data-check data-val="1.7" data-dir="r">
+                <span class="rec-label">v&#8321;f =</span>
+                <input class="rec-num" type="number" step="0.1" min="0" aria-label="Ball 1 final speed">
+                <span class="dir-pick" role="group" aria-label="Ball 1 final direction">
+                  <label class="dir-choice"><input type="radio" name="dir-t4-b1" value="r"><span>&rarr;</span></label>
+                  <label class="dir-choice"><input type="radio" name="dir-t4-b1" value="l"><span>&larr;</span></label>
+                </span>
+              </td>
+              <td class="q-cell" rowspan="2">
+                <!-- Buzz question 8 loads here: numeric input, Trial 4 total momentum AFTER the collision -->
+                <div class="q-slot">
+                  <a:question></a:question>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <th class="row-head ball2">Ball 2</th>
+              <td class="given">0.5</td>
+              <td class="given">1.5 &larr;</td>
+              <td class="record" data-check data-val="1.7" data-dir="r">
+                <span class="rec-label">v&#8322;f =</span>
+                <input class="rec-num" type="number" step="0.1" min="0" aria-label="Ball 2 final speed">
+                <span class="dir-pick" role="group" aria-label="Ball 2 final direction">
+                  <label class="dir-choice"><input type="radio" name="dir-t4-b2" value="r"><span>&rarr;</span></label>
+                  <label class="dir-choice"><input type="radio" name="dir-t4-b2" value="l"><span>&larr;</span></label>
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================= Trial 5 ================= -->
+    <section class="trial-card">
+      <div class="trial-head">
+        <span class="trial-badge explore">Trial 5</span>
+        <h2>Explore &mdash; 50% Elasticity</h2>
+      </div>
+      <p class="trial-desc">Ball 1 (1.5 kg) moves right at 3.00 m/s while Ball 2 (1.0 kg) moves left at 3.00 m/s.</p>
+
+      <!-- Trial 5 embedded simulator -->
+      <div class="mini-sim" data-sim data-m1="1.5" data-v1="3.0" data-m2="1.0" data-v2="-3.0" data-e="0.5">
+        <div class="sim-stage">
+          <canvas width="940" height="195" aria-label="Trial 5 collision simulator: two balls on a track with labeled velocity arrows"></canvas>
+        </div>
+        <div class="sim-actions">
+          <button class="action" type="button" data-run>Run Collision</button>
+          <button class="action secondary" type="button" data-reset>Reset Positions</button>
+          <span class="run-message" data-run-message></span>
+        </div>
+      </div>
+
+      <div class="chart-scroll">
+        <table class="data-chart" aria-label="Trial 5 data chart">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Mass (kg)</th>
+              <th>Initial Velocity (m/s)</th>
+              <th>Total Momentum BEFORE (kg&middot;m/s)</th>
+              <th>Final Velocity (m/s)</th>
+              <th>Total Momentum AFTER (kg&middot;m/s)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th class="row-head ball1">Ball 1</th>
+              <td class="given">1.5</td>
+              <td class="given">3.0 &rarr;</td>
+              <td class="q-cell" rowspan="2">
+                <!-- Buzz question 9 loads here: numeric input, Trial 5 total momentum BEFORE the collision -->
+                <div class="q-slot">
+                  <a:question></a:question>
+                </div>
+              </td>
+              <td class="record" data-check data-val="0.6" data-dir="l">
+                <span class="rec-label">v&#8321;f =</span>
+                <input class="rec-num" type="number" step="0.1" min="0" aria-label="Ball 1 final speed">
+                <span class="dir-pick" role="group" aria-label="Ball 1 final direction">
+                  <label class="dir-choice"><input type="radio" name="dir-t5-b1" value="r"><span>&rarr;</span></label>
+                  <label class="dir-choice"><input type="radio" name="dir-t5-b1" value="l"><span>&larr;</span></label>
+                </span>
+              </td>
+              <td class="q-cell" rowspan="2">
+                <!-- Buzz question 10 loads here: numeric input, Trial 5 total momentum AFTER the collision -->
+                <div class="q-slot">
+                  <a:question></a:question>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <th class="row-head ball2">Ball 2</th>
+              <td class="given">1.0</td>
+              <td class="given">3.0 &larr;</td>
+              <td class="record" data-check data-val="2.4" data-dir="r">
+                <span class="rec-label">v&#8322;f =</span>
+                <input class="rec-num" type="number" step="0.1" min="0" aria-label="Ball 2 final speed">
+                <span class="dir-pick" role="group" aria-label="Ball 2 final direction">
+                  <label class="dir-choice"><input type="radio" name="dir-t5-b2" value="r"><span>&rarr;</span></label>
+                  <label class="dir-choice"><input type="radio" name="dir-t5-b2" value="l"><span>&larr;</span></label>
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== Analysis: written answers (Questions 11-14) ===== -->
+    <h2 class="analysis-title">Analysis: Written Answers</h2>
+
+    <section class="trial-card analysis-card">
+      <div class="trial-head">
+        <span class="trial-badge explore">Question 11</span>
+        <h2>Momentum before and after</h2>
+      </div>
+      <!-- Buzz question 11 loads here: essay, what students noticed about total momentum before vs after -->
       <div class="q-slot">
-        <a:question />
+        <a:question></a:question>
       </div>
     </section>
 
-    <!-- ===== Lab evidence (moved from the simulator; lab template only) ===== -->
-    <section class="evidence-card">
-      <h2>Lab Evidence</h2>
-      <p>Keep a screenshot of your completed Trial 1 run (showing the final velocity readouts) in case your teacher asks for evidence of your data. Your chart answers above are graded automatically from the required Trial 1 setup.</p>
+    <section class="trial-card analysis-card">
+      <div class="trial-head">
+        <span class="trial-badge explore">Question 12</span>
+        <h2>Zero total momentum</h2>
+      </div>
+      <!-- Buzz question 12 loads here: essay, how total momentum can be zero while the balls move -->
+      <div class="q-slot">
+        <a:question></a:question>
+      </div>
+    </section>
+
+    <section class="trial-card analysis-card">
+      <div class="trial-head">
+        <span class="trial-badge explore">Question 13</span>
+        <h2>Total velocity</h2>
+      </div>
+      <!-- Buzz question 13 loads here: essay, whether total velocity is conserved -->
+      <div class="q-slot">
+        <a:question></a:question>
+      </div>
+    </section>
+
+    <section class="trial-card analysis-card">
+      <div class="trial-head">
+        <span class="trial-badge explore">Question 14</span>
+        <h2>Coming to rest</h2>
+      </div>
+      <!-- Buzz question 14 loads here: essay, why real colliding objects come to rest -->
+      <div class="q-slot">
+        <a:question></a:question>
+      </div>
     </section>
 
   </main>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // Shared engine for the five embedded trial simulators. Each
+      // [data-sim] block is locked to its trial's fixed conditions via
+      // data attributes; no student-adjustable controls.
+      const WORLD_W = 10;          // meters of track
+      const TRACK_Y = 150;         // canvas y of track surface
+      const START_X1 = 3.0, START_X2 = 7.0;
+      const V_SCALE = 26;          // px per m/s for velocity arrows
+
+      // Velocity labels on the canvas never show +/- signs: magnitude only,
+      // with the arrow showing direction. Students convert direction to
+      // sign themselves.
+      const round2 = v => Math.round(v * 100) / 100;
+      const fmtPlain = v => v.toFixed(1);
+      const radiusOf = m => 0.16 + 0.24 * Math.cbrt(m); // meters
+
+      function resolveCollision(m1, v1, m2, v2, e) {
+        const v1f = ((m1 - e * m2) * v1 + (1 + e) * m2 * v2) / (m1 + m2);
+        const v2f = ((m2 - e * m1) * v2 + (1 + e) * m1 * v1) / (m1 + m2);
+        return { v1f, v2f };
+      }
+
+      function drawArrow(c, x, y, len, color) {
+        if (Math.abs(len) < 4) return;
+        const head = Math.min(12, Math.abs(len) * 0.5);
+        const dir = Math.sign(len);
+        c.strokeStyle = color;
+        c.fillStyle = color;
+        c.lineWidth = 5;
+        c.lineCap = 'round';
+        c.beginPath();
+        c.moveTo(x, y);
+        c.lineTo(x + len - dir * head, y);
+        c.stroke();
+        c.beginPath();
+        c.moveTo(x + len, y);
+        c.lineTo(x + len - dir * head, y - head * 0.7);
+        c.lineTo(x + len - dir * head, y + head * 0.7);
+        c.closePath();
+        c.fill();
+        c.lineCap = 'butt';
+      }
+
+      function drawBallOn(c, cx, cy, rPx, i, massText, label) {
+        c.save();
+        const grad = c.createRadialGradient(cx - rPx * 0.35, cy - rPx * 0.35, rPx * 0.15, cx, cy, rPx);
+        grad.addColorStop(0, i === 1 ? '#f2909d' : '#7fb0e8');
+        grad.addColorStop(1, i === 1 ? '#d1495b' : '#2563a9');
+        c.fillStyle = grad;
+        c.strokeStyle = i === 1 ? '#8f2434' : '#123f73';
+        c.lineWidth = 2.5;
+        c.beginPath();
+        c.arc(cx, cy, rPx, 0, Math.PI * 2);
+        c.fill();
+        c.stroke();
+        c.fillStyle = '#ffffff';
+        c.font = 'bold ' + Math.max(11, rPx * 0.42) + 'px "Segoe UI", Arial';
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.fillText(massText, cx, cy + 1);
+        if (label) {
+          c.fillStyle = '#243447';
+          c.font = 'bold 13px "Segoe UI", Arial';
+          c.fillText(label, cx, cy + rPx + 16);
+        }
+        c.restore();
+      }
+
+      function initSim(root) {
+        const cfg = {
+          m1: parseFloat(root.dataset.m1),
+          v1: parseFloat(root.dataset.v1),
+          m2: parseFloat(root.dataset.m2),
+          v2: parseFloat(root.dataset.v2),
+          e: parseFloat(root.dataset.e)
+        };
+        const canvas = root.querySelector('canvas');
+        const ctx = canvas.getContext('2d');
+        const PXM = canvas.width / WORLD_W;
+        const runBtn = root.querySelector('[data-run]');
+        const resetBtn = root.querySelector('[data-reset]');
+        const runMsg = root.querySelector('[data-run-message]');
+
+        let sim = null;
+        let rafId = null;
+        let lastTs = null;
+
+        function stopRun() {
+          if (rafId) cancelAnimationFrame(rafId);
+          rafId = null;
+          sim = null;
+          lastTs = null;
+        }
+
+        function startRun() {
+          stopRun();
+          sim = {
+            x1: START_X1, x2: START_X2,
+            v1: cfg.v1, v2: cfg.v2,
+            r1: radiusOf(cfg.m1), r2: radiusOf(cfg.m2),
+            collided: false, stuck: false,
+            t: 0, tCollide: null,
+            finals: null
+          };
+          runMsg.textContent = 'Running…';
+          runMsg.className = 'run-message';
+          lastTs = null;
+          rafId = requestAnimationFrame(tick);
+        }
+
+        function tick(ts) {
+          if (!sim) return;
+          if (lastTs === null) lastTs = ts;
+          const dt = Math.min((ts - lastTs) / 1000, 0.033);
+          lastTs = ts;
+          stepSim(dt);
+          drawScene();
+          if (sim && sim.running !== false) {
+            rafId = requestAnimationFrame(tick);
+          }
+        }
+
+        function stepSim(dt) {
+          sim.t += dt;
+
+          if (!sim.collided) {
+            const gap = (sim.x2 - sim.r2) - (sim.x1 + sim.r1);
+            const closing = sim.v1 - sim.v2;
+            if (closing > 0 && gap <= closing * dt) {
+              const tc = Math.max(gap / closing, 0);
+              sim.x1 += sim.v1 * tc;
+              sim.x2 += sim.v2 * tc;
+              const { v1f, v2f } = resolveCollision(cfg.m1, sim.v1, cfg.m2, sim.v2, cfg.e);
+              sim.v1 = v1f;
+              sim.v2 = v2f;
+              sim.collided = true;
+              sim.stuck = cfg.e === 0;
+              sim.tCollide = sim.t;
+              sim.finals = { v1f: round2(v1f), v2f: round2(v2f) };
+              const rest = dt - tc;
+              sim.x1 += sim.v1 * rest;
+              sim.x2 += sim.v2 * rest;
+            } else {
+              sim.x1 += sim.v1 * dt;
+              sim.x2 += sim.v2 * dt;
+            }
+          } else {
+            sim.x1 += sim.v1 * dt;
+            sim.x2 += sim.v2 * dt;
+            if (sim.stuck) sim.x2 = sim.x1 + sim.r1 + sim.r2;
+          }
+
+          // Walls: balls stop at the track edges (arrows keep the finals).
+          if (sim.x1 - sim.r1 <= 0 && sim.v1 < 0) {
+            sim.x1 = sim.r1;
+            sim.v1 = 0;
+            if (sim.stuck) { sim.v2 = 0; sim.x2 = sim.x1 + sim.r1 + sim.r2; }
+          }
+          if (sim.x2 + sim.r2 >= WORLD_W && sim.v2 > 0) {
+            sim.x2 = WORLD_W - sim.r2;
+            sim.v2 = 0;
+            if (sim.stuck) { sim.v1 = 0; sim.x1 = sim.x2 - sim.r1 - sim.r2; }
+          }
+
+          const done =
+            (sim.collided && (sim.t - sim.tCollide > 3.2 || (sim.v1 === 0 && sim.v2 === 0))) ||
+            (!sim.collided && sim.t > 8);
+
+          if (done) {
+            sim.running = false;
+            runMsg.textContent = 'Run complete.';
+            runMsg.className = 'run-message good';
+            drawScene();
+          }
+        }
+
+        function drawScene() {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+          // Track and ruler
+          ctx.strokeStyle = '#7d8da0';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(0, TRACK_Y);
+          ctx.lineTo(canvas.width, TRACK_Y);
+          ctx.stroke();
+          ctx.fillStyle = '#93a3b5';
+          ctx.font = '11px "Segoe UI", Arial';
+          ctx.textAlign = 'center';
+          for (let m = 0; m <= WORLD_W; m++) {
+            const x = m * PXM;
+            ctx.beginPath();
+            ctx.moveTo(x, TRACK_Y);
+            ctx.lineTo(x, TRACK_Y + 8);
+            ctx.strokeStyle = '#93a3b5';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            if (m > 0 && m < WORLD_W) ctx.fillText(m + ' m', x, TRACK_Y + 22);
+          }
+
+          // Walls
+          ctx.fillStyle = '#b7c4d2';
+          ctx.fillRect(0, TRACK_Y - 74, 6, 74);
+          ctx.fillRect(canvas.width - 6, TRACK_Y - 74, 6, 74);
+
+          // Ball state (live sim or the trial's fixed setup)
+          let x1, x2, v1, v2;
+          if (sim) {
+            x1 = sim.x1; x2 = sim.x2; v1 = sim.v1; v2 = sim.v2;
+          } else {
+            x1 = START_X1; x2 = START_X2; v1 = cfg.v1; v2 = cfg.v2;
+          }
+          const r1 = radiusOf(cfg.m1), r2 = radiusOf(cfg.m2);
+          const y1 = TRACK_Y - r1 * PXM;
+          const y2 = TRACK_Y - r2 * PXM;
+
+          drawBallOn(ctx, x1 * PXM, y1, r1 * PXM, 1, cfg.m1.toFixed(1) + ' kg', 'Ball 1');
+          drawBallOn(ctx, x2 * PXM, y2, r2 * PXM, 2, cfg.m2.toFixed(1) + ' kg', 'Ball 2');
+
+          // Velocity arrows attached to each ball. After the collision the
+          // arrows keep showing the final velocities, even once a ball has
+          // stopped against a wall.
+          const dv1 = (sim && sim.collided) ? sim.finals.v1f : v1;
+          const dv2 = (sim && sim.collided) ? sim.finals.v2f : v2;
+
+          if (sim && sim.collided && sim.stuck) {
+            // Stuck pair: one shared arrow at the leading edge of the pair.
+            const leadX = dv1 >= 0 ? (x2 + r2) : (x1 - r1);
+            drawArrow(ctx, leadX * PXM, Math.min(y1, y2), dv1 * V_SCALE, '#b47d10');
+          } else {
+            drawArrow(ctx, x1 * PXM + Math.sign(dv1) * r1 * PXM, y1, dv1 * V_SCALE, '#d1495b');
+            drawArrow(ctx, x2 * PXM + Math.sign(dv2) * r2 * PXM, y2, dv2 * V_SCALE, '#2563a9');
+          }
+
+          ctx.font = 'bold 12px "Segoe UI", Arial';
+          ctx.textAlign = 'center';
+          if (Math.abs(dv1) > 0.005) {
+            ctx.fillStyle = '#8f2434';
+            ctx.fillText('v₁ = ' + fmtPlain(Math.abs(round2(dv1))) + ' m/s', x1 * PXM, y1 - r1 * PXM - 12);
+          }
+          if (Math.abs(dv2) > 0.005) {
+            ctx.fillStyle = '#123f73';
+            ctx.fillText('v₂ = ' + fmtPlain(Math.abs(round2(dv2))) + ' m/s', x2 * PXM, y2 - r2 * PXM - 12);
+          }
+
+          if (sim && sim.collided) {
+            ctx.fillStyle = '#1f8a5b';
+            ctx.font = 'bold 14px "Segoe UI", Arial';
+            ctx.textAlign = 'right';
+            ctx.fillText(sim.stuck ? 'Collision! The balls stick together.' : 'Collision!', canvas.width - 14, 26);
+          }
+
+          // Elasticity, bottom center
+          ctx.fillStyle = '#5d6f82';
+          ctx.font = 'bold 15px "Segoe UI", Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText('Elasticity: ' + Math.round(cfg.e * 100) + '%', canvas.width / 2, 188);
+        }
+
+        runBtn.addEventListener('click', startRun);
+        resetBtn.addEventListener('click', () => {
+          stopRun();
+          runMsg.textContent = '';
+          runMsg.className = 'run-message';
+          drawScene();
+        });
+
+        drawScene();
+      }
+
+      document.querySelectorAll('[data-sim]').forEach(initSim);
+
+      // Final-velocity self-check: when the entered speed and chosen arrow
+      // match the trial's actual final velocity, the cell locks into a
+      // plain value-and-arrow display like the given cells. Wrong entries
+      // get no feedback - the cell just stays editable.
+      document.querySelectorAll('[data-check]').forEach(cell => {
+        const num = cell.querySelector('.rec-num');
+        const radios = cell.querySelectorAll('.dir-choice input');
+        const target = parseFloat(cell.dataset.val);
+        const dir = cell.dataset.dir; // 'r' = right, 'l' = left
+
+        function check() {
+          const v = parseFloat(num.value);
+          let picked = null;
+          radios.forEach(r => { if (r.checked) picked = r.value; });
+          if (isFinite(v) && picked === dir && Math.abs(v - target) <= 0.051) {
+            cell.classList.add('confirmed');
+            cell.innerHTML = target.toFixed(1) + ' ' + (dir === 'r' ? '→' : '←');
+          }
+        }
+
+        num.addEventListener('input', check);
+        radios.forEach(r => r.addEventListener('change', check));
+      });
+    })();
+  </script>
 </body>
 </html>
