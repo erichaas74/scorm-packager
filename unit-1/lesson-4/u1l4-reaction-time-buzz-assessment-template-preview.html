@@ -1,0 +1,2567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unit 1 Lesson 4 - Reaction Time Kinematics Buzz Assessment</title>
+  <!--
+    Buzz assessment template with the lab's three reaction scenarios EMBEDDED
+    using the ORIGINAL lab graphics and audio (SVG hand + falling ruler scene,
+    perspective drag strip with detailed dragsters and light tree, scrolling
+    sprint track with articulated runners and the starter official, plus the
+    voice cues, engine rev, light beeps, and starter-gun shot). Buzz cannot
+    open linked/hosted files from a template, so everything lives inside this
+    file, driven by one shared script at the bottom.
+
+    Per the conversion guide: simulation graphics are kept as built - only
+    directions, redundant titles, and lab chrome (scoring panel, SCORM wiring,
+    walkthrough, notebook validation) were trimmed. If this template becomes
+    too large for Buzz to upload or handle, do NOT cut graphics: host the full
+    lab (index.html) and embed a link/iframe here instead.
+
+    Ten question placeholders (the a:question tags) load ten separate
+    Buzz questions IN ORDER, going down the page:
+      Level 1 - Falling Ruler:  Q1 MC equation   Q2 numeric fixed drop   Q3 essay benchmarks
+      Level 2 - Drag Racing:    Q4 numeric drive time   Q5 numeric fixed gap   Q6 essay acceleration gap
+      Level 3 - Elite Sprint:   Q7 MC equation   Q8 numeric fixed lag   Q9 essay visual vs auditory
+                                Q10 essay 0.100 s false-start rule
+
+    Physics matches the full lab: g = 9.81 m/s^2; dragsters at 40 m/s^2 over
+    300 m; sprinters at a steady 10 m/s over 50 m. Measured reaction times are
+    student-dependent and are NEVER auto-graded: the numeric Buzz questions use
+    fixed given values, and the essays ask students to cite their own trials.
+
+    Buzz setup: turn OFF randomize/shuffle question order (Buzz defaults to
+    random) and do NOT use one-question-per-page - each level's questions
+    must render together under that level's scenario.
+  -->
+  <style>
+    :root {
+      --bg: #eef2f5;
+      --panel: #ffffff;
+      --ink: #243447;
+      --muted: #5d6f82;
+      --line: #c9d3df;
+      --lvl1: #2563a9;
+      --lvl2: #b47d10;
+      --lvl3: #1f8a5b;
+      --danger: #c0392b;
+      --shadow: 0 8px 24px rgba(36, 52, 71, 0.12);
+      /* original lab hand tones */
+      --skin-base: #f7a76c;
+      --line-color: #8c4a23;
+      --shadow-tone: #e58a4d;
+      --deep-shadow: #c47641;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    .page {
+      width: min(1080px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 24px 0 34px;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    .title-card,
+    .level-card,
+    .finish-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      padding: 18px 20px;
+      margin-bottom: 22px;
+    }
+
+    .title-card h1 {
+      font-size: clamp(1.5rem, 4vw, 2.2rem);
+      line-height: 1.15;
+      color: #1f2d3d;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      line-height: 1.55;
+      max-width: 880px;
+    }
+
+    .level-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .level-badge {
+      font-size: 0.8rem;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #ffffff;
+      border-radius: 999px;
+      padding: 5px 14px;
+      background: var(--lvl1);
+    }
+
+    .level-badge.lvl2 { background: var(--lvl2); }
+    .level-badge.lvl3 { background: var(--lvl3); }
+
+    .level-head h2 { font-size: 1.25rem; color: #1f2d3d; }
+
+    .signal-chip {
+      margin-left: auto;
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 12px;
+      background: #f6f9fc;
+    }
+
+    .task-line {
+      color: var(--muted);
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    /* ===== Stage frames ===== */
+    .stage-frame {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #020617;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .sim-canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    /* ===== Original Level 1 falling-ruler scene ===== */
+    .l1-stage {
+      position: relative;
+      aspect-ratio: 2 / 1;
+      background: radial-gradient(circle at 20% 0%, #1f3a57 0%, #142033 48%, #0b1220 100%);
+      --ruler-drop: 0px;
+    }
+
+    .hand-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      max-width: none;
+      opacity: 0.97;
+      overflow: visible;
+      filter: drop-shadow(-10px 12px 12px rgba(0, 0, 0, 0.38));
+      pointer-events: none;
+    }
+
+    #ruler-measure {
+      transform: translate(400px, calc(154px + var(--ruler-drop)));
+      transform-origin: top center;
+      filter: drop-shadow(-2px 8px 8px rgba(0, 0, 0, 0.34));
+    }
+
+    .l1-stage.waiting #ruler-measure {
+      animation: rulerReady 0.5s ease-in-out infinite alternate;
+      filter: drop-shadow(-2px 8px 8px rgba(0, 0, 0, 0.34)) drop-shadow(0 0 14px rgba(250, 204, 21, 0.62));
+    }
+
+    .finger-group,
+    .thumb-group {
+      transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+      transform: translate(var(--base-x), var(--base-y)) scaleX(var(--w-factor, 1));
+    }
+
+    .hand-svg.closed #index-finger { transform: translate(475px, 180px) scaleX(var(--w-factor, 1)) translateY(8px) rotate(-2deg); }
+    .hand-svg.closed #middle-finger { transform: translate(465px, 210px) scaleX(var(--w-factor, 1)) translateY(3px) rotate(-1deg); }
+    .hand-svg.closed #ring-finger { transform: translate(465px, 240px) scaleX(var(--w-factor, 1)) translateY(-3px) rotate(1deg); }
+    .hand-svg.closed #pinky-finger { transform: translate(455px, 270px) scaleX(var(--w-factor, 1)) translateY(-8px) rotate(2deg); }
+    .hand-svg.closed #thumb { transform: translate(490px, 180px) scaleX(var(--w-factor, 0.8)) translateY(3px) rotate(-5deg); }
+
+    .segmented-rect { vector-effect: non-scaling-stroke; }
+
+    @keyframes rulerReady {
+      from { transform: translate(398px, calc(154px + var(--ruler-drop))) rotate(-0.35deg); }
+      to { transform: translate(402px, calc(154px + var(--ruler-drop))) rotate(0.35deg); }
+    }
+
+    /* ===== Original track-signal overlay (levels 2 and 3) ===== */
+    .track-signal {
+      position: absolute;
+      left: 50%;
+      top: 36%;
+      transform: translate(-50%, -50%) scale(0.96);
+      z-index: 6;
+      min-width: min(88%, 640px);
+      padding: 18px 24px;
+      border: 2px solid rgba(226, 232, 240, 0.45);
+      border-radius: 8px;
+      background: rgba(2, 6, 23, 0.72);
+      box-shadow: 0 18px 40px rgba(2, 6, 23, 0.45);
+      font-size: clamp(1.4rem, 4vw, 3.4rem);
+      font-weight: 900;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      text-align: center;
+      color: #e2e8f0;
+      text-shadow: 0 4px 14px rgba(0, 0, 0, 0.7);
+      opacity: 0;
+      transition: opacity 0.16s ease, transform 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+      pointer-events: none;
+    }
+
+    .track-signal.marks,
+    .track-signal.engines {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .track-signal.marks { color: #bfdbfe; border-color: #60a5fa; }
+
+    .track-signal.engines {
+      color: #fed7aa;
+      border-color: #fb923c;
+      font-size: clamp(1.1rem, 3vw, 2.4rem);
+    }
+
+    /* ===== On-scene Start overlay (styled like the original lab prompt) ===== */
+    .stage-start {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 7;
+      width: min(88%, 540px);
+      padding: 16px 20px;
+      border: 2px solid rgba(250, 204, 21, 0.65);
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.88);
+      box-shadow: 0 16px 32px rgba(2, 6, 23, 0.35);
+      color: #facc15;
+      font: inherit;
+      cursor: pointer;
+      text-align: center;
+      display: grid;
+      gap: 6px;
+      animation: startPulse 0.9s ease-in-out infinite alternate;
+    }
+
+    .stage-start:hover {
+      border-color: #facc15;
+      background: rgba(15, 23, 42, 0.94);
+    }
+
+    .stage-start.hidden { display: none; }
+
+    .stage-start-title {
+      font-size: 1.15rem;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .stage-start-sub {
+      color: #fde68a;
+      font-weight: 600;
+      font-size: 0.95rem;
+      line-height: 1.45;
+    }
+
+    @keyframes startPulse {
+      from { transform: translate(-50%, -50%) scale(1); }
+      to { transform: translate(-50%, -50%) scale(1.02); }
+    }
+
+    /* ===== Controls / readouts ===== */
+    .sim-status {
+      min-height: 22px;
+      margin: 8px 2px 2px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .sim-status.warn { color: var(--danger); }
+
+    .sim-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin: 8px 0 4px;
+    }
+
+    .sim-btn {
+      font: inherit;
+      font-weight: 800;
+      color: #ffffff;
+      background: #2563a9;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 18px;
+      cursor: pointer;
+    }
+
+    .sim-btn.secondary {
+      color: var(--ink);
+      background: #e6edf5;
+      border: 1px solid var(--line);
+    }
+
+    .sim-btn:disabled { opacity: 0.45; cursor: default; }
+
+    .readout-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 10px 0 4px;
+    }
+
+    .readout {
+      min-width: 130px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 7px 12px;
+      background: #f8fbfe;
+    }
+
+    .readout .lab {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .readout .val {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #16324d;
+    }
+
+    .trial-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 8px 0 2px;
+      padding: 0;
+      list-style: none;
+    }
+
+    .trial-list li {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #1f2d3d;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 12px;
+      background: #f2f7fb;
+    }
+
+    .copy-btn {
+      font: inherit;
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #16324d;
+      background: #dbe9f6;
+      border: 1px solid #b9d2ea;
+      border-radius: 999px;
+      padding: 5px 14px;
+      cursor: pointer;
+    }
+
+    .questions-head {
+      margin: 18px 0 4px;
+      font-size: 0.85rem;
+      font-weight: 900;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .q-slot {
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin: 10px 0;
+      background: #fbfdff;
+    }
+
+    .q-tag {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 900;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .finish-card { text-align: center; }
+
+    .finish-card h2 { margin-bottom: 6px; }
+
+    .finish-card p { color: var(--muted); }
+  </style>
+
+  <style id="buzz-preview-question-styles">
+    .buzz-preview-question {
+      border: 1px solid #c8d3e1;
+      border-left: 5px solid #2563a9;
+      border-radius: 8px;
+      padding: 12px;
+      margin: 8px 0;
+      background: #fff;
+      color: #172033;
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.45;
+      box-shadow: 0 6px 18px rgba(23, 32, 51, 0.08);
+    }
+    .buzz-preview-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+      color: #1f3b57;
+    }
+    .buzz-preview-head strong {
+      font-size: 0.95rem;
+    }
+    .buzz-preview-head span {
+      color: #5d687c;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+    .buzz-preview-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .buzz-preview-chip {
+      border: 1px solid #d8e0ec;
+      border-radius: 999px;
+      padding: 3px 8px;
+      background: #f3f7fc;
+      color: #334155;
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+    .buzz-preview-prompt {
+      margin: 0 0 10px;
+      color: #111827;
+      font-size: 0.98rem;
+      font-weight: 700;
+    }
+    .buzz-preview-details {
+      display: grid;
+      gap: 6px;
+    }
+    .buzz-preview-option {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr);
+      gap: 8px;
+      align-items: start;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 8px;
+      background: #f8fafc;
+    }
+    .buzz-preview-option span {
+      display: inline-flex;
+      width: 24px;
+      height: 24px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: #dbeafe;
+      color: #1e3a8a;
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+    .buzz-preview-option.correct {
+      border-color: #86efac;
+      background: #f0fdf4;
+    }
+    .buzz-preview-option.correct span {
+      background: #16a34a;
+      color: #fff;
+    }
+    .buzz-preview-option p,
+    .buzz-preview-detail {
+      margin: 0;
+      color: #1f2937;
+      font-size: 0.92rem;
+    }
+    .buzz-preview-feedback {
+      border-left: 3px solid #93c5fd;
+      padding: 6px 8px;
+      background: #eff6ff;
+      color: #1e3a8a;
+      font-size: 0.86rem;
+    }
+    .buzz-preview-placeholder {
+      border: 1px dashed #cbd5e1;
+      border-radius: 6px;
+      padding: 10px;
+      color: #64748b;
+      background: #f8fafc;
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <div class="title-card">
+      <h1>Reaction Time Kinematics Lab Assessment</h1>
+      <p class="subtitle">
+        Work from top to bottom. Each level has its own reaction scenario: run at least
+        <strong>3 clean trials</strong>, note the readouts, then answer that level's questions
+        directly below it. Your recorded values are the evidence for the written answers.
+        Turn your sound on.
+      </p>
+    </div>
+
+    <!-- ================= LEVEL 1 : FALLING RULER ================= -->
+    <div class="level-card">
+      <div class="level-head">
+        <span class="level-badge">Level 1</span>
+        <h2>Falling Ruler</h2>
+        <span class="signal-chip">Visual signal</span>
+      </div>
+      <p class="task-line">
+        Catch the falling ruler and read the catch at the green line. Run 3 clean trials,
+        then answer Questions 1&ndash;3.
+      </p>
+
+      <div class="stage-frame l1-stage" id="r-stage">
+        <svg id="hand-graphic" class="hand-svg" viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <g id="finger-template">
+              <rect class="segmented-rect" x="-70" y="-10" width="75" height="26" rx="10" />
+              <rect class="segmented-rect" x="-130" y="-10" width="65" height="23" rx="10" />
+              <rect class="segmented-rect" x="-185" y="-10" width="60" height="20" rx="10" />
+              <path d="M-75,-6 Q-68,0 -75,6" fill="none" stroke="var(--line-color)" stroke-width="1.5" opacity="0.4" />
+              <path d="M-145,-6 Q-138,0 -145,6" fill="none" stroke="var(--line-color)" stroke-width="1.5" opacity="0.4" />
+              <g fill="none" stroke="var(--line-color)" stroke-width="1" opacity="0.5">
+                <path d="M-175,-2 C-178,-2 -178,2 -175,2" />
+                <path d="M-170,-5 C-180,-5 -180,5 -170,5" />
+                <path d="M-165,-8 C-185,-8 -185,8 -165,8" />
+              </g>
+            </g>
+            <g id="thumb-template">
+              <rect class="segmented-rect" x="-70" y="-15" width="100" height="45" rx="15" />
+              <rect class="segmented-rect" x="-140" y="-10" width="80" height="38" rx="15" />
+              <ellipse class="segmented-rect" cx="-70" cy="7" rx="20" ry="22" stroke="var(--line-color)" stroke-opacity="0.3" />
+              <path d="M-75,-3 Q-65,7 -75,17" fill="none" stroke="var(--line-color)" stroke-width="1.5" opacity="0.5" />
+              <path d="M-65,0 Q-58,7 -65,14" fill="none" stroke="var(--line-color)" stroke-width="1.5" opacity="0.5" />
+              <ellipse class="segmented-rect" cx="26" cy="6" rx="46" ry="28" stroke="var(--line-color)" stroke-opacity="0.3" />
+              <path d="M15,-8 Q30,6 15,20" fill="none" stroke="var(--line-color)" stroke-width="1.5" opacity="0.5" />
+              <path d="M30,-2 Q42,6 30,14" fill="none" stroke="var(--line-color)" stroke-width="1.5" opacity="0.5" />
+              <rect x="-138" y="-7" width="22" height="30" rx="10" fill="#fff" opacity="0.3" stroke="none" pointer-events="none" />
+              <path d="M-116,-7 Q-126,8 -116,23" fill="none" stroke="var(--line-color)" stroke-width="1.5" opacity="0.5" />
+            </g>
+            <filter id="soft-shadow" x="-10%" y="-10%" width="120%" height="120%">
+              <feGaussianBlur in="SourceAlpha" stdDeviation="2" />
+              <feOffset dx="1" dy="1" />
+              <feComponentTransfer><feFuncA type="linear" slope="0.1" /></feComponentTransfer>
+              <feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
+          </defs>
+          <g filter="url(#soft-shadow)">
+            <g id="index-finger" class="finger-group" style="--base-x: 475px; --base-y: 180px; --w-factor: 1.0;"><use href="#finger-template" fill="var(--deep-shadow)" stroke="var(--line-color)" stroke-width="1.5" /></g>
+            <g id="middle-finger" class="finger-group" style="--base-x: 465px; --base-y: 210px; --w-factor: 1.1;"><use href="#finger-template" fill="var(--shadow-tone)" stroke="var(--line-color)" stroke-width="1.5" /></g>
+            <g id="ring-finger" class="finger-group" style="--base-x: 465px; --base-y: 240px; --w-factor: 1.05;"><use href="#finger-template" fill="var(--shadow-tone)" stroke="var(--line-color)" stroke-width="1.5" /></g>
+            <g id="pinky-finger" class="finger-group" style="--base-x: 455px; --base-y: 270px; --w-factor: 0.85;"><use href="#finger-template" fill="var(--skin-base)" stroke="var(--line-color)" stroke-width="2" /></g>
+            <g id="palm-base">
+              <rect class="segmented-rect" x="590" y="175" width="260" height="100" fill="var(--skin-base)" stroke="var(--line-color)" stroke-width="2" />
+              <rect class="segmented-rect" x="450" y="160" width="180" height="130" rx="25" fill="var(--skin-base)" stroke="var(--line-color)" stroke-width="2" />
+              <path d="M485,290 Q525,240 520,180" fill="none" stroke="var(--line-color)" stroke-width="1.5" opacity="0.3" />
+              <path d="M465,185 Q525,205 590,185" fill="none" stroke="var(--line-color)" stroke-width="1.5" opacity="0.3" />
+              <path d="M605,165 Q590,225 605,285" fill="none" stroke="var(--line-color)" stroke-width="1.5" opacity="0.4" />
+              <path d="M620,165 Q605,225 620,285" fill="none" stroke="var(--line-color)" stroke-width="1.5" opacity="0.2" />
+            </g>
+            <g>
+              <g id="ruler-measure">
+                <rect id="ruler-body" x="0" y="0" width="66" height="2100" fill="#e0c08b" stroke="#926733" stroke-width="2" />
+                <rect id="ruler-core" x="2" y="0" width="4" height="2100" fill="#f4dab0" />
+                <g id="ruler-scale" stroke="#1c1917" stroke-width="2"></g>
+              </g>
+            </g>
+            <g id="thumb" class="thumb-group" style="--base-x: 490px; --base-y: 180px; --w-factor: 0.9;"><use href="#thumb-template" fill="var(--skin-base)" stroke="var(--line-color)" stroke-width="2" /></g>
+          </g>
+        </svg>
+        <button type="button" class="stage-start" id="r-overlay">
+          <span class="stage-start-title">Start Trial</span>
+          <span class="stage-start-sub">Click this button to start. Your signal: the ruler <strong>DROPS</strong>. The instant it starts to fall, click anywhere on the scene to catch it.</span>
+        </button>
+      </div>
+      <div id="r-status" class="sim-status">Ready.</div>
+      <div class="sim-controls">
+        <button type="button" class="sim-btn secondary" id="r-reset">Reset Level</button>
+      </div>
+      <div class="readout-row">
+        <div class="readout"><span class="lab">Ruler drop</span><span class="val" id="r-drop">--</span></div>
+        <div class="readout"><span class="lab">Reaction time</span><span class="val" id="r-rt">--</span></div>
+      </div>
+      <ul class="trial-list" id="r-trials"></ul>
+      <button type="button" class="copy-btn" id="r-copy">Copy Level 1 trial data</button>
+
+      <div class="questions-head">Level 1 questions</div>
+      <div class="q-slot"><span class="q-tag">Question 1</span>
+    <div class="buzz-preview-question" data-buzz-preview-question="1">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 1</strong>
+        <span>MC - 1 point</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: MC</span><span class="buzz-preview-chip">Score: 1</span></div>
+      <div class="buzz-preview-prompt">1) In Level 1, the ruler starts at rest and falls under gravity during your reaction time. Which equation models how far it falls?</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>d = vt</p></div>
+<div class="buzz-preview-option correct"><span>B</span><p>d = 1/2 g t^2</p></div>
+<div class="buzz-preview-option"><span>C</span><p>v = a t</p></div>
+<div class="buzz-preview-option"><span>D</span><p>v^2 = 2 g d</p></div></div>
+    </div></div>
+      <div class="q-slot"><span class="q-tag">Question 2</span>
+    <div class="buzz-preview-question" data-buzz-preview-question="2">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 2</strong>
+        <span>F, Number - 1 point</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: F, Number</span><span class="buzz-preview-chip">Score: 1</span></div>
+      <div class="buzz-preview-prompt">2) During one Level 1 trial, the ruler falls 19.6 cm before the student catches it. What was that student&#39;s reaction time? ________ s</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>0.195..0.205</p></div></div>
+    </div></div>
+      <div class="q-slot"><span class="q-tag">Question 3</span>
+    <div class="buzz-preview-question" data-buzz-preview-question="3">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 3</strong>
+        <span>E - 2 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: E</span><span class="buzz-preview-chip">Score: 2</span><span class="buzz-preview-chip">Height: 200</span></div>
+      <div class="buzz-preview-prompt">3) What was your fastest Level 1 reaction time? Was it closer to the average human visual reaction time (about 0.25 s) or to an elite athlete&#39;s reaction time (about 0.15 s)? Use your recorded trial values as evidence.</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-feedback"><strong>Always</strong> Your response is graded on the trial values you cite and the comparison you make to the two benchmarks.</div>
+<div class="buzz-preview-option"><span>A</span><p>Full credit: States their fastest measured reaction time from the Level 1 trials, compares it numerically to the 0.25 s average and 0.15 s elite benchmarks, and says which benchmark it is closer to.</p></div>
+<p class="buzz-preview-detail">Partial credit: Gives a plausible reaction time and picks a benchmark but cites no actual trial values, or compares to only one benchmark.</p>
+<p class="buzz-preview-detail">No credit: Gives no measured value, gives an impossible value (under 0.1 s or over 1 s) with no explanation, or makes no comparison.</p></div>
+    </div></div>
+    </div>
+
+    <!-- ================= LEVEL 2 : DRAG RACING ================= -->
+    <div class="level-card">
+      <div class="level-head">
+        <span class="level-badge lvl2">Level 2</span>
+        <h2>Drag Racing</h2>
+        <span class="signal-chip">Visual signal</span>
+      </div>
+      <p class="task-line">
+        Your dragster launches when you click; the computer has its own reaction time. The race
+        freezes when the leader crosses the 300 m finish line and the readouts show the gap.
+        Run 3 clean races, then answer Questions 4&ndash;6.
+      </p>
+
+      <div class="stage-frame" id="d-stage">
+        <canvas id="d-canvas" class="sim-canvas" width="800" height="400"></canvas>
+        <div id="d-signal" class="track-signal"></div>
+        <button type="button" class="stage-start" id="d-overlay">
+          <span class="stage-start-title">Start Race</span>
+          <span class="stage-start-sub">Click this button to start. Your signal: the bottom light on the tree turns <strong>GREEN</strong>. The instant it does, click anywhere on the scene to launch your dragster.</span>
+        </button>
+      </div>
+      <div id="d-status" class="sim-status">Ready.</div>
+      <div class="sim-controls">
+        <button type="button" class="sim-btn secondary" id="d-reset">Reset Level</button>
+      </div>
+      <div class="readout-row">
+        <div class="readout"><span class="lab">Your RT</span><span class="val" id="d-rt">--</span></div>
+        <div class="readout"><span class="lab">Computer RT</span><span class="val" id="d-opp">--</span></div>
+        <div class="readout"><span class="lab">Gap at finish</span><span class="val" id="d-gap">--</span></div>
+      </div>
+      <ul class="trial-list" id="d-trials"></ul>
+      <button type="button" class="copy-btn" id="d-copy">Copy Level 2 trial data</button>
+
+      <div class="questions-head">Level 2 questions</div>
+      <div class="q-slot"><span class="q-tag">Question 4</span>
+    <div class="buzz-preview-question" data-buzz-preview-question="4">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 4</strong>
+        <span>F, Number - 1 point</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: F, Number</span><span class="buzz-preview-chip">Score: 1</span></div>
+      <div class="buzz-preview-prompt">4) A dragster accelerates from rest at 40 m/s^2 all the way down the 300 m strip. How many seconds of driving does it take to reach the finish line? ________ s</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>3.80..3.95</p></div></div>
+    </div></div>
+      <div class="q-slot"><span class="q-tag">Question 5</span>
+    <div class="buzz-preview-question" data-buzz-preview-question="5">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 5</strong>
+        <span>F, Number - 1 point</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: F, Number</span><span class="buzz-preview-chip">Score: 1</span></div>
+      <div class="buzz-preview-prompt">5) In one Level 2 race, you react in 0.400 s and the computer reacts in 0.250 s. Both dragsters then accelerate at 40 m/s^2. What is the gap between the two cars, in meters, at the instant the leading car crosses the 300 m finish line? ________ m</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>22.0..24.0</p></div></div>
+    </div></div>
+      <div class="q-slot"><span class="q-tag">Question 6</span>
+    <div class="buzz-preview-question" data-buzz-preview-question="6">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 6</strong>
+        <span>E - 2 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: E</span><span class="buzz-preview-chip">Score: 2</span><span class="buzz-preview-chip">Height: 220</span></div>
+      <div class="buzz-preview-prompt">6) In a constant-speed race, a reaction-time head start stays the same distance for the whole race. In your Level 2 drag races, the head start grew into a much larger gap by the finish line, even though both cars accelerate at exactly the same rate. Explain why, using the gap values from your recorded trials as evidence.</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-feedback"><strong>Always</strong> Your response is graded on your use of recorded gap values and your reasoning about acceleration.</div>
+<div class="buzz-preview-option"><span>A</span><p>Full credit: Cites at least one recorded gap value, and explains that while both cars accelerate, the car that launched first is always moving faster than the trailing car at every moment, so the distance between them keeps growing until the finish instead of staying fixed.</p></div>
+<p class="buzz-preview-detail">Partial credit: Correctly says the gap grows because the cars are speeding up, but cites no trial values or does not explain why the leader is always moving faster than the trailer.</p>
+<p class="buzz-preview-detail">No credit: Claims the gap stays the same, attributes the gap to different accelerations or top speeds, or gives no usable explanation.</p></div>
+    </div></div>
+    </div>
+
+    <!-- ================= LEVEL 3 : ELITE SPRINT ================= -->
+    <div class="level-card">
+      <div class="level-head">
+        <span class="level-badge lvl3">Level 3</span>
+        <h2>Elite Sprint</h2>
+        <span class="signal-chip">Auditory signal &mdash; sound on</span>
+      </div>
+      <p class="task-line">
+        Reacting in under 0.100 s counts as a false start. Both sprinters run 50 m at 10 m/s;
+        the readouts show who leads at the finish. Run 3 clean races, then answer
+        Questions 7&ndash;10.
+      </p>
+
+      <div class="stage-frame" id="s-stage">
+        <canvas id="s-canvas" class="sim-canvas" width="800" height="400"></canvas>
+        <div id="s-signal" class="track-signal"></div>
+        <button type="button" class="stage-start" id="s-overlay">
+          <span class="stage-start-title">Start Race</span>
+          <span class="stage-start-sub">Click this button to start. Your signal: after "On your marks&hellip; Set&hellip;" the starter <strong>GUN FIRES</strong> (sound on). The instant you hear the bang, click anywhere on the scene to launch.</span>
+        </button>
+      </div>
+      <div id="s-status" class="sim-status">Ready.</div>
+      <div class="sim-controls">
+        <button type="button" class="sim-btn secondary" id="s-reset">Reset Level</button>
+      </div>
+      <div class="readout-row">
+        <div class="readout"><span class="lab">Your RT</span><span class="val" id="s-rt">--</span></div>
+        <div class="readout"><span class="lab">Opponent RT</span><span class="val" id="s-opp">--</span></div>
+        <div class="readout"><span class="lab">Lead at finish</span><span class="val" id="s-lead">--</span></div>
+      </div>
+      <ul class="trial-list" id="s-trials"></ul>
+      <button type="button" class="copy-btn" id="s-copy">Copy Level 3 trial data</button>
+
+      <div class="questions-head">Level 3 questions</div>
+      <div class="q-slot"><span class="q-tag">Question 7</span>
+    <div class="buzz-preview-question" data-buzz-preview-question="7">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 7</strong>
+        <span>MC - 1 point</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: MC</span><span class="buzz-preview-chip">Score: 1</span></div>
+      <div class="buzz-preview-prompt">7) In Level 3, both sprinters run the whole race at a steady 10 m/s. Which equation gives the distance a sprinter covers in time t?</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>d = 1/2 g t^2</p></div>
+<div class="buzz-preview-option correct"><span>B</span><p>d = v t</p></div>
+<div class="buzz-preview-option"><span>C</span><p>v = a t</p></div>
+<div class="buzz-preview-option"><span>D</span><p>d = 1/2 a t^2</p></div></div>
+    </div></div>
+      <div class="q-slot"><span class="q-tag">Question 8</span>
+    <div class="buzz-preview-question" data-buzz-preview-question="8">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 8</strong>
+        <span>F, Number - 1 point</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: F, Number</span><span class="buzz-preview-chip">Score: 1</span></div>
+      <div class="buzz-preview-prompt">8) Both sprinters run at a steady 10.0 m/s. The opponent reacts in 0.150 s and you react in 0.300 s. By how many meters does the opponent lead at the moment they cross the finish line? ________ m</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>1.4..1.6</p></div></div>
+    </div></div>
+      <div class="q-slot"><span class="q-tag">Question 9</span>
+    <div class="buzz-preview-question" data-buzz-preview-question="9">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 9</strong>
+        <span>E - 2 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: E</span><span class="buzz-preview-chip">Score: 2</span><span class="buzz-preview-chip">Height: 200</span></div>
+      <div class="buzz-preview-prompt">9) Levels 1 and 2 used visual signals (a released ruler, a green light). Level 3 used a sound (the starter gun). Were your visual and auditory reaction times different? Use example values from your recorded trials.</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-feedback"><strong>Always</strong> Your response is graded on the trial values you cite from both signal types and the comparison you make between them.</div>
+<div class="buzz-preview-option"><span>A</span><p>Full credit: Cites at least one visual reaction time (Level 1 or 2) and one auditory reaction time (Level 3), states whether they differ and by roughly how much, and draws a reasonable conclusion about which signal they responded to faster.</p></div>
+<p class="buzz-preview-detail">Partial credit: Makes a correct comparison but cites values from only one signal type, or cites values without stating a conclusion.</p>
+<p class="buzz-preview-detail">No credit: Cites no trial values, or the conclusion contradicts the values given.</p></div>
+    </div></div>
+      <div class="q-slot"><span class="q-tag">Question 10</span>
+    <div class="buzz-preview-question" data-buzz-preview-question="10">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 10</strong>
+        <span>E - 2 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: E</span><span class="buzz-preview-chip">Score: 2</span><span class="buzz-preview-chip">Height: 200</span></div>
+      <div class="buzz-preview-prompt">10) In Level 3, reacting in less than 0.100 s counts as a false start, just like in real track events. Why are Olympic sprinters disqualified for reacting in less than 0.100 s, and what does that rule show about human limits?</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-feedback"><strong>Always</strong> Your response is graded on connecting the 0.100 s rule to the limits of human reaction.</div>
+<div class="buzz-preview-option"><span>A</span><p>Full credit: Explains that about 0.1 s is the minimum time for a human to hear the gun, process the signal, and start moving, so any faster start must be anticipation or guessing rather than a true reaction, and connects this to a biological limit on nerve-signal and muscle-activation time.</p></div>
+<p class="buzz-preview-detail">Partial credit: Says a faster start means the sprinter guessed or jumped early, but does not connect it to the time the body needs to process a signal.</p>
+<p class="buzz-preview-detail">No credit: Says faster reactions are simply better, treats 0.100 s as an arbitrary rule with no physical meaning, or gives no explanation.</p></div>
+    </div></div>
+    </div>
+
+    <div class="finish-card">
+      <h2>Before you finish</h2>
+      <p>Scroll back up and check that every question has an answer, then submit this assessment in Buzz.</p>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    /* ================= CONSTANTS (same physics as the full lab) ================= */
+    var G = 9.81;
+    var RULER_TOTAL_CM = 300;
+    var RULER_PX_PER_CM = 7;
+    var RULER_MISS_SECONDS = Math.sqrt((2 * (RULER_TOTAL_CM / 100)) / G);
+    var REACTION_MISS_SECONDS = 3;
+    var DRAG_ACCEL = 40.0;
+    var DRAG_FINISH_DISTANCE = 300;
+    var DRAG_TRAVEL = Math.sqrt(2 * DRAG_FINISH_DISTANCE / DRAG_ACCEL);
+    var RUNNER_ACCEL = 6.0;
+    var RUNNER_TOP_SPEED = 10.0;
+    var TRACK_DISTANCE = 50;
+
+    var muzzleFlashStart = 0;
+    var MUZZLE_FLASH_DURATION = 250;
+
+    function $(id) { return document.getElementById(id); }
+    function nowMs() { return (window.performance && performance.now) ? performance.now() : Date.now(); }
+    function fmtS(v) { return v.toFixed(3) + ' s'; }
+    function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function smoothstep(t) { return t * t * (3 - 2 * t); }
+
+    function setStatus(elm, text, warn) {
+      elm.textContent = text;
+      elm.classList.toggle('warn', !!warn);
+    }
+
+    function renderTrials(listEl, items) {
+      listEl.innerHTML = '';
+      for (var i = 0; i < items.length; i++) {
+        var li = document.createElement('li');
+        li.textContent = 'Trial ' + (i + 1) + ': ' + items[i];
+        listEl.appendChild(li);
+      }
+    }
+
+    function copyText(text, btn) {
+      var done = function () {
+        var old = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(function () { btn.textContent = old; }, 1400);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text, done); });
+      } else {
+        fallbackCopy(text, done);
+      }
+    }
+
+    function fallbackCopy(text, done) {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (err) { /* ignore */ }
+      document.body.removeChild(ta);
+      done();
+    }
+
+    /* ================= AUDIO (ported from the full lab) ================= */
+    var gunAudioCtx = null;
+
+    function warmAudioCtx() {
+      try {
+        if (!gunAudioCtx) gunAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (gunAudioCtx.state === 'suspended') gunAudioCtx.resume();
+      } catch (err) { gunAudioCtx = null; }
+    }
+
+    function playGunshot() {
+      if (!gunAudioCtx) return;
+      try {
+        var ctx = gunAudioCtx;
+        var t = ctx.currentTime;
+        var dur = 0.12;
+        var buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
+        var data = buf.getChannelData(0);
+        for (var i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.02));
+        var src = ctx.createBufferSource();
+        src.buffer = buf;
+        var bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass'; bp.frequency.value = 800; bp.Q.value = 0.6;
+        var comp = ctx.createDynamicsCompressor();
+        comp.threshold.value = -20; comp.ratio.value = 12;
+        var gain = ctx.createGain();
+        gain.gain.setValueAtTime(1.0, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + dur);
+        src.connect(bp); bp.connect(comp); comp.connect(gain); gain.connect(ctx.destination);
+        src.start(t); src.stop(t + dur);
+        var osc = ctx.createOscillator();
+        osc.type = 'sine'; osc.frequency.setValueAtTime(80, t); osc.frequency.exponentialRampToValueAtTime(30, t + 0.15);
+        var oscGain = ctx.createGain();
+        oscGain.gain.setValueAtTime(0.6, t); oscGain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+        osc.connect(oscGain); oscGain.connect(ctx.destination);
+        osc.start(t); osc.stop(t + 0.15);
+      } catch (err) { /* audio blocked */ }
+    }
+
+    function playStarterTone(freq, duration) {
+      if (!gunAudioCtx) return;
+      try {
+        var ctx = gunAudioCtx;
+        var t = ctx.currentTime;
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(freq, t);
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.exponentialRampToValueAtTime(0.16, t + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + duration + 0.02);
+      } catch (err) { /* audio blocked */ }
+    }
+
+    function speakCue(text, options, onDone) {
+      options = options || {};
+      var fallbackDelay = options.fallbackDelay || 1000;
+      var speechFallbackId = null;
+      if (!('speechSynthesis' in window)) {
+        if (onDone) setTimeout(onDone, fallbackDelay);
+        return;
+      }
+      try {
+        window.speechSynthesis.cancel();
+        var completed = false;
+        var utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = options.rate || 1;
+        utterance.pitch = options.pitch || 1;
+        utterance.volume = options.volume || 1;
+        utterance.onend = utterance.onerror = function () {
+          if (completed) return;
+          completed = true;
+          if (speechFallbackId) clearTimeout(speechFallbackId);
+          if (onDone) onDone();
+        };
+        window.speechSynthesis.speak(utterance);
+        if (onDone) {
+          speechFallbackId = setTimeout(function () {
+            if (completed) return;
+            completed = true;
+            onDone();
+          }, fallbackDelay);
+        }
+      } catch (err) {
+        if (onDone) setTimeout(onDone, fallbackDelay);
+      }
+    }
+
+    function playStarterCue(text) {
+      if (text === 'Set') playStarterTone(620, 0.18);
+      speakCue(text, {
+        rate: text === 'On your marks' ? 1.18 : 0.88,
+        pitch: 0.82,
+        fallbackDelay: text === 'On your marks' ? 900 : 500
+      });
+    }
+
+    function playEngineRev() {
+      if (!gunAudioCtx) return;
+      try {
+        var ctx = gunAudioCtx;
+        var t = ctx.currentTime;
+        var duration = 2.2;
+        var master = ctx.createGain();
+        master.gain.setValueAtTime(0.0001, t);
+        master.gain.exponentialRampToValueAtTime(0.42, t + 0.08);
+        master.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+        master.connect(ctx.destination);
+        for (var i = 0; i < 3; i++) {
+          var osc = ctx.createOscillator();
+          osc.type = i === 0 ? 'sawtooth' : 'square';
+          osc.frequency.setValueAtTime(55 + i * 11, t);
+          osc.frequency.exponentialRampToValueAtTime(150 + i * 28, t + duration * 0.82);
+          osc.connect(master);
+          osc.start(t);
+          osc.stop(t + duration);
+        }
+        var thump = ctx.createOscillator();
+        thump.type = 'sine';
+        thump.frequency.setValueAtTime(42, t);
+        thump.frequency.exponentialRampToValueAtTime(88, t + duration * 0.75);
+        thump.connect(master);
+        thump.start(t);
+        thump.stop(t + duration);
+      } catch (err) { /* audio blocked */ }
+    }
+
+    function playLightBeep(isGreen) {
+      if (!gunAudioCtx) return;
+      try {
+        var ctx = gunAudioCtx;
+        var t = ctx.currentTime;
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(isGreen ? 880 : 520, t);
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.exponentialRampToValueAtTime(isGreen ? 0.34 : 0.24, t + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + (isGreen ? 0.22 : 0.14));
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + (isGreen ? 0.24 : 0.16));
+      } catch (err) { /* audio blocked */ }
+    }
+
+    function playDragRaceIntroCue(onDone) {
+      speakCue('Drivers, start your engines', {
+        rate: 0.95,
+        pitch: 0.7,
+        fallbackDelay: 1700
+      }, onDone);
+    }
+
+    /* ================= LEVEL 2 GRAPHICS (ported from the full lab) ================= */
+    var level2BgCanvas = document.createElement('canvas');
+    var level2BgCached = false;
+
+    var DRAG_PITCH = 0.2;
+    var DRAG_NOSE_OFFSET = 240;
+    var DRAG_COCKPIT_SHIFT = 120;
+    var DRAG_BODY_WIDTH = 42;
+    var DRAG_WING_SHIFT = -120;
+    var DRAG_WHEEL_SPREAD = 65;
+    var DRAG_WING_WIDTH = 120;
+
+    var TRACK_HORIZON_RATIO = 0.03;
+    var TRACK_CURVE_POWER = 0.69;
+    var TRACK_Y_BASE = 0.94;
+    var TRACK_Y_SPREAD = 0.85;
+    var TRACK_WIDTH_BOT = 426;
+    var TRACK_WIDTH_TOP = 162;
+    var LANE_GAP_BOT = 164;
+    var LANE_GAP_TOP = 73;
+    var CAR_SCALE_MIN = 0.22;
+    var CAR_SCALE_MAX = 2.92;
+
+    function getHorizonY(h) { return h * TRACK_HORIZON_RATIO; }
+
+    function projectYFromDistance(distance, h) {
+      var t = Math.min(1, distance / DRAG_FINISH_DISTANCE);
+      return h * TRACK_Y_BASE - Math.pow(t, TRACK_CURVE_POWER) * (h * TRACK_Y_SPREAD);
+    }
+
+    function projectScaleFromY(y, h) {
+      var horizon = getHorizonY(h);
+      var ratio = (y - horizon) / (h * TRACK_Y_BASE - horizon);
+      return clamp(ratio, CAR_SCALE_MIN, CAR_SCALE_MAX);
+    }
+
+    function laneXAt(yNorm, laneIndex, w) {
+      var center = w / 2;
+      var laneGap = yNorm * LANE_GAP_BOT + (1 - yNorm) * LANE_GAP_TOP;
+      return center + laneIndex * laneGap;
+    }
+
+    function roundRect(ctx, x, y, w, h, r, fill) {
+      var radius = Math.min(r, w * 0.5, h * 0.5);
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + w - radius, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+      ctx.lineTo(x + w, y + h - radius);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+      ctx.lineTo(x + radius, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      if (fill) ctx.fill();
+    }
+
+    function drawRearWheel(ctx, x, y, width, height, pitch) {
+      ctx.save(); ctx.translate(x, y);
+      var displayH = height * (1 - pitch * 0.5);
+      var topCapH = pitch * 20;
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.beginPath(); ctx.ellipse(0, displayH / 2, width / 2 + 5, 10 * (1 - pitch * 0.5), 0, 0, Math.PI * 2); ctx.fill();
+      var tireGrad = ctx.createLinearGradient(-width / 2, 0, width / 2, 0);
+      tireGrad.addColorStop(0, '#020617'); tireGrad.addColorStop(0.3, '#1e293b'); tireGrad.addColorStop(0.5, '#334155'); tireGrad.addColorStop(0.7, '#1e293b'); tireGrad.addColorStop(1, '#020617');
+      ctx.fillStyle = tireGrad;
+      roundRect(ctx, -width / 2, -displayH / 2, width, displayH, 8, true);
+      if (pitch > 0.05) {
+        var topGrad = ctx.createRadialGradient(0, -displayH / 2, 0, 0, -displayH / 2, width / 2);
+        topGrad.addColorStop(0, '#1e293b'); topGrad.addColorStop(1, '#020617');
+        ctx.fillStyle = topGrad;
+        ctx.beginPath(); ctx.ellipse(0, -displayH / 2, width / 2, topCapH, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawFrontWheel(ctx, x, y, width, height, pitch) {
+      ctx.save(); ctx.translate(x, y);
+      var displayH = height * (1 - pitch * 0.4);
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      ctx.beginPath(); ctx.ellipse(0, displayH / 2, width / 2 + 2, 4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#0f172a';
+      roundRect(ctx, -width / 2, -displayH / 2, width, displayH, 2, true);
+      ctx.restore();
+    }
+
+    function drawFire(ctx, x, y, pitch, xSide) {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(xSide * 0.4);
+      var fireH = 20 + Math.random() * 25;
+      var fireGrad = ctx.createLinearGradient(0, 0, 0, -fireH);
+      fireGrad.addColorStop(0, 'rgba(255, 255, 0, 0.9)'); fireGrad.addColorStop(0.5, 'rgba(255, 120, 0, 0.7)'); fireGrad.addColorStop(1, 'rgba(255, 0, 0, 0)');
+      ctx.fillStyle = fireGrad;
+      ctx.beginPath(); ctx.moveTo(-4, 0); ctx.quadraticCurveTo(0, -fireH * 1.1, 4, 0); ctx.fill();
+      ctx.restore();
+    }
+
+    function drawRocketJet(ctx, x, y, pitch, showFire) {
+      ctx.save(); ctx.translate(x, y);
+      var nozzleGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, 15);
+      nozzleGrad.addColorStop(0, '#1e293b'); nozzleGrad.addColorStop(1, '#020617');
+      ctx.fillStyle = nozzleGrad;
+      ctx.beginPath(); ctx.ellipse(0, 0, 16, 12 * (1 - pitch * 0.5), 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath(); ctx.ellipse(0, 0, 6, 4 * (1 - pitch * 0.5), 0, 0, Math.PI * 2); ctx.fill();
+      if (showFire) {
+        var flameSize = 40 + Math.random() * 30;
+        var flameGrad = ctx.createRadialGradient(0, 0, 5, 0, 0, flameSize);
+        flameGrad.addColorStop(0, 'rgba(255, 255, 200, 1)'); flameGrad.addColorStop(0.4, 'rgba(255, 150, 0, 0.8)'); flameGrad.addColorStop(1, 'rgba(255, 0, 0, 0)');
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = flameGrad;
+        ctx.beginPath(); ctx.ellipse(0, 15, flameSize * 0.6, flameSize * 1.2, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      ctx.restore();
+    }
+
+    function drawExhaustPipes(ctx, xSide, yBase, pitch, showFire) {
+      var pipeCount = 5;
+      ctx.save(); ctx.translate(xSide * 16, yBase);
+      for (var i = 0; i < pipeCount; i++) {
+        var xOff = xSide * (i * 2.5);
+        var yOff = (i * 9) * (1 - pitch * 0.5);
+        ctx.save(); ctx.translate(xOff, yOff);
+        var baseRot = xSide > 0 ? Math.PI - 0.7 : Math.PI + 0.7;
+        ctx.rotate(baseRot - pitch * 0.3 * xSide);
+        ctx.fillStyle = '#475569'; ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1;
+        roundRect(ctx, -3, -12, 6, 24, 3, true); ctx.stroke();
+        ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.ellipse(0, -12, 3, 1.5, 0, 0, Math.PI * 2); ctx.fill();
+        if (showFire) drawFire(ctx, 0, -12, pitch, xSide);
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+
+    function drawChromeEngine(ctx, x, y, width, pitch) {
+      ctx.save(); ctx.translate(x, y);
+      var chrome = ctx.createLinearGradient(-width / 2, 0, width / 2, 0);
+      chrome.addColorStop(0, '#71717a'); chrome.addColorStop(0.2, '#f4f4f5'); chrome.addColorStop(0.5, '#a1a1aa'); chrome.addColorStop(0.8, '#ffffff'); chrome.addColorStop(1, '#52525b');
+      ctx.fillStyle = chrome;
+      var engineH = 25 * (1 - pitch * 0.4);
+      roundRect(ctx, -width / 2, -engineH / 2, width, engineH, 5, true);
+      ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = 1;
+      for (var i = -width / 2 + 5; i < width / 2; i += 6) {
+        ctx.beginPath(); ctx.moveTo(i, -engineH / 2 + 2); ctx.lineTo(i, engineH / 2 - 2); ctx.stroke();
+      }
+      ctx.fillStyle = '#e4e4e7';
+      var scoopW = width * 0.8; var scoopH = 12 * (1 - pitch * 0.5);
+      roundRect(ctx, -scoopW / 2, -engineH / 2 - scoopH, scoopW, scoopH, 4, true);
+      ctx.fillStyle = '#18181b';
+      ctx.beginPath(); ctx.ellipse(0, -engineH / 2 - scoopH, scoopW * 0.4, scoopH * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+    function drawDriverHelmet(ctx, x, y, size, pitch) {
+      ctx.save(); ctx.translate(x, y);
+      var helmetH = size * (1 - pitch * 0.3);
+      ctx.fillStyle = '#ffffff'; ctx.beginPath();
+      ctx.ellipse(0, 0, size / 3, helmetH / 2, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawDragster(ctx, bodyColor, stripeColor, showFire) {
+      var pitch = DRAG_PITCH;
+      var rearY = 110;
+      var noseY = rearY - (DRAG_NOSE_OFFSET * (1 - pitch * 0.3));
+      var cockpitTopY = rearY - DRAG_COCKPIT_SHIFT;
+      var noseExtend = noseY - 15;
+      var bodyRearY = rearY + 30;
+
+      ctx.strokeStyle = '#334155'; ctx.lineWidth = 4 * (1 - pitch * 0.2); ctx.beginPath(); ctx.moveTo(0, rearY); ctx.lineTo(0, noseY); ctx.stroke();
+      ctx.lineWidth = 2; var axleSpread = 18 * (1 - pitch * 0.1); ctx.beginPath(); ctx.moveTo(-axleSpread, noseY); ctx.lineTo(axleSpread, noseY); ctx.stroke();
+      drawFrontWheel(ctx, -axleSpread, noseY, 6, 24, pitch); drawFrontWheel(ctx, axleSpread, noseY, 6, 24, pitch);
+      ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 10; ctx.beginPath(); ctx.moveTo(-DRAG_WHEEL_SPREAD, rearY); ctx.lineTo(DRAG_WHEEL_SPREAD, rearY); ctx.stroke();
+      drawRearWheel(ctx, -DRAG_WHEEL_SPREAD, rearY, 48, 120, pitch); drawRearWheel(ctx, DRAG_WHEEL_SPREAD, rearY, 48, 120, pitch);
+
+      var bodyGrad = ctx.createLinearGradient(0, noseExtend, 0, bodyRearY);
+      bodyGrad.addColorStop(0, '#94a3b8'); bodyGrad.addColorStop(0.2, bodyColor); bodyGrad.addColorStop(0.9, '#1e293b'); bodyGrad.addColorStop(1, '#020617');
+      ctx.fillStyle = bodyGrad;
+      ctx.beginPath(); var halfW = DRAG_BODY_WIDTH / 2; var halfFrontW = 7;
+      ctx.moveTo(-halfW, bodyRearY); ctx.lineTo(halfW, bodyRearY); ctx.lineTo(halfW, cockpitTopY); ctx.lineTo(halfFrontW, noseY); ctx.lineTo(halfFrontW * 0.7, noseExtend); ctx.lineTo(-halfFrontW * 0.7, noseExtend); ctx.lineTo(-halfFrontW, noseY); ctx.lineTo(-halfW, cockpitTopY); ctx.closePath(); ctx.fill();
+
+      drawRocketJet(ctx, 0, bodyRearY, pitch, showFire);
+
+      ctx.fillStyle = stripeColor; ctx.beginPath(); ctx.moveTo(-2, cockpitTopY); ctx.lineTo(2, cockpitTopY); ctx.lineTo(1.5, noseExtend); ctx.lineTo(-1.5, noseExtend); ctx.closePath(); ctx.fill();
+      drawChromeEngine(ctx, 0, cockpitTopY - 35, DRAG_BODY_WIDTH * 0.85, pitch);
+      drawDriverHelmet(ctx, 0, cockpitTopY + 22, 32, pitch);
+      drawExhaustPipes(ctx, -1, cockpitTopY - 10, pitch, showFire);
+      drawExhaustPipes(ctx, 1, cockpitTopY - 10, pitch, showFire);
+      ctx.fillStyle = 'rgba(186, 230, 253, 0.4)'; var canopyW = DRAG_BODY_WIDTH - 12; var canopyH = 35 * (1 - pitch * 0.5);
+      roundRect(ctx, -canopyW / 2, cockpitTopY + 10, canopyW, canopyH, 10, true);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)'; ctx.lineWidth = 1; ctx.stroke();
+
+      var wingY = bodyRearY + DRAG_WING_SHIFT * (1 - pitch * 0.5);
+      ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(-18, rearY + 10); ctx.lineTo(-28, wingY); ctx.moveTo(18, rearY + 10); ctx.lineTo(28, wingY); ctx.stroke();
+      var wingPlankH = 15 + pitch * 30; ctx.fillStyle = '#94a3b8';
+      roundRect(ctx, -DRAG_WING_WIDTH / 2, wingY, DRAG_WING_WIDTH, wingPlankH, 4, true);
+      ctx.fillStyle = bodyColor; var epH = 45; roundRect(ctx, -DRAG_WING_WIDTH / 2 - 2, wingY - epH / 3, 6, epH, 2, true); roundRect(ctx, DRAG_WING_WIDTH / 2 - 4, wingY - epH / 3, 6, epH, 2, true);
+    }
+
+    function drawCar(ctx, car, w, h, bodyColor, stripeColor) {
+      var y = projectYFromDistance(car.distance, h);
+      var scale = projectScaleFromY(y, h) * 1.0625;
+      var horizon = getHorizonY(h);
+      var t = clamp((y - horizon) / (h - horizon), 0, 1);
+      var x = laneXAt(t, car.lane, w);
+
+      ctx.save();
+      ctx.translate(x, y - (110 * scale));
+      ctx.scale(scale, scale);
+      drawDragster(ctx, bodyColor, stripeColor, car.speed > 0);
+      ctx.restore();
+    }
+
+    function drawTrackAsphalt(ctx, w, h) {
+      var horizon = getHorizonY(h);
+      var center = w / 2;
+      ctx.beginPath();
+      ctx.moveTo(center - TRACK_WIDTH_TOP, horizon);
+      ctx.lineTo(center + TRACK_WIDTH_TOP, horizon);
+      ctx.lineTo(center + TRACK_WIDTH_BOT, h);
+      ctx.lineTo(center - TRACK_WIDTH_BOT, h);
+      ctx.closePath();
+      var asphalt = ctx.createLinearGradient(0, horizon, 0, h);
+      asphalt.addColorStop(0, '#303238');
+      asphalt.addColorStop(0.55, '#24262b');
+      asphalt.addColorStop(1, '#15171b');
+      ctx.fillStyle = asphalt;
+      ctx.fill();
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.lineWidth = 1;
+      for (var i = 0; i < 18; i++) {
+        var y = horizon + (i * (h - horizon) / 17);
+        var t = (y - horizon) / (h - horizon);
+        var half = lerp(TRACK_WIDTH_TOP, TRACK_WIDTH_BOT, t);
+        ctx.beginPath();
+        ctx.moveTo(center - half, y);
+        ctx.lineTo(center + half, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      ctx.beginPath();
+      ctx.moveTo(center - 7, horizon);
+      ctx.lineTo(center + 7, horizon);
+      ctx.lineTo(center + 17, h);
+      ctx.lineTo(center - 17, h);
+      ctx.closePath();
+      ctx.fillStyle = '#efefef';
+      ctx.globalAlpha = 0.7;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    function drawBarrierStrip(ctx, xB, yB, xT, yT, left) {
+      for (var i = 0; i < 16; i++) {
+        var t0 = i / 16, t1 = (i + 1) / 16;
+        var xb0 = lerp(xB, xT, t0), yb0 = lerp(yB, yT, t0);
+        var xb1 = lerp(xB, xT, t1), yb1 = lerp(yB, yT, t1);
+        var th0 = lerp(36, 8, t0), th1 = lerp(36, 8, t1);
+        ctx.beginPath();
+        if (left) { ctx.moveTo(xb0, yb0); ctx.lineTo(xb0 + th0, yb0); ctx.lineTo(xb1 + th1, yb1); ctx.lineTo(xb1, yb1); }
+        else { ctx.moveTo(xb0 - th0, yb0); ctx.lineTo(xb0, yb0); ctx.lineTo(xb1, yb1); ctx.lineTo(xb1 - th1, yb1); }
+        ctx.closePath();
+        ctx.fillStyle = i % 2 === 0 ? '#d72638' : '#efefef';
+        ctx.fill();
+      }
+    }
+
+    function drawBarriers(ctx, w, h) {
+      var center = w / 2;
+      var horizon = getHorizonY(h);
+      drawBarrierStrip(ctx, center - TRACK_WIDTH_BOT, h, center - TRACK_WIDTH_TOP - 3, horizon, true);
+      drawBarrierStrip(ctx, center + TRACK_WIDTH_BOT, h, center + TRACK_WIDTH_TOP + 3, horizon, false);
+    }
+
+    function drawFinishLine(ctx, w, h) {
+      var center = w / 2;
+      var finishY = projectYFromDistance(DRAG_FINISH_DISTANCE, h);
+      var horizon = getHorizonY(h);
+      var t = (finishY - horizon) / (h - horizon);
+      var halfW = lerp(TRACK_WIDTH_TOP, TRACK_WIDTH_BOT, t);
+      var bandH = lerp(12, 34, t);
+      var left = center - halfW * 0.58;
+      var right = center + halfW * 0.58;
+      var stripeW = (right - left) / 16;
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      ctx.fillRect(left, finishY - bandH / 2, right - left, bandH);
+      for (var i = 0; i < 16; i++) {
+        ctx.fillStyle = i % 2 === 0 ? '#111827' : '#f8fafc';
+        ctx.fillRect(left + i * stripeW, finishY - bandH / 2, stripeW, bandH / 2);
+        ctx.fillStyle = i % 2 === 0 ? '#f8fafc' : '#111827';
+        ctx.fillRect(left + i * stripeW, finishY, stripeW, bandH / 2);
+      }
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = '700 11px Segoe UI, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('FINISH', center, finishY - bandH / 2 - 6);
+      ctx.restore();
+    }
+
+    function drawBleachers(ctx, w, h) {
+      var center = w / 2;
+      var horizon = getHorizonY(h);
+      var topY = horizon - 20;
+      var standH = h * 0.45;
+      var rows = 8;
+
+      ctx.save();
+      for (var side = -1; side <= 1; side += 2) {
+        if (side === 0) continue;
+
+        var inTopX = center + side * (TRACK_WIDTH_TOP + 15);
+        var inBotX = center + side * (TRACK_WIDTH_TOP + 15 + ((topY + standH) - horizon) / (h - horizon) * (TRACK_WIDTH_BOT - TRACK_WIDTH_TOP));
+
+        var outTopX = inTopX + side * 180;
+        var outBotX = inBotX + side * 400;
+
+        ctx.fillStyle = 'rgba(15,23,42,0.82)';
+        ctx.beginPath();
+        ctx.moveTo(inTopX, topY);
+        ctx.lineTo(outTopX, topY - 15);
+        ctx.lineTo(outBotX, topY + standH);
+        ctx.lineTo(inBotX, topY + standH);
+        ctx.closePath();
+        ctx.fill();
+
+        for (var r = 1; r <= rows; r++) {
+          var t = Math.pow(r / rows, 1.2);
+          var rY = topY + t * standH;
+          var lineInX = center + side * (TRACK_WIDTH_TOP + 15 + (rY - horizon) / (h - horizon) * (TRACK_WIDTH_BOT - TRACK_WIDTH_TOP));
+          var lineOutX = lineInX + side * lerp(180, 400, t);
+
+          ctx.strokeStyle = r % 2 === 0 ? '#94a3b8' : '#64748b';
+          ctx.lineWidth = 1 + t * 3;
+          ctx.beginPath();
+          ctx.moveTo(lineInX, rY);
+          ctx.lineTo(lineOutX, rY - 12 * (1 - t));
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawBulb(ctx, x, y, r, color) {
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = (color === '#404047' || color === '#3a3a3f') ? 0 : 14;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    function drawCenterTree(ctx, w, h, lightIdx, isGreen) {
+      var x = w / 2, y = h * 0.28;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(0.92, 0.92);
+      ctx.fillStyle = '#6b7280';
+      roundRect(ctx, -11, -15, 22, 230, 10, true);
+      roundRect(ctx, -70, -70, 140, 24, 8, true);
+      roundRect(ctx, -58, -38, 116, 24, 8, true);
+      var stackY = [0, 24, 48, 80, 110];
+      for (var i = 0; i < 3; i++) {
+        var on = lightIdx >= i;
+        drawBulb(ctx, -26, stackY[i], 11, on ? '#ffd43b' : '#404047');
+        drawBulb(ctx, 26, stackY[i], 11, on ? '#ffd43b' : '#404047');
+      }
+      drawBulb(ctx, -26, stackY[3], 11, isGreen ? '#16db65' : '#404047');
+      drawBulb(ctx, 26, stackY[3], 11, isGreen ? '#16db65' : '#404047');
+      ctx.fillStyle = '#4b5563';
+      roundRect(ctx, -22, 214, 44, 12, 6, true);
+      ctx.restore();
+    }
+
+    function cacheLevel2Background(w, h) {
+      level2BgCanvas.width = w;
+      level2BgCanvas.height = h;
+      var ctx = level2BgCanvas.getContext('2d');
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = '#111827';
+      ctx.fillRect(0, 0, w, h);
+      drawTrackAsphalt(ctx, w, h);
+      drawBleachers(ctx, w, h);
+      drawFinishLine(ctx, w, h);
+      drawBarriers(ctx, w, h);
+      level2BgCached = true;
+    }
+
+    function drawDragRaceScene(ctx, w, h, rc, lightIdx, isGreen) {
+      if (!level2BgCached) cacheLevel2Background(w, h);
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(level2BgCanvas, 0, 0);
+      drawCenterTree(ctx, w, h, lightIdx, isGreen);
+
+      var cars = [
+        { lane: -1, distance: rc.opponentDist, speed: rc.opponentSpeed, color: '#d4a247', stripe: '#8e6222' },
+        { lane: 1, distance: rc.playerDist, speed: rc.playerSpeed, color: '#e11d48', stripe: '#8f1239' }
+      ];
+      cars.sort(function (a, b) { return b.distance - a.distance; });
+      for (var i = 0; i < cars.length; i++) {
+        drawCar(ctx, cars[i], w, h, cars[i].color, cars[i].stripe);
+      }
+    }
+
+    /* ================= LEVEL 3 GRAPHICS (ported from the full lab) ================= */
+    var RUNNER_CFG = {
+      bodyScale: 1.28, runnerYOffset: 11,
+      hipBaseX: -102, hipBaseY: -84,
+      shoulderOffX: 81, shoulderOffY: 19,
+      shoulderReduce: 56, shoulderLift: 76,
+      neckOffX: 20, neckOffY: -4,
+      neckReduce: 10, neckLift: 12,
+      headOffX: 16.5, headOffY: -4,
+      headReduce: 17, headLift: 9,
+      headRx: 14.5, headRy: 18, hairR: 15,
+      neckW: 12.5, upperArmW: 12.5, lowerArmW: 10.5,
+      upperLegW: 20, lowerLegW: 12,
+      riseDur: 1.0, phaseDelay: 0.04, phaseBase: 8.7, phaseGain: 2.0, blendDur: 0.24,
+      torsoLeanAmt: 0.99, torsoLeanDist: 19.5,
+      hipFwd: 43, hipDrop: 12,
+      legBase: 0.60, thighAmp: 1.18, shinBase: 1.10, shinPush: 0.14,
+      armSwing: 1.23, elbowBase: 1.28, elbowGain: 0.90,
+      footBase: 0.15, footGain: -0.18, footRecover: -0.44, footPhase: 0.42,
+      upperArmL: 26, lowerArmL: 24, upperLegL: 41, lowerLegL: 39, footL: 18,
+      primary: '#3f67c6', skin: '#d89c6e', shoe: '#edf2ff', hair: '#121212',
+      shadow: 'rgba(0,0,0,0.18)'
+    };
+
+    var opponentCfg = null;
+    var playerCfg = null;
+
+    function buildRunnerCfg(overrides) {
+      var cfg = {};
+      for (var k in RUNNER_CFG) {
+        if (RUNNER_CFG.hasOwnProperty(k)) cfg[k] = RUNNER_CFG[k];
+      }
+      if (overrides) {
+        for (var j in overrides) {
+          if (overrides.hasOwnProperty(j)) cfg[j] = overrides[j];
+        }
+      }
+      return cfg;
+    }
+
+    function initRunnerCfgs() {
+      opponentCfg = buildRunnerCfg({ bodyScale: 0.96, runnerYOffset: 8, primary: '#1e3799', skin: '#8d6e4c' });
+      playerCfg = buildRunnerCfg({ bodyScale: 1.08, primary: '#c23616', skin: '#c98a63' });
+    }
+
+    function ptVert(base, len, angle) {
+      return { x: base.x + Math.sin(angle) * len, y: base.y + Math.cos(angle) * len };
+    }
+
+    function mixPose(a, b, t) {
+      var out = {};
+      for (var k in a) {
+        if (a.hasOwnProperty(k)) {
+          out[k] = { x: lerp(a[k].x, b[k].x, t), y: lerp(a[k].y, b[k].y, t) };
+        }
+      }
+      return out;
+    }
+
+    function getSetPose(cfg) {
+      return {
+        frontHand: { x: -4, y: 0 }, backHand: { x: -31, y: 1 },
+        shoulder: { x: -36, y: -58 }, neck: { x: -14, y: -62 }, head: { x: 5, y: -74 },
+        hip: { x: cfg.hipBaseX, y: cfg.hipBaseY },
+        frontElbow: { x: -16, y: -32 }, backElbow: { x: -50, y: -35 },
+        frontKnee: { x: -73, y: -30 }, frontAnkle: { x: -99, y: -5 }, frontToe: { x: -117, y: 1 },
+        backKnee: { x: -125, y: -42 }, backAnkle: { x: -147, y: -16 }, backToe: { x: -158, y: -13 }
+      };
+    }
+
+    function getRunnerDistance(t) {
+      var tAccel = RUNNER_TOP_SPEED / RUNNER_ACCEL;
+      if (t <= tAccel) return 0.5 * RUNNER_ACCEL * t * t;
+      return (0.5 * RUNNER_ACCEL * tAccel * tAccel) + RUNNER_TOP_SPEED * (t - tAccel);
+    }
+
+    function clampToe(knee, ankle, toe) {
+      if (toe.y <= 0) return { knee: knee, ankle: ankle, toe: toe };
+      var s = toe.y;
+      return { knee: { x: knee.x, y: knee.y - s }, ankle: { x: ankle.x, y: ankle.y - s }, toe: { x: toe.x, y: 0 } };
+    }
+
+    function calcPose(t, cfg) {
+      var dist = getRunnerDistance(t);
+      var rise = smoothstep(clamp(t / cfg.riseDur, 0, 1));
+      var phase = Math.max(0, t - cfg.phaseDelay) * (cfg.phaseBase + cfg.phaseGain * rise);
+
+      var hip = { x: cfg.hipBaseX + cfg.hipFwd * rise, y: cfg.hipBaseY + cfg.hipDrop * rise };
+      var shoulder = {
+        x: hip.x + cfg.shoulderOffX - cfg.shoulderReduce * rise,
+        y: hip.y + cfg.shoulderOffY - cfg.shoulderLift * rise
+      };
+      var neck = {
+        x: shoulder.x + cfg.neckOffX - cfg.neckReduce * rise,
+        y: shoulder.y + cfg.neckOffY - cfg.neckLift * rise
+      };
+      var head = {
+        x: neck.x + cfg.headOffX - cfg.headReduce * rise,
+        y: neck.y + cfg.headOffY - cfg.headLift * rise
+      };
+
+      var lean = Math.max(0, 1 - dist / cfg.torsoLeanDist) * cfg.torsoLeanAmt;
+
+      function leg(drive, sidePhase) {
+        var thA = cfg.legBase + cfg.thighAmp * drive;
+        var shA = thA - Math.max(0.10, cfg.shinBase - cfg.shinPush * Math.max(0, drive));
+        var knee = ptVert(hip, cfg.upperLegL, thA);
+        var ankle = ptVert(knee, cfg.lowerLegL, shA);
+        var fd = Math.sin(sidePhase + cfg.footPhase);
+        var fa = cfg.footBase + cfg.footGain * fd - cfg.footRecover * Math.max(0, -fd);
+        var toe = { x: ankle.x + Math.cos(fa) * cfg.footL, y: ankle.y + Math.sin(fa) * cfg.footL + 2 };
+        return clampToe(knee, ankle, toe);
+      }
+
+      function arm(drive) {
+        var uaA = cfg.armSwing * drive - lean;
+        var elbow = { x: shoulder.x + Math.sin(uaA) * cfg.upperArmL, y: shoulder.y + Math.cos(uaA) * cfg.upperArmL };
+        var laA = uaA + cfg.elbowBase + cfg.elbowGain * drive;
+        var hand = { x: elbow.x + Math.sin(laA) * cfg.lowerArmL, y: elbow.y + Math.cos(laA) * cfg.lowerArmL };
+        return { elbow: elbow, hand: hand };
+      }
+
+      var fDrive = Math.sin(phase), bDrive = Math.sin(phase + Math.PI);
+      var fLeg = leg(fDrive, phase), bLeg = leg(bDrive, phase + Math.PI);
+      var fArm = arm(-fDrive), bArm = arm(-bDrive);
+
+      return {
+        shoulder: shoulder, neck: neck, head: head, hip: hip,
+        frontHand: fArm.hand, backHand: bArm.hand,
+        frontElbow: fArm.elbow, backElbow: bArm.elbow,
+        frontKnee: fLeg.knee, frontAnkle: fLeg.ankle, frontToe: fLeg.toe,
+        backKnee: bLeg.knee, backAnkle: bLeg.ankle, backToe: bLeg.toe
+      };
+    }
+
+    function drawLimb(ctx, a, b, color, wA, wB) {
+      var dx = b.x - a.x, dy = b.y - a.y;
+      var len = Math.hypot(dx, dy), angle = Math.atan2(dy, dx);
+      ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(angle);
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(0, -wA / 2);
+      ctx.quadraticCurveTo(len * 0.5, -Math.max(wA, wB) * 0.55, len, -wB / 2);
+      ctx.lineTo(len, wB / 2);
+      ctx.quadraticCurveTo(len * 0.5, Math.max(wA, wB) * 0.55, 0, wA / 2);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+
+    function drawShoe(ctx, ankle, toe, cfg) {
+      var angle = Math.atan2(toe.y - ankle.y, toe.x - ankle.x);
+      var cx = (ankle.x + toe.x) * 0.5, cy = (ankle.y + toe.y) * 0.5 - 1;
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(angle);
+      ctx.fillStyle = cfg.shoe;
+      ctx.beginPath(); ctx.ellipse(1, 0, 12, 5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#cdd5df';
+      ctx.fillRect(-8, 1, 16, 1.5);
+      ctx.restore();
+    }
+
+    function drawHand(ctx, hand, elbow, skin) {
+      var angle = Math.atan2(hand.y - elbow.y, hand.x - elbow.x);
+      ctx.save(); ctx.translate(hand.x, hand.y); ctx.rotate(angle);
+      ctx.fillStyle = skin;
+      ctx.beginPath(); ctx.ellipse(0, 0, 5, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+    function drawLeg(ctx, hip, knee, ankle, toe, cfg) {
+      var mid = { x: lerp(hip.x, knee.x, 0.5), y: lerp(hip.y, knee.y, 0.5) };
+      drawLimb(ctx, hip, mid, cfg.primary, cfg.upperLegW, cfg.upperLegW * 0.82);
+      drawLimb(ctx, mid, knee, cfg.skin, cfg.upperLegW * 0.82, cfg.upperLegW * 0.7);
+      drawLimb(ctx, knee, ankle, cfg.skin, cfg.lowerLegW, cfg.lowerLegW * 0.6);
+      drawShoe(ctx, ankle, toe, cfg);
+    }
+
+    function drawArm(ctx, shoulder, elbow, hand, cfg) {
+      drawLimb(ctx, shoulder, elbow, cfg.skin, cfg.upperArmW, cfg.upperArmW * 0.82);
+      drawLimb(ctx, elbow, hand, cfg.skin, cfg.lowerArmW, cfg.lowerArmW * 0.66);
+      drawHand(ctx, hand, elbow, cfg.skin);
+    }
+
+    function drawTorso(ctx, pose, cfg) {
+      var sx = pose.shoulder.x, sy = pose.shoulder.y;
+      var hx = pose.hip.x, hy = pose.hip.y + 7;
+      var dx = hx - sx, dy = hy - sy;
+      var nx = -dy, ny = dx;
+      var len = Math.hypot(dx, dy) || 1;
+      nx /= len; ny /= len;
+      var topW = 13, botW = 10, chestW = 16;
+      var mx = lerp(sx, hx, 0.35), my = lerp(sy, hy, 0.35);
+      ctx.fillStyle = cfg.primary;
+      ctx.beginPath();
+      ctx.moveTo(sx + nx * topW, sy + ny * topW);
+      ctx.quadraticCurveTo(mx + nx * chestW, my + ny * chestW, hx + nx * botW, hy + ny * botW);
+      ctx.quadraticCurveTo(hx - nx * botW * 0.3, hy - ny * botW * 0.3, hx - nx * botW, hy - ny * botW);
+      ctx.quadraticCurveTo(mx - nx * chestW * 0.6, my - ny * chestW * 0.6, sx - nx * topW * 0.7, sy - ny * topW * 0.7);
+      ctx.closePath(); ctx.fill();
+    }
+
+    function drawHead(ctx, pose, cfg) {
+      ctx.fillStyle = cfg.skin;
+      ctx.beginPath(); ctx.ellipse(pose.head.x, pose.head.y, cfg.headRx, cfg.headRy, -0.2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = cfg.hair;
+      ctx.beginPath(); ctx.arc(pose.head.x, pose.head.y - 3, cfg.hairR, Math.PI, Math.PI * 2); ctx.fill();
+    }
+
+    function drawRunner(ctx, x, groundY, localT, cfg) {
+      var runPose = calcPose(localT, cfg);
+      var blend = smoothstep(clamp(localT / cfg.blendDur, 0, 1));
+      var pose = mixPose(getSetPose(cfg), runPose, blend);
+
+      ctx.save();
+      ctx.translate(x, groundY + cfg.runnerYOffset);
+      ctx.scale(cfg.bodyScale, cfg.bodyScale);
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+      ctx.fillStyle = cfg.shadow;
+      ctx.beginPath(); ctx.ellipse(-78, 4, 86, 8, 0, 0, Math.PI * 2); ctx.fill();
+
+      drawArm(ctx, pose.shoulder, pose.backElbow, pose.backHand, cfg);
+      drawLeg(ctx, pose.hip, pose.backKnee, pose.backAnkle, pose.backToe, cfg);
+      drawTorso(ctx, pose, cfg);
+      drawLeg(ctx, pose.hip, pose.frontKnee, pose.frontAnkle, pose.frontToe, cfg);
+      drawArm(ctx, pose.shoulder, pose.frontElbow, pose.frontHand, cfg);
+      drawLimb(ctx, { x: pose.shoulder.x + 2, y: pose.shoulder.y - 1 }, pose.neck, cfg.skin, cfg.neckW, cfg.neckW * 0.8);
+      drawHead(ctx, pose, cfg);
+
+      ctx.restore();
+    }
+
+    var VIEWPORT_METERS = 20;
+    var VIRT_W = 800, VIRT_H = 400;
+    var TRACK_PPM_VIEW = VIRT_W / VIEWPORT_METERS;
+    var TRACK_TOP_Y = 285;
+    var LANE1_Y = 315;
+    var LANE2_Y = 355;
+
+    function drawScrollingTrack(ctx, cameraM) {
+      var sky = ctx.createLinearGradient(0, 0, 0, 280);
+      sky.addColorStop(0, '#4a90d9');
+      sky.addColorStop(0.6, '#87CEEB');
+      sky.addColorStop(1, '#b8dff5');
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, VIRT_W, 280);
+
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      var cx = -(cameraM * TRACK_PPM_VIEW * 0.10) % (VIRT_W + 200);
+      ctx.beginPath(); ctx.ellipse(130 + cx, 60, 70, 22, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(160 + cx, 55, 50, 18, 0.1, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(520 + cx, 90, 60, 20, -0.05, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(550 + cx, 85, 45, 16, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(720 + cx, 45, 55, 18, 0, 0, Math.PI * 2); ctx.fill();
+
+      var tx = -(cameraM * TRACK_PPM_VIEW * 0.30);
+      ctx.fillStyle = '#3a6e3a';
+      ctx.beginPath(); ctx.moveTo(0, 270);
+      for (var i = 0; i <= VIRT_W; i += 12) {
+        var worldI = i - tx;
+        ctx.lineTo(i, 262 + Math.sin(worldI * 0.03) * 6 + Math.sin(worldI * 0.08) * 3);
+      }
+      ctx.lineTo(VIRT_W, 280); ctx.lineTo(0, 280); ctx.closePath(); ctx.fill();
+
+      var grass = ctx.createLinearGradient(0, 270, 0, TRACK_TOP_Y);
+      grass.addColorStop(0, '#4a8c3f'); grass.addColorStop(1, '#3d7a34');
+      ctx.fillStyle = grass; ctx.fillRect(0, 270, VIRT_W, TRACK_TOP_Y - 270);
+
+      var tg = ctx.createLinearGradient(0, TRACK_TOP_Y, 0, VIRT_H);
+      tg.addColorStop(0, '#c75a28'); tg.addColorStop(0.5, '#b7410e'); tg.addColorStop(1, '#9a3610');
+      ctx.fillStyle = tg; ctx.fillRect(0, TRACK_TOP_Y, VIRT_W, VIRT_H - TRACK_TOP_Y);
+
+      ctx.strokeStyle = 'rgba(0,0,0,0.06)'; ctx.lineWidth = 1;
+      for (var ty = TRACK_TOP_Y + 3; ty < VIRT_H; ty += 4) {
+        ctx.beginPath(); ctx.moveTo(0, ty); ctx.lineTo(VIRT_W, ty); ctx.stroke();
+      }
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 300); ctx.lineTo(VIRT_W, 300);
+      ctx.moveTo(0, 335); ctx.lineTo(VIRT_W, 335);
+      ctx.moveTo(0, 370); ctx.lineTo(VIRT_W, 370);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(0, TRACK_TOP_Y); ctx.lineTo(VIRT_W, TRACK_TOP_Y); ctx.stroke();
+
+      var camPx = cameraM * TRACK_PPM_VIEW;
+
+      ctx.font = '700 11px Segoe UI, sans-serif'; ctx.textAlign = 'center';
+      for (var dm = 0; dm <= TRACK_DISTANCE; dm += 10) {
+        var mx = dm * TRACK_PPM_VIEW - camPx;
+        if (mx < -40 || mx > VIRT_W + 40) continue;
+        ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(mx, TRACK_TOP_Y); ctx.lineTo(mx, TRACK_TOP_Y + 8); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.fillText(dm + 'm', mx, TRACK_TOP_Y - 4);
+      }
+
+      var startPx = 0 - camPx;
+      if (startPx > -20 && startPx < VIRT_W + 20) {
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 4;
+        ctx.setLineDash([8, 6]);
+        ctx.beginPath(); ctx.moveTo(startPx, TRACK_TOP_Y); ctx.lineTo(startPx, VIRT_H); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#fff'; ctx.font = '700 11px Segoe UI, sans-serif';
+        ctx.fillText('START', startPx, TRACK_TOP_Y - 4);
+      }
+
+      var finPx = TRACK_DISTANCE * TRACK_PPM_VIEW - camPx;
+      if (finPx > -20 && finPx < VIRT_W + 20) {
+        var flX = finPx - 8, flW = 16, sqS = 8;
+        for (var fy = TRACK_TOP_Y; fy < VIRT_H; fy += sqS) {
+          for (var fx = flX; fx < flX + flW; fx += sqS) {
+            var ci = Math.floor((fx - flX) / sqS) + Math.floor((fy - TRACK_TOP_Y) / sqS);
+            ctx.fillStyle = ci % 2 === 0 ? '#fff' : '#111';
+            ctx.fillRect(fx, fy, sqS, Math.min(sqS, VIRT_H - fy));
+          }
+        }
+        ctx.fillStyle = '#fff'; ctx.font = '700 12px Segoe UI, sans-serif';
+        ctx.fillText('FINISH', finPx, TRACK_TOP_Y - 4);
+      }
+    }
+
+    function drawStarter(ctx, gunFired, flashAlpha) {
+      var sx = 0, sy = 84;
+
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      function rr(x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+      }
+
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.beginPath();
+      ctx.ellipse(0, 36, 18, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#172033';
+
+      ctx.beginPath();
+      ctx.moveTo(-5, 0);
+      ctx.lineTo(-11, 20);
+      ctx.lineTo(-10, 34);
+      ctx.lineTo(-4, 34);
+      ctx.lineTo(-2, 20);
+      ctx.lineTo(2, 0);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(4, 0);
+      ctx.lineTo(8, 20);
+      ctx.lineTo(9, 34);
+      ctx.lineTo(15, 34);
+      ctx.lineTo(14, 20);
+      ctx.lineTo(8, 0);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-7, 4);
+      ctx.lineTo(-9, 31);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(7, 4);
+      ctx.lineTo(12, 31);
+      ctx.stroke();
+
+      ctx.fillStyle = '#111';
+      rr(-14, 31, 13, 5, 2);
+      ctx.fill();
+
+      rr(5, 31, 14, 5, 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#f3f3f3';
+      ctx.beginPath();
+      ctx.moveTo(-9, -2);
+      ctx.lineTo(9, -2);
+      ctx.lineTo(8, -23);
+      ctx.quadraticCurveTo(0, -27, -8, -23);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = '#c9c9c9';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.strokeStyle = '#d4d4d4';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(0, -23);
+      ctx.lineTo(0, -3);
+      ctx.stroke();
+
+      ctx.fillStyle = '#222';
+      ctx.fillRect(-9, -3, 18, 3);
+
+      ctx.fillStyle = '#e3c24b';
+      ctx.beginPath();
+      ctx.arc(4, -17, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#c98a63';
+      rr(-3, -27, 6, 6, 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#c98a63';
+      ctx.beginPath();
+      ctx.ellipse(0, -33, 7, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(80,45,30,0.35)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(2, -33);
+      ctx.lineTo(3, -30);
+      ctx.stroke();
+
+      ctx.fillStyle = '#151526';
+      ctx.beginPath();
+      ctx.ellipse(0, -39, 8, 4, 0, Math.PI, 0);
+      ctx.fill();
+
+      ctx.fillRect(-8, -39, 16, 3);
+
+      ctx.beginPath();
+      ctx.ellipse(5, -38, 6, 2, 0.1, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#c98a63';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(-8, -19);
+      ctx.quadraticCurveTo(-14, -10, -12, 2);
+      ctx.stroke();
+
+      ctx.fillStyle = '#c98a63';
+      ctx.beginPath();
+      ctx.arc(-12, 2, 2.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      var shoulderX = 8;
+      var shoulderY = -19;
+      var elbowX = 15;
+      var elbowY = -27;
+      var handX = 18;
+      var handY = -38;
+
+      ctx.strokeStyle = '#c98a63';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(shoulderX, shoulderY);
+      ctx.quadraticCurveTo(elbowX, elbowY, handX, handY);
+      ctx.stroke();
+
+      ctx.fillStyle = '#c98a63';
+      ctx.beginPath();
+      ctx.arc(handX, handY, 2.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.save();
+      ctx.translate(handX + 1, handY - 2);
+      ctx.rotate(-0.22);
+
+      ctx.fillStyle = '#2b2b2b';
+
+      rr(-1, -13, 4, 13, 1);
+      ctx.fill();
+
+      ctx.save();
+      ctx.rotate(0.28);
+      rr(-3, -1, 6, 8, 1.5);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.strokeStyle = '#111';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(1, 1, 3, 0.1, Math.PI * 1.3);
+      ctx.stroke();
+
+      ctx.restore();
+
+      if (gunFired && flashAlpha > 0) {
+        ctx.save();
+
+        ctx.translate(handX + 3, handY - 16);
+        ctx.rotate(-0.22);
+        ctx.globalAlpha = flashAlpha;
+
+        ctx.fillStyle = '#ffdd44';
+        ctx.beginPath();
+        ctx.moveTo(0, -2);
+        ctx.lineTo(-6, -18);
+        ctx.lineTo(-1, -9);
+        ctx.lineTo(0, -24);
+        ctx.lineTo(2, -9);
+        ctx.lineTo(7, -18);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(0, -4);
+        ctx.lineTo(-3, -14);
+        ctx.lineTo(0, -10);
+        ctx.lineTo(3, -14);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#ff7a22';
+        ctx.beginPath();
+        ctx.arc(0, -4, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.globalAlpha = flashAlpha * 0.55;
+        ctx.fillStyle = '#d8d8d8';
+        ctx.beginPath();
+        ctx.ellipse(-3, -21, 8 + (1 - flashAlpha) * 12, 5 + (1 - flashAlpha) * 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    function drawTrackScene(ctx, w, h, rc) {
+      if (!opponentCfg) initRunnerCfgs();
+
+      ctx.clearRect(0, 0, w, h);
+      ctx.save(); ctx.scale(w / VIRT_W, h / VIRT_H);
+
+      var timeSinceGreen = rc.greenTime > 0 ? (rc.now - rc.greenTime) / 1000 : 0;
+
+      var leadDist = Math.max(rc.opponentDist, rc.playerDist);
+      var camTarget = leadDist - VIEWPORT_METERS * 0.30;
+      var cameraM = Math.max(-3, Math.min(camTarget, TRACK_DISTANCE - VIEWPORT_METERS + 3));
+
+      drawScrollingTrack(ctx, cameraM);
+
+      var camPx = cameraM * TRACK_PPM_VIEW;
+
+      var starterWorldPx = 10 * TRACK_PPM_VIEW - camPx;
+      if (starterWorldPx > -120 && starterWorldPx < VIRT_W + 120) {
+        ctx.save(); ctx.translate(starterWorldPx, 0);
+        ctx.scale(2.5, 2.5);
+        var gunFired = rc.greenTime > 0;
+        var flashAlpha = 0;
+        if (muzzleFlashStart > 0 && rc.now > 0) {
+          var elapsed = rc.now - muzzleFlashStart;
+          if (elapsed < MUZZLE_FLASH_DURATION) flashAlpha = 1 - (elapsed / MUZZLE_FLASH_DURATION);
+        }
+        drawStarter(ctx, gunFired, flashAlpha);
+        ctx.restore();
+      }
+
+      var localOppT = rc.opponentLaunched ? Math.max(0, timeSinceGreen - rc.opponentDelay) : 0;
+      var oppScreenX = rc.opponentDist * TRACK_PPM_VIEW - camPx;
+      drawRunner(ctx, oppScreenX, LANE1_Y, Math.max(0, localOppT), opponentCfg);
+
+      var playerRT2 = rc.playerReactionTime !== null ? rc.playerReactionTime : Infinity;
+      var localPlayerT = rc.playerLaunched ? Math.max(0, timeSinceGreen - playerRT2) : 0;
+      var playerScreenX = rc.playerDist * TRACK_PPM_VIEW - camPx;
+      drawRunner(ctx, playerScreenX, LANE2_Y, Math.max(0, localPlayerT), playerCfg);
+
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(10, 8, 160, 40);
+      ctx.fillStyle = '#fff'; ctx.font = '700 13px Segoe UI, sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText('You: ' + rc.playerDist.toFixed(1) + ' m', 18, 24);
+      ctx.fillText('Opp: ' + rc.opponentDist.toFixed(1) + ' m', 18, 42);
+
+      ctx.restore();
+    }
+
+    /* ================= LEVEL 1 : FALLING RULER (original SVG scene) ================= */
+    var ruler = {
+      stage: $('r-stage'), status: $('r-status'), hand: $('hand-graphic'),
+      state: 'idle', timer: null, anim: null,
+      t0: 0, dropCm: 0, rt: null, trials: []
+    };
+
+    function buildRulerScale() {
+      var rulerScale = $('ruler-scale');
+      var rulerBody = $('ruler-body');
+      var rulerCore = $('ruler-core');
+      if (!rulerScale || !rulerBody || !rulerCore) return;
+      while (rulerScale.firstChild) rulerScale.removeChild(rulerScale.firstChild);
+
+      var svgNS = 'http://www.w3.org/2000/svg';
+      var fullHeight = RULER_TOTAL_CM * RULER_PX_PER_CM;
+      rulerBody.setAttribute('y', String(-fullHeight));
+      rulerBody.setAttribute('height', String(fullHeight));
+      rulerCore.setAttribute('y', String(-fullHeight));
+      rulerCore.setAttribute('height', String(fullHeight));
+
+      for (var cm = 0; cm <= RULER_TOTAL_CM; cm++) {
+        var y = -cm * RULER_PX_PER_CM;
+        var isFiveCm = cm % 5 === 0;
+        var line = document.createElementNS(svgNS, 'line');
+        line.setAttribute('x1', '66');
+        line.setAttribute('x2', isFiveCm ? '24' : '40');
+        line.setAttribute('stroke-width', isFiveCm ? '2' : '1.5');
+        line.setAttribute('y1', String(y));
+        line.setAttribute('y2', String(y));
+        rulerScale.appendChild(line);
+        if (isFiveCm) {
+          var label = document.createElementNS(svgNS, 'text');
+          label.setAttribute('fill', '#1c1917');
+          label.setAttribute('font-family', 'Segoe UI, sans-serif');
+          label.setAttribute('text-anchor', 'end');
+          label.setAttribute('x', '20');
+          label.setAttribute('y', String(y + 4));
+          label.setAttribute('font-size', '12');
+          label.setAttribute('font-weight', '400');
+          label.textContent = cm === RULER_TOTAL_CM ? String(cm) + ' cm' : String(cm);
+          rulerScale.appendChild(label);
+        }
+      }
+
+      var readLine = document.getElementById('read-line');
+      if (!readLine) {
+        readLine = document.createElementNS(svgNS, 'line');
+        readLine.id = 'read-line';
+        readLine.setAttribute('stroke', '#16a34a');
+        readLine.setAttribute('stroke-width', '3');
+        readLine.setAttribute('stroke-dasharray', '6 4');
+        readLine.setAttribute('pointer-events', 'none');
+      }
+      readLine.setAttribute('x1', '360');
+      readLine.setAttribute('x2', '490');
+      readLine.setAttribute('y1', '153');
+      readLine.setAttribute('y2', '153');
+      ruler.hand.appendChild(readLine);
+    }
+
+    function rulerSetDrop(cm) {
+      ruler.stage.style.setProperty('--ruler-drop', (cm * RULER_PX_PER_CM).toFixed(2) + 'px');
+    }
+
+    function rulerTick() {
+      if (ruler.state !== 'go') return;
+      var t = (nowMs() - ruler.t0) / 1000;
+      ruler.dropCm = Math.min(RULER_TOTAL_CM, 0.5 * G * t * t * 100);
+      rulerSetDrop(ruler.dropCm);
+      if (t >= RULER_MISS_SECONDS) {
+        ruler.state = 'idle';
+        setStatus(ruler.status, 'The ruler hit the floor - too slow. Click Start Trial to retry.', true);
+        rulerButtons();
+        return;
+      }
+      ruler.anim = requestAnimationFrame(rulerTick);
+    }
+
+    function rulerStart() {
+      if (ruler.state === 'armed' || ruler.state === 'go') return;
+      warmAudioCtx();
+      ruler.state = 'armed';
+      ruler.dropCm = 0;
+      ruler.rt = null;
+      ruler.hand.classList.remove('closed');
+      ruler.stage.classList.add('waiting');
+      rulerSetDrop(0);
+      $('r-drop').textContent = '--';
+      $('r-rt').textContent = '--';
+      setStatus(ruler.status, 'Watch the ruler...');
+      rulerButtons();
+      ruler.timer = setTimeout(function () {
+        ruler.stage.classList.remove('waiting');
+        ruler.state = 'go';
+        ruler.t0 = nowMs();
+        setStatus(ruler.status, 'It dropped - click to catch!');
+        ruler.anim = requestAnimationFrame(rulerTick);
+      }, 1000 + Math.random() * 2000);
+    }
+
+    function rulerPointer() {
+      if (ruler.state === 'armed') {
+        clearTimeout(ruler.timer);
+        ruler.stage.classList.remove('waiting');
+        ruler.state = 'idle';
+        setStatus(ruler.status, 'Too soon - the ruler had not dropped yet. Click Start Trial to retry.', true);
+        rulerButtons();
+        return;
+      }
+      if (ruler.state !== 'go') return;
+      cancelAnimationFrame(ruler.anim);
+      ruler.rt = (nowMs() - ruler.t0) / 1000;
+      ruler.dropCm = clamp(0.5 * G * ruler.rt * ruler.rt * 100, 0, RULER_TOTAL_CM);
+      ruler.state = 'done';
+      rulerSetDrop(ruler.dropCm);
+      ruler.hand.classList.add('closed');
+      $('r-drop').textContent = ruler.dropCm.toFixed(1) + ' cm';
+      $('r-rt').textContent = fmtS(ruler.rt);
+      ruler.trials.push('drop ' + ruler.dropCm.toFixed(1) + ' cm, RT ' + ruler.rt.toFixed(3) + ' s');
+      renderTrials($('r-trials'), ruler.trials);
+      setStatus(ruler.status, 'Caught at ' + ruler.dropCm.toFixed(1) + ' cm (read the green line). Reaction time ' + fmtS(ruler.rt) + '.');
+      rulerButtons();
+    }
+
+    function rulerReset() {
+      clearTimeout(ruler.timer);
+      cancelAnimationFrame(ruler.anim);
+      ruler.state = 'idle';
+      ruler.dropCm = 0;
+      ruler.rt = null;
+      ruler.trials = [];
+      ruler.hand.classList.remove('closed');
+      ruler.stage.classList.remove('waiting');
+      rulerSetDrop(0);
+      $('r-drop').textContent = '--';
+      $('r-rt').textContent = '--';
+      renderTrials($('r-trials'), ruler.trials);
+      setStatus(ruler.status, 'Click Start Trial on the scene to begin.');
+      rulerButtons();
+    }
+
+    function rulerButtons() {
+      $('r-overlay').classList.toggle('hidden', ruler.state === 'armed' || ruler.state === 'go');
+    }
+
+    /* ================= LEVEL 2 : DRAG RACING ================= */
+    var drag = {
+      canvas: $('d-canvas'), status: $('d-status'), signal: $('d-signal'),
+      state: 'idle', timer: null, lightTimer: null, anim: null,
+      lightIndex: -1, t0: 0, rt: null, oppRT: 0, gap: null, trials: [],
+      rc: { opponentDist: 0, playerDist: 0, opponentSpeed: 0, playerSpeed: 0 }
+    };
+    drag.ctx = drag.canvas.getContext('2d');
+
+    function dragSetSignal(text, cls) {
+      drag.signal.textContent = text;
+      drag.signal.className = 'track-signal' + (cls ? ' ' + cls : '');
+    }
+
+    function dragDrawFrame() {
+      drawDragRaceScene(drag.ctx, drag.canvas.width, drag.canvas.height, drag.rc, drag.lightIndex, drag.state === 'go' || drag.state === 'race' || drag.state === 'done');
+    }
+
+    function dragStart() {
+      if (drag.state !== 'idle' && drag.state !== 'done' && drag.state !== 'jump' && drag.state !== 'slow') return;
+      warmAudioCtx();
+      drag.state = 'intro';
+      drag.lightIndex = -1;
+      drag.rt = null;
+      drag.gap = null;
+      drag.rc = { opponentDist: 0, playerDist: 0, opponentSpeed: 0, playerSpeed: 0 };
+      $('d-rt').textContent = '--';
+      $('d-opp').textContent = '--';
+      $('d-gap').textContent = '--';
+      setStatus(drag.status, 'Staging...');
+      dragSetSignal('DRIVERS, START YOUR ENGINES', 'engines');
+      dragButtons();
+      dragDrawFrame();
+      playDragRaceIntroCue(function () {
+        if (drag.state !== 'intro') return;
+        drag.timer = setTimeout(function () {
+          if (drag.state !== 'intro') return;
+          dragSetSignal('', '');
+          playEngineRev();
+          dragRunLights();
+        }, 1200);
+      });
+    }
+
+    function dragRunLights() {
+      drag.state = 'lights';
+      drag.lightIndex = 0;
+      playLightBeep(false);
+      dragDrawFrame();
+      var current = 0;
+      drag.lightTimer = setInterval(function () {
+        current += 1;
+        if (current === 3) {
+          clearInterval(drag.lightTimer);
+          drag.lightTimer = null;
+          drag.state = 'go';
+          drag.t0 = nowMs();
+          drag.oppRT = 0.20 + Math.random() * 0.15;
+          drag.lightIndex = 3;
+          playLightBeep(true);
+          setStatus(drag.status, 'GREEN - click to launch!');
+          drag.anim = requestAnimationFrame(dragTick);
+          return;
+        }
+        drag.lightIndex = current;
+        playLightBeep(false);
+        dragDrawFrame();
+      }, 500);
+    }
+
+    function dragTick() {
+      if (drag.state !== 'go' && drag.state !== 'race') return;
+      var t = (nowMs() - drag.t0) / 1000;
+
+      /* opponent launches on its own reaction time */
+      var oppT = Math.max(0, t - drag.oppRT);
+      drag.rc.opponentDist = Math.min(DRAG_FINISH_DISTANCE, 0.5 * DRAG_ACCEL * oppT * oppT);
+      drag.rc.opponentSpeed = oppT > 0 ? DRAG_ACCEL * oppT : 0;
+
+      if (drag.state === 'go' && t >= REACTION_MISS_SECONDS) {
+        drag.state = 'idle';
+        drag.lightIndex = -1;
+        drag.rc = { opponentDist: 0, playerDist: 0, opponentSpeed: 0, playerSpeed: 0 };
+        dragDrawFrame();
+        setStatus(drag.status, 'No launch - trial reset. Click Start Race to retry.', true);
+        dragButtons();
+        return;
+      }
+
+      if (drag.state === 'race') {
+        var plyT = Math.max(0, t - drag.rt);
+        drag.rc.playerDist = Math.min(DRAG_FINISH_DISTANCE, 0.5 * DRAG_ACCEL * plyT * plyT);
+        drag.rc.playerSpeed = plyT > 0 ? DRAG_ACCEL * plyT : 0;
+
+        var tFinish = Math.min(drag.rt, drag.oppRT) + DRAG_TRAVEL;
+        if (t >= tFinish) {
+          var dRT = Math.abs(drag.rt - drag.oppRT);
+          var trailing = 0.5 * DRAG_ACCEL * (DRAG_TRAVEL - dRT) * (DRAG_TRAVEL - dRT);
+          drag.gap = DRAG_FINISH_DISTANCE - trailing;
+          drag.state = 'done';
+          dragDrawFrame();
+          $('d-gap').textContent = drag.gap.toFixed(1) + ' m';
+          var winner = drag.rt <= drag.oppRT ? 'You win' : 'Computer wins';
+          setStatus(drag.status, winner + ' - gap at the finish: ' + drag.gap.toFixed(1) + ' m.');
+          drag.trials.push('your RT ' + drag.rt.toFixed(3) + ' s, computer RT ' + drag.oppRT.toFixed(3) + ' s, gap ' + drag.gap.toFixed(1) + ' m');
+          renderTrials($('d-trials'), drag.trials);
+          dragButtons();
+          return;
+        }
+      }
+
+      dragDrawFrame();
+      drag.anim = requestAnimationFrame(dragTick);
+    }
+
+    function dragPointer() {
+      if (drag.state === 'intro' || drag.state === 'lights') {
+        clearTimeout(drag.timer);
+        if (drag.lightTimer) { clearInterval(drag.lightTimer); drag.lightTimer = null; }
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        drag.state = 'jump';
+        dragSetSignal('', '');
+        dragDrawFrame();
+        setStatus(drag.status, 'Jump start! You launched before the green light. Click Start Race to retry.', true);
+        dragButtons();
+        return;
+      }
+      if (drag.state !== 'go') return;
+      drag.rt = (nowMs() - drag.t0) / 1000;
+      drag.state = 'race';
+      $('d-rt').textContent = fmtS(drag.rt);
+      $('d-opp').textContent = fmtS(drag.oppRT);
+      setStatus(drag.status, 'Racing...');
+    }
+
+    function dragReset() {
+      clearTimeout(drag.timer);
+      if (drag.lightTimer) { clearInterval(drag.lightTimer); drag.lightTimer = null; }
+      cancelAnimationFrame(drag.anim);
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      drag.state = 'idle';
+      drag.lightIndex = -1;
+      drag.rt = null;
+      drag.gap = null;
+      drag.trials = [];
+      drag.rc = { opponentDist: 0, playerDist: 0, opponentSpeed: 0, playerSpeed: 0 };
+      dragSetSignal('', '');
+      $('d-rt').textContent = '--';
+      $('d-opp').textContent = '--';
+      $('d-gap').textContent = '--';
+      renderTrials($('d-trials'), drag.trials);
+      setStatus(drag.status, 'Click Start Race on the scene to begin.');
+      dragDrawFrame();
+      dragButtons();
+    }
+
+    function dragButtons() {
+      $('d-overlay').classList.toggle('hidden', drag.state === 'intro' || drag.state === 'lights' || drag.state === 'go' || drag.state === 'race');
+    }
+
+    /* ================= LEVEL 3 : ELITE SPRINT ================= */
+    var sprint = {
+      canvas: $('s-canvas'), status: $('s-status'), signal: $('s-signal'),
+      state: 'idle', timer: null, anim: null,
+      t0: 0, rt: null, oppRT: 0, lead: null, trials: [],
+      rc: {
+        now: 0, greenTime: 0, opponentDist: 0, playerDist: 0,
+        opponentLaunched: false, playerLaunched: false,
+        playerReactionTime: null, opponentDelay: 0
+      }
+    };
+    sprint.ctx = sprint.canvas.getContext('2d');
+
+    function sprintSetSignal(text, cls) {
+      sprint.signal.textContent = text;
+      sprint.signal.className = 'track-signal' + (cls ? ' ' + cls : '');
+    }
+
+    function sprintDrawFrame() {
+      sprint.rc.now = nowMs();
+      drawTrackScene(sprint.ctx, sprint.canvas.width, sprint.canvas.height, sprint.rc);
+    }
+
+    function sprintStart() {
+      if (sprint.state !== 'idle' && sprint.state !== 'done' && sprint.state !== 'false') return;
+      warmAudioCtx();
+      sprint.state = 'marks';
+      sprint.rt = null;
+      sprint.lead = null;
+      muzzleFlashStart = 0;
+      sprint.rc = {
+        now: nowMs(), greenTime: 0, opponentDist: 0, playerDist: 0,
+        opponentLaunched: false, playerLaunched: false,
+        playerReactionTime: null, opponentDelay: 0
+      };
+      $('s-rt').textContent = '--';
+      $('s-opp').textContent = '--';
+      $('s-lead').textContent = '--';
+      sprintDrawFrame();
+      setStatus(sprint.status, 'On your marks...');
+      sprintSetSignal('ON YOUR MARKS', 'marks');
+      playStarterCue('On your marks');
+      sprintButtons();
+      sprint.timer = setTimeout(function () {
+        if (sprint.state !== 'marks') return;
+        sprint.state = 'set';
+        sprintSetSignal('', '');
+        setStatus(sprint.status, 'Set...');
+        playStarterCue('Set');
+        var wait = Math.random() * 2000 + 1000;
+        sprint.timer = setTimeout(function () {
+          if (sprint.state !== 'set') return;
+          sprint.state = 'go';
+          sprint.t0 = nowMs();
+          sprint.rc.greenTime = sprint.t0;
+          sprint.oppRT = 0.15 + Math.random() * 0.10;
+          sprint.rc.opponentDelay = sprint.oppRT;
+          muzzleFlashStart = sprint.t0;
+          if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+          playGunshot();
+          setStatus(sprint.status, 'BANG - click!');
+          sprint.anim = requestAnimationFrame(sprintTick);
+        }, wait);
+      }, 1000);
+    }
+
+    function sprintTick() {
+      if (sprint.state !== 'go' && sprint.state !== 'race') return;
+      var t = (nowMs() - sprint.t0) / 1000;
+
+      /* opponent launches on its own reaction time, runs at a steady 10 m/s */
+      if (!sprint.rc.opponentLaunched && t >= sprint.oppRT) sprint.rc.opponentLaunched = true;
+      sprint.rc.opponentDist = Math.min(TRACK_DISTANCE, Math.max(0, t - sprint.oppRT) * RUNNER_TOP_SPEED);
+
+      if (sprint.state === 'go' && t >= REACTION_MISS_SECONDS) {
+        sprint.state = 'idle';
+        muzzleFlashStart = 0;
+        sprint.rc.greenTime = 0;
+        sprint.rc.opponentLaunched = false;
+        sprint.rc.opponentDist = 0;
+        sprintDrawFrame();
+        setStatus(sprint.status, 'No start - trial reset. Click Start Race to retry.', true);
+        sprintButtons();
+        return;
+      }
+
+      if (sprint.state === 'race') {
+        sprint.rc.playerDist = Math.min(TRACK_DISTANCE, Math.max(0, t - sprint.rt) * RUNNER_TOP_SPEED);
+
+        if (sprint.rc.playerDist >= TRACK_DISTANCE || sprint.rc.opponentDist >= TRACK_DISTANCE) {
+          sprint.lead = RUNNER_TOP_SPEED * (sprint.rt - sprint.oppRT);
+          sprint.state = 'done';
+          sprintDrawFrame();
+          var lead = Math.abs(sprint.lead);
+          $('s-lead').textContent = (sprint.lead >= 0 ? '-' : '+') + lead.toFixed(2) + ' m';
+          var msg = sprint.lead >= 0
+            ? 'Opponent wins - you trail by ' + lead.toFixed(2) + ' m at the finish.'
+            : 'You win - you lead by ' + lead.toFixed(2) + ' m at the finish.';
+          setStatus(sprint.status, msg);
+          sprint.trials.push('your RT ' + sprint.rt.toFixed(3) + ' s, opponent RT ' + sprint.oppRT.toFixed(3) + ' s, finish gap ' + lead.toFixed(2) + ' m');
+          renderTrials($('s-trials'), sprint.trials);
+          sprintButtons();
+          return;
+        }
+      }
+
+      sprintDrawFrame();
+      sprint.anim = requestAnimationFrame(sprintTick);
+    }
+
+    function sprintPointer() {
+      if (sprint.state === 'marks' || sprint.state === 'set') {
+        clearTimeout(sprint.timer);
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        sprint.state = 'false';
+        sprintSetSignal('', '');
+        setStatus(sprint.status, 'False start! You moved before the gun. Click Start Race to retry.', true);
+        sprintButtons();
+        return;
+      }
+      if (sprint.state !== 'go') return;
+      var rt = (nowMs() - sprint.t0) / 1000;
+      if (rt < 0.100) {
+        cancelAnimationFrame(sprint.anim);
+        sprint.state = 'false';
+        setStatus(sprint.status, 'Disqualified: ' + rt.toFixed(3) + ' s is under the 0.100 s limit - that reads as a guess, not a reaction. Click Start Race to retry.', true);
+        sprintButtons();
+        return;
+      }
+      sprint.rt = rt;
+      sprint.state = 'race';
+      sprint.rc.playerLaunched = true;
+      sprint.rc.playerReactionTime = rt;
+      $('s-rt').textContent = fmtS(sprint.rt);
+      $('s-opp').textContent = fmtS(sprint.oppRT);
+      setStatus(sprint.status, 'Racing...');
+    }
+
+    function sprintReset() {
+      clearTimeout(sprint.timer);
+      cancelAnimationFrame(sprint.anim);
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      sprint.state = 'idle';
+      sprint.rt = null;
+      sprint.lead = null;
+      sprint.trials = [];
+      muzzleFlashStart = 0;
+      sprint.rc = {
+        now: nowMs(), greenTime: 0, opponentDist: 0, playerDist: 0,
+        opponentLaunched: false, playerLaunched: false,
+        playerReactionTime: null, opponentDelay: 0
+      };
+      sprintSetSignal('', '');
+      $('s-rt').textContent = '--';
+      $('s-opp').textContent = '--';
+      $('s-lead').textContent = '--';
+      renderTrials($('s-trials'), sprint.trials);
+      setStatus(sprint.status, 'Click Start Race on the scene to begin.');
+      sprintDrawFrame();
+      sprintButtons();
+    }
+
+    function sprintButtons() {
+      $('s-overlay').classList.toggle('hidden', sprint.state === 'marks' || sprint.state === 'set' || sprint.state === 'go' || sprint.state === 'race');
+    }
+
+    /* ================= WIRING ================= */
+    /* Overlay Start buttons live on the scene; stop their pointerdown from
+       reaching the stage so starting never doubles as a reaction click. */
+    function wireOverlay(id, startFn) {
+      var overlay = $(id);
+      overlay.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+      overlay.addEventListener('click', function (e) { e.stopPropagation(); startFn(); });
+    }
+
+    wireOverlay('r-overlay', rulerStart);
+    $('r-reset').addEventListener('click', rulerReset);
+    ruler.stage.addEventListener('pointerdown', rulerPointer);
+    $('r-copy').addEventListener('click', function () {
+      copyText('Level 1 (Falling Ruler) trials: ' + (ruler.trials.join('; ') || 'none recorded'), $('r-copy'));
+    });
+
+    wireOverlay('d-overlay', dragStart);
+    $('d-reset').addEventListener('click', dragReset);
+    $('d-stage').addEventListener('pointerdown', dragPointer);
+    $('d-copy').addEventListener('click', function () {
+      copyText('Level 2 (Drag Racing) trials: ' + (drag.trials.join('; ') || 'none recorded'), $('d-copy'));
+    });
+
+    wireOverlay('s-overlay', sprintStart);
+    $('s-reset').addEventListener('click', sprintReset);
+    $('s-stage').addEventListener('pointerdown', sprintPointer);
+    $('s-copy').addEventListener('click', function () {
+      copyText('Level 3 (Elite Sprint) trials: ' + (sprint.trials.join('; ') || 'none recorded'), $('s-copy'));
+    });
+
+    buildRulerScale();
+    rulerSetDrop(0);
+    dragDrawFrame();
+    sprintDrawFrame();
+  })();
+  </script>
+</body>
+</html>

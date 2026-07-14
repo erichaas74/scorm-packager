@@ -27,17 +27,9 @@
 (function (global) {
   'use strict';
 
-  // ── Internal state ──────────────────────────────────────────────────────────
-
-  var _api        = null;   // cached LMS API reference
+  var _api = null;
   var _initialized = false;
 
-  // ── API discovery ───────────────────────────────────────────────────────────
-
-  /**
-   * Walk up the frame tree looking for window.API (SCORM 1.2).
-   * The SCORM spec allows up to 7 levels of parent frames.
-   */
   function _findAPIInFrameTree(win) {
     var depth = 0;
     try {
@@ -56,10 +48,8 @@
   function _discoverAPI() {
     if (_api) return _api;
 
-    // 1. Search parent frames (most common LMS embedding)
     _api = _findAPIInFrameTree(global);
 
-    // 2. Fall back to opener window (some LMSes use pop-up launching)
     if (!_api && global.opener) {
       try {
         _api = _findAPIInFrameTree(global.opener);
@@ -74,8 +64,6 @@
 
     return _api;
   }
-
-  // ── Core LMS calls ──────────────────────────────────────────────────────────
 
   function _isTrue(result) {
     if (result === true || result === 1) return true;
@@ -129,21 +117,13 @@
     var api = _discoverAPI();
     if (!api) return false;
 
-    api.LMSCommit('');  // flush any pending data first
+    api.LMSCommit('');
     var result = api.LMSFinish('');
     _initialized = false;
     console.log('[SCORM] LMSFinish – OK');
     return _isTrue(result);
   }
 
-  // ── Convenience helpers ─────────────────────────────────────────────────────
-
-  /**
-   * Set the learner's score.
-   * @param {number} raw   - Score value (typically 0–100)
-   * @param {number} [min] - Minimum possible score (default 0)
-   * @param {number} [max] - Maximum possible score (default 100)
-   */
   function setScore(raw, min, max) {
     min = (min !== undefined) ? min : 0;
     max = (max !== undefined) ? max : 100;
@@ -153,11 +133,6 @@
     commit();
   }
 
-  /**
-   * Set the lesson completion/pass status.
-   * @param {string} status - One of: "passed" | "failed" | "completed" |
-   *                          "incomplete" | "browsed" | "not attempted"
-   */
   function setStatus(status) {
     var valid = ['passed', 'failed', 'completed', 'incomplete', 'browsed', 'not attempted'];
     if (valid.indexOf(status) === -1) {
@@ -167,8 +142,6 @@
     commit();
   }
 
-  // ── Lifecycle hooks ─────────────────────────────────────────────────────────
-
   global.addEventListener('load', function () {
     initialize();
   });
@@ -177,16 +150,13 @@
     if (_initialized) finish();
   });
 
-  // ── Public surface ──────────────────────────────────────────────────────────
-
   global.SCORM = {
-    initialize : initialize,
-    finish     : finish,
-    commit     : commit,
-    getValue   : getValue,
-    setValue   : setValue,
-    setScore   : setScore,
-    setStatus  : setStatus
+    initialize: initialize,
+    finish: finish,
+    commit: commit,
+    getValue: getValue,
+    setValue: setValue,
+    setScore: setScore,
+    setStatus: setStatus
   };
-
 }(window));

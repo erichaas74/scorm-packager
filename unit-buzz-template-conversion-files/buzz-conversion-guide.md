@@ -60,7 +60,10 @@ Key style facts from the model lessons (these override the older rules):
   template file (section 3). Buzz cannot open linked or hosted files from
   a template, so the simulation code must live in the template itself.
 - **Hosted support tools** only when the activity cannot run inside a Buzz template
-  (e.g., PhET, which is embedded by iframe with an external-launch fallback button).
+  (e.g., PhET, which is embedded by iframe with an external-launch fallback button), or
+  when the full-graphics template is too large for Buzz to upload or handle — in that
+  case host the simulation and embed a link or iframe in the template. Never solve a
+  size problem by cutting the simulation's graphics.
 
 ---
 
@@ -95,6 +98,7 @@ Current template names (all renamed on 2026-07-13):
 | U1L2 | `u1l2-city-blocks-buzz-assessment-template.html` |
 | U1L3 | `u1l3-galileo-buzz-assessment-template.html` |
 | U1L3 (legacy Netlify-hosted variant) | `u1l3-galileo-netlify-buzz-assessment-template.html` |
+| U1L4 | `u1l4-reaction-time-buzz-assessment-template.html` |
 | U1L5 | `u1l5-skydiver-buzz-assessment-template.html` |
 | U2L1 | `u2l1-phet-projectile-buzz-assessment-template.html` |
 | U2L2 | `u2l2-launch-velocity-buzz-assessment-template.html` |
@@ -322,35 +326,47 @@ Essay patterns are in section 5.
    own hosted files, no CDN scripts, no external stylesheets, no separate lab files in
    the Buzz upload path. (PhET iframes are the exception, with an external-launch
    fallback button in case Buzz blocks the iframe.)
-2. **Multiple embedded sims are fine.** u3l4 embeds five trimmed per-trial simulators
-   driven by one shared script; u2l3 embeds two simulator sections. Lock each embedded
-   sim to its trial's fixed conditions so every student collects identical data.
-3. **Script-strip fallback.** If Buzz strips the template's script (sims don't draw in
-   preview), host the standalone sim file outside Buzz and switch the template to a
-   hosted link or iframe. Every setup-instructions file names this fallback.
-4. **Slots fill in display order.** The number of `<a:question></a:question>` slots must
+2. **Keep the simulation graphics as built — do not simplify or redraw them.** The
+   embedded sims must carry the original lab's full visuals and audio (scenes, sprites,
+   sound cues). The ONLY things to trim when embedding a lab into a template are
+   directions, solving help, redundant titles/headers, and lab chrome the assessment
+   does not need (scoring panels, SCORM wiring, walkthrough overlays). If the resulting
+   template becomes too large for Buzz to upload or handle, do not cut graphics —
+   switch to the size fallback: host the full simulation outside Buzz and embed a link
+   or iframe to it in the template instead.
+3. **Multiple embedded sims are fine.** u3l4 embeds five per-trial simulators driven by
+   one shared script; u2l3 embeds two simulator sections. Lock each embedded sim to its
+   trial's fixed conditions so every student collects identical data.
+4. **Script-strip and size fallback.** If Buzz strips the template's script (sims don't
+   draw in preview) or rejects the template for size, host the standalone sim file
+   outside Buzz and switch the template to a hosted link or iframe. Every
+   setup-instructions file names this fallback.
+5. **Slots fill in display order.** The number of `<a:question></a:question>` slots must
    equal the number of questions, and the questions.txt order must match slot order
    exactly. Chart-cell placement is what gives short prompts their context, so a
    scrambled order grades answers against the wrong trial.
-5. **No solving help in the template.** No formulas, sign hints, worked directions, or
+6. **No solving help in the template.** No formulas, sign hints, worked directions, or
    conclusions. Each section shows only its setup facts, the sim, and the chart or
    question slots. Teaching lives in the standalone practice sim (Guide/Hint overlays)
    or the lesson page. When the graded skill includes converting data (arrow-to-sign,
-   units), the template must not do that conversion for the student.
-6. **Ungraded self-check inputs are allowed** (u3l4's yellow final-velocity cells): they
+   units), the template must not do that conversion for the student. **Readouts count
+   too: never display a value the questions ask the student to calculate.** Show the
+   raw/given data and mark the solve target "you calculate" (u1l4 hides the Level 1/3
+   reaction times and the Level 2 finish gap, mirroring the full lab's validation gate).
+7. **Ungraded self-check inputs are allowed** (u3l4's yellow final-velocity cells): they
    may confirm a correct reading by locking into a display, but they give no feedback on
    wrong entries, are not saved, and must not expose any gradable value the sim doesn't
    already show.
-7. **Evidence workflow controls.** Every lab where students transfer data into Buzz gets
+8. **Evidence workflow controls.** Every lab where students transfer data into Buzz gets
    a Lab Evidence / Lab Report panel with the exact values to copy, a
    "Copy values for Buzz" button for numeric data, and a "Download Evidence Image"
    button when a chart/graph/table screenshot is graded.
-8. **End with a return-to-Buzz instruction** telling students to finish the Buzz
+9. **End with a return-to-Buzz instruction** telling students to finish the Buzz
    questions below the lab.
-9. **No answer-reveal tools in student-facing templates** unless teacher-locked or
-   delayed until after submission. Remove or lock Show Answer / Answer Key Preview
-   buttons before publishing (e.g., baseball-throw.html).
-10. **Package or inline all dependencies.** Replace Tailwind/CDN links with local or
+10. **No answer-reveal tools in student-facing templates** unless teacher-locked or
+    delayed until after submission. Remove or lock Show Answer / Answer Key Preview
+    buttons before publishing (e.g., baseball-throw.html).
+11. **Package or inline all dependencies.** Replace Tailwind/CDN links with local or
     inline CSS; school networks and Buzz hosting may block external scripts and fonts.
 
 ---
@@ -681,7 +697,7 @@ As of 2026-07-13. Detailed remaining work lives in each lesson's
 | U1L1-additions | Alternate Motion Graphs build | archived reference | — | Do not publish; scenarios merged into U1L1. |
 | U1L2 | City Blocks Challenge | Buzz-native, self-contained | 6 q / 11 pts (1 MC, 4 E, 1 UP) | Full upload set + rubric metadata exists; preview embedded challenge, evidence download, copy-values in Buzz. |
 | U1L3 | Galileo Acceleration Lab | **Model lesson** — Buzz-native, self-contained | 7 q / 12 pts (6 E, 1 UP) | Done. Upload `u1l3-galileo-buzz-assessment-template.html`; verify page title in preview. |
-| U1L4 | Reflex Lab | Hosted, student-dependent validation | — | Done. Keep the validation gate; never convert reaction-time values to fixed-answer questions. |
+| U1L4 | Reaction Time Kinematics Lab | Buzz-native, self-contained (3 embedded scenarios with the original lab graphics + audio) + SCORM lab kept for practice | 10 q / 14 pts (2 MC, 4 F-Number, 4 E) | Full upload set created 2026-07-13. Numeric questions use fixed given values only; measured reaction times stay ungraded (validation-gate rule). Preview in Buzz; note `new-lesson-4` folder divergence (320 m strip) in lab-format-suggestions.txt. |
 | U1L5 | Skydiver Graphs and Challenge | Buzz-native, self-contained | fixed Part 1 questions + evidence/essay Part 2 | Full set exists. Upload `u1l5-skydiver-buzz-assessment-template.html`; preview graphs and evidence download. |
 | U1 Honors | Rocket Launch Lab | evidence-based honors extension | — | Keep separate from U1L5; linked as Honors on the Unit 1 page. |
 | U2L1 | PhET Projectile Motion | Buzz-native + PhET iframe | 13 q | Preview iframe in Buzz (keep external-launch fallback); verify all numeric tolerance ranges against PhET. |

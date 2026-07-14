@@ -15,6 +15,12 @@ const lessons = [
     output: 'u1l3-galileo-buzz-assessment-template-preview.html'
   },
   {
+    dir: 'unit-1/lesson-4',
+    template: 'u1l4-reaction-time-buzz-assessment-template.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'u1l4-reaction-time-buzz-assessment-template-preview.html'
+  },
+  {
     dir: 'unit-1/lesson-5',
     template: 'u1l5-skydiver-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
@@ -55,6 +61,12 @@ const lessons = [
     template: 'u3l1-phet-forces-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
     output: 'u3l1-phet-forces-buzz-assessment-template-preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-3/lesson-3',
+    template: 'u3l3-friction-force-buzz-assessment-template.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'u3l3-friction-force-buzz-assessment-template-preview.html'
   },
   {
     dir: 'unit-ApplicationFiles/unit-3/lesson-4',
