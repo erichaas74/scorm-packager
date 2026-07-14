@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Unit 2 Honors Project - Coriolis Cannon Challenge</title>
+  <title>Unit 2 Honors - Coriolis Cannon Investigation</title>
   <style>
     * { box-sizing: border-box; }
 
@@ -365,12 +365,13 @@
       color: var(--text);
     }
 
-    .evidence-panel { margin-top: 16px; border-radius: 14px; padding: 16px; color: var(--muted); }
-    .evidence-panel h2 { margin-top: 0; color: var(--text); }
-    .evidence-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
-    .evidence-actions button { border-radius: 10px; padding: 10px 14px; background: var(--sky); color: #082f49; font-weight: 800; }
+    .buzz-section { margin-top: 18px; border: 1px solid var(--line); border-radius: 16px; padding: 18px; background: rgba(15, 23, 42, 0.9); }
+    .buzz-section h2 { margin-top: 0; }
+    .evidence-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+    .evidence-actions button { border-radius: 10px; padding: 10px 14px; background: #0ea5e9; color: #082f49; font-weight: 800; }
     .trial-log { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
     .trial-log th, .trial-log td { border: 1px solid rgba(148, 163, 184, 0.35); padding: 7px; text-align: left; }
+    .question-card { margin-top: 14px; border-left: 5px solid #a78bfa; border-radius: 10px; padding: 14px; background: #fff; color: #172033; }
 
     @media (max-width: 900px) {
       .header,
@@ -412,21 +413,6 @@
           <canvas id="sideCanvas" aria-label="Ground-based side view looking from the launch toward the target"></canvas>
         </div>
 
-        <div class="canvas-card globe-view">
-          <div class="view-label">Globe view</div>
-          <div class="globe-shell">
-            <div id="globeViz" aria-label="Interactive 3D globe showing Earth rotation and animated paths"></div>
-            <div id="loading">Loading 3D Globe...</div>
-
-            <div id="controls">
-              <label for="speedSlider" class="text-sm font-medium">
-                <span>Auto-Rotate Speed:</span>
-                <strong><span id="globeSpeedValue">1.5</span>x</strong>
-              </label>
-              <input id="speedSlider" type="range" min="0" max="5" step="0.1" value="1.5" />
-            </div>
-          </div>
-        </div>
       </div>
 
       <aside class="controls">
@@ -501,9 +487,9 @@
       <div class="info-card"><strong>Claim:</strong> Explain why inertia keeps the shell moving straight while Earth rotation changes the observed path.</div>
     </section>
 
-    <section class="evidence-panel" aria-labelledby="evidence-title">
+    <section class="buzz-section" aria-labelledby="evidence-title">
       <h2 id="evidence-title">Lab Evidence</h2>
-      <p>Each completed shot is recorded here. Complete all four launch directions and at least one corrected-aim hit.</p>
+      <p>Complete direct-aim and corrected-aim trials in all four launch directions. Each finished shot is recorded below.</p>
       <div class="evidence-actions">
         <button id="copyEvidenceBtn" type="button">Copy values for Buzz</button>
         <button id="downloadEvidenceBtn" type="button">Download Evidence Image</button>
@@ -517,10 +503,19 @@
       </div>
       <p id="evidenceMessage" aria-live="polite"></p>
     </section>
+
+    <section class="buzz-section" aria-labelledby="questions-title">
+      <h2 id="questions-title">Buzz Assessment Questions</h2>
+      <div class="question-card"><a:question></a:question></div>
+      <div class="question-card"><a:question></a:question></div>
+      <div class="question-card"><a:question></a:question></div>
+      <div class="question-card"><a:question></a:question></div>
+      <div class="question-card"><a:question></a:question></div>
+      <div class="question-card"><a:question></a:question></div>
+      <p><strong>Return to Buzz:</strong> finish every question and submit your evidence image.</p>
+    </section>
   </main>
 
-  <script src="scorm-wrapper.js"></script>
-  <script src="https://unpkg.com/globe.gl"></script>
   <script>
     (function() {
       "use strict";
@@ -787,9 +782,9 @@
 
         world = Globe()
           (globeNode)
-          .globeImageUrl("https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg")
-          .bumpImageUrl("https://unpkg.com/three-globe/example/img/earth-topology.png")
-          .backgroundImageUrl("https://unpkg.com/three-globe/example/img/night-sky.png")
+          .globeImageUrl("")
+          .bumpImageUrl("")
+          .backgroundImageUrl("")
           .showGraticules(true)
           .onGlobeReady(function() {
             loadingNode.style.opacity = "0";
@@ -1068,7 +1063,8 @@
       }
 
       function evidenceText() {
-        return ["Trial | Launch | Aim | Hemisphere | Result | Miss"].concat(trialLog.map(function(trial) {
+        var header = "Trial | Launch | Aim | Hemisphere | Result | Miss";
+        return [header].concat(trialLog.map(function(trial) {
           return [trial.number, trial.launch, trial.aim + " deg", trial.hemisphere, trial.result, trial.miss].join(" | ");
         })).join("\n");
       }
@@ -1093,37 +1089,56 @@
       function recordTrial() {
         if (!projectile || projectile.recorded) return;
         projectile.recorded = true;
-        trialLog.push({ number: trialLog.length + 1, launch: launchDirectionLabel(), aim: Number(inputs.aimCorrection.value), hemisphere: hemisphere, result: status, miss: status === "Hit" ? "0 px" : Math.round(missDistance || 0) + " px" });
+        trialLog.push({
+          number: trialLog.length + 1,
+          launch: launchDirectionLabel(),
+          aim: Number(inputs.aimCorrection.value),
+          hemisphere: hemisphere,
+          result: status,
+          miss: status === "Hit" ? "0 px" : Math.round(missDistance || 0) + " px"
+        });
         renderTrialLog();
         evidenceMessage.textContent = "Trial " + trialLog.length + " recorded.";
       }
 
       function copyEvidence() {
-        if (!trialLog.length) { evidenceMessage.textContent = "Complete at least one shot before copying evidence."; return; }
+        if (!trialLog.length) {
+          evidenceMessage.textContent = "Complete at least one shot before copying evidence.";
+          return;
+        }
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(evidenceText()).then(function() { evidenceMessage.textContent = "Trial values copied for Buzz."; });
-        } else { evidenceMessage.textContent = evidenceText(); }
+          navigator.clipboard.writeText(evidenceText()).then(function() {
+            evidenceMessage.textContent = "Trial values copied. Paste them into your Buzz response.";
+          });
+        } else {
+          evidenceMessage.textContent = evidenceText();
+        }
       }
 
       function downloadEvidence() {
-        if (!trialLog.length) { evidenceMessage.textContent = "Complete at least one shot before downloading evidence."; return; }
+        if (!trialLog.length) {
+          evidenceMessage.textContent = "Complete at least one shot before downloading evidence.";
+          return;
+        }
         var evidenceCanvas = document.createElement("canvas");
         evidenceCanvas.width = 1200;
         evidenceCanvas.height = 170 + trialLog.length * 42;
         var evidenceCtx = evidenceCanvas.getContext("2d");
-        evidenceCtx.fillStyle = "#fff";
+        evidenceCtx.fillStyle = "#ffffff";
         evidenceCtx.fillRect(0, 0, evidenceCanvas.width, evidenceCanvas.height);
         evidenceCtx.fillStyle = "#172033";
         evidenceCtx.font = "bold 30px Arial";
         evidenceCtx.fillText("Unit 2 Honors - Coriolis Cannon Evidence", 40, 52);
         evidenceCtx.font = "18px Arial";
         evidenceCtx.fillText("Trial     Launch                         Aim       Hemisphere       Result       Miss", 40, 100);
-        trialLog.forEach(function(trial, index) { evidenceCtx.fillText([trial.number, trial.launch, trial.aim + " deg", trial.hemisphere, trial.result, trial.miss].join("     "), 40, 145 + index * 42); });
+        trialLog.forEach(function(trial, index) {
+          evidenceCtx.fillText([trial.number, trial.launch, trial.aim + " deg", trial.hemisphere, trial.result, trial.miss].join("     "), 40, 145 + index * 42);
+        });
         var link = document.createElement("a");
         link.download = "u2h-coriolis-evidence.png";
         link.href = evidenceCanvas.toDataURL("image/png");
         link.click();
-        evidenceMessage.textContent = "Evidence image downloaded.";
+        evidenceMessage.textContent = "Evidence image downloaded. Upload it to Question 6.";
       }
 
       function markSCORMComplete() {
@@ -1768,7 +1783,11 @@
       targetWestBtn.addEventListener("click", function() { setTargetDirection("West"); });
       copyEvidenceBtn.addEventListener("click", copyEvidence);
       downloadEvidenceBtn.addEventListener("click", downloadEvidence);
-      clearEvidenceBtn.addEventListener("click", function() { trialLog = []; renderTrialLog(); evidenceMessage.textContent = "Trial log cleared."; });
+      clearEvidenceBtn.addEventListener("click", function() {
+        trialLog = [];
+        renderTrialLog();
+        evidenceMessage.textContent = "Trial log cleared.";
+      });
       window.addEventListener("resize", resize);
 
       syncControls();

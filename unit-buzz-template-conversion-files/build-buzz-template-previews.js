@@ -27,6 +27,12 @@ const lessons = [
     output: 'u1l5-skydiver-buzz-assessment-template-preview.html'
   },
   {
+    dir: 'unit-1/lesson-honors',
+    template: 'u1h-rocket-launch-buzz-assessment-template.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'u1h-rocket-launch-buzz-assessment-template-preview.html'
+  },
+  {
     dir: 'unit-ApplicationFiles/unit-2/lesson-u2l1',
     template: 'u2l1-phet-projectile-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
@@ -57,10 +63,28 @@ const lessons = [
     output: 'u2l5-inertia-tension-buzz-assessment-template-preview.html'
   },
   {
+    dir: 'unit-ApplicationFiles/unit-2/lesson-u2honors',
+    template: 'u2h-coriolis-cannon-buzz-assessment-template.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'u2h-coriolis-cannon-buzz-assessment-template-preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-2/lesson-u2honors',
+    template: 'u2h-coriolis-cannon-hosted-buzz-assessment-template.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'u2h-coriolis-cannon-hosted-buzz-assessment-template-preview.html'
+  },
+  {
     dir: 'unit-ApplicationFiles/unit-3/lesson-1',
     template: 'u3l1-phet-forces-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
     output: 'u3l1-phet-forces-buzz-assessment-template-preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-3/lesson-2',
+    template: 'u3l2-golf-club-ct-buzz-assessment-template.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'u3l2-golf-club-ct-buzz-assessment-template-preview.html'
   },
   {
     dir: 'unit-ApplicationFiles/unit-3/lesson-3',

@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USGA Golf Club CT Compliance Test</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+            background-color: #f3f4f6;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            color: #111827;
+        }
+        .page-header {
+            width: 100%;
+            max-width: 1000px;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        .page-header h1 { font-size: 1.75rem; margin: 0 0 6px; color: #111827; }
+        .page-header p { margin: 0; color: #4b5563; font-size: 0.9rem; }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .directions {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 14px 16px;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            color: #1e3a5f;
+        }
+        .directions h2 { margin: 0 0 6px; font-size: 1rem; color: #1d4ed8; }
+        .directions ol { margin: 6px 0 0; padding-left: 20px; }
+        .directions li { margin-bottom: 4px; }
+
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            background: #eef2f8;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 8px rgba(15,23,42,0.12);
+            border: 1px solid #dbe3ee;
+            aspect-ratio: 16 / 9;
+        }
+        canvas { display: block; width: 100%; height: 100%; }
+
+        .canvas-drop {
+            position: absolute;
+            top: 10px;
+            left: 12px;
+            z-index: 3;
+            box-shadow: 0 4px 12px rgba(37,99,235,0.35);
+        }
+
+        .mat-rack {
+            position: absolute;
+            bottom: 60px;
+            right: 8px;
+            z-index: 3;
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 4px;
+            width: 356px;
+            background: rgba(255,255,255,0.85);
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 6px;
+            box-shadow: 0 6px 16px rgba(15,23,42,0.12);
+        }
+        .rack-title {
+            grid-column: 1 / -1;
+            font-size: 0.65rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: #475569;
+            text-align: center;
+        }
+        .mat-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            font-family: inherit;
+            font-size: 0.62rem;
+            line-height: 1.1;
+            text-align: center;
+            font-weight: 700;
+            padding: 5px 2px;
+            border-radius: 8px;
+            border: 2px solid #d7dfe9;
+            background: #ffffff;
+            color: #1f2937;
+            cursor: pointer;
+            text-align: left;
+            transition: border-color .12s, background .12s;
+        }
+        .mat-btn:hover:not(:disabled) { border-color: #93c5fd; }
+        .mat-btn.active { border-color: #2563eb; background: #dbeafe; }
+        .mat-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+        .mat-btn .chip { width: 12px; height: 12px; border-radius: 3px; flex: none; border: 1px solid rgba(15,23,42,0.25); }
+        .mat-btn.mat-mystery { color: #a21caf; }
+        .mat-btn.mat-mystery.active { border-color: #a21caf; background: #fae8ff; }
+
+        .vector-overlay {
+            position: absolute;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15,23,42,0.88);
+            padding: 12px;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.75rem;
+            border: 1px solid #4b5563;
+            max-width: 230px;
+            z-index: 4;
+        }
+        .vector-overlay.hidden { display: none; }
+        .vector-overlay .ov-title { font-weight: 700; margin-bottom: 4px; color: #93c5fd; }
+        .vector-overlay .ov-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+        .vector-overlay .ov-note { margin-top: 6px; color: #fde68a; font-weight: 700; }
+        .dot { width: 12px; height: 12px; border-radius: 999px; display: inline-block; flex: none; }
+        .dot-red { background: #ef4444; }
+        .dot-yellow { background: #facc15; }
+
+        .btn {
+            border: 0;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-weight: 700;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: background-color .15s, filter .15s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+        }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn-blue { background: #2563eb; color: white; }
+        .btn-blue:hover:not(:disabled) { background: #1d4ed8; }
+
+        .graph-section {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            height: 270px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        .graph-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px; }
+        .graph-header h3 { margin: 0; font-size: 0.875rem; color: #1f2937; }
+        .graph-header p { margin: 0; font-size: 0.75rem; color: #6b7280; }
+        .legend { display: flex; gap: 16px; font-size: 0.75rem; font-weight: 600; }
+        .legend span { display: flex; align-items: center; gap: 4px; }
+        .swatch { width: 14px; height: 3px; display: inline-block; }
+        .graph-canvas-wrap { flex: 1; position: relative; width: 100%; height: 100%; }
+        #graphCanvas { position: absolute; inset: 0; width: 100%; height: 100%; border: 1px solid #f1f5f9; border-radius: 4px; cursor: crosshair; }
+
+        .table-section h3 { margin: 0 0 4px; font-size: 0.95rem; color: #1f2937; }
+        .table-section .notebook-note { margin: 0 0 10px; font-size: 0.78rem; color: #6b7280; }
+        .results-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .results-table th, .results-table td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: center; }
+        .results-table th { background: #f1f5f9; color: #334155; font-size: 0.75rem; letter-spacing: 0.4px; }
+        .results-table td:first-child { text-align: left; font-weight: 600; }
+        .results-table .not-tested { color: #94a3b8; }
+        .results-table .cell-tested { color: #166534; font-weight: 700; }
+        .results-table tr.mystery-row td:first-child { color: #a21caf; }
+        .note-input {
+            width: 90px;
+            padding: 5px 7px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-family: Consolas, monospace;
+            font-size: 0.85rem;
+            text-align: center;
+        }
+        .note-input:focus { outline: none; border-color: #2563eb; }
+        .note-select {
+            padding: 5px 7px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            background: white;
+        }
+
+        /* ---------- Question section ---------- */
+        .quiz-container {
+            width: 100%;
+            max-width: 1000px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            padding: 24px;
+            margin-bottom: 40px;
+        }
+        .score-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            background: #0f172a;
+            color: white;
+            border-radius: 8px;
+            padding: 12px 18px;
+            margin-bottom: 20px;
+        }
+        .score-bar .score-num { font-size: 1.3rem; font-weight: 800; font-family: Consolas, monospace; color: #4ade80; }
+        .score-bar .score-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; }
+        .score-bar .save-note { font-size: 0.72rem; color: #64748b; }
+
+        .part-header { margin: 22px 0 10px; }
+        .part-header h2 { margin: 0; font-size: 1.1rem; color: #1d4ed8; }
+        .part-header p { margin: 4px 0 0; font-size: 0.82rem; color: #6b7280; }
+
+        .q-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 14px;
+            position: relative;
+            background: #fff;
+        }
+        .q-card.locked { background: #f8fafc; }
+        .q-card.correct { border-color: #86efac; background: #f0fdf4; }
+        .q-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+        .q-num { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: #2563eb; }
+        .q-pts { font-size: 0.72rem; font-weight: 700; color: #64748b; white-space: nowrap; }
+        .q-prompt { font-size: 0.92rem; line-height: 1.45; color: #111827; margin-bottom: 10px; }
+        .q-lock-msg {
+            font-size: 0.82rem;
+            color: #64748b;
+            background: #f1f5f9;
+            border: 1px dashed #cbd5e1;
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+        .q-options { display: flex; flex-direction: column; gap: 7px; }
+        .q-option {
+            text-align: left;
+            border: 2px solid #e2e8f0;
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 9px 12px;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            cursor: pointer;
+            color: #1f2937;
+            transition: border-color .12s, background .12s;
+            font-family: inherit;
+        }
+        .q-option:hover:not(:disabled) { border-color: #93c5fd; background: #eff6ff; }
+        .q-option.selected { border-color: #2563eb; background: #dbeafe; }
+        .q-option.locked-correct { border-color: #22c55e; background: #dcfce7; }
+        .q-option:disabled { cursor: default; }
+        .num-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .num-input {
+            width: 130px;
+            padding: 9px 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-family: Consolas, monospace;
+        }
+        .num-input:focus { outline: none; border-color: #2563eb; }
+        .num-unit { font-size: 0.85rem; color: #475569; font-weight: 600; }
+        .q-check { margin-top: 10px; }
+        .q-feedback {
+            margin-top: 10px;
+            font-size: 0.82rem;
+            line-height: 1.45;
+            border-radius: 8px;
+            padding: 9px 12px;
+            display: none;
+        }
+        .q-feedback.show { display: block; }
+        .q-feedback.good { background: #dcfce7; color: #14532d; border: 1px solid #bbf7d0; }
+        .q-feedback.bad { background: #fef2f2; color: #7f1d1d; border: 1px solid #fecaca; }
+
+        .finish-banner {
+            display: none;
+            margin-top: 20px;
+            background: #dcfce7;
+            border: 1px solid #86efac;
+            color: #14532d;
+            border-radius: 10px;
+            padding: 16px 18px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            text-align: center;
+            font-weight: 600;
+        }
+        .finish-banner.show { display: block; }
+    
+        .buzz-report { margin-top: 4px; }
+        .buzz-part { margin-top: 20px; }
+        .buzz-part-heading { border-left: 4px solid #2563eb; margin-bottom: 10px; padding: 4px 0 4px 10px; }
+        .buzz-part-heading h4 { margin: 0; color: #1d4ed8; font-size: 1rem; }
+        .buzz-part-heading p { margin: 2px 0 0; color: #64748b; font-size: 0.78rem; }
+        .buzz-slot-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(285px, 1fr)); gap: 12px; }
+        .buzz-slot-card { border: 1px solid #e2e8f0; border-top: 4px solid #2563eb; border-radius: 8px; padding: 12px; background: #f8fbff; }
+        .buzz-slot-card h5 { margin: 0 0 8px; color: #1f2937; font-size: 0.92rem; }
+        .buzz-slot { border-top: 1px solid #dbe3ee; padding: 8px 0 2px; min-height: 48px; }
+        .buzz-slot-label { color: #64748b; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+        .measurement-group, .part1-analysis { margin-top: 16px; }
+        .measurement-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+        .measurement-heading h5 { margin: 0; color: #1f2937; font-size: 0.92rem; }
+        .measurement-heading p { margin: 0; color: #64748b; font-size: 0.76rem; line-height: 1.35; text-align: right; }
+        .four-material-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+        .measurement-card, .analysis-question { border: 1px solid #dbe3ee; border-top: 3px solid #2563eb; border-radius: 6px; padding: 10px; background: #f8fbff; min-width: 0; }
+        .measurement-card h6 { margin: 0 0 8px; color: #1f2937; font-size: 0.78rem; line-height: 1.25; text-align: center; }
+        .part1-analysis-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .prelab-section { margin-bottom: 28px; padding: 18px; border: 1px solid #bfdbfe; border-radius: 8px; background: #f8fbff; }
+        .prelab-heading { display: flex; justify-content: space-between; gap: 18px; align-items: end; margin-bottom: 14px; }
+        .section-kicker { color: #2563eb; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.7px; text-transform: uppercase; }
+        .prelab-heading h3 { margin: 3px 0 0; color: #1e3a8a; font-size: 1.1rem; }
+        .prelab-heading p { max-width: 480px; margin: 0; color: #475569; font-size: 0.82rem; line-height: 1.45; }
+        .third-law-visual { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(200px, 0.8fr); gap: 14px; align-items: stretch; }
+        .force-graph-card, .third-law-key { border: 1px solid #dbe3ee; border-radius: 8px; padding: 12px; background: #ffffff; }
+        .force-graph-card h4, .third-law-key h4 { margin: 0 0 8px; color: #1f2937; font-size: 0.84rem; }
+        .force-graph { display: block; width: 100%; height: auto; }
+        .third-law-key { background: #eff6ff; }
+        .pair-row { display: flex; align-items: center; gap: 8px; margin: 10px 0; color: #1e3a5f; font-size: 0.78rem; line-height: 1.35; }
+        .force-arrow { flex: none; color: #dc2626; font-size: 1.45rem; font-weight: 800; }
+        .force-arrow-right { color: #2563eb; }
+        .third-law-key p { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid #bfdbfe; color: #1e3a5f; font-size: 0.76rem; line-height: 1.45; font-weight: 600; }
+        .prelab-slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+        .prelab-question { min-height: 72px; border: 1px solid #dbe3ee; border-radius: 6px; padding: 10px; background: #ffffff; }
+        .prelab-label { display: block; margin-bottom: 7px; color: #2563eb; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
+        @media (max-width: 640px) { .prelab-heading, .third-law-visual { grid-template-columns: 1fr; display: grid; } .prelab-slots, .part1-analysis-grid { grid-template-columns: 1fr; } .measurement-heading { display: block; } .measurement-heading p { margin-top: 3px; text-align: left; } }
+        @media (max-width: 640px) { .buzz-slot-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div class="page-header">
+    <h1>USGA Golf Club CT Compliance Test</h1>
+    <p>You are an equipment-testing engineer. Use the pendulum tester to capture force&ndash;time traces, calculate Characteristic Time (CT) from the graph yourself, and rule on a confiscated mystery prototype.</p>
+</div>
+
+<div class="container">
+
+    <div class="directions"><h2>Testing Record</h2><p>Part 1: test the four calibration faces. Part 2: test Rigid Steel and Prototype X-7, then determine which face meets the CT limit. Inspect the original force-time trace and complete the matching Buzz questions below.</p></div>
+
+  <section class="prelab-section" aria-labelledby="prelab-heading">
+    <div class="prelab-heading">
+      <div><span class="section-kicker">Before the tester</span><h3 id="prelab-heading">Newton's Third Law: Club and Ball</h3></div>
+      <p>Read the club's force-time trace. Then predict the force-time trace for the ball during the same collision.</p>
+    </div>
+    <div class="third-law-visual">
+      <div class="force-graph-card">
+        <h4>Force on the Club from the Ball</h4>
+        <svg class="force-graph" viewBox="0 0 520 215" role="img" aria-label="A force-time graph with a single positive pulse during contact">
+          <rect x="0" y="0" width="520" height="215" fill="#ffffff"/>
+          <g stroke="#e2e8f0" stroke-width="1"><line x1="58" y1="32" x2="500" y2="32"/><line x1="58" y1="76" x2="500" y2="76"/><line x1="58" y1="120" x2="500" y2="120"/><line x1="58" y1="164" x2="500" y2="164"/><line x1="146" y1="20" x2="146" y2="164"/><line x1="234" y1="20" x2="234" y2="164"/><line x1="322" y1="20" x2="322" y2="164"/><line x1="410" y1="20" x2="410" y2="164"/></g>
+          <g stroke="#475569" stroke-width="2"><line x1="58" y1="20" x2="58" y2="164"/><line x1="58" y1="164" x2="500" y2="164"/></g>
+          <path d="M58 164 L152 164 C183 164 200 147 218 108 C238 64 259 37 280 37 C301 37 322 64 342 108 C360 147 377 164 408 164 L500 164" fill="none" stroke="#dc2626" stroke-width="5" stroke-linecap="round"/>
+          <g fill="#475569" font-family="Segoe UI, sans-serif" font-size="12"><text x="40" y="168">0</text><text x="19" y="124">10</text><text x="19" y="80">20</text><text x="19" y="36">30</text><text x="242" y="202">Time during collision</text><text x="65" y="187">before</text><text x="239" y="187">contact</text><text x="416" y="187">after</text></g>
+          <text x="18" y="16" fill="#475569" font-family="Segoe UI, sans-serif" font-size="12">Force (N)</text>
+        </svg>
+      </div>
+      <aside class="third-law-key">
+        <h4>Collision Pair</h4>
+        <div class="pair-row"><span class="force-arrow force-arrow-left">&larr;</span><span>The ball pushes on the club.</span></div>
+        <div class="pair-row"><span class="force-arrow force-arrow-right">&rarr;</span><span>The club pushes on the ball.</span></div>
+        <p>These forces act at the same time, have equal magnitudes, and point in opposite directions.</p>
+      </aside>
+    </div>
+    <div class="prelab-slots">
+      <div class="prelab-question"><span class="prelab-label">Prediction: ball's graph</span><a:question></a:question></div>
+      <div class="prelab-question"><span class="prelab-label">Force pair</span><a:question></a:question></div>
+      <div class="prelab-question"><span class="prelab-label">Acceleration and mass</span><a:question></a:question></div>
+      <div class="prelab-question"><span class="prelab-label">Evidence-based conclusion</span><a:question></a:question></div>
+    </div>
+  </section>
+    <div class="canvas-container" id="simWrapper">
+        <canvas id="simCanvas"></canvas>
+
+        <button id="dropBtn" class="btn btn-blue canvas-drop">Drop Pendulum</button>
+
+        <div class="mat-rack" aria-label="Test material selector">
+            <div class="rack-title">Test Material</div>
+            <button class="mat-btn" id="mat-1" data-mat="1" title="Soft Polymer"><span class="chip" style="background:#a78bfa"></span>Polymer</button>
+            <button class="mat-btn" id="mat-2" data-mat="2" title="Alloy"><span class="chip" style="background:#9ca3af"></span>Alloy</button>
+            <button class="mat-btn" id="mat-3" data-mat="3" title="Thin Titanium"><span class="chip" style="background:#60a5fa"></span>Thin Ti</button>
+            <button class="mat-btn" id="mat-4" data-mat="4" title="Thick Titanium"><span class="chip" style="background:#3b82f6"></span>Thick Ti</button>
+            <button class="mat-btn" id="mat-5" data-mat="5" title="Rigid Steel"><span class="chip" style="background:#1e3a8a"></span>Steel</button>
+            <button class="mat-btn mat-mystery" id="mat-x" data-mat="x"><span class="chip" style="background:#d946ef"></span>X-7 <span id="mysteryLock">&#128274;</span></button>
+        </div>
+
+        <div id="vectorOverlay" class="vector-overlay hidden">
+            <div class="ov-title">Newton's 3rd Law Pair</div>
+            <div class="ov-row"><span class="dot dot-red"></span> Pendulum pushes on face</div>
+            <div class="ov-row"><span class="dot dot-yellow"></span> Face pushes on pendulum</div>
+            <div class="ov-note">Equal size &mdash; opposite direction</div>
+        </div>
+    </div>
+
+    <div class="graph-section">
+        <div class="graph-header">
+            <div>
+                <h3>Accelerometer Signal (Force vs. Time)</h3>
+                <p>Hover over the plotted trace to read the time and force at any point.</p>
+            </div>
+            <div class="legend">
+                <span><span class="swatch" style="background:#9ca3af;"></span> Raw Data</span>
+                <span><span class="swatch" style="background:#2563eb;"></span> Smoothed Curve</span>
+            </div>
+        </div>
+        <div class="graph-canvas-wrap">
+            <canvas id="graphCanvas"></canvas>
+        </div>
+    </div>
+
+    
+<div class="table-section buzz-report">
+    <h3>Compliance Record</h3>
+    <p class="notebook-note">The USGA limit is CT &le; 257 microseconds. Complete Part 1 before using the two test materials in Part 2.</p>
+    <section class="buzz-part"><div class="buzz-part-heading"><h4>Part 1 - Calibration Materials</h4><p>Test the four calibration faces, then use the force-time results to compare their effects on the ball.</p></div>
+  
+      <section class="measurement-group">
+        <div class="measurement-heading"><h5>Contact Time</h5><p>How long does each club face push on the ball?</p></div>
+        <div class="four-material-grid">
+                  <section class="measurement-card"><h6>Soft Polymer</h6><a:question></a:question></section>
+                <section class="measurement-card"><h6>Alloy</h6><a:question></a:question></section>
+                <section class="measurement-card"><h6>Thin Titanium</h6><a:question></a:question></section>
+                <section class="measurement-card"><h6>Thick Titanium</h6><a:question></a:question></section>
+        </div>
+      </section>
+  
+      <section class="measurement-group">
+        <div class="measurement-heading"><h5>Peak Force</h5><p>What is the largest force during each collision?</p></div>
+        <div class="four-material-grid">
+                  <section class="measurement-card"><h6>Soft Polymer</h6><a:question></a:question></section>
+                <section class="measurement-card"><h6>Alloy</h6><a:question></a:question></section>
+                <section class="measurement-card"><h6>Thin Titanium</h6><a:question></a:question></section>
+                <section class="measurement-card"><h6>Thick Titanium</h6><a:question></a:question></section>
+        </div>
+      </section>
+  
+      <section class="measurement-group">
+        <div class="measurement-heading"><h5>Average Force</h5><p>Compare the typical force over each contact interval.</p></div>
+        <div class="four-material-grid">
+                  <section class="measurement-card"><h6>Soft Polymer</h6><a:question></a:question></section>
+                <section class="measurement-card"><h6>Alloy</h6><a:question></a:question></section>
+                <section class="measurement-card"><h6>Thin Titanium</h6><a:question></a:question></section>
+                <section class="measurement-card"><h6>Thick Titanium</h6><a:question></a:question></section>
+        </div>
+      </section>
+      <section class="part1-analysis"><div class="measurement-heading"><h5>Part 1 Analysis</h5><p>Use the force-time graphs to reason about acceleration and impulse.</p></div><div class="part1-analysis-grid">
+        <div class="analysis-question"><a:question></a:question></div>
+        <div class="analysis-question"><a:question></a:question></div>
+        <div class="analysis-question"><a:question></a:question></div>
+      </div></section>
+    </section>
+    <section class="buzz-part"><div class="buzz-part-heading"><h4>Part 2 - Compliance Test</h4><p>Test Rigid Steel and Prototype X-7, then determine which face is compliant with the CT limit.</p></div><div class="buzz-slot-grid">
+        <section class="buzz-slot-card"><h5>Rigid Steel</h5>            <div class="buzz-slot"><div class="buzz-slot-label">Contact time</div><a:question></a:question></div>
+            <div class="buzz-slot"><div class="buzz-slot-label">Peak force</div><a:question></a:question></div>
+            <div class="buzz-slot"><div class="buzz-slot-label">Average force</div><a:question></a:question></div></section>
+        <section class="buzz-slot-card"><h5>Prototype X-7</h5>            <div class="buzz-slot"><div class="buzz-slot-label">Contact time</div><a:question></a:question></div>
+            <div class="buzz-slot"><div class="buzz-slot-label">Peak force</div><a:question></a:question></div>
+            <div class="buzz-slot"><div class="buzz-slot-label">Average force</div><a:question></a:question></div></section>
+        <section class="buzz-slot-card"><h5>Part 2 Ruling</h5>            <div class="buzz-slot"><a:question></a:question></div></section>
+    </div></section>
+</div>
+</div>
+<script>
+    // ================================================================
+    //  SIMULATOR
+    // ================================================================
+    const state = {
+        phase: 'ready', // ready, swinging, rebounding, complete
+        startAngle: Math.PI / 2,
+        angle: Math.PI / 2,
+        angularVelocity: 0,
+
+        gravity: 9.81,
+        pendulumLength: 1.0,
+        mass: 0.197, // kg (USGA standard driver head mass approximation)
+
+        materials: {
+            1: { name: "Soft Polymer",   k: 15800000, damp: 0.04, color: "#a78bfa" },
+            2: { name: "Alloy",          k: 24800000, damp: 0.04, color: "#9ca3af" },
+            3: { name: "Thin Titanium",  k: 32400000, damp: 0.04, color: "#60a5fa" },
+            4: { name: "Thick Titanium", k: 48600000, damp: 0.04, color: "#3b82f6" },
+            5: { name: "Rigid Steel",    k: 86400000, damp: 0.04, color: "#1e3a8a" }
+        },
+        currentMaterial: 3,
+        mysteryMode: false,
+
+        impactData: [],
+        playbackIndex: 0,
+        ctCalculated: 0,
+        peakForce: 0,
+        totalImpulse: 0,
+        reboundVelocity: 0
+    };
+
+    // Hidden prototype profiles. One is drawn at random per student and kept
+    // for the whole attempt. 'closest' is the known-material index.
+    const MYSTERY_PROFILES = {
+        A: { k: 31100000, closest: 3 }, // CT 244 us - barely conforming
+        B: { k: 26300000, closest: 2 }, // CT 266 us - barely non-conforming
+        C: { k: 51100000, closest: 4 }, // CT 191 us - clearly conforming
+        D: { k: 17850000, closest: 1 }  // CT 322 us - clearly non-conforming
+    };
+    const CT_LIMIT = 257;
+    const MYSTERY_NAME = 'Prototype X-7';
+    const AUTO_RESET_MS = 5000;
+
+    // --- DOM Elements ---
+    const simCanvas = document.getElementById('simCanvas');
+    const simCtx = simCanvas.getContext('2d');
+    const graphCanvas = document.getElementById('graphCanvas');
+    const graphCtx = graphCanvas.getContext('2d');
+    const simWrapper = document.getElementById('simWrapper');
+
+    const dropBtn = document.getElementById('dropBtn');
+    const vectorOverlay = document.getElementById('vectorOverlay');
+    const mysteryLock = document.getElementById('mysteryLock');
+    const matBtns = {};
+    document.querySelectorAll('.mat-btn').forEach(btn => { matBtns[btn.dataset.mat] = btn; });
+
+    let centerX, centerY;
+    let scale = 100;
+    let graphCursor = null;
+    let autoResetTimer = null;
+
+    function uiBusy() {
+        return state.phase === 'swinging' || state.phase === 'rebounding';
+    }
+    function mysteryUnlocked() { return true; }
+    function currentK() {
+        return state.mysteryMode
+            ? MYSTERY_PROFILES[activity.mysteryId].k
+            : state.materials[state.currentMaterial].k;
+    }
+    function currentFaceColor() {
+        return state.mysteryMode ? '#d946ef' : state.materials[state.currentMaterial].color;
+    }
+
+    function updateMaterialButtons() {
+        const busy = uiBusy();
+        dropBtn.disabled = busy;
+        for (let i = 1; i <= 5; i++) {
+            matBtns[i].disabled = busy;
+            matBtns[i].classList.toggle('active', !state.mysteryMode && state.currentMaterial === i);
+        }
+        const unlocked = mysteryUnlocked();
+        matBtns.x.disabled = busy || !unlocked;
+        matBtns.x.classList.toggle('active', state.mysteryMode);
+        matBtns.x.title = unlocked
+            ? 'Confiscated prototype — face material unknown'
+            : 'Unlocks after you test all five known materials';
+        mysteryLock.style.display = unlocked ? 'none' : 'inline';
+    }
+
+    document.querySelectorAll('.mat-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (uiBusy()) return;
+            const key = btn.dataset.mat;
+            if (key === 'x') {
+                if (!mysteryUnlocked()) return;
+                state.mysteryMode = true;
+            } else {
+                state.mysteryMode = false;
+                state.currentMaterial = parseInt(key);
+            }
+            updateMaterialButtons();
+            drawScene();
+        });
+    });
+
+    // Pure microsecond-resolution impact model. Impact speed is the exact
+    // release-from-90-degrees value so results are identical every run.
+    function simulateImpact(k, collectData) {
+        const damp = 0.04;
+        let x = 0;
+        let v = Math.sqrt(2 * state.gravity * state.pendulumLength);
+        const dt = 1e-6;
+        const c = damp * 2 * Math.sqrt(k * state.mass);
+
+        let maxF = 0, impulse = 0, contactActive = true, contactFrames = 0;
+        const data = collectData ? [] : null;
+
+        for (let i = 0; i <= 1000; i++) {
+            let F_spring = 0;
+            if (x >= 0 && contactActive) {
+                F_spring = Math.max(0, (k * x) + (c * v));
+                if (F_spring > 0) contactFrames++;
+                else contactActive = false;
+            } else {
+                contactActive = false;
+            }
+
+            if (data) {
+                // USGA "ringing" signature (high freq noise on accelerometer)
+                let noise;
+                if (contactActive) {
+                    noise = (Math.sin(i * 0.5) + Math.cos(i * 0.8)) * (F_spring * 0.35 + 200);
+                } else {
+                    const decay = Math.exp(-(i - contactFrames) / 150);
+                    noise = (Math.sin(i * 0.5) + Math.cos(i * 0.8)) * (maxF * 0.15) * decay;
+                }
+                data.push({ t: i, force: F_spring, raw: F_spring + noise, x: Math.max(0, x) });
+            }
+
+            const a = -F_spring / state.mass;
+            v += a * dt;
+            x += v * dt;
+            impulse += F_spring * dt;
+            if (F_spring > maxF) maxF = F_spring;
+        }
+        return { ct: contactFrames, peak: maxF, impulse: impulse, data: data };
+    }
+
+    function resizeCanvas() {
+        const rect = simWrapper.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+
+        simCanvas.width = rect.width * dpr;
+        simCanvas.height = rect.height * dpr;
+        simCtx.scale(dpr, dpr);
+        simCanvas.style.width = `${rect.width}px`;
+        simCanvas.style.height = `${rect.height}px`;
+
+        centerX = rect.width / 2;
+        centerY = 60;
+        scale = (rect.height - 120) / state.pendulumLength;
+
+        const graphRect = graphCanvas.parentElement.getBoundingClientRect();
+        graphCanvas.width = graphRect.width * dpr;
+        graphCanvas.height = graphRect.height * dpr;
+        graphCtx.scale(dpr, dpr);
+        graphCanvas.style.width = `${graphRect.width}px`;
+        graphCanvas.style.height = `${graphRect.height}px`;
+
+        drawScene();
+        if (state.impactData.length > 0) drawGraph();
+        else drawGraphAxes();
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+
+    dropBtn.addEventListener('click', () => {
+        if (state.phase === 'ready' || state.phase === 'complete') {
+            clearTimeout(autoResetTimer);
+            state.phase = 'swinging';
+            state.angle = state.startAngle;
+            state.angularVelocity = 0;
+            state.impactData = [];
+            updateMaterialButtons();
+            requestAnimationFrame(physicsLoop);
+        }
+    });
+
+    const visualDt = 0.016;
+
+    function physicsLoop() {
+        if (state.phase === 'ready' || state.phase === 'complete') return;
+
+        if (state.phase === 'swinging') {
+            const angularAcc = -(state.gravity / state.pendulumLength) * Math.sin(state.angle);
+            state.angularVelocity += angularAcc * visualDt;
+            state.angle += state.angularVelocity * visualDt;
+
+            if (state.angle <= 0) {
+                state.angle = 0;
+                const result = simulateImpact(currentK(), true);
+                state.impactData = result.data;
+                state.ctCalculated = result.ct;
+                state.peakForce = result.peak;
+                state.totalImpulse = result.impulse;
+
+                const tenDegreesRad = 10 * (Math.PI / 180);
+                const reboundHeight = state.pendulumLength * (1 - Math.cos(tenDegreesRad));
+                state.reboundVelocity = Math.sqrt(2 * state.gravity * reboundHeight) / state.pendulumLength;
+
+                recordTestResult();
+
+                state.phase = 'rebounding';
+                state.angularVelocity = state.reboundVelocity;
+                state.playbackIndex = state.impactData.length;
+
+                vectorOverlay.classList.remove('hidden');
+                setTimeout(() => {
+                    if (state.phase === 'rebounding' || state.phase === 'complete') {
+                        vectorOverlay.classList.add('hidden');
+                    }
+                }, 2500);
+            }
+        }
+        else if (state.phase === 'rebounding') {
+            const angularAcc = -(state.gravity / state.pendulumLength) * Math.sin(state.angle);
+            state.angularVelocity += angularAcc * visualDt;
+            state.angle += state.angularVelocity * visualDt;
+            if (state.angularVelocity <= 0) {
+                state.angularVelocity = 0;
+                state.phase = 'complete';
+                updateMaterialButtons();
+                // Tester re-arms itself; the captured trace stays on the graph.
+                clearTimeout(autoResetTimer);
+                autoResetTimer = setTimeout(() => {
+                    if (state.phase === 'complete') {
+                        state.phase = 'ready';
+                        state.angle = state.startAngle;
+                        state.angularVelocity = 0;
+                        drawScene();
+                    }
+                }, AUTO_RESET_MS);
+            }
+        }
+
+        drawScene();
+        if (state.impactData.length > 0) drawGraph();
+        if (state.phase !== 'complete') requestAnimationFrame(physicsLoop);
+    }
+
+    // ---------- lab scene ----------
+    function rr(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+    }
+
+    // Wall-mounted club rack on the right: all six clubs stand upright.
+    // The club currently mounted on the tester leaves an empty slot.
+    function drawClubRack(w, h) {
+        const shelfY = h - 205;            // top surface of the shelf
+        const rackLeft = w - 364;
+        const rackW = 348;
+        const railY = shelfY - 142;        // upper retaining rail
+        const clubH = 196;                 // total standing club height
+        const selectedKey = state.mysteryMode ? 'x' : String(state.currentMaterial);
+        const unlocked = mysteryUnlocked();
+
+        // shelf + brackets
+        simCtx.fillStyle = '#64748b';
+        rr(simCtx, rackLeft, shelfY, rackW, 10, 3);
+        simCtx.fill();
+        simCtx.fillStyle = '#94a3b8';
+        [rackLeft + 14, rackLeft + rackW - 14].forEach(bx => {
+            simCtx.beginPath();
+            simCtx.moveTo(bx - 7, shelfY + 10);
+            simCtx.lineTo(bx + 7, shelfY + 10);
+            simCtx.lineTo(bx, shelfY + 30);
+            simCtx.closePath();
+            simCtx.fill();
+        });
+
+        // upper retaining rail
+        simCtx.fillStyle = '#7d8fa0';
+        rr(simCtx, rackLeft, railY, rackW, 8, 3);
+        simCtx.fill();
+
+        // rack label
+        simCtx.fillStyle = '#64748b';
+        simCtx.font = 'bold 11px Arial';
+        simCtx.textAlign = 'center';
+        simCtx.fillText('CLUB RACK', rackLeft + rackW / 2, shelfY - clubH - 12);
+
+        const keys = ['1', '2', '3', '4', '5', 'x'];
+        keys.forEach((key, i) => {
+            const x = rackLeft + 32 + i * 57;
+            const headBottom = shelfY - 2;
+            const topY = headBottom - clubH;
+
+            // slot notch on the rail
+            simCtx.fillStyle = '#4c5c70';
+            simCtx.fillRect(x - 5, railY, 10, 8);
+
+            if (key === selectedKey) {
+                // empty slot: dashed silhouette where this club normally sits
+                simCtx.save();
+                simCtx.strokeStyle = 'rgba(100,116,139,0.55)';
+                simCtx.lineWidth = 1.5;
+                simCtx.setLineDash([4, 4]);
+                rr(simCtx, x - 13, topY, 26, clubH - 2, 7);
+                simCtx.stroke();
+                simCtx.restore();
+                return;
+            }
+
+            const faceColor = key === 'x' ? '#d946ef' : state.materials[+key].color;
+
+            // grip (top of shaft)
+            simCtx.lineCap = 'round';
+            simCtx.strokeStyle = '#1f2937';
+            simCtx.lineWidth = 6;
+            simCtx.beginPath(); simCtx.moveTo(x, topY + 5); simCtx.lineTo(x, topY + 56); simCtx.stroke();
+            // shaft down to the head
+            simCtx.strokeStyle = '#9fadbd';
+            simCtx.lineWidth = 3.5;
+            simCtx.beginPath(); simCtx.moveTo(x, topY + 56); simCtx.lineTo(x + 2, headBottom - 20); simCtx.stroke();
+            simCtx.lineCap = 'butt';
+
+            // head resting on the shelf, face toward the left
+            const hg = simCtx.createLinearGradient(0, headBottom - 22, 0, headBottom);
+            hg.addColorStop(0, '#5d6f84');
+            hg.addColorStop(1, '#26364a');
+            simCtx.fillStyle = hg;
+            simCtx.beginPath();
+            simCtx.moveTo(x - 12, headBottom - 22);
+            simCtx.lineTo(x + 10, headBottom - 19);
+            simCtx.quadraticCurveTo(x + 16, headBottom - 10, x + 10, headBottom);
+            simCtx.lineTo(x - 12, headBottom);
+            simCtx.closePath();
+            simCtx.fill();
+            // face plate stripe in this club's material color
+            simCtx.strokeStyle = faceColor;
+            simCtx.lineWidth = 4;
+            simCtx.beginPath();
+            simCtx.moveTo(x - 12, headBottom - 22);
+            simCtx.lineTo(x - 12, headBottom);
+            simCtx.stroke();
+
+            if (key === 'x') {
+                simCtx.fillStyle = '#a21caf';
+                simCtx.font = 'bold 14px Consolas, monospace';
+                simCtx.textAlign = 'center';
+                simCtx.fillText('?', x, headBottom - 30);
+                if (!unlocked) {
+                    simCtx.font = '15px Arial';
+                    simCtx.fillText('\u{1F512}', x, topY + 88);
+                }
+            }
+        });
+        simCtx.textAlign = 'left';
+    }
+
+    function drawScene() {
+        const rect = simWrapper.getBoundingClientRect();
+        const w = rect.width;
+        const h = rect.height;
+        simCtx.clearRect(0, 0, w, h);
+
+        // --- lab wall ---
+        const wall = simCtx.createLinearGradient(0, 0, 0, h);
+        wall.addColorStop(0, '#f8fafc');
+        wall.addColorStop(1, '#dde6f2');
+        simCtx.fillStyle = wall;
+        simCtx.fillRect(0, 0, w, h);
+
+        // wall panel seams
+        simCtx.strokeStyle = 'rgba(148,163,184,0.25)';
+        simCtx.lineWidth = 1;
+        for (let x = 0; x < w; x += 140) {
+            simCtx.beginPath(); simCtx.moveTo(x, 0); simCtx.lineTo(x, h - 60); simCtx.stroke();
+        }
+
+        // --- floor ---
+        simCtx.fillStyle = '#c7d2e0';
+        simCtx.fillRect(0, h - 60, w, 60);
+        simCtx.strokeStyle = '#adbccd';
+        simCtx.lineWidth = 2;
+        for (let i = 0; i < w + 40; i += 40) {
+            simCtx.beginPath(); simCtx.moveTo(i, h - 60); simCtx.lineTo(i - 20, h); simCtx.stroke();
+        }
+        simCtx.strokeStyle = '#93a6bb';
+        simCtx.lineWidth = 2;
+        simCtx.beginPath(); simCtx.moveTo(0, h - 60); simCtx.lineTo(w, h - 60); simCtx.stroke();
+
+        // wall sign (bottom-left, clear of the swing arc)
+        simCtx.fillStyle = '#1e3a8a';
+        rr(simCtx, 14, h - 98, 216, 32, 8);
+        simCtx.fill();
+        simCtx.fillStyle = '#ffffff';
+        simCtx.font = 'bold 12px Arial';
+        simCtx.textAlign = 'left';
+        simCtx.fillText('USGA EQUIPMENT TEST LAB', 26, h - 78);
+
+        drawClubRack(w, h);
+
+        const pivotX = centerX;
+        const pivotY = centerY;
+        const clubY = pivotY + (state.pendulumLength * scale);
+
+        // machine shadow
+        simCtx.fillStyle = 'rgba(15,23,42,0.10)';
+        simCtx.beginPath();
+        simCtx.ellipse(pivotX + 15, h - 52, 150, 9, 0, 0, Math.PI * 2);
+        simCtx.fill();
+
+        // --- release-angle protractor ---
+        simCtx.save();
+        simCtx.strokeStyle = 'rgba(100,116,139,0.55)';
+        simCtx.lineWidth = 1.5;
+        simCtx.setLineDash([4, 5]);
+        simCtx.beginPath();
+        simCtx.arc(pivotX, pivotY, 62, Math.PI / 2, Math.PI);
+        simCtx.stroke();
+        simCtx.setLineDash([]);
+        // angle ticks at 0, 30, 60, 90 degrees from vertical
+        for (let deg = 0; deg <= 90; deg += 30) {
+            const th = deg * Math.PI / 180;
+            const dx = -Math.sin(th), dy = Math.cos(th);
+            simCtx.beginPath();
+            simCtx.moveTo(pivotX + dx * 56, pivotY + dy * 56);
+            simCtx.lineTo(pivotX + dx * 68, pivotY + dy * 68);
+            simCtx.stroke();
+        }
+        simCtx.fillStyle = '#64748b';
+        simCtx.font = 'bold 10px Arial';
+        simCtx.textAlign = 'center';
+        simCtx.fillText('90° release', pivotX - 92, pivotY - 8);
+        simCtx.restore();
+
+        // --- support column + base ---
+        const col = simCtx.createLinearGradient(pivotX - 15, 0, pivotX + 15, 0);
+        col.addColorStop(0, '#aab8c9');
+        col.addColorStop(0.5, '#7d8fa0');
+        col.addColorStop(1, '#aab8c9');
+        simCtx.fillStyle = col;
+        simCtx.fillRect(pivotX - 15, pivotY - 20, 30, h - 80 - (pivotY - 20));
+
+        simCtx.fillStyle = '#334155';
+        rr(simCtx, pivotX - 70, h - 84, 140, 26, 6);
+        simCtx.fill();
+        simCtx.fillStyle = '#94a3b8';
+        [-50, 50].forEach(dx => {
+            simCtx.beginPath(); simCtx.arc(pivotX + dx, h - 71, 4, 0, Math.PI * 2); simCtx.fill();
+        });
+
+        // pivot housing with corner bolts
+        simCtx.fillStyle = '#475569';
+        rr(simCtx, pivotX - 28, pivotY - 32, 56, 46, 8);
+        simCtx.fill();
+        simCtx.fillStyle = '#cbd5e1';
+        [[-19, -23], [19, -23], [-19, 5], [19, 5]].forEach(([dx, dy]) => {
+            simCtx.beginPath(); simCtx.arc(pivotX + dx, pivotY + dy, 2.5, 0, Math.PI * 2); simCtx.fill();
+        });
+
+        // --- driver head (hosel stub only; no vise) ---
+        simCtx.lineCap = 'round';
+        simCtx.strokeStyle = '#9fadbd';
+        simCtx.lineWidth = 4;
+        simCtx.beginPath(); simCtx.moveTo(pivotX + 30, clubY - 28); simCtx.lineTo(pivotX + 42, clubY - 46); simCtx.stroke();
+        simCtx.lineCap = 'butt';
+        const headGrad = simCtx.createLinearGradient(0, clubY - 30, 0, clubY + 35);
+        headGrad.addColorStop(0, '#5d6f84');
+        headGrad.addColorStop(1, '#26364a');
+        simCtx.fillStyle = headGrad;
+        simCtx.beginPath();
+        simCtx.moveTo(pivotX + 30, clubY - 30);
+        simCtx.lineTo(pivotX, clubY - 25);
+        simCtx.lineTo(pivotX, clubY + 25);
+        simCtx.lineTo(pivotX + 20, clubY + 35);
+        simCtx.lineTo(pivotX + 50, clubY + 15);
+        simCtx.closePath();
+        simCtx.fill();
+        simCtx.strokeStyle = '#111c2c';
+        simCtx.lineWidth = 1.5;
+        simCtx.stroke();
+        // crown highlight
+        simCtx.strokeStyle = 'rgba(255,255,255,0.35)';
+        simCtx.lineWidth = 2;
+        simCtx.beginPath();
+        simCtx.moveTo(pivotX + 28, clubY - 26);
+        simCtx.lineTo(pivotX + 4, clubY - 22);
+        simCtx.stroke();
+
+        // face plate in material color + grooves
+        simCtx.lineWidth = 5;
+        simCtx.strokeStyle = currentFaceColor();
+        simCtx.beginPath();
+        simCtx.moveTo(pivotX, clubY - 25);
+        simCtx.lineTo(pivotX, clubY + 25);
+        simCtx.stroke();
+        simCtx.strokeStyle = 'rgba(255,255,255,0.55)';
+        simCtx.lineWidth = 1;
+        [-14, -6, 2, 10, 18].forEach(dy => {
+            simCtx.beginPath();
+            simCtx.moveTo(pivotX + 3, clubY + dy);
+            simCtx.lineTo(pivotX + 8, clubY + dy + 1);
+            simCtx.stroke();
+        });
+
+        // mounted-club label: below the head and extending to the left,
+        // clear of the material buttons on the right
+        simCtx.font = 'bold 12px Arial';
+        simCtx.textAlign = 'right';
+        if (state.mysteryMode) {
+            simCtx.fillStyle = '#a21caf';
+            simCtx.font = 'bold 15px Consolas, monospace';
+            simCtx.fillText('?', pivotX + 22, clubY + 8);
+            simCtx.font = 'bold 12px Arial';
+            simCtx.fillText(MYSTERY_NAME + ' — material unknown', pivotX - 28, clubY + 42);
+        } else {
+            simCtx.fillStyle = '#475569';
+            simCtx.fillText(state.materials[state.currentMaterial].name + ' face', pivotX - 28, clubY + 42);
+        }
+        simCtx.textAlign = 'left';
+
+        // --- pendulum arm + mass ---
+        const massX = pivotX - Math.sin(state.angle) * state.pendulumLength * scale;
+        const massY = pivotY + Math.cos(state.angle) * state.pendulumLength * scale;
+
+        simCtx.lineCap = 'round';
+        simCtx.lineWidth = 6;
+        simCtx.strokeStyle = '#1e293b';
+        simCtx.beginPath(); simCtx.moveTo(pivotX, pivotY); simCtx.lineTo(massX, massY); simCtx.stroke();
+        simCtx.lineWidth = 2;
+        simCtx.strokeStyle = '#64748b';
+        simCtx.beginPath(); simCtx.moveTo(pivotX, pivotY); simCtx.lineTo(massX, massY); simCtx.stroke();
+        simCtx.lineCap = 'butt';
+
+        // pivot axle
+        simCtx.fillStyle = '#475569';
+        simCtx.beginPath(); simCtx.arc(pivotX, pivotY, 9, 0, Math.PI * 2); simCtx.fill();
+        simCtx.fillStyle = '#cbd5e1';
+        simCtx.beginPath(); simCtx.arc(pivotX - 2, pivotY - 2, 3.5, 0, Math.PI * 2); simCtx.fill();
+
+        // steel impact mass with highlight
+        const massGrad = simCtx.createRadialGradient(massX - 4, massY - 5, 2, massX, massY, 14);
+        massGrad.addColorStop(0, '#eef2f7');
+        massGrad.addColorStop(0.55, '#9fb0c2');
+        massGrad.addColorStop(1, '#5b6c80');
+        simCtx.fillStyle = massGrad;
+        simCtx.beginPath(); simCtx.arc(massX, massY, 13, 0, Math.PI * 2); simCtx.fill();
+        simCtx.strokeStyle = '#334155';
+        simCtx.lineWidth = 1.5;
+        simCtx.beginPath(); simCtx.arc(massX, massY, 13, 0, Math.PI * 2); simCtx.stroke();
+
+        // accelerometer puck + signal wire
+        simCtx.save();
+        simCtx.translate(massX, massY);
+        simCtx.rotate(-state.angle);
+        simCtx.fillStyle = '#dc2626';
+        rr(simCtx, -6, -21, 12, 9, 2);
+        simCtx.fill();
+        simCtx.strokeStyle = 'rgba(220,38,38,0.55)';
+        simCtx.lineWidth = 1.5;
+        simCtx.beginPath();
+        simCtx.moveTo(0, -21);
+        simCtx.quadraticCurveTo(10, -34, 26, -30);
+        simCtx.stroke();
+        simCtx.restore();
+    }
+
+    // ---------- graph ----------
+    function drawGraphAxes() {
+        const rect = graphCanvas.parentElement.getBoundingClientRect();
+        const w = rect.width;
+        const h = rect.height;
+
+        const paddingX = 40;
+        const graphW = w - paddingX - 10;
+        const graphH = h - 40;
+        const baseY = h - 30;
+
+        // horizontal gridlines + force labels every 5 kN (max 25 kN)
+        graphCtx.font = '10px sans-serif';
+        for (let f = 0; f <= 25000; f += 5000) {
+            const y = baseY - (f / 25000) * graphH;
+            graphCtx.strokeStyle = f === 0 ? '#cbd5e1' : '#e2e8f0';
+            graphCtx.lineWidth = 1;
+            graphCtx.beginPath(); graphCtx.moveTo(paddingX, y); graphCtx.lineTo(w - 10, y); graphCtx.stroke();
+            graphCtx.fillStyle = '#64748b';
+            graphCtx.textAlign = 'right';
+            graphCtx.fillText(String(f / 1000), paddingX - 5, y + 3);
+        }
+
+        // vertical gridlines every 100 us, labels every 200 us
+        for (let t = 0; t <= 1000; t += 100) {
+            const x = paddingX + (t / 1000) * graphW;
+            graphCtx.strokeStyle = (t % 200 === 0) ? '#dbe3ee' : '#eef2f7';
+            graphCtx.lineWidth = 1;
+            graphCtx.beginPath(); graphCtx.moveTo(x, 10); graphCtx.lineTo(x, baseY); graphCtx.stroke();
+            if (t % 200 === 0) {
+                graphCtx.fillStyle = '#64748b';
+                graphCtx.textAlign = 'center';
+                graphCtx.fillText(String(t), x, baseY + 12);
+            }
+        }
+
+        // axes
+        graphCtx.strokeStyle = '#475569';
+        graphCtx.lineWidth = 2;
+        graphCtx.beginPath();
+        graphCtx.moveTo(paddingX, 10);
+        graphCtx.lineTo(paddingX, baseY);
+        graphCtx.lineTo(w - 10, baseY);
+        graphCtx.stroke();
+
+        graphCtx.fillStyle = '#64748b';
+        graphCtx.font = '11px sans-serif';
+        graphCtx.textAlign = 'center';
+        graphCtx.fillText('Time (µs) →', w / 2, h - 6);
+
+        graphCtx.save();
+        graphCtx.translate(12, h / 2);
+        graphCtx.rotate(-Math.PI / 2);
+        graphCtx.fillText('Force (kN)', 0, 0);
+        graphCtx.restore();
+    }
+
+    function drawGraph() {
+        if (state.impactData.length === 0) return;
+
+        const rect = graphCanvas.parentElement.getBoundingClientRect();
+        const w = rect.width;
+        const h = rect.height;
+
+        graphCtx.clearRect(0, 0, w, h);
+        drawGraphAxes();
+
+        const paddingX = 40;
+        const paddingY = 30;
+        const graphW = w - paddingX - 10;
+        const graphH = h - paddingY - 10;
+
+        const maxF = 25000;
+        const xOffset = 0.10;
+
+        const limit = Math.min(state.playbackIndex, state.impactData.length);
+
+        graphCtx.strokeStyle = 'rgba(100, 116, 139, 0.6)';
+        graphCtx.lineWidth = 1.2;
+        graphCtx.beginPath();
+        for (let i = 0; i < limit; i++) {
+            const d = state.impactData[i];
+            const x = paddingX + ((d.t / 1000) + xOffset) * graphW;
+            const y = h - paddingY - (d.raw / maxF) * graphH;
+            const boundedY = Math.max(10, Math.min(h - paddingY, y));
+            if (i === 0) {
+                graphCtx.moveTo(paddingX, h - paddingY);
+                graphCtx.lineTo(x, h - paddingY);
+            } else {
+                graphCtx.lineTo(x, boundedY);
+            }
+        }
+        graphCtx.stroke();
+
+        graphCtx.beginPath();
+        let firstX = null;
+        let lastX = null;
+        for (let i = 0; i < limit; i++) {
+            const d = state.impactData[i];
+            if (d.force > 0) {
+                const x = paddingX + ((d.t / 1000) + xOffset) * graphW;
+                const y = h - paddingY - (d.force / maxF) * graphH;
+                if (firstX === null) {
+                    firstX = x;
+                    graphCtx.moveTo(x, h - paddingY);
+                }
+                graphCtx.lineTo(x, y);
+                lastX = x;
+            }
+        }
+        if (firstX !== null && lastX !== null) {
+            graphCtx.lineTo(lastX, h - paddingY);
+            graphCtx.lineTo(firstX, h - paddingY);
+            graphCtx.fillStyle = 'rgba(37, 99, 235, 0.15)';
+            graphCtx.fill();
+        }
+
+        graphCtx.strokeStyle = '#2563eb';
+        graphCtx.lineWidth = 2.5;
+        graphCtx.beginPath();
+        for (let i = 0; i < limit; i++) {
+            const d = state.impactData[i];
+            if (d.force > 0) {
+                const x = paddingX + ((d.t / 1000) + xOffset) * graphW;
+                const y = h - paddingY - (d.force / maxF) * graphH;
+                if (i === 0 || state.impactData[i - 1].force === 0) graphCtx.moveTo(x, h - paddingY);
+                else graphCtx.lineTo(x, y);
+            }
+        }
+        graphCtx.stroke();
+
+        // Contact start/end markers only — no computed CT value. Students
+        // must read the endpoints off the time axis and subtract.
+        if (state.phase === 'rebounding' || state.phase === 'complete' || state.phase === 'ready') {
+            const startX = paddingX + xOffset * graphW;
+            const endX = startX + (state.ctCalculated / 1000 * graphW);
+
+            graphCtx.fillStyle = '#ef4444';
+            graphCtx.beginPath(); graphCtx.arc(startX, h - paddingY, 4, 0, Math.PI * 2); graphCtx.fill();
+            graphCtx.beginPath(); graphCtx.arc(endX, h - paddingY, 4, 0, Math.PI * 2); graphCtx.fill();
+
+            graphCtx.strokeStyle = '#ef4444';
+            graphCtx.lineWidth = 1;
+            graphCtx.beginPath(); graphCtx.moveTo(startX, h - paddingY + 15); graphCtx.lineTo(endX, h - paddingY + 15); graphCtx.stroke();
+            graphCtx.beginPath(); graphCtx.moveTo(startX, h - paddingY + 10); graphCtx.lineTo(startX, h - paddingY + 20); graphCtx.stroke();
+            graphCtx.beginPath(); graphCtx.moveTo(endX, h - paddingY + 10); graphCtx.lineTo(endX, h - paddingY + 20); graphCtx.stroke();
+
+            graphCtx.fillStyle = '#ef4444';
+            graphCtx.textAlign = 'center';
+            graphCtx.font = '10px sans-serif';
+            graphCtx.fillText('contact', startX + (endX - startX) / 2, h - paddingY + 27);
+
+            graphCtx.fillStyle = '#1e3a8a';
+            graphCtx.font = '11px sans-serif';
+            graphCtx.fillText('∫ Area = Δp', startX + (endX - startX) / 2, h - paddingY - 20);
+
+            // hover crosshair: a measuring tool, not an answer
+            if (graphCursor) {
+                const cx = Math.max(paddingX, Math.min(w - 10, graphCursor.x));
+                const tAxis = Math.round((cx - paddingX) / graphW * 1000);
+                const idx = tAxis - Math.round(xOffset * 1000);
+                const F = (idx >= 0 && idx < state.impactData.length) ? state.impactData[idx].force : 0;
+
+                graphCtx.save();
+                graphCtx.strokeStyle = 'rgba(15,23,42,0.5)';
+                graphCtx.lineWidth = 1;
+                graphCtx.setLineDash([4, 4]);
+                graphCtx.beginPath(); graphCtx.moveTo(cx, 10); graphCtx.lineTo(cx, h - paddingY); graphCtx.stroke();
+                graphCtx.setLineDash([]);
+
+                const label = 't = ' + tAxis + ' µs   F = ' + (F / 1000).toFixed(1) + ' kN';
+                graphCtx.font = 'bold 11px Consolas, monospace';
+                const tw = graphCtx.measureText(label).width + 14;
+                const boxX = (cx + tw + 8 > w - 10) ? cx - tw - 8 : cx + 8;
+                graphCtx.fillStyle = 'rgba(255,255,255,0.95)';
+                graphCtx.strokeStyle = '#94a3b8';
+                rr(graphCtx, boxX, 14, tw, 20, 4);
+                graphCtx.fill();
+                graphCtx.stroke();
+                graphCtx.fillStyle = '#0f172a';
+                graphCtx.textAlign = 'left';
+                graphCtx.fillText(label, boxX + 7, 28);
+                graphCtx.restore();
+            }
+        }
+    }
+
+    graphCanvas.addEventListener('mousemove', (e) => {
+        const r = graphCanvas.getBoundingClientRect();
+        graphCursor = { x: e.clientX - r.left, y: e.clientY - r.top };
+        if (state.impactData.length > 0) drawGraph();
+    });
+    graphCanvas.addEventListener('mouseleave', () => {
+        graphCursor = null;
+        if (state.impactData.length > 0) drawGraph();
+    });
+
+    const activity = { mysteryId: 'B' };
+
+    function recordTestResult() {}
+
+    resizeCanvas();
+    drawGraphAxes();
+    updateMaterialButtons();
+</script>
+</body>
+</html>

@@ -100,6 +100,7 @@ Current template names (all renamed on 2026-07-13):
 | U1L3 (legacy Netlify-hosted variant) | `u1l3-galileo-netlify-buzz-assessment-template.html` |
 | U1L4 | `u1l4-reaction-time-buzz-assessment-template.html` |
 | U1L5 | `u1l5-skydiver-buzz-assessment-template.html` |
+| U1 Honors | `u1h-rocket-launch-buzz-assessment-template.html` |
 | U2L1 | `u2l1-phet-projectile-buzz-assessment-template.html` |
 | U2L2 | `u2l2-launch-velocity-buzz-assessment-template.html` |
 | U2L3 | `u2l3-circus-launch-buzz-assessment-template.html` |
@@ -699,13 +700,13 @@ As of 2026-07-13. Detailed remaining work lives in each lesson's
 | U1L3 | Galileo Acceleration Lab | **Model lesson** — Buzz-native, self-contained | 7 q / 12 pts (6 E, 1 UP) | Done. Upload `u1l3-galileo-buzz-assessment-template.html`; verify page title in preview. |
 | U1L4 | Reaction Time Kinematics Lab | Buzz-native, self-contained (3 embedded scenarios with the original lab graphics + audio) + SCORM lab kept for practice | 10 q / 14 pts (2 MC, 4 F-Number, 4 E) | Full upload set created 2026-07-13. Numeric questions use fixed given values only; measured reaction times stay ungraded (validation-gate rule). Preview in Buzz; note `new-lesson-4` folder divergence (320 m strip) in lab-format-suggestions.txt. |
 | U1L5 | Skydiver Graphs and Challenge | Buzz-native, self-contained | fixed Part 1 questions + evidence/essay Part 2 | Full set exists. Upload `u1l5-skydiver-buzz-assessment-template.html`; preview graphs and evidence download. |
-| U1 Honors | Rocket Launch Lab | evidence-based honors extension | — | Keep separate from U1L5; linked as Honors on the Unit 1 page. |
+| U1 Honors | Rocket Launch Lab | Buzz-native, self-contained | 6 q / 8 pts (4 F-Number, 1 UP, 1 E) | Done. The template locks Levels 1-3 to a fixed mission; Level 4 success is the native `Challenge cleared` status and is graded through uploaded evidence plus a data-based essay. |
 | U2L1 | PhET Projectile Motion | Buzz-native + PhET iframe | 13 q | Preview iframe in Buzz (keep external-launch fallback); verify all numeric tolerance ranges against PhET. |
 | U2L2 | Projectile Launch: Finding Launch Velocity | evidence-based (real or simulated throw) | essays + upload | Full set exists. Require work upload; hide/teacher-lock the Answer Key Preview in `baseball-throw.html` if hosted. |
 | U2L3 | Circus Launch Complementary Angles | **Model lesson** — Buzz-native, self-contained | 10 q / 12 pts | Done. Verify `eval(90-$launch$)` variable grading and Level 2 tolerances in Buzz preview. |
 | U2L4 | River Rescue | evidence-based; needs fixed challenge mode for auto-grading | in progress | Template/preview files now exist; finish evidence panel, copy/download buttons, fixed mode decision. |
 | U2L5 | Inertia and Tension Demo | Buzz-native, self-contained | fixed observable results | Full set exists. Preview stage bar + Slow/Fast Pull for both levels in Buzz. |
-| U2 Honors | Coriolis Cannon Challenge | honors project | — | Stays in `lesson-u2honors`. |
+| U2 Honors | Coriolis Cannon Challenge | Buzz-native, self-contained 2D simulation; standalone full-globe fallback | 6 q / 12 pts (5 E, 1 UP) | Converted. Upload `u2h-coriolis-cannon-buzz-assessment-template.html`; keep question randomization and one-question-per-page off. |
 | U3L1 | PhET Forces and Motion | evidence-based (screenshots + essays) | — | Full set exists. Require Net Force screenshot; keep Newton's 1st/2nd law grading distinction clean; rebuild zip only if SCORM delivery is needed. |
 | U3L2 | Newton's Spacewalk Momentum | fixed numeric ready | not yet converted | Needs template conversion: lock/remove Show Answer, add Mission Results panel + evidence buttons. |
 | U3L3 | Friction Force Lab | fixed numeric ready | in progress | Rubric metadata added; needs lab data table, student inputs before reveal, fixed required surfaces (Wood, Unknown A). |

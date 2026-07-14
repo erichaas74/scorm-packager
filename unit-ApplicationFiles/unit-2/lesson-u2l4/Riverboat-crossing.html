@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Relative Motion: Canvas Edition</title>
+    <title>River Rescue: Relative Velocity Lab</title>
     <style>
         * {
             box-sizing: border-box;
@@ -53,12 +53,11 @@
             opacity: 0.6;
             cursor: not-allowed;
         }
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     </style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
-    <input id="headingInput" class="heading-input" type="number" min="-85" max="85" step="1" value="0" aria-label="Swim Heading angle in degrees">
+    <input id="headingInput" class="heading-input" type="number" min="-85" max="85" step="1" value="0" aria-label="Swim heading angle in degrees, negative aims upstream">
 
     <script>
         const canvas = document.getElementById('gameCanvas');
@@ -75,22 +74,26 @@
             header: { x: 0, y: 0, w: 0, h: 0 },
             controls: { x: 0, y: 0, w: 0, h: 0 },
             actions: { x: 0, y: 0, w: 0, h: 0 },
+            hintRect: { x: 0, y: 0, w: 0, h: 0 },
+            teleRect: { x: 0, y: 0, w: 0, h: 0 },
             isMobile: false
         };
 
-        // Game State
+        // Game state
         let uiElements = [];
         let isPlaying = false;
         let lastTime = 0;
+        let ambientTime = 0;
         let showTelemetry = false;
-        let vectorMode = 0;
-        const vectorModeNames = ['No Hint', 'Full Vector Addition', 'Resultant Components', 'Drift Decomposition'];
+        let hintMode = 0; // 0 = off, 1 = vectors, 2 = vectors + strategy
+        let hasAimedOnce = false;
         const urlParams = new URLSearchParams(window.location.search);
         const requestedLevel = Number(urlParams.get('level'));
         const initialLevel = [1, 2, 3].includes(requestedLevel) ? requestedLevel : 1;
         const lockedLevel = urlParams.get('lockLevel') === '1' ? initialLevel : 0;
-        
-        let scale = 10, originX = 0, originY = 0, waterParticles = [];
+
+        let scale = 10, originX = 0, originY = 0, waterParticles = [], bankDecor = null;
+        let ripples = [], rippleTimer = 0, babyRippleTimer = 0;
 
         const params = {
             vBoat: 5, angleDeg: 0, vRiver: 3, width: 50,
@@ -100,11 +103,11 @@
         const physics = { time: 0, x: 0, y: 0, trail: [] };
 
         const mission = {
-            level: initialLevel, phase: 'setup', message: '', hits: 0, stars: 0,
+            level: initialLevel, phase: 'setup', message: '', stars: 0,
+            goalType: 'ring', timeLimit: 0,
             staminaMax: 0, staminaLeft: 0,
             startZone: { x: 0, y: 0, radius: 5.5 },
-            baby: { x: 0, y: 0, radius: 4.5, rescued: false },
-            obstacles: []
+            baby: { x: 0, y: 0, radius: 4.5, rescued: false }
         };
 
         class Button {
@@ -124,7 +127,7 @@
             }
             draw(ctx) {
                 ctx.fillStyle = this.disabled ? '#334155' : this.isActive ? this.activeBgColor : this.isHovered ? this.hoverColor : this.bgColor;
-                if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(this.x, this.y, this.w, this.h, 6); ctx.fill(); } 
+                if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(this.x, this.y, this.w, this.h, 6); ctx.fill(); }
                 else { ctx.fillRect(this.x, this.y, this.w, this.h); }
                 ctx.fillStyle = this.disabled ? '#64748b' : this.isActive ? this.activeTextColor : this.textColor;
                 ctx.font = `600 ${this.fontSize}px Inter`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -162,42 +165,6 @@
             }
         }
 
-        class SpeedReadout {
-            constructor(id) {
-                this.id = id; this.x = 0; this.y = 0; this.w = 0; this.h = 0;
-            }
-            setBounds(x, y, w, h = 48) { this.x = x; this.y = y; this.w = w; this.h = h; }
-            update() {}
-            draw(ctx) {
-                ctx.fillStyle = '#cbd5e1'; ctx.font = '500 12px Inter'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
-                ctx.fillText('Fixed Speeds', this.x, this.y + 12);
-
-                const rowY = this.y + 32;
-                ctx.fillStyle = '#94a3b8'; ctx.font = '500 12px Inter'; ctx.textBaseline = 'middle';
-                ctx.fillText('Swimmer', this.x, rowY);
-                ctx.fillText('Current', this.x + this.w * 0.5, rowY);
-
-                ctx.fillStyle = '#7dd3fc'; ctx.font = '600 13px monospace'; ctx.textAlign = 'right';
-                ctx.fillText(params.vBoat.toFixed(1) + ' m/s', this.x + this.w * 0.42, rowY);
-                ctx.fillText(params.vRiver.toFixed(1) + ' m/s', this.x + this.w, rowY);
-
-                ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
-                ctx.beginPath(); ctx.moveTo(this.x, this.y + this.h - 6); ctx.lineTo(this.x + this.w, this.y + this.h - 6); ctx.stroke();
-            }
-        }
-
-        const genRockShape = (baseRadius) => {
-            const pts = []; const sides = 6 + Math.floor(Math.random() * 4);
-            for (let i = 0; i < sides; i++) pts.push({ a: (i / sides) * Math.PI * 2, r: baseRadius * (0.6 + Math.random() * 0.5) });
-            return pts;
-        };
-
-        const makeRapid = (x, y, radius, rotation, rockDist = 5.0) => ({
-            type: 'rapid', x, y, radius, rotation, hit: false, isMoving: false, rockDist,
-            rock1Shape: genRockShape(4.0), rock2Shape: genRockShape(4.0)
-        });
-
-        const lowerLaneY = p => p.width * 0.55;
         const BABY_DRAW_SCALE = 0.5;
         const VELOCITY_VECTOR_SCALE = 26;
 
@@ -220,9 +187,9 @@
             ctx.restore();
         }
 
-        function drawVectorLabel(text, x, y, color, align = 'left') {
+        function drawVectorLabel(text, x, y, color, align = 'left', size = 14) {
             ctx.save();
-            ctx.font = '800 14px Inter';
+            ctx.font = `800 ${size}px Inter`;
             ctx.textAlign = align;
             ctx.textBaseline = 'middle';
             ctx.lineWidth = 5;
@@ -233,64 +200,128 @@
             ctx.restore();
         }
 
+        function drawStar(cx, cy, outerR, filled) {
+            const spikes = 5, innerR = outerR * 0.45;
+            ctx.save();
+            ctx.beginPath();
+            for (let i = 0; i < spikes * 2; i++) {
+                const r = i % 2 === 0 ? outerR : innerR;
+                const a = (i * Math.PI) / spikes - Math.PI / 2;
+                const px = cx + r * Math.cos(a), py = cy + r * Math.sin(a);
+                if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fillStyle = filled ? '#facc15' : '#1e293b';
+            ctx.strokeStyle = filled ? '#b45309' : '#475569';
+            ctx.lineWidth = 2;
+            ctx.fill(); ctx.stroke();
+            ctx.restore();
+        }
+
+        function wrapTextLines(text, maxWidth) {
+            const words = String(text || '').split(' ');
+            const lines = [];
+            let line = '';
+            for (const word of words) {
+                const test = line ? line + ' ' + word : word;
+                if (ctx.measureText(test).width > maxWidth && line) {
+                    lines.push(line);
+                    line = word;
+                } else {
+                    line = test;
+                }
+            }
+            if (line) lines.push(line);
+            return lines;
+        }
+
+        function wrapCanvasText(text, x, y, maxWidth, lineHeight, maxLines = 3) {
+            const lines = wrapTextLines(text, maxWidth);
+            for (let i = 0; i < Math.min(lines.length, maxLines); i++) {
+                ctx.fillText(lines[i], x, y + i * lineHeight);
+            }
+        }
+
+        // All three levels share the classic numbers: swim 5 m/s, current 3 m/s, river 50 m wide.
         const LEVEL_CONFIGS = {
             1: {
-                title: 'Level 1: Dangerous Rapids',
+                title: 'Level 1: Straight Shot',
+                goalType: 'ring',
                 swimSpeed: 5,
                 currentSpeed: 3,
-                start: p => ({ x: 0, y: lowerLaneY(p), radius: 5.5 }),
-                target: p => ({ x: p.width, y: lowerLaneY(p), radius: 5.5 }),
-                startMsg: 'Reach the finish ring. Aim upstream to offset the current and avoid the rapids around the finish.',
-                successMsg: s => `Level 1 clear. Rapids avoided with ${s.toFixed(0)}m stamina left.`,
-                obstacles: p => {
-                    const finishY = lowerLaneY(p);
-                    return [
-                        makeRapid(p.width * 0.74, finishY - 12, 7.0, -0.35),
-                        makeRapid(p.width * 0.91, finishY - 21, 7.0, 0.25),
-                        makeRapid(p.width * 0.74, finishY + 12, 7.0, 0.35),
-                        makeRapid(p.width * 0.91, finishY + 21, 7.0, -0.25)
-                    ];
-                }
+                start: p => ({ x: 0, y: p.width * 0.4, radius: 5.5 }),
+                target: p => ({ x: p.width, y: p.width * 0.4, radius: 5.5 }),
+                startMsg: 'GOAL: land in the ring straight across from the dock. The current drags you downstream, so aim upstream to cancel the drift.',
+                hintLines: [
+                    'Your drift speed = 5·sin(θ) + 3 m/s.',
+                    'To land straight across, drift must be 0:',
+                    '5·sin(θ) = −3, so sin(θ) = −0.6.',
+                    'Speed left for crossing = 5·cos(θ).'
+                ]
             },
             2: {
-                title: 'Level 2: Floating Logs',
+                title: 'Level 2: Fastest Crossing',
+                goalType: 'bank',
+                timeLimit: 11.0,
                 swimSpeed: 5,
                 currentSpeed: 3,
-                start: p => ({ x: 0, y: lowerLaneY(p), radius: 5.5 }),
-                target: p => ({ x: p.width, y: lowerLaneY(p), radius: 5.5 }),
-                startMsg: 'Get across the river to the finish ring without hitting the floating logs.',
-                successMsg: s => `Level 2 clear. Crossed without hitting the logs. ${s.toFixed(0)}m stamina left.`,
-                obstacles: p => [
-                    { type: 'log', x: p.width * 0.42, y: lowerLaneY(p) - 15.5, radius: 7.4, rotation: 0.45, hit: false, isMoving: true },
-                    { type: 'log', x: p.width * 0.72, y: lowerLaneY(p) - 26.5, radius: 7.0, rotation: -0.25, hit: false, isMoving: true }
+                start: p => ({ x: 0, y: p.width * 0.2, radius: 5.5 }),
+                target: p => ({ x: p.width, y: p.width * 0.2, radius: 0 }),
+                startMsg: 'GOAL: reach the far bank ANYWHERE within 11.0 s. Drifting downstream is fine here — speed is everything.',
+                hintLines: [
+                    'Crossing time = 50 ÷ (5·cosθ) seconds.',
+                    'cosθ is biggest at θ = 0° (straight across).',
+                    'Drifting downstream costs NO time here —',
+                    'only your across-river speed matters.'
                 ]
             },
             3: {
                 title: 'Level 3: Catch the Baby',
+                goalType: 'intercept',
                 swimSpeed: 5,
                 currentSpeed: 3,
-                start: p => ({ x: 0, y: lowerLaneY(p), radius: 5.5 }),
-                target: p => ({ x: p.width * 0.65, y: lowerLaneY(p) - 28, radius: 4.5 }),
-                startMsg: 'The baby is floating down the river! Intercept the baby before they wash away.',
-                successMsg: s => `Amazing intercept! Baby caught with ${s.toFixed(0)}m stamina left.`,
-                obstacles: p => [
-                    { type: 'log', x: p.width * 0.5, y: lowerLaneY(p) - 52, radius: 5.5, rotation: 1.2, hit: false, isMoving: true }
+                start: p => ({ x: 0, y: p.width * 0.8, radius: 5.5 }),
+                target: p => ({ x: p.width * 0.7, y: p.width * 0.8 - 35, radius: 4.5 }),
+                startMsg: 'RESCUE: the baby is drifting toward the falls! Pick the one heading that intercepts the baby. Open DATA to see the distances.',
+                hintLines: [
+                    'The current carries you AND the baby equally,',
+                    'so to the water, the baby is standing still.',
+                    'Aim straight at the baby:',
+                    'tanθ = (m upstream) ÷ (m across). See DATA.'
                 ]
             }
         };
 
-        let btnPlay, btnReset, btnData, headingControl;
+        let btnPlay, btnReset, btnHint, btnData, headingControl;
+        const levelButtons = [];
 
         function buildUI() {
             uiElements = [
                 headingControl = new HeadingInputControl('heading'),
                 btnPlay = new Button('play', 'START SWIM', togglePlayPause),
                 btnReset = new Button('reset', 'RESET', resetSimulation),
+                btnHint = new Button('hint', 'HINT', cycleHint),
                 btnData = new Button('data', 'DATA', () => { showTelemetry = !showTelemetry; btnData.isActive = showTelemetry; })
             ];
             btnPlay.bgColor = '#0284c7'; btnPlay.hoverColor = '#0369a1';
             btnReset.bgColor = '#334155'; btnReset.hoverColor = '#475569';
+            btnHint.bgColor = '#0f172a'; btnHint.hoverColor = '#1e293b'; btnHint.activeBgColor = '#d97706';
             btnData.bgColor = '#0f172a'; btnData.hoverColor = '#1e293b'; btnData.activeBgColor = '#0ea5e9';
+
+            if (!lockedLevel) {
+                for (const n of [1, 2, 3]) {
+                    const b = new Button('lvl' + n, String(n), () => setLevel(n));
+                    b.fontSize = 13;
+                    levelButtons.push(b);
+                    uiElements.push(b);
+                }
+            }
+        }
+
+        function cycleHint() {
+            hintMode = (hintMode + 1) % 3;
+            btnHint.isActive = hintMode > 0;
+            btnHint.text = hintMode === 0 ? 'HINT' : hintMode === 1 ? 'HINT 1' : 'HINT 2';
         }
 
         function layout() {
@@ -305,23 +336,31 @@
             bounds.sim = { x: 0, y: 0, w, h };
 
             const pad = 18;
-            const headerW = Math.min(w - pad * 2, bounds.isMobile ? 420 : 600);
-            bounds.header = { x: pad, y: pad, w: headerW, h: 96 };
+            const headerW = Math.min(w - pad * 2, bounds.isMobile ? 430 : 620);
+            bounds.header = { x: pad, y: pad, w: headerW, h: 116 };
+
+            if (levelButtons.length) {
+                const bw = 36, bh = 28, gap = 6;
+                const x0 = bounds.header.x + bounds.header.w - (bw * 3 + gap * 2) - 12;
+                levelButtons.forEach((b, i) => b.setBounds(x0 + i * (bw + gap), bounds.header.y + 10, bw, bh));
+            }
 
             const headingW = Math.min(w - pad * 2, 312);
-            const headingY = bounds.header.y + bounds.header.h + 12;
-            bounds.controls = { x: pad, y: headingY, w: headingW, h: 58 };
-            headingControl.setBounds(bounds.controls.x + 14, bounds.controls.y + 8, bounds.controls.w - 28, 42);
+            const headingY = bounds.header.y + bounds.header.h + 10;
+            bounds.controls = { x: pad, y: headingY, w: headingW, h: 76 };
+            headingControl.setBounds(bounds.controls.x + 14, bounds.controls.y + 6, bounds.controls.w - 28, 42);
 
             const actionY = Math.max(12, h - 62);
-            const availableActionW = Math.max(260, w - pad * 2);
-            const resetW = bounds.isMobile ? 76 : 94;
-            const dataW = bounds.isMobile ? 68 : 84;
-            const playW = Math.max(106, Math.min(bounds.isMobile ? 138 : 158, availableActionW - resetW - dataW - 20));
-            bounds.actions = { x: pad, y: actionY, w: playW + resetW + dataW + 20, h: 44 };
+            const availableActionW = Math.max(280, w - pad * 2);
+            const resetW = bounds.isMobile ? 66 : 88;
+            const hintW = bounds.isMobile ? 64 : 80;
+            const dataW = bounds.isMobile ? 58 : 72;
+            const playW = Math.max(100, Math.min(bounds.isMobile ? 120 : 150, availableActionW - resetW - hintW - dataW - 30));
+            bounds.actions = { x: pad, y: actionY, w: playW + resetW + hintW + dataW + 30, h: 44 };
             btnPlay.setBounds(bounds.actions.x, actionY, playW, 44);
             btnReset.setBounds(bounds.actions.x + playW + 10, actionY, resetW, 44);
-            btnData.setBounds(bounds.actions.x + playW + resetW + 20, actionY, dataW, 44);
+            btnHint.setBounds(bounds.actions.x + playW + resetW + 20, actionY, hintW, 44);
+            btnData.setBounds(bounds.actions.x + playW + resetW + hintW + 30, actionY, dataW, 44);
 
             scale = (bounds.sim.w * 0.5) / params.width;
             originX = bounds.sim.x + bounds.sim.w * 0.15;
@@ -331,6 +370,23 @@
             for (let i = 0; i < 100; i++) {
                 waterParticles.push({ x: Math.random(), y: bounds.sim.y - 100 + Math.random() * (bounds.sim.h + 200), length: 5 + Math.random() * 20, speed: 0.7 + Math.random() * 0.6 });
             }
+            ensureBankDecor();
+        }
+
+        function ensureBankDecor() {
+            if (bankDecor) return;
+            bankDecor = { left: [], right: [] };
+            for (const side of ['left', 'right']) {
+                for (let i = 0; i < 15; i++) {
+                    const roll = Math.random();
+                    bankDecor[side].push({
+                        t: (i + Math.random() * 0.8) / 15,
+                        u: 0.12 + Math.random() * 0.72,
+                        s: 0.7 + Math.random() * 0.7,
+                        kind: roll < 0.5 ? 'tree' : roll < 0.8 ? 'bush' : 'rock'
+                    });
+                }
+            }
         }
 
         function setLevel(lvl) {
@@ -338,7 +394,7 @@
             if (lockedLevel && lvl !== lockedLevel) return;
             mission.level = lvl; resetSimulation();
         }
-        
+
         function recalculatePhysics() {
             params.angleRad = params.angleDeg * (Math.PI / 180);
             params.effectiveBoatSpeed = params.vBoat;
@@ -377,19 +433,19 @@
             const config = LEVEL_CONFIGS[mission.level];
             params.vBoat = config.swimSpeed;
             params.vRiver = config.currentSpeed;
-            const start = config.start ? config.start(params) : { x: 0, y: 0, radius: 5.5 };
+            const start = config.start(params);
 
             isPlaying = false;
             physics.time = 0; physics.x = start.x; physics.y = start.y; physics.trail = [];
-            mission.phase = 'setup'; mission.message = config.startMsg; mission.hits = 0; mission.stars = 0;
+            ripples = []; rippleTimer = 0; babyRippleTimer = 0;
+            mission.phase = 'setup'; mission.message = config.startMsg; mission.stars = 0;
+            mission.goalType = config.goalType;
+            mission.timeLimit = config.timeLimit || 0;
             mission.startZone = { x: start.x, y: start.y, radius: start.radius || 5.5 };
 
-            const target = config.target ? config.target(params) : { x: params.width, y: lowerLaneY(params), radius: 5.5 };
-            let tX = target.x, tY = target.y, tR = target.radius;
-            
-            mission.baby = { x: tX, y: tY, radius: tR, rescued: false };
-            mission.obstacles = config.obstacles(params);
-            mission.staminaMax = Math.round(params.width * (mission.level === 3 ? 3.0 : 2.5) + 40);
+            const target = config.target(params);
+            mission.baby = { x: target.x, y: target.y, radius: target.radius, rescued: false };
+            mission.staminaMax = Math.round(params.width * 2.5 + 40);
             mission.staminaLeft = mission.staminaMax;
 
             recalculatePhysics(); syncHeadingInput(); updateUIState();
@@ -410,24 +466,28 @@
 
             if (mission.phase === 'success' || mission.phase === 'fail') {
                 btnPlay.text = 'PLAY AGAIN'; btnPlay.bgColor = mission.phase === 'success' ? '#059669' : '#b91c1c';
-            } else if (isPlaying) { btnPlay.text = 'PAUSE'; btnPlay.bgColor = '#d97706'; } 
-            else if (physics.time > 0) { btnPlay.text = 'RESUME'; btnPlay.bgColor = '#0284c7'; } 
+            } else if (isPlaying) { btnPlay.text = 'PAUSE'; btnPlay.bgColor = '#d97706'; }
+            else if (physics.time > 0) { btnPlay.text = 'RESUME'; btnPlay.bgColor = '#0284c7'; }
             else { btnPlay.text = 'START SWIM'; btnPlay.bgColor = '#0284c7'; }
             btnData.isActive = showTelemetry;
+            btnHint.isActive = hintMode > 0;
+            levelButtons.forEach((b, i) => { b.isActive = mission.level === i + 1; });
         }
 
-        function checkCollisions() {
-            for (let obs of mission.obstacles) {
-                if (!obs.hit && Math.hypot(physics.x - obs.x, physics.y - obs.y) <= obs.radius + 1.5) {
-                    obs.hit = true; mission.hits++;
-                    return failMission(obs.type === 'log' ? 'Hit a floating log! Try a safer heading.' : 'Hit the rapids! Try a safer heading.');
-                }
+        function computeStars() {
+            if (mission.level === 1) {
+                const miss = Math.abs(physics.y - mission.baby.y);
+                return miss <= 1.8 ? 3 : miss <= 3.6 ? 2 : 1;
             }
-            return false;
+            if (mission.level === 2) {
+                return physics.time <= 10.35 ? 3 : physics.time <= 10.75 ? 2 : 1;
+            }
+            const frac = mission.staminaLeft / mission.staminaMax;
+            return frac >= 0.55 ? 3 : frac >= 0.35 ? 2 : 1;
         }
 
         function failMission(msg) { isPlaying = false; mission.phase = 'fail'; mission.message = msg; updateUIState(); return true; }
-        function succeedMission(msg) { isPlaying = false; mission.phase = 'success'; mission.message = msg; mission.stars = 1 + (mission.hits===0?1:0) + (mission.staminaLeft>mission.staminaMax*0.3?1:0); updateUIState(); }
+        function succeedMission(msg) { isPlaying = false; mission.phase = 'success'; mission.message = msg; mission.stars = computeStars(); updateUIState(); }
 
         function updatePhysics(dt) {
             if (!isPlaying) return;
@@ -436,31 +496,53 @@
             physics.x += dx; physics.y += dy;
             mission.staminaLeft -= Math.hypot(dx, dy);
 
-            if (mission.staminaLeft <= 0) return failMission('Out of stamina! You drifted away.');
+            if (mission.staminaLeft <= 0) return failMission('Out of stamina! You drifted too long — pick a heading that finishes the mission sooner.');
             if (physics.trail.length === 0 || Math.hypot(physics.x - physics.trail[physics.trail.length-1].x, physics.y - physics.trail[physics.trail.length-1].y) > 1) {
                 physics.trail.push({x: physics.x, y: physics.y});
             }
 
-            mission.obstacles.forEach(obs => {
-                if (obs.isMoving) {
-                    obs.y += params.vRiver * dt; obs.rotation += 0.8 * dt;
-                    if (obs.y > (bounds.sim.h - originY) / scale + 15) { obs.y = (0 - originY) / scale - 15; obs.hit = false; }
-                }
-            });
+            rippleTimer += dt;
+            if (rippleTimer > 0.28) { rippleTimer = 0; ripples.push({ x: physics.x, y: physics.y, age: 0 }); }
+            ripples.forEach(r => r.age += dt);
+            ripples = ripples.filter(r => r.age < 1.1);
 
-            if (mission.level === 3 && !mission.baby.rescued) {
+            if (mission.goalType === 'intercept' && !mission.baby.rescued) {
                 mission.baby.y += params.vRiver * dt;
-                if (mission.baby.y > (bounds.sim.h - originY) / scale + 5) return failMission('The baby drifted too far downstream!');
+                babyRippleTimer += dt;
+                if (babyRippleTimer > 0.5) { babyRippleTimer = 0; ripples.push({ x: mission.baby.x, y: mission.baby.y, age: 0 }); }
+                if (mission.baby.y > (bounds.sim.h - originY) / scale + 5) return failMission('The baby went over the falls! Aim straight at the baby and start again.');
             }
 
-            if (checkCollisions()) return;
-
-            if (!mission.baby.rescued) {
+            if (mission.goalType === 'bank') {
+                if (physics.x >= params.width) {
+                    const drift = physics.y - mission.startZone.y;
+                    if (physics.time <= mission.timeLimit) {
+                        return succeedMission(`Crossed in ${physics.time.toFixed(2)} s — inside the ${mission.timeLimit.toFixed(1)} s window! You drifted ${drift.toFixed(0)} m downstream and it cost you nothing.`);
+                    }
+                    return failMission(`You made it across, but in ${physics.time.toFixed(2)} s — over the ${mission.timeLimit.toFixed(1)} s window. Headings closer to 0° cross faster.`);
+                }
+                if (physics.time > mission.timeLimit) {
+                    const left = params.width - physics.x;
+                    return failMission(`Time's up! You were still ${left.toFixed(0)} m from the far bank. Angling away from 0° shrinks your across-river speed.`);
+                }
+            } else if (mission.goalType === 'ring') {
+                // The run resolves at the bank so the crossing time matches width / (5·cosθ).
+                if (physics.x >= params.width) {
+                    const miss = physics.y - mission.baby.y;
+                    if (Math.abs(miss) <= mission.baby.radius) {
+                        mission.baby.rescued = true;
+                        return succeedMission(`Straight shot! Crossed in ${physics.time.toFixed(1)} s and landed ${Math.abs(miss).toFixed(1)} m from ring center. Your upstream aim cancelled the current.`);
+                    }
+                    if (miss > 0) return failMission(`You landed ${miss.toFixed(1)} m DOWNSTREAM of the ring. The current won — aim further upstream (more negative angle).`);
+                    return failMission(`You landed ${(-miss).toFixed(1)} m UPSTREAM of the ring. You over-corrected — bring your angle back toward 0°.`);
+                }
+            } else if (mission.goalType === 'intercept' && !mission.baby.rescued) {
                 if (Math.hypot(physics.x - mission.baby.x, physics.y - mission.baby.y) <= mission.baby.radius) {
                     mission.baby.rescued = true;
-                    succeedMission(LEVEL_CONFIGS[mission.level].successMsg(mission.staminaLeft));
-                } else if (physics.x > params.width + 10) {
-                    failMission(mission.level === 3 ? 'Missed the baby! Swam past the intercept point.' : 'Missed the target! Swam past the far bank.');
+                    return succeedMission(`Baby rescued in ${physics.time.toFixed(1)} s! The current carries you both, so aiming straight at the baby was the winning move.`);
+                }
+                if (physics.x > params.width + 5) {
+                    return failMission('You crossed the whole river but missed the baby. Aim straight AT the baby — the current moves you both the same amount.');
                 }
             }
         }
@@ -468,7 +550,7 @@
         function drawLevelHeader() {
             const header = bounds.header;
             ctx.save();
-            ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
             ctx.strokeStyle = 'rgba(125, 211, 252, 0.4)';
             ctx.lineWidth = 1;
             if (ctx.roundRect) {
@@ -482,26 +564,41 @@
             }
 
             const padX = header.x + 16;
-            const cy = header.y + 24;
             ctx.fillStyle = '#67e8f9';
-            ctx.font = '800 19px Inter';
+            ctx.font = `800 ${bounds.isMobile ? 17 : 19}px Inter`;
             ctx.textAlign = 'left';
             ctx.textBaseline = 'middle';
-            ctx.fillText(LEVEL_CONFIGS[mission.level].title, padX, cy);
+            ctx.fillText(LEVEL_CONFIGS[mission.level].title, padX, header.y + 26);
 
-            drawSpeedChip('Swim', params.vBoat.toFixed(1) + ' m/s', padX, cy + 26, '#fed7aa');
-            drawSpeedChip('Current', params.vRiver.toFixed(1) + ' m/s', padX + 130, cy + 26, '#bae6fd');
+            if (levelButtons.length) {
+                ctx.fillStyle = '#64748b';
+                ctx.font = '700 9px Inter';
+                ctx.textAlign = 'right';
+                ctx.fillText('LEVEL', levelButtons[0].x - 8, header.y + 24);
+            }
 
-            ctx.fillStyle = '#94a3b8';
+            const chipY = header.y + 58;
+            const cw = Math.min(116, Math.floor((header.w - 48) / 3));
+            drawSpeedChip('Swim', params.vBoat.toFixed(1) + ' m/s', padX, chipY, '#fed7aa', cw);
+            drawSpeedChip('Current', params.vRiver.toFixed(1) + ' m/s', padX + cw + 8, chipY, '#bae6fd', cw);
+            const timeVal = mission.goalType === 'bank'
+                ? physics.time.toFixed(1) + '/' + mission.timeLimit.toFixed(1) + ' s'
+                : physics.time.toFixed(1) + ' s';
+            const timeColor = mission.goalType === 'bank' && physics.time > mission.timeLimit - 1.5 ? '#fca5a5' : '#d9f99d';
+            drawSpeedChip('Time', timeVal, padX + (cw + 8) * 2, chipY, timeColor, cw + 8);
+
+            ctx.fillStyle = '#cbd5e1';
             ctx.font = '500 12px Inter';
-            wrapCanvasText(mission.message, padX, cy + 51, header.w - 32, 15, 2);
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            wrapCanvasText(mission.message, padX, header.y + 86, header.w - 32, 15, 2);
             ctx.restore();
         }
 
         function drawCanvasControls() {
             const panel = bounds.controls;
             ctx.save();
-            ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
             ctx.strokeStyle = 'rgba(125, 211, 252, 0.4)';
             ctx.lineWidth = 1;
             if (ctx.roundRect) {
@@ -513,14 +610,70 @@
                 ctx.fillRect(panel.x, panel.y, panel.w, panel.h);
                 ctx.strokeRect(panel.x, panel.y, panel.w, panel.h);
             }
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '500 11px Inter';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Negative = aim upstream · or drag the orange arrow', panel.x + 14, panel.y + panel.h - 15);
             ctx.restore();
             uiElements.forEach(el => el.draw(ctx));
         }
 
-        function drawSpeedChip(label, value, x, y, color) {
+        function drawHintPanel() {
+            if (hintMode === 0) { bounds.hintRect = { x: 0, y: 0, w: 0, h: 0 }; return; }
+            // Desktop: top-right corner, clear of the swimmer's start area. Mobile: below the controls.
+            const w = bounds.controls.w;
+            const x = bounds.isMobile ? bounds.controls.x : bounds.sim.x + bounds.sim.w - w - 18;
+            const y = bounds.isMobile ? bounds.controls.y + bounds.controls.h + 10 : 18;
+            const legend = [
+                ['#f97316', 'Orange: you aim — swim 5 m/s at θ'],
+                ['#38bdf8', 'Blue: river current — 3 m/s downstream'],
+                ['#22c55e', 'Green: actual path = orange + blue']
+            ];
+            const strategy = hintMode === 2 ? LEVEL_CONFIGS[mission.level].hintLines : [];
+            const h = 34 + legend.length * 19 + (strategy.length ? strategy.length * 16 + 12 : 0);
+            bounds.hintRect = { x, y, w, h };
+
+            ctx.save();
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+            ctx.strokeStyle = 'rgba(217, 119, 6, 0.55)';
+            ctx.lineWidth = 1;
+            if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, 8); ctx.fill(); ctx.stroke(); }
+            else { ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h); }
+
+            ctx.fillStyle = '#fbbf24';
+            ctx.font = '800 11px Inter';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(hintMode === 1 ? 'HINT 1 · READ THE VECTORS' : 'HINT 2 · STRATEGY', x + 14, y + 16);
+
+            let rowY = y + 38;
+            ctx.font = '500 11.5px Inter';
+            for (const [color, text] of legend) {
+                drawVectorArrow(x + 14, rowY, x + 36, rowY, color, 3, 7);
+                ctx.fillStyle = '#cbd5e1';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(text, x + 44, rowY);
+                rowY += 19;
+            }
+
+            if (strategy.length) {
+                rowY += 4;
+                ctx.fillStyle = '#fde68a';
+                ctx.font = '600 11.5px Inter';
+                for (const line of strategy) {
+                    ctx.fillText(line, x + 14, rowY);
+                    rowY += 16;
+                }
+            }
+            ctx.restore();
+        }
+
+        function drawSpeedChip(label, value, x, y, color, w = 112) {
             ctx.fillStyle = 'rgba(2, 6, 23, 0.58)';
-            if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y - 12, 112, 25, 6); ctx.fill(); }
-            else { ctx.fillRect(x, y - 12, 112, 25); }
+            if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y - 12, w, 25, 6); ctx.fill(); }
+            else { ctx.fillRect(x, y - 12, w, 25); }
             ctx.fillStyle = '#94a3b8';
             ctx.font = '700 10px Inter';
             ctx.textAlign = 'left';
@@ -529,37 +682,75 @@
             ctx.fillStyle = color;
             ctx.font = '800 11px monospace';
             ctx.textAlign = 'right';
-            ctx.fillText(value, x + 104, y);
+            ctx.fillText(value, x + w - 8, y);
         }
 
-        function wrapCanvasText(text, x, y, maxWidth, lineHeight, maxLines = 3) {
-            const words = String(text || '').split(' ');
-            let line = '';
-            let lineY = y;
-            let lines = 0;
-            for (let n = 0; n < words.length; n++) {
-                const testLine = line + words[n] + ' ';
-                if (ctx.measureText(testLine).width > maxWidth && n > 0) {
-                    ctx.fillText(line.trim(), x, lineY);
-                    lines++;
-                    if (lines >= maxLines) return;
-                    line = words[n] + ' ';
-                    lineY += lineHeight;
-                } else {
-                    line = testLine;
-                }
+        function drawTree(x, y, s) {
+            ctx.fillStyle = '#3f2a14';
+            ctx.fillRect(x - 2 * s, y - 2 * s, 4 * s, 8 * s);
+            const layers = [[16, 0], [13, -9], [10, -17]];
+            for (const [half, off] of layers) {
+                ctx.fillStyle = '#064e3b';
+                ctx.beginPath();
+                ctx.moveTo(x, y + off * s - 16 * s);
+                ctx.lineTo(x - half * s * 0.75, y + off * s);
+                ctx.lineTo(x + half * s * 0.75, y + off * s);
+                ctx.closePath();
+                ctx.fill();
+                ctx.fillStyle = 'rgba(74, 222, 128, 0.22)';
+                ctx.beginPath();
+                ctx.moveTo(x, y + off * s - 16 * s);
+                ctx.lineTo(x + half * s * 0.75, y + off * s);
+                ctx.lineTo(x + half * s * 0.3, y + off * s);
+                ctx.closePath();
+                ctx.fill();
             }
-            if (line && lines < maxLines) ctx.fillText(line.trim(), x, lineY);
+        }
+
+        function drawBush(x, y, s) {
+            ctx.fillStyle = '#166534';
+            ctx.beginPath();
+            ctx.arc(x - 5 * s, y, 6 * s, 0, Math.PI * 2);
+            ctx.arc(x + 4 * s, y - 2 * s, 7 * s, 0, Math.PI * 2);
+            ctx.arc(x + 2 * s, y + 3 * s, 5 * s, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(134, 239, 172, 0.25)';
+            ctx.beginPath();
+            ctx.arc(x + 5 * s, y - 4 * s, 3.5 * s, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawRock(x, y, s) {
+            ctx.fillStyle = '#57534e';
+            ctx.beginPath();
+            ctx.ellipse(x, y, 7 * s, 4.5 * s, 0.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,0.18)';
+            ctx.beginPath();
+            ctx.ellipse(x - 2 * s, y - 1.5 * s, 3 * s, 1.6 * s, 0.2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawBankDecorSide(side, x0, x1) {
+            const usable = x1 - x0;
+            if (usable < 34) return;
+            for (const d of bankDecor[side]) {
+                const px = x0 + 14 + d.u * (usable - 28);
+                const py = bounds.sim.y + d.t * bounds.sim.h;
+                if (d.kind === 'tree') drawTree(px, py, d.s);
+                else if (d.kind === 'bush') drawBush(px, py, d.s);
+                else drawRock(px, py, d.s);
+            }
         }
 
         function drawRiverEnv() {
             const rLeft = originX, rRight = originX + params.width * scale;
             const riverW = params.width * scale;
 
-            const waterGradient = ctx.createLinearGradient(0, bounds.sim.y, 0, bounds.sim.y + bounds.sim.h);
-            waterGradient.addColorStop(0, '#2563eb');
-            waterGradient.addColorStop(0.45, '#1d4ed8');
-            waterGradient.addColorStop(1, '#1e40af');
+            const waterGradient = ctx.createLinearGradient(rLeft, 0, rRight, 0);
+            waterGradient.addColorStop(0, '#1d4ed8');
+            waterGradient.addColorStop(0.5, '#1e40af');
+            waterGradient.addColorStop(1, '#1d4ed8');
             ctx.fillStyle = waterGradient;
             ctx.fillRect(bounds.sim.x, bounds.sim.y, bounds.sim.w, bounds.sim.h);
 
@@ -568,11 +759,11 @@
             ctx.rect(rLeft, bounds.sim.y, riverW, bounds.sim.h);
             ctx.clip();
 
-            ctx.strokeStyle = 'rgba(219, 234, 254, 0.16)';
+            ctx.strokeStyle = 'rgba(219, 234, 254, 0.14)';
             ctx.lineWidth = 12;
             ctx.lineCap = 'round';
             for (let i = -1; i < 8; i++) {
-                const baseY = bounds.sim.y + (i / 6) * bounds.sim.h + Math.sin(physics.time * 0.8 + i) * 9;
+                const baseY = bounds.sim.y + (i / 6) * bounds.sim.h + Math.sin(ambientTime * 0.8 + i) * 9;
                 ctx.beginPath();
                 ctx.moveTo(rLeft + 12, baseY);
                 ctx.bezierCurveTo(
@@ -587,10 +778,12 @@
             const visSpeed = isPlaying ? params.vRiver * 3 : 0;
             waterParticles.forEach(p => {
                 if (isPlaying) { p.y += visSpeed * p.speed; if (p.y > bounds.sim.y + bounds.sim.h + 50) { p.y = bounds.sim.y - 50; p.x = Math.random(); } }
-                const px = rLeft + p.x * (params.width * scale);
+                const px = rLeft + p.x * riverW;
                 if (px >= rLeft && px <= rRight) { ctx.moveTo(px, p.y); ctx.lineTo(px, p.y + p.length); }
             });
             ctx.stroke();
+
+            if (mission.level === 3) drawFalls(rLeft, rRight);
             ctx.restore();
 
             const bankGradient = ctx.createLinearGradient(bounds.sim.x, 0, rLeft, 0);
@@ -607,7 +800,20 @@
             ctx.fillStyle = farBankGradient;
             ctx.fillRect(rRight, bounds.sim.y, (bounds.sim.x + bounds.sim.w) - rRight, bounds.sim.h);
 
-            ctx.strokeStyle = '#fde68a'; ctx.lineWidth = 6; ctx.beginPath();
+            drawBankDecorSide('left', bounds.sim.x, rLeft - 14);
+            drawBankDecorSide('right', rRight + 14, bounds.sim.x + bounds.sim.w);
+
+            const sandL = ctx.createLinearGradient(rLeft - 10, 0, rLeft, 0);
+            sandL.addColorStop(0, '#d97706');
+            sandL.addColorStop(1, '#fbbf24');
+            ctx.fillStyle = sandL;
+            ctx.fillRect(rLeft - 10, bounds.sim.y, 10, bounds.sim.h);
+            const sandR = ctx.createLinearGradient(rRight, 0, rRight + 10, 0);
+            sandR.addColorStop(0, '#fbbf24');
+            sandR.addColorStop(1, '#d97706');
+            ctx.fillStyle = sandR;
+            ctx.fillRect(rRight, bounds.sim.y, 10, bounds.sim.h);
+            ctx.strokeStyle = '#fef3c7'; ctx.lineWidth = 2; ctx.beginPath();
             ctx.moveTo(rLeft, bounds.sim.y); ctx.lineTo(rLeft, bounds.sim.y + bounds.sim.h);
             ctx.moveTo(rRight, bounds.sim.y); ctx.lineTo(rRight, bounds.sim.y + bounds.sim.h);
             ctx.stroke();
@@ -616,24 +822,64 @@
             ctx.lineWidth = 2;
             for (let y = bounds.sim.y + 18; y < bounds.sim.y + bounds.sim.h; y += 34) {
                 ctx.beginPath();
-                ctx.moveTo(rLeft - 10, y);
-                ctx.lineTo(rLeft - 24, y + 8);
-                ctx.moveTo(rRight + 10, y + 12);
-                ctx.lineTo(rRight + 25, y + 4);
+                ctx.moveTo(rLeft - 14, y);
+                ctx.lineTo(rLeft - 26, y + 8);
+                ctx.moveTo(rRight + 14, y + 12);
+                ctx.lineTo(rRight + 27, y + 4);
                 ctx.stroke();
             }
 
             ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = '11px monospace'; ctx.textAlign = 'right';
             for (let i = 0; i <= 300; i += 20) {
                 let y = originY + i * scale; if (y > bounds.sim.y + bounds.sim.h) break;
-                ctx.fillText(i + 'm', rLeft - 8, y + 3); ctx.fillRect(rLeft - 5, y, 5, 1);
+                ctx.fillText(i + 'm', rLeft - 14, y + 3); ctx.fillRect(rLeft - 10, y, 6, 1);
             }
 
             const arrowLen = params.vRiver * VELOCITY_VECTOR_SCALE;
             const arrowX = rLeft + riverW * 0.5;
             const arrowTop = bounds.sim.y + bounds.sim.h * 0.5 - arrowLen * 0.5;
-            drawVectorArrow(arrowX, arrowTop, arrowX, arrowTop + arrowLen, '#38bdf8', 8, 20);
-            drawVectorLabel('Water velocity = ' + params.vRiver.toFixed(1) + ' m/s', arrowX + 18, arrowTop + arrowLen * 0.5, '#bae6fd');
+            drawVectorArrow(arrowX, arrowTop, arrowX, arrowTop + arrowLen, 'rgba(56, 189, 248, 0.9)', 8, 20);
+            drawVectorLabel('River current = ' + params.vRiver.toFixed(1) + ' m/s', arrowX + 18, arrowTop + arrowLen * 0.5, '#bae6fd');
+        }
+
+        function drawFalls(rLeft, rRight) {
+            const h = bounds.sim.h;
+            const bandTop = h - 30;
+            const foam = ctx.createLinearGradient(0, bandTop, 0, h);
+            foam.addColorStop(0, 'rgba(255,255,255,0)');
+            foam.addColorStop(0.55, 'rgba(255,255,255,0.35)');
+            foam.addColorStop(1, 'rgba(255,255,255,0.6)');
+            ctx.fillStyle = foam;
+            ctx.fillRect(rLeft, bandTop, rRight - rLeft, 30);
+            ctx.fillStyle = 'rgba(255,255,255,0.55)';
+            for (let x = rLeft + 6; x < rRight - 6; x += 18) {
+                const bob = Math.sin(ambientTime * 5 + x * 0.3) * 2;
+                ctx.beginPath();
+                ctx.arc(x, h - 9 + bob, 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            drawVectorLabel('WATERFALL!', rLeft + (rRight - rLeft) * 0.7, bandTop - 12, '#fecaca', 'center', 12);
+        }
+
+        function drawDock(sx, sy) {
+            const x0 = sx - 36, y0 = sy - 15, dw = 50, dh = 30;
+            ctx.save();
+            ctx.fillStyle = '#92400e';
+            ctx.fillRect(x0, y0, dw, dh);
+            ctx.strokeStyle = '#713f12';
+            ctx.lineWidth = 2;
+            for (let i = 1; i < 5; i++) {
+                ctx.beginPath();
+                ctx.moveTo(x0 + i * dw / 5, y0);
+                ctx.lineTo(x0 + i * dw / 5, y0 + dh);
+                ctx.stroke();
+            }
+            ctx.strokeRect(x0, y0, dw, dh);
+            ctx.fillStyle = '#78350f';
+            for (const [px, py] of [[x0 + 4, y0 + 4], [x0 + dw - 4, y0 + 4], [x0 + 4, y0 + dh - 4], [x0 + dw - 4, y0 + dh - 4]]) {
+                ctx.beginPath(); ctx.arc(px, py, 3.4, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.restore();
         }
 
         function drawSwimmerGraphic(ctx, r) {
@@ -699,15 +945,33 @@
         }
 
         function drawBabyGraphic(ctx, r) {
-            // Arms and Legs
-            ctx.strokeStyle = '#fca5a5'; // Skin tone
+            // Inflatable swim ring under the baby
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(0, r * 0.12, r * 1.05, 0, Math.PI * 2);
+            ctx.arc(0, r * 0.12, r * 0.52, 0, Math.PI * 2, true);
+            ctx.fillStyle = '#f472b6';
+            ctx.fill();
+            ctx.strokeStyle = '#be185d';
+            ctx.lineWidth = r * 0.06;
+            ctx.beginPath(); ctx.arc(0, r * 0.12, r * 1.05, 0, Math.PI * 2); ctx.stroke();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = r * 0.5;
+            for (let i = 0; i < 4; i++) {
+                const a0 = i * Math.PI / 2 + 0.28;
+                ctx.beginPath();
+                ctx.arc(0, r * 0.12, r * 0.78, a0, a0 + 0.5);
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            // Arms and legs
+            ctx.strokeStyle = '#fca5a5';
             ctx.lineWidth = r * 0.3;
             ctx.lineCap = 'round';
             ctx.beginPath();
-            // Arms flailing up
             ctx.moveTo(-r * 0.35, -r * 0.1); ctx.lineTo(-r * 0.8, -r * 0.5);
             ctx.moveTo(r * 0.35, -r * 0.1); ctx.lineTo(r * 0.8, -r * 0.5);
-            // Legs kicking down
             ctx.moveTo(-r * 0.2, r * 0.3); ctx.lineTo(-r * 0.6, r * 0.8);
             ctx.moveTo(r * 0.2, r * 0.3); ctx.lineTo(r * 0.6, r * 0.8);
             ctx.stroke();
@@ -716,29 +980,24 @@
             ctx.fillStyle = '#fca5a5';
             ctx.beginPath(); ctx.arc(0, -r * 0.5, r * 0.45, 0, Math.PI * 2); ctx.fill();
 
-            // Face (Detailed Eyes)
-            // Sclera (whites of the eyes)
-            ctx.fillStyle = '#ffffff'; 
+            // Eyes
+            ctx.fillStyle = '#ffffff';
             ctx.beginPath(); ctx.arc(-r * 0.16, -r * 0.58, r * 0.12, 0, Math.PI * 2); ctx.fill();
             ctx.beginPath(); ctx.arc(r * 0.16, -r * 0.58, r * 0.12, 0, Math.PI * 2); ctx.fill();
-            
-            // Pupils
-            ctx.fillStyle = '#1e293b'; // dark slate
+            ctx.fillStyle = '#1e293b';
             ctx.beginPath(); ctx.arc(-r * 0.16, -r * 0.58, r * 0.07, 0, Math.PI * 2); ctx.fill();
             ctx.beginPath(); ctx.arc(r * 0.16, -r * 0.58, r * 0.07, 0, Math.PI * 2); ctx.fill();
-            
-            // Catchlights (eye sparkles)
             ctx.fillStyle = '#ffffff';
             ctx.beginPath(); ctx.arc(-r * 0.18, -r * 0.60, r * 0.025, 0, Math.PI * 2); ctx.fill();
             ctx.beginPath(); ctx.arc(r * 0.14, -r * 0.60, r * 0.025, 0, Math.PI * 2); ctx.fill();
 
             // Rosy cheeks
-            ctx.fillStyle = 'rgba(239, 68, 68, 0.25)'; // soft transparent red
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.25)';
             ctx.beginPath(); ctx.arc(-r * 0.26, -r * 0.45, r * 0.08, 0, Math.PI * 2); ctx.fill();
             ctx.beginPath(); ctx.arc(r * 0.26, -r * 0.45, r * 0.08, 0, Math.PI * 2); ctx.fill();
 
-            // Smile (Lowered)
-            ctx.strokeStyle = '#7f1d1d'; // Dark red/brown
+            // Smile
+            ctx.strokeStyle = '#7f1d1d';
             ctx.lineWidth = r * 0.06;
             ctx.lineCap = 'round';
             ctx.beginPath(); ctx.arc(0, -r * 0.46, r * 0.18, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke();
@@ -749,20 +1008,188 @@
             ctx.lineWidth = r * 0.1;
             ctx.lineJoin = 'round';
             ctx.beginPath();
-            ctx.moveTo(-r * 0.5, 0);       // Top left
-            ctx.lineTo(r * 0.5, 0);        // Top right
-            ctx.lineTo(r * 0.25, r * 0.5); // Bottom right
-            ctx.lineTo(-r * 0.25, r * 0.5);// Bottom left
+            ctx.moveTo(-r * 0.5, 0);
+            ctx.lineTo(r * 0.5, 0);
+            ctx.lineTo(r * 0.25, r * 0.5);
+            ctx.lineTo(-r * 0.25, r * 0.5);
             ctx.closePath();
             ctx.fill(); ctx.stroke();
-            
-            // Diaper tape details
-            ctx.fillStyle = '#93c5fd'; // blue tape
+            ctx.fillStyle = '#93c5fd';
             ctx.fillRect(-r * 0.4, 0, r * 0.15, r * 0.15);
             ctx.fillRect(r * 0.25, 0, r * 0.15, r * 0.15);
         }
 
+        function drawFinishRing() {
+            const tx = originX + mission.baby.x * scale, ty = originY + mission.baby.y * scale, tr = mission.baby.radius * scale;
+            ctx.beginPath(); ctx.arc(tx, ty, tr, 0, Math.PI*2); ctx.fillStyle = 'rgba(34, 197, 94, 0.18)'; ctx.fill();
+            ctx.strokeStyle = '#bbf7d0'; ctx.lineWidth = 5; ctx.stroke();
+            ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 2; ctx.setLineDash([6,4]); ctx.stroke(); ctx.setLineDash([]);
+            ctx.beginPath(); ctx.arc(tx, ty, tr * 0.42, 0, Math.PI*2); ctx.fillStyle = 'rgba(34, 197, 94, 0.28)'; ctx.fill();
+
+            // Buoys bobbing on the water side of the ring (110 to 250 degrees)
+            for (let i = 0; i < 5; i++) {
+                const a = Math.PI * (0.61 + 0.78 * i / 4);
+                const bob = Math.sin(ambientTime * 2 + i * 1.7) * 2;
+                const bx = tx + Math.cos(a) * tr, by = ty + Math.sin(a) * tr + bob;
+                ctx.fillStyle = '#fb923c';
+                ctx.beginPath(); ctx.arc(bx, by, 5, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(bx, by, 5, Math.PI * 0.15, Math.PI * 0.85); ctx.stroke();
+            }
+
+            // Checkered flag planted on the far bank
+            const fx = tx + 22, fy = ty;
+            ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(fx, fy - 38); ctx.lineTo(fx, fy + 8); ctx.stroke();
+            for (let r = 0; r < 2; r++) {
+                for (let c = 0; c < 3; c++) {
+                    ctx.fillStyle = (r + c) % 2 === 0 ? '#f8fafc' : '#0f172a';
+                    ctx.fillRect(fx + c * 8, fy - 38 + r * 8, 8, 8);
+                }
+            }
+            ctx.fillStyle = '#dcfce7'; ctx.font = '700 12px Inter'; ctx.textAlign = 'center';
+            ctx.fillText('Finish Ring', tx, ty - tr - 10);
+        }
+
+        function drawFinishBank() {
+            const rRight = originX + params.width * scale;
+            const pulse = 0.55 + Math.sin(ambientTime * 3) * 0.25;
+
+            // Checkered finish stripe along the whole far bank
+            const cell = 10;
+            for (let y = bounds.sim.y; y < bounds.sim.y + bounds.sim.h; y += cell) {
+                for (let c = 0; c < 2; c++) {
+                    const on = (Math.floor(y / cell) + c) % 2 === 0;
+                    ctx.fillStyle = on ? 'rgba(248, 250, 252, 0.85)' : 'rgba(22, 101, 52, 0.85)';
+                    ctx.fillRect(rRight + 1 + c * cell, y, cell, cell);
+                }
+            }
+            ctx.strokeStyle = `rgba(74, 222, 128, ${pulse})`;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(rRight, bounds.sim.y); ctx.lineTo(rRight, bounds.sim.y + bounds.sim.h);
+            ctx.stroke();
+
+            // FINISH sign on the far bank
+            const sy = originY + (mission.startZone.y + 12) * scale;
+            const sx = rRight + 46;
+            ctx.strokeStyle = '#78350f'; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.moveTo(sx, sy - 12); ctx.lineTo(sx, sy + 26); ctx.stroke();
+            ctx.fillStyle = '#065f46';
+            ctx.strokeStyle = '#f8fafc';
+            ctx.lineWidth = 2;
+            if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(sx - 42, sy - 40, 84, 30, 4); ctx.fill(); ctx.stroke(); }
+            else { ctx.fillRect(sx - 42, sy - 40, 84, 30); ctx.strokeRect(sx - 42, sy - 40, 84, 30); }
+            ctx.fillStyle = '#f8fafc';
+            ctx.font = '800 13px Inter'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText('FINISH', sx, sy - 30);
+            ctx.font = '600 8.5px Inter';
+            ctx.fillText('LAND ANYWHERE', sx, sy - 18);
+        }
+
+        function drawProtractor(bx, by) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(248, 250, 252, 0.5)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([5, 4]);
+            ctx.beginPath();
+            ctx.moveTo(bx, by);
+            ctx.lineTo(bx + 78, by);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            drawVectorLabel('0°', bx + 88, by, 'rgba(248, 250, 252, 0.75)', 'left', 11);
+
+            if (Math.abs(params.angleRad) > 0.02) {
+                ctx.strokeStyle = '#fbbf24';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(bx, by, 40, 0, params.angleRad, params.angleRad < 0);
+                ctx.stroke();
+                const mid = params.angleRad / 2;
+                drawVectorLabel('θ = ' + formatHeading(params.angleDeg) + '°', bx + Math.cos(mid) * 60, by + Math.sin(mid) * 60, '#fbbf24', 'center', 12);
+            }
+            ctx.restore();
+        }
+
+        function drawPredictedPath(bx, by) {
+            const vX = params.vResultantX, vY = params.vResultantY;
+            if (vX <= 0.05) return;
+            let tEnd = (params.width - physics.x) / vX;
+            let offscreen = false;
+            const yBottomWorld = (bounds.sim.h - originY) / scale;
+            if (vY > 0.01) {
+                const tb = (yBottomWorld - physics.y) / vY;
+                if (tb < tEnd) { tEnd = tb; offscreen = true; }
+            }
+            if (tEnd <= 0) return;
+            const ex = originX + (physics.x + vX * tEnd) * scale;
+            const ey = originY + (physics.y + vY * tEnd) * scale;
+
+            ctx.save();
+            ctx.strokeStyle = 'rgba(74, 222, 128, 0.65)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([8, 7]);
+            ctx.beginPath();
+            ctx.moveTo(bx, by);
+            ctx.lineTo(ex, ey);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            if (offscreen) {
+                drawVectorLabel('drifts off downstream!', ex, ey - 14, '#fca5a5', 'center', 12);
+            } else {
+                ctx.strokeStyle = '#4ade80';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(ex - 7, ey - 7); ctx.lineTo(ex + 7, ey + 7);
+                ctx.moveTo(ex + 7, ey - 7); ctx.lineTo(ex - 7, ey + 7);
+                ctx.stroke();
+                const landLabel = mission.goalType === 'intercept' ? 'far bank at t = ' + tEnd.toFixed(1) + ' s' : 'you land here · t = ' + tEnd.toFixed(1) + ' s';
+                drawVectorLabel(landLabel, ex - 12, ey - 16, '#bbf7d0', 'right', 12);
+            }
+            ctx.restore();
+        }
+
+        function drawInterceptDots() {
+            // Ghost dots at matching future times: if the same-numbered dots meet, you intercept.
+            const vX = params.vResultantX, vY = params.vResultantY;
+            const yBottomWorld = (bounds.sim.h - originY) / scale;
+            for (let t = 2; t <= 12; t += 2) {
+                const sxw = physics.x + vX * t, syw = physics.y + vY * t;
+                const bxw = mission.baby.x, byw = mission.baby.y + params.vRiver * t;
+                const swimOk = sxw <= params.width + 2 && syw <= yBottomWorld && syw >= -5;
+                const babyOk = byw <= yBottomWorld;
+                const close = Math.hypot(sxw - bxw, syw - byw) <= 3;
+
+                if (swimOk) {
+                    const px = originX + sxw * scale, py = originY + syw * scale;
+                    if (close) { ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.arc(px, py, 13, 0, Math.PI * 2); ctx.fill(); }
+                    ctx.fillStyle = '#4ade80';
+                    ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2); ctx.fill();
+                    drawVectorLabel(t + 's', px, py - 11, '#bbf7d0', 'center', 10);
+                }
+                if (babyOk) {
+                    const px = originX + bxw * scale, py = originY + byw * scale;
+                    if (close) { ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.arc(px, py, 13, 0, Math.PI * 2); ctx.fill(); }
+                    ctx.fillStyle = '#f9a8d4';
+                    ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2); ctx.fill();
+                    drawVectorLabel(t + 's', px + 11, py, '#fbcfe8', 'left', 10);
+                }
+            }
+            drawVectorLabel('match the numbered dots to intercept!', originX + mission.baby.x * scale, originY + mission.baby.y * scale + mission.baby.radius * scale + 18, '#f9a8d4', 'center', 11);
+        }
+
         function drawEntities() {
+            // Wake ripples
+            for (const r of ripples) {
+                const alpha = Math.max(0, (1 - r.age / 1.1) * 0.35);
+                ctx.strokeStyle = `rgba(255, 255, 255, ${alpha.toFixed(3)})`;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(originX + r.x * scale, originY + r.y * scale, 4 + r.age * 22, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
             if (physics.trail.length > 0) {
                 ctx.beginPath(); ctx.moveTo(originX + physics.trail[0].x * scale, originY + physics.trail[0].y * scale);
                 for (let i = 1; i < physics.trail.length; i++) ctx.lineTo(originX + physics.trail[i].x * scale, originY + physics.trail[i].y * scale);
@@ -771,99 +1198,32 @@
             }
 
             const sx = originX + mission.startZone.x * scale, sy = originY + mission.startZone.y * scale, sr = mission.startZone.radius * scale;
+            drawDock(sx, sy);
             ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI*2); ctx.fillStyle = 'rgba(34, 197, 94, 0.15)'; ctx.fill();
             ctx.strokeStyle = '#86efac'; ctx.lineWidth = 2; ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
             ctx.fillStyle = '#bbf7d0'; ctx.font='11px Inter'; ctx.textAlign='left'; ctx.fillText('Start', sx + sr + 5, sy);
 
-            if (!mission.baby.rescued) {
+            if (mission.goalType === 'bank') {
+                drawFinishBank();
+            } else if (mission.goalType === 'ring' && !mission.baby.rescued) {
+                drawFinishRing();
+            } else if (mission.goalType === 'intercept' && !mission.baby.rescued) {
                 const tx = originX + mission.baby.x * scale, ty = originY + mission.baby.y * scale, tr = mission.baby.radius * scale;
-                if (mission.level === 3) {
-                    const babyR = tr * BABY_DRAW_SCALE;
-                    ctx.beginPath(); ctx.arc(tx, ty, tr, 0, Math.PI*2);
-                    ctx.strokeStyle = 'rgba(251, 207, 232, 0.55)';
-                    ctx.lineWidth = 2;
-                    ctx.setLineDash([5, 5]);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
+                const babyR = tr * BABY_DRAW_SCALE;
+                ctx.beginPath(); ctx.arc(tx, ty, tr, 0, Math.PI*2);
+                ctx.strokeStyle = 'rgba(251, 207, 232, 0.55)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.stroke();
+                ctx.setLineDash([]);
 
-                    ctx.save();
-                    ctx.translate(tx, ty);
-                    ctx.rotate(Math.sin(physics.time * 2) * 0.3); 
-                    
-                    drawBabyGraphic(ctx, babyR);
-                    
-                    ctx.restore();
-                    ctx.fillStyle = '#fff1f2'; ctx.font = '700 12px Inter'; ctx.textAlign='center'; ctx.fillText('Baby', tx, ty - babyR - 16);
-                } else {
-                    ctx.beginPath(); ctx.arc(tx, ty, tr, 0, Math.PI*2); ctx.fillStyle = 'rgba(34, 197, 94, 0.18)'; ctx.fill();
-                    ctx.strokeStyle = '#bbf7d0'; ctx.lineWidth = 5; ctx.stroke();
-                    ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 2; ctx.setLineDash([6,4]); ctx.stroke(); ctx.setLineDash([]);
-                    ctx.beginPath(); ctx.arc(tx, ty, tr * 0.42, 0, Math.PI*2); ctx.fillStyle = 'rgba(34, 197, 94, 0.28)'; ctx.fill();
-                    ctx.fillStyle = '#dcfce7'; ctx.font = '700 12px Inter'; ctx.textAlign='center'; ctx.fillText('Finish', tx, ty - tr - 10);
-                }
-            }
-
-            mission.obstacles.forEach(obs => {
-                const ox = originX + obs.x * scale, oy = originY + obs.y * scale;
-                ctx.save(); ctx.translate(ox, oy); ctx.rotate(obs.rotation);
-                if (obs.type === 'rapid') {
-                    const pulse = 1 + Math.sin(physics.time * 5) * 0.05;
-                    ctx.fillStyle = 'rgba(219, 234, 254, 0.38)'; ctx.beginPath(); 
-                    ctx.ellipse(0, 0, obs.rockDist * scale * 1.45 * pulse, obs.radius * scale * 0.82, 0, 0, Math.PI*2); ctx.fill();
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.62)'; ctx.beginPath();
-                    ctx.ellipse(0, 0, obs.rockDist * scale * 0.76, obs.radius * scale * 0.32, 0, 0, Math.PI*2); ctx.fill();
-                    
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
-                    ctx.lineWidth = scale * 0.3; // thick water lines
-                    ctx.lineCap = 'round';
-                    ctx.beginPath();
-                    
-                    // Left channel flow
-                    ctx.moveTo(-obs.rockDist * scale * 0.45, -obs.radius * scale * 0.5);
-                    ctx.quadraticCurveTo(-obs.rockDist * scale * 0.1, 0, -obs.rockDist * scale * 0.45, obs.radius * scale * 0.5);
-                    
-                    // Center channel flow (animated surging)
-                    const surge = Math.sin(physics.time * 4) * scale * 0.25;
-                    ctx.moveTo(0, -obs.radius * scale * 0.7);
-                    ctx.quadraticCurveTo(surge, 0, 0, obs.radius * scale * 0.7);
-                    
-                    // Right channel flow
-                    ctx.moveTo(obs.rockDist * scale * 0.45, -obs.radius * scale * 0.5);
-                    ctx.quadraticCurveTo(obs.rockDist * scale * 0.1, 0, obs.rockDist * scale * 0.45, obs.radius * scale * 0.5);
-                    
-                    ctx.stroke();
-
-                    const rockFill = obs.hit ? '#7f1d1d' : '#475569';
-                    const rockStroke = obs.hit ? '#fecaca' : '#1e293b';
-                    const drawRock = (shape, cx, cy) => {
-                        ctx.fillStyle = rockFill;
-                        ctx.strokeStyle = rockStroke;
-                        ctx.lineWidth = 2;
-                        ctx.beginPath(); shape.forEach((pt, idx) => { const px = cx + pt.r * scale * Math.cos(pt.a), py = cy + pt.r * scale * Math.sin(pt.a); if (idx === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); });
-                        ctx.closePath(); ctx.fill(); ctx.stroke();
-                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'; ctx.beginPath(); ctx.arc(cx - scale * 0.5, cy - scale * 0.5, scale * 1.5, Math.PI, 1.5 * Math.PI); ctx.stroke();
-                    };
-                    drawRock(obs.rock1Shape, -obs.rockDist * scale, 0); drawRock(obs.rock2Shape, obs.rockDist * scale, 0);
-                } else if (obs.type === 'rock') {
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'; ctx.beginPath(); ctx.ellipse(0, 0, obs.radius * scale * 1.5, obs.radius * scale * 1.2, 0, 0, Math.PI*2); ctx.fill();
-                    ctx.fillStyle = obs.hit ? '#7f1d1d' : '#475569'; ctx.strokeStyle = obs.hit ? '#fecaca' : '#1e293b'; ctx.lineWidth = 2;
-                    ctx.beginPath(); ctx.ellipse(0, 0, obs.radius * scale, obs.radius * scale * 0.8, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-                } else {
-                    const logLen = obs.radius * scale * 2.25;
-                    const logH = obs.radius * scale * 0.58;
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-                    ctx.beginPath(); ctx.ellipse(0, logH * 0.25, logLen * 0.55, logH * 0.75, 0, 0, Math.PI*2); ctx.fill();
-                    ctx.fillStyle = obs.hit ? '#7f1d1d' : '#a16207'; ctx.strokeStyle = obs.hit ? '#fecaca' : '#451a03'; ctx.lineWidth = 2;
-                    ctx.beginPath(); ctx.ellipse(0, 0, logLen * 0.5, logH * 0.5, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-                    ctx.strokeStyle = 'rgba(254, 243, 199, 0.45)';
-                    ctx.lineWidth = 1.5;
-                    ctx.beginPath();
-                    ctx.moveTo(-logLen * 0.28, -logH * 0.08); ctx.lineTo(logLen * 0.28, -logH * 0.16);
-                    ctx.moveTo(-logLen * 0.34, logH * 0.12); ctx.lineTo(logLen * 0.18, logH * 0.08);
-                    ctx.stroke();
-                }
+                ctx.save();
+                ctx.translate(tx, ty);
+                ctx.rotate(Math.sin(ambientTime * 2) * 0.3);
+                drawBabyGraphic(ctx, babyR);
                 ctx.restore();
-            });
+                ctx.fillStyle = '#fff1f2'; ctx.font = '700 12px Inter'; ctx.textAlign='center'; ctx.fillText('Baby', tx, ty - babyR - 16);
+            }
 
             const bx = originX + physics.x * scale, by = originY + physics.y * scale;
             ctx.save(); ctx.translate(bx, by); ctx.rotate(params.angleRad);
@@ -871,6 +1231,10 @@
             ctx.restore();
 
             const vectorSetupVisible = !isPlaying && mission.phase !== 'success' && mission.phase !== 'fail';
+            const showVectors = hintMode >= 1 && mission.phase !== 'success' && mission.phase !== 'fail';
+
+            if (vectorSetupVisible) drawProtractor(bx, by);
+
             if (vectorSetupVisible) {
                 const arrow = getHeadingArrowGeometry();
                 drawVectorArrow(arrow.startX, arrow.startY, arrow.endX, arrow.endY, headingArrow.isDragging ? '#fb923c' : '#f97316', headingArrow.isDragging ? 8 : 6, 20);
@@ -883,57 +1247,119 @@
                 ctx.strokeStyle = '#f97316';
                 ctx.stroke();
 
-                drawVectorLabel('Swimmer velocity = ' + params.effectiveBoatSpeed.toFixed(1) + ' m/s', arrow.endX + 14, arrow.endY - 14, '#fed7aa');
-                drawVectorLabel(formatHeading(params.angleDeg) + ' deg', arrow.endX + 14, arrow.endY + 12, '#fed7aa');
+                if (!hasAimedOnce && !headingArrow.isDragging) {
+                    const pulse = 16 + Math.sin(ambientTime * 4) * 4;
+                    ctx.strokeStyle = 'rgba(254, 215, 170, 0.8)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(arrow.endX, arrow.endY, pulse, 0, Math.PI * 2);
+                    ctx.stroke();
+                    drawVectorLabel('DRAG TO AIM', arrow.endX, arrow.endY - 28, '#fed7aa', 'center', 12);
+                }
+
+                drawVectorLabel('You aim: 5.0 m/s at ' + formatHeading(params.angleDeg) + '°', arrow.endX + 16, arrow.endY - 12, '#fed7aa', 'left', 13);
+            } else if (showVectors && isPlaying) {
+                const vs = VELOCITY_VECTOR_SCALE;
+                const vbx = params.effectiveBoatSpeed * Math.cos(params.angleRad) * vs;
+                const vby = params.effectiveBoatSpeed * Math.sin(params.angleRad) * vs;
+                drawVectorArrow(bx, by, bx + vbx, by + vby, '#f97316', 4, 12);
             }
 
-            if (vectorMode > 0 && vectorSetupVisible) {
-                const vs = VELOCITY_VECTOR_SCALE, resX = params.vResultantX * vs, resY = params.vResultantY * vs;
-                if (vectorMode === 1) {
-                    const vbx = params.effectiveBoatSpeed * Math.cos(params.angleRad) * vs, vby = params.effectiveBoatSpeed * Math.sin(params.angleRad) * vs;
-                    drawVectorArrow(bx + vbx, by + vby, bx + vbx, by + vby + params.vRiver * vs, '#38bdf8', 5, 16);
-                    drawVectorArrow(bx, by, bx + resX, by + resY, '#22c55e', 6, 18);
-                } else if (vectorMode === 2) {
-                    drawVectorArrow(bx, by, bx + resX, by, '#f97316', 5, 16);
-                    drawVectorArrow(bx + resX, by, bx + resX, by + resY, '#a855f7', 5, 16);
-                    drawVectorArrow(bx, by, bx + resX, by + resY, '#22c55e', 6, 18);
-                } else if (vectorMode === 3) {
-                    const vby = params.effectiveBoatSpeed * Math.sin(params.angleRad) * vs, vry = params.vRiver * vs, off1 = 34, off2 = -34;
-                    drawVectorArrow(bx + off1, by, bx + off1, by + vby, '#d946ef', 5, 16);
-                    drawVectorArrow(bx + off1, by + vby, bx + off1, by + vby + vry, '#38bdf8', 5, 16);
-                    drawVectorArrow(bx + off2, by, bx + off2, by + resY, '#a855f7', 5, 16);
-                    ctx.beginPath(); ctx.moveTo(bx+off2, by); ctx.lineTo(bx+off1, by); ctx.moveTo(bx+off2, by+resY); ctx.lineTo(bx+off1, by+resY); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]);
+            if (showVectors) {
+                const vs = VELOCITY_VECTOR_SCALE;
+                const vbx = params.effectiveBoatSpeed * Math.cos(params.angleRad) * vs;
+                const vby = params.effectiveBoatSpeed * Math.sin(params.angleRad) * vs;
+                const resX = params.vResultantX * vs, resY = params.vResultantY * vs;
+                drawVectorArrow(bx + vbx, by + vby, bx + vbx, by + vby + params.vRiver * vs, '#38bdf8', 5, 14);
+                drawVectorLabel('+ current', bx + vbx + 12, by + vby + params.vRiver * vs * 0.5, '#bae6fd', 'left', 12);
+                drawVectorArrow(bx, by, bx + resX, by + resY, '#22c55e', 6, 16);
+                drawVectorLabel('= actual path', bx + resX + 12, by + resY + 4, '#bbf7d0', 'left', 12);
+
+                if (vectorSetupVisible) {
+                    drawPredictedPath(bx, by);
+                    if (mission.goalType === 'intercept' && !mission.baby.rescued) drawInterceptDots();
                 }
             }
         }
 
         function drawTelemetry() {
-            if (!showTelemetry) return;
-            const w = 240, h = 142;
+            if (!showTelemetry) { bounds.teleRect = { x: 0, y: 0, w: 0, h: 0 }; return; }
+            const isL3 = mission.level === 3;
+            const w = 250, h = isL3 ? 182 : 142;
             const x = Math.max(18, bounds.sim.x + bounds.sim.w - w - 18);
             const y = Math.max(18, bounds.sim.y + bounds.sim.h - h - 18);
+            bounds.teleRect = { x, y, w, h };
 
-            ctx.fillStyle = 'rgba(15, 23, 42, 0.85)'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
-            if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, 6); ctx.fill(); ctx.stroke(); } 
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.88)'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+            if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, 6); ctx.fill(); ctx.stroke(); }
             else { ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h); }
 
-            ctx.fillStyle = '#7dd3fc'; ctx.font = '700 11px Inter'; ctx.textAlign = 'left'; ctx.fillText('TELEMETRY POPUP', x + 15, y + 20);
+            ctx.fillStyle = '#7dd3fc'; ctx.font = '700 11px Inter'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+            ctx.fillText('DATA · TELEMETRY', x + 15, y + 20);
 
             const stat = (label, val, yOff, color = '#f8fafc') => {
                 ctx.fillStyle = '#94a3b8'; ctx.font = '400 12px Inter'; ctx.textAlign = 'left'; ctx.fillText(label, x + 15, y + yOff);
                 ctx.fillStyle = color; ctx.font = '500 13px monospace'; ctx.textAlign = 'right'; ctx.fillText(val, x + w - 15, y + yOff);
             };
 
-            const phaseL = {setup:'Setup', outbound:'Outbound', success:'Success', fail:'Failed'};
+            const phaseL = {setup:'Setup', outbound:'Swimming', success:'Success', fail:'Failed'};
             stat('Phase', phaseL[mission.phase], 45);
             stat('Time', physics.time.toFixed(2) + ' s', 65);
             stat('Ground Speed', params.vResultantMag.toFixed(2) + ' m/s', 85, '#4ade80');
             stat('Stamina Left', mission.staminaLeft.toFixed(1) + ' m', 105, mission.staminaLeft < 30 ? '#ef4444' : '#facc15');
-            stat('Drift Distance', physics.y.toFixed(1) + ' m', 125);
+            stat('Downstream Drift', (physics.y - mission.startZone.y).toFixed(1) + ' m', 125);
+            if (isL3) {
+                stat('Baby: m across', (mission.baby.x - physics.x).toFixed(1) + ' m', 145, '#f9a8d4');
+                stat('Baby: m upstream', (physics.y - mission.baby.y).toFixed(1) + ' m', 165, '#f9a8d4');
+            }
+        }
+
+        function drawResultBanner() {
+            if (mission.phase !== 'success' && mission.phase !== 'fail') return;
+            const success = mission.phase === 'success';
+            const w = bounds.sim.w, h = bounds.sim.h;
+            ctx.fillStyle = 'rgba(2, 6, 23, 0.45)';
+            ctx.fillRect(0, 0, w, h);
+
+            const bw = Math.min(520, w - 36);
+            const bh = success ? 200 : 170;
+            const bx = (w - bw) / 2, by = h * 0.42 - bh / 2;
+
+            ctx.save();
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.97)';
+            ctx.strokeStyle = success ? '#34d399' : '#f87171';
+            ctx.lineWidth = 2;
+            if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 12); ctx.fill(); ctx.stroke(); }
+            else { ctx.fillRect(bx, by, bw, bh); ctx.strokeRect(bx, by, bw, bh); }
+
+            ctx.fillStyle = success ? '#34d399' : '#f87171';
+            ctx.font = '800 26px Inter';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(success ? 'LEVEL COMPLETE!' : 'TRY AGAIN', w / 2, by + 34);
+
+            let msgY = by + 66;
+            if (success) {
+                for (let i = 0; i < 3; i++) drawStar(w / 2 + (i - 1) * 48, by + 72, 16, i < mission.stars);
+                msgY = by + 106;
+            }
+
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = '500 13px Inter';
+            const lines = wrapTextLines(mission.message, bw - 48);
+            for (let i = 0; i < Math.min(lines.length, 3); i++) {
+                ctx.fillText(lines[i], w / 2, msgY + i * 18);
+            }
+
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '600 12px Inter';
+            ctx.fillText(success ? 'Press PLAY AGAIN for another run' : 'Press PLAY AGAIN, re-aim, and go rescue', w / 2, by + bh - 20);
+            ctx.restore();
         }
 
         function engineLoop(timestamp) {
             const dt = lastTime ? (timestamp - lastTime) / 1000 : 0.016; lastTime = timestamp;
+            ambientTime += Math.min(dt, 0.1);
             input.justPressed = input.isDown && !input.wasDown; input.justReleased = !input.isDown && input.wasDown; input.wasDown = input.isDown;
             uiElements.forEach(el => el.update());
             updateHeadingArrowInteraction();
@@ -944,8 +1370,10 @@
             drawRiverEnv(); drawEntities(); ctx.restore();
             drawLevelHeader();
             drawCanvasControls();
+            drawHintPanel();
             drawTelemetry();
-            
+            drawResultBanner();
+
             requestAnimationFrame(engineLoop);
         }
 
@@ -953,16 +1381,17 @@
         window.addEventListener('resize', layout);
         headingInput.addEventListener('input', () => {
             if (headingInput.value.trim() === '') return;
+            hasAimedOnce = true;
             setHeadingAngle(Number(headingInput.value));
         });
         headingInput.addEventListener('blur', syncHeadingInput);
         headingInput.addEventListener('keydown', e => {
             if (e.key === 'Enter') headingInput.blur();
         });
-        const handlePtr = e => { 
-            const r = canvas.getBoundingClientRect(), d = window.devicePixelRatio || 1; 
-            input.x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left; 
-            input.y = (e.touches ? e.touches[0].clientY : e.clientY) - r.top; 
+        const handlePtr = e => {
+            const r = canvas.getBoundingClientRect();
+            input.x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+            input.y = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
         };
         canvas.addEventListener('mousedown', e => { input.isDown = true; handlePtr(e); });
         canvas.addEventListener('mousemove', handlePtr);
@@ -980,7 +1409,8 @@
         }
 
         function pointerInControls() {
-            return pointInRect(input, bounds.header) || pointInRect(input, bounds.controls) || pointInRect(input, bounds.actions);
+            return pointInRect(input, bounds.header) || pointInRect(input, bounds.controls) || pointInRect(input, bounds.actions)
+                || pointInRect(input, bounds.hintRect) || pointInRect(input, bounds.teleRect);
         }
 
         function pointInRect(point, rect) {
@@ -1008,6 +1438,7 @@
             const dx = input.x - swimmer.x;
             const dy = input.y - swimmer.y;
             if (Math.hypot(dx, dy) < 12) return;
+            hasAimedOnce = true;
             setHeadingAngle(Math.round(Math.atan2(dy, dx) * 180 / Math.PI));
         }
 
