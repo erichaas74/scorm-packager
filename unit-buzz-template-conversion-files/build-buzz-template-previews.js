@@ -3,52 +3,70 @@ const path = require('path');
 
 const lessons = [
   {
+    dir: 'unit-1/lesson-2',
+    template: 'u1l2-city-blocks-buzz-assessment-template.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'u1l2-city-blocks-buzz-assessment-template-preview.html'
+  },
+  {
     dir: 'unit-1/lesson-3',
     template: 'u1l3-galileo-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
-    output: 'buzz-assessment-template-preview.html'
+    output: 'u1l3-galileo-buzz-assessment-template-preview.html'
   },
   {
     dir: 'unit-1/lesson-5',
     template: 'u1l5-skydiver-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
-    output: 'buzz-assessment-template-preview.html'
+    output: 'u1l5-skydiver-buzz-assessment-template-preview.html'
   },
   {
     dir: 'unit-ApplicationFiles/unit-2/lesson-u2l1',
-    template: 'buzz-assessment-template-for-buzz.html',
+    template: 'u2l1-phet-projectile-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
-    output: 'buzz-assessment-template-preview.html'
+    output: 'u2l1-phet-projectile-buzz-assessment-template-preview.html'
   },
   {
     dir: 'unit-ApplicationFiles/unit-2/lesson-u2l2',
-    template: 'buzz-assessment-template-for-buzz.html',
+    template: 'u2l2-launch-velocity-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
-    output: 'buzz-assessment-template-preview.html'
+    output: 'u2l2-launch-velocity-buzz-assessment-template-preview.html'
   },
   {
     dir: 'unit-ApplicationFiles/unit-2/lesson-u2l3',
-    template: 'buzz-assessment-template-for-buzz.html',
+    template: 'u2l3-circus-launch-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
-    output: 'buzz-assessment-template-preview.html'
+    output: 'u2l3-circus-launch-buzz-assessment-template-preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-2/lesson-u2l4',
+    template: 'u2l4-river-rescue-buzz-assessment-template.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'u2l4-river-rescue-buzz-assessment-template-preview.html'
   },
   {
     dir: 'unit-ApplicationFiles/unit-2/lesson-u2l5',
-    template: 'buzz-assessment-template-for-buzz.html',
+    template: 'u2l5-inertia-tension-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
-    output: 'buzz-assessment-template-preview.html'
+    output: 'u2l5-inertia-tension-buzz-assessment-template-preview.html'
   },
   {
     dir: 'unit-ApplicationFiles/unit-3/lesson-1',
-    template: 'buzz-assessment-template-for-buzz.html',
+    template: 'u3l1-phet-forces-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
-    output: 'buzz-assessment-template-preview.html'
+    output: 'u3l1-phet-forces-buzz-assessment-template-preview.html'
   },
   {
     dir: 'unit-ApplicationFiles/unit-3/lesson-4',
-    template: 'buzz-assessment-template-for-buzz.html',
+    template: 'u3l4-collision-lab-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
-    output: 'buzz-assessment-template-preview.html'
+    output: 'u3l4-collision-lab-buzz-assessment-template-preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-3/lesson-u3l5',
+    template: 'u3l5-impulse-jump-buzz-assessment-template.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'u3l5-impulse-jump-buzz-assessment-template-preview.html'
   }
 ];
 

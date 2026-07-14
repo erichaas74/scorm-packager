@@ -26,21 +26,57 @@
             height: 100%;
             touch-action: none;
         }
+        .heading-input {
+            position: absolute;
+            left: -9999px;
+            top: -9999px;
+            z-index: 3;
+            width: 86px;
+            height: 34px;
+            padding: 0 10px;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            background: #020617;
+            color: #7dd3fc;
+            font: 600 14px monospace;
+            text-align: right;
+            outline: none;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+        .heading-input:focus {
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+        }
+        .heading-input:disabled {
+            color: #64748b;
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     </style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
+    <input id="headingInput" class="heading-input" type="number" min="-85" max="85" step="1" value="0" aria-label="Swim Heading angle in degrees">
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const headingInput = document.getElementById('headingInput');
 
         // Input state
         const input = { x: 0, y: 0, isDown: false, justPressed: false, justReleased: false, wasDown: false };
+        const headingArrow = { isDragging: false };
 
         // Layout bounds
-        const bounds = { sidebar: { x: 0, y: 0, w: 0, h: 0 }, sim: { x: 0, y: 0, w: 0, h: 0 }, isMobile: false };
+        const bounds = {
+            sim: { x: 0, y: 0, w: 0, h: 0 },
+            header: { x: 0, y: 0, w: 0, h: 0 },
+            controls: { x: 0, y: 0, w: 0, h: 0 },
+            actions: { x: 0, y: 0, w: 0, h: 0 },
+            isMobile: false
+        };
 
         // Game State
         let uiElements = [];
@@ -49,6 +85,10 @@
         let showTelemetry = false;
         let vectorMode = 0;
         const vectorModeNames = ['No Hint', 'Full Vector Addition', 'Resultant Components', 'Drift Decomposition'];
+        const urlParams = new URLSearchParams(window.location.search);
+        const requestedLevel = Number(urlParams.get('level'));
+        const initialLevel = [1, 2, 3].includes(requestedLevel) ? requestedLevel : 1;
+        const lockedLevel = urlParams.get('lockLevel') === '1' ? initialLevel : 0;
         
         let scale = 10, originX = 0, originY = 0, waterParticles = [];
 
@@ -60,7 +100,7 @@
         const physics = { time: 0, x: 0, y: 0, trail: [] };
 
         const mission = {
-            level: 1, phase: 'setup', message: '', hits: 0, stars: 0,
+            level: initialLevel, phase: 'setup', message: '', hits: 0, stars: 0,
             staminaMax: 0, staminaLeft: 0,
             startZone: { x: 0, y: 0, radius: 5.5 },
             baby: { x: 0, y: 0, radius: 4.5, rescued: false },
@@ -92,36 +132,33 @@
             }
         }
 
-        class Slider {
-            constructor(id, label, min, max, step, paramKey, unit) {
-                this.id = id; this.label = label; this.min = min; this.max = max; this.step = step; this.paramKey = paramKey; this.unit = unit;
-                this.x = 0; this.y = 0; this.w = 0; this.isDragging = false; this.disabled = false;
+        class HeadingInputControl {
+            constructor(id) {
+                this.id = id; this.x = 0; this.y = 0; this.w = 0; this.h = 42; this.disabled = false;
+                this.inputRect = { x: 0, y: 0, w: 86, h: 34 };
             }
-            setBounds(x, y, w) { this.x = x; this.y = y; this.w = w; }
-            update() {
-                if (this.disabled) { this.isDragging = false; return; }
-                const trackY = this.y + 25;
-                if (input.justPressed && input.x >= this.x && input.x <= this.x + this.w && Math.abs(input.y - trackY) < 20) {
-                    this.isDragging = true;
-                }
-                if (!input.isDown) this.isDragging = false;
-                if (this.isDragging) {
-                    let pct = Math.max(0, Math.min(1, (input.x - this.x) / this.w));
-                    params[this.paramKey] = Math.round((this.min + pct * (this.max - this.min)) / this.step) * this.step;
-                    recalculatePhysics();
-                }
+            setBounds(x, y, w, h = 42) {
+                this.x = x; this.y = y; this.w = w; this.h = h;
+                const inputW = Math.min(92, Math.max(76, w * 0.32));
+                this.inputRect = { x: x + w - inputW - 28, y: y + 4, w: inputW, h: 34 };
+                positionHeadingInput(this.inputRect);
             }
+            setDisabled(disabled) {
+                this.disabled = disabled;
+                headingInput.disabled = disabled;
+            }
+            update() {}
             draw(ctx) {
-                const val = params[this.paramKey];
-                ctx.fillStyle = '#cbd5e1'; ctx.font = '500 12px Inter'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.fillText(this.label, this.x, this.y + 12);
-                ctx.fillStyle = '#7dd3fc'; ctx.font = '600 12px monospace'; ctx.textAlign = 'right'; ctx.fillText(val.toFixed(this.step % 1 === 0 ? 0 : 1) + this.unit, this.x + this.w, this.y + 12);
-                const trackY = this.y + 25;
-                ctx.fillStyle = '#334155'; ctx.fillRect(this.x, trackY - 2, this.w, 4);
-                const fillW = ((val - this.min) / (this.max - this.min)) * this.w;
-                ctx.fillStyle = this.disabled ? '#475569' : '#0284c7'; ctx.fillRect(this.x, trackY - 2, fillW, 4);
-                ctx.beginPath(); ctx.arc(this.x + fillW, trackY, 8, 0, Math.PI * 2);
-                ctx.fillStyle = this.disabled ? '#64748b' : '#ffffff'; ctx.fill();
-                ctx.lineWidth = 2; ctx.strokeStyle = this.disabled ? '#334155' : '#0284c7'; ctx.stroke();
+                ctx.fillStyle = this.disabled ? '#64748b' : '#cbd5e1';
+                ctx.font = '600 13px Inter';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('Swim Heading', this.x, this.y + this.h / 2);
+
+                ctx.fillStyle = this.disabled ? '#64748b' : '#7dd3fc';
+                ctx.font = '600 13px monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText('deg', this.inputRect.x + this.inputRect.w + 8, this.y + this.h / 2);
             }
         }
 
@@ -161,6 +198,8 @@
         });
 
         const lowerLaneY = p => p.width * 0.55;
+        const BABY_DRAW_SCALE = 0.5;
+        const VELOCITY_VECTOR_SCALE = 26;
 
         function drawVectorArrow(fx, fy, tx, ty, color, width = 3, headLen = 10) {
             const dx = tx - fx, dy = ty - fy;
@@ -183,10 +222,10 @@
 
         function drawVectorLabel(text, x, y, color, align = 'left') {
             ctx.save();
-            ctx.font = '700 13px Inter';
+            ctx.font = '800 14px Inter';
             ctx.textAlign = align;
             ctx.textBaseline = 'middle';
-            ctx.lineWidth = 4;
+            ctx.lineWidth = 5;
             ctx.strokeStyle = 'rgba(2, 6, 23, 0.85)';
             ctx.strokeText(text, x, y);
             ctx.fillStyle = color;
@@ -240,26 +279,18 @@
             }
         };
 
-        let btnL1, btnL2, btnL3, btnPlay, btnReset, btnVector, btnData, speedReadout, sldAngle;
+        let btnPlay, btnReset, btnData, headingControl;
 
         function buildUI() {
             uiElements = [
-                btnL1 = new Button('l1', 'L1', () => setLevel(1)),
-                btnL2 = new Button('l2', 'L2', () => setLevel(2)),
-                btnL3 = new Button('l3', 'L3', () => setLevel(3)),
-                speedReadout = new SpeedReadout('fixed_speed'),
-                sldAngle = new Slider('s_angle', 'Heading (theta)', -85, 85, 1, 'angleDeg', ' deg'),
-                btnVector = new Button('vector', 'Hint: ' + vectorModeNames[vectorMode], () => {
-                    vectorMode = (vectorMode + 1) % 4; btnVector.text = 'Hint: ' + vectorModeNames[vectorMode];
-                }),
-                btnData = new Button('data', 'Data', () => { showTelemetry = !showTelemetry; btnData.isActive = showTelemetry; }),
-                btnPlay = new Button('play', 'START MISSION', togglePlayPause),
-                btnReset = new Button('reset', 'RESET', resetSimulation)
+                headingControl = new HeadingInputControl('heading'),
+                btnPlay = new Button('play', 'START SWIM', togglePlayPause),
+                btnReset = new Button('reset', 'RESET', resetSimulation),
+                btnData = new Button('data', 'DATA', () => { showTelemetry = !showTelemetry; btnData.isActive = showTelemetry; })
             ];
-            btnL1.fontSize = btnL2.fontSize = btnL3.fontSize = 12;
-            btnVector.bgColor = btnData.bgColor = '#0f172a';
             btnPlay.bgColor = '#0284c7'; btnPlay.hoverColor = '#0369a1';
             btnReset.bgColor = '#334155'; btnReset.hoverColor = '#475569';
+            btnData.bgColor = '#0f172a'; btnData.hoverColor = '#1e293b'; btnData.activeBgColor = '#0ea5e9';
         }
 
         function layout() {
@@ -271,34 +302,26 @@
             const h = window.innerHeight;
 
             bounds.isMobile = w < 768;
-            if (bounds.isMobile) {
-                bounds.sidebar = { x: 0, y: h - 380, w: w, h: 380 };
-                bounds.sim = { x: 0, y: 0, w: w, h: h - 380 };
-            } else {
-                bounds.sidebar = { x: 0, y: 0, w: 340, h: h };
-                bounds.sim = { x: 340, y: 0, w: w - 340, h: h };
-            }
+            bounds.sim = { x: 0, y: 0, w, h };
 
-            const padX = bounds.sidebar.x + 20;
-            const innerW = bounds.sidebar.w - 40;
-            let currentY = bounds.sidebar.y + 60; // Skip Title
+            const pad = 18;
+            const headerW = Math.min(w - pad * 2, bounds.isMobile ? 420 : 600);
+            bounds.header = { x: pad, y: pad, w: headerW, h: 96 };
 
-            const btnW = (innerW - 20) / 3;
-            btnL1.setBounds(padX, currentY, btnW, 32);
-            btnL2.setBounds(padX + btnW + 10, currentY, btnW, 32);
-            btnL3.setBounds(padX + btnW*2 + 20, currentY, btnW, 32);
-            currentY += 45 + 95; // Skip Status Box
+            const headingW = Math.min(w - pad * 2, 312);
+            const headingY = bounds.header.y + bounds.header.h + 12;
+            bounds.controls = { x: pad, y: headingY, w: headingW, h: 58 };
+            headingControl.setBounds(bounds.controls.x + 14, bounds.controls.y + 8, bounds.controls.w - 28, 42);
 
-            speedReadout.setBounds(padX, currentY, innerW); currentY += 50;
-            sldAngle.setBounds(padX, currentY, innerW); currentY += 50;
-
-            const halfW = (innerW - 10) / 2;
-            btnVector.setBounds(padX, currentY, halfW, 36);
-            btnData.setBounds(padX + halfW + 10, currentY, halfW, 36);
-            currentY += 45;
-
-            btnPlay.setBounds(padX, currentY, halfW, 44);
-            btnReset.setBounds(padX + halfW + 10, currentY, halfW, 44);
+            const actionY = Math.max(12, h - 62);
+            const availableActionW = Math.max(260, w - pad * 2);
+            const resetW = bounds.isMobile ? 76 : 94;
+            const dataW = bounds.isMobile ? 68 : 84;
+            const playW = Math.max(106, Math.min(bounds.isMobile ? 138 : 158, availableActionW - resetW - dataW - 20));
+            bounds.actions = { x: pad, y: actionY, w: playW + resetW + dataW + 20, h: 44 };
+            btnPlay.setBounds(bounds.actions.x, actionY, playW, 44);
+            btnReset.setBounds(bounds.actions.x + playW + 10, actionY, resetW, 44);
+            btnData.setBounds(bounds.actions.x + playW + resetW + 20, actionY, dataW, 44);
 
             scale = (bounds.sim.w * 0.5) / params.width;
             originX = bounds.sim.x + bounds.sim.w * 0.15;
@@ -312,6 +335,7 @@
 
         function setLevel(lvl) {
             if (!LEVEL_CONFIGS[lvl]) return;
+            if (lockedLevel && lvl !== lockedLevel) return;
             mission.level = lvl; resetSimulation();
         }
         
@@ -321,6 +345,32 @@
             params.vResultantX = params.effectiveBoatSpeed * Math.cos(params.angleRad);
             params.vResultantY = params.effectiveBoatSpeed * Math.sin(params.angleRad) + params.vRiver;
             params.vResultantMag = Math.hypot(params.vResultantX, params.vResultantY);
+        }
+
+        function clampHeading(angleDeg) {
+            return Math.max(-85, Math.min(85, angleDeg));
+        }
+
+        function formatHeading(angleDeg) {
+            return Number.isInteger(angleDeg) ? angleDeg.toFixed(0) : angleDeg.toFixed(1);
+        }
+
+        function positionHeadingInput(rect) {
+            headingInput.style.left = rect.x + 'px';
+            headingInput.style.top = rect.y + 'px';
+            headingInput.style.width = rect.w + 'px';
+            headingInput.style.height = rect.h + 'px';
+        }
+
+        function syncHeadingInput() {
+            headingInput.value = formatHeading(params.angleDeg);
+        }
+
+        function setHeadingAngle(angleDeg, shouldSyncInput = true) {
+            if (!Number.isFinite(angleDeg)) return;
+            params.angleDeg = Math.round(clampHeading(angleDeg) * 10) / 10;
+            recalculatePhysics();
+            if (shouldSyncInput) syncHeadingInput();
         }
 
         function resetSimulation() {
@@ -342,7 +392,7 @@
             mission.staminaMax = Math.round(params.width * (mission.level === 3 ? 3.0 : 2.5) + 40);
             mission.staminaLeft = mission.staminaMax;
 
-            recalculatePhysics(); updateUIState();
+            recalculatePhysics(); syncHeadingInput(); updateUIState();
         }
 
         function togglePlayPause() {
@@ -355,16 +405,15 @@
         }
 
         function updateUIState() {
-            btnL1.isActive = mission.level === 1; btnL2.isActive = mission.level === 2;
-            btnL3.isActive = mission.level === 3;
             const activeSwim = isPlaying || mission.phase === 'success' || mission.phase === 'fail';
-            sldAngle.disabled = activeSwim;
+            headingControl.setDisabled(activeSwim);
 
             if (mission.phase === 'success' || mission.phase === 'fail') {
                 btnPlay.text = 'PLAY AGAIN'; btnPlay.bgColor = mission.phase === 'success' ? '#059669' : '#b91c1c';
             } else if (isPlaying) { btnPlay.text = 'PAUSE'; btnPlay.bgColor = '#d97706'; } 
             else if (physics.time > 0) { btnPlay.text = 'RESUME'; btnPlay.bgColor = '#0284c7'; } 
-            else { btnPlay.text = 'START MISSION'; btnPlay.bgColor = '#0284c7'; }
+            else { btnPlay.text = 'START SWIM'; btnPlay.bgColor = '#0284c7'; }
+            btnData.isActive = showTelemetry;
         }
 
         function checkCollisions() {
@@ -416,41 +465,125 @@
             }
         }
 
-        function drawSidebar() {
-            ctx.fillStyle = '#0f172a'; ctx.fillRect(bounds.sidebar.x, bounds.sidebar.y, bounds.sidebar.w, bounds.sidebar.h);
-            ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1;
-            ctx.beginPath();
-            if (bounds.isMobile) { ctx.moveTo(bounds.sidebar.x, bounds.sidebar.y); ctx.lineTo(bounds.sidebar.x + bounds.sidebar.w, bounds.sidebar.y); } 
-            else { ctx.moveTo(bounds.sidebar.x + bounds.sidebar.w, bounds.sidebar.y); ctx.lineTo(bounds.sidebar.x + bounds.sidebar.w, bounds.sidebar.y + bounds.sidebar.h); }
-            ctx.stroke();
-
-            const padX = bounds.sidebar.x + 20; let cy = bounds.sidebar.y + 35;
-            ctx.fillStyle = '#67e8f9'; ctx.font = '700 22px Inter'; ctx.textAlign = 'left'; ctx.fillText('River Rescue', padX, cy);
-            
-            cy += 65;
-            ctx.fillStyle = '#020617'; ctx.strokeStyle = 'rgba(6, 182, 212, 0.3)';
-            if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(padX, cy, bounds.sidebar.w - 40, 80, 8); ctx.fill(); ctx.stroke(); }
-            
-            ctx.fillStyle = '#c0caf5'; ctx.font = '600 10px Inter'; ctx.fillText('MISSION STATUS', padX + 12, cy + 20);
-            ctx.fillStyle = '#ffffff'; ctx.font = '600 15px Inter'; ctx.fillText(LEVEL_CONFIGS[mission.level].title, padX + 12, cy + 40);
-            ctx.fillStyle = '#94a3b8'; ctx.font = '400 12px Inter';
-            
-            const words = mission.message.split(' '); let line = ''; let lineY = cy + 60;
-            for(let n = 0; n < words.length; n++) {
-                let testLine = line + words[n] + ' ';
-                if (ctx.measureText(testLine).width > bounds.sidebar.w - 60 && n > 0) { ctx.fillText(line, padX + 12, lineY); line = words[n] + ' '; lineY += 15; } 
-                else { line = testLine; }
+        function drawLevelHeader() {
+            const header = bounds.header;
+            ctx.save();
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+            ctx.strokeStyle = 'rgba(125, 211, 252, 0.4)';
+            ctx.lineWidth = 1;
+            if (ctx.roundRect) {
+                ctx.beginPath();
+                ctx.roundRect(header.x, header.y, header.w, header.h, 8);
+                ctx.fill();
+                ctx.stroke();
+            } else {
+                ctx.fillRect(header.x, header.y, header.w, header.h);
+                ctx.strokeRect(header.x, header.y, header.w, header.h);
             }
-            ctx.fillText(line, padX + 12, lineY);
 
+            const padX = header.x + 16;
+            const cy = header.y + 24;
+            ctx.fillStyle = '#67e8f9';
+            ctx.font = '800 19px Inter';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(LEVEL_CONFIGS[mission.level].title, padX, cy);
+
+            drawSpeedChip('Swim', params.vBoat.toFixed(1) + ' m/s', padX, cy + 26, '#fed7aa');
+            drawSpeedChip('Current', params.vRiver.toFixed(1) + ' m/s', padX + 130, cy + 26, '#bae6fd');
+
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '500 12px Inter';
+            wrapCanvasText(mission.message, padX, cy + 51, header.w - 32, 15, 2);
+            ctx.restore();
+        }
+
+        function drawCanvasControls() {
+            const panel = bounds.controls;
+            ctx.save();
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+            ctx.strokeStyle = 'rgba(125, 211, 252, 0.4)';
+            ctx.lineWidth = 1;
+            if (ctx.roundRect) {
+                ctx.beginPath();
+                ctx.roundRect(panel.x, panel.y, panel.w, panel.h, 8);
+                ctx.fill();
+                ctx.stroke();
+            } else {
+                ctx.fillRect(panel.x, panel.y, panel.w, panel.h);
+                ctx.strokeRect(panel.x, panel.y, panel.w, panel.h);
+            }
+            ctx.restore();
             uiElements.forEach(el => el.draw(ctx));
         }
 
-        function drawRiverEnv() {
-            ctx.fillStyle = '#1e3a8a'; ctx.fillRect(bounds.sim.x, bounds.sim.y, bounds.sim.w, bounds.sim.h);
-            const rLeft = originX, rRight = originX + params.width * scale;
+        function drawSpeedChip(label, value, x, y, color) {
+            ctx.fillStyle = 'rgba(2, 6, 23, 0.58)';
+            if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y - 12, 112, 25, 6); ctx.fill(); }
+            else { ctx.fillRect(x, y - 12, 112, 25); }
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '700 10px Inter';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(label, x + 8, y);
+            ctx.fillStyle = color;
+            ctx.font = '800 11px monospace';
+            ctx.textAlign = 'right';
+            ctx.fillText(value, x + 104, y);
+        }
 
-            ctx.strokeStyle = 'rgba(96, 165, 250, 0.25)'; ctx.lineWidth = 2; ctx.beginPath();
+        function wrapCanvasText(text, x, y, maxWidth, lineHeight, maxLines = 3) {
+            const words = String(text || '').split(' ');
+            let line = '';
+            let lineY = y;
+            let lines = 0;
+            for (let n = 0; n < words.length; n++) {
+                const testLine = line + words[n] + ' ';
+                if (ctx.measureText(testLine).width > maxWidth && n > 0) {
+                    ctx.fillText(line.trim(), x, lineY);
+                    lines++;
+                    if (lines >= maxLines) return;
+                    line = words[n] + ' ';
+                    lineY += lineHeight;
+                } else {
+                    line = testLine;
+                }
+            }
+            if (line && lines < maxLines) ctx.fillText(line.trim(), x, lineY);
+        }
+
+        function drawRiverEnv() {
+            const rLeft = originX, rRight = originX + params.width * scale;
+            const riverW = params.width * scale;
+
+            const waterGradient = ctx.createLinearGradient(0, bounds.sim.y, 0, bounds.sim.y + bounds.sim.h);
+            waterGradient.addColorStop(0, '#2563eb');
+            waterGradient.addColorStop(0.45, '#1d4ed8');
+            waterGradient.addColorStop(1, '#1e40af');
+            ctx.fillStyle = waterGradient;
+            ctx.fillRect(bounds.sim.x, bounds.sim.y, bounds.sim.w, bounds.sim.h);
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(rLeft, bounds.sim.y, riverW, bounds.sim.h);
+            ctx.clip();
+
+            ctx.strokeStyle = 'rgba(219, 234, 254, 0.16)';
+            ctx.lineWidth = 12;
+            ctx.lineCap = 'round';
+            for (let i = -1; i < 8; i++) {
+                const baseY = bounds.sim.y + (i / 6) * bounds.sim.h + Math.sin(physics.time * 0.8 + i) * 9;
+                ctx.beginPath();
+                ctx.moveTo(rLeft + 12, baseY);
+                ctx.bezierCurveTo(
+                    rLeft + riverW * 0.28, baseY + 22,
+                    rLeft + riverW * 0.66, baseY - 28,
+                    rRight - 12, baseY + 12
+                );
+                ctx.stroke();
+            }
+
+            ctx.strokeStyle = 'rgba(191, 219, 254, 0.32)'; ctx.lineWidth = 3; ctx.beginPath();
             const visSpeed = isPlaying ? params.vRiver * 3 : 0;
             waterParticles.forEach(p => {
                 if (isPlaying) { p.y += visSpeed * p.speed; if (p.y > bounds.sim.y + bounds.sim.h + 50) { p.y = bounds.sim.y - 50; p.x = Math.random(); } }
@@ -458,27 +591,111 @@
                 if (px >= rLeft && px <= rRight) { ctx.moveTo(px, p.y); ctx.lineTo(px, p.y + p.length); }
             });
             ctx.stroke();
+            ctx.restore();
 
-            ctx.fillStyle = '#166534';
+            const bankGradient = ctx.createLinearGradient(bounds.sim.x, 0, rLeft, 0);
+            bankGradient.addColorStop(0, '#14532d');
+            bankGradient.addColorStop(0.65, '#166534');
+            bankGradient.addColorStop(1, '#15803d');
+            ctx.fillStyle = bankGradient;
             ctx.fillRect(bounds.sim.x, bounds.sim.y, rLeft - bounds.sim.x, bounds.sim.h);
+
+            const farBankGradient = ctx.createLinearGradient(rRight, 0, bounds.sim.x + bounds.sim.w, 0);
+            farBankGradient.addColorStop(0, '#15803d');
+            farBankGradient.addColorStop(0.35, '#166534');
+            farBankGradient.addColorStop(1, '#14532d');
+            ctx.fillStyle = farBankGradient;
             ctx.fillRect(rRight, bounds.sim.y, (bounds.sim.x + bounds.sim.w) - rRight, bounds.sim.h);
-            ctx.strokeStyle = '#fcd34d'; ctx.lineWidth = 4; ctx.beginPath();
+
+            ctx.strokeStyle = '#fde68a'; ctx.lineWidth = 6; ctx.beginPath();
             ctx.moveTo(rLeft, bounds.sim.y); ctx.lineTo(rLeft, bounds.sim.y + bounds.sim.h);
             ctx.moveTo(rRight, bounds.sim.y); ctx.lineTo(rRight, bounds.sim.y + bounds.sim.h);
             ctx.stroke();
 
-            ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = '10px monospace'; ctx.textAlign = 'right';
+            ctx.strokeStyle = 'rgba(187, 247, 208, 0.35)';
+            ctx.lineWidth = 2;
+            for (let y = bounds.sim.y + 18; y < bounds.sim.y + bounds.sim.h; y += 34) {
+                ctx.beginPath();
+                ctx.moveTo(rLeft - 10, y);
+                ctx.lineTo(rLeft - 24, y + 8);
+                ctx.moveTo(rRight + 10, y + 12);
+                ctx.lineTo(rRight + 25, y + 4);
+                ctx.stroke();
+            }
+
+            ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = '11px monospace'; ctx.textAlign = 'right';
             for (let i = 0; i <= 300; i += 20) {
                 let y = originY + i * scale; if (y > bounds.sim.y + bounds.sim.h) break;
                 ctx.fillText(i + 'm', rLeft - 8, y + 3); ctx.fillRect(rLeft - 5, y, 5, 1);
             }
 
-            const riverW = params.width * scale;
-            const arrowX = rRight - Math.max(56, riverW * 0.13);
-            const arrowTop = bounds.sim.y + Math.max(36, bounds.sim.h * 0.08);
-            const arrowLen = Math.max(54, Math.min(bounds.sim.h * 0.24, params.vRiver * 34));
-            drawVectorArrow(arrowX, arrowTop, arrowX, arrowTop + arrowLen, '#38bdf8', 6, 16);
+            const arrowLen = params.vRiver * VELOCITY_VECTOR_SCALE;
+            const arrowX = rLeft + riverW * 0.5;
+            const arrowTop = bounds.sim.y + bounds.sim.h * 0.5 - arrowLen * 0.5;
+            drawVectorArrow(arrowX, arrowTop, arrowX, arrowTop + arrowLen, '#38bdf8', 8, 20);
             drawVectorLabel('Water velocity = ' + params.vRiver.toFixed(1) + ' m/s', arrowX + 18, arrowTop + arrowLen * 0.5, '#bae6fd');
+        }
+
+        function drawSwimmerGraphic(ctx, r) {
+            ctx.save();
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            const strokePhase = isPlaying ? physics.time * 8.5 : 0;
+            const armSwing = Math.sin(strokePhase);
+            const legSwing = Math.sin(strokePhase + Math.PI * 0.85);
+            const armReach = Math.cos(strokePhase);
+            const legKick = Math.cos(strokePhase + Math.PI * 0.85);
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+            ctx.lineWidth = Math.max(2, r * 0.12);
+            ctx.beginPath();
+            ctx.moveTo(-r * 0.65, -r * 0.58);
+            ctx.quadraticCurveTo(-r * (1.14 + armSwing * 0.08), -r * (0.82 + armReach * 0.1), -r * (1.78 + armReach * 0.12), -r * (0.48 + armSwing * 0.08));
+            ctx.moveTo(-r * 0.65, r * 0.58);
+            ctx.quadraticCurveTo(-r * (1.14 - armSwing * 0.08), r * (0.82 - armReach * 0.1), -r * (1.78 - armReach * 0.12), r * (0.48 - armSwing * 0.08));
+            ctx.stroke();
+
+            ctx.strokeStyle = '#fca5a5';
+            ctx.lineWidth = r * 0.18;
+            ctx.beginPath();
+            ctx.moveTo(-r * 0.2, -r * 0.24);
+            ctx.quadraticCurveTo(r * (0.22 + armReach * 0.2), -r * (0.48 + armSwing * 0.14), r * (0.82 + armReach * 0.16), -r * (0.5 - armSwing * 0.16));
+            ctx.moveTo(-r * 0.15, r * 0.24);
+            ctx.quadraticCurveTo(r * (0.16 - armReach * 0.18), r * (0.5 - armSwing * 0.13), r * (0.68 - armReach * 0.16), r * (0.56 + armSwing * 0.16));
+            ctx.moveTo(-r * 0.48, -r * 0.2);
+            ctx.quadraticCurveTo(-r * (0.78 + legKick * 0.08), -r * (0.42 + legSwing * 0.16), -r * (1.18 + legKick * 0.18), -r * (0.5 - legSwing * 0.14));
+            ctx.moveTo(-r * 0.48, r * 0.2);
+            ctx.quadraticCurveTo(-r * (0.78 - legKick * 0.08), r * (0.42 - legSwing * 0.16), -r * (1.18 - legKick * 0.18), r * (0.5 + legSwing * 0.14));
+            ctx.stroke();
+
+            ctx.fillStyle = '#22c55e';
+            ctx.strokeStyle = '#14532d';
+            ctx.lineWidth = r * 0.1;
+            ctx.beginPath();
+            ctx.ellipse(-r * 0.16, 0, r * 0.58, r * 0.36, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#16a34a';
+            ctx.beginPath();
+            ctx.ellipse(-r * 0.32, 0, r * 0.16, r * 0.34, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#fca5a5';
+            ctx.strokeStyle = '#7f1d1d';
+            ctx.lineWidth = r * 0.06;
+            ctx.beginPath();
+            ctx.arc(r * 0.48, 0, r * 0.28, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.arc(r * 0.58, -r * 0.08, r * 0.035, 0, Math.PI * 2);
+            ctx.arc(r * 0.58, r * 0.08, r * 0.035, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
         }
 
         function drawBabyGraphic(ctx, r) {
@@ -561,18 +778,28 @@
             if (!mission.baby.rescued) {
                 const tx = originX + mission.baby.x * scale, ty = originY + mission.baby.y * scale, tr = mission.baby.radius * scale;
                 if (mission.level === 3) {
+                    const babyR = tr * BABY_DRAW_SCALE;
+                    ctx.beginPath(); ctx.arc(tx, ty, tr, 0, Math.PI*2);
+                    ctx.strokeStyle = 'rgba(251, 207, 232, 0.55)';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
                     ctx.save();
                     ctx.translate(tx, ty);
                     ctx.rotate(Math.sin(physics.time * 2) * 0.3); 
                     
-                    drawBabyGraphic(ctx, tr);
+                    drawBabyGraphic(ctx, babyR);
                     
                     ctx.restore();
-                    ctx.fillStyle = '#fff1f2'; ctx.textAlign='center'; ctx.fillText('Baby', tx, ty - tr - 12);
+                    ctx.fillStyle = '#fff1f2'; ctx.font = '700 12px Inter'; ctx.textAlign='center'; ctx.fillText('Baby', tx, ty - babyR - 16);
                 } else {
-                    ctx.beginPath(); ctx.arc(tx, ty, tr, 0, Math.PI*2); ctx.fillStyle = 'rgba(34, 197, 94, 0.2)'; ctx.fill();
-                    ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 2; ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
-                    ctx.fillStyle = '#86efac'; ctx.textAlign='center'; ctx.fillText('Finish', tx, ty - tr - 8);
+                    ctx.beginPath(); ctx.arc(tx, ty, tr, 0, Math.PI*2); ctx.fillStyle = 'rgba(34, 197, 94, 0.18)'; ctx.fill();
+                    ctx.strokeStyle = '#bbf7d0'; ctx.lineWidth = 5; ctx.stroke();
+                    ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 2; ctx.setLineDash([6,4]); ctx.stroke(); ctx.setLineDash([]);
+                    ctx.beginPath(); ctx.arc(tx, ty, tr * 0.42, 0, Math.PI*2); ctx.fillStyle = 'rgba(34, 197, 94, 0.28)'; ctx.fill();
+                    ctx.fillStyle = '#dcfce7'; ctx.font = '700 12px Inter'; ctx.textAlign='center'; ctx.fillText('Finish', tx, ty - tr - 10);
                 }
             }
 
@@ -580,11 +807,12 @@
                 const ox = originX + obs.x * scale, oy = originY + obs.y * scale;
                 ctx.save(); ctx.translate(ox, oy); ctx.rotate(obs.rotation);
                 if (obs.type === 'rapid') {
-                    // Whitewater base foam
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)'; ctx.beginPath(); 
-                    ctx.ellipse(0, 0, obs.rockDist * scale * 1.3, obs.radius * scale * 0.7, 0, 0, Math.PI*2); ctx.fill();
+                    const pulse = 1 + Math.sin(physics.time * 5) * 0.05;
+                    ctx.fillStyle = 'rgba(219, 234, 254, 0.38)'; ctx.beginPath(); 
+                    ctx.ellipse(0, 0, obs.rockDist * scale * 1.45 * pulse, obs.radius * scale * 0.82, 0, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.62)'; ctx.beginPath();
+                    ctx.ellipse(0, 0, obs.rockDist * scale * 0.76, obs.radius * scale * 0.32, 0, 0, Math.PI*2); ctx.fill();
                     
-                    // Large rushing water flow lines in between the rocks
                     ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
                     ctx.lineWidth = scale * 0.3; // thick water lines
                     ctx.lineCap = 'round';
@@ -605,54 +833,75 @@
                     
                     ctx.stroke();
 
+                    const rockFill = obs.hit ? '#7f1d1d' : '#475569';
+                    const rockStroke = obs.hit ? '#fecaca' : '#1e293b';
                     const drawRock = (shape, cx, cy) => {
+                        ctx.fillStyle = rockFill;
+                        ctx.strokeStyle = rockStroke;
+                        ctx.lineWidth = 2;
                         ctx.beginPath(); shape.forEach((pt, idx) => { const px = cx + pt.r * scale * Math.cos(pt.a), py = cy + pt.r * scale * Math.sin(pt.a); if (idx === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); });
                         ctx.closePath(); ctx.fill(); ctx.stroke();
                         ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'; ctx.beginPath(); ctx.arc(cx - scale * 0.5, cy - scale * 0.5, scale * 1.5, Math.PI, 1.5 * Math.PI); ctx.stroke();
                     };
-                    ctx.fillStyle = obs.hit ? '#7f1d1d' : '#475569'; ctx.strokeStyle = obs.hit ? '#fecaca' : '#1e293b'; ctx.lineWidth = 2;
                     drawRock(obs.rock1Shape, -obs.rockDist * scale, 0); drawRock(obs.rock2Shape, obs.rockDist * scale, 0);
                 } else if (obs.type === 'rock') {
                     ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'; ctx.beginPath(); ctx.ellipse(0, 0, obs.radius * scale * 1.5, obs.radius * scale * 1.2, 0, 0, Math.PI*2); ctx.fill();
                     ctx.fillStyle = obs.hit ? '#7f1d1d' : '#475569'; ctx.strokeStyle = obs.hit ? '#fecaca' : '#1e293b'; ctx.lineWidth = 2;
                     ctx.beginPath(); ctx.ellipse(0, 0, obs.radius * scale, obs.radius * scale * 0.8, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
                 } else {
-                    ctx.fillStyle = obs.hit ? '#7f1d1d' : '#92400e'; ctx.strokeStyle = obs.hit ? '#fecaca' : '#451a03'; ctx.lineWidth = 2;
-                    ctx.beginPath(); ctx.ellipse(0, 0, obs.radius * scale, obs.radius * scale * 0.4, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                    const logLen = obs.radius * scale * 2.25;
+                    const logH = obs.radius * scale * 0.58;
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                    ctx.beginPath(); ctx.ellipse(0, logH * 0.25, logLen * 0.55, logH * 0.75, 0, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = obs.hit ? '#7f1d1d' : '#a16207'; ctx.strokeStyle = obs.hit ? '#fecaca' : '#451a03'; ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.ellipse(0, 0, logLen * 0.5, logH * 0.5, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                    ctx.strokeStyle = 'rgba(254, 243, 199, 0.45)';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(-logLen * 0.28, -logH * 0.08); ctx.lineTo(logLen * 0.28, -logH * 0.16);
+                    ctx.moveTo(-logLen * 0.34, logH * 0.12); ctx.lineTo(logLen * 0.18, logH * 0.08);
+                    ctx.stroke();
                 }
                 ctx.restore();
             });
 
             const bx = originX + physics.x * scale, by = originY + physics.y * scale;
             ctx.save(); ctx.translate(bx, by); ctx.rotate(params.angleRad);
-            ctx.fillStyle = '#22c55e'; ctx.strokeStyle = '#14532d'; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-10, -8); ctx.lineTo(-8, 0); ctx.lineTo(-10, 8); ctx.closePath(); ctx.fill(); ctx.stroke();
+            drawSwimmerGraphic(ctx, Math.max(26, Math.min(44, scale * 3.12)));
             ctx.restore();
 
             const vectorSetupVisible = !isPlaying && mission.phase !== 'success' && mission.phase !== 'fail';
             if (vectorSetupVisible) {
-                const swimVs = 8;
-                const swimX = params.effectiveBoatSpeed * Math.cos(params.angleRad) * swimVs;
-                const swimY = params.effectiveBoatSpeed * Math.sin(params.angleRad) * swimVs;
-                drawVectorArrow(bx, by, bx + swimX, by + swimY, '#f97316', 4, 12);
-                drawVectorLabel('Swimmer velocity = ' + params.effectiveBoatSpeed.toFixed(1) + ' m/s', bx + swimX + 8, by + swimY - 10, '#fed7aa');
+                const arrow = getHeadingArrowGeometry();
+                drawVectorArrow(arrow.startX, arrow.startY, arrow.endX, arrow.endY, headingArrow.isDragging ? '#fb923c' : '#f97316', headingArrow.isDragging ? 8 : 6, 20);
+
+                ctx.beginPath();
+                ctx.arc(arrow.endX, arrow.endY, 13, 0, Math.PI * 2);
+                ctx.fillStyle = headingArrow.isDragging ? '#fff7ed' : '#fed7aa';
+                ctx.fill();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#f97316';
+                ctx.stroke();
+
+                drawVectorLabel('Swimmer velocity = ' + params.effectiveBoatSpeed.toFixed(1) + ' m/s', arrow.endX + 14, arrow.endY - 14, '#fed7aa');
+                drawVectorLabel(formatHeading(params.angleDeg) + ' deg', arrow.endX + 14, arrow.endY + 12, '#fed7aa');
             }
 
             if (vectorMode > 0 && vectorSetupVisible) {
-                const vs = 5, resX = params.vResultantX * vs, resY = params.vResultantY * vs;
+                const vs = VELOCITY_VECTOR_SCALE, resX = params.vResultantX * vs, resY = params.vResultantY * vs;
                 if (vectorMode === 1) {
                     const vbx = params.effectiveBoatSpeed * Math.cos(params.angleRad) * vs, vby = params.effectiveBoatSpeed * Math.sin(params.angleRad) * vs;
-                    drawVectorArrow(bx + vbx, by + vby, bx + vbx, by + vby + params.vRiver * vs, '#38bdf8');
-                    drawVectorArrow(bx, by, bx + resX, by + resY, '#22c55e');
+                    drawVectorArrow(bx + vbx, by + vby, bx + vbx, by + vby + params.vRiver * vs, '#38bdf8', 5, 16);
+                    drawVectorArrow(bx, by, bx + resX, by + resY, '#22c55e', 6, 18);
                 } else if (vectorMode === 2) {
-                    drawVectorArrow(bx, by, bx + resX, by, '#f97316');
-                    drawVectorArrow(bx + resX, by, bx + resX, by + resY, '#a855f7');
-                    drawVectorArrow(bx, by, bx + resX, by + resY, '#22c55e');
+                    drawVectorArrow(bx, by, bx + resX, by, '#f97316', 5, 16);
+                    drawVectorArrow(bx + resX, by, bx + resX, by + resY, '#a855f7', 5, 16);
+                    drawVectorArrow(bx, by, bx + resX, by + resY, '#22c55e', 6, 18);
                 } else if (vectorMode === 3) {
-                    const vby = params.effectiveBoatSpeed * Math.sin(params.angleRad) * vs, vry = params.vRiver * vs, off1 = 25, off2 = -25;
-                    drawVectorArrow(bx + off1, by, bx + off1, by + vby, '#d946ef');
-                    drawVectorArrow(bx + off1, by + vby, bx + off1, by + vby + vry, '#38bdf8');
-                    drawVectorArrow(bx + off2, by, bx + off2, by + resY, '#a855f7');
+                    const vby = params.effectiveBoatSpeed * Math.sin(params.angleRad) * vs, vry = params.vRiver * vs, off1 = 34, off2 = -34;
+                    drawVectorArrow(bx + off1, by, bx + off1, by + vby, '#d946ef', 5, 16);
+                    drawVectorArrow(bx + off1, by + vby, bx + off1, by + vby + vry, '#38bdf8', 5, 16);
+                    drawVectorArrow(bx + off2, by, bx + off2, by + resY, '#a855f7', 5, 16);
                     ctx.beginPath(); ctx.moveTo(bx+off2, by); ctx.lineTo(bx+off1, by); ctx.moveTo(bx+off2, by+resY); ctx.lineTo(bx+off1, by+resY); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]);
                 }
             }
@@ -660,15 +909,15 @@
 
         function drawTelemetry() {
             if (!showTelemetry) return;
-            const w = 220, h = 130;
-            const x = bounds.sim.x + 20;
-            const y = bounds.sim.y + bounds.sim.h - h - 20;
+            const w = 240, h = 142;
+            const x = Math.max(18, bounds.sim.x + bounds.sim.w - w - 18);
+            const y = Math.max(18, bounds.sim.y + bounds.sim.h - h - 18);
 
             ctx.fillStyle = 'rgba(15, 23, 42, 0.85)'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
             if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, 6); ctx.fill(); ctx.stroke(); } 
             else { ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h); }
 
-            ctx.fillStyle = '#64748b'; ctx.font = '600 11px Inter'; ctx.textAlign = 'left'; ctx.fillText('TELEMETRY', x + 15, y + 20);
+            ctx.fillStyle = '#7dd3fc'; ctx.font = '700 11px Inter'; ctx.textAlign = 'left'; ctx.fillText('TELEMETRY POPUP', x + 15, y + 20);
 
             const stat = (label, val, yOff, color = '#f8fafc') => {
                 ctx.fillStyle = '#94a3b8'; ctx.font = '400 12px Inter'; ctx.textAlign = 'left'; ctx.fillText(label, x + 15, y + yOff);
@@ -687,18 +936,29 @@
             const dt = lastTime ? (timestamp - lastTime) / 1000 : 0.016; lastTime = timestamp;
             input.justPressed = input.isDown && !input.wasDown; input.justReleased = !input.isDown && input.wasDown; input.wasDown = input.isDown;
             uiElements.forEach(el => el.update());
+            updateHeadingArrowInteraction();
             if (dt < 0.1) updatePhysics(dt);
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.save(); ctx.beginPath(); ctx.rect(bounds.sim.x, bounds.sim.y, bounds.sim.w, bounds.sim.h); ctx.clip();
-            drawRiverEnv(); drawEntities(); drawTelemetry(); ctx.restore();
-            drawSidebar();
+            drawRiverEnv(); drawEntities(); ctx.restore();
+            drawLevelHeader();
+            drawCanvasControls();
+            drawTelemetry();
             
             requestAnimationFrame(engineLoop);
         }
 
         // --- EVENTS ---
         window.addEventListener('resize', layout);
+        headingInput.addEventListener('input', () => {
+            if (headingInput.value.trim() === '') return;
+            setHeadingAngle(Number(headingInput.value));
+        });
+        headingInput.addEventListener('blur', syncHeadingInput);
+        headingInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') headingInput.blur();
+        });
         const handlePtr = e => { 
             const r = canvas.getBoundingClientRect(), d = window.devicePixelRatio || 1; 
             input.x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left; 
@@ -710,6 +970,56 @@
         canvas.addEventListener('touchstart', e => { e.preventDefault(); input.isDown = true; handlePtr(e); }, {passive: false});
         canvas.addEventListener('touchmove', e => { e.preventDefault(); handlePtr(e); }, {passive: false});
         window.addEventListener('touchend', () => input.isDown = false);
+
+        function isHeadingEditable() {
+            return !isPlaying && mission.phase !== 'success' && mission.phase !== 'fail';
+        }
+
+        function pointerInSim() {
+            return input.x >= bounds.sim.x && input.x <= bounds.sim.x + bounds.sim.w && input.y >= bounds.sim.y && input.y <= bounds.sim.y + bounds.sim.h;
+        }
+
+        function pointerInControls() {
+            return pointInRect(input, bounds.header) || pointInRect(input, bounds.controls) || pointInRect(input, bounds.actions);
+        }
+
+        function pointInRect(point, rect) {
+            return point.x >= rect.x && point.x <= rect.x + rect.w && point.y >= rect.y && point.y <= rect.y + rect.h;
+        }
+
+        function getSwimmerCanvasPosition() {
+            return { x: originX + physics.x * scale, y: originY + physics.y * scale };
+        }
+
+        function getHeadingArrowGeometry() {
+            const swimmer = getSwimmerCanvasPosition();
+            const length = params.effectiveBoatSpeed * VELOCITY_VECTOR_SCALE;
+            return {
+                startX: swimmer.x,
+                startY: swimmer.y,
+                endX: swimmer.x + Math.cos(params.angleRad) * length,
+                endY: swimmer.y + Math.sin(params.angleRad) * length,
+                length
+            };
+        }
+
+        function updateHeadingFromPointer() {
+            const swimmer = getSwimmerCanvasPosition();
+            const dx = input.x - swimmer.x;
+            const dy = input.y - swimmer.y;
+            if (Math.hypot(dx, dy) < 12) return;
+            setHeadingAngle(Math.round(Math.atan2(dy, dx) * 180 / Math.PI));
+        }
+
+        function updateHeadingArrowInteraction() {
+            if (!input.isDown) {
+                headingArrow.isDragging = false;
+                return;
+            }
+            if (!isHeadingEditable()) return;
+            if (input.justPressed && pointerInSim() && !pointerInControls()) headingArrow.isDragging = true;
+            if (headingArrow.isDragging) updateHeadingFromPointer();
+        }
 
         buildUI(); layout(); resetSimulation(); requestAnimationFrame((t) => { lastTime = t; engineLoop(t); });
     </script>
