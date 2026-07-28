@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Positive, Negative, or Zero Work?</title>
+  <style>
+    :root {
+      --ink: #17233b;
+      --muted: #5e6b82;
+      --line: #dce4ef;
+      --blue: #2563eb;
+      --orange: #ea580c;
+      --green: #15803d;
+      --red: #c2410c;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background: #e9eff7;
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button { font: inherit; }
+
+    .walkthrough {
+      width: min(100%, 1040px);
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: #fff;
+      box-shadow: 0 18px 50px rgb(23 35 59 / 14%);
+    }
+
+    header {
+      min-height: 66px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1 { margin: 0; font-size: clamp(1.05rem, 3vw, 1.45rem); }
+    .progress { color: var(--muted); font-size: .84rem; font-weight: 800; }
+
+    .reset,
+    .choice,
+    .main {
+      min-height: 44px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .reset {
+      border: 1px solid var(--line);
+      padding: 8px 14px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .simulation {
+      position: relative;
+      min-height: min(690px, calc(100vh - 120px));
+      background: #eaf5ff;
+    }
+
+    canvas { display: block; width: 100%; height: clamp(380px, 55vw, 540px); }
+
+    .legend {
+      position: absolute;
+      inset: 14px 14px auto;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .pill {
+      padding: 8px 12px;
+      border: 1px solid rgb(255 255 255 / 80%);
+      border-radius: 999px;
+      background: rgb(255 255 255 / 90%);
+      box-shadow: 0 8px 22px rgb(23 35 59 / 10%);
+      font-size: .82rem;
+      font-weight: 900;
+      backdrop-filter: blur(8px);
+    }
+
+    .force-key { color: var(--orange); }
+    .motion-key { color: var(--green); }
+
+    .prompt {
+      position: relative;
+      z-index: 2;
+      margin: -66px 14px 14px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgb(255 255 255 / 97%);
+      box-shadow: 0 12px 32px rgb(23 35 59 / 15%);
+    }
+
+    .phase { margin: 0 0 5px; color: var(--blue); font-size: .76rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+    h2 { margin: 0; font-size: clamp(1.05rem, 3vw, 1.35rem); }
+    .helper { min-height: 1.45em; margin: 6px 0 0; color: var(--muted); line-height: 1.4; }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 9px;
+      margin-top: 13px;
+    }
+
+    .choices { display: flex; flex: 1 1 500px; flex-wrap: wrap; gap: 9px; }
+
+    .choice {
+      flex: 1 1 140px;
+      border: 2px solid #cbd7e7;
+      padding: 10px 12px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .choice:hover { border-color: var(--blue); }
+
+    .main {
+      margin-left: auto;
+      border: 0;
+      padding: 11px 18px;
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .choice:focus-visible,
+    .main:focus-visible,
+    .reset:focus-visible { outline: 3px solid rgb(37 99 235 / 22%); outline-offset: 2px; }
+    [hidden] { display: none !important; }
+
+    @media (max-width: 620px) {
+      body { padding: 0; }
+      .walkthrough { min-height: 100vh; border: 0; border-radius: 0; }
+      .simulation { min-height: calc(100vh - 67px); }
+      canvas { height: 460px; }
+      .prompt { margin-top: -48px; }
+      .main { width: 100%; margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="walkthrough" data-walkthrough>
+    <header>
+      <div>
+        <div class="progress" data-progress>Situation 1 of 4</div>
+        <h1>Positive, Negative, or Zero Work?</h1>
+      </div>
+      <button class="reset" type="button" data-reset>Reset</button>
+    </header>
+
+    <section class="simulation" aria-label="Work sign comparison simulation">
+      <canvas data-canvas width="1000" height="540"></canvas>
+      <div class="legend" aria-hidden="true">
+        <div class="pill force-key">Orange = named force</div>
+        <div class="pill motion-key">Green = displacement</div>
+      </div>
+
+      <div class="prompt" aria-live="polite">
+        <p class="phase" data-phase>Ask and predict</p>
+        <h2 data-question></h2>
+        <p class="helper" data-helper>Compare the orange force arrow with the green displacement arrow.</p>
+        <div class="actions">
+          <div class="choices" data-choices>
+            <button class="choice" type="button" data-choice="positive">Positive work</button>
+            <button class="choice" type="button" data-choice="negative">Negative work</button>
+            <button class="choice" type="button" data-choice="zero">Zero work</button>
+          </div>
+          <button class="main" type="button" data-main hidden>Next situation</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const root = document.querySelector('[data-walkthrough]');
+      const canvas = root.querySelector('[data-canvas]');
+      const ctx = canvas.getContext('2d');
+      const progressLabel = root.querySelector('[data-progress]');
+      const phase = root.querySelector('[data-phase]');
+      const question = root.querySelector('[data-question]');
+      const helper = root.querySelector('[data-helper]');
+      const choices = root.querySelector('[data-choices]');
+      const mainButton = root.querySelector('[data-main]');
+      const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      const situations = [
+        {
+          title: 'Lifting a box',
+          question: 'What sign is the work done by the lifting force?',
+          answer: 'positive',
+          angle: 0,
+          reason: 'Force and displacement point upward together.',
+          motion: 'up',
+          force: 'up',
+          forceLabel: 'lift force'
+        },
+        {
+          title: 'Lowering at steady speed',
+          question: 'What sign is the work done by the supporting force?',
+          answer: 'negative',
+          angle: 180,
+          reason: 'The supporting force points up while displacement points down.',
+          motion: 'down',
+          force: 'up',
+          forceLabel: 'support force'
+        },
+        {
+          title: 'Carrying across the room',
+          question: 'What sign is the work done by the upward carrying force?',
+          answer: 'zero',
+          angle: 90,
+          reason: 'The carrying force is perpendicular to the horizontal displacement.',
+          motion: 'right',
+          force: 'up',
+          forceLabel: 'carry force'
+        },
+        {
+          title: 'Friction slows a slider',
+          question: 'What sign is the work done by friction?',
+          answer: 'negative',
+          angle: 180,
+          reason: 'Friction points opposite the displacement.',
+          motion: 'right',
+          force: 'left',
+          forceLabel: 'friction'
+        }
+      ];
+
+      let index = 0;
+      let state = 'predict';
+      let progress = 0;
+      let prediction = null;
+      let animationFrame = 0;
+
+      function arrow(x1, y1, x2, y2, color, label) {
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - 22 * Math.cos(angle - .5), y2 - 22 * Math.sin(angle - .5));
+        ctx.lineTo(x2 - 22 * Math.cos(angle + .5), y2 - 22 * Math.sin(angle + .5));
+        ctx.closePath();
+        ctx.fill();
+        ctx.font = '900 18px system-ui';
+        ctx.textAlign = 'center';
+        const labelY = Math.abs(y2 - y1) > Math.abs(x2 - x1) ? (y1 + y2) / 2 : y1 - 18;
+        ctx.fillText(label, (x1 + x2) / 2, labelY);
+        ctx.restore();
+      }
+
+      function drawPerson(x, y) {
+        ctx.save();
+        ctx.strokeStyle = '#17233b';
+        ctx.lineWidth = 8;
+        ctx.lineCap = 'round';
+        ctx.fillStyle = '#f2b38d';
+        ctx.beginPath();
+        ctx.arc(x, y - 95, 22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, y - 72);
+        ctx.lineTo(x, y - 10);
+        ctx.moveTo(x, y - 54);
+        ctx.lineTo(x + 38, y - 35);
+        ctx.moveTo(x, y - 10);
+        ctx.lineTo(x - 28, y + 30);
+        ctx.moveTo(x, y - 10);
+        ctx.lineTo(x + 28, y + 30);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawBox(x, y, label = 'BOX') {
+        ctx.fillStyle = '#b96a35';
+        ctx.strokeStyle = '#17233b';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.roundRect(x - 57, y - 43, 114, 86, 10);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#fff';
+        ctx.font = '900 18px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, x, y + 6);
+      }
+
+      function positions() {
+        const situation = situations[index];
+        if (situation.motion === 'up') return { x: 620, y: 390 - 200 * progress };
+        if (situation.motion === 'down') return { x: 620, y: 190 + 200 * progress };
+        return { x: 315 + 390 * progress, y: 365 };
+      }
+
+      function draw() {
+        const situation = situations[index];
+        const pos = positions();
+        ctx.clearRect(0, 0, 1000, 540);
+        const gradient = ctx.createLinearGradient(0, 0, 0, 540);
+        gradient.addColorStop(0, '#dff1ff');
+        gradient.addColorStop(.72, '#f8fcff');
+        gradient.addColorStop(.72, '#d1dbe5');
+        gradient.addColorStop(1, '#afbdcb');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 1000, 540);
+
+        ctx.fillStyle = '#17233b';
+        ctx.font = '900 28px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(situation.title, 500, 118);
+
+        if (index < 3) {
+          drawPerson(index === 2 ? pos.x - 105 : 360, index === 2 ? 398 : 395);
+          drawBox(pos.x, pos.y);
+        } else {
+          ctx.strokeStyle = '#64748b';
+          ctx.lineWidth = 6;
+          ctx.beginPath();
+          ctx.moveTo(115, 410);
+          ctx.lineTo(885, 410);
+          ctx.stroke();
+          drawBox(pos.x, pos.y, 'SLIDER');
+        }
+
+        if (situation.force === 'up') arrow(pos.x, pos.y - 50, pos.x, pos.y - 165, '#ea580c', situation.forceLabel);
+        else arrow(pos.x - 60, pos.y - 70, pos.x - 200, pos.y - 70, '#ea580c', situation.forceLabel);
+
+        if (situation.motion === 'up') arrow(pos.x + 105, pos.y + 60, pos.x + 105, pos.y - 80, '#15803d', 'displacement');
+        else if (situation.motion === 'down') arrow(pos.x + 105, pos.y - 90, pos.x + 105, pos.y + 65, '#15803d', 'displacement');
+        else arrow(pos.x - 95, pos.y + 90, pos.x + 110, pos.y + 90, '#15803d', 'displacement');
+
+        if (state === 'result') {
+          ctx.fillStyle = '#17233b';
+          ctx.font = '900 23px system-ui';
+          ctx.textAlign = 'center';
+          ctx.fillText('theta = ' + situation.angle + ' degrees', 500, 490);
+        }
+      }
+
+      function renderPrediction() {
+        const situation = situations[index];
+        state = 'predict';
+        progress = 0;
+        prediction = null;
+        progressLabel.textContent = 'Situation ' + (index + 1) + ' of ' + situations.length;
+        phase.textContent = 'Ask and predict';
+        question.textContent = situation.question;
+        helper.textContent = 'Compare the orange force arrow with the green displacement arrow.';
+        choices.hidden = false;
+        mainButton.hidden = true;
+        draw();
+      }
+
+      function reveal() {
+        state = 'reveal';
+        phase.textContent = 'Reveal';
+        question.textContent = 'Watch the object move.';
+        helper.textContent = 'The angle between force and displacement determines the sign of the work.';
+        choices.hidden = true;
+        let start = 0;
+        const duration = reduceMotion ? 80 : 1200;
+
+        function frame(time) {
+          if (!start) start = time;
+          progress = Math.min(1, (time - start) / duration);
+          draw();
+          if (progress < 1) animationFrame = requestAnimationFrame(frame);
+          else showResult();
+        }
+        animationFrame = requestAnimationFrame(frame);
+      }
+
+      function showResult() {
+        const situation = situations[index];
+        const correct = prediction === situation.answer;
+        state = 'result';
+        phase.textContent = 'Explain';
+        question.textContent = situation.answer[0].toUpperCase() + situation.answer.slice(1) + ' work';
+        helper.textContent = (correct ? 'Correct. ' : 'Look at the arrow directions. ') + situation.reason;
+        mainButton.textContent = index === situations.length - 1 ? 'Try all again' : 'Next situation';
+        mainButton.hidden = false;
+        draw();
+      }
+
+      function next() {
+        cancelAnimationFrame(animationFrame);
+        index = index === situations.length - 1 ? 0 : index + 1;
+        renderPrediction();
+      }
+
+      [...root.querySelectorAll('[data-choice]')].forEach(button => {
+        button.addEventListener('click', () => {
+          if (state !== 'predict') return;
+          prediction = button.dataset.choice;
+          reveal();
+        });
+      });
+      mainButton.addEventListener('click', next);
+      root.querySelector('[data-reset]').addEventListener('click', () => {
+        cancelAnimationFrame(animationFrame);
+        index = 0;
+        renderPrediction();
+      });
+      renderPrediction();
+    })();
+  </script>
+</body>
+</html>

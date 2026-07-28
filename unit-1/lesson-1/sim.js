@@ -727,16 +727,61 @@ const MotionGraphsLab = (function() {
     try { return JSON.parse(localStorage.getItem(LOG_STORAGE_KEY) || '{}'); }
     catch (e) { return {}; }
   }
+
+  function compactAssessmentLogs(logs) {
+    return Object.keys(logs || {}).reduce((answers, id) => {
+      const entries = Array.isArray(logs[id]) ? logs[id] : [];
+      if (entries.length) {
+        answers[id] = entries.some(entry => Number(entry.score) >= 100) ? 1 : 0;
+      }
+      return answers;
+    }, {});
+  }
+
+  function restoreAssessmentLogsFromScorm() {
+    if (typeof SCORM === 'undefined' || (SCORM.isInitialized && !SCORM.isInitialized())) return;
+    try {
+      const saved = JSON.parse(SCORM.getValue('cmi.suspend_data') || '{}');
+      const answers = saved && saved.answers ? saved.answers : {};
+      Object.keys(answers).forEach(id => {
+        const entries = Array.isArray(state.logs[id]) ? state.logs[id] : [];
+        const wasCorrect = entries.some(entry => Number(entry.score) >= 100);
+        if (!entries.length || (answers[id] === 1 && !wasCorrect)) {
+          entries.push({
+            score: answers[id] === 1 ? 100 : 0,
+            response: 'Restored from Buzz',
+            timestamp: 0
+          });
+          state.logs[id] = entries;
+        }
+      });
+    } catch (e) {
+      console.warn('[Motion Graphs Lab] Could not restore Buzz attempt data.', e);
+    }
+    updateAssessmentProgress();
+  }
+
   function saveAssessmentLogs() {
     try { localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(state.logs)); } catch (e) {}
+    if (typeof SCORM !== 'undefined' && (!SCORM.isInitialized || SCORM.isInitialized())) {
+      try {
+        SCORM.setValue('cmi.suspend_data', JSON.stringify({
+          version: 1,
+          answers: compactAssessmentLogs(state.logs)
+        }));
+      } catch (e) {}
+    }
   }
   function bestAssessmentScore(id) {
     const entries = state.logs[id] || [];
     return entries.length ? Math.max(...entries.map(entry => Number(entry.score) || 0)) : 0;
   }
-  function assessmentScorePercent() {
+  function assessmentEarnedPoints() {
     const earnedQuestionEquivalents = state.assessQuestions.reduce((sum, q) => sum + bestAssessmentScore(q.def.id) / 100, 0);
-    return Math.min(100, Math.round((earnedQuestionEquivalents / CORE_QUESTION_COUNT) * 100));
+    return Math.min(CORE_QUESTION_COUNT, earnedQuestionEquivalents);
+  }
+  function assessmentScorePercent() {
+    return Math.round((assessmentEarnedPoints() / CORE_QUESTION_COUNT) * 100);
   }
   function attemptedCount(start, end) {
     return state.assessQuestions.slice(start, end).filter(q => (state.logs[q.def.id] || []).length > 0).length;
@@ -745,22 +790,29 @@ const MotionGraphsLab = (function() {
     return attemptedCount(0, CORE_QUESTION_COUNT) === CORE_QUESTION_COUNT;
   }
   function syncAssessmentScore() {
-    const score = assessmentScorePercent();
-    if (typeof SCORM !== 'undefined') {
+    const points = assessmentEarnedPoints();
+    if (typeof SCORM !== 'undefined' && (!SCORM.isInitialized || SCORM.isInitialized())) {
       try {
-        SCORM.setScore(score, 0, 100);
-        SCORM.setStatus('incomplete');
+        saveAssessmentLogs();
+        SCORM.setValue('cmi.core.score.raw', points);
+        SCORM.setValue('cmi.core.score.min', 0);
+        SCORM.setValue('cmi.core.score.max', CORE_QUESTION_COUNT);
+        SCORM.setValue('cmi.core.lesson_status', coreAssessmentComplete() ? 'completed' : 'incomplete');
+        SCORM.setValue('cmi.core.lesson_location', coreAssessmentComplete() ? 'complete' : 'assessment');
+        SCORM.setValue('cmi.comments', 'Motion Graphs Lab score: ' + points + ' / ' + CORE_QUESTION_COUNT);
+        SCORM.commit();
       } catch (e) {}
     }
   }
   function updateAssessmentProgress() {
+    const points = assessmentEarnedPoints();
     const score = assessmentScorePercent();
     const coreDone = attemptedCount(0, CORE_QUESTION_COUNT);
     const bonusDone = attemptedCount(CORE_QUESTION_COUNT, CORE_QUESTION_COUNT + BONUS_QUESTION_COUNT);
-    if (els.topScore) els.topScore.textContent = 'Score: ' + score + '%';
+    if (els.topScore) els.topScore.textContent = 'Score: ' + points + ' / ' + CORE_QUESTION_COUNT;
     if (els.overallScore) els.overallScore.textContent = '15 core + 5 bonus';
     if (els.statusSummary) els.statusSummary.textContent = coreDone + ' / 15 core • ' + bonusDone + ' / 5 bonus';
-    if (els.finalScore) els.finalScore.textContent = score + '%';
+    if (els.finalScore) els.finalScore.textContent = points + ' / ' + CORE_QUESTION_COUNT + ' (' + score + '%)';
     if (els.completionCard) els.completionCard.classList.toggle('hidden', !coreAssessmentComplete());
     if (els.qSelect) {
       [...els.qSelect.options].forEach((option, i) => {
@@ -872,6 +924,7 @@ const MotionGraphsLab = (function() {
     buildHouses();
     switchMode('practice');
     updateAssessmentProgress();
+    window.addEventListener('load', restoreAssessmentLogsFromScorm, { once: true });
   }
 
   function switchMode(mode) {

@@ -168,6 +168,10 @@
         const requestedLevel = Number(urlParams.get('level'));
         const initialLevel = [1, 2, 3, 4].includes(requestedLevel) ? requestedLevel : 1;
         const lockedLevel = urlParams.get('lockLevel') === '1' ? initialLevel : 0;
+        // Buzz assessment embeds carry the level title and directions in their own page header, so
+        // the canvas drops its whole HUD panel (title, goal line, speed/time chips) and the control
+        // hint line. The DATA panel and the labelled scene vectors still supply every reading.
+        const showHud = urlParams.get('hideHud') !== '1';
 
         let scale = 10, originX = 0, originY = 0, waterParticles = [], bankDecor = null;
         let ripples = [], rippleTimer = 0, babyRippleTimer = 0;
@@ -215,13 +219,18 @@
         class HeadingInputControl {
             constructor(id) {
                 this.id = id; this.x = 0; this.y = 0; this.w = 0; this.h = 42; this.disabled = false;
+                this.large = false;
                 this.inputRect = { x: 0, y: 0, w: 86, h: 34 };
             }
             setBounds(x, y, w, h = 42) {
                 this.x = x; this.y = y; this.w = w; this.h = h;
-                const inputW = Math.min(92, Math.max(76, w * 0.32));
-                this.inputRect = { x: x + w - inputW - 28, y: y + 4, w: inputW, h: 34 };
-                positionHeadingInput(this.inputRect);
+                const inputH = this.large ? 46 : 34;
+                const inputW = this.large
+                    ? Math.min(132, Math.max(108, w * 0.34))
+                    : Math.min(92, Math.max(76, w * 0.32));
+                const unitsGap = this.large ? 48 : 28;
+                this.inputRect = { x: x + w - inputW - unitsGap, y: y + (h - inputH) / 2, w: inputW, h: inputH };
+                positionHeadingInput(this.inputRect, this.large);
             }
             setDisabled(disabled) {
                 this.disabled = disabled;
@@ -229,21 +238,25 @@
             }
             update() {}
             draw(ctx) {
+                const labelSize = this.large ? 18 : 13;
                 ctx.fillStyle = this.disabled ? '#64748b' : '#cbd5e1';
-                ctx.font = '600 13px Inter';
+                ctx.font = `600 ${labelSize}px Inter`;
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(mission.level === 4 ? 'Swim Speed' : 'Swim Heading', this.x, this.y + this.h / 2);
 
                 ctx.fillStyle = this.disabled ? '#64748b' : '#7dd3fc';
-                ctx.font = '600 13px monospace';
+                ctx.font = `600 ${labelSize}px monospace`;
                 ctx.textAlign = 'left';
                 ctx.fillText(mission.level === 4 ? 'm/s' : 'deg', this.inputRect.x + this.inputRect.w + 8, this.y + this.h / 2);
             }
         }
 
         const BABY_DRAW_SCALE = 0.5;
-        const VELOCITY_VECTOR_SCALE = 26;
+        // Pixels per m/s for every velocity vector. Embeds run longer so the swim arrow reads from
+        // the frame; raising it here keeps the aim, current and resultant arrows in the same scale,
+        // which is what makes the HINT vector-addition diagram line up.
+        const VELOCITY_VECTOR_SCALE = urlParams.get('hideHud') === '1' ? 34 : 26;
 
         // Embedded transparent SVG used for the Level 1 rapids.
         const RAPID_SVG = `
@@ -269,7 +282,9 @@
         const rapidImage = new Image();
         rapidImage.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(RAPID_SVG);
 
-        function drawVectorArrow(fx, fy, tx, ty, color, width = 3, headLen = 10) {
+        // `parts` lets a caller draw the shaft and the head in separate passes, which is how the
+        // Level 4 aim vector flashes only its arrowhead.
+        function drawVectorArrow(fx, fy, tx, ty, color, width = 3, headLen = 10, parts = 'both') {
             const dx = tx - fx, dy = ty - fy;
             if (Math.abs(dx) < 0.1 && Math.abs(dy) < 0.1) return;
             const angle = Math.atan2(dy, dx);
@@ -279,13 +294,30 @@
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.beginPath();
-            ctx.moveTo(fx, fy);
-            ctx.lineTo(tx, ty);
-            ctx.lineTo(tx - headLen * Math.cos(angle - Math.PI/6), ty - headLen * Math.sin(angle - Math.PI/6));
-            ctx.moveTo(tx, ty);
-            ctx.lineTo(tx - headLen * Math.cos(angle + Math.PI/6), ty - headLen * Math.sin(angle + Math.PI/6));
+            if (parts !== 'head') {
+                ctx.moveTo(fx, fy);
+                ctx.lineTo(tx, ty);
+            }
+            if (parts !== 'shaft') {
+                ctx.moveTo(tx - headLen * Math.cos(angle - Math.PI/6), ty - headLen * Math.sin(angle - Math.PI/6));
+                ctx.lineTo(tx, ty);
+                ctx.lineTo(tx - headLen * Math.cos(angle + Math.PI/6), ty - headLen * Math.sin(angle + Math.PI/6));
+            }
             ctx.stroke();
             ctx.restore();
+        }
+
+        function measureLabel(text, size) {
+            ctx.save();
+            ctx.font = `800 ${size}px Inter`;
+            const width = ctx.measureText(text).width;
+            ctx.restore();
+            return width;
+        }
+
+        // Keeps a left-aligned scene label inside the canvas on narrow frames.
+        function clampLabelX(text, x, size) {
+            return Math.min(x, bounds.sim.x + bounds.sim.w - 14 - measureLabel(text, size));
         }
 
         function drawVectorLabel(text, x, y, color, align = 'left', size = 14) {
@@ -298,6 +330,63 @@
             ctx.strokeText(text, x, y);
             ctx.fillStyle = color;
             ctx.fillText(text, x, y);
+            ctx.restore();
+        }
+
+        // Twin rotation arcs at the aim vector's tip: the cue that the vector is draggable. The
+        // sweeps are laid out relative to `angle` (the vector's own heading) so they always straddle
+        // the arrow, and blink so they read as a prompt rather than scenery.
+        function drawRotationArcs(ctx, tipX, tipY, angle, enableBlink = true) {
+            if (enableBlink && Math.floor(Date.now() / 500) % 2 !== 0) return;
+
+            const arcRadius = 45;          // Distance from the vector tip
+            const sweepDeg = 33;           // 30 degrees + 10% extra length
+            const gapDeg = 15;             // Clearance between the arrow shaft and each arc
+            const headLen = 8;             // Arrowhead leg length
+            const wingAngle = Math.PI / 4; // 45-degree arrowhead wing flare
+            const deg = Math.PI / 180;
+
+            const startAngle1 = angle + gapDeg * deg;
+            const endAngle1 = angle + (gapDeg + sweepDeg) * deg;
+            const startAngle2 = angle - (gapDeg + sweepDeg) * deg;
+            const endAngle2 = angle - gapDeg * deg;
+
+            ctx.save();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#f97316'; // Matches the aim vector it belongs to
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            // --- 1. Clockwise arc and arrowhead ---
+            ctx.beginPath();
+            ctx.arc(tipX, tipY, arcRadius, startAngle1, endAngle1);
+            ctx.stroke();
+
+            const endX1 = tipX + arcRadius * Math.cos(endAngle1);
+            const endY1 = tipY + arcRadius * Math.sin(endAngle1);
+            const dir1 = endAngle1 + Math.PI / 2; // Tangent pointing forward
+
+            ctx.beginPath();
+            ctx.moveTo(endX1 - headLen * Math.cos(dir1 - wingAngle), endY1 - headLen * Math.sin(dir1 - wingAngle));
+            ctx.lineTo(endX1, endY1);
+            ctx.lineTo(endX1 - headLen * Math.cos(dir1 + wingAngle), endY1 - headLen * Math.sin(dir1 + wingAngle));
+            ctx.stroke();
+
+            // --- 2. Counter-clockwise arc and arrowhead ---
+            ctx.beginPath();
+            ctx.arc(tipX, tipY, arcRadius, startAngle2, endAngle2);
+            ctx.stroke();
+
+            const startX2 = tipX + arcRadius * Math.cos(startAngle2);
+            const startY2 = tipY + arcRadius * Math.sin(startAngle2);
+            const dir2 = startAngle2 - Math.PI / 2; // Tangent pointing backward
+
+            ctx.beginPath();
+            ctx.moveTo(startX2 - headLen * Math.cos(dir2 - wingAngle), startY2 - headLen * Math.sin(dir2 - wingAngle));
+            ctx.lineTo(startX2, startY2);
+            ctx.lineTo(startX2 - headLen * Math.cos(dir2 + wingAngle), startY2 - headLen * Math.sin(dir2 + wingAngle));
+            ctx.stroke();
+
             ctx.restore();
         }
 
@@ -397,15 +486,18 @@
                 goalType: 'intercept',
                 swimSpeed: 5,
                 currentSpeed: 3,
-                start: p => ({ x: 0, y: p.width * 0.18, radius: 5.5 }),
-                target: p => ({ x: p.width * 0.7, y: p.width * 0.18, radius: 2.3 }),
-                startMsg: 'SPEED CHALLENGE: heading is fixed at 0°. Too slow and the baby hits the lower rock. Too fast and you hit the upper boulder.',
+                // Start high in the river: the extra drift room is what sets the lower edge of the
+                // working speed band. Band is 3.0-5.0 m/s — see getLevelFourBoulders().
+                start: p => ({ x: 0, y: p.width * 0.12, radius: 5.5 }),
+                target: p => ({ x: p.width * 0.7, y: p.width * 0.12, radius: 2.3 }),
+                startMsg: 'SPEED CHALLENGE: heading is fixed at 0°. Too slow and the baby hits the lower rock. Too fast and you hit the upper boulder. Only a band of speeds works.',
                 hintLines: [
                     'Your heading is fixed straight across at 0°.',
-                    'Speeds below 3 m/s cannot reach the baby in time.',
-                    'The maximum speed sends you into the upper boulder.',
-                    'Use the current to drift below the first boulder,',
-                    'but catch the baby before the lower rock.'
+                    'You must cover 32.7 m across to reach the baby,',
+                    'so your time to the baby = 32.7 ÷ your speed.',
+                    'The baby drifts 3 m/s toward the lower rock —',
+                    'beat it there, but stay slow enough that the',
+                    'current carries you under the upper boulder.'
                 ]
             }
         };
@@ -455,18 +547,29 @@
 
             const pad = 18;
             const headerW = Math.min(w - pad * 2, bounds.isMobile ? 430 : 620);
-            bounds.header = { x: pad, y: pad, w: headerW, h: 116 };
+            const controlH = showHud ? 42 : 56;
+            const controlsH = showHud ? 76 : controlH + 12;
+            const headingW = Math.min(w - pad * 2, showHud ? 312 : 430);
+
+            if (showHud) {
+                bounds.header = { x: pad, y: pad, w: headerW, h: 116 };
+                bounds.controls = { x: pad, y: pad + bounds.header.h + 10, w: headingW, h: controlsH };
+            } else {
+                // Assessment embeds draw no HUD panel, so the heading input leads at the top.
+                bounds.header = { x: 0, y: 0, w: 0, h: 0 };
+                bounds.controls = { x: pad, y: pad, w: headingW, h: controlsH };
+            }
 
             if (levelButtons.length) {
                 const bw = 36, bh = 28, gap = 6;
-                const x0 = bounds.header.x + bounds.header.w - (bw * levelButtons.length + gap * (levelButtons.length - 1)) - 12;
-                levelButtons.forEach((b, i) => b.setBounds(x0 + i * (bw + gap), bounds.header.y + 10, bw, bh));
+                const rowW = bw * levelButtons.length + gap * (levelButtons.length - 1);
+                const x0 = showHud ? bounds.header.x + bounds.header.w - rowW - 12 : Math.max(pad, w - pad - rowW);
+                const y0 = showHud ? bounds.header.y + 10 : pad;
+                levelButtons.forEach((b, i) => b.setBounds(x0 + i * (bw + gap), y0, bw, bh));
             }
 
-            const headingW = Math.min(w - pad * 2, 312);
-            const headingY = bounds.header.y + bounds.header.h + 10;
-            bounds.controls = { x: pad, y: headingY, w: headingW, h: 76 };
-            headingControl.setBounds(bounds.controls.x + 14, bounds.controls.y + 6, bounds.controls.w - 28, 42);
+            headingControl.large = !showHud;
+            headingControl.setBounds(bounds.controls.x + 14, bounds.controls.y + 6, bounds.controls.w - 28, controlH);
 
             const actionY = Math.max(12, h - 62);
             const availableActionW = Math.max(280, w - pad * 2);
@@ -529,11 +632,12 @@
             return Number.isInteger(angleDeg) ? angleDeg.toFixed(0) : angleDeg.toFixed(1);
         }
 
-        function positionHeadingInput(rect) {
+        function positionHeadingInput(rect, large) {
             headingInput.style.left = rect.x + 'px';
             headingInput.style.top = rect.y + 'px';
             headingInput.style.width = rect.w + 'px';
             headingInput.style.height = rect.h + 'px';
+            headingInput.style.fontSize = large ? '22px' : '14px';
         }
 
         function syncHeadingInput() {
@@ -650,7 +754,7 @@
                 mission.baby.y += params.vRiver * dt;
                 babyRippleTimer += dt;
                 if (babyRippleTimer > 0.5) { babyRippleTimer = 0; ripples.push({ x: mission.baby.x, y: mission.baby.y, age: 0 }); }
-                if (babyHitLevelFourRock()) return failMission('Too slow! The baby reached the lower rock before you caught up. Choose a speed of at least about 3 m/s.');
+                if (babyHitLevelFourRock()) return failMission('Too slow! The baby reached the lower rock before you caught up. Raise your swim speed and try again.');
                 if (mission.baby.y > (bounds.sim.h - originY) / scale + 5) return failMission('The baby went over the falls! Aim straight at the baby and start again.');
             }
 
@@ -694,6 +798,7 @@
         }
 
         function drawLevelHeader() {
+            if (!showHud) return;
             const header = bounds.header;
             ctx.save();
             ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
@@ -756,19 +861,21 @@
                 ctx.fillRect(panel.x, panel.y, panel.w, panel.h);
                 ctx.strokeRect(panel.x, panel.y, panel.w, panel.h);
             }
-            ctx.fillStyle = '#94a3b8';
-            ctx.font = '500 11px Inter';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(
-                mission.level === 4
-                    ? 'Heading fixed at 0° · choose a safe speed from 1–8 m/s'
-                    : mission.level === 3
-                        ? 'Aim the orange arrow directly at the baby’s current position'
-                        : 'Negative = aim upstream · or drag the orange arrow',
-                panel.x + 14,
-                panel.y + panel.h - 15
-            );
+            if (showHud) {
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '500 11px Inter';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(
+                    mission.level === 4
+                        ? 'Heading fixed at 0° · choose a safe speed from 1–8 m/s'
+                        : mission.level === 3
+                            ? 'Aim the orange arrow directly at the baby’s current position'
+                            : 'Negative = aim upstream · or drag the orange arrow',
+                    panel.x + 14,
+                    panel.y + panel.h - 15
+                );
+            }
             ctx.restore();
             uiElements.forEach(el => el.draw(ctx));
         }
@@ -996,9 +1103,31 @@
 
             const arrowLen = params.vRiver * VELOCITY_VECTOR_SCALE;
             const arrowX = rLeft + riverW * 0.5;
-            const arrowTop = bounds.sim.y + bounds.sim.h * 0.5 - arrowLen * 0.5;
+            // With no HUD chips to read, the current readout rides in the top quarter of the canvas
+            // (clear of the heading panel) and is drawn large enough to read from the frame.
+            const arrowMidY = showHud
+                ? bounds.sim.y + bounds.sim.h * 0.5
+                : Math.max(bounds.sim.y + bounds.sim.h * 0.18, bounds.controls.y + bounds.controls.h + arrowLen * 0.5 + 12);
+            const arrowTop = arrowMidY - arrowLen * 0.5;
             drawVectorArrow(arrowX, arrowTop, arrowX, arrowTop + arrowLen, 'rgba(56, 189, 248, 0.9)', 8, 20);
-            drawVectorLabel('River current = ' + params.vRiver.toFixed(1) + ' m/s', arrowX + 18, arrowTop + arrowLen * 0.5, '#bae6fd');
+            const currentText = 'River current = ' + params.vRiver.toFixed(1) + ' m/s';
+            const currentSize = showHud ? 14 : 20;
+            const currentWidth = measureLabel(currentText, currentSize);
+
+            // The Level 3 baby waits high in the river and the desktop hint panel sits top-right,
+            // both right where the raised readout lands, so the label swaps to the upstream side.
+            const babyNearReadout = !showHud
+                && mission.goalType === 'intercept'
+                && !mission.baby.rescued
+                && originX + mission.baby.x * scale > arrowX
+                && Math.abs(originY + mission.baby.y * scale - arrowMidY) < 60;
+            const hintPanelInTheWay = !showHud && hintMode > 0 && !bounds.isMobile;
+
+            if ((babyNearReadout || hintPanelInTheWay) && arrowX - 18 - currentWidth > bounds.sim.x + 12) {
+                drawVectorLabel(currentText, arrowX - 18, arrowMidY, '#bae6fd', 'right', currentSize);
+            } else {
+                drawVectorLabel(currentText, clampLabelX(currentText, arrowX + 18, currentSize), arrowMidY, '#bae6fd', 'left', currentSize);
+            }
         }
 
         function getLevelThreeRapidPlacements(rLeft, rRight) {
@@ -1069,11 +1198,25 @@
         }
 
 
+        // Level 4's hazards are tuned so exactly one band of swim speeds clears both: 3.5-4.1 m/s
+        // at the 0.1 m/s the input steps in.
+        //
+        // Upper Boulder — the swimmer's straight-across path is y = startY + 3x/v, so its distance
+        // from the boulder is |3x_b - v·dy_b| / sqrt(9 + v²). With x_b = 17.5, dy_b = 8 and a hit
+        // radius of 2.75 + the swimmer's 1 m body, that crosses zero at v = 4.16. Note the ratio
+        // 3·x_b / dy_b = 6.56 matters as much as the size: it puts the head-on hit at 6.56 m/s, which
+        // is what keeps the flattest 8 m/s path inside the boulder instead of sailing over it.
+        //
+        // Baby Danger — the baby drifts 3 m/s from the start line into a rock whose upper edge
+        // (37.7 - 3.0 - 0.25) it reaches at t = 9.48 s, and the swimmer needs 32.7/v s to reach the
+        // baby, so that edge lands at v = 3.45.
+        //
+        // Changing any of these numbers moves the band — re-check the full 1.0-8.0 sweep first.
         function getLevelFourBoulders() {
             const startY = mission.startZone.y;
             return {
-                swimmerRock: { x: 22, y: startY + 8.25, radius: 1.3, label: 'Upper Boulder' },
-                babyRock: { x: mission.baby.x, y: 43.2, radius: 1.0, label: 'Baby Danger' }
+                swimmerRock: { x: 17.5, y: startY + 8.0, radius: 2.75, label: 'Upper Boulder' },
+                babyRock: { x: mission.baby.x, y: 37.7, radius: 3.0, label: 'Baby Danger' }
             };
         }
 
@@ -1116,7 +1259,9 @@
         function drawLevelFourBoulders() {
             if (mission.level !== 4) return;
             const rocks = getLevelFourBoulders();
-            drawBoulderWorld(rocks.swimmerRock, false);
+            // Upper Boulder labels underneath: it now sits close under the swimmer's row, where a
+            // label above would land on the distance-to-baby callout.
+            drawBoulderWorld(rocks.swimmerRock, true);
             drawBoulderWorld(rocks.babyRock, false);
         }
 
@@ -1657,25 +1802,49 @@
         }
 
         function drawProtractor(bx, by) {
+            // Assessment embeds read the heading off the canvas rather than a HUD chip, so the
+            // protractor and its angle readout are drawn at a size that carries across the frame.
+            const big = !showHud;
+            // Runs past the aim arrow's tip on embeds so the 0° tick clears the drag handle.
+            const baseLen = big ? params.vBoat * VELOCITY_VECTOR_SCALE + 32 : 78;
+            const arcR = big ? 58 : 40;
+
             ctx.save();
             ctx.strokeStyle = 'rgba(248, 250, 252, 0.5)';
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth = big ? 2 : 1.5;
             ctx.setLineDash([5, 4]);
             ctx.beginPath();
             ctx.moveTo(bx, by);
-            ctx.lineTo(bx + 78, by);
+            ctx.lineTo(bx + baseLen, by);
             ctx.stroke();
             ctx.setLineDash([]);
-            drawVectorLabel('0°', bx + 88, by, 'rgba(248, 250, 252, 0.75)', 'left', 11);
+            // Lifted off the baseline on embeds, where the heavier aim arrow and its handle sit on
+            // that line whenever the heading is straight across.
+            drawVectorLabel('0°', bx + baseLen + 10, big ? by - 15 : by, 'rgba(248, 250, 252, 0.75)', 'left', big ? 13 : 11);
 
-            if (Math.abs(params.angleRad) > 0.02) {
+            const angled = Math.abs(params.angleRad) > 0.02;
+            if (angled) {
                 ctx.strokeStyle = '#fbbf24';
-                ctx.lineWidth = 2;
+                ctx.lineWidth = big ? 3 : 2;
                 ctx.beginPath();
-                ctx.arc(bx, by, 40, 0, params.angleRad, params.angleRad < 0);
+                ctx.arc(bx, by, arcR, 0, params.angleRad, params.angleRad < 0);
                 ctx.stroke();
+            }
+
+            // Straight-across aims have no arc to hang the readout on, so it drops below the
+            // baseline there instead of sitting on top of the aim arrow.
+            if (angled || big) {
                 const mid = params.angleRad / 2;
-                drawVectorLabel('θ = ' + formatHeading(params.angleDeg) + '°', bx + Math.cos(mid) * 60, by + Math.sin(mid) * 60, '#fbbf24', 'center', 12);
+                const labelR = arcR + (big ? 26 : 20);
+                const dropped = big && !angled;
+                drawVectorLabel(
+                    'θ = ' + formatHeading(params.angleDeg) + '°',
+                    bx + Math.cos(mid) * labelR,
+                    by + Math.sin(mid) * labelR + (dropped ? 26 : 0),
+                    '#fbbf24',
+                    'center',
+                    big ? 20 : 12
+                );
             }
             ctx.restore();
         }
@@ -1756,7 +1925,10 @@
             const by = originY + mission.baby.y * scale;
             const distance = Math.hypot(mission.baby.x - physics.x, mission.baby.y - physics.y);
             const mx = (sx + bx) / 2;
-            const my = (sy + by) / 2;
+            // Level 4 lays the swimmer, the baby and the long aim vector along one row, so the
+            // callout drops below that line rather than being punched through by the arrow.
+            const flatRun = Math.abs(by - sy) < 40;
+            const my = (sy + by) / 2 + (!showHud && flatRun ? 34 : 0);
 
             ctx.save();
             ctx.strokeStyle = 'rgba(251, 207, 232, 0.9)';
@@ -1846,32 +2018,39 @@
             if (vectorSetupVisible) {
                 const arrow = getHeadingArrowGeometry();
                 const fixedSpeedMode = mission.level === 4;
-                drawVectorArrow(arrow.startX, arrow.startY, arrow.endX, arrow.endY, '#f97316', fixedSpeedMode ? 5 : (headingArrow.isDragging ? 8 : 6), 20);
+                // Embeds draw the aim vector long and fine-lined: the length comes from the raised
+                // VELOCITY_VECTOR_SCALE, so a slimmer shaft keeps it from reading as a fat bar.
+                const shaft = showHud ? 6 : 5;
+                const dragShaft = showHud ? 8 : 7;
+                const width = fixedSpeedMode ? 5 : (headingArrow.isDragging ? dragShaft : shaft);
+                const headLen = showHud ? 20 : 22;
 
-                if (!fixedSpeedMode) {
-                    ctx.beginPath();
-                    ctx.arc(arrow.endX, arrow.endY, 13, 0, Math.PI * 2);
-                    ctx.fillStyle = headingArrow.isDragging ? '#fff7ed' : '#fed7aa';
-                    ctx.fill();
-                    ctx.lineWidth = 3;
-                    ctx.strokeStyle = '#f97316';
-                    ctx.stroke();
-
+                if (fixedSpeedMode) {
+                    // Level 4's drag slides the tip left and right, so the vector's own arrowhead is
+                    // the cue: the shaft holds steady and the head flashes on the same 500 ms beat.
+                    drawVectorArrow(arrow.startX, arrow.startY, arrow.endX, arrow.endY, '#f97316', width, headLen, 'shaft');
+                    if (Math.floor(Date.now() / 500) % 2 === 0) {
+                        drawVectorArrow(arrow.startX, arrow.startY, arrow.endX, arrow.endY, '#f97316', width, headLen, 'head');
+                    }
                     if (!hasAimedOnce && !headingArrow.isDragging) {
-                        const pulse = 16 + Math.sin(ambientTime * 4) * 4;
-                        ctx.strokeStyle = 'rgba(254, 215, 170, 0.8)';
-                        ctx.lineWidth = 2;
-                        ctx.beginPath();
-                        ctx.arc(arrow.endX, arrow.endY, pulse, 0, Math.PI * 2);
-                        ctx.stroke();
-                        drawVectorLabel('DRAG TO AIM', arrow.endX, arrow.endY - 28, '#fed7aa', 'center', 12);
+                        drawVectorLabel('DRAG TO SET SPEED', arrow.endX, arrow.endY - 34, '#fed7aa', 'center', 12);
+                    }
+                } else {
+                    drawVectorArrow(arrow.startX, arrow.startY, arrow.endX, arrow.endY, '#f97316', width, headLen);
+                    // The rotation arcs are the tip marker on the free-heading levels: they stay up
+                    // the whole time the vector is aimable, including mid-drag.
+                    drawRotationArcs(ctx, arrow.endX, arrow.endY, params.angleRad);
+                    if (!hasAimedOnce && !headingArrow.isDragging) {
+                        drawVectorLabel('DRAG TO AIM', arrow.endX, arrow.endY - 62, '#fed7aa', 'center', 12);
                     }
                 }
 
-                const aimText = fixedSpeedMode
-                    ? 'Fixed heading: 0° · Speed: ' + params.vBoat.toFixed(1) + ' m/s'
-                    : 'You aim: ' + params.vBoat.toFixed(1) + ' m/s at ' + formatHeading(params.angleDeg) + '°';
-                drawVectorLabel(aimText, arrow.endX + 16, arrow.endY - 12, '#fed7aa', 'left', 13);
+                if (showHud) {
+                    const aimText = fixedSpeedMode
+                        ? 'Fixed heading: 0° · Speed: ' + params.vBoat.toFixed(1) + ' m/s'
+                        : 'You aim: ' + params.vBoat.toFixed(1) + ' m/s at ' + formatHeading(params.angleDeg) + '°';
+                    drawVectorLabel(aimText, arrow.endX + 16, arrow.endY - 12, '#fed7aa', 'left', 13);
+                }
             } else if (showVectors && isPlaying) {
                 const vs = VELOCITY_VECTOR_SCALE;
                 const vbx = params.effectiveBoatSpeed * Math.cos(params.angleRad) * vs;
@@ -1894,6 +2073,30 @@
                     if (mission.goalType === 'intercept' && !mission.baby.rescued) drawInterceptDots();
                 }
             }
+
+            drawSwimSpeedReadout(bx, by);
+        }
+
+        // Stands in for the HUD swim chip on assessment embeds: it rides to the left of the swimmer
+        // at the swimmer's own height, clamped so the near bank never clips it.
+        function drawSwimSpeedReadout(bx, by) {
+            if (showHud || mission.phase === 'success' || mission.phase === 'fail') return;
+
+            // Stacked, because the swimmer starts a bank's width from the left edge and a single
+            // line that size would run under the swimmer at t = 0.
+            const value = params.vBoat.toFixed(1) + ' m/s';
+            const valueSize = 22, capSize = 13;
+            const width = Math.max(measureLabel(value, valueSize), measureLabel('SWIM', capSize));
+            const x = Math.max(bx - 60, bounds.sim.x + 10 + width);
+
+            // Level 4 drifts the baby along the swimmer's own row, so the readout lifts above the
+            // distance callout instead of landing on top of it.
+            const sharedRow = mission.goalType === 'intercept' && !mission.baby.rescued
+                && Math.abs(originY + mission.baby.y * scale - by) < 40;
+            const y = sharedRow ? by - 34 : by;
+
+            drawVectorLabel('SWIM', x, y - 15, '#fdba74', 'right', capSize);
+            drawVectorLabel(value, x, y + 9, '#fed7aa', 'right', valueSize);
         }
 
         function drawTelemetry() {
@@ -2060,8 +2263,10 @@
         canvas.addEventListener('touchmove', e => { e.preventDefault(); handlePtr(e); }, {passive: false});
         window.addEventListener('touchend', () => input.isDown = false);
 
-        function isHeadingEditable() {
-            return mission.level !== 4 && !isPlaying && mission.phase !== 'success' && mission.phase !== 'fail';
+        // Level 4 locks the heading but not the speed, so the drag stays live there — it just sets a
+        // different property of the same vector.
+        function isAimEditable() {
+            return !isPlaying && mission.phase !== 'success' && mission.phase !== 'fail';
         }
 
         function pointerInSim() {
@@ -2102,14 +2307,26 @@
             setHeadingAngle(Math.round(Math.atan2(dy, dx) * 180 / Math.PI));
         }
 
+        // Level 4's vector points straight across, so how far the pointer is across the river is the
+        // length of that vector — which is the swim speed. setSwimSpeed clamps to the 1-8 m/s range.
+        function updateSpeedFromPointer() {
+            const swimmer = getSwimmerCanvasPosition();
+            const dx = input.x - swimmer.x;
+            if (dx < 12) return;
+            hasAimedOnce = true;
+            setSwimSpeed(dx / VELOCITY_VECTOR_SCALE);
+        }
+
         function updateHeadingArrowInteraction() {
             if (!input.isDown) {
                 headingArrow.isDragging = false;
                 return;
             }
-            if (!isHeadingEditable()) return;
+            if (!isAimEditable()) return;
             if (input.justPressed && pointerInSim() && !pointerInControls()) headingArrow.isDragging = true;
-            if (headingArrow.isDragging) updateHeadingFromPointer();
+            if (!headingArrow.isDragging) return;
+            if (mission.level === 4) updateSpeedFromPointer();
+            else updateHeadingFromPointer();
         }
 
         buildUI(); layout(); resetSimulation(); requestAnimationFrame((t) => { lastTime = t; engineLoop(t); });

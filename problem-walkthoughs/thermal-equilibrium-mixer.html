@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Thermal Equilibrium Mixer</title>
+  <style>
+    :root {
+      --ink: #17233b;
+      --muted: #5e6b82;
+      --line: #dce4ef;
+      --blue: #2563eb;
+      --red: #dc2626;
+      --green: #15803d;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background: #e9eff7;
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button,
+    input,
+    select { font: inherit; }
+
+    .walkthrough {
+      width: min(100%, 1080px);
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: #fff;
+      box-shadow: 0 18px 50px rgb(23 35 59 / 14%);
+    }
+
+    header {
+      min-height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1 { margin: 0; font-size: clamp(1.05rem, 3vw, 1.45rem); }
+    .subhead { color: var(--muted); font-size: .84rem; font-weight: 800; }
+
+    .reset,
+    .main {
+      min-height: 44px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .reset {
+      border: 1px solid var(--line);
+      padding: 8px 14px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .simulation {
+      position: relative;
+      min-height: min(780px, calc(100vh - 122px));
+      background: #edf6ff;
+    }
+
+    canvas { display: block; width: 100%; height: clamp(390px, 54vw, 540px); }
+
+    .hud {
+      position: absolute;
+      inset: 14px 14px auto;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 9px;
+      pointer-events: none;
+    }
+
+    .hud-card {
+      padding: 9px 12px;
+      border: 1px solid rgb(255 255 255 / 80%);
+      border-radius: 14px;
+      background: rgb(255 255 255 / 91%);
+      box-shadow: 0 8px 22px rgb(23 35 59 / 10%);
+      backdrop-filter: blur(8px);
+    }
+
+    .hud-card span { display: block; color: var(--muted); font-size: .72rem; font-weight: 900; text-transform: uppercase; }
+    .hud-card strong { display: block; margin-top: 2px; font-size: clamp(.86rem, 2.3vw, 1.05rem); }
+    .hot strong { color: var(--red); }
+    .cold strong { color: var(--blue); }
+    .result strong { color: var(--green); }
+
+    .prompt {
+      position: relative;
+      z-index: 2;
+      margin: -66px 14px 14px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgb(255 255 255 / 97%);
+      box-shadow: 0 12px 32px rgb(23 35 59 / 15%);
+    }
+
+    .phase { margin: 0 0 5px; color: var(--blue); font-size: .76rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+    h2 { margin: 0; font-size: clamp(1.05rem, 3vw, 1.35rem); }
+    .helper { min-height: 1.45em; margin: 6px 0 0; color: var(--muted); line-height: 1.4; }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 13px;
+    }
+
+    .sample {
+      padding: 11px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #f8fafc;
+    }
+
+    .sample-title { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 9px; font-size: .86rem; font-weight: 900; }
+    .sample-title output { color: var(--muted); font-size: .78rem; }
+    .field { margin-top: 8px; }
+    .field label { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: .78rem; font-weight: 900; }
+    select {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid #cbd7e7;
+      border-radius: 10px;
+      padding: 7px 9px;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 800;
+    }
+    input[type="range"] { width: 100%; margin: 8px 0 0; accent-color: var(--blue); cursor: pointer; }
+    input:disabled,
+    select:disabled { cursor: default; opacity: .55; }
+
+    .prediction {
+      display: flex;
+      align-items: end;
+      gap: 8px;
+      margin-top: 13px;
+    }
+
+    .prediction label { font-size: .86rem; font-weight: 900; }
+    .prediction-input {
+      width: 130px;
+      min-height: 46px;
+      margin-top: 5px;
+      border: 2px solid #cbd7e7;
+      border-radius: 12px;
+      padding: 8px 11px;
+      color: var(--ink);
+      font-weight: 900;
+    }
+
+    .unit { padding-bottom: 12px; color: var(--muted); font-weight: 800; }
+    .action-row { display: flex; justify-content: flex-end; margin-top: 12px; }
+    .main { border: 0; padding: 11px 20px; background: var(--blue); color: #fff; }
+    .main:disabled { cursor: not-allowed; opacity: .5; }
+
+    .main:focus-visible,
+    .reset:focus-visible,
+    input:focus-visible,
+    select:focus-visible { outline: 3px solid rgb(37 99 235 / 22%); outline-offset: 2px; }
+    [hidden] { display: none !important; }
+
+    @media (max-width: 640px) {
+      body { padding: 0; }
+      .walkthrough { min-height: 100vh; border: 0; border-radius: 0; }
+      .simulation { min-height: calc(100vh - 69px); }
+      canvas { height: 450px; }
+      .prompt { margin-top: -46px; }
+      .controls { grid-template-columns: 1fr; }
+      .hud { grid-template-columns: 1fr 1fr; }
+      .hud-card.result { grid-column: 1 / -1; }
+      .main { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="walkthrough" data-walkthrough>
+    <header>
+      <div>
+        <div class="subhead">Energy lost = energy gained</div>
+        <h1>Thermal Equilibrium Mixer</h1>
+      </div>
+      <button class="reset" type="button" data-reset>Reset</button>
+    </header>
+
+    <section class="simulation" aria-label="Hot and cool samples mixing in an insulated container">
+      <canvas data-canvas width="1000" height="540"></canvas>
+
+      <div class="hud" aria-live="polite">
+        <div class="hud-card hot">
+          <span>Hot sample</span>
+          <strong data-hot-hud>Water / 85 C</strong>
+        </div>
+        <div class="hud-card cold">
+          <span>Cool sample</span>
+          <strong data-cold-hud>Aluminum / 20 C</strong>
+        </div>
+        <div class="hud-card result">
+          <span>Equilibrium</span>
+          <strong data-result-hud>Hidden</strong>
+        </div>
+      </div>
+
+      <div class="prompt" aria-live="polite">
+        <p class="phase" data-phase>Set</p>
+        <h2 data-question>Build a hot-and-cool mixture.</h2>
+        <p class="helper" data-helper>Choose each material, mass, and temperature; assume an insulated system.</p>
+
+        <div class="controls" data-controls>
+          <div class="sample">
+            <div class="sample-title"><span>Hot sample</span><output data-hot-c>c = 4186 J/(kg C)</output></div>
+            <select data-hot-material aria-label="Hot sample material"></select>
+            <div class="field">
+              <label for="hot-mass">Mass <output data-hot-mass-output>0.40 kg</output></label>
+              <input id="hot-mass" data-hot-mass type="range" min="0.10" max="1.00" step="0.05" value="0.40">
+            </div>
+            <div class="field">
+              <label for="hot-temp">Temperature <output data-hot-temp-output>85 C</output></label>
+              <input id="hot-temp" data-hot-temp type="range" min="40" max="100" step="1" value="85">
+            </div>
+          </div>
+
+          <div class="sample">
+            <div class="sample-title"><span>Cool sample</span><output data-cold-c>c = 900 J/(kg C)</output></div>
+            <select data-cold-material aria-label="Cool sample material"></select>
+            <div class="field">
+              <label for="cold-mass">Mass <output data-cold-mass-output>0.25 kg</output></label>
+              <input id="cold-mass" data-cold-mass type="range" min="0.10" max="1.00" step="0.05" value="0.25">
+            </div>
+            <div class="field">
+              <label for="cold-temp">Temperature <output data-cold-temp-output>20 C</output></label>
+              <input id="cold-temp" data-cold-temp type="range" min="0" max="35" step="1" value="20">
+            </div>
+          </div>
+        </div>
+
+        <div class="prediction" data-prediction hidden>
+          <label for="equilibrium-prediction">Predict the equilibrium temperature
+            <input class="prediction-input" id="equilibrium-prediction" data-prediction-input type="number" min="0" max="100" step="0.1" inputmode="decimal" placeholder="?">
+          </label>
+          <span class="unit">C</span>
+        </div>
+
+        <div class="action-row">
+          <button class="main" type="button" data-main>Lock mixture</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const root = document.querySelector('[data-walkthrough]');
+      const canvas = root.querySelector('[data-canvas]');
+      const ctx = canvas.getContext('2d');
+      const phase = root.querySelector('[data-phase]');
+      const question = root.querySelector('[data-question]');
+      const helper = root.querySelector('[data-helper]');
+      const controls = root.querySelector('[data-controls]');
+      const predictionWrap = root.querySelector('[data-prediction]');
+      const predictionInput = root.querySelector('[data-prediction-input]');
+      const mainButton = root.querySelector('[data-main]');
+      const hotHud = root.querySelector('[data-hot-hud]');
+      const coldHud = root.querySelector('[data-cold-hud]');
+      const resultHud = root.querySelector('[data-result-hud]');
+      const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      const materials = {
+        water: { name: 'Water', c: 4186, color: '#dc2626' },
+        aluminum: { name: 'Aluminum', c: 900, color: '#94a3b8' },
+        glass: { name: 'Glass', c: 840, color: '#0ea5e9' },
+        copper: { name: 'Copper', c: 385, color: '#b45309' }
+      };
+
+      const fields = {
+        hotMaterial: root.querySelector('[data-hot-material]'),
+        coldMaterial: root.querySelector('[data-cold-material]'),
+        hotMass: root.querySelector('[data-hot-mass]'),
+        coldMass: root.querySelector('[data-cold-mass]'),
+        hotTemp: root.querySelector('[data-hot-temp]'),
+        coldTemp: root.querySelector('[data-cold-temp]')
+      };
+
+      let state = 'set';
+      let mixProgress = 0;
+      let actualTemp = 0;
+      let predictedTemp = 0;
+      let animationFrame = 0;
+
+      function populateSelect(select, selected) {
+        Object.entries(materials).forEach(([key, material]) => {
+          const option = document.createElement('option');
+          option.value = key;
+          option.textContent = material.name;
+          option.selected = key === selected;
+          select.append(option);
+        });
+      }
+
+      populateSelect(fields.hotMaterial, 'water');
+      populateSelect(fields.coldMaterial, 'aluminum');
+
+      function values() {
+        return {
+          hotMaterial: materials[fields.hotMaterial.value],
+          coldMaterial: materials[fields.coldMaterial.value],
+          hotMass: Number(fields.hotMass.value),
+          coldMass: Number(fields.coldMass.value),
+          hotTemp: Number(fields.hotTemp.value),
+          coldTemp: Number(fields.coldTemp.value)
+        };
+      }
+
+      function calculateEquilibrium() {
+        const v = values();
+        const hotCapacity = v.hotMass * v.hotMaterial.c;
+        const coldCapacity = v.coldMass * v.coldMaterial.c;
+        return (hotCapacity * v.hotTemp + coldCapacity * v.coldTemp) / (hotCapacity + coldCapacity);
+      }
+
+      function drawThermometer(x, y, temperature, color) {
+        const min = 0;
+        const max = 100;
+        const height = 150;
+        const fillHeight = Math.max(0, Math.min(1, (temperature - min) / (max - min))) * height;
+        ctx.strokeStyle = '#17233b';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.roundRect(x - 13, y - height, 26, height, 13);
+        ctx.stroke();
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.roundRect(x - 7, y - fillHeight, 14, fillHeight, 7);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x, y + 8, 19, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      function drawCup(x, y, width, height, fill, fillLevel, label) {
+        ctx.fillStyle = 'rgb(255 255 255 / 82%)';
+        ctx.strokeStyle = '#17233b';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.roundRect(x - width / 2, y - height, width, height, 12);
+        ctx.fill();
+        ctx.stroke();
+        if (fillLevel > 0) {
+          ctx.fillStyle = fill;
+          ctx.globalAlpha = .72;
+          ctx.beginPath();
+          ctx.roundRect(x - width / 2 + 7, y - (height - 8) * fillLevel - 7, width - 14, (height - 8) * fillLevel, 7);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        ctx.fillStyle = '#17233b';
+        ctx.font = '900 18px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, x, y + 31);
+      }
+
+      function draw() {
+        const v = values();
+        ctx.clearRect(0, 0, 1000, 540);
+        const gradient = ctx.createLinearGradient(0, 0, 0, 540);
+        gradient.addColorStop(0, '#dff1ff');
+        gradient.addColorStop(.72, '#f8fcff');
+        gradient.addColorStop(.72, '#d1dbe5');
+        gradient.addColorStop(1, '#afbdcb');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 1000, 540);
+
+        const sideOpacity = state === 'reveal' ? Math.max(.2, 1 - mixProgress) : state === 'result' ? .18 : 1;
+        ctx.globalAlpha = sideOpacity;
+        drawCup(240, 405, 160, 190, v.hotMaterial.color, .72, 'HOT');
+        drawCup(760, 405, 160, 190, v.coldMaterial.color, .72, 'COOL');
+        drawThermometer(335, 385, v.hotTemp, '#dc2626');
+        drawThermometer(855, 385, v.coldTemp, '#2563eb');
+        ctx.globalAlpha = 1;
+
+        const centerFill = state === 'set' || state === 'predict' ? 0 : Math.min(1, mixProgress * 1.25);
+        const mixedColor = '#7c3aed';
+        drawCup(500, 430, 210, 230, mixedColor, centerFill, 'INSULATED MIXER');
+
+        if (state === 'reveal' || state === 'result') {
+          const shownTemp = v.coldTemp + (actualTemp - v.coldTemp) * Math.min(1, mixProgress * 1.2);
+          drawThermometer(625, 405, shownTemp, mixedColor);
+        }
+
+        if (state === 'reveal') {
+          ctx.fillStyle = '#7c3aed';
+          for (let i = 0; i < 7; i++) {
+            const p = (mixProgress + i / 7) % 1;
+            const leftX = 310 + 175 * p;
+            const rightX = 690 - 175 * p;
+            const dropY = 215 + 150 * p;
+            ctx.beginPath();
+            ctx.arc(leftX, dropY, 7, 0, Math.PI * 2);
+            ctx.arc(rightX, dropY, 7, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        ctx.fillStyle = '#17233b';
+        ctx.font = '900 20px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(v.hotTemp + ' C', 240, 180);
+        ctx.fillText(v.coldTemp + ' C', 760, 180);
+
+        if (state === 'result') {
+          const q = v.coldMass * v.coldMaterial.c * (actualTemp - v.coldTemp);
+          ctx.fillStyle = 'rgb(255 255 255 / 94%)';
+          ctx.strokeStyle = '#dce4ef';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.roundRect(350, 115, 300, 72, 15);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = '#17233b';
+          ctx.font = '900 18px system-ui';
+          ctx.fillText('Energy transferred: ' + Math.round(q) + ' J', 500, 145);
+          ctx.fillText('Q lost = Q gained', 500, 171);
+        }
+      }
+
+      function updateLabels() {
+        const v = values();
+        root.querySelector('[data-hot-c]').textContent = 'c = ' + v.hotMaterial.c + ' J/(kg C)';
+        root.querySelector('[data-cold-c]').textContent = 'c = ' + v.coldMaterial.c + ' J/(kg C)';
+        root.querySelector('[data-hot-mass-output]').textContent = v.hotMass.toFixed(2) + ' kg';
+        root.querySelector('[data-cold-mass-output]').textContent = v.coldMass.toFixed(2) + ' kg';
+        root.querySelector('[data-hot-temp-output]').textContent = v.hotTemp + ' C';
+        root.querySelector('[data-cold-temp-output]').textContent = v.coldTemp + ' C';
+        hotHud.textContent = v.hotMaterial.name + ' / ' + v.hotTemp + ' C';
+        coldHud.textContent = v.coldMaterial.name + ' / ' + v.coldTemp + ' C';
+        draw();
+      }
+
+      function setControlsDisabled(disabled) {
+        Object.values(fields).forEach(field => { field.disabled = disabled; });
+      }
+
+      function lockMixture() {
+        state = 'predict';
+        setControlsDisabled(true);
+        predictionWrap.hidden = false;
+        phase.textContent = 'Predict';
+        question.textContent = 'What temperature will both samples reach?';
+        helper.textContent = 'The final temperature must fall between the two starting temperatures.';
+        mainButton.textContent = 'Mix samples';
+        predictionInput.focus();
+      }
+
+      function mix() {
+        const prediction = Number(predictionInput.value);
+        if (!Number.isFinite(prediction) || predictionInput.value.trim() === '') {
+          helper.textContent = 'Enter a temperature prediction before mixing.';
+          predictionInput.focus();
+          return;
+        }
+
+        predictedTemp = prediction;
+        actualTemp = calculateEquilibrium();
+        state = 'reveal';
+        predictionInput.disabled = true;
+        mainButton.disabled = true;
+        phase.textContent = 'Reveal';
+        question.textContent = 'Heat flows until both samples reach one temperature.';
+        helper.textContent = 'The sample with greater mass times specific heat has more thermal influence.';
+        let start = 0;
+        const duration = reduceMotion ? 80 : 1800;
+
+        function frame(time) {
+          if (!start) start = time;
+          mixProgress = Math.min(1, (time - start) / duration);
+          draw();
+          if (mixProgress < 1) animationFrame = requestAnimationFrame(frame);
+          else showResult();
+        }
+        animationFrame = requestAnimationFrame(frame);
+      }
+
+      function showResult() {
+        const error = Math.abs(predictedTemp - actualTemp);
+        state = 'result';
+        resultHud.textContent = actualTemp.toFixed(1) + ' C';
+        phase.textContent = 'Explain';
+        question.textContent = 'Equilibrium: ' + actualTemp.toFixed(1) + ' C';
+        helper.textContent = (error <= 1 ? 'Prediction within 1 C. ' : 'Compare your prediction with the result. ') +
+          'Tf = (m1 c1 T1 + m2 c2 T2) / (m1 c1 + m2 c2).';
+        controls.hidden = true;
+        predictionWrap.hidden = true;
+        predictionInput.disabled = false;
+        mainButton.disabled = false;
+        mainButton.textContent = 'Try another mixture';
+        draw();
+      }
+
+      function reset() {
+        cancelAnimationFrame(animationFrame);
+        state = 'set';
+        mixProgress = 0;
+        actualTemp = 0;
+        predictedTemp = 0;
+        controls.hidden = false;
+        predictionWrap.hidden = true;
+        predictionInput.disabled = false;
+        predictionInput.value = '';
+        setControlsDisabled(false);
+        resultHud.textContent = 'Hidden';
+        phase.textContent = 'Set';
+        question.textContent = 'Build a hot-and-cool mixture.';
+        helper.textContent = 'Choose each material, mass, and temperature; assume an insulated system.';
+        mainButton.disabled = false;
+        mainButton.textContent = 'Lock mixture';
+        updateLabels();
+      }
+
+      Object.values(fields).forEach(field => {
+        field.addEventListener(field.tagName === 'SELECT' ? 'change' : 'input', updateLabels);
+      });
+      predictionInput.addEventListener('keydown', event => {
+        if (event.key === 'Enter' && state === 'predict') mix();
+      });
+      mainButton.addEventListener('click', () => {
+        if (state === 'set') lockMixture();
+        else if (state === 'predict') mix();
+        else if (state === 'result') reset();
+      });
+      root.querySelector('[data-reset]').addEventListener('click', reset);
+      reset();
+    })();
+  </script>
+</body>
+</html>

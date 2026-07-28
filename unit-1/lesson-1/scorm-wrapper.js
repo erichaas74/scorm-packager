@@ -142,6 +142,10 @@
     commit();
   }
 
+  function isInitialized() {
+    return _initialized;
+  }
+
   global.addEventListener('load', function () {
     initialize();
   });
@@ -157,6 +161,7 @@
     getValue: getValue,
     setValue: setValue,
     setScore: setScore,
-    setStatus: setStatus
+    setStatus: setStatus,
+    isInitialized: isInitialized
   };
 }(window));

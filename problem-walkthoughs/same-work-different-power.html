@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Same Work, Different Power</title>
+  <style>
+    :root {
+      --ink: #17233b;
+      --muted: #5e6b82;
+      --panel: #ffffff;
+      --line: #dce4ef;
+      --blue: #2563eb;
+      --orange: #ea580c;
+      --green: #15803d;
+      --soft: #eef4ff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background: #e9eff7;
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button { font: inherit; }
+
+    .walkthrough {
+      width: min(100%, 1040px);
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: var(--panel);
+      box-shadow: 0 18px 50px rgb(23 35 59 / 14%);
+    }
+
+    header {
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1 { margin: 0; font-size: clamp(1.05rem, 3vw, 1.45rem); }
+    .progress { color: var(--muted); font-size: .86rem; font-weight: 700; }
+
+    .reset,
+    .choice,
+    .main {
+      min-height: 44px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .reset {
+      border: 1px solid var(--line);
+      padding: 8px 14px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .simulation {
+      position: relative;
+      min-height: min(680px, calc(100vh - 120px));
+      background: linear-gradient(#eaf5ff 0 58%, #d7e0eb 58% 100%);
+    }
+
+    canvas { display: block; width: 100%; height: clamp(370px, 55vw, 540px); }
+
+    .hud {
+      position: absolute;
+      inset: 14px 14px auto;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .meter {
+      width: min(42%, 250px);
+      padding: 10px 12px;
+      border: 1px solid rgb(255 255 255 / 80%);
+      border-radius: 14px;
+      background: rgb(255 255 255 / 88%);
+      box-shadow: 0 8px 22px rgb(23 35 59 / 10%);
+      backdrop-filter: blur(8px);
+    }
+
+    .meter strong { display: block; font-size: .9rem; }
+    .meter span { color: var(--muted); font-size: .8rem; }
+    .value { margin-top: 3px; color: var(--ink) !important; font-size: 1.05rem !important; font-weight: 900; }
+    .fast strong { color: var(--orange); }
+    .slow strong { color: var(--blue); }
+
+    .prompt {
+      position: relative;
+      z-index: 2;
+      margin: -72px 14px 14px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgb(255 255 255 / 96%);
+      box-shadow: 0 12px 32px rgb(23 35 59 / 15%);
+    }
+
+    .phase { margin: 0 0 5px; color: var(--blue); font-size: .76rem; letter-spacing: .1em; text-transform: uppercase; }
+    h2 { margin: 0; font-size: clamp(1.05rem, 3vw, 1.35rem); }
+    .helper { min-height: 1.45em; margin: 6px 0 0; color: var(--muted); line-height: 1.4; }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 9px;
+      margin-top: 13px;
+    }
+
+    .choice {
+      flex: 1 1 150px;
+      border: 2px solid #cbd7e7;
+      padding: 10px 12px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .choice:hover,
+    .choice:focus-visible { border-color: var(--blue); outline: 3px solid rgb(37 99 235 / 18%); }
+
+    .main {
+      margin-left: auto;
+      border: 0;
+      padding: 11px 18px;
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .main:focus-visible,
+    .reset:focus-visible { outline: 3px solid rgb(37 99 235 / 25%); outline-offset: 2px; }
+    [hidden] { display: none !important; }
+
+    @media (max-width: 620px) {
+      body { padding: 0; }
+      .walkthrough { min-height: 100vh; border: 0; border-radius: 0; }
+      .simulation { min-height: calc(100vh - 65px); }
+      canvas { height: 470px; }
+      .prompt { margin-top: -52px; }
+      .meter { width: 48%; }
+      .main { width: 100%; margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="walkthrough" data-walkthrough>
+    <header>
+      <div>
+        <div class="progress" data-progress>Question 1 of 2</div>
+        <h1>Same Work, Different Power</h1>
+      </div>
+      <button class="reset" type="button" data-reset>Reset</button>
+    </header>
+
+    <section class="simulation" aria-label="Two winches lifting equal loads to equal heights">
+      <canvas data-canvas width="1000" height="540"></canvas>
+
+      <div class="hud" aria-hidden="true">
+        <div class="meter slow">
+          <strong>Slow winch</strong>
+          <span>20 kg / 2 m / 4 s</span>
+          <span class="value" data-slow-value>Work: hidden</span>
+        </div>
+        <div class="meter fast">
+          <strong>Fast winch</strong>
+          <span>20 kg / 2 m / 2 s</span>
+          <span class="value" data-fast-value>Work: hidden</span>
+        </div>
+      </div>
+
+      <div class="prompt" aria-live="polite">
+        <p class="phase" data-phase>Predict work</p>
+        <h2 data-question>Which winch does more work on its load?</h2>
+        <p class="helper" data-helper>Both loads have the same mass and rise through the same height.</p>
+        <div class="actions">
+          <div class="actions" data-choices>
+            <button class="choice" type="button" data-choice="slow">Slow winch</button>
+            <button class="choice" type="button" data-choice="fast">Fast winch</button>
+            <button class="choice" type="button" data-choice="same">Same work</button>
+          </div>
+          <button class="main" type="button" data-main hidden>Continue</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const root = document.querySelector('[data-walkthrough]');
+      const canvas = root.querySelector('[data-canvas]');
+      const ctx = canvas.getContext('2d');
+      const progressLabel = root.querySelector('[data-progress]');
+      const phase = root.querySelector('[data-phase]');
+      const question = root.querySelector('[data-question]');
+      const helper = root.querySelector('[data-helper]');
+      const choices = root.querySelector('[data-choices]');
+      const choiceButtons = [...root.querySelectorAll('[data-choice]')];
+      const mainButton = root.querySelector('[data-main]');
+      const slowValue = root.querySelector('[data-slow-value]');
+      const fastValue = root.querySelector('[data-fast-value]');
+      const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      const work = 20 * 9.8 * 2;
+      let state = 'predict-work';
+      let animationFrame = 0;
+      let slowProgress = 0;
+      let fastProgress = 0;
+      let workPrediction = null;
+      let powerPrediction = null;
+
+      function roundedRect(x, y, width, height, radius, fill, stroke) {
+        ctx.beginPath();
+        ctx.roundRect(x, y, width, height, radius);
+        ctx.fillStyle = fill;
+        ctx.fill();
+        if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 3; ctx.stroke(); }
+      }
+
+      function drawWinch(x, color, label, progress, duration) {
+        const ground = 455;
+        const top = 165;
+        const boxY = ground - progress * (ground - top);
+
+        ctx.strokeStyle = '#8090a8';
+        ctx.lineWidth = 7;
+        ctx.beginPath();
+        ctx.moveTo(x - 128, 105);
+        ctx.lineTo(x + 128, 105);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#526178';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(x, 105, 27, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, 132);
+        ctx.lineTo(x, boxY - 34);
+        ctx.stroke();
+
+        roundedRect(x - 60, boxY - 34, 120, 68, 12, color, '#17233b');
+        ctx.fillStyle = '#fff';
+        ctx.font = '800 20px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('20 kg', x, boxY + 7);
+
+        ctx.fillStyle = '#17233b';
+        ctx.font = '800 20px system-ui';
+        ctx.fillText(label, x, 70);
+        ctx.fillStyle = '#5e6b82';
+        ctx.font = '700 15px system-ui';
+        ctx.fillText(duration + ' seconds', x, 495);
+
+        ctx.strokeStyle = '#15803d';
+        ctx.lineWidth = 4;
+        ctx.setLineDash([8, 7]);
+        ctx.beginPath();
+        ctx.moveTo(x + 88, ground);
+        ctx.lineTo(x + 88, top);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#15803d';
+        ctx.font = '800 16px system-ui';
+        ctx.fillText('2 m', x + 116, 315);
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const gradient = ctx.createLinearGradient(0, 0, 0, 540);
+        gradient.addColorStop(0, '#dff1ff');
+        gradient.addColorStop(.72, '#f7fbff');
+        gradient.addColorStop(.72, '#cfd9e5');
+        gradient.addColorStop(1, '#aebccb');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.strokeStyle = '#7d8ca0';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(500, 35);
+        ctx.lineTo(500, 485);
+        ctx.stroke();
+
+        drawWinch(255, '#2563eb', 'SLOW', slowProgress, 4);
+        drawWinch(745, '#ea580c', 'FAST', fastProgress, 2);
+      }
+
+      function animateLift(done) {
+        cancelAnimationFrame(animationFrame);
+        slowProgress = 0;
+        fastProgress = 0;
+        const total = reduceMotion ? 80 : 3600;
+        let start = 0;
+
+        function frame(time) {
+          if (!start) start = time;
+          const elapsed = time - start;
+          slowProgress = Math.min(1, elapsed / total);
+          fastProgress = Math.min(1, elapsed / (total / 2));
+          draw();
+          if (slowProgress < 1) animationFrame = requestAnimationFrame(frame);
+          else done();
+        }
+
+        animationFrame = requestAnimationFrame(frame);
+      }
+
+      function resultText(isCorrect, result, reason) {
+        return (isCorrect ? 'Correct. ' : 'Notice the result: ') + result + ' ' + reason;
+      }
+
+      function revealWork() {
+        state = 'revealing-work';
+        phase.textContent = 'Reveal';
+        question.textContent = 'Watch both loads reach the same height.';
+        helper.textContent = 'The fast winch finishes first, but both transfer the same energy.';
+        choices.hidden = true;
+        animateLift(() => {
+          state = 'work-result';
+          slowValue.textContent = 'Work: 392 J';
+          fastValue.textContent = 'Work: 392 J';
+          phase.textContent = 'Result';
+          question.textContent = 'Both winches do 392 J of work.';
+          helper.textContent = resultText(workPrediction === 'same', 'The work is equal.', 'Work depends on force and distance, not time.');
+          mainButton.textContent = 'Predict power';
+          mainButton.hidden = false;
+        });
+      }
+
+      function askPower() {
+        state = 'predict-power';
+        progressLabel.textContent = 'Question 2 of 2';
+        phase.textContent = 'Predict power';
+        question.textContent = 'Which winch produces more power?';
+        helper.textContent = 'Both do 392 J of work. One finishes in half the time.';
+        mainButton.hidden = true;
+        choices.hidden = false;
+        slowProgress = 0;
+        fastProgress = 0;
+        slowValue.textContent = 'Work: 392 J';
+        fastValue.textContent = 'Work: 392 J';
+        draw();
+      }
+
+      function revealPower() {
+        state = 'revealing-power';
+        phase.textContent = 'Reveal';
+        question.textContent = 'Watch the same work happen at two rates.';
+        helper.textContent = 'Power equals work divided by time.';
+        choices.hidden = true;
+        slowValue.textContent = 'Power: hidden';
+        fastValue.textContent = 'Power: hidden';
+        animateLift(() => {
+          state = 'done';
+          slowValue.textContent = 'Power: 98 W';
+          fastValue.textContent = 'Power: 196 W';
+          phase.textContent = 'Explain';
+          question.textContent = 'The fast winch is twice as powerful.';
+          helper.textContent = resultText(powerPrediction === 'fast', 'It transfers the same 392 J in half the time.', 'Same work, less time means more power.');
+          mainButton.textContent = 'Try again';
+          mainButton.hidden = false;
+        });
+      }
+
+      function reset() {
+        cancelAnimationFrame(animationFrame);
+        state = 'predict-work';
+        slowProgress = 0;
+        fastProgress = 0;
+        workPrediction = null;
+        powerPrediction = null;
+        progressLabel.textContent = 'Question 1 of 2';
+        phase.textContent = 'Predict work';
+        question.textContent = 'Which winch does more work on its load?';
+        helper.textContent = 'Both loads have the same mass and rise through the same height.';
+        choices.hidden = false;
+        mainButton.hidden = true;
+        slowValue.textContent = 'Work: hidden';
+        fastValue.textContent = 'Work: hidden';
+        draw();
+      }
+
+      choiceButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          if (state === 'predict-work') {
+            workPrediction = button.dataset.choice;
+            revealWork();
+          } else if (state === 'predict-power') {
+            powerPrediction = button.dataset.choice;
+            revealPower();
+          }
+        });
+      });
+
+      mainButton.addEventListener('click', () => {
+        if (state === 'work-result') askPower();
+        else if (state === 'done') reset();
+      });
+      root.querySelector('[data-reset]').addEventListener('click', reset);
+      reset();
+    })();
+  </script>
+</body>
+</html>

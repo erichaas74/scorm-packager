@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spring Launcher Challenge</title>
+  <style>
+    :root {
+      --ink: #17233b;
+      --muted: #5e6b82;
+      --line: #dce4ef;
+      --blue: #2563eb;
+      --orange: #ea580c;
+      --green: #15803d;
+      --gold: #f59e0b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background: #e9eff7;
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button,
+    input { font: inherit; }
+
+    .walkthrough {
+      width: min(100%, 1040px);
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: #fff;
+      box-shadow: 0 18px 50px rgb(23 35 59 / 14%);
+    }
+
+    header {
+      min-height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1 { margin: 0; font-size: clamp(1.05rem, 3vw, 1.45rem); }
+    .round { color: var(--muted); font-size: .84rem; font-weight: 800; }
+
+    .header-actions { display: flex; align-items: center; gap: 9px; }
+    .score {
+      min-width: 90px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      background: #fff6d8;
+      color: #8a4b00;
+      text-align: center;
+      font-weight: 900;
+    }
+
+    .reset,
+    .main {
+      min-height: 44px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .reset {
+      border: 1px solid var(--line);
+      padding: 8px 14px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .simulation {
+      position: relative;
+      min-height: min(720px, calc(100vh - 122px));
+      background: #eaf5ff;
+    }
+
+    canvas { display: block; width: 100%; height: clamp(380px, 55vw, 540px); }
+
+    .hud {
+      position: absolute;
+      inset: 14px 14px auto;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 9px;
+      pointer-events: none;
+    }
+
+    .hud-card {
+      padding: 9px 12px;
+      border: 1px solid rgb(255 255 255 / 80%);
+      border-radius: 14px;
+      background: rgb(255 255 255 / 90%);
+      box-shadow: 0 8px 22px rgb(23 35 59 / 10%);
+      backdrop-filter: blur(8px);
+    }
+
+    .hud-card span { display: block; color: var(--muted); font-size: .74rem; font-weight: 800; text-transform: uppercase; }
+    .hud-card strong { display: block; margin-top: 2px; font-size: clamp(.92rem, 2.5vw, 1.12rem); }
+    .hud-card.target strong { color: var(--blue); }
+    .hud-card.result strong { color: var(--green); }
+
+    .prompt {
+      position: relative;
+      z-index: 2;
+      margin: -68px 14px 14px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgb(255 255 255 / 97%);
+      box-shadow: 0 12px 32px rgb(23 35 59 / 15%);
+    }
+
+    .phase { margin: 0 0 5px; color: var(--blue); font-size: .76rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+    h2 { margin: 0; font-size: clamp(1.05rem, 3vw, 1.35rem); }
+    .helper { min-height: 1.45em; margin: 6px 0 0; color: var(--muted); line-height: 1.4; }
+
+    .settings {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 13px;
+    }
+
+    .control {
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: #f8fafc;
+    }
+
+    .control label { display: flex; justify-content: space-between; gap: 10px; font-size: .88rem; font-weight: 900; }
+    .control output { color: var(--blue); }
+    input[type="range"] { width: 100%; margin: 11px 0 1px; accent-color: var(--blue); cursor: pointer; }
+    input[type="range"]:disabled { cursor: default; opacity: .55; }
+
+    .prediction {
+      display: flex;
+      align-items: end;
+      gap: 8px;
+      margin-top: 13px;
+    }
+
+    .prediction label { font-size: .86rem; font-weight: 900; }
+    .prediction-input {
+      width: 130px;
+      min-height: 46px;
+      margin-top: 5px;
+      border: 2px solid #cbd7e7;
+      border-radius: 12px;
+      padding: 8px 11px;
+      color: var(--ink);
+      font-weight: 900;
+    }
+
+    .unit { padding-bottom: 12px; color: var(--muted); font-weight: 800; }
+
+    .action-row { display: flex; justify-content: flex-end; margin-top: 12px; }
+    .main {
+      border: 0;
+      padding: 11px 20px;
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .main:disabled { cursor: not-allowed; opacity: .5; }
+    .main:focus-visible,
+    .reset:focus-visible,
+    .prediction-input:focus-visible,
+    input[type="range"]:focus-visible { outline: 3px solid rgb(37 99 235 / 22%); outline-offset: 2px; }
+    [hidden] { display: none !important; }
+
+    @media (max-width: 620px) {
+      body { padding: 0; }
+      .walkthrough { min-height: 100vh; border: 0; border-radius: 0; }
+      .simulation { min-height: calc(100vh - 69px); }
+      canvas { height: 440px; }
+      .prompt { margin-top: -48px; }
+      .settings { grid-template-columns: 1fr; }
+      .hud { grid-template-columns: 1fr 1fr; }
+      .hud-card.result { grid-column: 1 / -1; }
+      .score { min-width: 72px; }
+      .reset { padding-inline: 10px; }
+      .main { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="walkthrough" data-walkthrough>
+    <header>
+      <div>
+        <div class="round" data-round>Round 1 of 5</div>
+        <h1>Spring Launcher Challenge</h1>
+      </div>
+      <div class="header-actions">
+        <div class="score" data-score>Score 0</div>
+        <button class="reset" type="button" data-reset>New game</button>
+      </div>
+    </header>
+
+    <section class="simulation" aria-label="Adjustable spring launcher and cart">
+      <canvas data-canvas width="1000" height="540"></canvas>
+
+      <div class="hud" aria-live="polite">
+        <div class="hud-card target">
+          <span>Target zone</span>
+          <strong data-target>4.0 +/- 0.35 m/s</strong>
+        </div>
+        <div class="hud-card">
+          <span>Cart mass</span>
+          <strong data-mass>2.0 kg</strong>
+        </div>
+        <div class="hud-card result">
+          <span>Launch speed</span>
+          <strong data-speed>Hidden</strong>
+        </div>
+      </div>
+
+      <div class="prompt" aria-live="polite">
+        <p class="phase" data-phase>Set</p>
+        <h2 data-question>Tune the launcher to hit the target speed.</h2>
+        <p class="helper" data-helper>Earn 2 points for an accurate prediction and 1 bonus point for the target.</p>
+
+        <div class="settings" data-settings>
+          <div class="control">
+            <label for="stiffness">Spring stiffness <output data-stiffness-output>200 N/m</output></label>
+            <input id="stiffness" data-stiffness type="range" min="50" max="500" step="25" value="200">
+          </div>
+          <div class="control">
+            <label for="compression">Compression <output data-compression-output>0.30 m</output></label>
+            <input id="compression" data-compression type="range" min="0.05" max="0.50" step="0.01" value="0.30">
+          </div>
+        </div>
+
+        <div class="prediction" data-prediction hidden>
+          <label for="speed-prediction">Your speed prediction
+            <input class="prediction-input" id="speed-prediction" data-prediction-input type="number" min="0" max="20" step="0.1" inputmode="decimal" placeholder="?">
+          </label>
+          <span class="unit">m/s</span>
+        </div>
+
+        <div class="action-row">
+          <button class="main" type="button" data-main>Lock setup</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const root = document.querySelector('[data-walkthrough]');
+      const canvas = root.querySelector('[data-canvas]');
+      const ctx = canvas.getContext('2d');
+      const roundLabel = root.querySelector('[data-round]');
+      const scoreLabel = root.querySelector('[data-score]');
+      const phase = root.querySelector('[data-phase]');
+      const question = root.querySelector('[data-question]');
+      const helper = root.querySelector('[data-helper]');
+      const targetLabel = root.querySelector('[data-target]');
+      const massLabel = root.querySelector('[data-mass]');
+      const speedLabel = root.querySelector('[data-speed]');
+      const stiffnessInput = root.querySelector('[data-stiffness]');
+      const compressionInput = root.querySelector('[data-compression]');
+      const stiffnessOutput = root.querySelector('[data-stiffness-output]');
+      const compressionOutput = root.querySelector('[data-compression-output]');
+      const predictionWrap = root.querySelector('[data-prediction]');
+      const predictionInput = root.querySelector('[data-prediction-input]');
+      const mainButton = root.querySelector('[data-main]');
+      const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      const rounds = [
+        { mass: 2.0, target: 4.0, stiffness: 200, compression: 0.30 },
+        { mass: 1.0, target: 6.0, stiffness: 250, compression: 0.35 },
+        { mass: 3.0, target: 3.5, stiffness: 175, compression: 0.30 },
+        { mass: 1.5, target: 7.0, stiffness: 350, compression: 0.36 },
+        { mass: 2.5, target: 5.5, stiffness: 300, compression: 0.38 }
+      ];
+
+      let roundIndex = 0;
+      let score = 0;
+      let state = 'set';
+      let launchProgress = 0;
+      let animationFrame = 0;
+      let actualSpeed = 0;
+      let predictedSpeed = 0;
+
+      function currentRound() { return rounds[roundIndex]; }
+      function stiffness() { return Number(stiffnessInput.value); }
+      function compression() { return Number(compressionInput.value); }
+      function calculateSpeed() { return compression() * Math.sqrt(stiffness() / currentRound().mass); }
+      function springEnergy() { return .5 * stiffness() * compression() * compression(); }
+
+      function drawSpring(x1, x2, y, coils, amplitude) {
+        const lead = 18;
+        const coilStart = x1 + lead;
+        const coilEnd = x2 - lead;
+        const segments = coils * 2;
+        ctx.strokeStyle = '#ea580c';
+        ctx.lineWidth = 8;
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(x1, y);
+        ctx.lineTo(coilStart, y);
+        for (let i = 1; i < segments; i++) {
+          const x = coilStart + (coilEnd - coilStart) * (i / segments);
+          const offset = i % 2 ? amplitude : -amplitude;
+          ctx.lineTo(x, y + offset);
+        }
+        ctx.lineTo(coilEnd, y);
+        ctx.lineTo(x2, y);
+        ctx.stroke();
+      }
+
+      function drawArrow(x1, y1, x2, y2, color, label) {
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 7;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - 20 * Math.cos(angle - .5), y2 - 20 * Math.sin(angle - .5));
+        ctx.lineTo(x2 - 20 * Math.cos(angle + .5), y2 - 20 * Math.sin(angle + .5));
+        ctx.closePath();
+        ctx.fill();
+        ctx.font = '900 17px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, (x1 + x2) / 2, y1 - 18);
+      }
+
+      function cartX() {
+        const compressedX = 355 - compression() * 220;
+        if (state !== 'reveal' && state !== 'result') return compressedX;
+        if (launchProgress <= .22) return compressedX + (355 - compressedX) * (launchProgress / .22);
+        return 355 + 520 * ((launchProgress - .22) / .78);
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, 1000, 540);
+        const gradient = ctx.createLinearGradient(0, 0, 0, 540);
+        gradient.addColorStop(0, '#dff1ff');
+        gradient.addColorStop(.68, '#f8fcff');
+        gradient.addColorStop(.68, '#cad5e1');
+        gradient.addColorStop(1, '#a8b8c8');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 1000, 540);
+
+        ctx.fillStyle = '#64748b';
+        ctx.fillRect(70, 360, 42, 118);
+        ctx.fillStyle = '#475569';
+        ctx.fillRect(55, 340, 72, 25);
+
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = 7;
+        ctx.beginPath();
+        ctx.moveTo(90, 438);
+        ctx.lineTo(925, 438);
+        ctx.stroke();
+
+        const x = cartX();
+        const springEnd = Math.min(x - 62, 350);
+        const coilCount = Math.round(6 + (stiffness() - 50) / 60);
+        drawSpring(108, springEnd, 389, coilCount, 21);
+
+        ctx.fillStyle = '#2563eb';
+        ctx.strokeStyle = '#17233b';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.roundRect(x - 62, 350, 124, 70, 13);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#fff';
+        ctx.font = '900 19px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(currentRound().mass.toFixed(1) + ' kg', x, 393);
+
+        for (const wheelX of [x - 38, x + 38]) {
+          ctx.fillStyle = '#17233b';
+          ctx.beginPath();
+          ctx.arc(wheelX, 428, 12, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        if (state === 'reveal' || state === 'result') {
+          const arrowLength = Math.min(250, actualSpeed * 34);
+          drawArrow(x - 20, 310, x - 20 + arrowLength, 310, '#15803d', actualSpeed.toFixed(1) + ' m/s');
+        }
+
+        ctx.fillStyle = '#17233b';
+        ctx.font = '900 22px system-ui';
+        ctx.textAlign = 'left';
+        ctx.fillText('SPRING LAUNCH TRACK', 60, 130);
+        ctx.fillStyle = '#5e6b82';
+        ctx.font = '700 16px system-ui';
+        ctx.fillText('Elastic energy becomes kinetic energy', 60, 157);
+
+        if (state === 'result') {
+          const energy = springEnergy();
+          ctx.fillStyle = 'rgb(255 255 255 / 92%)';
+          ctx.strokeStyle = '#dce4ef';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.roundRect(620, 178, 310, 90, 16);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = '#17233b';
+          ctx.font = '900 18px system-ui';
+          ctx.textAlign = 'center';
+          ctx.fillText('Spring PE = ' + energy.toFixed(1) + ' J', 775, 213);
+          ctx.fillText('Cart KE = ' + energy.toFixed(1) + ' J', 775, 246);
+        }
+      }
+
+      function updateSetup() {
+        stiffnessOutput.textContent = stiffness() + ' N/m';
+        compressionOutput.textContent = compression().toFixed(2) + ' m';
+        draw();
+      }
+
+      function loadRound() {
+        const round = currentRound();
+        state = 'set';
+        launchProgress = 0;
+        predictedSpeed = 0;
+        actualSpeed = 0;
+        stiffnessInput.disabled = false;
+        compressionInput.disabled = false;
+        stiffnessInput.value = round.stiffness;
+        compressionInput.value = round.compression;
+        predictionInput.value = '';
+        predictionWrap.hidden = true;
+        roundLabel.textContent = 'Round ' + (roundIndex + 1) + ' of ' + rounds.length;
+        scoreLabel.textContent = 'Score ' + score;
+        targetLabel.textContent = round.target.toFixed(1) + ' +/- 0.35 m/s';
+        massLabel.textContent = round.mass.toFixed(1) + ' kg';
+        speedLabel.textContent = 'Hidden';
+        phase.textContent = 'Set';
+        question.textContent = 'Tune the launcher to hit the target speed.';
+        helper.textContent = 'Earn 2 points for an accurate prediction and 1 bonus point for the target.';
+        mainButton.textContent = 'Lock setup';
+        mainButton.disabled = false;
+        updateSetup();
+      }
+
+      function lockSetup() {
+        state = 'predict';
+        stiffnessInput.disabled = true;
+        compressionInput.disabled = true;
+        predictionWrap.hidden = false;
+        phase.textContent = 'Predict';
+        question.textContent = 'What speed will the cart have when it leaves the spring?';
+        helper.textContent = 'Use the stored spring energy and the cart mass.';
+        mainButton.textContent = 'Launch';
+        predictionInput.focus();
+      }
+
+      function launch() {
+        const value = Number(predictionInput.value);
+        if (!Number.isFinite(value) || predictionInput.value.trim() === '') {
+          helper.textContent = 'Enter a speed prediction before launching.';
+          predictionInput.focus();
+          return;
+        }
+
+        predictedSpeed = value;
+        actualSpeed = calculateSpeed();
+        state = 'reveal';
+        predictionInput.disabled = true;
+        mainButton.disabled = true;
+        phase.textContent = 'Reveal';
+        question.textContent = 'Spring energy is becoming kinetic energy.';
+        helper.textContent = 'Watch the speed arrow as the cart leaves the spring.';
+        let start = 0;
+        const duration = reduceMotion ? 80 : Math.max(900, Math.min(2200, 5000 / Math.max(actualSpeed, 2)));
+
+        function frame(time) {
+          if (!start) start = time;
+          launchProgress = Math.min(1, (time - start) / duration);
+          draw();
+          if (launchProgress < 1) animationFrame = requestAnimationFrame(frame);
+          else showResult();
+        }
+        animationFrame = requestAnimationFrame(frame);
+      }
+
+      function showResult() {
+        const predictionError = Math.abs(predictedSpeed - actualSpeed);
+        const targetError = Math.abs(actualSpeed - currentRound().target);
+        const predictionPoints = predictionError <= .25 ? 2 : predictionError <= .75 ? 1 : 0;
+        const targetPoint = targetError <= .35 ? 1 : 0;
+        const roundPoints = predictionPoints + targetPoint;
+        score += roundPoints;
+        state = 'result';
+        speedLabel.textContent = actualSpeed.toFixed(2) + ' m/s';
+        scoreLabel.textContent = 'Score ' + score;
+        phase.textContent = 'Score';
+        question.textContent = '+' + roundPoints + ' points this round';
+
+        const predictionMessage = predictionPoints === 2
+          ? 'Prediction on target.'
+          : predictionPoints === 1
+            ? 'Prediction close.'
+            : 'Prediction missed.';
+        const targetMessage = targetPoint ? ' Launcher hit the target zone.' : ' Adjust the setup next round.';
+        helper.textContent = predictionMessage + targetMessage + ' v = x sqrt(k/m) = ' + actualSpeed.toFixed(2) + ' m/s.';
+        predictionWrap.hidden = true;
+        predictionInput.disabled = false;
+        mainButton.disabled = false;
+        mainButton.textContent = roundIndex === rounds.length - 1 ? 'See final score' : 'Next round';
+        draw();
+      }
+
+      function nextRound() {
+        if (roundIndex < rounds.length - 1) {
+          roundIndex += 1;
+          loadRound();
+          return;
+        }
+
+        state = 'complete';
+        phase.textContent = 'Challenge complete';
+        question.textContent = 'Final score: ' + score + ' / ' + (rounds.length * 3);
+        helper.textContent = score >= 13
+          ? 'Spring expert: precise setup and prediction.'
+          : score >= 9
+            ? 'Strong result. Replay to sharpen the target settings.'
+            : 'Replay and use v = x sqrt(k/m) to improve your score.';
+        mainButton.textContent = 'Play again';
+      }
+
+      function newGame() {
+        cancelAnimationFrame(animationFrame);
+        roundIndex = 0;
+        score = 0;
+        predictionInput.disabled = false;
+        loadRound();
+      }
+
+      stiffnessInput.addEventListener('input', updateSetup);
+      compressionInput.addEventListener('input', updateSetup);
+      predictionInput.addEventListener('keydown', event => {
+        if (event.key === 'Enter' && state === 'predict') launch();
+      });
+      mainButton.addEventListener('click', () => {
+        if (state === 'set') lockSetup();
+        else if (state === 'predict') launch();
+        else if (state === 'result') nextRound();
+        else if (state === 'complete') newGame();
+      });
+      root.querySelector('[data-reset]').addEventListener('click', newGame);
+      newGame();
+    })();
+  </script>
+</body>
+</html>

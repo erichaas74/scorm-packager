@@ -369,6 +369,13 @@ Essay patterns are in section 5.
     buttons before publishing (e.g., baseball-throw.html).
 11. **Package or inline all dependencies.** Replace Tailwind/CDN links with local or
     inline CSS; school networks and Buzz hosting may block external scripts and fonts.
+12. **Restrict clipboard actions in every assessment template.** Include the standard
+    `buzz-assessment-integrity-guard` script before `</body>`. It must prevent `copy`,
+    `cut`, `paste`, and `contextmenu` events in the capture phase and block the
+    Ctrl/Cmd+C, Ctrl/Cmd+X, and Ctrl/Cmd+V keyboard shortcuts. Capture-phase listeners
+    are required so the restriction also applies to Buzz question controls inserted
+    into `<a:question></a:question>` slots after the template loads. Generated preview
+    files inherit this guard from their source templates.
 
 ---
 

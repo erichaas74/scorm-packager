@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Insulated Cup Challenge</title>
+  <style>
+    :root {
+      --ink: #17233b;
+      --muted: #5e6b82;
+      --line: #dce4ef;
+      --blue: #2563eb;
+      --orange: #ea580c;
+      --green: #15803d;
+      --gold: #f59e0b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background: #e9eff7;
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button,
+    input { font: inherit; }
+
+    .walkthrough {
+      width: min(100%, 1060px);
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: #fff;
+      box-shadow: 0 18px 50px rgb(23 35 59 / 14%);
+    }
+
+    header {
+      min-height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1 { margin: 0; font-size: clamp(1.05rem, 3vw, 1.45rem); }
+    .round { color: var(--muted); font-size: .84rem; font-weight: 800; }
+    .header-actions { display: flex; align-items: center; gap: 9px; }
+    .score { min-width: 94px; padding: 8px 12px; border-radius: 12px; background: #fff6d8; color: #8a4b00; text-align: center; font-weight: 900; }
+
+    .reset,
+    .material,
+    .choice,
+    .main {
+      min-height: 44px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .reset { border: 1px solid var(--line); padding: 8px 14px; background: #fff; color: var(--ink); }
+    .simulation { position: relative; min-height: min(760px, calc(100vh - 122px)); background: #edf6ff; }
+    canvas { display: block; width: 100%; height: clamp(390px, 54vw, 540px); }
+
+    .hud {
+      position: absolute;
+      inset: 14px 14px auto;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 9px;
+      pointer-events: none;
+    }
+
+    .hud-card {
+      padding: 9px 12px;
+      border: 1px solid rgb(255 255 255 / 80%);
+      border-radius: 14px;
+      background: rgb(255 255 255 / 91%);
+      box-shadow: 0 8px 22px rgb(23 35 59 / 10%);
+      backdrop-filter: blur(8px);
+    }
+
+    .hud-card span { display: block; color: var(--muted); font-size: .72rem; font-weight: 900; text-transform: uppercase; }
+    .hud-card strong { display: block; margin-top: 2px; font-size: clamp(.86rem, 2.3vw, 1.05rem); }
+    .target strong { color: var(--blue); }
+    .budget strong { color: #8a4b00; }
+    .temperature strong { color: var(--green); }
+
+    .prompt {
+      position: relative;
+      z-index: 2;
+      margin: -66px 14px 14px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgb(255 255 255 / 97%);
+      box-shadow: 0 12px 32px rgb(23 35 59 / 15%);
+    }
+
+    .phase { margin: 0 0 5px; color: var(--blue); font-size: .76rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+    h2 { margin: 0; font-size: clamp(1.05rem, 3vw, 1.35rem); }
+    .helper { min-height: 1.45em; margin: 6px 0 0; color: var(--muted); line-height: 1.4; }
+    .label { margin: 13px 0 7px; color: var(--muted); font-size: .77rem; font-weight: 900; text-transform: uppercase; }
+
+    .materials,
+    .choices,
+    .action-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .material { flex: 1 1 125px; border: 2px solid #cbd7e7; padding: 8px 10px; background: #fff; color: var(--ink); }
+    .material span { display: block; margin-top: 2px; color: var(--muted); font-size: .7rem; }
+    .material.active { border-color: var(--blue); background: #eef4ff; color: #1d4ed8; }
+    .material:disabled { cursor: default; opacity: .55; }
+
+    .thickness-control { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 13px; background: #f8fafc; }
+    .thickness-control label { display: flex; justify-content: space-between; gap: 10px; font-size: .86rem; font-weight: 900; }
+    .thickness-control output { color: var(--blue); }
+    input[type="range"] { width: 100%; margin: 10px 0 1px; accent-color: var(--blue); cursor: pointer; }
+    input[type="range"]:disabled { cursor: default; opacity: .55; }
+
+    .choice { flex: 1 1 180px; border: 2px solid #cbd7e7; padding: 10px 12px; background: #fff; color: var(--ink); }
+    .choice:hover { border-color: var(--blue); }
+    .action-row { align-items: center; justify-content: flex-end; margin-top: 12px; }
+    .main { border: 0; padding: 11px 20px; background: var(--blue); color: #fff; }
+    .main:disabled { cursor: not-allowed; opacity: .5; }
+
+    .material:focus-visible,
+    .choice:focus-visible,
+    .main:focus-visible,
+    .reset:focus-visible,
+    input:focus-visible { outline: 3px solid rgb(37 99 235 / 22%); outline-offset: 2px; }
+    [hidden] { display: none !important; }
+
+    @media (max-width: 640px) {
+      body { padding: 0; }
+      .walkthrough { min-height: 100vh; border: 0; border-radius: 0; }
+      .simulation { min-height: calc(100vh - 69px); }
+      canvas { height: 450px; }
+      .prompt { margin-top: -46px; }
+      .hud { grid-template-columns: 1fr 1fr; }
+      .hud-card.temperature { grid-column: 1 / -1; }
+      .score { min-width: 74px; }
+      .reset { padding-inline: 10px; }
+      .main { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="walkthrough" data-walkthrough>
+    <header>
+      <div>
+        <div class="round" data-round>Round 1 of 4</div>
+        <h1>Insulated Cup Challenge</h1>
+      </div>
+      <div class="header-actions">
+        <div class="score" data-score>Score 0</div>
+        <button class="reset" type="button" data-reset>New game</button>
+      </div>
+    </header>
+
+    <section class="simulation" aria-label="Insulated cup temperature test">
+      <canvas data-canvas width="1000" height="540"></canvas>
+
+      <div class="hud" aria-live="polite">
+        <div class="hud-card target">
+          <span>Temperature target</span>
+          <strong data-target>At least 80 C</strong>
+        </div>
+        <div class="hud-card budget">
+          <span>Budget / design cost</span>
+          <strong data-budget>8.0 / 3.1 credits</strong>
+        </div>
+        <div class="hud-card temperature">
+          <span>Final temperature</span>
+          <strong data-temperature>Hidden</strong>
+        </div>
+      </div>
+
+      <div class="prompt" aria-live="polite">
+        <p class="phase" data-phase>Build</p>
+        <h2 data-question>Keep the drink hot for 30 minutes.</h2>
+        <p class="helper" data-helper>Use the simplified conduction model to balance insulation and cost.</p>
+
+        <div data-build-controls>
+          <p class="label">Insulation material</p>
+          <div class="materials" data-materials></div>
+
+          <div class="thickness-control">
+            <label for="thickness">Insulation thickness <output data-thickness-output>10 mm</output></label>
+            <input id="thickness" data-thickness type="range" min="2" max="25" step="1" value="10">
+          </div>
+        </div>
+
+        <div class="choices" data-choices hidden>
+          <button class="choice" type="button" data-choice="pass">Yes, it will meet the target</button>
+          <button class="choice" type="button" data-choice="fail">No, it will miss the target</button>
+        </div>
+
+        <div class="action-row">
+          <button class="main" type="button" data-main>Lock design</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const root = document.querySelector('[data-walkthrough]');
+      const canvas = root.querySelector('[data-canvas]');
+      const ctx = canvas.getContext('2d');
+      const roundLabel = root.querySelector('[data-round]');
+      const scoreLabel = root.querySelector('[data-score]');
+      const phase = root.querySelector('[data-phase]');
+      const question = root.querySelector('[data-question]');
+      const helper = root.querySelector('[data-helper]');
+      const targetLabel = root.querySelector('[data-target]');
+      const budgetLabel = root.querySelector('[data-budget]');
+      const temperatureLabel = root.querySelector('[data-temperature]');
+      const materialsWrap = root.querySelector('[data-materials]');
+      const thicknessInput = root.querySelector('[data-thickness]');
+      const thicknessOutput = root.querySelector('[data-thickness-output]');
+      const choices = root.querySelector('[data-choices]');
+      const mainButton = root.querySelector('[data-main]');
+      const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      const materials = [
+        { id: 'foam', name: 'Foam', k: .03, baseCost: 5, mmCost: .22, color: '#fbbf24' },
+        { id: 'cork', name: 'Cork', k: .04, baseCost: 3.5, mmCost: .18, color: '#b45309' },
+        { id: 'felt', name: 'Felt', k: .06, baseCost: 2, mmCost: .11, color: '#7c3aed' },
+        { id: 'plastic', name: 'Plastic', k: .20, baseCost: 1, mmCost: .06, color: '#0ea5e9' }
+      ];
+
+      const rounds = [
+        { mode: 'hot', initial: 85, ambient: 22, minutes: 30, target: 80, budget: 8 },
+        { mode: 'cold', initial: 4, ambient: 30, minutes: 45, target: 7, budget: 7 },
+        { mode: 'hot', initial: 90, ambient: 5, minutes: 60, target: 75, budget: 6 },
+        { mode: 'cold', initial: 3, ambient: 35, minutes: 75, target: 8, budget: 9 }
+      ];
+
+      let roundIndex = 0;
+      let score = 0;
+      let selectedMaterial = 'felt';
+      let state = 'build';
+      let testProgress = 0;
+      let finalTemp = 0;
+      let prediction = null;
+      let animationFrame = 0;
+
+      function currentRound() { return rounds[roundIndex]; }
+      function material() { return materials.find(item => item.id === selectedMaterial); }
+      function thickness() { return Number(thicknessInput.value); }
+      function designCost() { return material().baseCost + material().mmCost * thickness(); }
+
+      function calculateFinalTemperature() {
+        const round = currentRound();
+        const area = .03;
+        const drinkMass = .35;
+        const specificHeat = 4186;
+        const thicknessMeters = thickness() / 1000;
+        const conductance = material().k * area / thicknessMeters;
+        const exponent = -conductance * (round.minutes * 60) / (drinkMass * specificHeat);
+        return round.ambient + (round.initial - round.ambient) * Math.exp(exponent);
+      }
+
+      function meetsTarget(temperature) {
+        const round = currentRound();
+        return round.mode === 'hot' ? temperature >= round.target : temperature <= round.target;
+      }
+
+      function renderMaterialButtons() {
+        materialsWrap.innerHTML = '';
+        materials.forEach(item => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'material';
+          button.dataset.material = item.id;
+          button.innerHTML = item.name + '<span>k = ' + item.k.toFixed(2) + ' W/(m K)</span>';
+          button.addEventListener('click', () => selectMaterial(item.id));
+          materialsWrap.append(button);
+        });
+      }
+
+      function selectMaterial(id) {
+        if (state !== 'build') return;
+        selectedMaterial = id;
+        updateBuild();
+      }
+
+      function temperatureColor(temperature) {
+        const t = Math.max(0, Math.min(1, temperature / 100));
+        const red = Math.round(40 + 210 * t);
+        const blue = Math.round(245 - 205 * t);
+        return 'rgb(' + red + ', 90, ' + blue + ')';
+      }
+
+      function drawThermometer(x, y, temperature) {
+        const height = 190;
+        const fillHeight = Math.max(0, Math.min(1, temperature / 100)) * height;
+        ctx.strokeStyle = '#17233b';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.roundRect(x - 14, y - height, 28, height, 14);
+        ctx.stroke();
+        ctx.fillStyle = temperatureColor(temperature);
+        ctx.beginPath();
+        ctx.roundRect(x - 8, y - fillHeight, 16, fillHeight, 8);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x, y + 10, 21, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      function drawHeatArrows(outward) {
+        ctx.strokeStyle = '#ea580c';
+        ctx.fillStyle = '#ea580c';
+        ctx.lineWidth = 6;
+        for (const side of [-1, 1]) {
+          const x1 = 500 + side * 155;
+          const x2 = 500 + side * (outward ? 275 : 65);
+          ctx.beginPath();
+          ctx.moveTo(x1, 275);
+          ctx.lineTo(x2, 275);
+          ctx.stroke();
+          const direction = Math.sign(x2 - x1);
+          ctx.beginPath();
+          ctx.moveTo(x2, 275);
+          ctx.lineTo(x2 - direction * 20, 263);
+          ctx.lineTo(x2 - direction * 20, 287);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      function draw() {
+        const round = currentRound();
+        const shownTemp = state === 'test' || state === 'result'
+          ? round.initial + (finalTemp - round.initial) * testProgress
+          : round.initial;
+
+        ctx.clearRect(0, 0, 1000, 540);
+        const sky = ctx.createLinearGradient(0, 0, 0, 540);
+        if (round.ambient <= 10) {
+          sky.addColorStop(0, '#dbeafe');
+          sky.addColorStop(1, '#eef6ff');
+        } else if (round.ambient >= 30) {
+          sky.addColorStop(0, '#ffedd5');
+          sky.addColorStop(1, '#fff7ed');
+        } else {
+          sky.addColorStop(0, '#dff1ff');
+          sky.addColorStop(1, '#f8fcff');
+        }
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, 1000, 540);
+
+        ctx.fillStyle = '#17233b';
+        ctx.font = '900 23px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('Room: ' + round.ambient + ' C / Test: ' + round.minutes + ' min', 500, 130);
+
+        const visualThickness = 18 + thickness() * 1.8;
+        ctx.fillStyle = material().color;
+        ctx.strokeStyle = '#17233b';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.roundRect(500 - 145 - visualThickness / 2, 205 - visualThickness / 2, 290 + visualThickness, 260 + visualThickness, 25);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#f8fafc';
+        ctx.beginPath();
+        ctx.roundRect(370, 220, 260, 245, 18);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = temperatureColor(shownTemp);
+        ctx.globalAlpha = .82;
+        ctx.beginPath();
+        ctx.roundRect(385, 275, 230, 175, 12);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        ctx.fillStyle = '#17233b';
+        ctx.font = '900 18px system-ui';
+        ctx.fillText(material().name + ' / ' + thickness() + ' mm', 500, 255);
+        drawThermometer(705, 425, shownTemp);
+
+        if (state === 'test' || state === 'result') drawHeatArrows(round.mode === 'hot');
+
+        ctx.fillStyle = '#17233b';
+        ctx.font = '900 21px system-ui';
+        ctx.fillText(shownTemp.toFixed(1) + ' C', 500, 375);
+
+        if (state === 'result') {
+          const ratio = material().k / (thickness() / 1000);
+          ctx.fillStyle = 'rgb(255 255 255 / 94%)';
+          ctx.strokeStyle = '#dce4ef';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.roundRect(55, 175, 260, 92, 15);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = '#17233b';
+          ctx.font = '900 17px system-ui';
+          ctx.fillText('Heat-leak factor: k / L', 185, 210);
+          ctx.fillText(ratio.toFixed(1) + ' W/(m2 K)', 185, 240);
+        }
+      }
+
+      function targetText() {
+        const round = currentRound();
+        return (round.mode === 'hot' ? 'At least ' : 'At most ') + round.target + ' C';
+      }
+
+      function updateBuild() {
+        thicknessOutput.textContent = thickness() + ' mm';
+        budgetLabel.textContent = currentRound().budget.toFixed(1) + ' / ' + designCost().toFixed(1) + ' credits';
+        [...materialsWrap.querySelectorAll('[data-material]')].forEach(button => {
+          button.classList.toggle('active', button.dataset.material === selectedMaterial);
+        });
+        draw();
+      }
+
+      function setBuildDisabled(disabled) {
+        thicknessInput.disabled = disabled;
+        [...materialsWrap.querySelectorAll('[data-material]')].forEach(button => { button.disabled = disabled; });
+      }
+
+      function loadRound() {
+        const round = currentRound();
+        state = 'build';
+        selectedMaterial = 'felt';
+        thicknessInput.value = 10;
+        testProgress = 0;
+        finalTemp = 0;
+        prediction = null;
+        setBuildDisabled(false);
+        choices.hidden = true;
+        roundLabel.textContent = 'Round ' + (roundIndex + 1) + ' of ' + rounds.length;
+        scoreLabel.textContent = 'Score ' + score;
+        targetLabel.textContent = targetText();
+        temperatureLabel.textContent = 'Hidden';
+        phase.textContent = 'Build';
+        question.textContent = 'Keep the drink ' + round.mode + ' for ' + round.minutes + ' minutes.';
+        helper.textContent = 'Use the simplified conduction model to balance insulation and cost.';
+        mainButton.hidden = false;
+        mainButton.disabled = false;
+        mainButton.textContent = 'Lock design';
+        updateBuild();
+      }
+
+      function lockDesign() {
+        state = 'predict';
+        setBuildDisabled(true);
+        phase.textContent = 'Predict';
+        question.textContent = 'Will this cup meet the temperature target?';
+        helper.textContent = 'Lower conductivity and greater thickness reduce heat transfer.';
+        choices.hidden = false;
+        mainButton.hidden = true;
+      }
+
+      function runTest(value) {
+        if (state !== 'predict') return;
+        prediction = value;
+        finalTemp = calculateFinalTemperature();
+        state = 'test';
+        choices.hidden = true;
+        phase.textContent = 'Reveal';
+        question.textContent = 'Running the time-lapse temperature test.';
+        helper.textContent = 'Heat flows from warmer matter toward cooler surroundings.';
+        let start = 0;
+        const duration = reduceMotion ? 80 : 1800;
+
+        function frame(time) {
+          if (!start) start = time;
+          testProgress = Math.min(1, (time - start) / duration);
+          draw();
+          if (testProgress < 1) animationFrame = requestAnimationFrame(frame);
+          else showResult();
+        }
+        animationFrame = requestAnimationFrame(frame);
+      }
+
+      function showResult() {
+        const passed = meetsTarget(finalTemp);
+        const predictedPass = prediction === 'pass';
+        const predictionPoint = predictedPass === passed ? 1 : 0;
+        const thermalPoints = passed ? 2 : 0;
+        const budgetPoint = designCost() <= currentRound().budget ? 1 : 0;
+        const roundPoints = predictionPoint + thermalPoints + budgetPoint;
+        score += roundPoints;
+        state = 'result';
+        temperatureLabel.textContent = finalTemp.toFixed(1) + ' C';
+        scoreLabel.textContent = 'Score ' + score;
+        phase.textContent = 'Score';
+        question.textContent = '+' + roundPoints + ' points this round';
+        helper.textContent = (passed ? 'Temperature target met. ' : 'Temperature target missed. ') +
+          (budgetPoint ? 'Design stayed on budget. ' : 'Design exceeded budget. ') +
+          (predictionPoint ? 'Prediction correct.' : 'Prediction incorrect.');
+        mainButton.hidden = false;
+        mainButton.textContent = roundIndex === rounds.length - 1 ? 'See final score' : 'Next round';
+        draw();
+      }
+
+      function nextRound() {
+        if (roundIndex < rounds.length - 1) {
+          roundIndex += 1;
+          loadRound();
+          return;
+        }
+
+        state = 'complete';
+        phase.textContent = 'Challenge complete';
+        question.textContent = 'Final score: ' + score + ' / ' + (rounds.length * 4);
+        helper.textContent = score >= 14
+          ? 'Insulation expert: strong thermal protection and efficient designs.'
+          : score >= 10
+            ? 'Strong result. Replay to improve cost or temperature performance.'
+            : 'Replay and minimize k / L to slow heat transfer.';
+        mainButton.textContent = 'Play again';
+      }
+
+      function newGame() {
+        cancelAnimationFrame(animationFrame);
+        roundIndex = 0;
+        score = 0;
+        loadRound();
+      }
+
+      renderMaterialButtons();
+      thicknessInput.addEventListener('input', updateBuild);
+      [...root.querySelectorAll('[data-choice]')].forEach(button => {
+        button.addEventListener('click', () => runTest(button.dataset.choice));
+      });
+      mainButton.addEventListener('click', () => {
+        if (state === 'build') lockDesign();
+        else if (state === 'result') nextRound();
+        else if (state === 'complete') newGame();
+      });
+      root.querySelector('[data-reset]').addEventListener('click', newGame);
+      newGame();
+    })();
+  </script>
+</body>
+</html>

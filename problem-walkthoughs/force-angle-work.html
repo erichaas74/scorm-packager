@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Does the Force Do Work?</title>
+  <style>
+    :root {
+      --ink: #17233b;
+      --muted: #5e6b82;
+      --line: #dce4ef;
+      --blue: #2563eb;
+      --orange: #ea580c;
+      --green: #15803d;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background: #e9eff7;
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button { font: inherit; }
+
+    .walkthrough {
+      width: min(100%, 1040px);
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: #fff;
+      box-shadow: 0 18px 50px rgb(23 35 59 / 14%);
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      min-height: 66px;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1 { margin: 0; font-size: clamp(1.05rem, 3vw, 1.45rem); }
+    .subhead { color: var(--muted); font-size: .84rem; font-weight: 700; }
+
+    .reset,
+    .angle,
+    .choice,
+    .main {
+      min-height: 44px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .reset {
+      border: 1px solid var(--line);
+      padding: 8px 14px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .simulation {
+      position: relative;
+      min-height: min(690px, calc(100vh - 120px));
+      background: #eaf5ff;
+    }
+
+    canvas { display: block; width: 100%; height: clamp(380px, 55vw, 540px); }
+
+    .formula {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      translate: -50% 0;
+      min-width: min(90%, 460px);
+      padding: 10px 15px;
+      border: 1px solid rgb(255 255 255 / 80%);
+      border-radius: 14px;
+      background: rgb(255 255 255 / 90%);
+      text-align: center;
+      box-shadow: 0 8px 24px rgb(23 35 59 / 10%);
+      backdrop-filter: blur(8px);
+    }
+
+    .formula strong { font-size: clamp(1rem, 3vw, 1.25rem); }
+    .formula span { display: block; margin-top: 2px; color: var(--muted); font-size: .82rem; }
+
+    .prompt {
+      position: relative;
+      z-index: 2;
+      margin: -66px 14px 14px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgb(255 255 255 / 97%);
+      box-shadow: 0 12px 32px rgb(23 35 59 / 15%);
+    }
+
+    .phase { margin: 0 0 5px; color: var(--blue); font-size: .76rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+    h2 { margin: 0; font-size: clamp(1.05rem, 3vw, 1.35rem); }
+    .helper { min-height: 1.45em; margin: 6px 0 0; color: var(--muted); line-height: 1.4; }
+    .label { margin: 13px 0 7px; color: var(--muted); font-size: .8rem; font-weight: 900; text-transform: uppercase; }
+
+    .angles,
+    .choices,
+    .bottom-row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .angle {
+      flex: 1 1 80px;
+      border: 2px solid #cbd7e7;
+      padding: 8px 12px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .angle.active { border-color: var(--orange); background: #fff3eb; color: #9a3412; }
+    .choice {
+      flex: 1 1 150px;
+      border: 2px solid #cbd7e7;
+      padding: 10px 12px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .angle:focus-visible,
+    .choice:focus-visible,
+    .reset:focus-visible,
+    .main:focus-visible { outline: 3px solid rgb(37 99 235 / 22%); outline-offset: 2px; }
+    .choice:hover { border-color: var(--blue); }
+
+    .bottom-row { align-items: center; margin-top: 10px; }
+    .main {
+      margin-left: auto;
+      border: 0;
+      padding: 11px 18px;
+      background: var(--blue);
+      color: #fff;
+    }
+
+    [hidden] { display: none !important; }
+
+    @media (max-width: 620px) {
+      body { padding: 0; }
+      .walkthrough { min-height: 100vh; border: 0; border-radius: 0; }
+      .simulation { min-height: calc(100vh - 67px); }
+      canvas { height: 460px; }
+      .prompt { margin-top: -48px; }
+      .main { width: 100%; margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="walkthrough" data-walkthrough>
+    <header>
+      <div>
+        <div class="subhead">Work and force direction</div>
+        <h1>Does the Force Do Work?</h1>
+      </div>
+      <button class="reset" type="button" data-reset>Reset</button>
+    </header>
+
+    <section class="simulation" aria-label="Crate pulled five meters by a force at an adjustable angle">
+      <canvas data-canvas width="1000" height="540"></canvas>
+      <div class="formula" aria-live="polite">
+        <strong>W = Fd cos(<span data-theta-inline style="display:inline;color:inherit;font-size:inherit">60</span>&deg;) = <span data-work style="display:inline;color:inherit;font-size:inherit">?</span></strong>
+        <span>F = 100 N and d = 5 m</span>
+      </div>
+
+      <div class="prompt" aria-live="polite">
+        <p class="phase" data-phase>Ask and predict</p>
+        <h2 data-question>Compared with a horizontal pull, what happens to the work?</h2>
+        <p class="helper" data-helper>Choose an angle, then predict before the crate moves.</p>
+
+        <p class="label">Force angle</p>
+        <div class="angles" data-angles>
+          <button class="angle" type="button" data-angle="0">0&deg;</button>
+          <button class="angle" type="button" data-angle="30">30&deg;</button>
+          <button class="angle active" type="button" data-angle="60">60&deg;</button>
+          <button class="angle" type="button" data-angle="90">90&deg;</button>
+        </div>
+
+        <div class="bottom-row">
+          <div class="choices" data-choices>
+            <button class="choice" type="button" data-choice="increase">More work</button>
+            <button class="choice" type="button" data-choice="same">Same work</button>
+            <button class="choice" type="button" data-choice="decrease">Less work</button>
+          </div>
+          <button class="main" type="button" data-main hidden>Try another angle</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const root = document.querySelector('[data-walkthrough]');
+      const canvas = root.querySelector('[data-canvas]');
+      const ctx = canvas.getContext('2d');
+      const phase = root.querySelector('[data-phase]');
+      const question = root.querySelector('[data-question]');
+      const helper = root.querySelector('[data-helper]');
+      const angles = root.querySelector('[data-angles]');
+      const angleButtons = [...root.querySelectorAll('[data-angle]')];
+      const choices = root.querySelector('[data-choices]');
+      const mainButton = root.querySelector('[data-main]');
+      const thetaInline = root.querySelector('[data-theta-inline]');
+      const workOutput = root.querySelector('[data-work]');
+      const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      let theta = 60;
+      let state = 'predict';
+      let crateProgress = 0;
+      let animationFrame = 0;
+      let prediction = null;
+
+      function arrow(x1, y1, x2, y2, color, label, dashed = false) {
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 7;
+        if (dashed) ctx.setLineDash([10, 8]);
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - 20 * Math.cos(angle - .5), y2 - 20 * Math.sin(angle - .5));
+        ctx.lineTo(x2 - 20 * Math.cos(angle + .5), y2 - 20 * Math.sin(angle + .5));
+        ctx.closePath();
+        ctx.fill();
+        ctx.font = '800 18px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, (x1 + x2) / 2, (y1 + y2) / 2 - 14);
+        ctx.restore();
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const gradient = ctx.createLinearGradient(0, 0, 0, 540);
+        gradient.addColorStop(0, '#dff1ff');
+        gradient.addColorStop(.68, '#f8fcff');
+        gradient.addColorStop(.68, '#ced8e4');
+        gradient.addColorStop(1, '#aebdcc');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 1000, 540);
+
+        ctx.strokeStyle = '#7d8ca0';
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(80, 404);
+        ctx.lineTo(920, 404);
+        ctx.stroke();
+
+        const startX = 210;
+        const travel = 500;
+        const x = startX + travel * crateProgress;
+        const y = 350;
+        ctx.fillStyle = '#b96a35';
+        ctx.strokeStyle = '#17233b';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.roundRect(x - 70, y - 55, 140, 110, 12);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#fff';
+        ctx.font = '900 22px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('CRATE', x, y + 7);
+
+        const radians = theta * Math.PI / 180;
+        const length = 160;
+        const tipX = x + length * Math.cos(radians);
+        const tipY = y - 45 - length * Math.sin(radians);
+        arrow(x, y - 45, tipX, tipY, '#ea580c', '100 N');
+
+        if (state === 'reveal' || state === 'result') {
+          const componentLength = length * Math.cos(radians);
+          arrow(x, y - 85, x + componentLength, y - 85, '#2563eb', 'F cos(theta)', true);
+          arrow(startX - 70, 450, startX - 70 + travel, 450, '#15803d', '5 m');
+        }
+
+        ctx.fillStyle = '#17233b';
+        ctx.font = '800 17px system-ui';
+        ctx.textAlign = 'left';
+        ctx.fillText('theta = ' + theta + ' degrees', 55, 115);
+        ctx.fillStyle = '#5e6b82';
+        ctx.font = '700 15px system-ui';
+        ctx.fillText('Horizontal baseline: 500 J', 55, 140);
+      }
+
+      function expectedPrediction() {
+        return theta === 0 ? 'same' : 'decrease';
+      }
+
+      function workAtAngle() {
+        return Math.round(100 * 5 * Math.cos(theta * Math.PI / 180));
+      }
+
+      function setAngle(value) {
+        if (state !== 'predict') return;
+        theta = value;
+        angleButtons.forEach(button => button.classList.toggle('active', Number(button.dataset.angle) === theta));
+        thetaInline.textContent = theta;
+        workOutput.textContent = '?';
+        crateProgress = 0;
+        draw();
+      }
+
+      function reveal() {
+        state = 'reveal';
+        phase.textContent = 'Reveal';
+        question.textContent = 'Watch the horizontal component move the crate.';
+        helper.textContent = 'Only the part of the force parallel to the displacement contributes to work.';
+        angles.hidden = true;
+        choices.hidden = true;
+        let start = 0;
+        const duration = reduceMotion ? 80 : 1500;
+
+        function frame(time) {
+          if (!start) start = time;
+          crateProgress = Math.min(1, (time - start) / duration);
+          draw();
+          if (crateProgress < 1) animationFrame = requestAnimationFrame(frame);
+          else showResult();
+        }
+        animationFrame = requestAnimationFrame(frame);
+      }
+
+      function showResult() {
+        state = 'result';
+        const work = workAtAngle();
+        const correct = prediction === expectedPrediction();
+        workOutput.textContent = work + ' J';
+        phase.textContent = 'Explain';
+        question.textContent = theta === 90 ? 'A perpendicular force does zero work.' : 'The angle changes the useful force component.';
+        helper.textContent = (correct ? 'Correct. ' : 'Compare the arrows. ') +
+          'At ' + theta + ' degrees, W = 500 cos(' + theta + ' degrees) = ' + work + ' J.';
+        mainButton.hidden = false;
+        draw();
+      }
+
+      function reset(keepAngle = false) {
+        cancelAnimationFrame(animationFrame);
+        state = 'predict';
+        prediction = null;
+        crateProgress = 0;
+        if (!keepAngle) theta = 60;
+        phase.textContent = 'Ask and predict';
+        question.textContent = 'Compared with a horizontal pull, what happens to the work?';
+        helper.textContent = 'Choose an angle, then predict before the crate moves.';
+        angles.hidden = false;
+        choices.hidden = false;
+        mainButton.hidden = true;
+        thetaInline.textContent = theta;
+        workOutput.textContent = '?';
+        angleButtons.forEach(button => button.classList.toggle('active', Number(button.dataset.angle) === theta));
+        draw();
+      }
+
+      angleButtons.forEach(button => button.addEventListener('click', () => setAngle(Number(button.dataset.angle))));
+      [...root.querySelectorAll('[data-choice]')].forEach(button => {
+        button.addEventListener('click', () => {
+          if (state !== 'predict') return;
+          prediction = button.dataset.choice;
+          reveal();
+        });
+      });
+      mainButton.addEventListener('click', () => reset(true));
+      root.querySelector('[data-reset]').addEventListener('click', () => reset(false));
+      reset(false);
+    })();
+  </script>
+</body>
+</html>

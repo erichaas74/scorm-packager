@@ -270,48 +270,6 @@
       <li>If you cannot safely complete the real launch, use the simulated data button above and say that in Question 1.</li>
     </ol>
 
-    <details class="hint-box">
-      <summary class="hint-button">💡 Hint: Need help with calculations?</summary>
-      <div class="hint-content">
-        <h3>Calculation Checklist</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Step</th>
-              <th>Formula</th>
-              <th>What to submit in Buzz</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Horizontal velocity</td>
-              <td><code>vx = x / time</code></td>
-              <td>Formula, substitution, and answer in m/s.</td>
-            </tr>
-            <tr>
-              <td>Initial vertical velocity</td>
-              <td><code>vy = 9.8 x time / 2</code></td>
-              <td>Formula, substitution, and answer in m/s.</td>
-            </tr>
-            <tr>
-              <td>Total initial velocity</td>
-              <td><code>v0 = sqrt(vx^2 + vy^2)</code></td>
-              <td>Formula, substitution, and answer in m/s.</td>
-            </tr>
-            <tr>
-              <td>Launch angle</td>
-              <td><code>theta = tan^-1(vy / vx)</code></td>
-              <td>Formula, substitution, and answer in degrees.</td>
-            </tr>
-            <tr>
-              <td>Speed conversion</td>
-              <td><code>mph = m/s x 2.23694</code></td>
-              <td>Total initial velocity converted to mph.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </details>
   </div>
 
   <div class="question-card">
@@ -341,10 +299,6 @@
   <div class="question-card">
     <a:question></a:question>
   </div>
-  <div class="question-card">
-    <a:question></a:question>
-  </div>
-
   <script>
     (() => {
       const root = document.querySelector('[data-ball-lab]');
@@ -369,7 +323,7 @@
       // Animation state
       let animStartTime = null;
       let isAnimating = false;
-      const animDuration = 3500; // Increased to 3.5 seconds (throw + walk)
+      const animDuration = 6500; // Flight, three landing bounces, then measurement walk
       let currentProgress = 0;
       
       // Simulated Data state
@@ -574,7 +528,7 @@
       function drawDigitalTimer(x, y, p_ball) {
         ctx.save();
         ctx.translate(x, y);
-        ctx.scale(0.8, 0.8); // Scale down 20%
+        ctx.scale(1.15, 1.15); // Large, easy-to-read stopwatch
 
         // Lanyard string wrapping around the neck/hand
         ctx.strokeStyle = '#475569';
@@ -631,17 +585,13 @@
         ctx.roundRect ? ctx.roundRect(-9, -4, 18, 8, 1) : ctx.rect(-9, -4, 18, 8);
         ctx.fill();
 
-        // Time logic
+        // Time logic: the example uses a fixed 2.50 s flight; simulated data uses its generated time.
         let timeStr = "0.00";
-        if (showData && currentSimTime) {
-            if (p_ball > 0 && p_ball < 1) {
-                timeStr = (p_ball * currentSimTime).toFixed(2);
-            } else if (p_ball === 1) {
-                timeStr = currentSimTime.toFixed(2);
-            }
-        } else {
-            if (p_ball > 0 && p_ball < 1) timeStr = "-.--";
-            else if (p_ball === 1) timeStr = "?.??";
+        const displayFlightTime = showData && currentSimTime ? currentSimTime : 2.50;
+        if (p_ball > 0 && p_ball < 1) {
+          timeStr = (p_ball * displayFlightTime).toFixed(2);
+        } else if (p_ball === 1) {
+          timeStr = displayFlightTime.toFixed(2);
         }
 
         // Digital Text
@@ -657,9 +607,10 @@
       function drawScene(progress = 0) {
         ctx.clearRect(0, 0, width, height);
         
-        // Calculate phases: 0 to 0.5 is ball flight, 0.5 to 1.0 is thrower walking
-        let p_ball = Math.min(progress * 2, 1);
-        let p_walk = Math.max(0, (progress - 0.5) * 2);
+        // Flight finishes at the first-impact point, then the ball bounces before the thrower walks.
+        let p_ball = Math.min(progress / 0.5, 1);
+        let p_bounce = Math.max(0, Math.min(1, (progress - 0.5) / 0.2));
+        let p_walk = Math.max(0, Math.min(1, (progress - 0.7) / 0.3));
         
         // 1. Field line
         ctx.strokeStyle = '#7aa36d';
@@ -678,34 +629,32 @@
         ctx.quadraticCurveTo((throwerX + landingX) / 2, -50, landingX, groundY - 30);
         ctx.stroke();
 
-        // 3. Distance line
-        ctx.strokeStyle = '#4b5563';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath();
-        ctx.moveTo(throwerX + 20, groundY + 20);
-        ctx.lineTo(landingX - 20, groundY + 20);
-        ctx.stroke();
-        ctx.setLineDash([]); // Reset dash
-        
-        // Render current distance measurement
-        ctx.fillStyle = '#374151';
-        ctx.font = '14px Arial';
-        ctx.textAlign = 'center';
-        
-        let distText = 'walk or measure the horizontal distance';
-        if (showData) {
-            if (p_walk > 0 && p_walk < 1) {
-                distText = `measuring... ${(p_walk * currentSimDistance).toFixed(1)} m`;
-            } else if (p_walk === 1) {
-                ctx.font = 'bold 16px Arial';
-                ctx.fillStyle = '#2563a9';
-                distText = `Distance: ${currentSimDistance.toFixed(2)} m`;
-            }
-        } else if (p_walk === 1) {
-            distText = 'Distance: ?.?? m (Measure yourself or use simulated data)';
+        // 3. Measuring tape extends only while the thrower walks to the FIRST impact point.
+        if (p_walk > 0) {
+          const tapeEndX = throwerX + (landingX - throwerX) * p_walk;
+          ctx.strokeStyle = '#facc15';
+          ctx.lineWidth = 7;
+          ctx.setLineDash([]);
+          ctx.beginPath();
+          ctx.moveTo(throwerX, groundY + 22);
+          ctx.lineTo(tapeEndX, groundY + 22);
+          ctx.stroke();
+          ctx.strokeStyle = '#713f12';
+          ctx.lineWidth = 1;
+          for (let tickX = throwerX; tickX <= tapeEndX; tickX += 12) {
+            ctx.beginPath();
+            ctx.moveTo(tickX, groundY + 18);
+            ctx.lineTo(tickX, groundY + 26);
+            ctx.stroke();
+          }
+          ctx.fillStyle = '#713f12';
+          ctx.font = 'bold 13px Arial';
+          ctx.textAlign = 'center';
+          const tapeText = showData && p_walk === 1
+            ? `First landing distance: ${currentSimDistance.toFixed(2)} m`
+            : 'measuring to first landing spot';
+          ctx.fillText(tapeText, width - 145, groundY + 43);
         }
-        ctx.fillText(distText, width / 2, groundY + 38);
 
         // 4. Tooltip Labels
         ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
@@ -727,12 +676,22 @@
           ctx.roundRect ? ctx.roundRect(landingX - 75, 72, 150, 26, 13) : ctx.rect(landingX - 75, 72, 150, 26);
           ctx.fill(); ctx.stroke();
           ctx.fillStyle = '#374151';
-          ctx.fillText('walk the landing distance', landingX, 89);
+          ctx.fillText('FIRST LANDING SPOT', landingX, 89);
         }
 
-        // 5. Draw Static Timer with Stopwatch
+        // 5. Draw the timer, with the stopwatch clearly below the person.
         drawPerson(timerX, groundY, '#16a34a', 'timer', 0, -1);
-        drawDigitalTimer(timerX - 30, groundY - 42, p_ball);
+        drawDigitalTimer(timerX, groundY + 35, p_ball);
+
+        // First-impact marker remains fixed even while the ball bounces farther.
+        if (p_bounce > 0 || p_walk > 0) {
+          ctx.strokeStyle = '#dc2626';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(landingX, groundY - 2);
+          ctx.lineTo(landingX, groundY - 42);
+          ctx.stroke();
+        }
 
         // 6. Calculate and Draw Animated Thrower (paces distance after landing)
         let throwerCurrentX = throwerX;
@@ -752,21 +711,15 @@
           const startY = groundY - 50;
           const endY = groundY - 11; // 11 is ball radius, making it sit flush on the ground line
           const baseLineY = startY + (endY - startY) * p_ball;
-          const arcHeight = 130; 
-          
-          ballY = baseLineY - Math.sin(p_ball * Math.PI) * arcHeight;
+          const arcHeight = 150;
+
+          // Exact quadratic path: endpoints stay fixed and the peak occurs halfway.
+          ballY = baseLineY - 4 * arcHeight * p_ball * (1 - p_ball);
         } else if (p_ball === 1) {
-          // Ball bounces and rolls further while thrower walks to the first impact point
-          let rollProgress = p_walk; 
-          let bounceProgress = Math.min(p_walk * 4, 1); // Fast bounce over first 25% of walk
-          
-          ballX = landingX + (rollProgress * 70); // Rolls 70px further
-          
-          if (bounceProgress < 1) {
-            ballY = (groundY - 11) - Math.sin(bounceProgress * Math.PI) * 25; // 25px high bounce
-          } else {
-            ballY = groundY - 11; // Rolling flat
-          }
+          // Three diminishing bounces occur after first impact; measurement still ends at landingX.
+          ballX = landingX + p_bounce * 70;
+          const bounceHeight = Math.abs(Math.sin(p_bounce * Math.PI * 3)) * 34 * (1 - p_bounce);
+          ballY = (groundY - 11) - bounceHeight;
         }
         drawBall(ballX, ballY);
 

@@ -427,38 +427,17 @@
           <div class="range-hints"><span>left</span><span>direct</span><span>right</span></div>
         </label>
 
-        <details class="teacher-controls">
-          <summary>Teacher controls</summary>
-          <div class="teacher-controls-panel">
-        <label class="control" for="shellSpeed">
-          <div class="label-row"><span>Shell speed</span><strong><span id="speedValue">160</span> px/s</strong></div>
-          <input id="shellSpeed" type="range" min="80" max="260" step="10" value="160" />
-        </label>
-
-        <label class="control" for="targetDistance">
-          <div class="label-row"><span>Target distance</span><strong><span id="distanceValue">520</span> px</strong></div>
-          <input id="targetDistance" type="range" min="260" max="540" step="20" value="520" />
-        </label>
-
-        <label class="control" for="rotationRate">
-          <div class="label-row"><span>Earth rotation rate</span><strong><span id="rotationValue">8</span> deg/s</strong></div>
-          <input id="rotationRate" type="range" min="0" max="18" step="1" value="8" />
-        </label>
-
-        <label class="control" for="observerLatitude">
-          <div class="label-row"><span>Observer latitude</span><strong><span id="latitudeValue">40</span> deg N</strong></div>
-          <input id="observerLatitude" type="range" min="0" max="90" step="5" value="40" />
-          <div class="range-hints"><span>equator</span><span>mid-latitude</span><span>pole</span></div>
-        </label>
-          </div>
-        </details>
-
-        <div>
-          <div class="label-row" style="margin-bottom: 8px;"><span>Hemisphere / rotation direction</span></div>
-          <div class="segmented">
-            <button id="northBtn" class="segment active" type="button">North</button>
-            <button id="southBtn" class="segment" type="button">South</button>
-          </div>
+        <div hidden aria-hidden="true">
+          <input id="shellSpeed" type="hidden" value="160" />
+          <input id="targetDistance" type="hidden" value="520" />
+          <input id="rotationRate" type="hidden" value="8" />
+          <input id="observerLatitude" type="hidden" value="40" />
+          <span id="speedValue"></span>
+          <span id="distanceValue"></span>
+          <span id="rotationValue"></span>
+          <span id="latitudeValue"></span>
+          <button id="northBtn" type="button"></button>
+          <button id="southBtn" type="button"></button>
         </div>
 
         <div>
@@ -469,6 +448,14 @@
             <button id="targetEastBtn" class="segment" type="button">West &#8594; East</button>
             <button id="targetWestBtn" class="segment" type="button">East &#8594; West</button>
           </div>
+        </div>
+
+        <div class="goal" role="note" aria-label="East and west launch hints">
+          <strong>East-West launch hints:</strong>
+          <div><strong>East:</strong> lighter, higher, and longer; curves right toward the south.</div>
+          <div><strong>West:</strong> heavier, lower, and shorter; curves right toward the north.</div>
+          <div>These rightward directions apply to this simulation's fixed Northern Hemisphere setting.</div>
+          <div><em>The animation emphasizes sideways drift; the small vertical E&ouml;tv&ouml;s difference is described here but is not drawn to scale.</em></div>
         </div>
 
         <div class="checks">
@@ -506,6 +493,9 @@
 
     <section class="buzz-section" aria-labelledby="questions-title">
       <h2 id="questions-title">Buzz Assessment Questions</h2>
+      <div class="question-card"><a:question></a:question></div>
+      <div class="question-card"><a:question></a:question></div>
+      <div class="question-card"><a:question></a:question></div>
       <div class="question-card"><a:question></a:question></div>
       <div class="question-card"><a:question></a:question></div>
       <div class="question-card"><a:question></a:question></div>
@@ -891,6 +881,11 @@
         };
       }
 
+      function angularVelocity(p) {
+        var rotationDirection = p.hemisphere === "North" ? -1 : 1;
+        return rotationDirection * (p.rotationRate * Math.PI / 180);
+      }
+
       function rotate(point, angle) {
         return {
           x: point.x * Math.cos(angle) - point.y * Math.sin(angle),
@@ -963,10 +958,11 @@
         var latitudeSign = p.hemisphere === "North" ? 1 : -1;
         var baseLatitude = Math.max(-75, Math.min(75, latitudeSign * p.observerLatitude));
         var latitudeScale = 0.055;
+        var latitudeRadius = 155;
         var longitudeScale = latitudeScale / Math.max(0.28, Math.cos(baseLatitude * Math.PI / 180));
 
         return {
-          lat: Math.max(-82, Math.min(82, baseLatitude + point.y * latitudeScale)),
+          lat: Math.max(-82, Math.min(82, baseLatitude - (point.y - latitudeRadius) * latitudeScale)),
           lng: wrapLongitude(-96 + point.x * longitudeScale)
         };
       }
@@ -996,12 +992,18 @@
       }
 
       function calculateLaunchPlan(points, aimLocal, aimWorld, p, launchTheta) {
-        var direction = p.hemisphere === "North" ? 1 : -1;
-        var angularSpeed = direction * (p.rotationRate * Math.PI / 180);
+        var angularSpeed = angularVelocity(p);
         var flightTime = p.targetDistance / Math.max(1, p.shellSpeed);
         var displaySpeed = mag(sub(points.target, points.cannon)) / Math.max(0.01, flightTime);
         var sampleCount = 72;
         var cannonWorld = rotate(points.cannon, launchTheta);
+        var launchVelocity = add({
+          x: aimWorld.x * displaySpeed,
+          y: aimWorld.y * displaySpeed
+        }, {
+          x: -angularSpeed * cannonWorld.y,
+          y: angularSpeed * cannonWorld.x
+        });
         var startGlobe = localToGlobe(points.cannon);
         var coords = [];
         var localPath = [];
@@ -1011,8 +1013,8 @@
           var progress = i / sampleCount;
           var t = flightTime * progress;
           var currentWorld = add(cannonWorld, {
-            x: aimWorld.x * displaySpeed * t,
-            y: aimWorld.y * displaySpeed * t
+            x: launchVelocity.x * t,
+            y: launchVelocity.y * t
           });
           var localAtTime = rotate(currentWorld, -(launchTheta + angularSpeed * t));
           var globePoint = localToGlobe(localAtTime);
@@ -1044,6 +1046,7 @@
           target: localToGlobe(points.target),
           aimLabel: getAimLabel(aimLocal),
           locationLabel: formatGlobePoint(startGlobe),
+          worldVelocity: launchVelocity,
           flightTime: flightTime
         };
       }
@@ -1138,7 +1141,7 @@
         link.download = "u2h-coriolis-evidence.png";
         link.href = evidenceCanvas.toDataURL("image/png");
         link.click();
-        evidenceMessage.textContent = "Evidence image downloaded. Upload it to Question 6.";
+        evidenceMessage.textContent = "Evidence image downloaded. Upload it to Question 9.";
       }
 
       function markSCORMComplete() {
@@ -1162,14 +1165,12 @@
         var targetDirectionLocal = norm(sub(points.target, points.cannon));
         var aimLocal = rotate(targetDirectionLocal, p.aimCorrection * Math.PI / 180);
         var aimWorld = rotate(aimLocal, theta);
-        var flightTime = p.targetDistance / Math.max(1, p.shellSpeed);
-        var displaySpeed = mag(sub(points.target, points.cannon)) / Math.max(0.01, flightTime);
         launchPlan = calculateLaunchPlan(points, aimLocal, aimWorld, p, theta);
 
         projectile = {
           startWorld: cannonWorld,
           launchTheta: theta,
-          velocity: { x: aimWorld.x * displaySpeed, y: aimWorld.y * displaySpeed },
+          velocity: launchPlan.worldVelocity,
           t: 0,
           history: [{ time: 0, world: cannonWorld }],
           maxTime: launchPlan.flightTime
@@ -1365,8 +1366,7 @@
           ctx.lineWidth = 4;
           ctx.beginPath();
           projectile.history.forEach(function(point, index) {
-            var direction = p.hemisphere === "North" ? 1 : -1;
-            var historicalTheta = projectile.launchTheta + direction * (p.rotationRate * Math.PI / 180) * point.time;
+            var historicalTheta = projectile.launchTheta + angularVelocity(p) * point.time;
             var localAtThatMoment = rotate(point.world, -historicalTheta);
             var screenNow = rotate(localAtThatMoment, theta);
             if (index === 0) ctx.moveTo(screenNow.x, screenNow.y);
@@ -1711,8 +1711,7 @@
         lastTime = time;
 
         var p = params();
-        var direction = p.hemisphere === "North" ? 1 : -1;
-        theta += direction * (p.rotationRate * Math.PI / 180) * dt;
+        theta += angularVelocity(p) * dt;
         updateProjectile(dt);
 
         var width = canvas.clientWidth;
@@ -1795,6 +1794,26 @@
       resize();
       loadSCORMState();
       window.requestAnimationFrame(drawFrame);
+    }());
+  </script>
+  <script id="buzz-assessment-integrity-guard">
+    (function () {
+      'use strict';
+
+      function blockClipboardAction(event) {
+        event.preventDefault();
+      }
+
+      ['copy', 'cut', 'paste', 'contextmenu'].forEach(function (eventName) {
+        document.addEventListener(eventName, blockClipboardAction, true);
+      });
+
+      document.addEventListener('keydown', function (event) {
+        var key = String(event.key || '').toLowerCase();
+        if ((event.ctrlKey || event.metaKey) && (key === 'c' || key === 'x' || key === 'v')) {
+          event.preventDefault();
+        }
+      }, true);
     }());
   </script>
 </body>
