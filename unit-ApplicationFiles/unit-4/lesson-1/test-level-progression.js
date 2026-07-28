@@ -147,4 +147,4 @@ assert.strictEqual(progress.textContent, '4 of 4 levels complete');
 assert.strictEqual(nextButton.hidden, true, 'Level 4 should not show a next-level button');
 assert.strictEqual(scormStatus, 'completed');
 
-console.log('Three-setup progression, equal-work, distinct-time/power, prompt, and same-type table checks passed.');
+console.log('Side-by-side three-canvas, card alignment, equal-work, distinct-duration/time/power, prompt, progression, and table checks passed.');
