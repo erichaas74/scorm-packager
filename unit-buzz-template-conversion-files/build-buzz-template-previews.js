@@ -103,6 +103,18 @@ const lessons = [
     template: 'u3l5-impulse-jump-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
     output: 'u3l5-impulse-jump-buzz-assessment-template-preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-4/lesson-5',
+    template: 'u4l5-water-bottle-thermal-test-buzz-assessment-template.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'u4l5-water-bottle-thermal-test-buzz-assessment-template-preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-4/lesson-3',
+    template: 'u4l3-loop-sim-lab-buzz-assessment-template.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'u4l3-loop-sim-lab-buzz-assessment-template-preview.html'
   }
 ];
 
