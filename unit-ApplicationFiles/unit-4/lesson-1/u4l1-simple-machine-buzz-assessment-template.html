@@ -705,36 +705,117 @@
 
       function drawPulley() {
         const s = state.settings.pulley;
-        const centerX = 460;
+        const centerX = 430;
         const topY = 145;
+        const radius = 32;
+        const loadY = 390 - state.progress * 100;
+        const movingY = loadY - 80;
+        const freeTravel = Math.min(145, 60 + s.segments * 25);
+        const freeY = 250 + state.progress * freeTravel;
+        const movingPulleys = [];
+        const fixedPulleys = [];
+        let freeX;
+        let anchorX;
+
+        if (s.segments === 1) {
+          const fixedX = centerX + 20;
+          anchorX = fixedX - radius;
+          freeX = fixedX + radius;
+          fixedPulleys.push({ x: fixedX, y: topY });
+        } else {
+          const movingCount = s.segments / 2;
+          anchorX = centerX - (s.segments - 1) * radius;
+          let ropeX = anchorX;
+          for (let i = 0; i < movingCount; i++) {
+            movingPulleys.push({ x: ropeX + radius, y: movingY });
+            ropeX += radius * 2;
+            fixedPulleys.push({ x: ropeX + radius, y: topY });
+            ropeX += radius * 2;
+          }
+          freeX = ropeX;
+        }
+
+        const barLeft = Math.min(anchorX, ...fixedPulleys.map(pulley => pulley.x - radius)) - 65;
+        const barRight = freeX + 65;
         ctx.fillStyle = '#64748b';
-        ctx.fillRect(190, 72, 520, 22);
-        for (let i = 0; i < Math.min(3, Math.ceil(s.segments / 2)); i++) {
-          ctx.fillStyle = '#cbd5e1';
+        ctx.fillRect(barLeft, 72, barRight - barLeft, 22);
+
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 6;
+        fixedPulleys.forEach(pulley => {
+          ctx.beginPath();
+          ctx.moveTo(pulley.x, 94);
+          ctx.lineTo(pulley.x, pulley.y - radius);
+          ctx.stroke();
+        });
+
+        ctx.strokeStyle = '#7c4a22';
+        ctx.lineWidth = 6;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        if (s.segments === 1) {
+          const fixed = fixedPulleys[0];
+          ctx.moveTo(anchorX, loadY - 40);
+          ctx.lineTo(anchorX, topY);
+          ctx.arc(fixed.x, fixed.y, radius, Math.PI, 0, false);
+          ctx.lineTo(freeX, freeY);
+        } else {
+          let ropeX = anchorX;
+          ctx.moveTo(ropeX, 94);
+          ctx.lineTo(ropeX, movingY);
+          movingPulleys.forEach((moving, index) => {
+            ctx.arc(moving.x, moving.y, radius, Math.PI, 0, true);
+            ropeX += radius * 2;
+            ctx.lineTo(ropeX, topY);
+            const fixed = fixedPulleys[index];
+            ctx.arc(fixed.x, fixed.y, radius, Math.PI, 0, false);
+            ropeX += radius * 2;
+            ctx.lineTo(ropeX, index === movingPulleys.length - 1 ? freeY : movingY);
+          });
+        }
+        ctx.stroke();
+
+        function drawPulleyWheel(pulley, moving) {
+          ctx.fillStyle = moving ? '#f4c95d' : '#cbd5e1';
           ctx.strokeStyle = '#17233b';
           ctx.lineWidth = 4;
           ctx.beginPath();
-          ctx.arc(centerX - 90 + i * 90, topY, 35, 0, Math.PI * 2);
+          ctx.arc(pulley.x, pulley.y, radius, 0, Math.PI * 2);
           ctx.fill();
           ctx.stroke();
-        }
-        const loadY = 365 - state.progress * 185;
-        ctx.strokeStyle = '#7c4a22';
-        ctx.lineWidth = 5;
-        for (let i = 0; i < s.segments; i++) {
-          const ropeX = centerX - 105 + i * (210 / Math.max(1, s.segments - 1));
+          ctx.fillStyle = '#64748b';
           ctx.beginPath();
-          ctx.moveTo(ropeX, topY + 35);
-          ctx.lineTo(ropeX, loadY - 42);
+          ctx.arc(pulley.x, pulley.y, 7, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        fixedPulleys.forEach(pulley => drawPulleyWheel(pulley, false));
+        movingPulleys.forEach(pulley => drawPulleyWheel(pulley, true));
+
+        let loadX = centerX;
+        if (movingPulleys.length) {
+          loadX = movingPulleys.reduce((sum, pulley) => sum + pulley.x, 0) / movingPulleys.length;
+          const movingLeft = movingPulleys[0].x - radius;
+          const movingRight = movingPulleys[movingPulleys.length - 1].x + radius;
+          ctx.strokeStyle = '#475569';
+          ctx.lineWidth = 6;
+          ctx.beginPath();
+          ctx.moveTo(movingLeft, movingY + radius + 7);
+          ctx.lineTo(movingRight, movingY + radius + 7);
+          ctx.moveTo(loadX, movingY + radius + 7);
+          ctx.lineTo(loadX, loadY - 40);
           ctx.stroke();
         }
-        drawLoad(centerX, loadY);
-        const pullY = 190 + Math.min(210, state.progress * 210);
-        arrow(745, 170, 745, pullY, '#087f8c', 'pull');
+        drawLoad(loadX, loadY);
+
+        ctx.fillStyle = '#7c4a22';
+        roundedRect(freeX - 13, freeY - 4, 26, 12, 5, '#7c4a22', null);
+        arrow(freeX + 55, 205, freeX + 55, 390, '#087f8c', 'pull');
         ctx.fillStyle = '#17233b';
         ctx.font = '900 18px system-ui';
         ctx.textAlign = 'center';
-        ctx.fillText(s.segments + ' supporting segments', centerX, 445);
+        ctx.fillText(s.segments + ' supporting segment' + (s.segments === 1 ? '' : 's'), centerX, 452);
       }
 
       function drawLever() {
