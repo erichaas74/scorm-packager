@@ -1,568 +1,1162 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Spring Launcher Challenge</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spring Launcher Pro</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --ink: #17233b;
-      --muted: #5e6b82;
-      --line: #dce4ef;
-      --blue: #2563eb;
-      --orange: #ea580c;
-      --green: #15803d;
-      --gold: #f59e0b;
-    }
-
-    * { box-sizing: border-box; }
-
     body {
-      margin: 0;
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      padding: 16px;
-      background: #e9eff7;
-      color: var(--ink);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: 'Inter', sans-serif;
+      overscroll-behavior: none; /* Prevents bounce on touch devices */
     }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
 
-    button,
-    input { font: inherit; }
+    .text-shadow-pink { text-shadow: 0 0 12px rgba(236, 72, 153, 0.7); }
+    .text-shadow-cyan { text-shadow: 0 0 12px rgba(6, 182, 212, 0.7); }
+    .glow-box-cyan { box-shadow: 0 0 15px rgba(6, 182, 212, 0.2), inset 0 0 10px rgba(6, 182, 212, 0.1); }
 
-    .walkthrough {
-      width: min(100%, 1040px);
-      overflow: hidden;
-      border: 1px solid var(--line);
-      border-radius: 24px;
-      background: #fff;
-      box-shadow: 0 18px 50px rgb(23 35 59 / 14%);
+    /* Custom Slider Styling */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: transparent;
     }
-
-    header {
-      min-height: 68px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      padding: 12px 18px;
-      border-bottom: 1px solid var(--line);
-    }
-
-    h1 { margin: 0; font-size: clamp(1.05rem, 3vw, 1.45rem); }
-    .round { color: var(--muted); font-size: .84rem; font-weight: 800; }
-
-    .header-actions { display: flex; align-items: center; gap: 9px; }
-    .score {
-      min-width: 90px;
-      padding: 8px 12px;
-      border-radius: 12px;
-      background: #fff6d8;
-      color: #8a4b00;
-      text-align: center;
-      font-weight: 900;
-    }
-
-    .reset,
-    .main {
-      min-height: 44px;
-      border-radius: 12px;
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 20px;
+      width: 20px;
+      border-radius: 50%;
+      background: #06b6d4;
       cursor: pointer;
-      font-weight: 800;
+      margin-top: -8px;
+      box-shadow: 0 0 10px rgba(6,182,212,0.8);
     }
-
-    .reset {
-      border: 1px solid var(--line);
-      padding: 8px 14px;
-      background: #fff;
-      color: var(--ink);
+    input[type=range]:disabled::-webkit-slider-thumb {
+      background: #64748b;
+      box-shadow: none;
+      cursor: not-allowed;
     }
-
-    .simulation {
-      position: relative;
-      min-height: min(720px, calc(100vh - 122px));
-      background: #eaf5ff;
-    }
-
-    canvas { display: block; width: 100%; height: clamp(380px, 55vw, 540px); }
-
-    .hud {
-      position: absolute;
-      inset: 14px 14px auto;
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 9px;
-      pointer-events: none;
-    }
-
-    .hud-card {
-      padding: 9px 12px;
-      border: 1px solid rgb(255 255 255 / 80%);
-      border-radius: 14px;
-      background: rgb(255 255 255 / 90%);
-      box-shadow: 0 8px 22px rgb(23 35 59 / 10%);
-      backdrop-filter: blur(8px);
-    }
-
-    .hud-card span { display: block; color: var(--muted); font-size: .74rem; font-weight: 800; text-transform: uppercase; }
-    .hud-card strong { display: block; margin-top: 2px; font-size: clamp(.92rem, 2.5vw, 1.12rem); }
-    .hud-card.target strong { color: var(--blue); }
-    .hud-card.result strong { color: var(--green); }
-
-    .prompt {
-      position: relative;
-      z-index: 2;
-      margin: -68px 14px 14px;
-      padding: 16px;
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      background: rgb(255 255 255 / 97%);
-      box-shadow: 0 12px 32px rgb(23 35 59 / 15%);
-    }
-
-    .phase { margin: 0 0 5px; color: var(--blue); font-size: .76rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
-    h2 { margin: 0; font-size: clamp(1.05rem, 3vw, 1.35rem); }
-    .helper { min-height: 1.45em; margin: 6px 0 0; color: var(--muted); line-height: 1.4; }
-
-    .settings {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
-      margin-top: 13px;
-    }
-
-    .control {
-      padding: 10px 12px;
-      border: 1px solid var(--line);
-      border-radius: 13px;
-      background: #f8fafc;
-    }
-
-    .control label { display: flex; justify-content: space-between; gap: 10px; font-size: .88rem; font-weight: 900; }
-    .control output { color: var(--blue); }
-    input[type="range"] { width: 100%; margin: 11px 0 1px; accent-color: var(--blue); cursor: pointer; }
-    input[type="range"]:disabled { cursor: default; opacity: .55; }
-
-    .prediction {
-      display: flex;
-      align-items: end;
-      gap: 8px;
-      margin-top: 13px;
-    }
-
-    .prediction label { font-size: .86rem; font-weight: 900; }
-    .prediction-input {
-      width: 130px;
-      min-height: 46px;
-      margin-top: 5px;
-      border: 2px solid #cbd7e7;
-      border-radius: 12px;
-      padding: 8px 11px;
-      color: var(--ink);
-      font-weight: 900;
-    }
-
-    .unit { padding-bottom: 12px; color: var(--muted); font-weight: 800; }
-
-    .action-row { display: flex; justify-content: flex-end; margin-top: 12px; }
-    .main {
-      border: 0;
-      padding: 11px 20px;
-      background: var(--blue);
-      color: #fff;
-    }
-
-    .main:disabled { cursor: not-allowed; opacity: .5; }
-    .main:focus-visible,
-    .reset:focus-visible,
-    .prediction-input:focus-visible,
-    input[type="range"]:focus-visible { outline: 3px solid rgb(37 99 235 / 22%); outline-offset: 2px; }
-    [hidden] { display: none !important; }
-
-    @media (max-width: 620px) {
-      body { padding: 0; }
-      .walkthrough { min-height: 100vh; border: 0; border-radius: 0; }
-      .simulation { min-height: calc(100vh - 69px); }
-      canvas { height: 440px; }
-      .prompt { margin-top: -48px; }
-      .settings { grid-template-columns: 1fr; }
-      .hud { grid-template-columns: 1fr 1fr; }
-      .hud-card.result { grid-column: 1 / -1; }
-      .score { min-width: 72px; }
-      .reset { padding-inline: 10px; }
-      .main { width: 100%; }
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 6px;
+      cursor: pointer;
+      background: #334155;
+      border-radius: 3px;
     }
   </style>
 </head>
-<body>
-  <main class="walkthrough" data-walkthrough>
-    <header>
+<body class="flex flex-col min-h-screen bg-slate-950 text-slate-100">
+
+  <!-- HEADER: Stats and Information (Top) -->
+  <header class="w-full flex-shrink-0 border-b border-slate-800 bg-slate-900 p-3 sm:p-4 z-10 shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+    <div class="max-w-6xl mx-auto flex flex-wrap justify-between items-center gap-3">
       <div>
-        <div class="round" data-round>Round 1 of 5</div>
-        <h1>Spring Launcher Challenge</h1>
+        <div id="level-indicator" class="text-[10px] sm:text-xs font-black text-pink-400 uppercase tracking-widest text-shadow-pink mb-1">Level 1: Speed</div>
+        <h1 class="text-xl sm:text-2xl font-black italic">SPRING<span class="text-cyan-400">LAUNCHER</span></h1>
+        <div id="round-indicator" class="text-xs font-bold text-slate-500 mt-1">Round 1/5</div>
       </div>
-      <div class="header-actions">
-        <div class="score" data-score>Score 0</div>
-        <button class="reset" type="button" data-reset>New game</button>
-      </div>
-    </header>
-
-    <section class="simulation" aria-label="Adjustable spring launcher and cart">
-      <canvas data-canvas width="1000" height="540"></canvas>
-
-      <div class="hud" aria-live="polite">
-        <div class="hud-card target">
-          <span>Target zone</span>
-          <strong data-target>4.0 +/- 0.35 m/s</strong>
+      <div class="flex gap-2 sm:gap-4">
+        <div class="bg-slate-950 border border-slate-800 rounded-lg p-2 min-w-[70px] sm:min-w-[90px] text-center">
+          <div class="text-[9px] sm:text-[10px] text-slate-400 uppercase font-bold tracking-wider">Cart Mass</div>
+          <div id="mass-display" class="font-mono text-sm sm:text-base font-bold text-cyan-300 mt-1">2.0 kg</div>
         </div>
-        <div class="hud-card">
-          <span>Cart mass</span>
-          <strong data-mass>2.0 kg</strong>
+        <div class="bg-slate-950 border border-slate-800 rounded-lg p-2 min-w-[70px] sm:min-w-[90px] text-center">
+          <div class="text-[9px] sm:text-[10px] text-slate-400 uppercase font-bold tracking-wider">Target</div>
+          <div id="target-display" class="font-mono text-sm sm:text-base font-bold text-pink-400 mt-1">Flat Track</div>
         </div>
-        <div class="hud-card result">
-          <span>Launch speed</span>
-          <strong data-speed>Hidden</strong>
+        <div class="bg-slate-900 border border-cyan-500/40 rounded-lg p-2 min-w-[70px] sm:min-w-[90px] text-center glow-box-cyan">
+          <div class="text-[9px] sm:text-[10px] text-slate-300 uppercase font-bold tracking-wider">Score</div>
+          <div id="score-display" class="font-mono text-base sm:text-lg font-black text-cyan-400 text-shadow-cyan mt-1">0</div>
         </div>
       </div>
+    </div>
+  </header>
 
-      <div class="prompt" aria-live="polite">
-        <p class="phase" data-phase>Set</p>
-        <h2 data-question>Tune the launcher to hit the target speed.</h2>
-        <p class="helper" data-helper>Earn 2 points for an accurate prediction and 1 bonus point for the target.</p>
-
-        <div class="settings" data-settings>
-          <div class="control">
-            <label for="stiffness">Spring stiffness <output data-stiffness-output>200 N/m</output></label>
-            <input id="stiffness" data-stiffness type="range" min="50" max="500" step="25" value="200">
-          </div>
-          <div class="control">
-            <label for="compression">Compression <output data-compression-output>0.30 m</output></label>
-            <input id="compression" data-compression type="range" min="0.05" max="0.50" step="0.01" value="0.30">
-          </div>
-        </div>
-
-        <div class="prediction" data-prediction hidden>
-          <label for="speed-prediction">Your speed prediction
-            <input class="prediction-input" id="speed-prediction" data-prediction-input type="number" min="0" max="20" step="0.1" inputmode="decimal" placeholder="?">
-          </label>
-          <span class="unit">m/s</span>
-        </div>
-
-        <div class="action-row">
-          <button class="main" type="button" data-main>Lock setup</button>
-        </div>
-      </div>
-    </section>
+  <!-- MAIN: Canvas Engine Area (Middle - stretches to fill available space but guarantees 450px min height) -->
+  <main class="flex-grow relative w-full overflow-hidden bg-slate-900 min-h-[450px]" id="canvas-container">
+    <canvas id="gameCanvas" class="absolute inset-0 block w-full h-full"></canvas>
   </main>
 
+  <!-- FOOTER: Controls and Prompts (Bottom) -->
+  <footer class="w-full flex-shrink-0 border-t border-slate-800 bg-slate-900 p-4 sm:p-5 z-10 shadow-[0_-4px_20px_rgba(0,0,0,0.5)]">
+    <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
+
+      <!-- Sliders Panel -->
+      <div class="md:col-span-7 bg-slate-950 border border-slate-800 p-4 sm:p-5 rounded-2xl">
+        <div class="mb-5">
+          <div class="flex justify-between items-end mb-2">
+            <span class="flex items-center gap-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Spring Constant (k)</span>
+              <span id="stiffness-lock" class="hidden text-[9px] font-black uppercase tracking-widest text-amber-400 border border-amber-500/40 rounded px-1.5 py-[1px]">Fixed</span>
+            </span>
+            <span id="stiffness-val" class="font-mono text-sm text-cyan-400 font-bold">200 N/m</span>
+          </div>
+          <input type="range" id="input-stiffness" min="50" max="600" step="10" value="200" class="w-full disabled:opacity-40">
+        </div>
+        <div>
+          <div class="flex justify-between items-end mb-2">
+            <span class="flex items-center gap-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Displacement (x)</span>
+              <span id="compression-lock" class="hidden text-[9px] font-black uppercase tracking-widest text-amber-400 border border-amber-500/40 rounded px-1.5 py-[1px]">Fixed</span>
+            </span>
+            <span id="compression-val" class="font-mono text-sm text-cyan-400 font-bold">0.30 m</span>
+          </div>
+          <input type="range" id="input-compression" min="0.05" max="0.55" step="0.01" value="0.30" class="w-full disabled:opacity-40">
+        </div>
+      </div>
+
+      <!-- Action & Prediction Panel -->
+      <div class="md:col-span-5 flex flex-col justify-end gap-3 h-full">
+        <div class="bg-slate-950 border border-slate-800 p-4 sm:p-5 rounded-2xl flex flex-col h-full justify-between relative overflow-hidden">
+          <!-- Subtle background glow -->
+          <div class="absolute -top-10 -right-10 w-32 h-32 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+          <div>
+            <h2 id="prompt-title" class="font-bold text-lg text-white mb-1">Predict Launch Speed</h2>
+            <p id="prompt-desc" class="text-xs font-medium text-slate-400 mb-4 h-8">Calculate speed using v = x * sqrt(k/m)</p>
+
+            <div id="predict-container" class="mb-4">
+              <label class="text-[10px] font-bold uppercase tracking-widest text-cyan-500 block mb-2">Speed Prediction (m/s)</label>
+              <!-- Prediction uses step="1" as requested -->
+              <input type="number" id="input-predict" step="1" placeholder="Enter whole number" class="w-full bg-slate-900 border border-cyan-500/50 rounded-xl px-4 py-3 text-white font-mono font-bold text-lg outline-none focus:border-cyan-400 focus:shadow-[0_0_15px_rgba(6,182,212,0.3)] transition-all">
+            </div>
+          </div>
+
+          <button id="btn-main" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-black uppercase tracking-widest py-3 sm:py-4 rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)] hover:shadow-[0_0_25px_rgba(6,182,212,0.6)] disabled:opacity-50 disabled:cursor-not-allowed">
+            Lock & Launch
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </footer>
+
   <script>
-    (() => {
-      const root = document.querySelector('[data-walkthrough]');
-      const canvas = root.querySelector('[data-canvas]');
-      const ctx = canvas.getContext('2d');
-      const roundLabel = root.querySelector('[data-round]');
-      const scoreLabel = root.querySelector('[data-score]');
-      const phase = root.querySelector('[data-phase]');
-      const question = root.querySelector('[data-question]');
-      const helper = root.querySelector('[data-helper]');
-      const targetLabel = root.querySelector('[data-target]');
-      const massLabel = root.querySelector('[data-mass]');
-      const speedLabel = root.querySelector('[data-speed]');
-      const stiffnessInput = root.querySelector('[data-stiffness]');
-      const compressionInput = root.querySelector('[data-compression]');
-      const stiffnessOutput = root.querySelector('[data-stiffness-output]');
-      const compressionOutput = root.querySelector('[data-compression-output]');
-      const predictionWrap = root.querySelector('[data-prediction]');
-      const predictionInput = root.querySelector('[data-prediction-input]');
-      const mainButton = root.querySelector('[data-main]');
-      const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('canvas-container');
 
-      const rounds = [
-        { mass: 2.0, target: 4.0, stiffness: 200, compression: 0.30 },
-        { mass: 1.0, target: 6.0, stiffness: 250, compression: 0.35 },
-        { mass: 3.0, target: 3.5, stiffness: 175, compression: 0.30 },
-        { mass: 1.5, target: 7.0, stiffness: 350, compression: 0.36 },
-        { mass: 2.5, target: 5.5, stiffness: 300, compression: 0.38 }
-      ];
+    // UI Elements
+    const levelInd = document.getElementById('level-indicator');
+    const roundInd = document.getElementById('round-indicator');
+    const massDisp = document.getElementById('mass-display');
+    const targetDisp = document.getElementById('target-display');
+    const scoreDisp = document.getElementById('score-display');
+    const sliderK = document.getElementById('input-stiffness');
+    const sliderX = document.getElementById('input-compression');
+    const valK = document.getElementById('stiffness-val');
+    const valX = document.getElementById('compression-val');
+    const lockK = document.getElementById('stiffness-lock');
+    const lockX = document.getElementById('compression-lock');
+    const promptTitle = document.getElementById('prompt-title');
+    const promptDesc = document.getElementById('prompt-desc');
+    const predictContainer = document.getElementById('predict-container');
+    const predictInput = document.getElementById('input-predict');
+    const btnMain = document.getElementById('btn-main');
 
-      let roundIndex = 0;
-      let score = 0;
-      let state = 'set';
-      let launchProgress = 0;
-      let animationFrame = 0;
-      let actualSpeed = 0;
-      let predictedSpeed = 0;
+    // Game State
+    const rounds = [
+      // Level 1: Flat track, Speed prediction
+      { level: 1, mass: 2.0, k: 200, x: 0.30, targetSpeed: 3.0, targetHeight: 0 },
+      { level: 1, mass: 1.0, k: 400, x: 0.20, targetSpeed: 4.0, targetHeight: 0 },
+      // Level 2: Ramp track, Height adjustment (Initial slider settings provided, user must adjust)
+      { level: 2, mass: 2.0, k: 250, x: 0.30, targetHeight: 1.0 },
+      { level: 2, mass: 1.5, k: 250, x: 0.30, targetHeight: 2.0 },
+      { level: 2, mass: 3.0, k: 250, x: 0.30, targetHeight: 1.5 }
+    ];
 
-      function currentRound() { return rounds[roundIndex]; }
-      function stiffness() { return Number(stiffnessInput.value); }
-      function compression() { return Number(compressionInput.value); }
-      function calculateSpeed() { return compression() * Math.sqrt(stiffness() / currentRound().mass); }
-      function springEnergy() { return .5 * stiffness() * compression() * compression(); }
+    let currentRoundIdx = 0;
+    let score = 0;
+    let gameState = 'setup'; // 'setup', 'predict', 'launched', 'result', 'gameover'
 
-      function drawSpring(x1, x2, y, coils, amplitude) {
-        const lead = 18;
-        const coilStart = x1 + lead;
-        const coilEnd = x2 - lead;
-        const segments = coils * 2;
-        ctx.strokeStyle = '#ea580c';
-        ctx.lineWidth = 8;
-        ctx.lineJoin = 'round';
-        ctx.beginPath();
-        ctx.moveTo(x1, y);
-        ctx.lineTo(coilStart, y);
-        for (let i = 1; i < segments; i++) {
-          const x = coilStart + (coilEnd - coilStart) * (i / segments);
-          const offset = i % 2 ? amplitude : -amplitude;
-          ctx.lineTo(x, y + offset);
+    // ---------------------------------------------------------------
+    // World model: everything below is in METERS. The view layer maps
+    // meters to pixels each frame so the track fills the canvas width.
+    // ---------------------------------------------------------------
+    const G = 9.8;
+    const RAMP_R = 4.2;                     // radius of the curved ramp entry
+    const RAMP_MAX = 48 * Math.PI / 180;    // ramp flattens out at this incline
+    const BACK_M = 1.75;                    // world space reserved left of the launch point
+    const WALL_FACE = -1.30;                // x of the spring anchor plate
+    const PAD = { l: 26, r: 26, t: 36, b: 86 };
+    const MAX_SCALE = 170;                  // px per meter cap (keeps parts from ballooning)
+    const CART = { len: 0.64, high: 0.34, wheelR: 0.105 };
+    const TOL = 0.15;                       // height tolerance for full points
+
+    let flatLen = 4;     // length of flat runway (m) - sized per round to fill the canvas
+    let trapDist = 4;    // distance to the speed trap (m) - level 1 only
+
+    let W = 0, H = 0;    // canvas size in CSS pixels
+    // groundY is the rail line; the floor sits deckPx below it so the track reads as elevated
+    let view = { scale: 100, originX: 100, groundY: 300, deckPx: 34, topM: 2 };
+
+    // Entity
+    let cart = { s: 0, v: 0, m: 2.0 };  // s = distance along path (m), v = speed along path (m/s)
+
+    // Visual state
+    let particles = [];
+    let trail = [];
+    let time = 0;
+    let lastFrame = 0;
+    let released = false;        // spring has pushed the cart free
+    let releaseT = -99;          // time of release (drives spring wobble)
+    let trapFlash = 0;           // 0..1 flash when the speed trap fires
+    let measured = { speed: 0, height: 0, ok: false, done: false };
+    let launchSetup = { k: 200, x: 0.3 };
+
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const lerp = (a, b, t) => a + (b - a) * t;
+
+    // ---------------------------------------------------------------
+    // Path: maps 1D distance s (m) to 2D world coordinates (m)
+    // ---------------------------------------------------------------
+    function getPath(s) {
+      if (s <= flatLen) return { x: s, y: 0, angle: 0 };
+      const rs = s - flatLen;
+      const arcLen = RAMP_MAX * RAMP_R;
+      if (rs <= arcLen) {
+        const a = rs / RAMP_R;
+        return { x: flatLen + RAMP_R * Math.sin(a), y: RAMP_R * (1 - Math.cos(a)), angle: a };
+      }
+      const cx = flatLen + RAMP_R * Math.sin(RAMP_MAX);
+      const cy = RAMP_R * (1 - Math.cos(RAMP_MAX));
+      const rem = rs - arcLen;
+      return {
+        x: cx + rem * Math.cos(RAMP_MAX),
+        y: cy + rem * Math.sin(RAMP_MAX),
+        angle: RAMP_MAX
+      };
+    }
+
+    // Horizontal run (m) the ramp needs, past the flat, to reach height h
+    function rampRun(h) {
+      const hArc = RAMP_R * (1 - Math.cos(RAMP_MAX));
+      if (h <= hArc) return RAMP_R * Math.sin(Math.acos(clamp(1 - h / RAMP_R, -1, 1)));
+      return RAMP_R * Math.sin(RAMP_MAX) + (h - hArc) / Math.tan(RAMP_MAX);
+    }
+
+    // ---------------------------------------------------------------
+    // View: fit the scene to the canvas so it spans most of the width
+    // ---------------------------------------------------------------
+    function baseTop() {
+      const r = rounds[currentRoundIdx];
+      return r.level === 1 ? 1.7 : Math.max(r.targetHeight + 1.05, 2.2);
+    }
+
+    function worldWidth(topM) {
+      const r = rounds[currentRoundIdx];
+      return r.level === 1
+        ? BACK_M + trapDist + 1.6
+        : BACK_M + flatLen + rampRun(topM) + 0.9;
+    }
+
+    // Choose the runway length so the action stretches across the canvas
+    function planRound() {
+      const r = rounds[currentRoundIdx];
+      const uw = Math.max(160, W - PAD.l - PAD.r);
+      const uh = Math.max(140, H - PAD.t - PAD.b);
+      const base = baseTop();
+      const s0 = Math.min(uh / base, MAX_SCALE);
+      const ahead = uw / s0 - BACK_M;
+
+      if (r.level === 1) {
+        trapDist = clamp(ahead - 1.6, 2.4, 7);
+        flatLen = trapDist + 4;   // runway continues well past the trap
+      } else {
+        flatLen = clamp(ahead - rampRun(base) - 0.3, 1.3, 7);
+      }
+      view.topM = base;
+      applyView(view.topM);
+    }
+
+    function applyView(topM) {
+      const uw = Math.max(160, W - PAD.l - PAD.r);
+      const uh = Math.max(140, H - PAD.t - PAD.b);
+      const ww = worldWidth(topM);
+      const scale = Math.min(uh / topM, uw / ww, MAX_SCALE);
+      view.scale = scale;
+      view.originX = PAD.l + Math.max(0, (uw - ww * scale) / 2) + BACK_M * scale;
+      // Take up the vertical slack, biased towards sky rather than floor
+      view.groundY = PAD.t + topM * scale + Math.max(0, (uh - topM * scale) * 0.62);
+      view.deckPx = clamp(0.3 * scale, 20, 46);
+    }
+
+    const deckY = () => view.groundY + view.deckPx;
+
+    function updateView(dt) {
+      let want = baseTop();
+      if (gameState === 'launched' || gameState === 'result') {
+        const p = getPath(Math.max(0, cart.s));
+        // Energy tells us how much higher the cart can still climb - zoom out early
+        want = Math.max(want, p.y + cart.v * cart.v / (2 * G) + 0.7);
+      }
+      want = clamp(want, 1.2, 7.4);
+      view.topM = lerp(view.topM, want, 1 - Math.exp(-dt * 4.5));
+      applyView(view.topM);
+    }
+
+    const X = m => view.originX + m * view.scale;
+    const Y = m => view.groundY - m * view.scale;
+
+    function resize() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = container.clientWidth;
+      H = container.clientHeight;
+      canvas.width = Math.max(1, Math.round(W * dpr));
+      canvas.height = Math.max(1, Math.round(H * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // Re-sizing the runway mid-flight would move the track out from under the
+      // cart, so the geometry is only re-planned between launches.
+      if (gameState === 'setup' || gameState === 'predict') planRound();
+      else applyView(view.topM);
+      render();   // resizing clears the bitmap - repaint at once
+    }
+    window.addEventListener('resize', resize);
+    if (window.ResizeObserver) new ResizeObserver(resize).observe(container);
+
+    // ---------------------------------------------------------------
+    // Small drawing helpers
+    // ---------------------------------------------------------------
+    function chip(text, x, y, color, opts = {}) {
+      const size = opts.size || 11;
+      ctx.font = `bold ${size}px "JetBrains Mono", monospace`;
+      const padX = 8, padY = 5;
+      const w = ctx.measureText(text).width + padX * 2;
+      const h = size + padY * 2;
+      let cx = x - (opts.align === 'center' ? w / 2 : opts.align === 'right' ? w : 0);
+      cx = clamp(cx, 4, Math.max(4, W - w - 4));
+      const cy = clamp(y - h, 4, Math.max(4, H - h - 4));
+      ctx.fillStyle = opts.bg || 'rgba(2,6,23,0.88)';
+      ctx.beginPath(); ctx.roundRect(cx, cy, w, h, 6);
+      ctx.fill();
+      ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = opts.text || color;
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText(text, cx + padX, cy + h / 2 + 0.5);
+      ctx.textBaseline = 'alphabetic';
+      return { x: cx, y: cy, w, h };
+    }
+
+    function spark(x, y, opts = {}) {
+      particles.push({
+        x, y,
+        vx: (opts.vx || 0) + (Math.random() - 0.5) * (opts.spread || 3),
+        vy: (opts.vy || 0) + (Math.random() - 0.5) * (opts.spread || 3),
+        life: 0,
+        max: opts.max || (0.35 + Math.random() * 0.45),
+        size: opts.size || (1.2 + Math.random() * 2.2),
+        grav: opts.grav === undefined ? 6 : opts.grav,
+        color: opts.color || '#fbbf24'
+      });
+    }
+
+    function updateParticles(dt) {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.life += dt;
+        if (p.life >= p.max) { particles.splice(i, 1); continue; }
+        p.vy -= p.grav * dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        if (p.y < 0.02) { p.y = 0.02; p.vy = Math.abs(p.vy) * 0.35; p.vx *= 0.7; }
+      }
+      if (particles.length > 260) particles.splice(0, particles.length - 260);
+    }
+
+    // ---------------------------------------------------------------
+    // Scene layers
+    // ---------------------------------------------------------------
+    function drawBackground() {
+      const sky = ctx.createLinearGradient(0, 0, 0, H);
+      sky.addColorStop(0, '#060a14');
+      sky.addColorStop(0.55, '#0a1120');
+      sky.addColorStop(1, '#101c2f');
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, W, H);
+
+      // Ambient glow around the launch pad
+      const g = ctx.createRadialGradient(X(0.4), Y(0.5), 0, X(0.4), Y(0.5), Math.max(W, H) * 0.6);
+      g.addColorStop(0, 'rgba(8,145,178,0.13)');
+      g.addColorStop(0.5, 'rgba(8,145,178,0.04)');
+      g.addColorStop(1, 'rgba(8,145,178,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H);
+
+      // Measurement grid, locked to the world so it reads as graph paper
+      const top = view.topM + 1.2;
+      ctx.lineWidth = 1;
+      for (let m = -2; m * view.scale + view.originX < W + view.scale; m += 0.5) {
+        const px = Math.round(X(m)) + 0.5;
+        if (px < -2 || px > W + 2) continue;
+        ctx.strokeStyle = Math.abs(m % 1) < 0.01 ? 'rgba(148,163,184,0.10)' : 'rgba(148,163,184,0.045)';
+        ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, deckY()); ctx.stroke();
+      }
+      for (let m = 0.5; m <= top; m += 0.5) {
+        const py = Math.round(Y(m)) + 0.5;
+        if (py < 0) break;
+        const whole = Math.abs(m % 1) < 0.01;
+        ctx.strokeStyle = whole ? 'rgba(148,163,184,0.10)' : 'rgba(148,163,184,0.045)';
+        ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(W, py); ctx.stroke();
+        if (whole && view.scale > 42) {
+          ctx.fillStyle = 'rgba(148,163,184,0.45)';
+          ctx.font = 'bold 10px "JetBrains Mono", monospace';
+          ctx.textAlign = 'left';
+          ctx.fillText(`${m}m`, 6, py - 3);
         }
-        ctx.lineTo(coilEnd, y);
-        ctx.lineTo(x2, y);
+      }
+    }
+
+    function drawGround() {
+      const gy = deckY();
+      const g = ctx.createLinearGradient(0, gy, 0, H);
+      g.addColorStop(0, '#111d31');
+      g.addColorStop(1, '#05080f');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, gy, W, H - gy);
+
+      // Hatched floor texture
+      ctx.save();
+      ctx.beginPath(); ctx.rect(0, gy, W, H - gy); ctx.clip();
+      ctx.strokeStyle = 'rgba(148,163,184,0.06)';
+      ctx.lineWidth = 1;
+      for (let x = -H; x < W + H; x += 16) {
+        ctx.beginPath(); ctx.moveTo(x, H); ctx.lineTo(x + (H - gy), gy); ctx.stroke();
+      }
+      ctx.restore();
+
+      // Floor edge - kept dim so the rail above stays the dominant line
+      ctx.strokeStyle = 'rgba(56,189,248,0.16)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(0, gy + 0.5); ctx.lineTo(W, gy + 0.5); ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    function trackPoints() {
+      const pts = [];
+      for (let s = -BACK_M - 0.4; s < 60; s += 0.06) {
+        const p = getPath(s);
+        const px = X(p.x), py = Y(p.y);
+        pts.push({ s, p, px, py });
+        if (px > W + 40 || p.y > view.topM + 1.6) break;
+      }
+      return pts;
+    }
+
+    function drawTrack() {
+      const pts = trackPoints();
+      if (pts.length < 2) return;
+
+      // Trestle columns hold the whole rail above the floor
+      ctx.lineCap = 'butt';
+      for (let s = -BACK_M + 0.2; s < 60; s += 0.62) {
+        const p = getPath(s);
+        const px = X(p.x);
+        if (px > W + 20) break;
+        if (px < -20) continue;
+        const top = Y(p.y), bot = deckY();
+        const w = Math.max(3, 0.09 * view.scale);
+        const cg = ctx.createLinearGradient(px - w, 0, px + w, 0);
+        cg.addColorStop(0, '#0d1626');
+        cg.addColorStop(0.45, '#1c2b45');
+        cg.addColorStop(1, '#0a1120');
+        ctx.fillStyle = cg;
+        ctx.fillRect(px - w / 2, top, w, bot - top);
+        ctx.fillStyle = 'rgba(56,189,248,0.10)';
+        ctx.fillRect(px - w / 2, top, Math.max(1, w * 0.18), bot - top);
+      }
+
+      // Cross ties beneath the rail
+      ctx.strokeStyle = '#1b2942';
+      ctx.lineWidth = Math.max(2, 0.035 * view.scale);
+      for (let i = 0; i < pts.length; i += 5) {
+        const { p, px, py } = pts[i];
+        const nx = Math.sin(p.angle), ny = Math.cos(p.angle);
+        const d = 0.16 * view.scale;
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.lineTo(px + nx * d, py + ny * d);
         ctx.stroke();
       }
 
-      function drawArrow(x1, y1, x2, y2, color, label) {
-        const angle = Math.atan2(y2 - y1, x2 - x1);
-        ctx.strokeStyle = color;
-        ctx.fillStyle = color;
-        ctx.lineWidth = 7;
+      // Rail: dark base, mid body, glowing top edge
+      const stroke = (width, style) => {
+        ctx.strokeStyle = style;
+        ctx.lineWidth = width;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
+        pts.forEach((q, i) => i ? ctx.lineTo(q.px, q.py) : ctx.moveTo(q.px, q.py));
+        ctx.stroke();
+      };
+      const rw = clamp(0.075 * view.scale, 6, 12);
+      stroke(rw + 3, '#0b1322');
+      stroke(rw, '#2b3a55');
+
+      ctx.save();
+      ctx.translate(0, -rw * 0.32);
+      stroke(Math.max(1.5, rw * 0.18), 'rgba(125,211,252,0.45)');
+      ctx.restore();
+    }
+
+    function drawLauncher() {
+      const gy = deckY();
+      const x0 = X(-1.60), x1 = X(-1.24);
+      const top = Y(1.05);
+      const w = x1 - x0, h = gy - top;
+
+      ctx.save();
+      const g = ctx.createLinearGradient(x0, 0, x1, 0);
+      g.addColorStop(0, '#0c1424');
+      g.addColorStop(0.5, '#1d2b44');
+      g.addColorStop(1, '#0e1929');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.roundRect(x0, top, w, h, [4, 4, 0, 0]); ctx.fill();
+      ctx.strokeStyle = '#334966'; ctx.lineWidth = 1.5; ctx.stroke();
+
+      // Hatching reads as "bolted to the world"
+      ctx.beginPath(); ctx.rect(x0, top, w, h); ctx.clip();
+      ctx.strokeStyle = 'rgba(148,163,184,0.16)';
+      ctx.lineWidth = 1;
+      for (let i = -h; i < w + h; i += 9) {
+        ctx.beginPath(); ctx.moveTo(x0 + i, gy); ctx.lineTo(x0 + i + h, top); ctx.stroke();
+      }
+      ctx.restore();
+
+      // Anchor plate + bolts
+      const px = X(WALL_FACE);
+      ctx.fillStyle = '#475a75';
+      ctx.fillRect(px - 3, Y(0.62), 5, Y(0) - Y(0.62));
+      ctx.fillStyle = '#94a3b8';
+      [0.18, 0.42].forEach(hh => {
+        ctx.beginPath(); ctx.arc(x0 + w / 2, Y(hh), Math.max(1.6, 0.022 * view.scale), 0, Math.PI * 2); ctx.fill();
+      });
+
+      // Base pad under the whole launcher
+      ctx.fillStyle = '#16233a';
+      ctx.fillRect(x0 - 4, gy, w + 10, Math.max(4, 0.05 * view.scale));
+    }
+
+    function springEndX() {
+      const natural = -CART.len / 2;
+      if (cart.s < 0) return cart.s - CART.len / 2;
+      const t = time - releaseT;
+      const wob = released && t < 1.2 ? Math.sin(t * 34) * 0.05 * Math.exp(-t * 4) : 0;
+      return natural + wob;
+    }
+
+    function drawSpring() {
+      const ax = X(WALL_FACE);
+      const ex = X(springEndX());
+      const axisY = Y(0.20);
+      const natural = X(-CART.len / 2);
+      const full = natural - ax;
+      const comp = clamp((natural - ex) / Math.max(1, full), 0, 1);
+
+      // Coils bunch up as it compresses, but never tighter than ~10px or it turns into a blob
+      const coils = clamp(Math.round((ex - ax) / 10), 4, 9);
+      const amp = (0.085 + 0.06 * comp) * view.scale;
+      const pts = [];
+      const steps = 160;
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const taper = Math.sin(Math.PI * clamp((t - 0.05) / 0.9, 0, 1));
+        pts.push([ax + (ex - ax) * t, axisY + Math.sin(t * coils * Math.PI * 2) * amp * taper]);
+      }
+      const path = () => {
+        ctx.beginPath();
+        pts.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]));
+      };
+
+      const lw = clamp(0.045 * view.scale, 3, 6);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      // Depth pass
+      ctx.strokeStyle = 'rgba(120,53,15,0.85)';
+      ctx.lineWidth = lw + 2.5;
+      path(); ctx.stroke();
+
+      // Hot metal, brighter the more it is compressed
+      const hue = 40 - 20 * comp;
+      ctx.shadowColor = `hsla(${hue}, 95%, 55%, ${0.35 + 0.5 * comp})`;
+      ctx.shadowBlur = 8 + 22 * comp;
+      ctx.strokeStyle = `hsl(${hue}, 93%, ${50 + 8 * comp}%)`;
+      ctx.lineWidth = lw;
+      path(); ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Specular highlight along the coils
+      ctx.save();
+      ctx.translate(0, -lw * 0.28);
+      ctx.strokeStyle = 'rgba(255,255,255,0.30)';
+      ctx.lineWidth = Math.max(1, lw * 0.28);
+      path(); ctx.stroke();
+      ctx.restore();
+
+      // End caps
+      ctx.fillStyle = '#cbd5e1';
+      const capH = 0.14 * view.scale;
+      ctx.fillRect(ax - 1, axisY - capH / 2, 3, capH);
+      ctx.fillRect(ex - 2, axisY - capH / 2, 3, capH);
+
+      // Charge sparks while it is held under load
+      if (comp > 0.35 && gameState !== 'launched' && Math.random() < comp * 0.35) {
+        spark(springEndX() + Math.random() * 0.3 - 0.15, 0.2 + (Math.random() - 0.5) * 0.2,
+          { spread: 1.2, max: 0.35, size: 1.4, color: '#fde68a', grav: 2 });
+      }
+    }
+
+    function drawTargets() {
+      const r = rounds[currentRoundIdx];
+
+      if (r.level === 1) {
+        const tx = X(trapDist);
+        const topY = Y(1.45), botY = Y(0);
+
+        // Gate: a mast either side of the rail with the beam strung between
+        const pw = Math.max(6, 0.11 * view.scale);
+        ctx.fillStyle = '#102a38';
+        ctx.strokeStyle = 'rgba(6,182,212,0.55)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(tx - pw / 2, topY - 0.2 * view.scale, pw, 0.26 * view.scale, 4);
+        ctx.fill(); ctx.stroke();
+        ctx.beginPath();
+        ctx.roundRect(tx - pw * 0.75, botY + 2, pw * 1.5, deckY() - botY - 2, [0, 0, 3, 3]);
+        ctx.fill(); ctx.stroke();
+
+        // Beam
+        const flash = trapFlash;
+        ctx.save();
+        ctx.strokeStyle = `rgba(103,232,249,${0.55 + 0.35 * flash})`;
+        ctx.shadowColor = 'rgba(6,182,212,0.9)';
+        ctx.shadowBlur = 10 + 26 * flash;
+        ctx.lineWidth = 2 + 3 * flash;
+        ctx.setLineDash([9, 7]);
+        ctx.lineDashOffset = -time * 34;
+        ctx.beginPath();
+        ctx.moveTo(tx, botY + 2);
+        ctx.lineTo(tx, topY);
+        ctx.stroke();
+        ctx.restore();
+        ctx.setLineDash([]);
+
+        chip('SPEED TRAP', tx, topY - 6, '#22d3ee', { align: 'center' });
+
+        if (measured.done) {
+          chip(`MEASURED  ${measured.speed.toFixed(2)} m/s`, tx, topY - 30, '#67e8f9', { align: 'center' });
+        }
+      } else {
+        const ty = Y(r.targetHeight);
+        const x0 = X(Math.max(0.2, flatLen - 1.0));
+
+        // Tolerance band
+        ctx.fillStyle = 'rgba(236,72,153,0.10)';
+        ctx.fillRect(x0, Y(r.targetHeight + TOL), W - x0, Y(r.targetHeight - TOL) - Y(r.targetHeight + TOL));
+
+        ctx.strokeStyle = 'rgba(236,72,153,0.75)';
+        ctx.shadowColor = 'rgba(236,72,153,0.5)';
+        ctx.shadowBlur = 8;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([10, 8]);
+        ctx.lineDashOffset = -time * 18;
+        ctx.beginPath(); ctx.moveTo(x0, ty); ctx.lineTo(W, ty); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.shadowBlur = 0;
+
+        chip(`TARGET  ${r.targetHeight.toFixed(1)} m`, x0 + 4, ty - 7, '#f472b6');
+
+        // Peak marker once the flight is over
+        if (measured.done) {
+          const py = Y(measured.height);
+          const col = measured.ok ? '#4ade80' : '#f8fafc';
+          ctx.strokeStyle = col;
+          ctx.globalAlpha = 0.85;
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 5]);
+          ctx.beginPath(); ctx.moveTo(x0, py); ctx.lineTo(W, py); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.globalAlpha = 1;
+          // Right-aligned so it never collides with the target label
+          chip(`${measured.ok ? '✓' : '•'} PEAK  ${measured.height.toFixed(2)} m`, W - 10, py - 7, col, { align: 'right' });
+        }
+      }
+    }
+
+    function drawTrail() {
+      const n = trail.length;
+      if (n < 3) return;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      // Segment by segment so the tail can fade instead of stopping dead
+      for (let i = 1; i < n; i++) {
+        const t = i / (n - 1);
+        const a = trail[i - 1], b = trail[i];
+        ctx.beginPath();
+        ctx.moveTo(X(a.x), Y(a.y));
+        ctx.lineTo(X(b.x), Y(b.y));
+        ctx.strokeStyle = `rgba(14,165,233,${0.03 + 0.16 * t})`;
+        ctx.lineWidth = CART.high * view.scale * (0.2 + 0.7 * t);
         ctx.stroke();
         ctx.beginPath();
-        ctx.moveTo(x2, y2);
-        ctx.lineTo(x2 - 20 * Math.cos(angle - .5), y2 - 20 * Math.sin(angle - .5));
-        ctx.lineTo(x2 - 20 * Math.cos(angle + .5), y2 - 20 * Math.sin(angle + .5));
+        ctx.moveTo(X(a.x), Y(a.y));
+        ctx.lineTo(X(b.x), Y(b.y));
+        ctx.strokeStyle = `rgba(125,211,252,${0.05 + 0.35 * t})`;
+        ctx.lineWidth = Math.max(1.2, 0.028 * view.scale) * (0.4 + 0.6 * t);
+        ctx.stroke();
+      }
+    }
+
+    function drawCart() {
+      const p = getPath(Math.max(cart.s, -3));
+      const px = X(cart.s < 0 ? cart.s : p.x);
+      const py = Y(cart.s < 0 ? 0 : p.y);
+      const S = view.scale;
+      const rw = clamp(0.075 * S, 6, 12);
+
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(-p.angle);
+      ctx.translate(0, -rw * 0.5);
+
+      const bodyH = CART.high * S;
+      const bodyL = CART.len * S;
+      const wheelR = CART.wheelR * S;
+      const bodyTop = -(CART.wheelR + CART.high) * S;
+
+      // Contact shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, bodyL * 0.5, wheelR * 0.35, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Wheels
+      for (const wx of [-0.19 * S, 0.19 * S]) {
+        ctx.save();
+        ctx.translate(wx, -wheelR);
+        ctx.fillStyle = '#0b1220';
+        ctx.beginPath(); ctx.arc(0, 0, wheelR, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#64748b'; ctx.lineWidth = Math.max(1, wheelR * 0.16); ctx.stroke();
+        ctx.rotate(cart.s / CART.wheelR);
+        ctx.strokeStyle = 'rgba(148,163,184,0.75)';
+        ctx.lineWidth = Math.max(1, wheelR * 0.12);
+        for (let i = 0; i < 4; i++) {
+          const a = i * Math.PI / 2;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * wheelR * 0.2, Math.sin(a) * wheelR * 0.2);
+          ctx.lineTo(Math.cos(a) * wheelR * 0.68, Math.sin(a) * wheelR * 0.68);
+          ctx.stroke();
+        }
+        ctx.fillStyle = '#cbd5e1';
+        ctx.beginPath(); ctx.arc(0, 0, wheelR * 0.22, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+
+      // Body
+      const bg = ctx.createLinearGradient(0, bodyTop, 0, bodyTop + bodyH);
+      bg.addColorStop(0, '#38bdf8');
+      bg.addColorStop(0.55, '#0ea5e9');
+      bg.addColorStop(1, '#075985');
+      ctx.shadowColor = 'rgba(14,165,233,0.75)';
+      ctx.shadowBlur = 16;
+      ctx.fillStyle = bg;
+      ctx.beginPath();
+      ctx.roundRect(-bodyL / 2, bodyTop, bodyL, bodyH, Math.max(3, 0.06 * S));
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#bae6fd';
+      ctx.lineWidth = Math.max(1, 0.014 * S);
+      ctx.stroke();
+
+      // Inset panel + mass label
+      const padI = bodyH * 0.18;
+      ctx.fillStyle = 'rgba(2,6,23,0.55)';
+      ctx.beginPath();
+      ctx.roundRect(-bodyL / 2 + padI, bodyTop + padI, bodyL - padI * 2, bodyH - padI * 2, Math.max(2, 0.03 * S));
+      ctx.fill();
+
+      if (S > 55) {
+        ctx.fillStyle = '#e0f2fe';
+        ctx.font = `bold ${Math.round(clamp(0.115 * S, 9, 16))}px "JetBrains Mono", monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${cart.m.toFixed(1)}kg`, 0, bodyTop + bodyH / 2 + 0.5);
+        ctx.textBaseline = 'alphabetic';
+      }
+
+      // Nose light
+      ctx.fillStyle = 'rgba(224,242,254,0.9)';
+      ctx.beginPath();
+      ctx.roundRect(bodyL / 2 - 0.05 * S, bodyTop + bodyH * 0.3, 0.03 * S, bodyH * 0.4, 2);
+      ctx.fill();
+
+      // Thruster glow while the spring is still pushing
+      if (cart.s < 0 && cart.v > 0.2) {
+        const fl = 0.12 * S * (0.6 + Math.random() * 0.6);
+        const fg = ctx.createLinearGradient(-bodyL / 2 - fl, 0, -bodyL / 2, 0);
+        fg.addColorStop(0, 'rgba(251,191,36,0)');
+        fg.addColorStop(1, 'rgba(251,191,36,0.8)');
+        ctx.fillStyle = fg;
+        ctx.beginPath();
+        ctx.moveTo(-bodyL / 2, bodyTop + bodyH * 0.25);
+        ctx.lineTo(-bodyL / 2 - fl, bodyTop + bodyH * 0.55);
+        ctx.lineTo(-bodyL / 2, bodyTop + bodyH * 0.85);
         ctx.closePath();
         ctx.fill();
-        ctx.font = '900 17px system-ui';
-        ctx.textAlign = 'center';
-        ctx.fillText(label, (x1 + x2) / 2, y1 - 18);
       }
 
-      function cartX() {
-        const compressedX = 355 - compression() * 220;
-        if (state !== 'reveal' && state !== 'result') return compressedX;
-        if (launchProgress <= .22) return compressedX + (355 - compressedX) * (launchProgress / .22);
-        return 355 + 520 * ((launchProgress - .22) / .78);
-      }
+      ctx.restore();
+    }
 
-      function draw() {
-        ctx.clearRect(0, 0, 1000, 540);
-        const gradient = ctx.createLinearGradient(0, 0, 0, 540);
-        gradient.addColorStop(0, '#dff1ff');
-        gradient.addColorStop(.68, '#f8fcff');
-        gradient.addColorStop(.68, '#cad5e1');
-        gradient.addColorStop(1, '#a8b8c8');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, 1000, 540);
-
-        ctx.fillStyle = '#64748b';
-        ctx.fillRect(70, 360, 42, 118);
-        ctx.fillStyle = '#475569';
-        ctx.fillRect(55, 340, 72, 25);
-
-        ctx.strokeStyle = '#64748b';
-        ctx.lineWidth = 7;
+    function drawParticles() {
+      particles.forEach(p => {
+        const a = 1 - p.life / p.max;
+        ctx.globalAlpha = a * a;
+        ctx.fillStyle = p.color;
         ctx.beginPath();
-        ctx.moveTo(90, 438);
-        ctx.lineTo(925, 438);
-        ctx.stroke();
-
-        const x = cartX();
-        const springEnd = Math.min(x - 62, 350);
-        const coilCount = Math.round(6 + (stiffness() - 50) / 60);
-        drawSpring(108, springEnd, 389, coilCount, 21);
-
-        ctx.fillStyle = '#2563eb';
-        ctx.strokeStyle = '#17233b';
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.roundRect(x - 62, 350, 124, 70, 13);
+        ctx.arc(X(p.x), Y(p.y), p.size, 0, Math.PI * 2);
         ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = '#fff';
-        ctx.font = '900 19px system-ui';
-        ctx.textAlign = 'center';
-        ctx.fillText(currentRound().mass.toFixed(1) + ' kg', x, 393);
+      });
+      ctx.globalAlpha = 1;
+    }
 
-        for (const wheelX of [x - 38, x + 38]) {
-          ctx.fillStyle = '#17233b';
-          ctx.beginPath();
-          ctx.arc(wheelX, 428, 12, 0, Math.PI * 2);
-          ctx.fill();
+    function drawReadout() {
+      if (gameState !== 'launched' && gameState !== 'result') return;
+      const r = rounds[currentRoundIdx];
+      const p = getPath(Math.max(0, cart.s));
+      const px = X(cart.s < 0 ? cart.s : p.x);
+      const top = Y(cart.s < 0 ? 0 : p.y) - (CART.high + CART.wheelR) * view.scale - 14;
+      // Near the top of the frame the labels flip below the cart instead of stacking up
+      const below = top < 70;
+      const py = below ? top + (CART.high + CART.wheelR) * view.scale + 60 : top;
+      const step = below ? 26 : -26;
+      chip(`v ${Math.max(0, cart.v).toFixed(2)} m/s`, px, py, '#67e8f9', { align: 'center' });
+      if (r.level === 2) {
+        chip(`h ${p.y.toFixed(2)} m`, px, py + step, '#f9a8d4', { align: 'center' });
+      }
+    }
+
+    function drawEnergyBar() {
+      if (W < 560) return;
+      const k = launchSetup.k, x0 = launchSetup.x;
+      const total = 0.5 * k * x0 * x0;
+      if (total <= 0) return;
+
+      const comp = Math.max(0, -cart.s);
+      const spring = 0.5 * k * comp * comp;
+      const kinetic = 0.5 * cart.m * cart.v * cart.v;
+      const grav = cart.m * G * Math.max(0, getPath(Math.max(0, cart.s)).y);
+
+      // Top-left: the cart never travels there, and the right side holds the ramp
+      const bw = 226, bh = 9;
+      const bx = PAD.l + 26, by = 26;
+
+      ctx.fillStyle = 'rgba(2,6,23,0.72)';
+      ctx.strokeStyle = 'rgba(51,65,85,0.9)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.roundRect(bx - 12, by - 12, bw + 24, bh + 46, 10);
+      ctx.fill(); ctx.stroke();
+
+      ctx.fillStyle = 'rgba(148,163,184,0.85)';
+      ctx.font = 'bold 9px "JetBrains Mono", monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('ENERGY BUDGET', bx, by - 1);
+      ctx.textAlign = 'right';
+      ctx.fillText(`${total.toFixed(1)} J`, bx + bw, by - 1);
+
+      const y = by + 7;
+      ctx.fillStyle = 'rgba(15,23,42,0.95)';
+      ctx.beginPath(); ctx.roundRect(bx, y, bw, bh, 4); ctx.fill();
+
+      ctx.save();
+      ctx.beginPath(); ctx.roundRect(bx, y, bw, bh, 4); ctx.clip();
+      let cx = bx;
+      [[spring, '#f59e0b'], [kinetic, '#22d3ee'], [grav, '#ec4899']].forEach(([val, col]) => {
+        const w = clamp(val / total, 0, 1) * bw;
+        ctx.fillStyle = col;
+        ctx.fillRect(cx, y, w, bh);
+        cx += w;
+      });
+      ctx.restore();
+
+      ctx.font = 'bold 9px "JetBrains Mono", monospace';
+      ctx.textAlign = 'left';
+      let lx = bx;
+      [['SPRING', spring, '#f59e0b'], ['KINETIC', kinetic, '#22d3ee'], ['HEIGHT', grav, '#ec4899']].forEach(([label, val, col]) => {
+        ctx.fillStyle = col;
+        ctx.beginPath(); ctx.arc(lx + 3, y + bh + 12, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(203,213,225,0.9)';
+        ctx.fillText(`${label} ${val.toFixed(1)}`, lx + 10, y + bh + 15);
+        lx += 76;
+      });
+    }
+
+    function render() {
+      drawBackground();
+      drawTrack();
+      drawGround();
+      drawTargets();
+      drawLauncher();
+      drawSpring();
+      drawTrail();
+      drawParticles();
+      drawCart();
+      drawReadout();
+      drawEnergyBar();
+    }
+
+    // ---------------------------------------------------------------
+    // Physics
+    // ---------------------------------------------------------------
+    function integrate(dt) {
+      const k = launchSetup.k;
+      let force = 0;
+      if (cart.s < 0) force += k * (-cart.s);                 // Hooke's law
+      const p = getPath(Math.max(0, cart.s));
+      force -= cart.m * G * Math.sin(p.angle);                // gravity along the ramp
+
+      cart.v += (force / cart.m) * dt;
+      cart.s += cart.v * dt;
+
+      const limit = -launchSetup.x;
+      if (cart.s < limit) { cart.s = limit; if (cart.v < 0) cart.v = 0; }
+
+      if (!released && cart.s >= 0) {
+        released = true;
+        releaseT = time;
+        for (let i = 0; i < 18; i++) {
+          spark(0.02, 0.18, { vx: -1.5 - Math.random() * 2, spread: 3.2, color: i % 3 ? '#fbbf24' : '#fde68a' });
         }
+      }
+    }
 
-        if (state === 'reveal' || state === 'result') {
-          const arrowLength = Math.min(250, actualSpeed * 34);
-          drawArrow(x - 20, 310, x - 20 + arrowLength, 310, '#15803d', actualSpeed.toFixed(1) + ' m/s');
+    function stepPhysics(dt) {
+      const sub = 1 / 600;
+      let remain = dt;
+      while (remain > 0 && gameState === 'launched') {
+        const h = Math.min(sub, remain);
+        remain -= h;
+        integrate(h);
+        checkFinish();
+      }
+
+      const r = rounds[currentRoundIdx];
+      if (gameState === 'launched') {
+        const p = getPath(Math.max(0, cart.s));
+        trail.push({ x: cart.s < 0 ? cart.s : p.x, y: p.y + CART.wheelR + CART.high / 2 });
+        if (trail.length > 90) trail.shift();
+
+        // Dust kicked up while the wheels are driving hard
+        if (cart.s > -0.05 && cart.v > 1 && Math.random() < 0.4) {
+          spark(cart.s - 0.2, 0.03, { vx: -cart.v * 0.15, vy: 0.6, spread: 0.8, max: 0.5, size: 1.6, grav: 1.5, color: 'rgba(148,163,184,0.8)' });
         }
-
-        ctx.fillStyle = '#17233b';
-        ctx.font = '900 22px system-ui';
-        ctx.textAlign = 'left';
-        ctx.fillText('SPRING LAUNCH TRACK', 60, 130);
-        ctx.fillStyle = '#5e6b82';
-        ctx.font = '700 16px system-ui';
-        ctx.fillText('Elastic energy becomes kinetic energy', 60, 157);
-
-        if (state === 'result') {
-          const energy = springEnergy();
-          ctx.fillStyle = 'rgb(255 255 255 / 92%)';
-          ctx.strokeStyle = '#dce4ef';
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.roundRect(620, 178, 310, 90, 16);
-          ctx.fill();
-          ctx.stroke();
-          ctx.fillStyle = '#17233b';
-          ctx.font = '900 18px system-ui';
-          ctx.textAlign = 'center';
-          ctx.fillText('Spring PE = ' + energy.toFixed(1) + ' J', 775, 213);
-          ctx.fillText('Cart KE = ' + energy.toFixed(1) + ' J', 775, 246);
+        if (r.level === 2 && cart.v > 0.4 && Math.random() < 0.25) {
+          spark(p.x - Math.cos(p.angle) * 0.3, p.y + 0.1, { spread: 0.8, max: 0.4, size: 1.3, grav: 1, color: '#38bdf8' });
         }
       }
+    }
 
-      function updateSetup() {
-        stiffnessOutput.textContent = stiffness() + ' N/m';
-        compressionOutput.textContent = compression().toFixed(2) + ' m';
-        draw();
+    function checkFinish() {
+      const r = rounds[currentRoundIdx];
+      if (r.level === 1) {
+        if (cart.s >= trapDist) {
+          cart.s = trapDist;
+          trapFlash = 1;
+          for (let i = 0; i < 24; i++) {
+            spark(trapDist, 0.2 + Math.random() * 1.1, { spread: 4, color: '#67e8f9', max: 0.6 });
+          }
+          handleResult(cart.v, 0);
+        } else if (cart.v <= 0 && cart.s > 0) {
+          handleResult(0, 0);
+        }
+      } else if (cart.v <= 0 && cart.s > 0) {
+        handleResult(0, getPath(cart.s).y);
+      }
+    }
+
+    // ---------------------------------------------------------------
+    // Round flow
+    // ---------------------------------------------------------------
+    function updateSliders() {
+      if (gameState === 'launched') return;
+      const kVal = parseFloat(sliderK.value);
+      const xVal = parseFloat(sliderX.value);
+      valK.textContent = `${kVal} N/m`;
+      valX.textContent = `${xVal.toFixed(2)} m`;
+
+      if (gameState === 'setup' || gameState === 'predict') {
+        launchSetup.k = kVal;
+        launchSetup.x = xVal;
+        cart.s = -xVal;
+        cart.v = 0;
+      }
+    }
+
+    function initRound() {
+      const r = rounds[currentRoundIdx];
+      cart.m = r.mass;
+      cart.v = 0;
+      released = false;
+      releaseT = -99;
+      trapFlash = 0;
+      trail = [];
+      particles = [];
+      measured = { speed: 0, height: 0, ok: false, done: false };
+
+      roundInd.textContent = `Round ${currentRoundIdx + 1}/5`;
+      massDisp.textContent = `${r.mass.toFixed(1)} kg`;
+      btnMain.disabled = false;
+
+      if (r.level === 1) {
+        gameState = 'predict';
+        levelInd.textContent = "Level 1: Speed";
+        levelInd.className = "text-[10px] sm:text-xs font-black text-pink-400 uppercase tracking-widest text-shadow-pink mb-1";
+        targetDisp.textContent = "Speed Trap";
+        targetDisp.className = "font-mono text-sm sm:text-base font-bold text-pink-400 mt-1";
+
+        sliderK.value = r.k;
+        sliderX.value = r.x;
+        sliderK.disabled = true;
+        sliderX.disabled = true;
+
+        predictContainer.classList.remove('hidden');
+        predictInput.value = '';
+        predictInput.disabled = false;
+
+        promptTitle.textContent = "Predict Launch Speed";
+        promptDesc.textContent = "Calculate speed using v = x * sqrt(k/m)";
+        btnMain.textContent = "Lock & Launch";
+      } else {
+        gameState = 'setup';
+        levelInd.textContent = "Level 2: Ramp";
+        levelInd.className = "text-[10px] sm:text-xs font-black text-cyan-400 uppercase tracking-widest text-shadow-cyan mb-1";
+        targetDisp.textContent = `${r.targetHeight.toFixed(1)} m`;
+        targetDisp.className = "font-mono text-sm sm:text-base font-bold text-cyan-400 mt-1";
+
+        sliderK.disabled = false;
+        sliderX.disabled = false;
+        sliderK.value = r.k;
+        sliderX.value = r.x;
+
+        predictContainer.classList.add('hidden');
+
+        promptTitle.textContent = "Configure Energy";
+        promptDesc.textContent = "Adjust to hit target. 0.5*k*x² = m*g*h (g=9.8)";
+        btnMain.textContent = "Launch";
       }
 
-      function loadRound() {
-        const round = currentRound();
-        state = 'set';
-        launchProgress = 0;
-        predictedSpeed = 0;
-        actualSpeed = 0;
-        stiffnessInput.disabled = false;
-        compressionInput.disabled = false;
-        stiffnessInput.value = round.stiffness;
-        compressionInput.value = round.compression;
-        predictionInput.value = '';
-        predictionWrap.hidden = true;
-        roundLabel.textContent = 'Round ' + (roundIndex + 1) + ' of ' + rounds.length;
-        scoreLabel.textContent = 'Score ' + score;
-        targetLabel.textContent = round.target.toFixed(1) + ' +/- 0.35 m/s';
-        massLabel.textContent = round.mass.toFixed(1) + ' kg';
-        speedLabel.textContent = 'Hidden';
-        phase.textContent = 'Set';
-        question.textContent = 'Tune the launcher to hit the target speed.';
-        helper.textContent = 'Earn 2 points for an accurate prediction and 1 bonus point for the target.';
-        mainButton.textContent = 'Lock setup';
-        mainButton.disabled = false;
-        updateSetup();
+      updateSliders();
+      resize();
+    }
+
+    function handleResult(speed, height) {
+      gameState = 'result';
+      const r = rounds[currentRoundIdx];
+      let pointsEarned = 0;
+
+      if (r.level === 1) {
+        const actualSpeed = r.x * Math.sqrt(r.k / r.mass);
+        const predictedSpeed = parseFloat(predictInput.value) || 0;
+        const error = Math.abs(predictedSpeed - actualSpeed);
+
+        if (error < 0.1) pointsEarned = 100;
+
+        measured = { speed: speed || actualSpeed, height: 0, ok: pointsEarned > 0, done: true };
+        promptTitle.textContent = "Speed Trap Triggered!";
+        promptDesc.textContent = `Actual: ${actualSpeed.toFixed(1)} m/s | Predicted: ${predictedSpeed.toFixed(1)} m/s`;
+      } else {
+        const error = Math.abs(height - r.targetHeight);
+
+        if (error <= TOL) pointsEarned = 100;
+        else if (error <= 0.35) pointsEarned = 50;
+
+        measured = { speed: 0, height, ok: error <= TOL, done: true };
+        if (measured.ok) {
+          const p = getPath(cart.s);
+          for (let i = 0; i < 22; i++) {
+            spark(p.x, p.y + 0.3, { spread: 2.6, color: '#4ade80', max: 0.8, grav: 3 });
+          }
+        }
+        promptTitle.textContent = "Peak Height Reached!";
+        promptDesc.textContent = `Actual Height: ${height.toFixed(2)} m | Target: ${r.targetHeight.toFixed(1)} m`;
       }
 
-      function lockSetup() {
-        state = 'predict';
-        stiffnessInput.disabled = true;
-        compressionInput.disabled = true;
-        predictionWrap.hidden = false;
-        phase.textContent = 'Predict';
-        question.textContent = 'What speed will the cart have when it leaves the spring?';
-        helper.textContent = 'Use the stored spring energy and the cart mass.';
-        mainButton.textContent = 'Launch';
-        predictionInput.focus();
-      }
+      score += pointsEarned;
+      scoreDisp.textContent = score;
+      btnMain.disabled = false;
+      btnMain.textContent = pointsEarned > 0 ? `+${pointsEarned} Pts! Next Round` : "Missed! Next Round";
+    }
 
-      function launch() {
-        const value = Number(predictionInput.value);
-        if (!Number.isFinite(value) || predictionInput.value.trim() === '') {
-          helper.textContent = 'Enter a speed prediction before launching.';
-          predictionInput.focus();
+    // ---------------------------------------------------------------
+    // Main loop (always running so idle scenes stay alive)
+    // ---------------------------------------------------------------
+    function frame(t) {
+      const dt = lastFrame ? Math.min((t - lastFrame) / 1000, 0.05) : 0;
+      lastFrame = t;
+      time += dt;
+
+      if (gameState === 'launched') stepPhysics(dt);
+      trapFlash = Math.max(0, trapFlash - dt * 1.6);
+      updateParticles(dt);
+      updateView(dt);
+      render();
+
+      requestAnimationFrame(frame);
+    }
+
+    // Input Listeners
+    sliderK.addEventListener('input', updateSliders);
+    sliderX.addEventListener('input', updateSliders);
+
+    btnMain.addEventListener('click', () => {
+      const r = rounds[currentRoundIdx];
+
+      if (gameState === 'predict' || gameState === 'setup') {
+        if (gameState === 'predict' && predictInput.value === '') {
+          predictInput.classList.add('border-pink-500', 'bg-pink-900/20');
+          setTimeout(() => predictInput.classList.remove('border-pink-500', 'bg-pink-900/20'), 500);
           return;
         }
 
-        predictedSpeed = value;
-        actualSpeed = calculateSpeed();
-        state = 'reveal';
-        predictionInput.disabled = true;
-        mainButton.disabled = true;
-        phase.textContent = 'Reveal';
-        question.textContent = 'Spring energy is becoming kinetic energy.';
-        helper.textContent = 'Watch the speed arrow as the cart leaves the spring.';
-        let start = 0;
-        const duration = reduceMotion ? 80 : Math.max(900, Math.min(2200, 5000 / Math.max(actualSpeed, 2)));
+        launchSetup.k = parseFloat(sliderK.value);
+        launchSetup.x = parseFloat(sliderX.value);
 
-        function frame(time) {
-          if (!start) start = time;
-          launchProgress = Math.min(1, (time - start) / duration);
-          draw();
-          if (launchProgress < 1) animationFrame = requestAnimationFrame(frame);
-          else showResult();
+        gameState = 'launched';
+        if (r.level === 1) predictInput.disabled = true;
+        sliderK.disabled = true;
+        sliderX.disabled = true;
+        btnMain.disabled = true;
+        btnMain.textContent = "Simulating...";
+
+        cart.s = -launchSetup.x;
+        cart.v = 0;
+        released = false;
+        trail = [];
+
+      } else if (gameState === 'result') {
+        currentRoundIdx++;
+        if (currentRoundIdx >= rounds.length) {
+          gameState = 'gameover';
+          promptTitle.textContent = "Challenge Complete!";
+          promptDesc.textContent = `Final Training Score: ${score} points.`;
+          btnMain.textContent = "Play Again";
+        } else {
+          initRound();
         }
-        animationFrame = requestAnimationFrame(frame);
-      }
-
-      function showResult() {
-        const predictionError = Math.abs(predictedSpeed - actualSpeed);
-        const targetError = Math.abs(actualSpeed - currentRound().target);
-        const predictionPoints = predictionError <= .25 ? 2 : predictionError <= .75 ? 1 : 0;
-        const targetPoint = targetError <= .35 ? 1 : 0;
-        const roundPoints = predictionPoints + targetPoint;
-        score += roundPoints;
-        state = 'result';
-        speedLabel.textContent = actualSpeed.toFixed(2) + ' m/s';
-        scoreLabel.textContent = 'Score ' + score;
-        phase.textContent = 'Score';
-        question.textContent = '+' + roundPoints + ' points this round';
-
-        const predictionMessage = predictionPoints === 2
-          ? 'Prediction on target.'
-          : predictionPoints === 1
-            ? 'Prediction close.'
-            : 'Prediction missed.';
-        const targetMessage = targetPoint ? ' Launcher hit the target zone.' : ' Adjust the setup next round.';
-        helper.textContent = predictionMessage + targetMessage + ' v = x sqrt(k/m) = ' + actualSpeed.toFixed(2) + ' m/s.';
-        predictionWrap.hidden = true;
-        predictionInput.disabled = false;
-        mainButton.disabled = false;
-        mainButton.textContent = roundIndex === rounds.length - 1 ? 'See final score' : 'Next round';
-        draw();
-      }
-
-      function nextRound() {
-        if (roundIndex < rounds.length - 1) {
-          roundIndex += 1;
-          loadRound();
-          return;
-        }
-
-        state = 'complete';
-        phase.textContent = 'Challenge complete';
-        question.textContent = 'Final score: ' + score + ' / ' + (rounds.length * 3);
-        helper.textContent = score >= 13
-          ? 'Spring expert: precise setup and prediction.'
-          : score >= 9
-            ? 'Strong result. Replay to sharpen the target settings.'
-            : 'Replay and use v = x sqrt(k/m) to improve your score.';
-        mainButton.textContent = 'Play again';
-      }
-
-      function newGame() {
-        cancelAnimationFrame(animationFrame);
-        roundIndex = 0;
+      } else if (gameState === 'gameover') {
+        currentRoundIdx = 0;
         score = 0;
-        predictionInput.disabled = false;
-        loadRound();
+        scoreDisp.textContent = score;
+        initRound();
       }
+    });
 
-      stiffnessInput.addEventListener('input', updateSetup);
-      compressionInput.addEventListener('input', updateSetup);
-      predictionInput.addEventListener('keydown', event => {
-        if (event.key === 'Enter' && state === 'predict') launch();
-      });
-      mainButton.addEventListener('click', () => {
-        if (state === 'set') lockSetup();
-        else if (state === 'predict') launch();
-        else if (state === 'result') nextRound();
-        else if (state === 'complete') newGame();
-      });
-      root.querySelector('[data-reset]').addEventListener('click', newGame);
-      newGame();
-    })();
+    // Boot
+    resize();
+    initRound();
+    requestAnimationFrame(frame);
+
   </script>
 </body>
 </html>

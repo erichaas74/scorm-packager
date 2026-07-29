@@ -22,7 +22,8 @@
       margin: 0;
       min-height: 100vh;
       display: grid;
-      place-items: center;
+      grid-template-columns: minmax(0, 1fr);
+      place-items: start center;
       padding: 16px;
       background: #e9eff7;
       color: var(--ink);
@@ -32,7 +33,7 @@
     button { font: inherit; }
 
     .walkthrough {
-      width: min(100%, 1040px);
+      width: min(100%, 1000px);
       overflow: hidden;
       border: 1px solid var(--line);
       border-radius: 24px;
@@ -53,109 +54,47 @@
     h1 { margin: 0; font-size: clamp(1.05rem, 3vw, 1.45rem); }
     .progress { color: var(--muted); font-size: .86rem; font-weight: 700; }
 
-    .reset,
-    .choice,
-    .main {
+    .reset {
       min-height: 44px;
+      border: 1px solid var(--line);
       border-radius: 12px;
+      padding: 8px 14px;
+      background: #fff;
+      color: var(--ink);
       cursor: pointer;
       font-weight: 800;
     }
 
-    .reset {
-      border: 1px solid var(--line);
-      padding: 8px 14px;
-      background: #fff;
-      color: var(--ink);
-    }
-
-    .simulation {
-      position: relative;
-      min-height: min(680px, calc(100vh - 120px));
-      background: linear-gradient(#eaf5ff 0 58%, #d7e0eb 58% 100%);
-    }
-
-    canvas { display: block; width: 100%; height: clamp(370px, 55vw, 540px); }
-
-    .hud {
-      position: absolute;
-      inset: 14px 14px auto;
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      pointer-events: none;
-    }
-
-    .meter {
-      width: min(42%, 250px);
-      padding: 10px 12px;
-      border: 1px solid rgb(255 255 255 / 80%);
-      border-radius: 14px;
-      background: rgb(255 255 255 / 88%);
-      box-shadow: 0 8px 22px rgb(23 35 59 / 10%);
-      backdrop-filter: blur(8px);
-    }
-
-    .meter strong { display: block; font-size: .9rem; }
-    .meter span { color: var(--muted); font-size: .8rem; }
-    .value { margin-top: 3px; color: var(--ink) !important; font-size: 1.05rem !important; font-weight: 900; }
-    .fast strong { color: var(--orange); }
-    .slow strong { color: var(--blue); }
-
-    .prompt {
-      position: relative;
-      z-index: 2;
-      margin: -72px 14px 14px;
-      padding: 16px;
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      background: rgb(255 255 255 / 96%);
-      box-shadow: 0 12px 32px rgb(23 35 59 / 15%);
-    }
-
-    .phase { margin: 0 0 5px; color: var(--blue); font-size: .76rem; letter-spacing: .1em; text-transform: uppercase; }
-    h2 { margin: 0; font-size: clamp(1.05rem, 3vw, 1.35rem); }
-    .helper { min-height: 1.45em; margin: 6px 0 0; color: var(--muted); line-height: 1.4; }
-
-    .actions {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 9px;
-      margin-top: 13px;
-    }
-
-    .choice {
-      flex: 1 1 150px;
-      border: 2px solid #cbd7e7;
-      padding: 10px 12px;
-      background: #fff;
-      color: var(--ink);
-    }
-
-    .choice:hover,
-    .choice:focus-visible { border-color: var(--blue); outline: 3px solid rgb(37 99 235 / 18%); }
-
-    .main {
-      margin-left: auto;
-      border: 0;
-      padding: 11px 18px;
-      background: var(--blue);
-      color: #fff;
-    }
-
-    .main:focus-visible,
     .reset:focus-visible { outline: 3px solid rgb(37 99 235 / 25%); outline-offset: 2px; }
-    [hidden] { display: none !important; }
+
+    .simulation { display: block; background: #fff; }
+
+    /* The scene, the readouts and the question are all drawn inside the canvas. */
+    canvas {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      height: auto;
+      aspect-ratio: 1000 / 750;
+    }
+
+    canvas:focus-visible { outline: 3px solid rgb(37 99 235 / 35%); outline-offset: -3px; }
+
+    /* Mirrors the canvas state for screen readers without taking up any space. */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
 
     @media (max-width: 620px) {
       body { padding: 0; }
       .walkthrough { min-height: 100vh; border: 0; border-radius: 0; }
-      .simulation { min-height: calc(100vh - 65px); }
-      canvas { height: 470px; }
-      .prompt { margin-top: -52px; }
-      .meter { width: 48%; }
-      .main { width: 100%; margin-left: 0; }
     }
   </style>
 </head>
@@ -169,35 +108,10 @@
       <button class="reset" type="button" data-reset>Reset</button>
     </header>
 
-    <section class="simulation" aria-label="Two winches lifting equal loads to equal heights">
-      <canvas data-canvas width="1000" height="540"></canvas>
-
-      <div class="hud" aria-hidden="true">
-        <div class="meter slow">
-          <strong>Slow winch</strong>
-          <span>20 kg / 2 m / 4 s</span>
-          <span class="value" data-slow-value>Work: hidden</span>
-        </div>
-        <div class="meter fast">
-          <strong>Fast winch</strong>
-          <span>20 kg / 2 m / 2 s</span>
-          <span class="value" data-fast-value>Work: hidden</span>
-        </div>
-      </div>
-
-      <div class="prompt" aria-live="polite">
-        <p class="phase" data-phase>Predict work</p>
-        <h2 data-question>Which winch does more work on its load?</h2>
-        <p class="helper" data-helper>Both loads have the same mass and rise through the same height.</p>
-        <div class="actions">
-          <div class="actions" data-choices>
-            <button class="choice" type="button" data-choice="slow">Slow winch</button>
-            <button class="choice" type="button" data-choice="fast">Fast winch</button>
-            <button class="choice" type="button" data-choice="same">Same work</button>
-          </div>
-          <button class="main" type="button" data-main hidden>Continue</button>
-        </div>
-      </div>
+    <section class="simulation">
+      <canvas data-canvas width="1000" height="750" tabindex="0" role="application"
+        aria-label="Two winches lifting loads side by side. Use the arrow keys to move between answers and Enter to choose."></canvas>
+      <p class="sr-only" data-live aria-live="polite"></p>
     </section>
   </main>
 
@@ -207,214 +121,1136 @@
       const canvas = root.querySelector('[data-canvas]');
       const ctx = canvas.getContext('2d');
       const progressLabel = root.querySelector('[data-progress]');
-      const phase = root.querySelector('[data-phase]');
-      const question = root.querySelector('[data-question]');
-      const helper = root.querySelector('[data-helper]');
-      const choices = root.querySelector('[data-choices]');
-      const choiceButtons = [...root.querySelectorAll('[data-choice]')];
-      const mainButton = root.querySelector('[data-main]');
-      const slowValue = root.querySelector('[data-slow-value]');
-      const fastValue = root.querySelector('[data-fast-value]');
+      const live = root.querySelector('[data-live]');
       const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-      const work = 20 * 9.8 * 2;
-      let state = 'predict-work';
+      // Design space: everything below is drawn in a 1000 x 750 world and scaled to fit.
+      const W = 1000;
+      const H = 750;
+      const GROUND = 442;          // floor line
+      const SCENE_H = 574;         // the floor ends here; the question band follows
+      const SPEC_Y = 468;          // baseline: mass / height / time
+      const TIMER_Y = 492;         // baseline: live clock
+      const BAR_Y = 500;           // timeline bar, 10 tall
+      const PANEL_Y = 520;         // work / power plate, 46 tall
+      const PANEL_H = 46;
+      const BAND_X = 44;           // left edge of the question band
+      const BAND_W = 912;
+      const PHASE_Y = 598;         // baseline
+      const QUESTION_Y = 626;      // baseline
+      const HELPER_Y = 652;        // first helper baseline; second sits 19 lower
+      const ROW_Y = 684;           // button row top
+      const ROW_H = 48;
+      const CRATE_W = 112;
+      const CRATE_H = 66;
+      const BEAM_Y = 86;           // top of the gantry cross beam
+      const BEAM_H = 26;
+      const DRUM_R = 26;
+      const DRUM_Y = 142;          // drum axle height
+      const G = 9.8;
+
+      // The lift runs on a loop: rise, hold at the top, lower, repeat.
+      const HOLD_MS = 1600;
+      const RETURN_MS = 700;
+
+      const BLUE = { base: '#2563eb', dark: '#1d4ed8', deep: '#172554', light: '#93c5fd' };
+      const ORANGE = { base: '#ea580c', dark: '#c2410c', deep: '#7c2d12', light: '#fdba74' };
+
+      // Two levels. Level 1 varies only the time; level 2 varies height and time together
+      // so that the work differs but the power comes out equal.
+      const LEVELS = [
+        {
+          note: 'SAME LOAD  ·  SAME HEIGHT',
+          pxPerM: 67.5,
+          liftMs: 3600,
+          work: {
+            question: 'Which winch does more work on its load?',
+            helper: 'Both 20 kg loads rise the same 2.00 m: the slow winch takes 4 s, the fast winch 2 s.',
+            options: [['left', 'Slow winch'], ['right', 'Fast winch'], ['same', 'Same work']],
+            answer: 'same',
+            result: 'Both winches do 392 J of work.',
+            summary: 'The work is equal.',
+            reason: 'Work depends on force and distance, not time.'
+          },
+          power: {
+            question: 'Which winch produces more power?',
+            helper: 'Both do 392 J of work. Watch the timers: one finishes in half the time.',
+            options: [['left', 'Slow winch'], ['right', 'Fast winch'], ['same', 'Same power']],
+            answer: 'right',
+            result: 'The fast winch is twice as powerful.',
+            summary: 'It transfers the same 392 J in half the time.',
+            reason: 'Same work, less time means more power.'
+          },
+          nextLabel: 'Go to level 2',
+          stations: [
+            { cx: 258, name: 'Slow winch', mass: 20, height: 2, seconds: 4, ...BLUE },
+            { cx: 742, name: 'Fast winch', mass: 20, height: 2, seconds: 2, ...ORANGE }
+          ]
+        },
+        {
+          note: 'SAME LOAD  ·  DIFFERENT HEIGHT',
+          pxPerM: 40,
+          liftMs: 4400,
+          work: {
+            question: 'Which winch does more work on its load?',
+            helper: 'The same 20 kg load now goes 4.00 m in 8 s on the left and 2.00 m in 4 s on the right.',
+            options: [['left', 'Tall lift'], ['right', 'Short lift'], ['same', 'Same work']],
+            answer: 'left',
+            result: 'The tall lift does 784 J, the short lift 392 J.',
+            summary: 'The tall lift does twice the work.',
+            reason: 'Same force over twice the distance is twice the work.'
+          },
+          power: {
+            question: 'Which winch produces more power?',
+            helper: 'One does 784 J in 8 s, the other 392 J in 4 s.',
+            options: [['left', 'Tall lift'], ['right', 'Short lift'], ['same', 'Same power']],
+            answer: 'same',
+            result: 'Both winches produce 98 W.',
+            summary: 'The power is equal.',
+            reason: 'Twice the work in twice the time is the same rate of energy transfer, which is why both loads rise at 0.5 m/s.'
+          },
+          nextLabel: 'Start over at level 1',
+          stations: [
+            { cx: 258, name: 'Tall lift', mass: 20, height: 4, seconds: 8, ...BLUE },
+            { cx: 742, name: 'Short lift', mass: 20, height: 2, seconds: 4, ...ORANGE }
+          ]
+        }
+      ];
+
+      LEVELS.forEach(level => {
+        level.span = Math.max(...level.stations.map(s => s.seconds));   // shared timeline axis
+        level.cycleMs = level.liftMs + HOLD_MS + RETURN_MS;
+        level.stations.forEach(station => {
+          station.liftPx = station.height * level.pxPerM;
+          station.work = Math.round(station.mass * G * station.height);
+          station.power = Math.round((station.mass * G * station.height) / station.seconds);
+          station.speed = station.height / station.seconds;
+          station.ms = (station.seconds / level.span) * level.liftMs;
+        });
+      });
+
+      let view = { scale: 1, offX: 0, offY: 0 };
+      let state = 'watch';
+      let level = LEVELS[0];
+      let levelIndex = 0;
       let animationFrame = 0;
-      let slowProgress = 0;
-      let fastProgress = 0;
+      let loopStart = 0;
+      let stage = 'lift';          // lift | hold | return
+      let progressOf = [0, 0];     // one entry per station in the active level
       let workPrediction = null;
       let powerPrediction = null;
 
-      function roundedRect(x, y, width, height, radius, fill, stroke) {
+      // Everything the question band needs, rebuilt on each state change.
+      let band = { phase: '', question: '', helper: '', options: [], answer: null, picked: null, locked: true, main: null };
+      let hitAreas = [];           // rebuilt every frame, in design-space coordinates
+      let hoverKey = null;
+      let focusIndex = 0;
+      let keyboardMode = false;    // only show the focus ring once a key has been used
+
+      function roundedRect(x, y, width, height, radius, fill, stroke, lineWidth) {
+        if (width <= 0 || height <= 0) return;
         ctx.beginPath();
         ctx.roundRect(x, y, width, height, radius);
-        ctx.fillStyle = fill;
-        ctx.fill();
-        if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 3; ctx.stroke(); }
+        if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+        if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lineWidth || 2; ctx.stroke(); }
       }
 
-      function drawWinch(x, color, label, progress, duration) {
-        const ground = 455;
-        const top = 165;
-        const boxY = ground - progress * (ground - top);
+      // Rotated capsule, used for braces and struts.
+      function bar(x1, y1, x2, y2, width, fill, stroke) {
+        const length = Math.hypot(x2 - x1, y2 - y1);
+        ctx.save();
+        ctx.translate(x1, y1);
+        ctx.rotate(Math.atan2(y2 - y1, x2 - x1));
+        roundedRect(0, -width / 2, length, width, width / 2, fill, stroke, 1.5);
+        ctx.restore();
+      }
 
-        ctx.strokeStyle = '#8090a8';
+      function gear(x, y, pitch, teeth, angle, fill, stroke) {
+        const inner = pitch - 3.4;
+        const outer = pitch + 3.4;
+        const step = (Math.PI * 2) / teeth;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.beginPath();
+        for (let i = 0; i < teeth; i++) {
+          const a = i * step;
+          ctx.lineTo(Math.cos(a) * inner, Math.sin(a) * inner);
+          ctx.lineTo(Math.cos(a + step * 0.18) * outer, Math.sin(a + step * 0.18) * outer);
+          ctx.lineTo(Math.cos(a + step * 0.44) * outer, Math.sin(a + step * 0.44) * outer);
+          ctx.lineTo(Math.cos(a + step * 0.62) * inner, Math.sin(a + step * 0.62) * inner);
+        }
+        ctx.closePath();
+        ctx.fillStyle = fill;
+        ctx.fill();
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function pill(x, y, text, fill, textColor, font, border) {
+        ctx.font = font;
+        ctx.textAlign = 'center';
+        const width = ctx.measureText(text).width + 32;
+        roundedRect(x - width / 2, y, width, 30, 15, fill, border, 1.5);
+        ctx.fillStyle = textColor;
+        ctx.fillText(text, x, y + 20);
+      }
+
+      function drawBackdrop() {
+        const air = ctx.createLinearGradient(0, 0, 0, GROUND);
+        air.addColorStop(0, '#e4effb');
+        air.addColorStop(0.55, '#f2f8fe');
+        air.addColorStop(1, '#e8eff8');
+        ctx.fillStyle = air;
+        ctx.fillRect(0, 0, W, GROUND);
+
+        // Soft light pooling behind each bay.
+        level.stations.forEach(station => {
+          const glow = ctx.createRadialGradient(station.cx, 250, 10, station.cx, 250, 250);
+          glow.addColorStop(0, 'rgba(255, 255, 255, 0.85)');
+          glow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+          ctx.fillStyle = glow;
+          ctx.fillRect(station.cx - 250, 0, 500, GROUND);
+        });
+
+        // Back wall studs and rail.
+        ctx.strokeStyle = 'rgba(120, 145, 175, 0.16)';
+        ctx.lineWidth = 2;
+        for (let x = 60; x < W; x += 125) {
+          ctx.beginPath();
+          ctx.moveTo(x, 60);
+          ctx.lineTo(x, GROUND);
+          ctx.stroke();
+        }
+        ctx.beginPath();
+        ctx.moveTo(0, 300);
+        ctx.lineTo(W, 300);
+        ctx.stroke();
+
+        // Floor.
+        const floor = ctx.createLinearGradient(0, GROUND, 0, SCENE_H);
+        floor.addColorStop(0, '#ccd8e5');
+        floor.addColorStop(1, '#93a2b5');
+        ctx.fillStyle = floor;
+        ctx.fillRect(0, GROUND, W, SCENE_H - GROUND);
+
+        ctx.strokeStyle = '#7f8fa3';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(0, GROUND);
+        ctx.lineTo(W, GROUND);
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, GROUND + 3);
+        ctx.lineTo(W, GROUND + 3);
+        ctx.stroke();
+
+        // Slab seams fanning toward the viewer.
+        ctx.strokeStyle = 'rgba(90, 110, 135, 0.16)';
+        ctx.lineWidth = 2;
+        for (let x = -100; x <= W + 100; x += 150) {
+          ctx.beginPath();
+          ctx.moveTo(x, GROUND);
+          ctx.lineTo(x + (x - W / 2) * 0.55, SCENE_H);
+          ctx.stroke();
+        }
+        [GROUND + 34, GROUND + 70].forEach(y => {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(W, y);
+          ctx.stroke();
+        });
+      }
+
+      function drawGantry(station) {
+        const cx = station.cx;
+        const postW = 22;
+
+        [cx - 132, cx + 132].forEach(px => {
+          // Anchor shadow.
+          ctx.fillStyle = 'rgba(40, 60, 85, 0.16)';
+          ctx.beginPath();
+          ctx.ellipse(px, GROUND + 6, 40, 8, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          const column = ctx.createLinearGradient(px - postW / 2, 0, px + postW / 2, 0);
+          column.addColorStop(0, '#f2f6fa');
+          column.addColorStop(0.32, '#cfd9e5');
+          column.addColorStop(0.72, '#98a6b8');
+          column.addColorStop(1, '#66748a');
+          ctx.fillStyle = column;
+          ctx.fillRect(px - postW / 2, BEAM_Y, postW, GROUND - BEAM_Y);
+          ctx.strokeStyle = '#5b6a80';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(px - postW / 2, BEAM_Y, postW, GROUND - BEAM_Y);
+
+          // Bolted splice plates down the column.
+          for (let y = BEAM_Y + 96; y < GROUND - 60; y += 104) {
+            roundedRect(px - postW / 2 - 5, y, postW + 10, 16, 3, '#b6c2d0', '#67768b', 1.5);
+            ctx.fillStyle = '#59677c';
+            [-8, 8].forEach(dx => {
+              [4, 12].forEach(dy => {
+                ctx.beginPath();
+                ctx.arc(px + dx, y + dy, 1.8, 0, Math.PI * 2);
+                ctx.fill();
+              });
+            });
+          }
+
+          // Base plate and anchor bolts.
+          roundedRect(px - 28, GROUND - 13, 56, 13, 3, '#7c8a9d', '#4d5a6d', 2);
+          ctx.fillStyle = '#3f4c5e';
+          [-18, 18].forEach(dx => {
+            ctx.beginPath();
+            ctx.arc(px + dx, GROUND - 6, 3, 0, Math.PI * 2);
+            ctx.fill();
+          });
+        });
+
+        // Knee braces.
+        bar(cx - 121, 168, cx - 62, BEAM_Y + BEAM_H, 9, '#b9c5d3', '#65748a');
+        bar(cx + 121, 168, cx + 62, BEAM_Y + BEAM_H, 9, '#b9c5d3', '#65748a');
+
+        // Cross beam (I-beam seen from the side).
+        const bx = cx - 146;
+        const bw = 292;
+        const web = ctx.createLinearGradient(0, BEAM_Y, 0, BEAM_Y + BEAM_H);
+        web.addColorStop(0, '#e6ecf4');
+        web.addColorStop(0.5, '#c2cddb');
+        web.addColorStop(1, '#9aa8bb');
+        ctx.fillStyle = web;
+        ctx.fillRect(bx, BEAM_Y, bw, BEAM_H);
+        ctx.fillStyle = '#8d9db1';
+        ctx.fillRect(bx, BEAM_Y, bw, 6);
+        ctx.fillStyle = '#78889d';
+        ctx.fillRect(bx, BEAM_Y + BEAM_H - 6, bw, 6);
+        ctx.strokeStyle = '#5b6a80';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(bx, BEAM_Y, bw, BEAM_H);
+
+        // Lightening holes in the web.
+        for (let i = 0; i < 7; i++) {
+          const hx = bx + 30 + i * ((bw - 60) / 6);
+          ctx.beginPath();
+          ctx.arc(hx, BEAM_Y + BEAM_H / 2, 5.5, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(120, 140, 165, 0.35)';
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(70, 90, 115, 0.5)';
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+        }
+      }
+
+      function drawMachinery(station, drumAngle, progress, moving) {
+        const cx = station.cx;
+        const drumCx = cx + DRUM_R;
+        const pinionX = drumCx + 20.5;
+        const pinionY = DRUM_Y + 20.5;
+
+        // Motor mounting struts to the beam.
+        bar(cx + 66, 146, cx + 60, BEAM_Y + BEAM_H, 7, '#aab7c7', '#65748a');
+        bar(cx + 108, 146, cx + 112, BEAM_Y + BEAM_H, 7, '#aab7c7', '#65748a');
+
+        // Drum hanger bracket bolted under the beam.
+        roundedRect(drumCx - 33, BEAM_Y + BEAM_H - 3, 66, 34, 5, '#adbaca', '#5b6a80', 2);
+        ctx.fillStyle = '#5b6a80';
+        [-22, 22].forEach(dx => {
+          [6, 22].forEach(dy => {
+            ctx.beginPath();
+            ctx.arc(drumCx + dx, BEAM_Y + BEAM_H - 3 + dy, 2.2, 0, Math.PI * 2);
+            ctx.fill();
+          });
+        });
+
+        // Motor housing with cooling fins.
+        const motorX = cx + 56;
+        const motorY = pinionY - 22;
+        const shell = ctx.createLinearGradient(0, motorY, 0, motorY + 44);
+        shell.addColorStop(0, '#7c8ba0');
+        shell.addColorStop(0.45, '#54637a');
+        shell.addColorStop(1, '#39465a');
+        roundedRect(motorX, motorY, 58, 44, 9, shell, '#2f3b4d', 2);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+        ctx.lineWidth = 2;
+        for (let i = 1; i < 7; i++) {
+          const fx = motorX + i * 8;
+          ctx.beginPath();
+          ctx.moveTo(fx, motorY + 6);
+          ctx.lineTo(fx, motorY + 38);
+          ctx.stroke();
+        }
+        roundedRect(motorX + 16, motorY - 9, 26, 11, 3, '#4a586d', '#2f3b4d', 1.5);
+        ctx.fillStyle = moving ? '#4ade80' : '#3f7a55';
+        ctx.beginPath();
+        ctx.arc(motorX + 49, motorY + 36, 3.4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Output shaft into the pinion.
+        bar(motorX + 2, pinionY, pinionX, pinionY, 8, '#9fadbf', '#5b6a80');
+
+        // Drum body.
+        const body = ctx.createRadialGradient(drumCx - 10, DRUM_Y - 11, 3, drumCx, DRUM_Y, DRUM_R + 4);
+        body.addColorStop(0, '#f0f4f9');
+        body.addColorStop(0.55, '#c3cfdd');
+        body.addColorStop(1, '#7a8a9f');
+        ctx.beginPath();
+        ctx.arc(drumCx, DRUM_Y, DRUM_R, 0, Math.PI * 2);
+        ctx.fillStyle = body;
+        ctx.fill();
+        ctx.strokeStyle = '#4f5e73';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // Rope coiled on the barrel; more wraps as the load rises.
+        const wraps = 2 + Math.round(progress * 3);
+        ctx.strokeStyle = '#8a7a5a';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        for (let i = 0; i < wraps; i++) {
+          const offset = drumAngle + i * 0.55;
+          ctx.beginPath();
+          ctx.arc(drumCx, DRUM_Y, DRUM_R - 2.6, offset + Math.PI * 0.62, offset + Math.PI * 1.42);
+          ctx.stroke();
+        }
+        ctx.lineCap = 'butt';
+
+        // Gear ring on the drum face, meshing with the motor pinion.
+        gear(drumCx, DRUM_Y, 18, 22, drumAngle, '#a3b0c0', '#5b6a80');
+        gear(pinionX, pinionY, 9, 11, -drumAngle * 2, '#8fa0b4', '#4f5e73');
+        ctx.beginPath();
+        ctx.arc(pinionX, pinionY, 3, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(67, 80, 100, 0.5)';
+        ctx.fill();
+
+        // Drum hub and rotation index mark.
+        ctx.beginPath();
+        ctx.arc(drumCx, DRUM_Y, 12, 0, Math.PI * 2);
+        ctx.fillStyle = '#d5dde7';
+        ctx.fill();
+        ctx.strokeStyle = '#5b6a80';
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+        ctx.save();
+        ctx.translate(drumCx, DRUM_Y);
+        ctx.rotate(drumAngle);
+        ctx.fillStyle = '#7b8a9e';
+        for (let i = 0; i < 5; i++) {
+          ctx.beginPath();
+          ctx.arc(Math.cos((i / 5) * Math.PI * 2) * 8, Math.sin((i / 5) * Math.PI * 2) * 8, 1.9, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = station.base;
+        ctx.beginPath();
+        ctx.arc(0, -DRUM_R + 8, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        ctx.beginPath();
+        ctx.arc(drumCx, DRUM_Y, 3.2, 0, Math.PI * 2);
+        ctx.fillStyle = '#4f5e73';
+        ctx.fill();
+      }
+
+      // Rope leaves the drum on its left tangent, which sits exactly above the load centre.
+      function drawRope(station, ropeTop, ropeBottom) {
+        const x = station.cx;
+        ctx.strokeStyle = '#6f6244';
         ctx.lineWidth = 7;
         ctx.beginPath();
-        ctx.moveTo(x - 128, 105);
-        ctx.lineTo(x + 128, 105);
+        ctx.moveTo(x, ropeTop);
+        ctx.lineTo(x, ropeBottom);
         ctx.stroke();
-
-        ctx.strokeStyle = '#526178';
+        ctx.strokeStyle = '#b39a68';
         ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.arc(x, 105, 27, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(x, 132);
-        ctx.lineTo(x, boxY - 34);
         ctx.stroke();
 
-        roundedRect(x - 60, boxY - 34, 120, 68, 12, color, '#17233b');
-        ctx.fillStyle = '#fff';
-        ctx.font = '800 20px system-ui';
-        ctx.textAlign = 'center';
-        ctx.fillText('20 kg', x, boxY + 7);
+        // Twist marks anchored to the moving end of the rope.
+        ctx.strokeStyle = 'rgba(90, 76, 48, 0.75)';
+        ctx.lineWidth = 1.6;
+        for (let y = ropeBottom - 4; y > ropeTop + 4; y -= 9) {
+          ctx.beginPath();
+          ctx.moveTo(x - 3.4, y + 2.6);
+          ctx.lineTo(x + 3.4, y - 2.6);
+          ctx.stroke();
+        }
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(x - 1.4, ropeTop + 3);
+        ctx.lineTo(x - 1.4, ropeBottom - 3);
+        ctx.stroke();
+      }
 
+      function drawRigging(station, crateTop) {
+        const x = station.cx;
+        const bailTop = crateTop - 17;
+
+        // Thimble eye at the rope end.
+        ctx.beginPath();
+        ctx.arc(x, bailTop - 12, 6, 0, Math.PI * 2);
+        ctx.strokeStyle = '#5b6a80';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        ctx.strokeStyle = '#c3cedc';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Shackle bow over the crate bail, plus its pin.
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(x, bailTop, 12, Math.PI * 1.14, Math.PI * 1.86);
+        ctx.strokeStyle = '#4f5e73';
+        ctx.lineWidth = 6;
+        ctx.stroke();
+        ctx.strokeStyle = '#aebbcb';
+        ctx.lineWidth = 3.2;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x - 14, bailTop);
+        ctx.lineTo(x + 14, bailTop);
+        ctx.strokeStyle = '#4f5e73';
+        ctx.lineWidth = 5;
+        ctx.stroke();
+        ctx.strokeStyle = '#c3cedc';
+        ctx.lineWidth = 2.4;
+        ctx.stroke();
+        ctx.lineCap = 'butt';
+
+        // Lifting bail welded to the crate lid.
+        ctx.beginPath();
+        ctx.arc(x, crateTop, 17, Math.PI, 0);
+        ctx.strokeStyle = '#435064';
+        ctx.lineWidth = 7;
+        ctx.stroke();
+        ctx.strokeStyle = '#a9b6c6';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        [-17, 17].forEach(dx => {
+          roundedRect(x + dx - 6, crateTop - 5, 12, 9, 2, '#8fa0b4', '#4f5e73', 1.5);
+        });
+      }
+
+      function drawCrate(station, bottom) {
+        const cx = station.cx;
+        const top = bottom - CRATE_H;
+        const left = cx - CRATE_W / 2;
+
+        const face = ctx.createLinearGradient(left, 0, left + CRATE_W, 0);
+        face.addColorStop(0, station.light);
+        face.addColorStop(0.26, station.base);
+        face.addColorStop(1, station.dark);
+        roundedRect(left, top, CRATE_W, CRATE_H, 8, face, station.deep, 3);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(left + 2, top + 2, CRATE_W - 4, CRATE_H - 4, 7);
+        ctx.clip();
+
+        // Cross bracing and rails.
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(left, top);
+        ctx.lineTo(left + CRATE_W, bottom);
+        ctx.moveTo(left + CRATE_W, top);
+        ctx.lineTo(left, bottom);
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.16)';
+        ctx.lineWidth = 7;
+        ctx.beginPath();
+        ctx.moveTo(left, top + 12);
+        ctx.lineTo(left + CRATE_W, top + 12);
+        ctx.moveTo(left, bottom - 12);
+        ctx.lineTo(left + CRATE_W, bottom - 12);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+        ctx.fillRect(left, top + 3, CRATE_W, 6);
+        ctx.restore();
+
+        // Steel corner protectors.
+        ctx.fillStyle = '#c9d4e1';
+        ctx.strokeStyle = '#63728a';
+        ctx.lineWidth = 1.4;
+        [[left, top, 1, 1], [left + CRATE_W, top, -1, 1], [left, bottom, 1, -1], [left + CRATE_W, bottom, -1, -1]]
+          .forEach(([px, py, sx, sy]) => {
+            ctx.beginPath();
+            ctx.moveTo(px, py + sy * 20);
+            ctx.lineTo(px, py + sy * 4);
+            ctx.quadraticCurveTo(px, py, px + sx * 4, py);
+            ctx.lineTo(px + sx * 20, py);
+            ctx.lineTo(px + sx * 20, py + sy * 6);
+            ctx.lineTo(px + sx * 6, py + sy * 6);
+            ctx.lineTo(px + sx * 6, py + sy * 20);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          });
+
+        // Mass placard.
+        roundedRect(cx - 31, top + CRATE_H / 2 - 13, 62, 26, 6, '#ffffff', '#dbe3ee', 2);
         ctx.fillStyle = '#17233b';
-        ctx.font = '800 20px system-ui';
-        ctx.fillText(label, x, 70);
-        ctx.fillStyle = '#5e6b82';
-        ctx.font = '700 15px system-ui';
-        ctx.fillText(duration + ' seconds', x, 495);
+        ctx.font = '800 16px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(station.mass + ' kg', cx, top + CRATE_H / 2 + 6);
+      }
 
-        ctx.strokeStyle = '#15803d';
-        ctx.lineWidth = 4;
-        ctx.setLineDash([8, 7]);
+      function drawMeasure(station, crateBottom) {
+        const cx = station.cx;
+        const rx = cx + 152;
+        const topY = GROUND - station.liftPx;
+
+        ctx.strokeStyle = 'rgba(21, 128, 61, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([7, 6]);
         ctx.beginPath();
-        ctx.moveTo(x + 88, ground);
-        ctx.lineTo(x + 88, top);
+        ctx.moveTo(cx - 120, topY);
+        ctx.lineTo(rx - 8, topY);
         ctx.stroke();
         ctx.setLineDash([]);
+
+        ctx.strokeStyle = '#15803d';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(rx, GROUND);
+        ctx.lineTo(rx, topY);
+        ctx.stroke();
         ctx.fillStyle = '#15803d';
-        ctx.font = '800 16px system-ui';
-        ctx.fillText('2 m', x + 116, 315);
+        [[topY, 1], [GROUND, -1]].forEach(([y, dir]) => {
+          ctx.beginPath();
+          ctx.moveTo(rx, y);
+          ctx.lineTo(rx - 5, y + dir * 10);
+          ctx.lineTo(rx + 5, y + dir * 10);
+          ctx.closePath();
+          ctx.fill();
+        });
+
+        // One tick per metre, so a taller lift reads as a taller ruler.
+        ctx.font = '800 14px system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        for (let i = 0; i <= station.height; i++) {
+          const y = GROUND - i * level.pxPerM;
+          ctx.strokeStyle = '#15803d';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(rx - 7, y);
+          ctx.lineTo(rx + 7, y);
+          ctx.stroke();
+          ctx.fillStyle = '#15803d';
+          ctx.fillText(i === 0 ? '0' : i + ' m', rx + 12, y + 5);
+        }
+
+        // Live height marker riding with the load.
+        ctx.fillStyle = station.base;
+        ctx.beginPath();
+        ctx.moveTo(rx - 9, crateBottom);
+        ctx.lineTo(rx - 20, crateBottom - 6);
+        ctx.lineTo(rx - 20, crateBottom + 6);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      function drawSpeedCue(station, crateBottom, progress) {
+        if (stage !== 'lift' || progress <= 0 || progress >= 1) return;
+        const ax = station.cx - CRATE_W / 2 - 24;
+        const mid = crateBottom - CRATE_H / 2;
+        const length = 26 + station.speed * 30;
+        const tip = mid - length / 2;
+
+        ctx.strokeStyle = station.dark;
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(ax, mid + length / 2);
+        ctx.lineTo(ax, tip + 8);
+        ctx.stroke();
+        ctx.fillStyle = station.dark;
+        ctx.beginPath();
+        ctx.moveTo(ax, tip - 4);
+        ctx.lineTo(ax - 8, tip + 10);
+        ctx.lineTo(ax + 8, tip + 10);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = station.dark;
+        ctx.font = '800 13px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(station.speed.toFixed(1) + ' m/s', ax, tip - 12);
+      }
+
+      function drawLabels(station, progress) {
+        const cx = station.cx;
+        const seconds = stage === 'return' ? 0 : progress * station.seconds;
+
+        pill(cx, 30, station.name.toUpperCase(), station.base, '#ffffff', '800 16px system-ui, sans-serif');
+
+        ctx.fillStyle = '#33415a';
+        ctx.font = '700 15px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(station.mass + ' kg lifted ' + station.height.toFixed(2) + ' m in '
+          + station.seconds.toFixed(1) + ' s', cx, SPEC_Y);
+
+        ctx.fillStyle = station.dark;
+        ctx.font = '800 18px system-ui, sans-serif';
+        ctx.fillText('t = ' + seconds.toFixed(1) + ' s', cx, TIMER_Y);
+
+        // Both stations share one time axis, so a shorter bar means a shorter job.
+        const trackW = 210;
+        const trackX = cx - trackW / 2;
+        const trackY = BAR_Y;
+        roundedRect(trackX, trackY, trackW, 10, 5, 'rgba(255, 255, 255, 0.75)', 'rgba(71, 85, 105, 0.35)', 1.5);
+        const filled = trackW * Math.min(1, seconds / level.span);
+        if (filled > 2) roundedRect(trackX, trackY, filled, 10, 5, station.base);
+        ctx.strokeStyle = 'rgba(71, 85, 105, 0.45)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(trackX + trackW / 2, trackY);
+        ctx.lineTo(trackX + trackW / 2, trackY + 10);
+        ctx.stroke();
+        if (progress >= 1 && stage !== 'return') {
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(trackX + filled - 5, trackY + 5, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.fillStyle = '#5e6b82';
+        ctx.font = '700 11px system-ui, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText('0 s', trackX - 6, trackY + 9);
+        ctx.textAlign = 'left';
+        ctx.fillText(level.span + ' s', trackX + trackW + 6, trackY + 9);
+        ctx.textAlign = 'center';
+
+        drawResultPlate(station);
+      }
+
+      // Work and power for one station: the frame is always on screen, the numbers
+      // fill in as each question is answered.
+      function drawResultPlate(station) {
+        const cx = station.cx;
+        const px = cx - 160;
+        roundedRect(px, PANEL_Y, 320, PANEL_H, 14, 'rgba(255, 255, 255, 0.94)', '#d5deea', 1.5);
+        roundedRect(px + 6, PANEL_Y + 8, 5, PANEL_H - 16, 3, station.base);
+
+        [['WORK', station.showWork ? station.work + ' J' : '—', cx - 76],
+         ['POWER', station.showPower ? station.power + ' W' : '—', cx + 82]]
+          .forEach(([label, value, x]) => {
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#7c8ba1';
+            ctx.font = '800 11px system-ui, sans-serif';
+            ctx.fillText(label, x, PANEL_Y + 19);
+            ctx.fillStyle = value === '—' ? '#aab6c8' : station.dark;
+            ctx.font = '900 21px system-ui, sans-serif';
+            ctx.fillText(value, x, PANEL_Y + 40);
+          });
+
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(cx + 4, PANEL_Y + 10);
+        ctx.lineTo(cx + 4, PANEL_Y + PANEL_H - 10);
+        ctx.stroke();
+      }
+
+      function drawStation(station, progress) {
+        const crateBottom = GROUND - progress * station.liftPx;
+        const crateTop = crateBottom - CRATE_H;
+        const drumAngle = (progress * station.liftPx) / DRUM_R;
+
+        // Contact shadow tightens and fades as the load leaves the floor.
+        ctx.fillStyle = 'rgba(35, 55, 80, ' + (0.3 - 0.16 * progress).toFixed(3) + ')';
+        ctx.beginPath();
+        ctx.ellipse(station.cx, GROUND + 9, (CRATE_W / 2) * (1 - 0.22 * progress), 10 - 3 * progress, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        drawMeasure(station, crateBottom);
+        drawGantry(station);
+        drawMachinery(station, drumAngle, progress, stage === 'lift' && progress < 1);
+        drawRope(station, DRUM_Y - 8, crateTop - 29 - 6);
+        drawRigging(station, crateTop);
+        drawCrate(station, crateBottom);
+        drawSpeedCue(station, crateBottom, progress);
+
+        // Badge under a load that has arrived: it waits here while the other one climbs.
+        if (progress >= 1 && stage !== 'return') {
+          pill(station.cx, crateBottom + 16,
+            'up ' + station.height.toFixed(2) + ' m in ' + station.seconds.toFixed(1) + ' s',
+            'rgba(234, 250, 240, 0.95)', '#15803d', '800 13px system-ui, sans-serif', '#15803d');
+        }
+
+        drawLabels(station, progress);
+      }
+
+      function wrapLines(text, maxWidth, font, maxLines) {
+        ctx.font = font;
+        const lines = [];
+        let line = '';
+        text.split(' ').forEach(word => {
+          const attempt = line ? line + ' ' + word : word;
+          if (line && ctx.measureText(attempt).width > maxWidth) {
+            lines.push(line);
+            line = word;
+          } else {
+            line = attempt;
+          }
+        });
+        lines.push(line);
+        return lines.slice(0, maxLines);
+      }
+
+      function drawBadge(x, y, kind) {
+        ctx.beginPath();
+        ctx.arc(x, y, 11, 0, Math.PI * 2);
+        ctx.fillStyle = kind === 'correct' ? '#15803d' : '#dc2626';
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.6;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        if (kind === 'correct') {
+          ctx.moveTo(x - 5, y);
+          ctx.lineTo(x - 1.5, y + 4);
+          ctx.lineTo(x + 5.5, y - 4);
+        } else {
+          ctx.moveTo(x - 4, y - 4);
+          ctx.lineTo(x + 4, y + 4);
+          ctx.moveTo(x + 4, y - 4);
+          ctx.lineTo(x - 4, y + 4);
+        }
+        ctx.stroke();
+        ctx.lineCap = 'butt';
+      }
+
+      function drawButton(button, focused) {
+        const hovered = button.enabled && hoverKey === button.key;
+        let fill = '#ffffff';
+        let border = '#cbd7e7';
+        let text = '#17233b';
+        let weight = 2;
+
+        if (button.kind === 'primary') {
+          fill = hovered ? '#1d4ed8' : '#2563eb';
+          border = null;
+          text = '#ffffff';
+        } else if (button.mark === 'correct') {
+          fill = '#eafaf0'; border = '#15803d'; text = '#14532d'; weight = 3;
+        } else if (button.mark === 'wrong') {
+          fill = '#fef3f2'; border = '#dc2626'; text = '#991b1b'; weight = 3;
+        } else if (!button.enabled) {
+          fill = '#f2f6fb'; border = '#dde5f0'; text = '#9aa8bd';
+        } else if (hovered) {
+          fill = '#f3f8ff'; border = '#2563eb';
+        }
+
+        roundedRect(button.x, button.y, button.w, button.h, 12, fill, border, weight);
+        if (focused) {
+          roundedRect(button.x - 4, button.y - 4, button.w + 8, button.h + 8, 16, null, 'rgba(37, 99, 235, 0.45)', 3);
+        }
+
+        ctx.fillStyle = text;
+        ctx.font = '800 15px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(button.label, button.x + button.w / 2 - (button.mark ? 10 : 0), button.y + button.h / 2 + 5);
+        if (button.mark) drawBadge(button.x + button.w - 20, button.y + button.h / 2, button.mark);
+      }
+
+      function drawBand() {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, SCENE_H, W, H - SCENE_H);
+        ctx.strokeStyle = '#dce4ef';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(0, SCENE_H + 0.5);
+        ctx.lineTo(W, SCENE_H + 0.5);
+        ctx.stroke();
+
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#2563eb';
+        ctx.font = '800 12px system-ui, sans-serif';
+        ctx.fillText(band.phase.toUpperCase(), BAND_X, PHASE_Y);
+
+        ctx.fillStyle = '#17233b';
+        ctx.font = '800 21px system-ui, sans-serif';
+        if (ctx.measureText(band.question).width > BAND_W) ctx.font = '800 18px system-ui, sans-serif';
+        ctx.fillText(band.question, BAND_X, QUESTION_Y);
+
+        ctx.fillStyle = '#5e6b82';
+        const helperFont = '400 14.5px system-ui, sans-serif';
+        wrapLines(band.helper, BAND_W, helperFont, 2).forEach((line, i) => {
+          ctx.font = helperFont;
+          ctx.fillText(line, BAND_X, HELPER_Y + i * 19);
+        });
+
+        // Answer row: the options stay on screen in every state.
+        hitAreas = [];
+        const choiceW = 182;
+        band.options.forEach(([key, label], i) => {
+          hitAreas.push({
+            key: 'choice-' + key, choice: key, label, kind: 'choice',
+            x: BAND_X + i * (choiceW + 16), y: ROW_Y, w: choiceW, h: ROW_H,
+            enabled: !band.locked,
+            mark: band.picked ? (key === band.answer ? 'correct' : (key === band.picked ? 'wrong' : null)) : null
+          });
+        });
+
+        if (band.main) {
+          ctx.font = '800 15px system-ui, sans-serif';
+          const w = Math.max(150, ctx.measureText(band.main.label).width + 44);
+          hitAreas.push({
+            key: 'main', kind: 'primary', label: band.main.label,
+            x: W - BAND_X - w, y: ROW_Y, w, h: ROW_H, enabled: true
+          });
+        }
+
+        const focusable = hitAreas.filter(b => b.enabled);
+        if (focusIndex >= focusable.length) focusIndex = 0;
+        const showRing = keyboardMode && document.activeElement === canvas;
+        hitAreas.forEach(button => drawButton(button, showRing && button === focusable[focusIndex]));
+      }
+
+      function drawDivider() {
+        ctx.strokeStyle = 'rgba(110, 132, 160, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 9]);
+        ctx.beginPath();
+        ctx.moveTo(W / 2, 74);
+        ctx.lineTo(W / 2, GROUND - 6);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        pill(W / 2, 30, level.note, '#ffffff', '#475569', '800 13px system-ui, sans-serif', '#cbd7e7');
       }
 
       function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        const gradient = ctx.createLinearGradient(0, 0, 0, 540);
-        gradient.addColorStop(0, '#dff1ff');
-        gradient.addColorStop(.72, '#f7fbff');
-        gradient.addColorStop(.72, '#cfd9e5');
-        gradient.addColorStop(1, '#aebccb');
-        ctx.fillStyle = gradient;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.setTransform(view.scale, 0, 0, view.scale, view.offX, view.offY);
+        ctx.textBaseline = 'alphabetic';
 
-        ctx.strokeStyle = '#7d8ca0';
-        ctx.lineWidth = 5;
-        ctx.beginPath();
-        ctx.moveTo(500, 35);
-        ctx.lineTo(500, 485);
-        ctx.stroke();
-
-        drawWinch(255, '#2563eb', 'SLOW', slowProgress, 4);
-        drawWinch(745, '#ea580c', 'FAST', fastProgress, 2);
+        drawBackdrop();
+        drawDivider();
+        level.stations.forEach((station, i) => drawStation(station, progressOf[i]));
+        drawBand();
       }
 
-      function animateLift(done) {
-        cancelAnimationFrame(animationFrame);
-        slowProgress = 0;
-        fastProgress = 0;
-        const total = reduceMotion ? 80 : 3600;
-        let start = 0;
+      function resize() {
+        const rect = canvas.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        canvas.width = Math.max(1, Math.round(rect.width * dpr));
+        canvas.height = Math.max(1, Math.round(rect.height * dpr));
+        const scale = Math.min(canvas.width / W, canvas.height / H);
+        view = { scale, offX: (canvas.width - W * scale) / 2, offY: (canvas.height - H * scale) / 2 };
+        draw();
+      }
 
-        function frame(time) {
-          if (!start) start = time;
-          const elapsed = time - start;
-          slowProgress = Math.min(1, elapsed / total);
-          fastProgress = Math.min(1, elapsed / (total / 2));
-          draw();
-          if (slowProgress < 1) animationFrame = requestAnimationFrame(frame);
-          else done();
+      function loopFrame(time) {
+        if (!loopStart) loopStart = time;
+        const t = (time - loopStart) % level.cycleMs;
+
+        if (t < level.liftMs) {
+          stage = 'lift';                       // each station runs on its own clock
+          progressOf = level.stations.map(station => Math.min(1, t / station.ms));
+        } else if (t < level.liftMs + HOLD_MS) {
+          stage = 'hold';                       // every load parked at its top height
+          progressOf = level.stations.map(() => 1);
+        } else {
+          stage = 'return';                     // lower together, then the cycle repeats
+          const k = (t - level.liftMs - HOLD_MS) / RETURN_MS;
+          const eased = 1 - k * k * (3 - 2 * k);
+          progressOf = level.stations.map(() => eased);
         }
 
-        animationFrame = requestAnimationFrame(frame);
+        draw();
+        animationFrame = requestAnimationFrame(loopFrame);
       }
 
-      function resultText(isCorrect, result, reason) {
-        return (isCorrect ? 'Correct. ' : 'Notice the result: ') + result + ' ' + reason;
+      function startLoop() {
+        cancelAnimationFrame(animationFrame);
+        loopStart = 0;
+        if (reduceMotion) {                     // no looping motion; show the held-at-top frame
+          stage = 'hold';
+          progressOf = level.stations.map(() => 1);
+          draw();
+          return;
+        }
+        stage = 'lift';
+        progressOf = level.stations.map(() => 0);
+        animationFrame = requestAnimationFrame(loopFrame);
+      }
+
+      function resultText(isCorrect, summary, reason) {
+        return (isCorrect ? 'Correct. ' : 'Notice the result: ') + summary + ' ' + reason;
+      }
+
+      function stepLabel(text) {
+        progressLabel.textContent = 'Level ' + (levelIndex + 1) + ' · ' + text;
+      }
+
+      // One place to set the band, so the canvas and the screen-reader text never drift.
+      function setBand(next) {
+        band = Object.assign({ picked: null, locked: false, main: null }, next);
+        focusIndex = 0;
+        const values = level.stations
+          .map(s => s.name + ': ' + (s.showWork ? s.work + ' joules' : 'work hidden')
+            + ', ' + (s.showPower ? s.power + ' watts' : 'power hidden'))
+          .join('. ');
+        live.textContent = band.phase + '. ' + band.question + ' ' + band.helper + ' '
+          + (band.locked ? '' : 'Options: ' + band.options.map(o => o[1]).join(', ') + '. ')
+          + values + '.';
+        draw();
+      }
+
+      // Appended to the opening question, which is where the setup gets explained.
+      const motionNote = reduceMotion
+        ? ' Reduced motion is on, so both loads are shown already raised.'
+        : ' The lift runs on a loop with a pause at the top while you decide.';
+
+      function askWork() {
+        state = 'predict-work';
+        stepLabel('Question 1 of 2');
+        setBand({
+          phase: 'Predict work',
+          question: level.work.question,
+          helper: level.work.helper + motionNote,
+          options: level.work.options,
+          answer: level.work.answer
+        });
       }
 
       function revealWork() {
-        state = 'revealing-work';
-        phase.textContent = 'Reveal';
-        question.textContent = 'Watch both loads reach the same height.';
-        helper.textContent = 'The fast winch finishes first, but both transfer the same energy.';
-        choices.hidden = true;
-        animateLift(() => {
-          state = 'work-result';
-          slowValue.textContent = 'Work: 392 J';
-          fastValue.textContent = 'Work: 392 J';
-          phase.textContent = 'Result';
-          question.textContent = 'Both winches do 392 J of work.';
-          helper.textContent = resultText(workPrediction === 'same', 'The work is equal.', 'Work depends on force and distance, not time.');
-          mainButton.textContent = 'Predict power';
-          mainButton.hidden = false;
+        state = 'work-result';
+        level.stations.forEach(station => { station.showWork = true; });
+        stepLabel('Question 1 of 2');
+        setBand({
+          phase: 'Result',
+          question: level.work.result,
+          helper: resultText(workPrediction === level.work.answer, level.work.summary, level.work.reason),
+          options: level.work.options,
+          answer: level.work.answer,
+          picked: workPrediction,
+          locked: true,
+          main: { label: 'Predict power', action: askPower }
         });
       }
 
       function askPower() {
         state = 'predict-power';
-        progressLabel.textContent = 'Question 2 of 2';
-        phase.textContent = 'Predict power';
-        question.textContent = 'Which winch produces more power?';
-        helper.textContent = 'Both do 392 J of work. One finishes in half the time.';
-        mainButton.hidden = true;
-        choices.hidden = false;
-        slowProgress = 0;
-        fastProgress = 0;
-        slowValue.textContent = 'Work: 392 J';
-        fastValue.textContent = 'Work: 392 J';
-        draw();
+        stepLabel('Question 2 of 2');
+        setBand({
+          phase: 'Predict power',
+          question: level.power.question,
+          helper: level.power.helper,
+          options: level.power.options,
+          answer: level.power.answer
+        });
       }
 
       function revealPower() {
-        state = 'revealing-power';
-        phase.textContent = 'Reveal';
-        question.textContent = 'Watch the same work happen at two rates.';
-        helper.textContent = 'Power equals work divided by time.';
-        choices.hidden = true;
-        slowValue.textContent = 'Power: hidden';
-        fastValue.textContent = 'Power: hidden';
-        animateLift(() => {
-          state = 'done';
-          slowValue.textContent = 'Power: 98 W';
-          fastValue.textContent = 'Power: 196 W';
-          phase.textContent = 'Explain';
-          question.textContent = 'The fast winch is twice as powerful.';
-          helper.textContent = resultText(powerPrediction === 'fast', 'It transfers the same 392 J in half the time.', 'Same work, less time means more power.');
-          mainButton.textContent = 'Try again';
-          mainButton.hidden = false;
+        state = 'done';
+        level.stations.forEach(station => { station.showPower = true; });
+        stepLabel('Question 2 of 2');
+        setBand({
+          phase: 'Explain',
+          question: level.power.result,
+          helper: resultText(powerPrediction === level.power.answer, level.power.summary, level.power.reason),
+          options: level.power.options,
+          answer: level.power.answer,
+          picked: powerPrediction,
+          locked: true,
+          main: { label: level.nextLabel, action: () => startLevel((levelIndex + 1) % LEVELS.length) }
         });
       }
 
-      function reset() {
-        cancelAnimationFrame(animationFrame);
-        state = 'predict-work';
-        slowProgress = 0;
-        fastProgress = 0;
+      function startLevel(index) {
+        levelIndex = index;
+        level = LEVELS[index];
         workPrediction = null;
         powerPrediction = null;
-        progressLabel.textContent = 'Question 1 of 2';
-        phase.textContent = 'Predict work';
-        question.textContent = 'Which winch does more work on its load?';
-        helper.textContent = 'Both loads have the same mass and rise through the same height.';
-        choices.hidden = false;
-        mainButton.hidden = true;
-        slowValue.textContent = 'Work: hidden';
-        fastValue.textContent = 'Work: hidden';
-        draw();
+        level.stations.forEach(station => {
+          station.showWork = false;
+          station.showPower = false;
+        });
+        startLoop();
+        askWork();
       }
 
-      choiceButtons.forEach(button => {
-        button.addEventListener('click', () => {
-          if (state === 'predict-work') {
-            workPrediction = button.dataset.choice;
-            revealWork();
-          } else if (state === 'predict-power') {
-            powerPrediction = button.dataset.choice;
-            revealPower();
-          }
-        });
+      function activate(button) {
+        if (!button || !button.enabled) return;
+        if (button.kind === 'primary') {
+          band.main.action();
+          return;
+        }
+        if (state === 'predict-work') {
+          workPrediction = button.choice;
+          revealWork();
+        } else if (state === 'predict-power') {
+          powerPrediction = button.choice;
+          revealPower();
+        }
+      }
+
+      function toDesignSpace(event) {
+        const rect = canvas.getBoundingClientRect();
+        const x = (event.clientX - rect.left) * (canvas.width / rect.width);
+        const y = (event.clientY - rect.top) * (canvas.height / rect.height);
+        return { x: (x - view.offX) / view.scale, y: (y - view.offY) / view.scale };
+      }
+
+      function buttonAt(point) {
+        return hitAreas.find(b => b.enabled
+          && point.x >= b.x && point.x <= b.x + b.w
+          && point.y >= b.y && point.y <= b.y + b.h);
+      }
+
+      canvas.addEventListener('pointermove', event => {
+        const key = (buttonAt(toDesignSpace(event)) || {}).key || null;
+        if (key === hoverKey) return;
+        hoverKey = key;
+        canvas.style.cursor = key ? 'pointer' : 'default';
+        draw();
       });
 
-      mainButton.addEventListener('click', () => {
-        if (state === 'work-result') askPower();
-        else if (state === 'done') reset();
+      canvas.addEventListener('pointerleave', () => {
+        if (!hoverKey) return;
+        hoverKey = null;
+        canvas.style.cursor = 'default';
+        draw();
       });
-      root.querySelector('[data-reset]').addEventListener('click', reset);
-      reset();
+
+      canvas.addEventListener('pointerdown', () => { keyboardMode = false; });
+
+      canvas.addEventListener('click', event => {
+        activate(buttonAt(toDesignSpace(event)));
+      });
+
+      canvas.addEventListener('keydown', event => {
+        const focusable = hitAreas.filter(b => b.enabled);
+        if (!focusable.length) return;
+        keyboardMode = true;
+        if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+          focusIndex = (focusIndex + 1) % focusable.length;
+        } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+          focusIndex = (focusIndex - 1 + focusable.length) % focusable.length;
+        } else if (event.key === 'Enter' || event.key === ' ') {
+          activate(focusable[focusIndex]);
+        } else if (/^[1-9]$/.test(event.key)) {
+          activate(focusable[Number(event.key) - 1]);
+        } else {
+          return;
+        }
+        event.preventDefault();
+        draw();
+      });
+
+      canvas.addEventListener('focus', draw);
+      canvas.addEventListener('blur', draw);
+      root.querySelector('[data-reset]').addEventListener('click', () => startLevel(levelIndex));
+      window.addEventListener('resize', resize);
+      resize();
+      startLevel(0);
     })();
   </script>
 </body>
