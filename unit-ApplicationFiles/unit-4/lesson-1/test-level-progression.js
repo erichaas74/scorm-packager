@@ -124,12 +124,15 @@ function verifyThreeSetupLevel(expectedMachineText) {
 }
 
 assert.strictEqual(progress.textContent, '0 of 4 levels complete');
-assert.deepStrictEqual(tabs.map(tab => tab.disabled), [false, true, true, true]);
+assert.deepStrictEqual(tabs.map(tab => tab.disabled), [false, false, false, false], 'all level tabs should be available immediately');
 assert.strictEqual(globalInputs.every(input => input.disabled === false), true);
+tabs[3].click();
+assert.match(getNode('[data-machine-title]').textContent, /Wheel and axle/, 'students should be able to jump directly to Level 4');
+tabs[0].click();
+assert.match(getNode('[data-machine-title]').textContent, /Inclined plane/, 'students should be able to switch back at any time');
 
 verifyThreeSetupLevel(/Inclined plane/);
 assert.strictEqual(progress.textContent, '1 of 4 levels complete');
-assert.strictEqual(tabs[1].disabled, false, 'Level 2 should unlock after all three setups animate');
 assert.strictEqual(globalInputs.every(input => input.disabled), true, 'shared task controls should lock after animation begins');
 
 nextButton.click();
@@ -147,4 +150,4 @@ assert.strictEqual(progress.textContent, '4 of 4 levels complete');
 assert.strictEqual(nextButton.hidden, true, 'Level 4 should not show a next-level button');
 assert.strictEqual(scormStatus, 'completed');
 
-console.log('Side-by-side three-canvas, card alignment, equal-work, distinct-duration/time/power, prompt, progression, and table checks passed.');
+console.log('Free level switching, side-by-side canvases, card alignment, equal-work, distinct-duration/time/power, prompt, progression, and table checks passed.');

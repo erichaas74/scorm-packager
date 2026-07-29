@@ -2,17 +2,19 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Positive, Negative, or Zero Work?</title>
   <style>
     :root {
-      --ink: #17233b;
-      --muted: #5e6b82;
-      --line: #dce4ef;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: #cbd5e1;
       --blue: #2563eb;
-      --orange: #ea580c;
-      --green: #15803d;
-      --red: #c2410c;
+      --blue-hover: #1d4ed8;
+      --orange: #f97316;
+      --green: #10b981;
+      --bg: #f1f5f9;
+      --panel-bg: rgba(255, 255, 255, 0.95);
     }
 
     * { box-sizing: border-box; }
@@ -20,415 +22,737 @@
     body {
       margin: 0;
       min-height: 100vh;
-      display: grid;
-      place-items: center;
-      padding: 16px;
-      background: #e9eff7;
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+      background: var(--bg);
       color: var(--ink);
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
-    button { font: inherit; }
+    button { font: inherit; transition: all 0.2s ease; cursor: pointer; }
 
-    .walkthrough {
-      width: min(100%, 1040px);
-      overflow: hidden;
-      border: 1px solid var(--line);
-      border-radius: 24px;
-      background: #fff;
-      box-shadow: 0 18px 50px rgb(23 35 59 / 14%);
+    .app-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
     }
 
     header {
-      min-height: 66px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 14px;
-      padding: 12px 18px;
-      border-bottom: 1px solid var(--line);
+      padding: 20px 32px;
+      border-radius: 24px;
+      border: 1px solid var(--line);
+      background: #fff;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
     }
 
-    h1 { margin: 0; font-size: clamp(1.05rem, 3vw, 1.45rem); }
-    .progress { color: var(--muted); font-size: .84rem; font-weight: 800; }
-
-    .reset,
-    .choice,
-    .main {
-      min-height: 44px;
-      border-radius: 12px;
-      cursor: pointer;
-      font-weight: 800;
-    }
+    h1 { margin: 0; font-size: clamp(1.25rem, 3vw, 1.75rem); font-weight: 800; letter-spacing: -0.025em; }
+    p.subtitle { margin: 4px 0 0; color: var(--muted); font-size: 0.95rem; }
 
     .reset {
       border: 1px solid var(--line);
-      padding: 8px 14px;
+      border-radius: 12px;
+      padding: 10px 20px;
       background: #fff;
-      color: var(--ink);
+      color: var(--muted);
+      font-weight: 700;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
+    
+    .reset:hover { background: #f8fafc; color: var(--ink); border-color: var(--muted); }
 
-    .simulation {
-      position: relative;
-      min-height: min(690px, calc(100vh - 120px));
-      background: #eaf5ff;
-    }
-
-    canvas { display: block; width: 100%; height: clamp(380px, 55vw, 540px); }
-
-    .legend {
-      position: absolute;
-      inset: 14px 14px auto;
+    .drag-bank {
       display: flex;
-      justify-content: space-between;
-      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 24px;
+      background: #fff;
+      border-radius: 20px;
+      border: 2px dashed #94a3b8;
+      min-height: 100px;
+    }
+
+    .drag-bank[data-empty="true"] {
+      border-style: solid;
+      border-color: var(--line);
+      background: transparent;
+    }
+
+    .drag-item {
+      padding: 12px 24px;
+      background: var(--blue);
+      color: #fff;
+      border-radius: 12px;
+      font-weight: 800;
+      font-size: 1.05rem;
+      cursor: grab;
+      user-select: none;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+      transition: transform 0.1s;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .drag-item:active { cursor: grabbing; transform: scale(0.95); }
+    .drag-item.dragging { opacity: 0.5; }
+
+    .scenarios-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+    }
+
+    .scenario-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.15);
+    }
+
+    .scenario-header {
+      padding: 16px;
+      text-align: center;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .scenario-header h2 { margin: 0; font-size: 1.15rem; font-weight: 800; }
+
+    .canvas-container {
+      position: relative;
+      background: #0f172a;
+      border-bottom: 1px solid var(--line);
+      aspect-ratio: 4 / 5;
+    }
+
+    canvas { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+    .drop-zone-container {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      flex-grow: 1;
+      background: var(--panel-bg);
+    }
+
+    .drop-zone {
+      width: 100%;
+      min-height: 64px;
+      border: 2px dashed #cbd5e1;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f1f5f9;
+      transition: all 0.2s ease;
+    }
+
+    .drop-zone.hover {
+      background: #e0f2fe;
+      border-color: #38bdf8;
+      border-style: solid;
+    }
+
+    .drop-zone-label {
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 700;
       pointer-events: none;
     }
 
-    .pill {
-      padding: 8px 12px;
-      border: 1px solid rgb(255 255 255 / 80%);
-      border-radius: 999px;
-      background: rgb(255 255 255 / 90%);
-      box-shadow: 0 8px 22px rgb(23 35 59 / 10%);
-      font-size: .82rem;
-      font-weight: 900;
-      backdrop-filter: blur(8px);
+    .feedback {
+      min-height: 1.5em;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-align: center;
     }
 
-    .force-key { color: var(--orange); }
-    .motion-key { color: var(--green); }
-
-    .prompt {
-      position: relative;
-      z-index: 2;
-      margin: -66px 14px 14px;
-      padding: 16px;
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      background: rgb(255 255 255 / 97%);
-      box-shadow: 0 12px 32px rgb(23 35 59 / 15%);
-    }
-
-    .phase { margin: 0 0 5px; color: var(--blue); font-size: .76rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
-    h2 { margin: 0; font-size: clamp(1.05rem, 3vw, 1.35rem); }
-    .helper { min-height: 1.45em; margin: 6px 0 0; color: var(--muted); line-height: 1.4; }
-
-    .actions {
+    .action-area {
       display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 9px;
-      margin-top: 13px;
+      justify-content: center;
+      padding: 24px 0;
     }
 
-    .choices { display: flex; flex: 1 1 500px; flex-wrap: wrap; gap: 9px; }
-
-    .choice {
-      flex: 1 1 140px;
-      border: 2px solid #cbd7e7;
-      padding: 10px 12px;
-      background: #fff;
-      color: var(--ink);
+    .btn-run {
+      padding: 16px 48px;
+      font-size: 1.25rem;
+      font-weight: 800;
+      border: none;
+      border-radius: 16px;
+      background: var(--green);
+      color: #fff;
+      box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4);
+      transition: all 0.2s;
     }
 
-    .choice:hover { border-color: var(--blue); }
+    .btn-run:hover:not(:disabled) {
+      background: #059669;
+      transform: translateY(-2px);
+      box-shadow: 0 15px 30px rgba(16, 185, 129, 0.5);
+    }
 
-    .main {
-      margin-left: auto;
-      border: 0;
-      padding: 11px 18px;
-      background: var(--blue);
+    .btn-run:disabled {
+      background: #94a3b8;
+      box-shadow: none;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    .pill-legend {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-top: -12px;
+    }
+
+    .pill {
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: .8rem;
+      font-weight: 800;
+      text-transform: uppercase;
       color: #fff;
     }
+    .pill.force { background: var(--orange); }
+    .pill.motion { background: var(--green); }
 
-    .choice:focus-visible,
-    .main:focus-visible,
-    .reset:focus-visible { outline: 3px solid rgb(37 99 235 / 22%); outline-offset: 2px; }
-    [hidden] { display: none !important; }
-
-    @media (max-width: 620px) {
-      body { padding: 0; }
-      .walkthrough { min-height: 100vh; border: 0; border-radius: 0; }
-      .simulation { min-height: calc(100vh - 67px); }
-      canvas { height: 460px; }
-      .prompt { margin-top: -48px; }
-      .main { width: 100%; margin-left: 0; }
+    @media (max-width: 900px) {
+      .scenarios-grid { grid-template-columns: 1fr; }
+      .drag-bank { flex-wrap: wrap; }
     }
   </style>
 </head>
 <body>
-  <main class="walkthrough" data-walkthrough>
+  <main class="app-container" data-app>
     <header>
       <div>
-        <div class="progress" data-progress>Situation 1 of 4</div>
-        <h1>Positive, Negative, or Zero Work?</h1>
+        <h1>Work Sign Challenge</h1>
+        <p class="subtitle">Drag the correct work sign to each scenario, then run the simulation.</p>
       </div>
-      <button class="reset" type="button" data-reset>Reset</button>
+      <button class="reset" type="button" data-reset>Reset All</button>
     </header>
 
-    <section class="simulation" aria-label="Work sign comparison simulation">
-      <canvas data-canvas width="1000" height="540"></canvas>
-      <div class="legend" aria-hidden="true">
-        <div class="pill force-key">Orange = named force</div>
-        <div class="pill motion-key">Green = displacement</div>
-      </div>
+    <div class="pill-legend">
+      <div class="pill force">Orange Arrow = Force</div>
+      <div class="pill motion">Green Arrow = Displacement</div>
+    </div>
 
-      <div class="prompt" aria-live="polite">
-        <p class="phase" data-phase>Ask and predict</p>
-        <h2 data-question></h2>
-        <p class="helper" data-helper>Compare the orange force arrow with the green displacement arrow.</p>
-        <div class="actions">
-          <div class="choices" data-choices>
-            <button class="choice" type="button" data-choice="positive">Positive work</button>
-            <button class="choice" type="button" data-choice="negative">Negative work</button>
-            <button class="choice" type="button" data-choice="zero">Zero work</button>
+    <!-- Drag Source Bank -->
+    <div class="drag-bank" data-bank>
+      <div class="drag-item" draggable="true" data-answer="positive" id="ans-pos">Positive Work</div>
+      <div class="drag-item" draggable="true" data-answer="negative" id="ans-neg">Negative Work</div>
+      <div class="drag-item" draggable="true" data-answer="zero" id="ans-zero">Zero Work</div>
+    </div>
+
+    <!-- Grid of Scenarios -->
+    <div class="scenarios-grid">
+      
+      <!-- Scenario 1: Positive -->
+      <div class="scenario-card" data-scenario="0">
+        <div class="scenario-header"><h2>Lifting a payload</h2></div>
+        <div class="canvas-container">
+          <canvas width="400" height="500" data-canvas="0"></canvas>
+        </div>
+        <div class="drop-zone-container">
+          <div class="drop-zone" data-drop="0">
+            <span class="drop-zone-label">Drop Answer Here</span>
           </div>
-          <button class="main" type="button" data-main hidden>Next situation</button>
+          <div class="feedback" data-feedback="0"></div>
         </div>
       </div>
-    </section>
+
+      <!-- Scenario 2: Negative -->
+      <div class="scenario-card" data-scenario="1">
+        <div class="scenario-header"><h2>Lowering at steady speed</h2></div>
+        <div class="canvas-container">
+          <canvas width="400" height="500" data-canvas="1"></canvas>
+        </div>
+        <div class="drop-zone-container">
+          <div class="drop-zone" data-drop="1">
+            <span class="drop-zone-label">Drop Answer Here</span>
+          </div>
+          <div class="feedback" data-feedback="1"></div>
+        </div>
+      </div>
+
+      <!-- Scenario 3: Zero -->
+      <div class="scenario-card" data-scenario="2">
+        <div class="scenario-header"><h2>Transporting horizontally</h2></div>
+        <div class="canvas-container">
+          <canvas width="400" height="500" data-canvas="2"></canvas>
+        </div>
+        <div class="drop-zone-container">
+          <div class="drop-zone" data-drop="2">
+            <span class="drop-zone-label">Drop Answer Here</span>
+          </div>
+          <div class="feedback" data-feedback="2"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="action-area">
+      <button class="btn-run" type="button" data-run disabled>Check Answers</button>
+    </div>
   </main>
 
   <script>
     (() => {
-      const root = document.querySelector('[data-walkthrough]');
-      const canvas = root.querySelector('[data-canvas]');
-      const ctx = canvas.getContext('2d');
-      const progressLabel = root.querySelector('[data-progress]');
-      const phase = root.querySelector('[data-phase]');
-      const question = root.querySelector('[data-question]');
-      const helper = root.querySelector('[data-helper]');
-      const choices = root.querySelector('[data-choices]');
-      const mainButton = root.querySelector('[data-main]');
+      const root = document.querySelector('[data-app]');
+      const canvases = [
+        root.querySelector('[data-canvas="0"]'),
+        root.querySelector('[data-canvas="1"]'),
+        root.querySelector('[data-canvas="2"]')
+      ];
+      const contexts = canvases.map(c => c.getContext('2d'));
+      const dropZones = root.querySelectorAll('.drop-zone');
+      const bank = root.querySelector('[data-bank]');
+      const runBtn = root.querySelector('[data-run]');
+      const resetBtn = root.querySelector('[data-reset]');
+      const feedbacks = root.querySelectorAll('[data-feedback]');
+
+      let progress = 0;
+      let animationFrame = null;
+      let state = 'setup'; // 'setup', 'animating', 'result'
       const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
       const situations = [
         {
-          title: 'Lifting a box',
-          question: 'What sign is the work done by the lifting force?',
+          title: 'Lifting a payload',
           answer: 'positive',
           angle: 0,
-          reason: 'Force and displacement point upward together.',
-          motion: 'up',
-          force: 'up',
-          forceLabel: 'lift force'
+          motion: 'up', force: 'up', forceLabel: 'LIFT',
+          reason: 'Force and displacement point same way.'
         },
         {
-          title: 'Lowering at steady speed',
-          question: 'What sign is the work done by the supporting force?',
+          title: 'Lowering payload',
           answer: 'negative',
           angle: 180,
-          reason: 'The supporting force points up while displacement points down.',
-          motion: 'down',
-          force: 'up',
-          forceLabel: 'support force'
+          motion: 'down', force: 'up', forceLabel: 'SUPPORT',
+          reason: 'Force is opposite to displacement.'
         },
         {
-          title: 'Carrying across the room',
-          question: 'What sign is the work done by the upward carrying force?',
+          title: 'Transporting horizontally',
           answer: 'zero',
           angle: 90,
-          reason: 'The carrying force is perpendicular to the horizontal displacement.',
-          motion: 'right',
-          force: 'up',
-          forceLabel: 'carry force'
-        },
-        {
-          title: 'Friction slows a slider',
-          question: 'What sign is the work done by friction?',
-          answer: 'negative',
-          angle: 180,
-          reason: 'Friction points opposite the displacement.',
-          motion: 'right',
-          force: 'left',
-          forceLabel: 'friction'
+          motion: 'right', force: 'up', forceLabel: 'CARRY',
+          reason: 'Force is perpendicular to motion.'
         }
       ];
 
-      let index = 0;
-      let state = 'predict';
-      let progress = 0;
-      let prediction = null;
-      let animationFrame = 0;
+      function drawBackground(ctx) {
+        const grad = ctx.createLinearGradient(0, 0, 0, 500);
+        grad.addColorStop(0, '#0f172a');
+        grad.addColorStop(1, '#1e293b');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 400, 500);
 
-      function arrow(x1, y1, x2, y2, color, label) {
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.05)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let x = 0; x < 400; x += 40) { ctx.moveTo(x, 0); ctx.lineTo(x, 500); }
+        for (let y = 0; y < 500; y += 40) { ctx.moveTo(0, y); ctx.lineTo(400, y); }
+        ctx.stroke();
+      }
+
+      function arrow(ctx, x1, y1, x2, y2, color, label) {
         const angle = Math.atan2(y2 - y1, x2 - x1);
         ctx.save();
         ctx.strokeStyle = color;
         ctx.fillStyle = color;
-        ctx.lineWidth = 8;
+        ctx.lineWidth = 5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 10;
+
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
         ctx.stroke();
+
         ctx.beginPath();
         ctx.moveTo(x2, y2);
-        ctx.lineTo(x2 - 22 * Math.cos(angle - .5), y2 - 22 * Math.sin(angle - .5));
-        ctx.lineTo(x2 - 22 * Math.cos(angle + .5), y2 - 22 * Math.sin(angle + .5));
+        ctx.lineTo(x2 - 15 * Math.cos(angle - 0.4), y2 - 15 * Math.sin(angle - 0.4));
+        ctx.lineTo(x2 - 15 * Math.cos(angle + 0.4), y2 - 15 * Math.sin(angle + 0.4));
         ctx.closePath();
         ctx.fill();
-        ctx.font = '900 18px system-ui';
+
+        ctx.font = '800 12px system-ui';
         ctx.textAlign = 'center';
-        const labelY = Math.abs(y2 - y1) > Math.abs(x2 - x1) ? (y1 + y2) / 2 : y1 - 18;
+        ctx.letterSpacing = '1px';
+        const labelY = Math.abs(y2 - y1) > Math.abs(x2 - x1) ? (y1 + y2) / 2 : y1 - 15;
         ctx.fillText(label, (x1 + x2) / 2, labelY);
         ctx.restore();
       }
 
-      function drawPerson(x, y) {
+      function drawPerson(ctx, x, y, targetX, targetY) {
         ctx.save();
-        ctx.strokeStyle = '#17233b';
-        ctx.lineWidth = 8;
-        ctx.lineCap = 'round';
-        ctx.fillStyle = '#f2b38d';
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetY = 5;
+
+        // Base platform
+        ctx.fillStyle = '#334155';
         ctx.beginPath();
-        ctx.arc(x, y - 95, 22, 0, Math.PI * 2);
+        ctx.ellipse(x, y + 56, 50, 12.5, 0, 0, Math.PI * 2);
         ctx.fill();
-        ctx.stroke();
+
+        // Stylized figure (metallic gradient)
+        const bodyGrad = ctx.createLinearGradient(x - 25, y - 136, x + 25, y + 39);
+        bodyGrad.addColorStop(0, '#94a3b8');
+        bodyGrad.addColorStop(1, '#475569');
+
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 17.5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        // Torso & Legs
         ctx.beginPath();
-        ctx.moveTo(x, y - 72);
-        ctx.lineTo(x, y - 10);
-        ctx.moveTo(x, y - 54);
-        ctx.lineTo(x + 38, y - 35);
-        ctx.moveTo(x, y - 10);
-        ctx.lineTo(x - 28, y + 30);
-        ctx.moveTo(x, y - 10);
-        ctx.lineTo(x + 28, y + 30);
+        ctx.moveTo(x, y - 86);
+        ctx.lineTo(x, y - 24);
+        ctx.moveTo(x, y - 24);
+        ctx.lineTo(x - 31, y + 39);
+        ctx.moveTo(x, y - 24);
+        ctx.lineTo(x + 31, y + 39);
         ctx.stroke();
+
+        ctx.strokeStyle = bodyGrad;
+        ctx.lineWidth = 12.5;
+        ctx.stroke();
+
+        // Arms (anchored at shoulder, tracking exact center of crate)
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 15;
+        ctx.beginPath();
+        ctx.moveTo(x, y - 74); // Shoulder joint
+        ctx.lineTo(targetX - 10, targetY); // Hands reaching middle of crate
+        ctx.stroke();
+        
+        ctx.strokeStyle = bodyGrad;
+        ctx.lineWidth = 10;
+        ctx.stroke();
+
+        // Head (helmet style)
+        ctx.fillStyle = '#cbd5e1';
+        ctx.beginPath();
+        ctx.arc(x, y - 118, 25, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = '#0f172a';
+        ctx.stroke();
+
+        // Visor
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath();
+        ctx.roundRect(x + 6, y - 127, 15, 18, 5);
+        ctx.fill();
+        
         ctx.restore();
       }
 
-      function drawBox(x, y, label = 'BOX') {
-        ctx.fillStyle = '#b96a35';
-        ctx.strokeStyle = '#17233b';
-        ctx.lineWidth = 4;
+      function drawBox(ctx, x, y, label = 'CRATE') {
+        const w = 90, h = 70;
+        const left = x - w/2, top = y - h/2;
+        
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+        ctx.shadowBlur = 15;
+        ctx.shadowOffsetY = 8;
+        
+        const boxGrad = ctx.createLinearGradient(left, top, left, top + h);
+        boxGrad.addColorStop(0, '#64748b');
+        boxGrad.addColorStop(0.5, '#475569');
+        boxGrad.addColorStop(1, '#334155');
+        
+        ctx.fillStyle = boxGrad;
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.roundRect(x - 57, y - 43, 114, 86, 10);
+        ctx.roundRect(left, top, w, h, 6);
         ctx.fill();
         ctx.stroke();
-        ctx.fillStyle = '#fff';
-        ctx.font = '900 18px system-ui';
+        
+        ctx.shadowColor = 'transparent';
+        const innerGrad = ctx.createLinearGradient(left, top, left, top + h);
+        innerGrad.addColorStop(0, '#334155');
+        innerGrad.addColorStop(1, '#64748b');
+        
+        ctx.fillStyle = innerGrad;
+        ctx.beginPath();
+        ctx.roundRect(left + 8, top + 8, w - 16, h - 16, 3);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = '800 12px system-ui';
         ctx.textAlign = 'center';
-        ctx.fillText(label, x, y + 6);
+        ctx.letterSpacing = '1px';
+        ctx.fillText(label, x, y + 4);
+        ctx.restore();
       }
 
-      function positions() {
+      function getPositions(index) {
         const situation = situations[index];
-        if (situation.motion === 'up') return { x: 620, y: 390 - 200 * progress };
-        if (situation.motion === 'down') return { x: 620, y: 190 + 200 * progress };
-        return { x: 315 + 390 * progress, y: 365 };
+        // Coordinates mapped for 400x500 canvas
+        if (situation.motion === 'up') return { x: 260, y: 390 - 180 * progress };
+        if (situation.motion === 'down') return { x: 260, y: 210 + 180 * progress };
+        // horizontal motion
+        return { x: 170 + 160 * progress, y: 390 };
       }
 
-      function draw() {
+      function drawScene(index) {
+        const ctx = contexts[index];
         const situation = situations[index];
-        const pos = positions();
-        ctx.clearRect(0, 0, 1000, 540);
-        const gradient = ctx.createLinearGradient(0, 0, 0, 540);
-        gradient.addColorStop(0, '#dff1ff');
-        gradient.addColorStop(.72, '#f8fcff');
-        gradient.addColorStop(.72, '#d1dbe5');
-        gradient.addColorStop(1, '#afbdcb');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, 1000, 540);
+        const pos = getPositions(index);
+        
+        ctx.clearRect(0, 0, 400, 500);
+        drawBackground(ctx);
 
-        ctx.fillStyle = '#17233b';
-        ctx.font = '900 28px system-ui';
-        ctx.textAlign = 'center';
-        ctx.fillText(situation.title, 500, 118);
+        // Person anchor points
+        const personX = index === 2 ? pos.x - 110 : 130;
+        const personY = 390; 
 
-        if (index < 3) {
-          drawPerson(index === 2 ? pos.x - 105 : 360, index === 2 ? 398 : 395);
-          drawBox(pos.x, pos.y);
-        } else {
-          ctx.strokeStyle = '#64748b';
-          ctx.lineWidth = 6;
-          ctx.beginPath();
-          ctx.moveTo(115, 410);
-          ctx.lineTo(885, 410);
-          ctx.stroke();
-          drawBox(pos.x, pos.y, 'SLIDER');
+        drawPerson(ctx, personX, personY, pos.x, pos.y);
+        drawBox(ctx, pos.x, pos.y);
+
+        const fColor = '#f97316';
+        const dColor = '#10b981';
+
+        // Draw Forces
+        if (situation.force === 'up') arrow(ctx, pos.x, pos.y - 45, pos.x, pos.y - 120, fColor, situation.forceLabel);
+        
+        // Draw Displacement only if animating or finished
+        if (progress > 0) {
+           if (situation.motion === 'up') arrow(ctx, pos.x + 70, pos.y + 40, pos.x + 70, pos.y - 60, dColor, 'DIST');
+           else if (situation.motion === 'down') arrow(ctx, pos.x + 70, pos.y - 60, pos.x + 70, pos.y + 40, dColor, 'DIST');
+           else arrow(ctx, pos.x - 60, pos.y + 60, pos.x + 60, pos.y + 60, dColor, 'DIST');
         }
 
-        if (situation.force === 'up') arrow(pos.x, pos.y - 50, pos.x, pos.y - 165, '#ea580c', situation.forceLabel);
-        else arrow(pos.x - 60, pos.y - 70, pos.x - 200, pos.y - 70, '#ea580c', situation.forceLabel);
-
-        if (situation.motion === 'up') arrow(pos.x + 105, pos.y + 60, pos.x + 105, pos.y - 80, '#15803d', 'displacement');
-        else if (situation.motion === 'down') arrow(pos.x + 105, pos.y - 90, pos.x + 105, pos.y + 65, '#15803d', 'displacement');
-        else arrow(pos.x - 95, pos.y + 90, pos.x + 110, pos.y + 90, '#15803d', 'displacement');
-
+        // Draw Result Angle Overlay
         if (state === 'result') {
-          ctx.fillStyle = '#17233b';
-          ctx.font = '900 23px system-ui';
+          ctx.fillStyle = '#38bdf8';
+          ctx.font = '900 20px system-ui';
           ctx.textAlign = 'center';
-          ctx.fillText('theta = ' + situation.angle + ' degrees', 500, 490);
+          ctx.shadowColor = 'rgba(56, 189, 248, 0.5)';
+          ctx.shadowBlur = 10;
+          ctx.fillText(`\u03B8 = ${situation.angle}\u00B0`, 200, 460);
+          ctx.shadowBlur = 0;
         }
       }
 
-      function renderPrediction() {
-        const situation = situations[index];
-        state = 'predict';
-        progress = 0;
-        prediction = null;
-        progressLabel.textContent = 'Situation ' + (index + 1) + ' of ' + situations.length;
-        phase.textContent = 'Ask and predict';
-        question.textContent = situation.question;
-        helper.textContent = 'Compare the orange force arrow with the green displacement arrow.';
-        choices.hidden = false;
-        mainButton.hidden = true;
-        draw();
+      function renderAll() {
+        for (let i = 0; i < 3; i++) drawScene(i);
       }
 
-      function reveal() {
-        state = 'reveal';
-        phase.textContent = 'Reveal';
-        question.textContent = 'Watch the object move.';
-        helper.textContent = 'The angle between force and displacement determines the sign of the work.';
-        choices.hidden = true;
-        let start = 0;
-        const duration = reduceMotion ? 80 : 1200;
+      let draggedItem = null;
+      let selectedItem = null; // Added for tap-to-move fallback
 
-        function frame(time) {
-          if (!start) start = time;
-          progress = Math.min(1, (time - start) / duration);
-          draw();
-          if (progress < 1) animationFrame = requestAnimationFrame(frame);
-          else showResult();
-        }
-        animationFrame = requestAnimationFrame(frame);
-      }
+      document.querySelectorAll('.drag-item').forEach(item => {
+        item.addEventListener('dragstart', (e) => {
+          if (state !== 'setup') { e.preventDefault(); return; }
+          draggedItem = item;
+          
+          // CRITICAL FIX: Required for drag-and-drop to work inside iframes and Firefox
+          if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', item.id);
+          }
+          
+          setTimeout(() => item.classList.add('dragging'), 0);
+        });
+        
+        item.addEventListener('dragend', () => {
+          draggedItem = null;
+          item.classList.remove('dragging');
+          checkRunState();
+        });
 
-      function showResult() {
-        const situation = situations[index];
-        const correct = prediction === situation.answer;
-        state = 'result';
-        phase.textContent = 'Explain';
-        question.textContent = situation.answer[0].toUpperCase() + situation.answer.slice(1) + ' work';
-        helper.textContent = (correct ? 'Correct. ' : 'Look at the arrow directions. ') + situation.reason;
-        mainButton.textContent = index === situations.length - 1 ? 'Try all again' : 'Next situation';
-        mainButton.hidden = false;
-        draw();
-      }
-
-      function next() {
-        cancelAnimationFrame(animationFrame);
-        index = index === situations.length - 1 ? 0 : index + 1;
-        renderPrediction();
-      }
-
-      [...root.querySelectorAll('[data-choice]')].forEach(button => {
-        button.addEventListener('click', () => {
-          if (state !== 'predict') return;
-          prediction = button.dataset.choice;
-          reveal();
+        // MOBILE FIX: Tap-to-move fallback for touch devices
+        item.addEventListener('click', (e) => {
+          if (state !== 'setup') return;
+          e.stopPropagation();
+          
+          // Clear any existing outlines
+          document.querySelectorAll('.drag-item').forEach(el => el.style.outline = 'none');
+          
+          if (selectedItem === item) {
+            selectedItem = null; // Toggle off if clicked again
+          } else {
+            selectedItem = item;
+            item.style.outline = '4px solid var(--orange)';
+            item.style.outlineOffset = '2px';
+          }
         });
       });
-      mainButton.addEventListener('click', next);
-      root.querySelector('[data-reset]').addEventListener('click', () => {
-        cancelAnimationFrame(animationFrame);
-        index = 0;
-        renderPrediction();
+
+      // Setup drop zones and the bank (so items can be returned)
+      const allDropTargets = [...dropZones, bank];
+      
+      allDropTargets.forEach(zone => {
+        
+        // Tap-to-drop fallback for mobile/touch
+        zone.addEventListener('click', () => {
+          if (state !== 'setup' || !selectedItem) return;
+          
+          if (zone.classList.contains('drop-zone')) {
+              const existingItem = zone.querySelector('.drag-item');
+              if (existingItem) bank.appendChild(existingItem);
+              zone.querySelector('.drop-zone-label').style.display = 'none';
+          }
+          
+          zone.appendChild(selectedItem);
+          selectedItem.style.outline = 'none';
+          selectedItem = null;
+          
+          // Re-show labels if zones were emptied
+          dropZones.forEach(dz => {
+              if (!dz.querySelector('.drag-item')) {
+                  dz.querySelector('.drop-zone-label').style.display = 'block';
+              }
+          });
+          
+          checkRunState();
+        });
+
+        zone.addEventListener('dragover', e => {
+          if (state !== 'setup') return;
+          e.preventDefault();
+        });
+        
+        zone.addEventListener('dragenter', e => {
+          if (state !== 'setup') return;
+          e.preventDefault();
+          if(zone.classList.contains('drop-zone')) zone.classList.add('hover');
+        });
+        
+        zone.addEventListener('dragleave', e => {
+          if(zone.classList.contains('drop-zone')) zone.classList.remove('hover');
+        });
+        
+        zone.addEventListener('drop', e => {
+          if (state !== 'setup') return;
+          e.preventDefault();
+          zone.classList.remove('hover');
+          
+          if(draggedItem) {
+            // If dropping into a specific scenario zone that already has an item, swap it to bank
+            if (zone.classList.contains('drop-zone')) {
+                const existingItem = zone.querySelector('.drag-item');
+                if (existingItem) bank.appendChild(existingItem);
+                
+                // Hide label when filled
+                zone.querySelector('.drop-zone-label').style.display = 'none';
+            }
+            
+            zone.appendChild(draggedItem);
+            
+            // Re-show labels in zones if they are emptied (e.g. dragging back to bank)
+            dropZones.forEach(dz => {
+                if (!dz.querySelector('.drag-item')) {
+                    dz.querySelector('.drop-zone-label').style.display = 'block';
+                }
+            });
+          }
+        });
       });
-      renderPrediction();
+
+      function checkRunState() {
+        // Enable run button only if all 3 drop zones have a drag-item
+        const allFilled = [...dropZones].every(dz => dz.querySelector('.drag-item'));
+        runBtn.disabled = !allFilled;
+        
+        // Update bank styling based on if it's empty
+        bank.dataset.empty = bank.querySelectorAll('.drag-item').length === 0;
+      }
+
+      let animStart = 0;
+      const activeDuration = reduceMotion ? 80 : 1500;
+      const pauseDuration = reduceMotion ? 20 : 800; // Pause at the end before looping
+      const totalDuration = activeDuration + pauseDuration;
+
+      function animationLoop(time) {
+        if (!animStart) animStart = time;
+        let elapsed = time - animStart;
+        let cycleTime = elapsed % totalDuration;
+        
+        // Animate up to 1, then hold at 1 during the pause duration
+        progress = Math.min(1, cycleTime / activeDuration);
+        
+        renderAll();
+        
+        animationFrame = requestAnimationFrame(animationLoop);
+      }
+
+      function showResults() {
+        state = 'result';
+        runBtn.disabled = true;
+        document.querySelectorAll('.drag-item').forEach(el => el.style.cursor = 'default');
+        
+        // Evaluate each zone
+        dropZones.forEach((dz, index) => {
+          const item = dz.querySelector('.drag-item');
+          const guessed = item.dataset.answer;
+          const correct = situations[index].answer;
+          const fb = feedbacks[index];
+          
+          if (guessed === correct) {
+            item.style.backgroundColor = 'var(--green)';
+            item.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
+            fb.innerHTML = `<span style="color: var(--green);">Correct!</span> ${situations[index].reason}`;
+          } else {
+            item.style.backgroundColor = 'var(--orange)';
+            item.style.boxShadow = '0 4px 12px rgba(249, 115, 22, 0.3)';
+            fb.innerHTML = `<span style="color: var(--orange);">Incorrect.</span> ${situations[index].reason}`;
+          }
+        });
+
+        runBtn.textContent = 'Simulation Complete';
+      }
+
+      function resetApp() {
+        state = 'setup';
+        selectedItem = null;
+        
+        // Reset Draggables
+        const items = document.querySelectorAll('.drag-item');
+        items.forEach(item => {
+            item.style.backgroundColor = 'var(--blue)';
+            item.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.3)';
+            item.style.cursor = 'grab';
+            item.style.outline = 'none';
+            bank.appendChild(item); // Move back to bank
+        });
+
+        // Reset UI Zones
+        dropZones.forEach(dz => dz.querySelector('.drop-zone-label').style.display = 'block');
+        feedbacks.forEach(fb => fb.innerHTML = '');
+        
+        runBtn.textContent = 'Check Answers';
+        
+        checkRunState();
+      }
+
+      // Bind actions
+      runBtn.addEventListener('click', showResults);
+      resetBtn.addEventListener('click', resetApp);
+      
+      // Start the continuous animation immediately
+      animationFrame = requestAnimationFrame(animationLoop);
     })();
   </script>
 </body>

@@ -170,7 +170,7 @@
         <div class="designer-head">
           <div>
             <h3>Track designer</h3>
-            <p class="small">Pick a track, then drag its circles on the canvas or type any node height. The start (5.00 m) and finish (2.00 m) nodes stay locked so the fair test holds.</p>
+            <p class="small">Pick a track, then drag its circles on the canvas or type any node height. Every point snaps to a height line or half line, so heights are always whole or half metres. The start (5.00 m) and finish (2.00 m) nodes stay locked so the fair test holds.</p>
           </div>
           <div class="designer-actions">
             <label class="preset-field" for="preset">Shape preset <select id="preset" data-preset></select></label>
@@ -185,7 +185,7 @@
 
       <div class="timers" data-timers></div>
       <div class="stage">
-        <canvas data-canvas width="1100" height="650" tabindex="0" role="application" aria-label="Editable four-track race. Use left and right arrow keys to choose a node and up and down arrow keys to change its height."></canvas>
+        <canvas data-canvas width="1100" height="650" tabindex="0" role="application" aria-label="Editable four-track race. Use left and right arrow keys to choose a node and up and down arrow keys to change its height in half-metre steps."></canvas>
         <div class="legend" aria-hidden="true"><span style="--swatch:#15803d">velocity</span><span style="--swatch:#ea580c">centripetal a</span><span style="--swatch:#7c3aed">speed markers</span></div>
       </div>
 
@@ -260,7 +260,7 @@
       const startHeight = 5;
       const finishHeight = 2;
       const maxHeight = 6;
-      const heightStep = 0.25;
+      const heightStep = 0.5;                // every node lands on a drawn height line or half line
       const horizontalLength = 24;           // 2 m per segment
       const sampleCount = 960;               // 80 samples per segment
       const initialSpeed = 0.5;              // release push, m/s: a cart on a level start needs one
@@ -271,23 +271,24 @@
       // Canvas plot frame, in device pixels of the 1100x650 backing store.
       const PLOT = { left:150, width:870, baseY:545, unit:70 };
 
-      // A dead-level section is a legal shape, but a cart only creeps across it at
-      // the release speed, so the shipped presets all keep a downhill component.
+      // Every preset height is a multiple of heightStep, so a preset lands on the
+      // same lines a student can drag to. A dead-level first segment is left out
+      // of all of them: a cart that has not descended yet only creeps across it.
       const presets = {
-        'early-drop':  { label:'Early drop',    heights:[5,4,3,2,2,2,2,2,2,2,2,2,2] },
-        'deep-dip':    { label:'Deep dip',      heights:[5,4,3,2,1,0.5,0.5,1,1.5,2,2,2,2] },
-        'stepped':     { label:'Stepped drops', heights:[5,4.75,4.5,4.5,4,3.5,3.5,3,2.5,2.5,2,2,2] },
-        'late-drop':   { label:'Late drop',     heights:[5,4.9,4.8,4.7,4.6,4.4,4.2,3.9,3.5,3,2.5,2.2,2] },
-        'straight':    { label:'Straight ramp', heights:[5,4.75,4.5,4.25,4,3.75,3.5,3.25,3,2.75,2.5,2.25,2] },
-        'steep-first': { label:'Steep first',   heights:[5,3.5,2.5,2.25,2,2,2,2,2,2,2,2,2] },
-        'over-a-hill': { label:'Over a hill',   heights:[5,4.5,4,4.25,4.75,4.5,4,3,2.5,2,2,2,2] }
+        'smooth-drop':  { label:'Smooth drop',  heights:[5,4,3.5,3,2.5,2,1.5,1.5,1.5,1.5,1.5,2,2] },
+        'deep-dip':     { label:'Deep dip',     heights:[5,4,3,2,1,0,0,1,2,2,2,2,2] },
+        'steady-drops': { label:'Steady drops', heights:[5,4.5,4.5,4,4,3.5,3.5,3,3,2.5,2.5,2,2] },
+        'late-drops':   { label:'Late drops',   heights:[5,4.5,4.5,4.5,4.5,4,4,3.5,3.5,3,2.5,2,2] },
+        'even-slope':   { label:'Even slope',   heights:[5,4.5,4,3.5,3,2.5,2,2,2,2,2,2,2] },
+        'steep-first':  { label:'Steep first',  heights:[5,3.5,2.5,2,2,2,2,2,2,2,2,2,2] },
+        'over-a-hill':  { label:'Over a hill',  heights:[5,4.5,4,4.5,4.5,4,3.5,3,2.5,2,2,2,2] }
       };
 
       const tracks = [
-        { id:'trackA', name:'Track A', color:'#2563eb', preset:'early-drop' },
+        { id:'trackA', name:'Track A', color:'#2563eb', preset:'smooth-drop' },
         { id:'trackB', name:'Track B', color:'#15803d', preset:'deep-dip' },
-        { id:'trackC', name:'Track C', color:'#d97706', preset:'stepped' },
-        { id:'trackD', name:'Track D', color:'#7c3aed', preset:'late-drop' }
+        { id:'trackC', name:'Track C', color:'#d97706', preset:'steady-drops' },
+        { id:'trackD', name:'Track D', color:'#7c3aed', preset:'late-drops' }
       ];
 
       const state = {
@@ -346,7 +347,8 @@
       function applyPreset(track, key) {
         const preset = presets[key];
         if (!preset) return;
-        track.heights = preset.heights.slice();
+        // Snap on the way in so no preset can seed a node off the height lines.
+        track.heights = preset.heights.map(snapHeight);
         track.heights[0] = startHeight;
         track.heights[SEGMENTS] = finishHeight;
         track.preset = key;
@@ -698,13 +700,18 @@
           const y = PLOT.baseY - height * PLOT.unit;
           const whole = height % 1 === 0;
 
-          ctx.strokeStyle = whole ? '#cbd5e1' : '#e2e8f0';
+          ctx.strokeStyle = whole ? '#cbd5e1' : '#d7dfe9';
           ctx.setLineDash(whole ? [4, 4] : [2, 4]);
           ctx.beginPath(); ctx.moveTo(PLOT.left, y); ctx.lineTo(PLOT.left + PLOT.width, y); ctx.stroke();
 
+          // Both the whole and the half lines are labelled: a node can only sit on one of them.
+          ctx.textAlign = 'right';
           if (whole) {
-            ctx.fillStyle = '#94a3b8'; ctx.font = '700 11px system-ui'; ctx.textAlign = 'right';
+            ctx.fillStyle = '#94a3b8'; ctx.font = '700 11px system-ui';
             ctx.fillText('Height ' + height, PLOT.left - 10, y + 4);
+          } else {
+            ctx.fillStyle = '#aab7c6'; ctx.font = '700 9px system-ui';
+            ctx.fillText(height.toFixed(1), PLOT.left - 10, y + 3);
           }
         }
 
@@ -1142,6 +1149,10 @@
         state.selectedNode = index;
         if (setNodeHeight(activeTrack(), index, Number(input.value))) {
           afterEdit(`${activeTrack().name} node ${index} set to ${activeTrack().heights[index].toFixed(2)} m.`);
+        } else {
+          // Snapping can land back on the height the node already had; keep the
+          // strip showing the value the model actually holds.
+          syncNodeStrip();
         }
       });
 
