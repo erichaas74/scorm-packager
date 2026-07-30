@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Solving the Work Equation</title>
+  <style>
+    :root {
+      --bg: #f1f5f9;
+      --panel: #ffffff;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: #cbd5e1;
+      --blue: #2563eb;
+      --blue-dark: #1d4ed8;
+      --blue-soft: #dbeafe;
+      --orange: #f97316;
+      --orange-soft: #ffedd5;
+      --green: #059669;
+      --green-soft: #d1fae5;
+      --yellow: #fbbf24;
+      --scene: #bfdbfe;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 20px;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button { font: inherit; }
+
+    .walkthrough {
+      width: min(1100px, 100%);
+      margin: 0 auto;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: var(--panel);
+      box-shadow: 0 20px 50px rgb(15 23 42 / 14%);
+    }
+
+    .problem {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 18px 20px 14px;
+      padding: 13px 16px;
+      border-left: 5px solid var(--blue);
+      border-radius: 10px;
+      background: var(--blue-soft);
+      line-height: 1.5;
+    }
+
+    .problem strong { flex: 0 0 auto; color: var(--blue-dark); }
+
+    .scene {
+      position: relative;
+      margin: 0 20px;
+      overflow: hidden;
+      border-radius: 18px;
+      background: var(--scene);
+      box-shadow: inset 0 0 0 1px rgb(255 255 255 / 12%);
+    }
+
+    .scene svg { display: block; width: 100%; height: auto; }
+
+    .scene-label {
+      position: absolute;
+      top: 14px;
+      left: 16px;
+      max-width: calc(58% - 24px);
+      padding: 7px 11px;
+      border: 1px solid rgb(37 99 235 / 20%);
+      border-radius: 999px;
+      background: rgb(255 255 255 / 88%);
+      color: #1e3a5f;
+      font-size: clamp(.72rem, 2vw, .88rem);
+      font-weight: 720;
+      backdrop-filter: blur(5px);
+    }
+
+    .scene .equation-box {
+      position: absolute;
+      z-index: 2;
+      top: 14px;
+      right: 16px;
+      width: min(360px, 42%);
+      min-height: 108px;
+      padding: 13px 16px;
+      border-color: rgb(147 197 253 / 70%);
+      background: rgb(7 15 28 / 90%);
+      color: #fff;
+      backdrop-filter: blur(6px);
+    }
+
+    .scene .equation { color: #fff; }
+    .scene .equation.definition-equation {
+      color: #fff;
+      font-size: clamp(1.75rem, 4.5vw, 2.7rem);
+    }
+    .scene .equation.definition-equation .accent { color: #fff; }
+    .scene .equation-note { color: #cbd5e1; }
+
+    .visual-part {
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity .38s ease, transform .38s ease;
+    }
+
+    .visual-part.visible { opacity: 1; transform: translateY(0); }
+
+    .crate {
+      transform: translateX(0);
+      transition: transform .9s cubic-bezier(.2, .8, .2, 1);
+    }
+
+    .crate.solved { transform: translateX(538px); }
+
+    .ghost-crate { transition: opacity .3s ease; }
+    .ghost-crate.hidden { opacity: 0; }
+
+    .learning-panel { padding: 17px 20px 20px; }
+
+    .step-card {
+      min-height: 118px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #f8fafc;
+    }
+
+    .step-copy { align-self: center; }
+
+    .step-kicker {
+      margin: 0 0 5px;
+      color: var(--orange);
+      font-size: .76rem;
+      font-weight: 850;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .step-copy h2 {
+      margin: 0 0 8px;
+      font-size: clamp(1.15rem, 2.5vw, 1.45rem);
+    }
+
+    .step-copy p {
+      margin: 0;
+      color: #475569;
+      font-size: 1rem;
+      line-height: 1.55;
+    }
+
+    .equation-box {
+      display: grid;
+      place-items: center;
+      min-height: 142px;
+      padding: 16px;
+      border: 1px solid #bfdbfe;
+      border-radius: 14px;
+      background: #fff;
+      text-align: center;
+    }
+
+    .equation {
+      color: var(--ink);
+      font-size: clamp(1.25rem, 3.2vw, 1.8rem);
+      font-weight: 850;
+      line-height: 1.35;
+    }
+
+    .equation .accent { color: var(--blue); }
+    .equation .answer { color: var(--green); }
+
+    .equation-note {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 650;
+      line-height: 1.35;
+    }
+
+    .nav-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding-top: 15px;
+    }
+
+    .nav-button {
+      min-height: 46px;
+      padding: 10px 20px;
+      border-radius: 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .back {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+    }
+
+    .next {
+      margin-left: auto;
+      border: 1px solid var(--blue);
+      background: var(--blue);
+      color: #fff;
+      box-shadow: 0 7px 16px rgb(37 99 235 / 22%);
+    }
+
+    .next:hover { border-color: var(--blue-dark); background: var(--blue-dark); }
+    .back:hover { border-color: #94a3b8; background: #f8fafc; }
+    .nav-button:disabled { opacity: .4; cursor: not-allowed; }
+    button:focus-visible { outline: 3px solid rgb(37 99 235 / 30%); outline-offset: 3px; }
+
+    @media (max-width: 720px) {
+      body { padding: 8px; }
+      .walkthrough { border-radius: 17px; }
+      .problem { align-items: flex-start; margin: 12px 12px 10px; }
+      .problem strong { display: none; }
+      .scene { margin: 0 12px; border-radius: 13px; }
+      .learning-panel { padding: 13px 12px 15px; }
+      .step-card { min-height: 0; padding: 12px 14px; }
+      .scene .equation-box {
+        top: 8px;
+        right: 8px;
+        width: min(330px, 54%);
+        min-height: 82px;
+        padding: 8px 10px;
+      }
+      .scene .equation { font-size: clamp(.82rem, 3.2vw, 1.25rem); }
+      .scene .equation-note { margin-top: 3px; font-size: .65rem; }
+      .nav-button { flex: 1; padding-inline: 12px; }
+      .scene-label { top: 9px; left: 9px; max-width: 40%; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="walkthrough" data-walkthrough>
+    <div class="problem">
+      <strong>Problem</strong>
+      <span>A student pushes a cart with a constant horizontal force of 100 N for 5.0 m. How much work does the student do on the cart?</span>
+    </div>
+
+    <section class="scene" aria-label="A cart pushed to the right by a horizontal force">
+      <div class="scene-label" data-scene-label>Work is force multiplied by displacement.</div>
+      <div class="equation-box">
+        <div class="equation" data-equation><span class="accent">W = Fd</span></div>
+      </div>
+      <svg viewBox="0 0 1000 410" role="img" aria-labelledby="scene-title scene-description">
+        <title id="scene-title">Cart pushed by a horizontal force</title>
+        <desc id="scene-description">A 100-newton horizontal force pushes a cart 5 meters to the right.</desc>
+        <defs>
+          <linearGradient id="wall" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stop-color="#e0f2fe"/>
+            <stop offset="1" stop-color="#93c5fd"/>
+          </linearGradient>
+          <linearGradient id="floor" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stop-color="#dbeafe"/>
+            <stop offset="1" stop-color="#b6c9de"/>
+          </linearGradient>
+          <linearGradient id="crateFace" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0" stop-color="#d99a57"/>
+            <stop offset=".55" stop-color="#b86c32"/>
+            <stop offset="1" stop-color="#7c3f1f"/>
+          </linearGradient>
+          <filter id="softShadow" x="-30%" y="-40%" width="170%" height="190%">
+            <feDropShadow dx="0" dy="9" stdDeviation="8" flood-color="#0f172a" flood-opacity=".28"/>
+          </filter>
+          <marker id="orangeArrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#fb923c"/>
+          </marker>
+          <marker id="greenArrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#34d399"/>
+          </marker>
+        </defs>
+
+        <rect width="1000" height="305" fill="url(#wall)"/>
+        <circle cx="110" cy="68" r="118" fill="#ffffff" opacity=".23"/>
+        <circle cx="910" cy="112" r="155" fill="#ffffff" opacity=".16"/>
+        <path d="M0 90H1000M0 180H1000M0 270H1000" stroke="#60a5fa" stroke-width="2" opacity=".32"/>
+        <path d="M120 0V305M340 0V305M560 0V305M780 0V305" stroke="#60a5fa" stroke-width="2" opacity=".28"/>
+        <rect y="305" width="1000" height="105" fill="url(#floor)"/>
+        <path d="M0 305H1000" stroke="#64748b" stroke-width="5"/>
+        <path d="M80 410L180 305M310 410L370 305M690 410L630 305M920 410L820 305" stroke="#94a3b8" stroke-width="2" opacity=".48"/>
+        <path d="M0 350H1000M0 390H1000" stroke="#94a3b8" stroke-width="2" opacity=".42"/>
+
+        <g class="ghost-crate" data-ghost aria-hidden="true" opacity=".22">
+          <rect x="710" y="220" width="140" height="85" rx="6" fill="#94a3b8" stroke="#cbd5e1" stroke-width="5" stroke-dasharray="10 8"/>
+        </g>
+
+        <g class="crate" data-crate filter="url(#softShadow)">
+          <ellipse cx="242" cy="322" rx="92" ry="14" fill="#334155" opacity=".25"/>
+          <path d="M172 220L191 203H328L312 220Z" fill="#edb36f" stroke="#7c3f1f" stroke-width="4" stroke-linejoin="round"/>
+          <path d="M312 220L328 203V286L312 305Z" fill="#8f4a25" stroke="#6b351c" stroke-width="4" stroke-linejoin="round"/>
+          <rect x="172" y="220" width="140" height="85" rx="5" fill="url(#crateFace)" stroke="#7c3f1f" stroke-width="5"/>
+          <rect x="182" y="230" width="120" height="65" rx="3" fill="none" stroke="#e7ad69" stroke-width="4" opacity=".8"/>
+          <path d="M189 236L295 289M295 236L189 289" stroke="#6b351c" stroke-width="8" stroke-linecap="round"/>
+          <path d="M168 305H316" stroke="#334155" stroke-width="8" stroke-linecap="round"/>
+          <circle cx="202" cy="313" r="15" fill="#1e293b" stroke="#0f172a" stroke-width="4"/>
+          <circle cx="202" cy="313" r="6" fill="#94a3b8" stroke="#e2e8f0" stroke-width="2"/>
+          <circle cx="282" cy="313" r="15" fill="#1e293b" stroke="#0f172a" stroke-width="4"/>
+          <circle cx="282" cy="313" r="6" fill="#94a3b8" stroke="#e2e8f0" stroke-width="2"/>
+          <circle cx="186" cy="234" r="4" fill="#fde68a"/>
+          <circle cx="298" cy="234" r="4" fill="#fde68a"/>
+          <circle cx="186" cy="291" r="4" fill="#fde68a"/>
+          <circle cx="298" cy="291" r="4" fill="#fde68a"/>
+        </g>
+
+        <g class="visual-part" data-part="force">
+          <line x1="305" y1="234" x2="530" y2="234" stroke="#fb923c" stroke-width="9" stroke-linecap="round" marker-end="url(#orangeArrow)"/>
+          <rect x="344" y="180" width="124" height="36" rx="18" fill="#431407" stroke="#fb923c" stroke-width="2"/>
+          <text x="406" y="204" fill="#ffedd5" font-size="20" font-weight="800" text-anchor="middle">F = 100 N</text>
+        </g>
+
+        <g class="visual-part" data-part="distance">
+          <line x1="242" y1="365" x2="780" y2="365" stroke="#34d399" stroke-width="7" stroke-linecap="round" marker-end="url(#greenArrow)"/>
+          <rect x="444" y="316" width="134" height="38" rx="19" fill="#032d25" stroke="#34d399" stroke-width="2"/>
+          <text x="511" y="342" fill="#d1fae5" font-size="21" font-weight="800" text-anchor="middle">d = 5.0 m</text>
+        </g>
+
+      </svg>
+    </section>
+
+    <section class="learning-panel" aria-live="polite">
+      <div class="step-card">
+        <div class="step-copy">
+          <p class="step-kicker" data-kicker>Step 1 · Define</p>
+          <h2 data-title>Use the definition of work</h2>
+          <p data-explanation>When force and displacement point in the same direction, work is force multiplied by displacement.</p>
+        </div>
+      </div>
+
+      <nav class="nav-row" aria-label="Walkthrough steps">
+        <button class="nav-button back" type="button" data-back disabled>Back</button>
+        <button class="nav-button next" type="button" data-next>Next step</button>
+      </nav>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const root = document.querySelector('[data-walkthrough]');
+      const kicker = root.querySelector('[data-kicker]');
+      const title = root.querySelector('[data-title]');
+      const explanation = root.querySelector('[data-explanation]');
+      const equation = root.querySelector('[data-equation]');
+      const sceneLabel = root.querySelector('[data-scene-label]');
+      const backButton = root.querySelector('[data-back]');
+      const nextButton = root.querySelector('[data-next]');
+      const crate = root.querySelector('[data-crate]');
+      const ghost = root.querySelector('[data-ghost]');
+
+      const steps = [
+        {
+          verb: 'Define',
+          title: 'Use the definition of work',
+          explanation: 'When force and displacement point in the same direction, work is force multiplied by displacement.',
+          equation: '<span class="accent">W = Fd</span>',
+          scene: 'Work is force multiplied by displacement.',
+          parts: ['force', 'distance']
+        },
+        {
+          verb: 'Substitute',
+          title: 'Insert the known values',
+          explanation: 'Replace force with 100 N and displacement with 5.0 m. Keep the units with the values.',
+          equation: 'W = (100 N)(5.0 m)',
+          scene: 'The force and displacement are parallel and point to the right.',
+          parts: ['force', 'distance']
+        },
+        {
+          verb: 'Solve',
+          title: 'Multiply force by displacement',
+          explanation: 'Multiply 100 by 5.0. A newton-meter is a joule, so the student does 500 joules of work on the cart.',
+          equation: 'W = (100 N)(5.0 m)<br>= 500 N·m<br><span class="answer">W = 500 J</span><span class="equation-note">1 N·m = 1 J</span>',
+          scene: 'The force does 500 joules of work while the cart moves 5.0 m.',
+          parts: ['distance'],
+          solved: true
+        }
+      ];
+
+      let currentStep = 0;
+
+      function render() {
+        const step = steps[currentStep];
+        const number = currentStep + 1;
+
+        kicker.textContent = `Step ${number} · ${step.verb}`;
+        title.textContent = step.title;
+        explanation.textContent = step.explanation;
+        equation.innerHTML = step.equation;
+        equation.classList.toggle('definition-equation', currentStep === 0);
+        sceneLabel.textContent = step.scene;
+
+        root.querySelectorAll('[data-part]').forEach(part => {
+          part.classList.toggle('visible', step.parts.includes(part.dataset.part));
+        });
+
+        crate.classList.toggle('solved', Boolean(step.solved));
+        ghost.classList.toggle('hidden', Boolean(step.solved));
+        backButton.disabled = currentStep === 0;
+        nextButton.textContent = currentStep === steps.length - 1 ? 'Review from start' : 'Next step';
+      }
+
+      backButton.addEventListener('click', () => {
+        if (currentStep > 0) {
+          currentStep -= 1;
+          render();
+        }
+      });
+
+      nextButton.addEventListener('click', () => {
+        currentStep = currentStep === steps.length - 1 ? 0 : currentStep + 1;
+        render();
+      });
+
+      render();
+    })();
+  </script>
+</body>
+</html>
