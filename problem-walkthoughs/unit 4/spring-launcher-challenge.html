@@ -1492,11 +1492,58 @@
       });
       button.classList.add('is-selected');
       button.setAttribute('aria-pressed', 'true');
-      if (gameState === 'predict') {
+      if (gameState !== 'predict') return;
+
+      predictionChoices.querySelectorAll('button').forEach(b => b.disabled = true);
+      if (l1Step === 'energy') {
+        setTimeout(() => handleEnergyResult(value), 200);
+      } else {
         // The cart is already running; committing just reveals the magnitude.
-        predictionChoices.querySelectorAll('button').forEach(b => b.disabled = true);
         setTimeout(() => handleResult(cart.v, 0), 250);
       }
+    }
+
+    function springEnergy(r) {
+      return 0.5 * r.k * r.x * r.x;
+    }
+
+    function renderEnergyChoices() {
+      const r = rounds[currentRoundIdx];
+      const correct = springEnergy(r);
+      // Distractors are the standard slips: dropping the 1/2, and not squaring x
+      const options = [correct, r.k * r.x * r.x, 0.5 * r.k * r.x, 0.25 * r.k * r.x * r.x]
+        .map(v => Math.round(v * 10) / 10)
+        .filter((v, i, all) => all.indexOf(v) === i)
+        .sort((a, b) => a - b);
+
+      selectedPrediction = null;
+      predictionChoices.innerHTML = options.map(value => `
+        <button type="button" class="choice" data-speed="${value}" aria-pressed="false">${value.toFixed(1)} J</button>`).join('');
+      predictionChoices.querySelectorAll('button').forEach(button => {
+        button.addEventListener('click', () => setPredictionChoice(parseFloat(button.dataset.speed), button));
+      });
+    }
+
+    function handleEnergyResult(picked) {
+      const r = rounds[currentRoundIdx];
+      const correct = Math.round(springEnergy(r) * 10) / 10;
+      const noHalf = Math.round(r.k * r.x * r.x * 10) / 10;
+      const noSquare = Math.round(0.5 * r.k * r.x * 10) / 10;
+      revealEnergy = true;
+
+      if (Math.abs(picked - correct) < 0.05) {
+        promptTitle.textContent = `Correct — Eₛ = ${correct.toFixed(1)} J.`;
+      } else if (Math.abs(picked - noHalf) < 0.05) {
+        promptTitle.textContent = `That is kx². Spring energy keeps the ½: Eₛ = ${correct.toFixed(1)} J.`;
+      } else if (Math.abs(picked - noSquare) < 0.05) {
+        promptTitle.textContent = `x has to be squared: Eₛ = ½kx² = ${correct.toFixed(1)} J.`;
+      } else {
+        promptTitle.textContent = `Eₛ = ½kx² = ${correct.toFixed(1)} J.`;
+      }
+
+      btnMain.classList.remove('hidden');
+      btnMain.disabled = false;
+      btnMain.textContent = 'Launch';
     }
 
     function renderPredictionChoices() {
@@ -1542,10 +1589,10 @@
         sliderX.disabled = true;
 
         predictContainer.classList.remove('hidden');
-        renderPredictionChoices();
+        renderEnergyChoices();
 
-        promptTitle.textContent = "Solve for the velocity";
-        // Level 1 launches on the choice itself - no separate launch button
+        promptTitle.textContent = "Solve for the stored spring energy";
+        // Level 1 advances on the choices themselves until the energy is answered
         btnMain.classList.add('hidden');
       } else {
         introNextState = 'setup';
