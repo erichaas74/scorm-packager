@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Circus Launch: Equal Range Challenge</title>
 <style>
-    main.rise-embed > :not(script):not(style) { border: 5px solid #285f9f !important; }
-    html,
+html,
     body {
       margin: 0;
       min-height: 100%;
@@ -30,9 +29,131 @@
       }
     }
   </style>
+
+  <style id="rise-compliance-styles">
+    :root {
+      --rise-brand: #285f9f;
+      --rise-surface: #ffffff;
+      --rise-text: #0f172a;
+      --rise-muted: #64748b;
+      --rise-line: #cbd5e1;
+      --rise-success: #15803d;
+      --rise-warning: #b45309;
+      --rise-danger: #b91c1c;
+    }
+    html, body { background: transparent !important; max-width: 100%; }
+    main.rise-embed > .rh { border: 5px solid #285f9f !important; border-radius: 18px; box-sizing: border-box; }
+    button, input, select, textarea, [role="button"] { min-height: 24px; }
+    :focus-visible { outline: 3px solid #285f9f !important; outline-offset: 3px !important; }
+    .rise-sr-only {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
+    }
+    html.rise-paused *, html.rise-paused *::before, html.rise-paused *::after { animation-play-state: paused !important; }
+    @media (max-width: 480px) {
+      body { overflow-x: hidden; }
+      button, input, select, textarea { font-size: max(16px, 1em); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
 </head>
 <body>
 <main class="rise-embed" style="display: contents;">
+  <script id="rise-walkthrough-runtime">
+  (() => {
+    'use strict';
+    let completionSent = false;
+    const nativeRequestAnimationFrame = window.requestAnimationFrame.bind(window);
+    const nativeCancelAnimationFrame = window.cancelAnimationFrame.bind(window);
+    let frameSequence = 0;
+    const pendingFrames = new Map();
+
+    function scheduleFrame(id) {
+      const record = pendingFrames.get(id);
+      if (!record || document.hidden) return;
+      record.nativeId = nativeRequestAnimationFrame((time) => {
+        if (!pendingFrames.has(id)) return;
+        if (document.hidden) {
+          record.nativeId = null;
+          return;
+        }
+        pendingFrames.delete(id);
+        record.callback(time);
+      });
+    }
+
+    window.requestAnimationFrame = (callback) => {
+      const id = ++frameSequence;
+      pendingFrames.set(id, { callback, nativeId: null });
+      scheduleFrame(id);
+      return id;
+    };
+
+    window.cancelAnimationFrame = (id) => {
+      const record = pendingFrames.get(id);
+      if (record && record.nativeId !== null) nativeCancelAnimationFrame(record.nativeId);
+      pendingFrames.delete(id);
+    };
+
+    window.RiseWalkthrough = Object.freeze({
+      complete() {
+        if (completionSent) return;
+        completionSent = true;
+        document.documentElement.dataset.riseComplete = 'true';
+        window.parent.postMessage({ type: 'complete' }, '*');
+      },
+      get completed() { return completionSent; },
+      reduceMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    });
+
+    function normalizeControls(root = document) {
+      root.querySelectorAll('button:not([type])').forEach((button) => { button.type = 'button'; });
+      root.querySelectorAll('[role="button"]').forEach((control) => {
+        if (!control.hasAttribute('tabindex')) control.tabIndex = 0;
+      });
+    }
+
+    document.addEventListener('keydown', (event) => {
+      const control = event.target.closest?.('[role="button"]');
+      if (!control || (event.key !== 'Enter' && event.key !== ' ')) return;
+      event.preventDefault();
+      control.click();
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      normalizeControls();
+      const status = document.createElement('p');
+      status.className = 'rise-sr-only';
+      status.id = 'rise-completion-status';
+      status.setAttribute('role', 'status');
+      status.setAttribute('aria-live', 'polite');
+      status.textContent = 'Interactive walkthrough ready.';
+      document.querySelector('main')?.append(status);
+      new MutationObserver((records) => records.forEach((record) => {
+        record.addedNodes.forEach((node) => { if (node.nodeType === 1) normalizeControls(node); });
+      })).observe(document.querySelector('main') || document.body, { childList: true, subtree: true });
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      document.documentElement.classList.toggle('rise-paused', document.hidden);
+      if (!document.hidden) [...pendingFrames.keys()].forEach(scheduleFrame);
+    });
+  })();
+  </script>
 <section class="rh" data-rh aria-label="Circus projectile range activity">
   <style>
     .rh {
@@ -955,11 +1076,11 @@
           <div class="calc-grid">
             <div class="calc-field">
               <label for="calc-ref">40&deg; range</label>
-              <input id="calc-ref" data-calc-ref type="number" inputmode="decimal" step="0.1" placeholder="m" />
+              <input id="calc-ref" data-calc-ref type="number" inputmode="decimal" step="0.1" placeholder="m" aria-label="Calculated range for the 40 degree launch" />
             </div>
             <div class="calc-field">
               <label for="calc-test"><span data-calc-test-label>20</span>&deg; range</label>
-              <input id="calc-test" data-calc-test type="number" inputmode="decimal" step="0.1" placeholder="m" />
+              <input id="calc-test" data-calc-test type="number" inputmode="decimal" step="0.1" placeholder="m" aria-label="Calculated range for the comparison launch" />
             </div>
           </div>
           <p class="hint" data-calc-feedback aria-live="polite">Enter both calculated ranges before launching the selected set.</p>
@@ -1336,6 +1457,7 @@
       return;
     }
 
+    window.RiseWalkthrough.complete();
     if (choice === "C") {
       selected.classList.add("correct");
       feedback.textContent = "Confirmed: Set C matches the 40 degree range. The 40 degree and 50 degree launches land at the same distance.";

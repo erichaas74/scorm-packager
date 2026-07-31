@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kinetic Energy Simulation</title>
-    <script src="https://cdn.tailwindcss.com"></script>
 <style>
-    main.rise-embed > :not(script):not(style) { border: 5px solid #285f9f !important; }
-        body {
+body {
             font-family: 'Inter', sans-serif;
             background-color: #f3f4f6;
             margin: 0;
@@ -84,9 +82,132 @@
             transition: width 0.3s ease;
         }
     </style>
+
+  <style id="rise-compliance-styles">
+    :root {
+      --rise-brand: #285f9f;
+      --rise-surface: #ffffff;
+      --rise-text: #0f172a;
+      --rise-muted: #64748b;
+      --rise-line: #cbd5e1;
+      --rise-success: #15803d;
+      --rise-warning: #b45309;
+      --rise-danger: #b91c1c;
+    }
+    html, body { background: transparent !important; max-width: 100%; }
+    main.rise-embed > .container { border: 5px solid #285f9f !important; border-radius: 18px; box-sizing: border-box; }
+    button, input, select, textarea, [role="button"] { min-height: 24px; }
+    :focus-visible { outline: 3px solid #285f9f !important; outline-offset: 3px !important; }
+    .rise-sr-only {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
+    }
+    html.rise-paused *, html.rise-paused *::before, html.rise-paused *::after { animation-play-state: paused !important; }
+    @media (max-width: 480px) {
+      body { overflow-x: hidden; }
+      button, input, select, textarea { font-size: max(16px, 1em); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
 </head>
 <body>
 <main class="rise-embed" style="display: contents;">
+  <script src="../vendor/tailwindcss-3.4.17.js"></script>
+  <script id="rise-walkthrough-runtime">
+  (() => {
+    'use strict';
+    let completionSent = false;
+    const nativeRequestAnimationFrame = window.requestAnimationFrame.bind(window);
+    const nativeCancelAnimationFrame = window.cancelAnimationFrame.bind(window);
+    let frameSequence = 0;
+    const pendingFrames = new Map();
+
+    function scheduleFrame(id) {
+      const record = pendingFrames.get(id);
+      if (!record || document.hidden) return;
+      record.nativeId = nativeRequestAnimationFrame((time) => {
+        if (!pendingFrames.has(id)) return;
+        if (document.hidden) {
+          record.nativeId = null;
+          return;
+        }
+        pendingFrames.delete(id);
+        record.callback(time);
+      });
+    }
+
+    window.requestAnimationFrame = (callback) => {
+      const id = ++frameSequence;
+      pendingFrames.set(id, { callback, nativeId: null });
+      scheduleFrame(id);
+      return id;
+    };
+
+    window.cancelAnimationFrame = (id) => {
+      const record = pendingFrames.get(id);
+      if (record && record.nativeId !== null) nativeCancelAnimationFrame(record.nativeId);
+      pendingFrames.delete(id);
+    };
+
+    window.RiseWalkthrough = Object.freeze({
+      complete() {
+        if (completionSent) return;
+        completionSent = true;
+        document.documentElement.dataset.riseComplete = 'true';
+        window.parent.postMessage({ type: 'complete' }, '*');
+      },
+      get completed() { return completionSent; },
+      reduceMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    });
+
+    function normalizeControls(root = document) {
+      root.querySelectorAll('button:not([type])').forEach((button) => { button.type = 'button'; });
+      root.querySelectorAll('[role="button"]').forEach((control) => {
+        if (!control.hasAttribute('tabindex')) control.tabIndex = 0;
+      });
+    }
+
+    document.addEventListener('keydown', (event) => {
+      const control = event.target.closest?.('[role="button"]');
+      if (!control || (event.key !== 'Enter' && event.key !== ' ')) return;
+      event.preventDefault();
+      control.click();
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      normalizeControls();
+      const status = document.createElement('p');
+      status.className = 'rise-sr-only';
+      status.id = 'rise-completion-status';
+      status.setAttribute('role', 'status');
+      status.setAttribute('aria-live', 'polite');
+      status.textContent = 'Interactive walkthrough ready.';
+      document.querySelector('main')?.append(status);
+      new MutationObserver((records) => records.forEach((record) => {
+        record.addedNodes.forEach((node) => { if (node.nodeType === 1) normalizeControls(node); });
+      })).observe(document.querySelector('main') || document.body, { childList: true, subtree: true });
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      document.documentElement.classList.toggle('rise-paused', document.hidden);
+      if (!document.hidden) [...pendingFrames.keys()].forEach(scheduleFrame);
+    });
+  })();
+  </script>
 
     <div class="container">
         <header class="text-center mb-4">
@@ -97,7 +218,7 @@
 
         <!-- Scenario 1 -->
         <div class="simulation-box" id="scenario-1" onclick="checkAnswer(1)">
-            <canvas id="canvas-1"></canvas>
+            <canvas id="canvas-1" role="img" aria-label="Kinetic Energy Simulation: Canvas 1 visual"></canvas>
             <div class="info-panel">
                 <div>
                     <span class="font-semibold text-gray-700 block text-lg">Velocity: 1 m/s</span>
@@ -112,13 +233,13 @@
             <div class="feedback-overlay" id="feedback-1">
                 <h3 class="text-xl font-bold text-gray-800 mb-1" id="result-title-1">Result</h3>
                 <p class="text-gray-600 text-sm text-center px-4 leading-tight" id="result-desc-1">Details here.</p>
-                <button class="mt-2 px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition" onclick="resetSim(event)">Try Again</button>
+                <button type="button" class="mt-2 px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition" onclick="resetSim(event)">Try Again</button>
             </div>
         </div>
 
         <!-- Scenario 2 -->
         <div class="simulation-box" id="scenario-2" onclick="checkAnswer(2)">
-            <canvas id="canvas-2"></canvas>
+            <canvas id="canvas-2" role="img" aria-label="Kinetic Energy Simulation: Canvas 2 visual"></canvas>
             <div class="info-panel">
                 <div>
                     <span class="font-semibold text-gray-700 block text-lg">Velocity: 2 m/s</span>
@@ -133,13 +254,13 @@
             <div class="feedback-overlay" id="feedback-2">
                 <h3 class="text-xl font-bold text-gray-800 mb-1" id="result-title-2">Result</h3>
                 <p class="text-gray-600 text-sm text-center px-4 leading-tight" id="result-desc-2">Details here.</p>
-                <button class="mt-2 px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition" onclick="resetSim(event)">Try Again</button>
+                <button type="button" class="mt-2 px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition" onclick="resetSim(event)">Try Again</button>
             </div>
         </div>
 
         <!-- Scenario 3 -->
         <div class="simulation-box" id="scenario-3" onclick="checkAnswer(3)">
-            <canvas id="canvas-3"></canvas>
+            <canvas id="canvas-3" role="img" aria-label="Kinetic Energy Simulation: Canvas 3 visual"></canvas>
             <div class="info-panel">
                 <div>
                     <span class="font-semibold text-gray-700 block text-lg">Velocity: 3 m/s</span>
@@ -154,7 +275,7 @@
             <div class="feedback-overlay" id="feedback-3">
                 <h3 class="text-xl font-bold text-gray-800 mb-1" id="result-title-3">Result</h3>
                 <p class="text-gray-600 text-sm text-center px-4 leading-tight" id="result-desc-3">Details here.</p>
-                <button class="mt-2 px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition" onclick="resetSim(event)">Try Again</button>
+                <button type="button" class="mt-2 px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition" onclick="resetSim(event)">Try Again</button>
             </div>
         </div>
     </div>
@@ -337,6 +458,7 @@
         function checkAnswer(selectedId) {
             if (revealed) return; // Prevent clicking again after revealing
             revealed = true;
+            window.RiseWalkthrough.complete();
             isAnimating = false; // Pause animations
 
             // Calculate relative KEs for display

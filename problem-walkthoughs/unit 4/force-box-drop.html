@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Force Stop Challenge</title>
 <style>
-    main.rise-embed > :not(script):not(style) { border: 5px solid #285f9f !important; }
-    * { box-sizing: border-box; }
+* { box-sizing: border-box; }
     body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #f4f6f8; color: #1f2937; }
     .app { max-width: 980px; margin: 14px auto; padding: 10px 14px; }
 
@@ -45,27 +44,149 @@
       font-size: 12px; color: #64748b; margin-top: 5px; line-height: 1.5;
     }
   </style>
+
+  <style id="rise-compliance-styles">
+    :root {
+      --rise-brand: #285f9f;
+      --rise-surface: #ffffff;
+      --rise-text: #0f172a;
+      --rise-muted: #64748b;
+      --rise-line: #cbd5e1;
+      --rise-success: #15803d;
+      --rise-warning: #b45309;
+      --rise-danger: #b91c1c;
+    }
+    html, body { background: transparent !important; max-width: 100%; }
+    main.rise-embed > .app { border: 5px solid #285f9f !important; border-radius: 18px; box-sizing: border-box; }
+    button, input, select, textarea, [role="button"] { min-height: 24px; }
+    :focus-visible { outline: 3px solid #285f9f !important; outline-offset: 3px !important; }
+    .rise-sr-only {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
+    }
+    html.rise-paused *, html.rise-paused *::before, html.rise-paused *::after { animation-play-state: paused !important; }
+    @media (max-width: 480px) {
+      body { overflow-x: hidden; }
+      button, input, select, textarea { font-size: max(16px, 1em); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
 </head>
 <body>
 <main class="rise-embed" style="display: contents;">
+  <script id="rise-walkthrough-runtime">
+  (() => {
+    'use strict';
+    let completionSent = false;
+    const nativeRequestAnimationFrame = window.requestAnimationFrame.bind(window);
+    const nativeCancelAnimationFrame = window.cancelAnimationFrame.bind(window);
+    let frameSequence = 0;
+    const pendingFrames = new Map();
+
+    function scheduleFrame(id) {
+      const record = pendingFrames.get(id);
+      if (!record || document.hidden) return;
+      record.nativeId = nativeRequestAnimationFrame((time) => {
+        if (!pendingFrames.has(id)) return;
+        if (document.hidden) {
+          record.nativeId = null;
+          return;
+        }
+        pendingFrames.delete(id);
+        record.callback(time);
+      });
+    }
+
+    window.requestAnimationFrame = (callback) => {
+      const id = ++frameSequence;
+      pendingFrames.set(id, { callback, nativeId: null });
+      scheduleFrame(id);
+      return id;
+    };
+
+    window.cancelAnimationFrame = (id) => {
+      const record = pendingFrames.get(id);
+      if (record && record.nativeId !== null) nativeCancelAnimationFrame(record.nativeId);
+      pendingFrames.delete(id);
+    };
+
+    window.RiseWalkthrough = Object.freeze({
+      complete() {
+        if (completionSent) return;
+        completionSent = true;
+        document.documentElement.dataset.riseComplete = 'true';
+        window.parent.postMessage({ type: 'complete' }, '*');
+      },
+      get completed() { return completionSent; },
+      reduceMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    });
+
+    function normalizeControls(root = document) {
+      root.querySelectorAll('button:not([type])').forEach((button) => { button.type = 'button'; });
+      root.querySelectorAll('[role="button"]').forEach((control) => {
+        if (!control.hasAttribute('tabindex')) control.tabIndex = 0;
+      });
+    }
+
+    document.addEventListener('keydown', (event) => {
+      const control = event.target.closest?.('[role="button"]');
+      if (!control || (event.key !== 'Enter' && event.key !== ' ')) return;
+      event.preventDefault();
+      control.click();
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      normalizeControls();
+      const status = document.createElement('p');
+      status.className = 'rise-sr-only';
+      status.id = 'rise-completion-status';
+      status.setAttribute('role', 'status');
+      status.setAttribute('aria-live', 'polite');
+      status.textContent = 'Interactive walkthrough ready.';
+      document.querySelector('main')?.append(status);
+      new MutationObserver((records) => records.forEach((record) => {
+        record.addedNodes.forEach((node) => { if (node.nodeType === 1) normalizeControls(node); });
+      })).observe(document.querySelector('main') || document.body, { childList: true, subtree: true });
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      document.documentElement.classList.toggle('rise-paused', document.hidden);
+      if (!document.hidden) [...pendingFrames.keys()].forEach(scheduleFrame);
+    });
+  })();
+  </script>
 <div class="app">
   <div class="levelBar">
     <span class="levelLabel">Level:</span>
-    <button class="lvlBtn active" data-level="0">1</button>
-    <button class="lvlBtn" data-level="1">2</button>
-    <button class="lvlBtn" data-level="2">3</button>
-    <button class="lvlBtn" data-level="3">4</button>
+    <button type="button" class="lvlBtn active" data-level="0">1</button>
+    <button type="button" class="lvlBtn" data-level="1">2</button>
+    <button type="button" class="lvlBtn" data-level="2">3</button>
+    <button type="button" class="lvlBtn" data-level="3">4</button>
     <span class="hintBadge" id="hintBadge">★ Hint on</span>
   </div>
 
   <div class="canvasWrap">
-    <canvas id="c" width="940" height="520"></canvas>
+    <canvas id="c" width="940" height="520" role="img" aria-label="Force Stop Challenge: C visual"></canvas>
   </div>
 
   <div class="controls">
-    <button class="ctrl blue"  id="launchBtn">Launch</button>
-    <button class="ctrl light" id="resetBtn">Reset</button>
-    <button class="ctrl light" id="clearBtn">Clear forces</button>
+    <button type="button" class="ctrl blue"  id="launchBtn">Launch</button>
+    <button type="button" class="ctrl light" id="resetBtn">Reset</button>
+    <button type="button" class="ctrl light" id="clearBtn">Clear forces</button>
   </div>
   <p class="tip">
     Each level starts with a given force arrow already on the puck. Click the puck to add more &rarr;
@@ -105,6 +226,7 @@ let nid      = 0;
 let drag     = null;        // {idx, isNew}
 let running  = false;
 let done     = false;
+const riseCompletedLevels = new Set();
 let lastT    = 0;
 let flash    = 0;
 let msg      = '';
@@ -331,6 +453,8 @@ function finish() {
   const p   = pit();
   if (box.captured && Math.abs(box.x - lvl.tx) <= 4 && box.y >= TY - BOX.h/2 + BOX.h - 2) {
     msg = '✓ The puck dropped into the hole!'; flash = 60;
+    riseCompletedLevels.add(lvlIdx);
+    if (riseCompletedLevels.size === LEVELS.length) window.RiseWalkthrough.complete();
   } else if (box.over) {
     msg = `Too fast — lip launched it over. Add an opposing force arrow to reduce net force.`;
   } else if (box.x < p.L - 5) {

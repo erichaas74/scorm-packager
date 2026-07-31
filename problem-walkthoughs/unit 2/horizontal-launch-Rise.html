@@ -21,11 +21,132 @@
       body { padding: 10px; }
     }
   </style>
+
+  <style id="rise-compliance-styles">
+    :root {
+      --rise-brand: #285f9f;
+      --rise-surface: #ffffff;
+      --rise-text: #0f172a;
+      --rise-muted: #64748b;
+      --rise-line: #cbd5e1;
+      --rise-success: #15803d;
+      --rise-warning: #b45309;
+      --rise-danger: #b91c1c;
+    }
+    html, body { background: transparent !important; max-width: 100%; }
+    main.rise-embed > .rh { border: 5px solid #285f9f !important; border-radius: 18px; box-sizing: border-box; }
+    button, input, select, textarea, [role="button"] { min-height: 24px; }
+    :focus-visible { outline: 3px solid #285f9f !important; outline-offset: 3px !important; }
+    .rise-sr-only {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
+    }
+    html.rise-paused *, html.rise-paused *::before, html.rise-paused *::after { animation-play-state: paused !important; }
+    @media (max-width: 480px) {
+      body { overflow-x: hidden; }
+      button, input, select, textarea { font-size: max(16px, 1em); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
 </head>
 <body>
 <main class="rise-embed" style="display: contents;">
+  <script id="rise-walkthrough-runtime">
+  (() => {
+    'use strict';
+    let completionSent = false;
+    const nativeRequestAnimationFrame = window.requestAnimationFrame.bind(window);
+    const nativeCancelAnimationFrame = window.cancelAnimationFrame.bind(window);
+    let frameSequence = 0;
+    const pendingFrames = new Map();
+
+    function scheduleFrame(id) {
+      const record = pendingFrames.get(id);
+      if (!record || document.hidden) return;
+      record.nativeId = nativeRequestAnimationFrame((time) => {
+        if (!pendingFrames.has(id)) return;
+        if (document.hidden) {
+          record.nativeId = null;
+          return;
+        }
+        pendingFrames.delete(id);
+        record.callback(time);
+      });
+    }
+
+    window.requestAnimationFrame = (callback) => {
+      const id = ++frameSequence;
+      pendingFrames.set(id, { callback, nativeId: null });
+      scheduleFrame(id);
+      return id;
+    };
+
+    window.cancelAnimationFrame = (id) => {
+      const record = pendingFrames.get(id);
+      if (record && record.nativeId !== null) nativeCancelAnimationFrame(record.nativeId);
+      pendingFrames.delete(id);
+    };
+
+    window.RiseWalkthrough = Object.freeze({
+      complete() {
+        if (completionSent) return;
+        completionSent = true;
+        document.documentElement.dataset.riseComplete = 'true';
+        window.parent.postMessage({ type: 'complete' }, '*');
+      },
+      get completed() { return completionSent; },
+      reduceMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    });
+
+    function normalizeControls(root = document) {
+      root.querySelectorAll('button:not([type])').forEach((button) => { button.type = 'button'; });
+      root.querySelectorAll('[role="button"]').forEach((control) => {
+        if (!control.hasAttribute('tabindex')) control.tabIndex = 0;
+      });
+    }
+
+    document.addEventListener('keydown', (event) => {
+      const control = event.target.closest?.('[role="button"]');
+      if (!control || (event.key !== 'Enter' && event.key !== ' ')) return;
+      event.preventDefault();
+      control.click();
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      normalizeControls();
+      const status = document.createElement('p');
+      status.className = 'rise-sr-only';
+      status.id = 'rise-completion-status';
+      status.setAttribute('role', 'status');
+      status.setAttribute('aria-live', 'polite');
+      status.textContent = 'Interactive walkthrough ready.';
+      document.querySelector('main')?.append(status);
+      new MutationObserver((records) => records.forEach((record) => {
+        record.addedNodes.forEach((node) => { if (node.nodeType === 1) normalizeControls(node); });
+      })).observe(document.querySelector('main') || document.body, { childList: true, subtree: true });
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      document.documentElement.classList.toggle('rise-paused', document.hidden);
+      if (!document.hidden) [...pendingFrames.keys()].forEach(scheduleFrame);
+    });
+  })();
+  </script>
 <style>
-    main.rise-embed > :not(script):not(style) { border: 5px solid #285f9f !important; }
 .rh{--blue:#28609f;--dark:#173f66;--bg:#edf5fb;--line:#d7e2ef;--text:#1f2937;--muted:#64748b;max-width:1260px;margin:auto;padding:10px;border-radius:20px;background:var(--blue);font-family:Arial,Helvetica,sans-serif;color:var(--text)}
 .rh,.rh *{box-sizing:border-box}.rh button{font:inherit}.rh .card{background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 12px 30px #0f172a22}.rh .scene{position:relative;aspect-ratio:2/1;min-height:320px;overflow:hidden;background:linear-gradient(var(--bg) 0 86%,#cbd5e1 86%)}
 .rh .scene:before{content:"";position:absolute;inset:0;background-image:linear-gradient(#0f172a12 1px,transparent 1px),linear-gradient(90deg,#0f172a12 1px,transparent 1px);background-size:48px 48px;opacity:.35}.rh .board{position:absolute;left:1%;top:2%;z-index:2;width:38%;min-height:56px;padding:10px 14px;border:2px solid #94a3b8;border-radius:12px;background:#dbeafe;font-weight:800;font-size:clamp(1rem,1.8vw,1.15rem);line-height:1.15}
@@ -82,7 +203,7 @@
   function screen(next){state=next;if(next==='setup'){text.innerHTML='<h3>Watch the Setup</h3><p>Click start. When the orange ball leaves the edge, the green ball drops.</p>';choices.style.display='none';main.textContent='Start Setup';reset()}if(next==='question'){text.innerHTML='<h3>Stop and Predict</h3><p>The launched ball has just left the table edge. Which ball will hit the ground first?</p>';choices.style.display='grid';main.textContent='Replay';path.style.opacity=1;msg('Choose your prediction.')}if(next==='done'){text.innerHTML='<h3>Result</h3><p>They hit the ground at the same time.</p>';choices.style.display='none';main.textContent='Try Again';path.style.opacity=1;let ok=picked==='same';feedback(ok?'<strong>Correct — they hit at the same time.</strong>The sideways motion changes where the orange ball lands, not how long gravity takes to pull it down.':'<strong>Not quite — they hit at the same time.</strong>Both balls have the same vertical acceleration and the same fall time.',ok);msg('Impact at the same time.')}}
   function animate(ms,fn){let my=++token,t0=performance.now();return new Promise(res=>{function step(now){if(my!==token)return;let p=Math.min(1,(now-t0)/ms);fn(p);p<1?raf=requestAnimationFrame(step):res()}raf=requestAnimationFrame(step)})}
   async function playSetup(){if(busy)return;screen('setup');setBusy(true);main.textContent='Playing setup...';msg('Watch the orange ball roll to the edge.');let L=layout(),circ=2*Math.PI*L.r;await animate(T.roll,p=>{let e=1-Math.cos(p*Math.PI/2),q=at(roll,L.rollStart+(L.rollLen-L.rollStart)*e,L.r);put(launch,q.x,q.y,(L.rollStart+L.rollLen*e)/circ*360)});guide(L);path.style.opacity=1;await animate(T.pause,p=>{let t=L.secs*(T.pause/T.flight)*p;put(launch,pos(L,t).x,pos(L,t).y,420+p*100);put(drop,fall(L,t).x,fall(L,t).y)});setBusy(false);screen('question')}
-  async function reveal(){if(busy)return;clearPreview();setBusy(true);choices.style.display='none';main.textContent='Playing...';msg('Now watch the vertical motion.');let L=layout(),t0=L.secs*T.pause/T.flight,remain=T.flight-T.pause;await animate(remain,p=>{let t=t0+(L.secs-t0)*p;put(launch,pos(L,t).x,pos(L,t).y,520+p*420);put(drop,fall(L,t).x,fall(L,t).y)});put(launch,L.hit.x,L.hit.y);put(drop,L.dhit.x,L.dhit.y);setBusy(false);screen('done')}
+  async function reveal(){if(busy)return;clearPreview();setBusy(true);choices.style.display='none';main.textContent='Playing...';msg('Now watch the vertical motion.');let L=layout(),t0=L.secs*T.pause/T.flight,remain=T.flight-T.pause;await animate(remain,p=>{let t=t0+(L.secs-t0)*p;put(launch,pos(L,t).x,pos(L,t).y,520+p*420);put(drop,fall(L,t).x,fall(L,t).y)});put(launch,L.hit.x,L.hit.y);put(drop,L.dhit.x,L.dhit.y);setBusy(false);screen('done');window.RiseWalkthrough.complete()}
   btns.forEach(b=>{b.setAttribute('aria-pressed','false');b.addEventListener('mouseenter',()=>preview(b.dataset.choice));b.addEventListener('mouseleave',clearPreview);b.addEventListener('focus',()=>preview(b.dataset.choice));b.addEventListener('blur',clearPreview);b.addEventListener('click',()=>{if(busy)return;clearPreview();picked=b.dataset.choice;btns.forEach(x=>{x.classList.toggle('on',x===b);x.setAttribute('aria-pressed',x===b?'true':'false')});reveal()})});
   main.addEventListener('click',()=>state==='setup'?playSetup():state==='question'?playSetup():screen('setup'));
   addEventListener('resize',()=>screen('setup'));

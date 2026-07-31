@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Gravity Relationship Lab</title>
 <style>
-    main.rise-embed > :not(script):not(style) { border: 5px solid #285f9f !important; }
-    :root {
+:root {
       --ink: #17233b;
       --muted: #5e6b82;
       --line: #dce4ef;
@@ -259,9 +258,131 @@
       .main { width: 100%; }
     }
   </style>
+
+  <style id="rise-compliance-styles">
+    :root {
+      --rise-brand: #285f9f;
+      --rise-surface: #ffffff;
+      --rise-text: #0f172a;
+      --rise-muted: #64748b;
+      --rise-line: #cbd5e1;
+      --rise-success: #15803d;
+      --rise-warning: #b45309;
+      --rise-danger: #b91c1c;
+    }
+    html, body { background: transparent !important; max-width: 100%; }
+    main.rise-embed > .walkthrough { border: 5px solid #285f9f !important; border-radius: 18px; box-sizing: border-box; }
+    button, input, select, textarea, [role="button"] { min-height: 24px; }
+    :focus-visible { outline: 3px solid #285f9f !important; outline-offset: 3px !important; }
+    .rise-sr-only {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
+    }
+    html.rise-paused *, html.rise-paused *::before, html.rise-paused *::after { animation-play-state: paused !important; }
+    @media (max-width: 480px) {
+      body { overflow-x: hidden; }
+      button, input, select, textarea { font-size: max(16px, 1em); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
 </head>
 <body>
 <main class="rise-embed" style="display: contents;">
+  <script id="rise-walkthrough-runtime">
+  (() => {
+    'use strict';
+    let completionSent = false;
+    const nativeRequestAnimationFrame = window.requestAnimationFrame.bind(window);
+    const nativeCancelAnimationFrame = window.cancelAnimationFrame.bind(window);
+    let frameSequence = 0;
+    const pendingFrames = new Map();
+
+    function scheduleFrame(id) {
+      const record = pendingFrames.get(id);
+      if (!record || document.hidden) return;
+      record.nativeId = nativeRequestAnimationFrame((time) => {
+        if (!pendingFrames.has(id)) return;
+        if (document.hidden) {
+          record.nativeId = null;
+          return;
+        }
+        pendingFrames.delete(id);
+        record.callback(time);
+      });
+    }
+
+    window.requestAnimationFrame = (callback) => {
+      const id = ++frameSequence;
+      pendingFrames.set(id, { callback, nativeId: null });
+      scheduleFrame(id);
+      return id;
+    };
+
+    window.cancelAnimationFrame = (id) => {
+      const record = pendingFrames.get(id);
+      if (record && record.nativeId !== null) nativeCancelAnimationFrame(record.nativeId);
+      pendingFrames.delete(id);
+    };
+
+    window.RiseWalkthrough = Object.freeze({
+      complete() {
+        if (completionSent) return;
+        completionSent = true;
+        document.documentElement.dataset.riseComplete = 'true';
+        window.parent.postMessage({ type: 'complete' }, '*');
+      },
+      get completed() { return completionSent; },
+      reduceMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    });
+
+    function normalizeControls(root = document) {
+      root.querySelectorAll('button:not([type])').forEach((button) => { button.type = 'button'; });
+      root.querySelectorAll('[role="button"]').forEach((control) => {
+        if (!control.hasAttribute('tabindex')) control.tabIndex = 0;
+      });
+    }
+
+    document.addEventListener('keydown', (event) => {
+      const control = event.target.closest?.('[role="button"]');
+      if (!control || (event.key !== 'Enter' && event.key !== ' ')) return;
+      event.preventDefault();
+      control.click();
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      normalizeControls();
+      const status = document.createElement('p');
+      status.className = 'rise-sr-only';
+      status.id = 'rise-completion-status';
+      status.setAttribute('role', 'status');
+      status.setAttribute('aria-live', 'polite');
+      status.textContent = 'Interactive walkthrough ready.';
+      document.querySelector('main')?.append(status);
+      new MutationObserver((records) => records.forEach((record) => {
+        record.addedNodes.forEach((node) => { if (node.nodeType === 1) normalizeControls(node); });
+      })).observe(document.querySelector('main') || document.body, { childList: true, subtree: true });
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      document.documentElement.classList.toggle('rise-paused', document.hidden);
+      if (!document.hidden) [...pendingFrames.keys()].forEach(scheduleFrame);
+    });
+  })();
+  </script>
 <div class="walkthrough" data-walkthrough>
     <header>
       <div>
@@ -275,7 +396,7 @@
     </header>
 
     <section class="simulation" aria-label="Two masses separated by an adjustable distance">
-      <canvas data-canvas width="1000" height="560"></canvas>
+      <canvas data-canvas width="1000" height="560" role="img" aria-label="Gravity Relationship Lab: Simulation visual"></canvas>
 
       <div class="hud" aria-live="polite">
         <div class="hud-card">
@@ -335,15 +456,15 @@
           <div class="settings">
             <div class="control">
               <label for="mass-1">Mass m&#8321; <output data-m1-output>2.0</output></label>
-              <input id="mass-1" data-m1 type="range" min="0.5" max="8" step="0.5" value="2">
+              <input id="mass-1" data-m1 type="range" min="0.5" max="8" step="0.5" value="2" aria-label="Mass 1">
             </div>
             <div class="control">
               <label for="mass-2">Mass m&#8322; <output data-m2-output>2.0</output></label>
-              <input id="mass-2" data-m2 type="range" min="0.5" max="8" step="0.5" value="2">
+              <input id="mass-2" data-m2 type="range" min="0.5" max="8" step="0.5" value="2" aria-label="Mass 2">
             </div>
             <div class="control">
               <label for="separation">Distance r <output data-r-output>4.0</output></label>
-              <input id="separation" data-r type="range" min="1" max="8" step="0.5" value="4">
+              <input id="separation" data-r type="range" min="1" max="8" step="0.5" value="4" aria-label="Separation">
             </div>
           </div>
         </div>
@@ -808,6 +929,7 @@
         }
 
         state = 'complete';
+        window.RiseWalkthrough.complete();
         phase.textContent = 'Lab complete';
         question.textContent = 'Final score: ' + score + ' / ' + rounds.length;
         helper.textContent = score >= 5

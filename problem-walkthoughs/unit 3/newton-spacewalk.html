@@ -4,10 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Newton's Space Walk</title>
-    <script src="https://cdn.tailwindcss.com"></script>
 <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #050505; color: #e5e7eb; overflow: hidden; margin: 0; }
+        400;600;800&display=swap');
+        body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; background-color: #050505; color: #e5e7eb; overflow: hidden; margin: 0; }
         canvas { touch-action: none; cursor: crosshair; }
         .glass-panel {
             background: rgba(15, 23, 42, 0.8);
@@ -29,9 +28,132 @@
             box-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
         }
     </style>
+
+  <style id="rise-compliance-styles">
+    :root {
+      --rise-brand: #285f9f;
+      --rise-surface: #ffffff;
+      --rise-text: #0f172a;
+      --rise-muted: #64748b;
+      --rise-line: #cbd5e1;
+      --rise-success: #15803d;
+      --rise-warning: #b45309;
+      --rise-danger: #b91c1c;
+    }
+    html, body { background: transparent !important; max-width: 100%; }
+    #gameCanvas { border: 5px solid #285f9f !important; border-radius: 18px; box-sizing: border-box; }
+    button, input, select, textarea, [role="button"] { min-height: 24px; }
+    :focus-visible { outline: 3px solid #285f9f !important; outline-offset: 3px !important; }
+    .rise-sr-only {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
+    }
+    html.rise-paused *, html.rise-paused *::before, html.rise-paused *::after { animation-play-state: paused !important; }
+    @media (max-width: 480px) {
+      body { overflow-x: hidden; }
+      button, input, select, textarea { font-size: max(16px, 1em); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
 </head>
 <body class="h-screen w-screen flex flex-col items-center justify-center">
 <main class="rise-embed" style="display: contents;">
+  <script src="../vendor/tailwindcss-3.4.17.js"></script>
+  <script id="rise-walkthrough-runtime">
+  (() => {
+    'use strict';
+    let completionSent = false;
+    const nativeRequestAnimationFrame = window.requestAnimationFrame.bind(window);
+    const nativeCancelAnimationFrame = window.cancelAnimationFrame.bind(window);
+    let frameSequence = 0;
+    const pendingFrames = new Map();
+
+    function scheduleFrame(id) {
+      const record = pendingFrames.get(id);
+      if (!record || document.hidden) return;
+      record.nativeId = nativeRequestAnimationFrame((time) => {
+        if (!pendingFrames.has(id)) return;
+        if (document.hidden) {
+          record.nativeId = null;
+          return;
+        }
+        pendingFrames.delete(id);
+        record.callback(time);
+      });
+    }
+
+    window.requestAnimationFrame = (callback) => {
+      const id = ++frameSequence;
+      pendingFrames.set(id, { callback, nativeId: null });
+      scheduleFrame(id);
+      return id;
+    };
+
+    window.cancelAnimationFrame = (id) => {
+      const record = pendingFrames.get(id);
+      if (record && record.nativeId !== null) nativeCancelAnimationFrame(record.nativeId);
+      pendingFrames.delete(id);
+    };
+
+    window.RiseWalkthrough = Object.freeze({
+      complete() {
+        if (completionSent) return;
+        completionSent = true;
+        document.documentElement.dataset.riseComplete = 'true';
+        window.parent.postMessage({ type: 'complete' }, '*');
+      },
+      get completed() { return completionSent; },
+      reduceMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    });
+
+    function normalizeControls(root = document) {
+      root.querySelectorAll('button:not([type])').forEach((button) => { button.type = 'button'; });
+      root.querySelectorAll('[role="button"]').forEach((control) => {
+        if (!control.hasAttribute('tabindex')) control.tabIndex = 0;
+      });
+    }
+
+    document.addEventListener('keydown', (event) => {
+      const control = event.target.closest?.('[role="button"]');
+      if (!control || (event.key !== 'Enter' && event.key !== ' ')) return;
+      event.preventDefault();
+      control.click();
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      normalizeControls();
+      const status = document.createElement('p');
+      status.className = 'rise-sr-only';
+      status.id = 'rise-completion-status';
+      status.setAttribute('role', 'status');
+      status.setAttribute('aria-live', 'polite');
+      status.textContent = 'Interactive walkthrough ready.';
+      document.querySelector('main')?.append(status);
+      new MutationObserver((records) => records.forEach((record) => {
+        record.addedNodes.forEach((node) => { if (node.nodeType === 1) normalizeControls(node); });
+      })).observe(document.querySelector('main') || document.body, { childList: true, subtree: true });
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      document.documentElement.classList.toggle('rise-paused', document.hidden);
+      if (!document.hidden) [...pendingFrames.keys()].forEach(scheduleFrame);
+    });
+  })();
+  </script>
 
     <div id="ui-layer" class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-6">
         <div class="flex justify-between items-start pointer-events-auto">
@@ -54,22 +176,22 @@
             </div>
 
             <div id="inventory" class="flex gap-4">
-                <button onclick="selectItem('wrench')" id="btn-wrench" class="btn-space glass-panel p-3 rounded-2xl flex flex-col items-center w-24 border-2 border-transparent">
+                <button type="button" onclick="selectItem('wrench')" id="btn-wrench" class="btn-space glass-panel p-3 rounded-2xl flex flex-col items-center w-24 border-2 border-transparent">
                     <span class="text-lg mb-1">🔧</span>
                     <span class="text-[10px] font-bold">WRENCH</span>
                     <span id="count-wrench" class="text-[8px] opacity-60">Infinite</span>
                 </button>
-                <button onclick="selectItem('rope')" id="btn-rope" class="btn-space glass-panel p-3 rounded-2xl flex flex-col items-center w-24 border-2 border-transparent">
+                <button type="button" onclick="selectItem('rope')" id="btn-rope" class="btn-space glass-panel p-3 rounded-2xl flex flex-col items-center w-24 border-2 border-transparent">
                     <span class="text-lg mb-1">🪢</span>
                     <span class="text-[10px] font-bold">ROPE</span>
                     <span id="count-rope" class="text-[8px] opacity-60">Infinite</span>
                 </button>
-                <button onclick="selectItem('radar')" id="btn-radar" class="btn-space glass-panel p-3 rounded-2xl flex flex-col items-center w-24 border-2 border-transparent">
+                <button type="button" onclick="selectItem('radar')" id="btn-radar" class="btn-space glass-panel p-3 rounded-2xl flex flex-col items-center w-24 border-2 border-transparent">
                     <span class="text-lg mb-1">📡</span>
                     <span class="text-[10px] font-bold">RADAR</span>
                     <span id="count-radar" class="text-[8px] opacity-60">Infinite</span>
                 </button>
-                <button onclick="selectItem('gold')" id="btn-gold" class="btn-space glass-panel p-3 rounded-2xl flex flex-col items-center w-24 border-2 border-transparent">
+                <button type="button" onclick="selectItem('gold')" id="btn-gold" class="btn-space glass-panel p-3 rounded-2xl flex flex-col items-center w-24 border-2 border-transparent">
                     <span class="text-lg mb-1">🪙</span>
                     <span class="text-[10px] font-bold text-yellow-400">GOLD</span>
                     <span id="count-gold" class="text-[8px] opacity-60">Infinite</span>
@@ -81,17 +203,17 @@
             </div>
 
             <div class="flex gap-4">
-                <button id="reset-btn" onclick="resetSim()" class="hidden bg-slate-800 text-white font-bold py-2 px-8 rounded-full hover:bg-slate-700 transition-colors border border-white/20">
+                <button type="button" id="reset-btn" onclick="resetSim()" class="hidden bg-slate-800 text-white font-bold py-2 px-8 rounded-full hover:bg-slate-700 transition-colors border border-white/20">
                     RETRY MISSION
                 </button>
-                <button id="next-btn" onclick="startNextMission()" class="hidden bg-green-500 text-white font-bold py-2 px-8 rounded-full hover:bg-green-400 transition-colors success-glow">
+                <button type="button" id="next-btn" onclick="startNextMission()" class="hidden bg-green-500 text-white font-bold py-2 px-8 rounded-full hover:bg-green-400 transition-colors success-glow">
                     NEXT MISSION
                 </button>
             </div>
         </div>
     </div>
 
-    <canvas id="gameCanvas" class="absolute inset-0"></canvas>
+    <canvas id="gameCanvas" class="absolute inset-0" role="img" aria-label="Newton's Space Walk: Game Canvas visual"></canvas>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
@@ -111,6 +233,7 @@
         let mousePos = { x: 0, y: 0 };
         let isMouseDown = false;
         let currentLevel = 0;
+        const riseCompletedMissions = new Set();
 
         const levels = [
             { name: "Level 1: Basic Drift", vx: -0.2, vy: 0, shipY: 0.5, moving: false },
@@ -407,6 +530,8 @@
                 
                 if (dist < 60) {
                     gameState = 'FINISHED';
+                    riseCompletedMissions.add(currentLevel);
+                    if (riseCompletedMissions.size === levels.length) window.RiseWalkthrough.complete();
                     messageBox.innerText = "MISSION SUCCESS! You reached the rocket.";
                     messageBox.classList.add('text-green-400');
                     resetBtn.classList.remove('hidden');

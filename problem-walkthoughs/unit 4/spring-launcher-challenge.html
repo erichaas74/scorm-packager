@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Spring Launcher Challenge</title>
 <style>
-    main.rise-embed > :not(script):not(style) { border: 5px solid #285f9f !important; }
-    :root {
+:root {
       --ink: #17233b;
       --muted: #5e6b82;
       --panel: #ffffff;
@@ -201,9 +200,131 @@
       .hint-button { left: 10px; top: 10px; }
     }
   </style>
+
+  <style id="rise-compliance-styles">
+    :root {
+      --rise-brand: #285f9f;
+      --rise-surface: #ffffff;
+      --rise-text: #0f172a;
+      --rise-muted: #64748b;
+      --rise-line: #cbd5e1;
+      --rise-success: #15803d;
+      --rise-warning: #b45309;
+      --rise-danger: #b91c1c;
+    }
+    html, body { background: transparent !important; max-width: 100%; }
+    main.rise-embed > .walkthrough { border: 5px solid #285f9f !important; border-radius: 18px; box-sizing: border-box; }
+    button, input, select, textarea, [role="button"] { min-height: 24px; }
+    :focus-visible { outline: 3px solid #285f9f !important; outline-offset: 3px !important; }
+    .rise-sr-only {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
+    }
+    html.rise-paused *, html.rise-paused *::before, html.rise-paused *::after { animation-play-state: paused !important; }
+    @media (max-width: 480px) {
+      body { overflow-x: hidden; }
+      button, input, select, textarea { font-size: max(16px, 1em); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
 </head>
 <body>
 <main class="rise-embed" style="display: contents;">
+  <script id="rise-walkthrough-runtime">
+  (() => {
+    'use strict';
+    let completionSent = false;
+    const nativeRequestAnimationFrame = window.requestAnimationFrame.bind(window);
+    const nativeCancelAnimationFrame = window.cancelAnimationFrame.bind(window);
+    let frameSequence = 0;
+    const pendingFrames = new Map();
+
+    function scheduleFrame(id) {
+      const record = pendingFrames.get(id);
+      if (!record || document.hidden) return;
+      record.nativeId = nativeRequestAnimationFrame((time) => {
+        if (!pendingFrames.has(id)) return;
+        if (document.hidden) {
+          record.nativeId = null;
+          return;
+        }
+        pendingFrames.delete(id);
+        record.callback(time);
+      });
+    }
+
+    window.requestAnimationFrame = (callback) => {
+      const id = ++frameSequence;
+      pendingFrames.set(id, { callback, nativeId: null });
+      scheduleFrame(id);
+      return id;
+    };
+
+    window.cancelAnimationFrame = (id) => {
+      const record = pendingFrames.get(id);
+      if (record && record.nativeId !== null) nativeCancelAnimationFrame(record.nativeId);
+      pendingFrames.delete(id);
+    };
+
+    window.RiseWalkthrough = Object.freeze({
+      complete() {
+        if (completionSent) return;
+        completionSent = true;
+        document.documentElement.dataset.riseComplete = 'true';
+        window.parent.postMessage({ type: 'complete' }, '*');
+      },
+      get completed() { return completionSent; },
+      reduceMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    });
+
+    function normalizeControls(root = document) {
+      root.querySelectorAll('button:not([type])').forEach((button) => { button.type = 'button'; });
+      root.querySelectorAll('[role="button"]').forEach((control) => {
+        if (!control.hasAttribute('tabindex')) control.tabIndex = 0;
+      });
+    }
+
+    document.addEventListener('keydown', (event) => {
+      const control = event.target.closest?.('[role="button"]');
+      if (!control || (event.key !== 'Enter' && event.key !== ' ')) return;
+      event.preventDefault();
+      control.click();
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      normalizeControls();
+      const status = document.createElement('p');
+      status.className = 'rise-sr-only';
+      status.id = 'rise-completion-status';
+      status.setAttribute('role', 'status');
+      status.setAttribute('aria-live', 'polite');
+      status.textContent = 'Interactive walkthrough ready.';
+      document.querySelector('main')?.append(status);
+      new MutationObserver((records) => records.forEach((record) => {
+        record.addedNodes.forEach((node) => { if (node.nodeType === 1) normalizeControls(node); });
+      })).observe(document.querySelector('main') || document.body, { childList: true, subtree: true });
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      document.documentElement.classList.toggle('rise-paused', document.hidden);
+      if (!document.hidden) [...pendingFrames.keys()].forEach(scheduleFrame);
+    });
+  })();
+  </script>
 <div class="walkthrough">
     <div class="actions" aria-live="polite">
       <h2 id="prompt-title">Predict launch speed</h2>
@@ -214,7 +335,7 @@
     </div>
 
     <div class="stage" id="canvas-container">
-      <canvas id="gameCanvas"></canvas>
+      <canvas id="gameCanvas" role="img" aria-label="Spring Launcher Challenge: Game Canvas visual"></canvas>
       <button id="btn-hint" type="button" class="hint-button">Show hint</button>
       <div id="hint-overlay" class="hint-panel hidden">
         <section role="dialog" aria-modal="false" aria-labelledby="hint-title">
@@ -317,9 +438,9 @@
     let l1Step = 'energy';       // level 1 asks for the stored energy, then the speed
     let revealEnergy = false;
     // Level 1 loop: load the spring → pause on the displacement → fly → pause on the question
-    let demoPhase = 'load';      // 'load' | 'armed' | 'fly' | 'hold'
+    let demoPhase = 'load';      // 'load' | 'armed' | 'rest' | 'fly' | 'hold'
     let demoT = 0;
-    const LOAD_TIME = 1.15, ARMED_HOLD = 1.6, END_HOLD = 1.9;
+    const LOAD_TIME = 1.15, ARMED_HOLD = 1.8, REST_HOLD = 0.7, END_HOLD = 1.9;
     let measured = { speed: 0, height: 0, ok: false, done: false };
     let launchSetup = { k: 200, x: 0.3 };
     let selectedPrediction = null;
@@ -793,7 +914,7 @@
       // The slider rides the cart while the spring is being loaded, then holds
       // at the value the calculation actually uses.
       const loading = gameState === 'intro'
-        || (rounds[currentRoundIdx].level === 1 && demoPhase === 'load');
+        || (rounds[currentRoundIdx].level === 1 && (demoPhase === 'load' || demoPhase === 'rest'));
       const value = loading
         ? clamp(Math.max(0, -cart.s), g.min, g.max)
         : clamp(targetValue, g.min, g.max);
@@ -1167,7 +1288,8 @@
     // calculation is read where it happens. It tracks the cart while the
     // spring loads, then stays pinned at the launch value for the whole run.
     function drawCompressionCallout() {
-      const x = demoPhase === 'load' ? Math.max(0, -cart.s) : launchSetup.x;
+      const live = demoPhase === 'load' || demoPhase === 'rest';
+      const x = live ? Math.max(0, -cart.s) : launchSetup.x;
       if (x < 0.02) return;
       const rest = X(-CART.len / 2);
       const now = X(-CART.len / 2 - x);
@@ -1196,6 +1318,10 @@
       ctx.restore();
 
       chip(`x = ${x.toFixed(2)} m`, (now + rest) / 2, y - 10, C.orange, { align: 'center', size: 14 });
+      if (revealEnergy) {
+        const r = rounds[currentRoundIdx];
+        chip(`PEs = ${springEnergy(r).toFixed(1)} J`, (now + rest) / 2, y - 40, C.gold, { align: 'center', size: 14 });
+      }
     }
 
     function drawVelocityVector() {
@@ -1399,12 +1525,27 @@
       }
 
       // Held loaded, so the compression can be read off before the launch.
-      // The energy question freezes it here until the learner answers.
+      // During the energy question the cart never launches: it loads, pauses,
+      // then rolls back out and loads again, replaying the displacement.
       if (demoPhase === 'armed') {
         cart.s = -x;
         cart.v = 0;
-        if (l1Step === 'energy') return;
-        if (demoT >= ARMED_HOLD) { demoPhase = 'fly'; demoT = 0; }
+        if (demoT < ARMED_HOLD) return;
+        if (l1Step === 'energy') {
+          cart.s = 0;
+          demoPhase = 'rest';
+        } else {
+          demoPhase = 'fly';
+        }
+        demoT = 0;
+        return;
+      }
+
+      // Sitting at the relaxed position before the next load
+      if (demoPhase === 'rest') {
+        cart.s = 0;
+        cart.v = 0;
+        if (demoT >= REST_HOLD) { demoPhase = 'load'; demoT = 0; }
         return;
       }
 
@@ -1458,10 +1599,11 @@
       const h = (r.targetHeight || 0).toFixed(1);
 
       if (r.level === 1) {
-        hintTitle.textContent = 'Solve for v';
+        hintTitle.textContent = 'Solve for PEs, then v';
         hintBody.innerHTML = `
-          <p class="eq">½kx² = ½mv²</p>
+          <p class="eq">PEs = ½kx² = ½mv²</p>
           <p class="eq">v = x √(k / m)</p>
+          <p class="sub">PEs = ½(${r.k})(${r.x.toFixed(2)})²</p>
           <p class="sub">v = ${r.x.toFixed(2)} √(${r.k} / ${m})</p>`;
       } else if (r.adjustable === 'k') {
         hintTitle.textContent = 'Solve for k';
@@ -1532,13 +1674,13 @@
       revealEnergy = true;
 
       if (Math.abs(picked - correct) < 0.05) {
-        promptTitle.textContent = `Correct — Eₛ = ${correct.toFixed(1)} J.`;
+        promptTitle.textContent = `Correct — PEs = ${correct.toFixed(1)} J.`;
       } else if (Math.abs(picked - noHalf) < 0.05) {
-        promptTitle.textContent = `That is kx². Spring energy keeps the ½: Eₛ = ${correct.toFixed(1)} J.`;
+        promptTitle.textContent = `That is kx². Spring energy keeps the ½: PEs = ${correct.toFixed(1)} J.`;
       } else if (Math.abs(picked - noSquare) < 0.05) {
-        promptTitle.textContent = `x has to be squared: Eₛ = ½kx² = ${correct.toFixed(1)} J.`;
+        promptTitle.textContent = `x has to be squared: PEs = ½kx² = ${correct.toFixed(1)} J.`;
       } else {
-        promptTitle.textContent = `Eₛ = ½kx² = ${correct.toFixed(1)} J.`;
+        promptTitle.textContent = `PEs = ½kx² = ${correct.toFixed(1)} J.`;
       }
 
       btnMain.classList.remove('hidden');
@@ -1743,6 +1885,21 @@
     btnMain.addEventListener('click', () => {
       const r = rounds[currentRoundIdx];
 
+      // Level 1: the energy answer releases the cart and asks for the speed
+      if (r.level === 1 && gameState === 'predict' && l1Step === 'energy') {
+        l1Step = 'speed';
+        // The loop may be mid-load; always fire from full compression
+        cart.s = -launchSetup.x;
+        cart.v = 0;
+        released = false;
+        demoPhase = 'fly';
+        demoT = 0;
+        renderPredictionChoices();
+        promptTitle.textContent = 'Solve for the velocity';
+        btnMain.classList.add('hidden');
+        return;
+      }
+
       if (gameState === 'predict' || gameState === 'setup') {
         if (gameState === 'predict' && selectedPrediction === null) {
           predictionChoices.classList.add('nudge');
@@ -1771,6 +1928,7 @@
         if (currentRoundIdx >= rounds.length) {
           gameState = 'gameover';
           promptTitle.textContent = "Challenge complete";
+          window.RiseWalkthrough.complete();
           btnMain.textContent = "Play again";
         } else {
           initRound();

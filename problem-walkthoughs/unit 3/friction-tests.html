@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Physics Simulation: Inertia & Friction</title>
-    <script src="https://cdn.tailwindcss.com"></script>
 <style>
-    main.rise-embed > :not(script):not(style) { border: 5px solid #285f9f !important; }
-        /* Custom animations based on tailwind's animate-in plugin */
+/* Custom animations based on tailwind's animate-in plugin */
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
@@ -23,9 +21,132 @@
             animation: slideInFromTop 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
     </style>
+
+  <style id="rise-compliance-styles">
+    :root {
+      --rise-brand: #285f9f;
+      --rise-surface: #ffffff;
+      --rise-text: #0f172a;
+      --rise-muted: #64748b;
+      --rise-line: #cbd5e1;
+      --rise-success: #15803d;
+      --rise-warning: #b45309;
+      --rise-danger: #b91c1c;
+    }
+    html, body { background: transparent !important; max-width: 100%; }
+    main.rise-embed > div { border: 5px solid #285f9f !important; border-radius: 18px; box-sizing: border-box; }
+    button, input, select, textarea, [role="button"] { min-height: 24px; }
+    :focus-visible { outline: 3px solid #285f9f !important; outline-offset: 3px !important; }
+    .rise-sr-only {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
+    }
+    html.rise-paused *, html.rise-paused *::before, html.rise-paused *::after { animation-play-state: paused !important; }
+    @media (max-width: 480px) {
+      body { overflow-x: hidden; }
+      button, input, select, textarea { font-size: max(16px, 1em); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
 </head>
 <body class="flex h-screen bg-slate-50 font-sans text-slate-800 m-0 overflow-hidden">
 <main class="rise-embed" style="display: contents;">
+  <script src="../vendor/tailwindcss-3.4.17.js"></script>
+  <script id="rise-walkthrough-runtime">
+  (() => {
+    'use strict';
+    let completionSent = false;
+    const nativeRequestAnimationFrame = window.requestAnimationFrame.bind(window);
+    const nativeCancelAnimationFrame = window.cancelAnimationFrame.bind(window);
+    let frameSequence = 0;
+    const pendingFrames = new Map();
+
+    function scheduleFrame(id) {
+      const record = pendingFrames.get(id);
+      if (!record || document.hidden) return;
+      record.nativeId = nativeRequestAnimationFrame((time) => {
+        if (!pendingFrames.has(id)) return;
+        if (document.hidden) {
+          record.nativeId = null;
+          return;
+        }
+        pendingFrames.delete(id);
+        record.callback(time);
+      });
+    }
+
+    window.requestAnimationFrame = (callback) => {
+      const id = ++frameSequence;
+      pendingFrames.set(id, { callback, nativeId: null });
+      scheduleFrame(id);
+      return id;
+    };
+
+    window.cancelAnimationFrame = (id) => {
+      const record = pendingFrames.get(id);
+      if (record && record.nativeId !== null) nativeCancelAnimationFrame(record.nativeId);
+      pendingFrames.delete(id);
+    };
+
+    window.RiseWalkthrough = Object.freeze({
+      complete() {
+        if (completionSent) return;
+        completionSent = true;
+        document.documentElement.dataset.riseComplete = 'true';
+        window.parent.postMessage({ type: 'complete' }, '*');
+      },
+      get completed() { return completionSent; },
+      reduceMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    });
+
+    function normalizeControls(root = document) {
+      root.querySelectorAll('button:not([type])').forEach((button) => { button.type = 'button'; });
+      root.querySelectorAll('[role="button"]').forEach((control) => {
+        if (!control.hasAttribute('tabindex')) control.tabIndex = 0;
+      });
+    }
+
+    document.addEventListener('keydown', (event) => {
+      const control = event.target.closest?.('[role="button"]');
+      if (!control || (event.key !== 'Enter' && event.key !== ' ')) return;
+      event.preventDefault();
+      control.click();
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      normalizeControls();
+      const status = document.createElement('p');
+      status.className = 'rise-sr-only';
+      status.id = 'rise-completion-status';
+      status.setAttribute('role', 'status');
+      status.setAttribute('aria-live', 'polite');
+      status.textContent = 'Interactive walkthrough ready.';
+      document.querySelector('main')?.append(status);
+      new MutationObserver((records) => records.forEach((record) => {
+        record.addedNodes.forEach((node) => { if (node.nodeType === 1) normalizeControls(node); });
+      })).observe(document.querySelector('main') || document.body, { childList: true, subtree: true });
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      document.documentElement.classList.toggle('rise-paused', document.hidden);
+      if (!document.hidden) [...pendingFrames.keys()].forEach(scheduleFrame);
+    });
+  })();
+  </script>
 
     <!-- Main Content Area -->
     <div class="flex-1 flex flex-col relative overflow-hidden w-full">
@@ -37,7 +158,7 @@
                 <p class="text-slate-500 text-sm">Observe the blocks and predict how friction affects them.</p>
             </div>
             <div class="flex gap-2">
-                <button onclick="resetCurrentScenario()" class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors">
+                <button type="button" onclick="resetCurrentScenario()" class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors">
                     <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                     Reset
                 </button>
@@ -46,7 +167,7 @@
 
         <!-- Canvas Area -->
         <div class="flex-1 bg-slate-800 relative flex items-center justify-center p-4">
-            <canvas id="simCanvas" width="2000" height="800" class="w-full h-auto max-h-full rounded-xl shadow-2xl bg-white" style="aspect-ratio: 2000/800;"></canvas>
+            <canvas id="simCanvas" width="2000" height="800" class="w-full h-auto max-h-full rounded-xl shadow-2xl bg-white" style="aspect-ratio: 2000/800;" role="img" aria-label="Physics Simulation: Inertia & Friction: Sim Canvas visual"></canvas>
 
             <!-- INTRO Overlay -->
             <div id="overlay-intro" class="absolute inset-0 bg-slate-900/60 flex items-center justify-center p-4 backdrop-blur-sm rounded-xl hidden">
@@ -56,7 +177,7 @@
                     </div>
                     <h3 id="intro-title" class="text-2xl font-bold text-slate-800 mb-2">Scenario</h3>
                     <p id="intro-desc" class="text-slate-600 mb-8">Description</p>
-                    <button onclick="startSimulation()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl transition-transform hover:scale-105 active:scale-95 shadow-lg flex justify-center items-center gap-2">
+                    <button type="button" onclick="startSimulation()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl transition-transform hover:scale-105 active:scale-95 shadow-lg flex justify-center items-center gap-2">
                         <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
                         Start Simulation
                     </button>
@@ -71,15 +192,15 @@
                     <p id="guess-desc" class="text-lg text-slate-600 mb-6">Which object will slide further before coming to a complete stop?</p>
                     
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <button onclick="handleGuess('cart1')" class="flex flex-col items-center p-4 border-2 border-slate-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all group">
+                        <button type="button" onclick="handleGuess('cart1')" class="flex flex-col items-center p-4 border-2 border-slate-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all group">
                             <div class="w-12 h-12 bg-blue-500 rounded-md mb-2 group-hover:scale-110 transition-transform"></div>
                             <span id="guess-btn-1" class="font-bold text-slate-700">Light Block</span>
                         </button>
-                        <button onclick="handleGuess('tie')" class="flex flex-col items-center p-4 border-2 border-slate-200 rounded-xl hover:border-indigo-500 hover:bg-indigo-50 transition-all group">
+                        <button type="button" onclick="handleGuess('tie')" class="flex flex-col items-center p-4 border-2 border-slate-200 rounded-xl hover:border-indigo-500 hover:bg-indigo-50 transition-all group">
                             <div class="w-12 h-12 flex items-center justify-center text-slate-400 mb-2 font-bold text-xl group-hover:scale-110 transition-transform">=</div>
                             <span class="font-bold text-slate-700">They Tie</span>
                         </button>
-                        <button onclick="handleGuess('cart2')" class="flex flex-col items-center p-4 border-2 border-slate-200 rounded-xl hover:border-red-500 hover:bg-red-50 transition-all group">
+                        <button type="button" onclick="handleGuess('cart2')" class="flex flex-col items-center p-4 border-2 border-slate-200 rounded-xl hover:border-red-500 hover:bg-red-50 transition-all group">
                             <div class="w-12 h-12 bg-red-500 rounded-md mb-2 group-hover:scale-110 transition-transform"></div>
                             <span id="guess-btn-3" class="font-bold text-slate-700">Heavy Block</span>
                         </button>
@@ -280,6 +401,7 @@
                 document.getElementById('guess-btn-3').innerText = scenario === 1 ? 'Heavy Block' : 'Tall Block';
             }
             else if (uiState === 'DONE') {
+                if (scenario === 2) window.RiseWalkthrough.complete();
                 overlayDone.classList.remove('hidden');
                 
                 // User Guess Result
@@ -313,14 +435,14 @@
             const actionsDiv = document.getElementById('done-actions');
             if (scenario === 1) {
                 actionsDiv.innerHTML = `
-                    <button onclick="resetPhysics(2)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md transition-transform hover:scale-105">
+                    <button type="button" onclick="resetPhysics(2)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md transition-transform hover:scale-105">
                         Next: Test Surface Area ${countdown ? `(${countdown}s)` : ''} 
                         <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                     </button>
                 `;
             } else {
                 actionsDiv.innerHTML = `
-                    <button onclick="resetPhysics(1)" class="bg-slate-200 hover:bg-slate-300 text-slate-800 px-8 py-3 rounded-xl font-bold flex items-center gap-2 transition-colors">
+                    <button type="button" onclick="resetPhysics(1)" class="bg-slate-200 hover:bg-slate-300 text-slate-800 px-8 py-3 rounded-xl font-bold flex items-center gap-2 transition-colors">
                         <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                         Restart Lesson
                     </button>

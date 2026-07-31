@@ -284,6 +284,9 @@ For Articulate Rise compatibility, keep each walkthrough self-contained inside o
 
 Prepare every walkthrough ZIP for use as an embedded code block with these requirements:
 
+- Treat the walkthrough cards linked from `problem-walkthoughs/index.html` as the active packaging list. Files removed from that index are deprecated and must not be included in a batch build unless they are deliberately restored to the index.
+- Run `node problem-walkthoughs/build-rise-zips.js` from the repository root to rebuild the active packages. The generated ZIPs are written to `problem-walkthoughs/rise-zips/` with one walkthrough per ZIP.
+
 - Place an `index.html` file at the root of the ZIP.
 - Keep the HTML, CSS, and JavaScript self-contained in `index.html`, or include required local files in the ZIP. Do not make external web requests for scripts, styles, fonts, images, APIs, or other assets.
 - Assume `index.html` will run inside an `<iframe>`. Do not depend on controlling the parent page or accessing parent-page DOM content.
