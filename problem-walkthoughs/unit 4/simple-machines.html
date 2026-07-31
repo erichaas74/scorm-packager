@@ -97,7 +97,7 @@
 
         <div class="mt-2 flex flex-wrap items-baseline gap-x-2 rounded-lg bg-white px-3 py-2 border border-green-200 shadow-sm">
             <strong id="desc-title" class="text-green-800">Inclined Plane</strong>
-            <span id="desc-text" class="text-sm text-gray-600">Less force, longer path.</span>
+            <span id="desc-text" class="text-sm text-gray-600">Bed height is fixed — a gentler angle just makes the ramp longer.</span>
         </div>
     </header>
 
@@ -181,97 +181,167 @@
             {
                 id: 'inclined_plane',
                 name: 'Inclined Plane',
-                desc: 'Less force, longer path.',
+                desc: 'Bed height is fixed — a gentler angle just makes the ramp longer.',
                 controlName: 'Ramp angle',
                 defaultValue: 50
             },
             {
                 id: 'lever',
                 name: 'Lever',
-                desc: 'Long arm: less force, more distance.',
+                desc: 'Fulcrum past halfway: more force, but a shorter push.',
                 controlName: 'Fulcrum position',
                 defaultValue: 10
             },
             {
                 id: 'wedge',
                 name: 'Wedge',
-                desc: 'Forward force becomes outward force.',
-                controlName: 'Drive wedge',
-                defaultValue: 50
+                desc: 'Thin wedge: less force, driven much further.',
+                controlName: 'Wedge slope',
+                defaultValue: 30
             },
             {
                 id: 'wheel_axle',
                 name: 'Wheel & Axle',
-                desc: 'Large wheel motion increases axle force.',
-                controlName: 'Rotation speed',
+                desc: 'Bigger wheel: less force, longer crank path.',
+                controlName: 'Wheel : axle ratio',
                 defaultValue: 50
             },
             {
                 id: 'pulley',
                 name: 'Pulley',
-                desc: 'Changes direction; force stays equal.',
-                controlName: 'Pull rope',
+                desc: 'More supporting ropes: less force, more rope pulled.',
+                controlName: 'Supporting ropes',
                 defaultValue: 50
             },
             {
                 id: 'screw',
                 name: 'Screw',
-                desc: 'More turns create greater lift.',
-                controlName: 'Turn jack screw',
+                desc: 'Finer pitch: less force, many more turns.',
+                controlName: 'Thread pitch',
                 defaultValue: 50
             }
         ];
 
+        // Every machine does the SAME job: lift a 12 kg load (120 N) exactly 1.0 m.
+        // Work out = 120 J no matter where the slider sits. The slider only changes
+        // the machine's mechanical advantage, which trades effort force against
+        // effort distance: F_in x d_in = 120 J = F_out x d_out.
         const idealWork = 120;
+        const LOAD_FORCE = 120;      // N
+        const LOAD_DISTANCE = 1.0;   // m
 
-        function getMachineMetrics() {
-            const sliderFraction = Number(slider.value) / 100;
-            let mechanicalAdvantage;
-            let controlDisplay;
+        // Slider -> mechanical advantage for each machine, plus the physical
+        // property the slider is actually changing (used by the drawings).
+        function machineParams() {
+            const f = Number(slider.value) / 100;
 
             switch (activeMachine) {
-                case 0: {
-                    const angleDegrees = 15 + sliderFraction * 30;
-                    mechanicalAdvantage = 1 / Math.sin(angleDegrees * Math.PI / 180);
-                    controlDisplay = `${Math.round(angleDegrees)}\u00b0`;
-                    break;
+                case 0: {   // Inclined plane: height is fixed by the truck bed,
+                            // so a gentler angle means a LONGER ramp.
+                    const angleDegrees = 15 + f * 30;
+                    const angle = angleDegrees * Math.PI / 180;
+                    return {
+                        ma: 1 / Math.sin(angle),
+                        controlDisplay: `${Math.round(angleDegrees)}\u00b0`,
+                        angle
+                    };
                 }
-                case 1: {
-                    const fulcrumPosition = 0.2 + sliderFraction * 0.6;
-                    const shortArm = Math.min(fulcrumPosition, 1 - fulcrumPosition);
-                    const longArm = Math.max(fulcrumPosition, 1 - fulcrumPosition);
-                    mechanicalAdvantage = longArm / shortArm;
-                    controlDisplay = `${Math.round(fulcrumPosition * 100)}%`;
-                    break;
+                case 1: {   // Lever: the load stays on the left end and the hand on
+                            // the right end. Moving the fulcrum past halfway makes the
+                            // effort arm the SHORTER one, so MA drops below 1: more
+                            // force, but a shorter push.
+                    const fulcrumPosition = 0.2 + f * 0.6;
+                    const loadArm = fulcrumPosition;
+                    const effortArm = 1 - fulcrumPosition;
+                    return {
+                        ma: effortArm / loadArm,
+                        controlDisplay: `${Math.round(fulcrumPosition * 100)}%`,
+                        fulcrumPosition, effortArm, loadArm
+                    };
                 }
-                case 2:
-                    mechanicalAdvantage = 4;
-                    controlDisplay = `${Math.round(sliderFraction * 100)}%`;
-                    break;
-                case 3:
-                    mechanicalAdvantage = 3;
-                    controlDisplay = `${Math.round(sliderFraction * 100)}%`;
-                    break;
-                case 4:
-                    mechanicalAdvantage = 1;
-                    controlDisplay = `${Math.round(sliderFraction * 100)}%`;
-                    break;
-                case 5:
-                    mechanicalAdvantage = 6;
-                    controlDisplay = `${Math.round(sliderFraction * 10)} turns`;
-                    break;
+                case 2: {   // Wedge: a thinner wedge is a longer slope per unit of
+                            // opening, so it must be driven further.
+                    const ma = 6 - f * 4;               // 6:1 (thin) down to 2:1 (thick)
+                    return { ma, controlDisplay: `${ma.toFixed(1)} : 1` };
+                }
+                case 3: {   // Wheel & axle: wheel radius vs fixed axle radius.
+                    const ma = 1.5 + f * 2.5;
+                    return { ma, controlDisplay: `${ma.toFixed(1)} : 1` };
+                }
+                case 4: {   // Pulley: number of rope strands supporting the load.
+                    const strands = Math.max(1, Math.min(6, Math.round(1 + f * 5)));
+                    return {
+                        ma: strands,
+                        controlDisplay: `${strands} rope${strands > 1 ? 's' : ''}`,
+                        strands
+                    };
+                }
+                case 5: {   // Screw: finer thread pitch = more turns, less force.
+                    const pitchCm = 8 - f * 6;          // 8 cm down to 2 cm per turn
+                    const handleRadiusCm = 20;
+                    const ma = (2 * Math.PI * handleRadiusCm) / pitchCm;
+                    return {
+                        ma,
+                        controlDisplay: `${pitchCm.toFixed(1)} cm/turn`,
+                        pitchM: pitchCm / 100
+                    };
+                }
             }
+            return { ma: 1, controlDisplay: '' };
+        }
 
-            const loadForce = 120;
-            const loadDistance = idealWork / loadForce;
-            const effortForce = loadForce / mechanicalAdvantage;
+        function getMachineMetrics() {
+            const params = machineParams();
+            const mechanicalAdvantage = params.ma;
+            const loadForce = LOAD_FORCE;
+            const loadDistance = LOAD_DISTANCE;                 // always 1.0 m
+            const effortForce = loadForce / mechanicalAdvantage; // always F_out / MA
             const effortDistance = loadDistance * mechanicalAdvantage;
 
-            return { mechanicalAdvantage, effortForce, effortDistance, loadForce, loadDistance, controlDisplay };
+            return {
+                mechanicalAdvantage, ma: mechanicalAdvantage,
+                effortForce, effortDistance,
+                loadForce, loadDistance,
+                controlDisplay: params.controlDisplay, params
+            };
+        }
+
+        // One lift cycle: raise the load, hold, lower it, hold.
+        function liftProgress() {
+            const period = 300;
+            const t = time % period;
+            if (t < 150) return t / 150;
+            if (t < 200) return 1;
+            if (t < 280) return 1 - (t - 200) / 80;
+            return 0;
+        }
+
+        // Small shared label helper for on-canvas annotations.
+        function label(text, x, y, color = colors.metalDark, align = 'center') {
+            ctx.fillStyle = color;
+            ctx.textAlign = align;
+            ctx.font = `bold ${Math.max(12, Math.min(16, cw * 0.019))}px Arial`;
+            ctx.fillText(text, x, y);
+            ctx.textAlign = 'center';
+        }
+
+        // Dashed measuring line with a caption, used to show the two distances.
+        function measure(x1, y1, x2, y2, text, color) {
+            ctx.save();
+            ctx.setLineDash([6, 5]);
+            drawLine(x1, y1, x2, y2, color, 2);
+            ctx.restore();
+            const vertical = Math.abs(y2 - y1) > Math.abs(x2 - x1);
+            drawLine(x1 - (vertical ? 7 : 0), y1 - (vertical ? 0 : 7),
+                     x1 + (vertical ? 7 : 0), y1 + (vertical ? 0 : 7), color, 2);
+            drawLine(x2 - (vertical ? 7 : 0), y2 - (vertical ? 0 : 7),
+                     x2 + (vertical ? 7 : 0), y2 + (vertical ? 0 : 7), color, 2);
+            label(text, (x1 + x2) / 2 + (vertical ? 0 : 0), (y1 + y2) / 2 - 8, color);
         }
 
         function formatNumber(value) {
-            return value.toFixed(1);
+            // Keep sub-metre distances readable (e.g. 0.25 m, not 0.2 m).
+            return value.toFixed(value < 1 ? 2 : 1);
         }
 
         function updateWorkExplanation() {
@@ -388,345 +458,660 @@
         }
 
         function drawInclinedPlane() {
-            const groundY = ch * 0.8;
-            const startX = cw * 0.1;
-            const width = cw * 0.7;
-            
-            // Slider controls angle (height of ramp)
-            const angleVal = slider.value / 100;
-            const height = ch * 0.2 + (angleVal * ch * 0.4); 
-            
-            // Draw Ground
+            const groundY = ch * 0.72;
+            const { ma, params } = getMachineMetrics();
+            const angle = params.angle;
+
             drawRect(0, groundY, cw, ch - groundY, colors.ground);
-            
-            // Draw Ramp
-            const rampPoints = [
-                {x: startX, y: groundY},
-                {x: startX + width, y: groundY},
-                {x: startX + width, y: groundY - height}
-            ];
-            drawPolygon(rampPoints, colors.wood, colors.metalDark);
-            
-            // Calculate angle for block rotation
-            const angle = Math.atan2(height, width);
-            
-            // Animate block moving up/down
-            const cycle = (Math.sin(time * 0.02) + 1) / 2; // 0 to 1
-            const blockPos = cycle; // 0 is bottom, 1 is top
-            
-            const blockW = cw * 0.08;
-            const blockH = cw * 0.08;
-            
-            const currentX = startX + width - (blockPos * width);
-            const currentY = groundY - height + (blockPos * height);
-            
-            ctx.save();
-            ctx.translate(currentX, currentY);
-            ctx.rotate(-angle); // Rotate to match ramp surface
-            
-            // Draw Block
-            drawRect(-blockW, -blockH, blockW, blockH, colors.load, colors.metalDark);
-            
-            // Draw force arrows based on movement direction
-            ctx.strokeStyle = '#000';
-            ctx.fillStyle = '#000';
-            ctx.lineWidth = 3;
-            
-            // Gravity arrow (always down)
-            ctx.save();
-            ctx.rotate(angle); // Rotate back to global coordinates for gravity
-            drawLine(-blockW/2, -blockH/2, -blockW/2, blockH, 'black', 3);
+
+            // The truck bed height IS the 1.0 m lift and never changes.
+            // Room is reserved for the longest ramp (the shallowest angle, 15°).
+            const minAngle = 15 * Math.PI / 180;
+            const maxRun = cw * 0.62;
+            const lift = Math.min(ch * 0.22, maxRun * Math.tan(minAngle));
+            const pxPerM = lift / LOAD_DISTANCE;
+            const bedY = groundY - lift;
+            const run = lift / Math.tan(angle);
+            const rampLength = lift / Math.sin(angle);
+            const bedLeftX = cw * 0.72;
+            const footX = bedLeftX - run;
+
+            // --- Truck -------------------------------------------------------
+            const bedH = ch * 0.10;
+            const truckRight = cw * 0.97;
+            drawRect(bedLeftX, bedY, truckRight - bedLeftX, bedH, '#95a5a6', colors.metalDark);
+            drawRect(bedLeftX, bedY, truckRight - bedLeftX, 6, '#7f8c8d');          // bed floor lip
+            drawRect(truckRight - cw * 0.11, bedY - ch * 0.13, cw * 0.11, ch * 0.13, '#2980b9', colors.metalDark); // cab
+            drawRect(truckRight - cw * 0.095, bedY - ch * 0.115, cw * 0.055, ch * 0.06, '#aed6f1'); // window
+            drawRect(bedLeftX, bedY - ch * 0.06, 8, ch * 0.06, '#7f8c8d');           // headboard
+            const wheelR = Math.min(ch * 0.06, cw * 0.035);
+            [bedLeftX + cw * 0.055, truckRight - cw * 0.06].forEach(x => {
+                drawCircle(x, groundY - wheelR * 0.2, wheelR, colors.metalDark, '#111827');
+                drawCircle(x, groundY - wheelR * 0.2, wheelR * 0.4, '#95a5a6');
+            });
+
+            // --- Ramp (length changes, height does not) ----------------------
             drawPolygon([
-                {x: -blockW/2 - 5, y: blockH},
-                {x: -blockW/2 + 5, y: blockH},
-                {x: -blockW/2, y: blockH + 10}
-            ], 'black');
-            ctx.fillText('mg', -blockW/2 + 10, blockH);
+                {x: footX, y: groundY},
+                {x: bedLeftX, y: groundY},
+                {x: bedLeftX, y: bedY}
+            ], colors.wood, colors.metalDark);
+            drawLine(footX, groundY, bedLeftX, bedY, colors.woodLight, 5);
+
+            // --- Crate riding up the ramp into the bed -----------------------
+            const p = liftProgress();
+            const boxSize = Math.min(cw * 0.06, ch * 0.11);
+            const bx = footX + (bedLeftX - footX) * p;
+            const by = groundY - lift * p;
+            ctx.save();
+            ctx.translate(bx, by);
+            ctx.rotate(-angle);
+            drawRect(-boxSize, -boxSize, boxSize, boxSize, colors.load, colors.metalDark);
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${Math.max(11, boxSize * 0.28)}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillText('12 kg', -boxSize / 2, -boxSize / 2 + 5);
+            // Effort push along the ramp: shorter arrow when the ramp is gentler
+            const push = 22 + (60 / ma);
+            drawLine(-boxSize - push, -boxSize / 2, -boxSize - 8, -boxSize / 2, 'blue', 3);
+            drawPolygon([
+                {x: -boxSize - 18, y: -boxSize / 2 - 6},
+                {x: -boxSize - 18, y: -boxSize / 2 + 6},
+                {x: -boxSize - 6, y: -boxSize / 2}
+            ], 'blue');
             ctx.restore();
-            
-            ctx.restore();
+
+            // --- Distance annotations ----------------------------------------
+            // Height is always 1.0 m; the ramp length is what the slider changes.
+            measure(footX - 28, groundY, footX - 28, bedY, '1.0 m', colors.load);
+            measure(footX, groundY + 26, bedLeftX, groundY + 26,
+                    `${(rampLength / pxPerM).toFixed(1)} m of ramp`, 'blue');
+            label(`Push ${(LOAD_FORCE / ma).toFixed(0)} N along ${(rampLength / pxPerM).toFixed(1)} m  =  120 J`,
+                  cw * 0.5, ch * 0.30, colors.metalDark);
+            label(`Lift 120 N straight up 1.0 m  =  120 J`, cw * 0.5, ch * 0.35, colors.metalDark);
         }
 
         function drawLever() {
-            const groundY = ch * 0.8;
-            
-            // Draw Ground
+            const groundY = ch * 0.78;
+            const { ma, params } = getMachineMetrics();
+
             drawRect(0, groundY, cw, ch - groundY, colors.ground);
-            
-            const boardLength = cw * 0.7;
-            const boardThickness = 20;
+
+            const boardLength = cw * 0.72;
+            const boardThickness = 16;
             const startX = (cw - boardLength) / 2;
-            
-            // Slider controls fulcrum position (0.2 to 0.8 of length)
-            const fulcrumPos = 0.2 + (slider.value / 100) * 0.6;
-            const fulcrumX = startX + boardLength * fulcrumPos;
-            const fulcrumY = groundY;
-            const fulcrumSize = 40;
-            
-            // Draw Fulcrum
-            const fulcrumPoints = [
-                {x: fulcrumX, y: fulcrumY - fulcrumSize},
-                {x: fulcrumX - fulcrumSize/2, y: fulcrumY},
-                {x: fulcrumX + fulcrumSize/2, y: fulcrumY}
-            ];
-            drawPolygon(fulcrumPoints, colors.metal, colors.metalDark);
-            
-            // Calculate tilt angle based on time (simulating pushing)
-            // The longer the lever arm on one side, the easier it moves
-            const maxAngle = 0.3; // radians
-            let angle = Math.sin(time * 0.03) * maxAngle;
-            
+
+            // The load stays on the LEFT end and the hand on the RIGHT end no matter
+            // where the fulcrum goes — past halfway the push gets harder but shorter.
+            const fulcrumX = startX + boardLength * params.fulcrumPosition;
+            const pivotH = ch * 0.18;
+            const pivotY = groundY - pivotH;
+            const loadArmPx = boardLength * params.loadArm;
+            const effortArmPx = boardLength * params.effortArm;
+
+            // The load always rises the same 1.0 m; the effort end sweeps MA times
+            // as far, so the lift is scaled to keep the long arm on screen.
+            const lift = Math.min(ch * 0.065, pivotH * 0.45);
+            const pxPerM = lift / LOAD_DISTANCE;
+            const p = liftProgress();
+            const loadSideDir = -1;                     // load is always on the left
+            const theta = Math.asin(Math.min(0.9, (lift * p) / loadArmPx));
+
+            // Fulcrum
+            drawPolygon([
+                {x: fulcrumX, y: pivotY},
+                {x: fulcrumX - pivotH * 0.42, y: groundY},
+                {x: fulcrumX + pivotH * 0.42, y: groundY}
+            ], colors.metal, colors.metalDark);
+
+            const loadSide = loadSideDir;
+            const effortSide = -loadSide;
+
             ctx.save();
-            ctx.translate(fulcrumX, fulcrumY - fulcrumSize);
-            ctx.rotate(angle);
-            
-            // Draw Board
-            drawRect(-boardLength * fulcrumPos, -boardThickness, boardLength, boardThickness, colors.wood, colors.woodLight);
-            
-            // Draw Load (heavy object on short side)
-            const loadSize = 60;
-            const loadX = fulcrumPos > 0.5 ? -boardLength * fulcrumPos + 10 : boardLength * (1 - fulcrumPos) - loadSize - 10;
-            drawRect(loadX, -boardThickness - loadSize, loadSize, loadSize, colors.load, 'black');
-            
-            // Draw effort indicator (arrow) on the other side
-            const effortX = fulcrumPos > 0.5 ? boardLength * (1 - fulcrumPos) - 20 : -boardLength * fulcrumPos + 20;
-            const effortDir = Math.sin(time * 0.03) > 0 ? 1 : -1;
-            
-            ctx.strokeStyle = colors.highlight;
-            ctx.fillStyle = colors.highlight;
-            const arrowY = -boardThickness - 40 * effortDir;
-            drawLine(effortX, -boardThickness, effortX, arrowY, colors.highlight, 5);
-            
-            // Arrow head
-            ctx.beginPath();
-            ctx.moveTo(effortX - 10, arrowY + 10 * effortDir);
-            ctx.lineTo(effortX + 10, arrowY + 10 * effortDir);
-            ctx.lineTo(effortX, arrowY - 5 * effortDir);
-            ctx.fill();
-            
+            ctx.translate(fulcrumX, pivotY);
+            ctx.rotate(theta);
+
+            // Plank
+            drawRect(-boardLength * params.fulcrumPosition, -boardThickness,
+                     boardLength, boardThickness, colors.wood, colors.woodLight);
+
+            // Load crate on the left end
+            const loadSize = Math.min(ch * 0.13, cw * 0.07);
+            const loadX = loadSide * loadArmPx - (loadSide < 0 ? 0 : loadSize) + loadSide * -6;
+            drawRect(loadX, -boardThickness - loadSize, loadSize, loadSize, colors.load, colors.metalDark);
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${Math.max(11, loadSize * 0.26)}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillText('12 kg', loadX + loadSize / 2, -boardThickness - loadSize / 2 + 5);
+
+            // Effort arrow pushing down on the right end (longer arrow = more force)
+            const ex = effortSide * effortArmPx * 0.92;
+            const arrowLen = 18 + Math.min(95, 60 / ma);
+            drawLine(ex, -boardThickness - arrowLen, ex, -boardThickness - 8, 'blue', 4);
+            drawPolygon([
+                {x: ex - 7, y: -boardThickness - 18},
+                {x: ex + 7, y: -boardThickness - 18},
+                {x: ex, y: -boardThickness - 4}
+            ], 'blue');
             ctx.restore();
+
+            // --- Distance annotations (in world coordinates) -------------------
+            const loadTipX = fulcrumX + loadSide * loadArmPx;
+            const effortTipX = fulcrumX + effortSide * effortArmPx * 0.92;
+            measure(loadTipX + loadSide * 30, pivotY, loadTipX + loadSide * 30, pivotY - lift,
+                    '1.0 m up', colors.load);
+            measure(effortTipX + effortSide * 34, pivotY,
+                    effortTipX + effortSide * 34, pivotY + lift * ma,
+                    `${ma.toFixed(2)} m down`, 'blue');
+            label(`Push ${(LOAD_FORCE / ma).toFixed(0)} N × ${ma.toFixed(2)} m = 120 J   →   lift 120 N × 1.0 m = 120 J`,
+                  cw * 0.5, ch * 0.30);
+            label(ma >= 1
+                    ? `Effort arm is longer — less force, longer push`
+                    : `Effort arm is shorter — more force, shorter push`,
+                  cw * 0.5, ch * 0.35, ma >= 1 ? 'blue' : '#c0392b');
         }
 
         function drawWedge() {
-            const groundY = ch * 0.8;
-            drawRect(0, groundY, cw, ch - groundY, colors.ground);
-            
-            // Slider controls downward force (position of wedge)
-            const forceVal = slider.value / 100;
-            
-            const wedgeW = cw * 0.15;
-            const wedgeH = ch * 0.3;
-            const centerX = cw / 2;
-            
-            // The log being split
-            const logW = cw * 0.4;
-            const logH = ch * 0.2;
-            const logY = groundY - logH;
-            
-            // Calculate wedge position
-            const wedgeStartY = logY - wedgeH + 20;
-            const wedgeEndY = logY + logH - 20;
-            const wedgeY = wedgeStartY + (wedgeEndY - wedgeStartY) * forceVal;
-            
-            // Calculate log split amount based on wedge penetration
-            const splitAmount = forceVal * wedgeW * 0.6;
-            
-            // Draw Left half of log
-            ctx.fillStyle = colors.wood;
-            ctx.beginPath();
-            ctx.moveTo(centerX - logW/2 - splitAmount, logY);
-            ctx.lineTo(centerX - splitAmount/2, logY);
-            // Splintered edge
-            ctx.lineTo(centerX - splitAmount/2, logY + logH/3);
-            ctx.lineTo(centerX - splitAmount, logY + logH/2);
-            ctx.lineTo(centerX - splitAmount/2, logY + 2*logH/3);
-            ctx.lineTo(centerX - splitAmount/2, logY + logH);
-            ctx.lineTo(centerX - logW/2 - splitAmount, logY + logH);
-            ctx.fill();
-            ctx.stroke();
+            const groundY = ch * 0.78;
+            const centerX = cw * 0.40;
 
-            // Draw Right half of log
-            ctx.beginPath();
-            ctx.moveTo(centerX + logW/2 + splitAmount, logY);
-            ctx.lineTo(centerX + splitAmount/2, logY);
-            // Splintered edge
-            ctx.lineTo(centerX + splitAmount/2, logY + logH/3);
-            ctx.lineTo(centerX + splitAmount, logY + logH/2);
-            ctx.lineTo(centerX + splitAmount/2, logY + 2*logH/3);
-            ctx.lineTo(centerX + splitAmount/2, logY + logH);
-            ctx.lineTo(centerX + logW/2 + splitAmount, logY + logH);
-            ctx.fill();
-            ctx.stroke();
-            
-            // Draw Wedge
-            const wedgePoints = [
-                {x: centerX - wedgeW/2, y: wedgeY},
-                {x: centerX + wedgeW/2, y: wedgeY},
-                {x: centerX, y: wedgeY + wedgeH}
-            ];
-            drawPolygon(wedgePoints, colors.metal, colors.metalDark);
-            
-            // Draw mallet/force
-            const malletY = wedgeY - 40;
-            // Animate striking
-            const strikeOffset = forceVal < 1 ? Math.sin(time * 0.2) * 20 : 0;
-            drawRect(centerX - 40, malletY - 30 + strikeOffset, 80, 30, colors.metalDark);
-            drawRect(centerX - 10, malletY - 100 + strikeOffset, 20, 70, colors.woodLight);
-            
-            // Draw outward force arrows
-            if (forceVal > 0 && forceVal < 1) {
-                ctx.strokeStyle = 'red';
-                ctx.fillStyle = 'red';
-                const arrowY = wedgeY + wedgeH/2;
-                
-                // Left arrow
-                drawLine(centerX - wedgeW/4, arrowY, centerX - wedgeW, arrowY, 'red', 3);
-                drawPolygon([{x: centerX - wedgeW + 10, y: arrowY - 5}, {x: centerX - wedgeW + 10, y: arrowY + 5}, {x: centerX - wedgeW, y: arrowY}], 'red');
-                
-                // Right arrow
-                drawLine(centerX + wedgeW/4, arrowY, centerX + wedgeW, arrowY, 'red', 3);
-                drawPolygon([{x: centerX + wedgeW - 10, y: arrowY - 5}, {x: centerX + wedgeW - 10, y: arrowY + 5}, {x: centerX + wedgeW, y: arrowY}], 'red');
+            drawRect(0, groundY, cw, ch - groundY, colors.ground);
+
+            // --- Slider sets the wedge's slope (its mechanical advantage) ------
+            // The job is fixed: open the log by the same amount every time, which
+            // is the 1.0 m of load travel. A thin wedge (high MA) needs a small
+            // force but must be driven MA times further into the wood.
+            const mechAdv = getMachineMetrics().ma;
+            const openTotal = ch * 0.035;                     // fixed split = 1.0 m of load travel
+            const pxPerM = openTotal / LOAD_DISTANCE;
+            const wedgeL = ch * 0.26;                         // wedge is long enough for any slope
+            const maxSink = openTotal * mechAdv;              // effort distance = MA x load distance
+            const wedgeT = 2 * openTotal * (wedgeL / maxSink); // thickness that gives this slope
+            const splitForce = LOAD_FORCE;                    // outward force on the wood (the load)
+            const hammerForce = LOAD_FORCE / mechAdv;         // effort on the wedge head
+
+            // --- Log geometry -------------------------------------------------
+            const blockH = ch * 0.045;
+            const blockW = cw * 0.30;
+            const logBottomY = groundY - blockH;
+            const logTopY = ch * 0.48;
+            const logH = logBottomY - logTopY;
+            const halfW = cw * 0.10;
+            const faceRy = halfW * 0.28;                      // depth of the elliptical top face
+            const finalOpen = openTotal;                      // opening once fully driven
+
+            // --- Strike cycle: hammer always lands on the wedge head ----------
+            const strikesNeeded = 6;                          // same total work, split into 6 blows
+            const drivePerStrike = maxSink / strikesNeeded;
+            const openPerStrike = openTotal / strikesNeeded;
+            const strikeFrames = 46;
+            const restFrames = 55;
+            const cycleFrames = strikesNeeded * strikeFrames + restFrames;
+            const phase = time % cycleFrames;
+            const strikeIndex = Math.min(strikesNeeded - 1, Math.floor(phase / strikeFrames));
+            const inSwing = phase < strikesNeeded * strikeFrames;
+            const t = inSwing ? (phase % strikeFrames) / strikeFrames : 1;
+
+            // Hammer falls (0 -> contact), then rebounds and is raised again.
+            const contact = 0.55;
+            let lift;           // 1 = hammer fully raised, 0 = touching the wedge
+            if (t < contact) {
+                const d = t / contact;
+                lift = 1 - d * d;                 // accelerating fall
+            } else {
+                const d = (t - contact) / (1 - contact);
+                lift = Math.sin(d * Math.PI * 0.5); // rebound and raise
             }
+            const justHit = inSwing && t >= contact && t < contact + 0.12;
+
+            // Strikes already delivered (the current one counts once it lands).
+            const landed = inSwing ? strikeIndex + (t >= contact ? 1 : 0) : strikesNeeded;
+            const penetration = Math.min(1, landed / strikesNeeded);
+
+            // --- Wedge position: tip sinks into the log as strikes land --------
+            const wedgeTipY = logTopY + penetration * maxSink;
+            const wedgeHeadY = wedgeTipY - wedgeL;
+
+            // Half-width of the wedge at depth y — the split faces follow exactly
+            // this line, so the wood angle always matches the wedge angle.
+            function wedgeHalfWidth(y) {
+                if (y >= wedgeTipY) return 0;                 // below the tip: still joined
+                const above = Math.min(wedgeL, wedgeTipY - y);
+                return (above / wedgeL) * (wedgeT / 2);
+            }
+            const openAmount = wedgeHalfWidth(logTopY);        // opening at the top face
+            // The crack runs a little ahead of the tip before closing up.
+            const crackBottomY = Math.min(logBottomY, wedgeTipY + logH * 0.35 * penetration);
+
+            // --- Chopping block ----------------------------------------------
+            drawRect(centerX - blockW / 2, logBottomY, blockW, blockH, colors.wood, colors.metalDark);
+            for (let i = 1; i < 4; i++) {
+                drawLine(centerX - blockW / 2, logBottomY + i * blockH / 4,
+                         centerX + blockW / 2, logBottomY + i * blockH / 4, '#6b421f', 2);
+            }
+
+            // --- Log halves ---------------------------------------------------
+            // side = -1 (left half) or +1 (right half)
+            // Each half is displaced sideways by exactly the wedge's half-width at
+            // that depth, so the split face is always parallel to the wedge face.
+            const offsetAt = wedgeHalfWidth;
+
+            function drawLogHalf(side) {
+                const outer = (y) => centerX + side * (halfW + offsetAt(y));
+                const inner = (y) => centerX + side * offsetAt(y);
+                const steps = 22;
+
+                // Trunk body: outer edge down, then back up the split face
+                ctx.fillStyle = colors.wood;
+                ctx.strokeStyle = '#4a2c12';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(outer(logTopY), logTopY);
+                for (let i = 1; i <= steps; i++) {
+                    const y = logTopY + (logH * i) / steps;
+                    ctx.lineTo(outer(y), y);
+                }
+                ctx.lineTo(inner(logBottomY), logBottomY);
+                for (let i = steps - 1; i >= 0; i--) {
+                    const y = logTopY + (logH * i) / steps;
+                    ctx.lineTo(inner(y), y);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Bark along the outer edge
+                ctx.fillStyle = '#5c3a1a';
+                ctx.beginPath();
+                ctx.moveTo(outer(logTopY), logTopY);
+                for (let i = 1; i <= steps; i++) {
+                    const y = logTopY + (logH * i) / steps;
+                    ctx.lineTo(outer(y), y);
+                }
+                for (let i = steps; i >= 0; i--) {
+                    const y = logTopY + (logH * i) / steps;
+                    ctx.lineTo(outer(y) - side * halfW * 0.16, y);
+                }
+                ctx.closePath();
+                ctx.fill();
+                for (let y = logTopY + 14; y < logBottomY - 6; y += 18) {
+                    drawLine(outer(y) - side * halfW * 0.14, y,
+                             outer(y) - side * halfW * 0.02, y + 9, '#3f2710', 2);
+                }
+
+                // Vertical grain, sheared with the half
+                for (let g = 1; g <= 3; g++) {
+                    ctx.strokeStyle = colors.woodLight;
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    for (let i = 0; i <= steps; i++) {
+                        const y = logTopY + faceRy * 0.6 + ((logH - faceRy * 0.6 - 6) * i) / steps;
+                        const x = centerX + side * (offsetAt(y) + halfW * (g / 4.2));
+                        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                    }
+                    ctx.stroke();
+                }
+
+                // Half of the elliptical end face, with growth rings
+                const fx = centerX + side * offsetAt(logTopY);
+                ctx.fillStyle = colors.woodLight;
+                ctx.strokeStyle = '#4a2c12';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(fx, logTopY, halfW, faceRy, 0,
+                            side > 0 ? -Math.PI / 2 : Math.PI / 2,
+                            side > 0 ? Math.PI / 2 : (3 * Math.PI) / 2);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                ctx.strokeStyle = '#a9773f';
+                ctx.lineWidth = 1.5;
+                for (let r = 0.25; r < 1; r += 0.25) {
+                    ctx.beginPath();
+                    ctx.ellipse(fx, logTopY, halfW * r, faceRy * r, 0,
+                                side > 0 ? -Math.PI / 2 : Math.PI / 2,
+                                side > 0 ? Math.PI / 2 : (3 * Math.PI) / 2);
+                    ctx.stroke();
+                }
+            }
+
+            // Shadowed V-shaped gap behind the halves, then the halves themselves
+            if (openAmount > 0.5) {
+                ctx.fillStyle = '#4a2c12';
+                ctx.beginPath();
+                ctx.moveTo(centerX - openAmount - 4, logTopY);
+                ctx.lineTo(centerX + openAmount + 4, logTopY);
+                ctx.lineTo(centerX + 3, Math.min(logBottomY, wedgeTipY + 6));
+                ctx.lineTo(centerX - 3, Math.min(logBottomY, wedgeTipY + 6));
+                ctx.closePath();
+                ctx.fill();
+            }
+            drawLogHalf(-1);
+            drawLogHalf(1);
+
+            // Crack racing ahead of the wedge tip
+            if (crackBottomY > wedgeTipY + 2) {
+                ctx.strokeStyle = '#3b2410';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(centerX, wedgeTipY);
+                const segs = 5;
+                for (let i = 1; i <= segs; i++) {
+                    const y = wedgeTipY + ((crackBottomY - wedgeTipY) * i) / segs;
+                    ctx.lineTo(centerX + ((i % 2 === 0) ? 4 : -4) * (1 - i / segs), y);
+                }
+                ctx.stroke();
+            }
+
+            // --- Wedge (sunk into the log by the strikes so far) --------------
+            drawPolygon([
+                {x: centerX - wedgeT / 2, y: wedgeHeadY},
+                {x: centerX + wedgeT / 2, y: wedgeHeadY},
+                {x: centerX, y: wedgeTipY}
+            ], colors.metal, colors.metalDark);
+            // Struck head (mushroomed from hammering) and a highlight down the face
+            drawRect(centerX - wedgeT / 2 - 3, wedgeHeadY - 7, wedgeT + 6, 9, '#9aa4a6', colors.metalDark);
+            drawLine(centerX - wedgeT * 0.18, wedgeHeadY + 6, centerX - wedgeT * 0.05, wedgeTipY - 8, '#c8d0d2', 2);
+
+            // --- Sledge hammer: always lands squarely on the wedge head -------
+            const swingHeight = ch * 0.09;
+            const headY = wedgeHeadY - 12 - lift * swingHeight;
+            const headW = Math.max(24, cw * 0.035);
+            const headH = Math.max(20, ch * 0.045);
+            ctx.save();
+            ctx.translate(centerX, headY);
+            ctx.rotate(lift * 0.55);                   // handle swings up and back
+            drawRect(-headW / 2, -headH, headW, headH, colors.metalDark, '#111827');
+            drawRect(-headW / 2, -headH, headW * 0.22, headH, colors.metal); // striking face band
+            // Handle running back to the right
+            drawRect(headW / 2 - 4, -headH * 0.78, cw * 0.20, headH * 0.28, colors.woodLight, colors.wood);
+            drawRect(headW / 2 + cw * 0.16, -headH * 0.80, cw * 0.045, headH * 0.32, colors.wood);
+            ctx.restore();
+
+            // Impact sparks at the moment of contact
+            if (justHit) {
+                for (let i = 0; i < 6; i++) {
+                    const a = -Math.PI / 2 + (i - 2.5) * 0.42;
+                    drawLine(centerX, wedgeHeadY - 4,
+                             centerX + Math.cos(a) * 34, wedgeHeadY - 4 + Math.sin(a) * 34,
+                             colors.highlight, 3);
+                }
+            }
+
+            // --- Force arrows: effort down, split force sideways --------------
+            ctx.strokeStyle = 'red';
+            ctx.fillStyle = 'red';
+            const effortY = wedgeHeadY - 26;
+            drawLine(centerX, effortY - 46, centerX, effortY - 6, 'red', 3);
+            drawPolygon([{x: centerX - 7, y: effortY - 16}, {x: centerX + 7, y: effortY - 16}, {x: centerX, y: effortY - 2}], 'red');
+
+            // Outward arrows scale with the splitting force (thin wedge = longer)
+            const arrowLen = 24 + (mechAdv / 12) * 46;
+            const arrowY = logTopY + logH * 0.3;
+            const edge = halfW + wedgeHalfWidth(arrowY);
+            drawLine(centerX - edge - 6, arrowY, centerX - edge - arrowLen, arrowY, 'red', 3);
+            drawPolygon([
+                {x: centerX - edge - arrowLen + 12, y: arrowY - 6},
+                {x: centerX - edge - arrowLen + 12, y: arrowY + 6},
+                {x: centerX - edge - arrowLen, y: arrowY}
+            ], 'red');
+            drawLine(centerX + edge + 6, arrowY, centerX + edge + arrowLen, arrowY, 'red', 3);
+            drawPolygon([
+                {x: centerX + edge + arrowLen - 12, y: arrowY - 6},
+                {x: centerX + edge + arrowLen - 12, y: arrowY + 6},
+                {x: centerX + edge + arrowLen, y: arrowY}
+            ], 'red');
+
+            // --- Readout ------------------------------------------------------
+            const fs = Math.max(13, Math.min(17, cw * 0.022));
+            ctx.textAlign = 'left';
+            ctx.font = `bold ${fs}px Arial`;
+            ctx.fillStyle = colors.metalDark;
+            const bx = cw * 0.66;
+            let by = ch * 0.30;
+            const lineH = fs * 1.55;
+            ctx.fillText(`Wedge slope (MA): ${mechAdv.toFixed(1)} : 1`, bx, by);
+            by += lineH;
+            ctx.fillStyle = 'blue';
+            ctx.fillText(`Hammer force: ${hammerForce.toFixed(0)} N`, bx, by);
+            by += lineH;
+            ctx.fillText(`Driven in: ${(maxSink / pxPerM).toFixed(1)} m`, bx, by);
+            by += lineH;
+            ctx.fillStyle = '#c0392b';
+            ctx.fillText(`Splitting force: ${splitForce.toFixed(0)} N`, bx, by);
+            by += lineH;
+            ctx.fillText(`Log opens: 1.0 m`, bx, by);
+            by += lineH;
+            ctx.fillStyle = colors.metalDark;
+            ctx.fillText(`Work: ${hammerForce.toFixed(0)} × ${(maxSink / pxPerM).toFixed(1)} = 120 J`, bx, by);
+            by += lineH;
+            ctx.fillText(`Strike ${Math.min(landed, strikesNeeded)} of ${strikesNeeded}`, bx, by);
+            ctx.textAlign = 'center';
         }
 
         function drawWheelAxle() {
-            const centerX = cw / 2;
-            const centerY = ch / 2;
-            
-            // Slider controls rotation speed
-            const speed = (slider.value / 100) * 0.1;
-            const rotation = time * speed;
-            
-            const wheelRadius = Math.min(cw, ch) * 0.3;
-            const axleRadius = wheelRadius * 0.3;
-            
-            // Draw stand
-            drawRect(centerX - 20, centerY, 40, ch - centerY, colors.wood, colors.metalDark);
-            drawRect(centerX - 60, ch - 20, 120, 20, colors.metalDark);
-            
+            const { ma } = getMachineMetrics();
+            const centerX = cw * 0.42;
+            const centerY = ch * 0.36;
+            const groundY = ch * 0.86;
+
+            drawRect(0, groundY, cw, ch - groundY, colors.ground);
+
+            // Axle radius is fixed; the slider changes the WHEEL radius, so the
+            // crank travels MA times as far as the rope lifts the bucket.
+            const axleRadius = Math.min(cw, ch) * 0.045;
+            const wheelRadius = axleRadius * ma;
+
+            // The bucket always rises the same 1.0 m.
+            const lift = ch * 0.16;
+            const pxPerM = lift / LOAD_DISTANCE;
+            const p = liftProgress();
+            const rotation = (lift * p) / axleRadius;   // rope wound off the axle
+
+            // Well and frame
+            const wellTop = ch * 0.68;
+            drawRect(centerX - cw * 0.11, wellTop, cw * 0.22, groundY - wellTop, '#7f8c8d', colors.metalDark);
+            drawRect(centerX + cw * 0.06, centerY, 22, wellTop - centerY, colors.wood, colors.metalDark);
+
             ctx.save();
             ctx.translate(centerX, centerY);
-            
-            // Draw back of wheel (perspective)
-            drawCircle(0, 0, wheelRadius + 10, '#bdc3c7');
-            
             ctx.rotate(rotation);
-            
-            // Draw Wheel
+            // Wheel rim and spokes
             drawCircle(0, 0, wheelRadius, colors.woodLight, colors.wood);
-            
-            // Draw Spokes
+            drawCircle(0, 0, wheelRadius * 0.9, '#e6c191', colors.wood);
             for (let i = 0; i < 8; i++) {
                 ctx.rotate(Math.PI / 4);
-                drawRect(0, -10, wheelRadius, 20, colors.wood, colors.metalDark);
+                drawRect(0, -6, wheelRadius * 0.95, 12, colors.wood, colors.metalDark);
             }
-            
-            // Draw Axle
+            // Crank handle on the rim — this is where the effort is applied
+            drawCircle(wheelRadius * 0.88, 0, 11, colors.load, colors.metalDark);
+            // Axle drum
             drawCircle(0, 0, axleRadius, colors.metal, colors.metalDark);
-            
-            // Draw detail on axle to show rotation
-            ctx.fillStyle = colors.highlight;
-            ctx.beginPath();
-            ctx.arc(0, 0, axleRadius * 0.6, 0, Math.PI / 2);
-            ctx.lineTo(0,0);
-            ctx.fill();
-            
+            drawLine(0, -axleRadius, 0, axleRadius, colors.metalDark, 2);
             ctx.restore();
-            
-            // Rope and bucket on axle
+
+            // Rope off the axle, bucket hanging below
             const ropeX = centerX - axleRadius;
-            // Calculate wrap amount based on rotation
-            const ropeLength = ch * 0.3 + (rotation % (Math.PI*2)) * 10;
-            
-            drawLine(ropeX, centerY, ropeX, centerY + ropeLength, colors.rope, 4);
-            
-            // Bucket
+            const bucketTop = wellTop - ch * 0.02 - lift * p;
+            drawLine(ropeX, centerY, ropeX, bucketTop, colors.rope, 4);
             drawPolygon([
-                {x: ropeX - 20, y: centerY + ropeLength},
-                {x: ropeX + 20, y: centerY + ropeLength},
-                {x: ropeX + 15, y: centerY + ropeLength + 40},
-                {x: ropeX - 15, y: centerY + ropeLength + 40}
-            ], colors.metalDark);
+                {x: ropeX - 26, y: bucketTop},
+                {x: ropeX + 26, y: bucketTop},
+                {x: ropeX + 19, y: bucketTop + ch * 0.09},
+                {x: ropeX - 19, y: bucketTop + ch * 0.09}
+            ], colors.metalDark, '#111827');
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${Math.max(11, ch * 0.025)}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillText('12 kg', ropeX, bucketTop + ch * 0.055);
+
+            // Distances: bucket 1.0 m, crank handle MA metres around the rim
+            measure(ropeX - 52, wellTop - ch * 0.02, ropeX - 52, wellTop - ch * 0.02 - lift, '1.0 m', colors.load);
+            label(`Wheel : axle = ${ma.toFixed(1)} : 1`, cw * 0.66, ch * 0.32, colors.metalDark, 'left');
+            label(`Crank: ${(LOAD_FORCE / ma).toFixed(0)} N × ${ma.toFixed(1)} m = 120 J`,
+                  cw * 0.66, ch * 0.38, 'blue', 'left');
+            label(`Bucket: 120 N × 1.0 m = 120 J`, cw * 0.66, ch * 0.44, '#c0392b', 'left');
         }
 
         function drawPulley() {
-            const centerX = cw / 2;
-            
-            // Draw ceiling
-            drawRect(0, 0, cw, 40, colors.metalDark);
-            
-            // Fixed Pulley setup
-            const pX = cw * 0.5;
-            const pY = 100;
-            const pRadius = 40;
-            
-            // Draw support
-            drawRect(pX - 10, 40, 20, pY - 40, colors.metal);
-            
-            // Slider controls pull amount
-            const pullAmt = slider.value / 100;
-            
-            // Left side (load) goes up when right side (effort) goes down
-            const ropeMaxY = ch * 0.8;
-            const loadY = ropeMaxY - (pullAmt * (ropeMaxY - pY - 100));
-            const effortY = pY + 100 + (pullAmt * (ropeMaxY - pY - 100));
-            
-            // Draw Rope
-            ctx.strokeStyle = colors.rope;
-            ctx.lineWidth = 6;
+            const { ma, params } = getMachineMetrics();
+            const strands = params.strands;              // ropes supporting the load
+            const centerX = cw * 0.42;
+
+            // Ceiling beam
+            const beamY = ch * 0.33;
+            drawRect(0, beamY - 22, cw, 22, colors.metalDark);
+
+            // One continuous rope: it is anchored, then threaded down-and-up through
+            // alternating movable and fixed sheaves before the free end reaches the
+            // hand. Every strand that pulls on the moving block shares the load.
+            const nBottom = Math.floor(strands / 2);     // sheaves on the moving block
+            const nTop = Math.ceil(strands / 2);         // sheaves on the ceiling beam
+            const evenStrands = strands % 2 === 0;
+
+            // Visit order of the sheaves the rope threads through. The dead end is
+            // tied to the beam when the strand count is even, to the moving block
+            // when it is odd; either way both loose ends hang vertically.
+            const seq = [];
+            if (evenStrands) {
+                for (let i = 0; i < nBottom; i++) { seq.push('bot'); seq.push('top'); }
+            } else {
+                for (let i = 0; i < nTop; i++) {
+                    seq.push('top');
+                    if (i < nBottom) seq.push('bot');
+                }
+            }
+
+            const cols = seq.length;
+            const spanW = cols > 1 ? Math.min(cw * 0.42, 62 * (cols - 1)) : 0;
+            const step = cols > 1 ? spanW / (cols - 1) : 62;
+            const pRadius = Math.max(13, Math.min(ch * 0.045, step * 0.44));
+            const rWrap = pRadius * 0.55;                // groove radius the rope rides in
+            const colX = (k) => centerX - spanW / 2 + k * step;
+
+            // The load always rises 1.0 m; the free end is pulled MA times as far.
+            const lift = ch * 0.06;
+            const pxPerM = lift / LOAD_DISTANCE;
+            const p = liftProgress();
+            const blockRestY = ch * 0.63;
+            const blockY = blockRestY - lift * p;        // top of the moving block
+            const topY = beamY + pRadius + 12;           // fixed sheave centres
+            const botY = blockY - pRadius - 10;          // movable sheave centres
+            const handStartY = topY + 40;                // free end starts below the sheave
+            const handY = handStartY + lift * ma * p;
+
+            const colY = (k) => (seq[k] === 'top' ? topY : botY);
+
+            // Both loose ends are vertical: the dead end drops (or rises) straight
+            // into the first sheave's groove, and the free end hangs straight down
+            // from the last sheave's groove.
+            const anchorX = colX(0) - rWrap;
+            const anchorY = evenStrands ? beamY : blockY;
+            const freeX = colX(cols - 1) + rWrap;
+
+            // Hangers and yokes go down first so the rope reads on top of them.
+            for (let k = 0; k < cols; k++) {
+                if (seq[k] === 'top') {
+                    drawPolygon([
+                        {x: colX(k) - pRadius * 0.7, y: beamY},
+                        {x: colX(k) + pRadius * 0.7, y: beamY},
+                        {x: colX(k) + pRadius * 0.3, y: topY},
+                        {x: colX(k) - pRadius * 0.3, y: topY}
+                    ], '#6b7280', colors.metalDark);
+                } else {
+                    // Yoke straps run down each side of the sheave to the block.
+                    drawRect(colX(k) - pRadius * 0.95, botY, 5, blockY - botY, '#6b7280');
+                    drawRect(colX(k) + pRadius * 0.95 - 5, botY, 5, blockY - botY, '#6b7280');
+                }
+            }
+
+            // --- Sheaves (drawn before the rope, which rides in the inner groove) --
+            for (let k = 0; k < cols; k++) {
+                const cy = colY(k);
+                drawCircle(colX(k), cy, pRadius, colors.metal, 'black');
+                drawCircle(colX(k), cy, rWrap + 4, '#bdc3c7', 'black');
+                drawCircle(colX(k), cy, 3.5, colors.metalDark);
+            }
+
+            // --- The rope, drawn as one continuous path -------------------------
+            ctx.strokeStyle = '#b8651b';
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
             ctx.beginPath();
-            // Left segment
-            ctx.moveTo(pX - pRadius, loadY);
-            ctx.lineTo(pX - pRadius, pY);
-            // Arc over pulley
-            ctx.arc(pX, pY, pRadius, Math.PI, 0, false);
-            // Right segment
-            ctx.lineTo(pX + pRadius, effortY);
+            ctx.moveTo(anchorX, anchorY);
+            for (let k = 0; k < cols; k++) {
+                ctx.lineTo(colX(k) - rWrap, colY(k));
+                // Fixed sheaves are wrapped over the top, movable ones underneath.
+                const overTheTop = seq[k] === 'top';
+                ctx.arc(colX(k), colY(k), rWrap,
+                        Math.PI, overTheTop ? 2 * Math.PI : 0, !overTheTop);
+            }
+            ctx.lineTo(freeX, handY);
             ctx.stroke();
-            
-            // Draw Pulley Wheel
-            drawCircle(pX, pY, pRadius, colors.metal, 'black');
-            drawCircle(pX, pY, pRadius - 10, '#bdc3c7', 'black');
-            drawCircle(pX, pY, 5, 'black'); // center pin
-            
-            // Draw Load
-            const loadSize = 60;
-            drawRect(pX - pRadius - loadSize/2, loadY, loadSize, loadSize, colors.load, 'black');
+            ctx.lineCap = 'butt';
+
+            // Hub dots on top of the rope so each sheave still reads as a wheel
+            for (let k = 0; k < cols; k++) drawCircle(colX(k), colY(k), 3.5, colors.metalDark);
+
+            // Anchor knot, wherever the dead end is tied
+            drawCircle(anchorX, anchorY, 5, colors.metalDark);
+
+            // --- Beam over the top ----------------------------------------------
+            drawRect(0, beamY - 22, cw, 22, colors.metalDark);
+
+            // --- Moving block and load ------------------------------------------
+            const blockLeft = Math.min(anchorX, colX(0)) - pRadius - 12;
+            const blockRight = colX(cols - 1) + pRadius + 12;
+            const blockW = Math.max(blockRight - blockLeft, cw * 0.12);
+            const loadH = Math.min(ch * 0.10, 60);
+            drawRect(blockLeft, blockY, blockW, 12, colors.metalDark, '#111827');
+            drawRect(blockLeft + blockW * 0.08, blockY + 12, blockW * 0.84, loadH, colors.load, colors.metalDark);
             ctx.fillStyle = 'white';
-            ctx.font = '20px Arial';
+            ctx.font = `bold ${Math.max(13, Math.min(20, cw * 0.026))}px Arial`;
             ctx.textAlign = 'center';
-            ctx.fillText('12kg', pX - pRadius, loadY + loadSize/2 + 7);
-            
-            // Draw Effort Indicator (Hand/Arrow)
-            ctx.fillStyle = colors.highlight;
-            ctx.beginPath();
-            ctx.moveTo(pX + pRadius - 20, effortY);
-            ctx.lineTo(pX + pRadius + 20, effortY);
-            ctx.lineTo(pX + pRadius, effortY + 40);
-            ctx.fill();
-            
-            ctx.fillStyle = 'black';
-            ctx.fillText('Pull', pX + pRadius, effortY - 10);
-            
+            ctx.fillText('12 kg', blockLeft + blockW / 2, blockY + 12 + loadH / 2 + 6);
+
+            // --- Hand pulling the free end (straight down the vertical rope) -----
+            drawPolygon([
+                {x: freeX - 15, y: handY},
+                {x: freeX + 15, y: handY},
+                {x: freeX, y: handY + 28}
+            ], colors.highlight, colors.metalDark);
+            label(`Pull ${(LOAD_FORCE / ma).toFixed(0)} N`, freeX, handY + 48, 'blue');
+
+            // --- Distances -------------------------------------------------------
+            measure(blockLeft - 26, blockRestY, blockLeft - 26, blockRestY - lift, '1.0 m', colors.load);
+            measure(freeX + 52, handStartY, freeX + 52, handStartY + lift * ma,
+                    `${ma.toFixed(0)} m`, 'blue');
+            label(`${strands} strand${strands > 1 ? 's' : ''} ${strands > 1 ? 'hold' : 'holds'} the 120 N load  →  ${(LOAD_FORCE / ma).toFixed(0)} N × ${ma.toFixed(0)} m = 120 J`,
+                  cw * 0.5, ch * 0.26);
         }
 
         function drawScrew() {
-            const centerX = cw / 2;
-            const groundY = ch * 0.88;
-            const liftAmount = Number(slider.value) / 100;
-            const baseWidth = Math.min(cw * 0.52, 380);
+            const centerX = cw * 0.46;
+            const groundY = ch * 0.80;
+            const { ma, params } = getMachineMetrics();
+            const baseWidth = Math.min(cw * 0.84, 680);   // 2x wider, so the threads read clearly
             const baseHeight = Math.max(20, ch * 0.045);
             const baseY = groundY - baseHeight;
-            const housingHeight = ch * 0.18;
+            const housingHeight = ch * 0.11;
             const housingTop = baseY - housingHeight;
-            const maxLift = ch * 0.28;
-            const platformY = housingTop - 22 - liftAmount * maxLift;
-            const platformWidth = Math.min(cw * 0.38, 280);
-            const platformHeight = 18;
-            const loadWidth = platformWidth * 0.72;
-            const loadHeight = Math.min(ch * 0.18, 90);
-            const screwWidth = Math.max(24, cw * 0.038);
-            const rotationOffset = liftAmount * Math.PI * 20;
+
+            // The jack always lifts the load the same 1.0 m. The slider changes the
+            // thread pitch: a finer pitch means more turns (a longer handle path)
+            // but less force on the handle.
+            const maxLift = ch * 0.14;
+            const pxPerM = maxLift / LOAD_DISTANCE;
+            const p = liftProgress();
+            const platformY = housingTop - 46 - p * maxLift;   // shaft stays visible
+            const platformWidth = Math.min(cw * 0.60, 480);
+            const platformHeight = 20;
+            const loadWidth = platformWidth * 0.62;
+            const loadHeight = Math.min(ch * 0.12, 65);
+            const screwWidth = Math.max(44, cw * 0.064);
+            const turnsTotal = LOAD_DISTANCE / params.pitchM;      // turns for the full 1.0 m
+            const rotationOffset = p * turnsTotal * Math.PI * 2;
+            const pitchPx = params.pitchM * pxPerM;                // thread spacing on screen
 
             // Floor and wide jack base.
             drawRect(0, groundY, cw, ch - groundY, colors.ground);
@@ -744,19 +1129,21 @@
             drawRect(centerX - screwWidth / 2, platformY + platformHeight, screwWidth, baseY - platformY - platformHeight, colors.metal, colors.metalDark);
             ctx.strokeStyle = colors.metalDark;
             ctx.lineWidth = 3;
-            const threadSpacing = Math.max(10, ch * 0.025);
+            // Pitch drives the thread spacing; exaggerated 4x so coarse vs fine reads
+            // clearly at this scale.
+            const threadSpacing = Math.max(6, pitchPx * 4);
             for (let y = platformY + platformHeight + 4; y < baseY - 4; y += threadSpacing) {
                 drawLine(centerX - screwWidth / 2, y, centerX + screwWidth / 2, y + threadSpacing * 0.55, colors.metalDark, 3);
             }
 
             // Nut, turning collar, and handle.
-            drawRect(centerX - screwWidth * 1.15, housingTop - 5, screwWidth * 2.3, 28, colors.woodLight, colors.metalDark);
-            const handleY = platformY + platformHeight + 48;
-            const handleHalfLength = 28 + Math.abs(Math.cos(rotationOffset)) * Math.min(80, cw * 0.11);
-            drawLine(centerX - handleHalfLength, handleY, centerX + handleHalfLength, handleY, colors.wood, 10);
-            drawCircle(centerX - handleHalfLength, handleY, 9, colors.load, colors.metalDark);
-            drawCircle(centerX + handleHalfLength, handleY, 9, colors.load, colors.metalDark);
-            drawCircle(centerX, handleY, screwWidth * 0.72, colors.woodLight, colors.metalDark);
+            drawRect(centerX - screwWidth * 0.95, housingTop - 6, screwWidth * 1.9, 26, colors.woodLight, colors.metalDark);
+            const handleY = housingTop + 20;   // the nut stays on the jack body
+            const handleHalfLength = 50 + Math.abs(Math.cos(rotationOffset)) * Math.min(160, cw * 0.20);
+            drawLine(centerX - handleHalfLength, handleY, centerX + handleHalfLength, handleY, colors.wood, 14);
+            drawCircle(centerX - handleHalfLength, handleY, 12, colors.load, colors.metalDark);
+            drawCircle(centerX + handleHalfLength, handleY, 12, colors.load, colors.metalDark);
+            drawCircle(centerX, handleY, screwWidth * 0.45, colors.woodLight, colors.metalDark);
 
             // Lifting platform and load move upward with the screw.
             drawRect(centerX - platformWidth / 2, platformY, platformWidth, platformHeight, colors.metalDark, '#111827');
@@ -764,17 +1151,17 @@
             ctx.fillStyle = 'white';
             ctx.font = `bold ${Math.max(15, Math.min(22, cw * 0.03))}px Arial`;
             ctx.textAlign = 'center';
-            ctx.fillText('LOAD', centerX, platformY - loadHeight / 2 + 7);
+            ctx.fillText('12 kg', centerX, platformY - loadHeight / 2 + 7);
 
-            // Make the output motion and input motion explicit.
-            const arrowX = centerX + platformWidth / 2 + 34;
-            drawLine(arrowX, platformY + 8, arrowX, platformY - 55, colors.load, 5);
-            drawPolygon([
-                {x: arrowX - 9, y: platformY - 44},
-                {x: arrowX + 9, y: platformY - 44},
-                {x: arrowX, y: platformY - 62}
-            ], colors.load);
+            // Load always travels the same 1.0 m, whatever the pitch.
+            const restY = housingTop - 22;
+            measure(centerX + platformWidth / 2 + 40, restY,
+                    centerX + platformWidth / 2 + 40, restY - maxLift, '1.0 m', colors.load);
 
+            label(`${turnsTotal.toFixed(0)} turns × ${(2 * Math.PI * 0.20).toFixed(2)} m per turn = ${ma.toFixed(1)} m of handle path`,
+                  cw * 0.5, ch * 0.24, 'blue');
+            label(`Handle ${(LOAD_FORCE / ma).toFixed(1)} N × ${ma.toFixed(1)} m = 120 J = 120 N × 1.0 m   ·   turn ${Math.floor(p * turnsTotal)} of ${turnsTotal.toFixed(0)}`,
+                  cw * 0.5, ch * 0.285);
         }
 
         function drawScene() {
