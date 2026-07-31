@@ -156,6 +156,13 @@
       const BLUE = { base: '#2563eb', dark: '#1d4ed8', deep: '#172554', light: '#93c5fd' };
       const ORANGE = { base: '#ea580c', dark: '#c2410c', deep: '#7c2d12', light: '#fdba74' };
 
+      // Answer buttons mirror the stations: left is the blue station, right the orange one.
+      const CHOICE_TINTS = {
+        left: { fill: '#eff6ff', hover: '#dbeafe', border: '#2563eb', text: '#1d4ed8' },
+        same: { fill: '#f1f5f9', hover: '#e2e8f0', border: '#64748b', text: '#334155' },
+        right: { fill: '#fff7ed', hover: '#ffedd5', border: '#ea580c', text: '#c2410c' }
+      };
+
       // Two levels. Level 1 varies only the time; level 2 varies height and time together
       // so that the work differs but the power comes out equal.
       const LEVELS = [
@@ -165,8 +172,7 @@
           liftMs: 3600,
           work: {
             question: 'Which winch does more work on its load?',
-            helper: 'Both 20 kg loads rise the same 2.00 m: the slow winch takes 4 s, the fast winch 2 s.',
-            options: [['left', 'Slow winch'], ['right', 'Fast winch'], ['same', 'Same work']],
+            options: [['left', 'Slow winch'], ['same', 'Same work'], ['right', 'Fast winch']],
             answer: 'same',
             result: 'Both winches do 392 J of work.',
             summary: 'The work is equal.',
@@ -174,8 +180,7 @@
           },
           power: {
             question: 'Which winch produces more power?',
-            helper: 'Both do 392 J of work. Watch the timers: one finishes in half the time.',
-            options: [['left', 'Slow winch'], ['right', 'Fast winch'], ['same', 'Same power']],
+            options: [['left', 'Slow winch'], ['same', 'Same power'], ['right', 'Fast winch']],
             answer: 'right',
             result: 'The fast winch is twice as powerful.',
             summary: 'It transfers the same 392 J in half the time.',
@@ -193,8 +198,7 @@
           liftMs: 4400,
           work: {
             question: 'Which winch does more work on its load?',
-            helper: 'The same 20 kg load now goes 4.00 m in 8 s on the left and 2.00 m in 4 s on the right.',
-            options: [['left', 'Tall lift'], ['right', 'Short lift'], ['same', 'Same work']],
+            options: [['left', 'Tall lift'], ['same', 'Same work'], ['right', 'Short lift']],
             answer: 'left',
             result: 'The tall lift does 784 J, the short lift 392 J.',
             summary: 'The tall lift does twice the work.',
@@ -202,8 +206,7 @@
           },
           power: {
             question: 'Which winch produces more power?',
-            helper: 'One does 784 J in 8 s, the other 392 J in 4 s.',
-            options: [['left', 'Tall lift'], ['right', 'Short lift'], ['same', 'Same power']],
+            options: [['left', 'Tall lift'], ['same', 'Same power'], ['right', 'Short lift']],
             answer: 'same',
             result: 'Both winches produce 98 W.',
             summary: 'The power is equal.',
@@ -872,14 +875,6 @@
         drawRigging(station, crateTop);
         drawCrate(station, crateBottom);
         drawSpeedCue(station, crateBottom, progress);
-
-        // Badge under a load that has arrived: it waits here while the other one climbs.
-        if (progress >= 1 && stage !== 'return') {
-          pill(station.cx, crateBottom + 16,
-            'up ' + station.height.toFixed(2) + ' m in ' + station.seconds.toFixed(1) + ' s',
-            'rgba(234, 250, 240, 0.95)', '#15803d', '800 13px system-ui, sans-serif', '#15803d');
-        }
-
         drawLabels(station, progress);
       }
 
@@ -940,8 +935,11 @@
           fill = '#fef3f2'; border = '#dc2626'; text = '#991b1b'; weight = 3;
         } else if (!button.enabled) {
           fill = '#f2f6fb'; border = '#dde5f0'; text = '#9aa8bd';
-        } else if (hovered) {
-          fill = '#f3f8ff'; border = '#2563eb';
+        } else {
+          const tint = CHOICE_TINTS[button.choice];
+          fill = hovered ? tint.hover : tint.fill;
+          border = tint.border;
+          text = tint.text;
         }
 
         roundedRect(button.x, button.y, button.w, button.h, 12, fill, border, weight);
@@ -950,9 +948,9 @@
         }
 
         ctx.fillStyle = text;
-        ctx.font = '800 15px system-ui, sans-serif';
+        ctx.font = '800 18px system-ui, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(button.label, button.x + button.w / 2 - (button.mark ? 10 : 0), button.y + button.h / 2 + 5);
+        ctx.fillText(button.label, button.x + button.w / 2 - (button.mark ? 10 : 0), button.y + button.h / 2 + 6);
         if (button.mark) drawBadge(button.x + button.w - 20, button.y + button.h / 2, button.mark);
       }
 
@@ -967,40 +965,58 @@
         ctx.stroke();
 
         ctx.textAlign = 'left';
-        ctx.fillStyle = '#2563eb';
-        ctx.font = '800 12px system-ui, sans-serif';
-        ctx.fillText(band.phase.toUpperCase(), BAND_X, PHASE_Y);
+        if (band.phase) {
+          ctx.fillStyle = '#2563eb';
+          ctx.font = '800 12px system-ui, sans-serif';
+          ctx.fillText(band.phase.toUpperCase(), BAND_X, PHASE_Y);
+        }
 
+        ctx.font = '800 26px system-ui, sans-serif';
+        if (ctx.measureText(band.question).width > BAND_W) ctx.font = '800 22px system-ui, sans-serif';
         ctx.fillStyle = '#17233b';
-        ctx.font = '800 21px system-ui, sans-serif';
-        if (ctx.measureText(band.question).width > BAND_W) ctx.font = '800 18px system-ui, sans-serif';
         ctx.fillText(band.question, BAND_X, QUESTION_Y);
+        const hi = band.highlight ? band.question.indexOf(band.highlight) : -1;
+        if (hi >= 0) {
+          // Underline the key word (work / power).
+          const beforeW = ctx.measureText(band.question.slice(0, hi)).width;
+          const wordW = ctx.measureText(band.question.slice(hi, hi + band.highlight.length)).width;
+          ctx.strokeStyle = '#17233b';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.moveTo(BAND_X + beforeW, QUESTION_Y + 7);
+          ctx.lineTo(BAND_X + beforeW + wordW, QUESTION_Y + 7);
+          ctx.stroke();
+        }
 
-        ctx.fillStyle = '#5e6b82';
-        const helperFont = '400 14.5px system-ui, sans-serif';
-        wrapLines(band.helper, BAND_W, helperFont, 2).forEach((line, i) => {
-          ctx.font = helperFont;
-          ctx.fillText(line, BAND_X, HELPER_Y + i * 19);
-        });
+        if (band.helper) {
+          ctx.fillStyle = '#5e6b82';
+          const helperFont = '400 14.5px system-ui, sans-serif';
+          wrapLines(band.helper, BAND_W, helperFont, 2).forEach((line, i) => {
+            ctx.font = helperFont;
+            ctx.fillText(line, BAND_X, HELPER_Y + i * 19);
+          });
+        }
 
-        // Answer row: the options stay on screen in every state.
+        // Answer row: the options stay on screen in every state and share the full
+        // band width, giving up just enough room for the primary button when it shows.
         hitAreas = [];
-        const choiceW = 182;
+        const gap = 16;
+        ctx.font = '800 18px system-ui, sans-serif';
+        const mainW = band.main ? Math.max(150, ctx.measureText(band.main.label).width + 44) : 0;
+        const choiceW = (BAND_W - (mainW ? mainW + gap : 0) - gap * 2) / 3;
         band.options.forEach(([key, label], i) => {
           hitAreas.push({
             key: 'choice-' + key, choice: key, label, kind: 'choice',
-            x: BAND_X + i * (choiceW + 16), y: ROW_Y, w: choiceW, h: ROW_H,
+            x: BAND_X + i * (choiceW + gap), y: ROW_Y, w: choiceW, h: ROW_H,
             enabled: !band.locked,
             mark: band.picked ? (key === band.answer ? 'correct' : (key === band.picked ? 'wrong' : null)) : null
           });
         });
 
         if (band.main) {
-          ctx.font = '800 15px system-ui, sans-serif';
-          const w = Math.max(150, ctx.measureText(band.main.label).width + 44);
           hitAreas.push({
             key: 'main', kind: 'primary', label: band.main.label,
-            x: W - BAND_X - w, y: ROW_Y, w, h: ROW_H, enabled: true
+            x: W - BAND_X - mainW, y: ROW_Y, w: mainW, h: ROW_H, enabled: true
           });
         }
 
@@ -1091,30 +1107,25 @@
 
       // One place to set the band, so the canvas and the screen-reader text never drift.
       function setBand(next) {
-        band = Object.assign({ picked: null, locked: false, main: null }, next);
+        band = Object.assign({ phase: '', helper: '', highlight: '', picked: null, locked: false, main: null }, next);
         focusIndex = 0;
         const values = level.stations
           .map(s => s.name + ': ' + (s.showWork ? s.work + ' joules' : 'work hidden')
             + ', ' + (s.showPower ? s.power + ' watts' : 'power hidden'))
           .join('. ');
-        live.textContent = band.phase + '. ' + band.question + ' ' + band.helper + ' '
+        live.textContent = (band.phase ? band.phase + '. ' : '') + band.question + ' '
+          + (band.helper ? band.helper + ' ' : '')
           + (band.locked ? '' : 'Options: ' + band.options.map(o => o[1]).join(', ') + '. ')
           + values + '.';
         draw();
       }
 
-      // Appended to the opening question, which is where the setup gets explained.
-      const motionNote = reduceMotion
-        ? ' Reduced motion is on, so both loads are shown already raised.'
-        : ' The lift runs on a loop with a pause at the top while you decide.';
-
       function askWork() {
         state = 'predict-work';
         stepLabel('Question 1 of 2');
         setBand({
-          phase: 'Predict work',
           question: level.work.question,
-          helper: level.work.helper + motionNote,
+          highlight: 'work',
           options: level.work.options,
           answer: level.work.answer
         });
@@ -1140,9 +1151,8 @@
         state = 'predict-power';
         stepLabel('Question 2 of 2');
         setBand({
-          phase: 'Predict power',
           question: level.power.question,
-          helper: level.power.helper,
+          highlight: 'power',
           options: level.power.options,
           answer: level.power.answer
         });

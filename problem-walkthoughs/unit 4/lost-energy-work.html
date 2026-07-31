@@ -1,0 +1,1251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Where Does the Energy Go?</title>
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --bg-panel: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --line: #334155;
+      --blue: #3b82f6;
+      --blue-hover: #2563eb;
+      --orange: #f97316;
+      --green: #10b981;
+      --red: #ef4444;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background: #020617;
+      color: var(--text-main);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+    }
+
+    button { font: inherit; transition: all 0.2s ease; }
+
+    .walkthrough {
+      width: min(100%, 1040px);
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: var(--bg-dark);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      min-height: 58px;
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--line);
+      background: var(--bg-panel);
+    }
+
+    h1 { margin: 0; font-size: clamp(1.05rem, 3vw, 1.4rem); font-weight: 800; }
+    .subhead { color: var(--blue); font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    .reset {
+      min-height: 40px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 700;
+      border: 1px solid var(--line);
+      padding: 6px 14px;
+      background: transparent;
+      color: var(--text-main);
+    }
+    .reset:hover { background: var(--line); }
+
+    .level-tabs {
+      display: flex;
+      gap: 8px;
+      padding: 10px 24px;
+      border-bottom: 1px solid var(--line);
+      background: #162033;
+    }
+
+    .level-tab {
+      min-height: 36px;
+      padding: 6px 13px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-weight: 800;
+      font-size: .9rem;
+    }
+
+    .level-tab.active {
+      border-color: var(--blue);
+      background: rgba(59, 130, 246, 0.16);
+      color: var(--text-main);
+    }
+
+    .simulation { position: relative; background: var(--bg-dark); }
+
+    /* Compact instruction + choice strip that sits ABOVE the canvas */
+    .stage {
+      padding: 14px 20px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #131e33;
+      text-align: center;
+    }
+
+    .stage-head { max-width: 840px; margin: 0 auto 12px; }
+    .phase { margin: 0 0 3px; color: var(--blue); font-size: .72rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    h2 { margin: 0; font-size: clamp(1rem, 2.3vw, 1.18rem); font-weight: 700; line-height: 1.35; }
+    .helper { min-height: 1.3em; margin: 5px 0 0; color: var(--text-muted); font-size: .85rem; line-height: 1.4; }
+
+    .choice-row {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .choice-card {
+      flex: 1 1 210px;
+      max-width: 290px;
+      min-height: 44px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding: 10px 12px;
+      border: 2px solid var(--line);
+      border-radius: 12px;
+      background: var(--bg-panel);
+      color: var(--text-main);
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .choice-card:hover:not(:disabled) {
+      border-color: var(--blue);
+      background: rgba(59, 130, 246, 0.12);
+      transform: translateY(-2px);
+    }
+
+    .choice-card.selected { border-color: var(--orange); background: rgba(249, 115, 22, 0.15); }
+    .choice-card.correct { border-color: var(--green); background: rgba(16, 185, 129, 0.15); box-shadow: 0 0 14px rgba(16, 185, 129, 0.3); }
+    .choice-card.incorrect { border-color: var(--red); background: rgba(239, 68, 68, 0.15); }
+    .choice-card:disabled { cursor: default; opacity: 0.85; }
+    .choice-card:disabled:hover { transform: none; }
+
+    .ct { font-weight: 800; font-size: 1rem; line-height: 1.2; }
+    .cs { font-size: .78rem; color: var(--text-muted); line-height: 1.25; }
+    .cr { min-height: 1.1em; margin-top: 2px; font-size: .8rem; font-weight: 800; color: var(--red); }
+
+    .stage-actions { margin-top: 12px; }
+
+    .main {
+      min-height: 44px;
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 28px;
+      background: var(--blue);
+      color: #fff;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 1rem;
+      box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+    }
+    .main:hover { background: var(--blue-hover); transform: translateY(-1px); }
+
+    canvas { display: block; width: 100%; height: auto; }
+
+    [hidden] { display: none !important; }
+
+    @media (max-width: 620px) {
+      body { padding: 0; }
+      .walkthrough { min-height: 100vh; border: 0; border-radius: 0; }
+      .level-tabs { overflow-x: auto; padding: 10px 12px; }
+      .stage { padding: 12px 12px 14px; }
+      .choice-card { flex-basis: 100%; }
+      .main { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="walkthrough" data-walkthrough>
+    <header>
+      <div>
+        <div class="subhead">Work and lost energy</div>
+        <h1>Where Does the Energy Go?</h1>
+      </div>
+      <button class="reset" type="button" data-reset>Reset</button>
+    </header>
+
+    <nav class="level-tabs" aria-label="Lesson levels">
+      <button class="level-tab active" type="button" data-level="1">Level 1: The Friction Race</button>
+      <button class="level-tab" type="button" data-level="2">Level 2: Energy Accounting</button>
+      <button class="level-tab" type="button" data-level="3">Level 3: Sliding to a Stop</button>
+    </nav>
+
+    <section class="simulation" aria-label="Interactive physics simulation">
+
+      <div class="stage" data-level-panel="1">
+        <div class="stage-head" aria-live="polite">
+          <p class="phase" data-phase>Step 1 &middot; Work input</p>
+          <h2 data-question>Each box gets the same 100 N push over the same 5 m. How much work does the push do on each box?</h2>
+          <p class="helper" data-helper>The floors are covered for now &mdash; all you can see is the applied force and the distance.</p>
+        </div>
+
+        <div class="choice-row" data-work-choices>
+          <button class="choice-card" type="button" data-work="500">
+            <span class="ct">500 J on each box</span>
+            <span class="cs">100 N &times; 5 m</span>
+          </button>
+          <button class="choice-card" type="button" data-work="100">
+            <span class="ct">100 J on each box</span>
+            <span class="cs">The size of the push</span>
+          </button>
+          <button class="choice-card" type="button" data-work="varies">
+            <span class="ct">A different amount for each</span>
+            <span class="cs">The floor changes the input</span>
+          </button>
+        </div>
+
+        <div class="choice-row" data-scenarios hidden>
+          <button class="choice-card" type="button" data-scenario="ice">
+            <span class="ct">Box A &mdash; Ice</span>
+            <span class="cs">&mu;k = 0.05</span>
+            <span class="cr" data-result="ice"></span>
+          </button>
+          <button class="choice-card" type="button" data-scenario="wood">
+            <span class="ct">Box B &mdash; Wood</span>
+            <span class="cs">&mu;k = 0.20</span>
+            <span class="cr" data-result="wood"></span>
+          </button>
+          <button class="choice-card" type="button" data-scenario="carpet">
+            <span class="ct">Box C &mdash; Carpet</span>
+            <span class="cs">&mu;k = 0.45</span>
+            <span class="cr" data-result="carpet"></span>
+          </button>
+        </div>
+
+        <div class="stage-actions">
+          <button class="main" type="button" data-main hidden>Reveal the Floors</button>
+        </div>
+      </div>
+
+      <div class="stage" data-level-panel="2" hidden>
+        <div class="stage-head" aria-live="polite">
+          <p class="phase" data-level2-phase>Energy Accounting</p>
+          <h2 data-level2-question>The push does 500 J of work &mdash; but the crate does not keep it all.</h2>
+          <p class="helper" data-level2-helper>Given: m = 20 kg, &mu;k = 0.20, g = 10 m/s&sup2;. A 100 N push moves the crate 5 m from rest on the wood floor; friction = 40 N.</p>
+        </div>
+
+        <div class="choice-row" data-level2-choices>
+          <button class="choice-card" type="button" data-final-ke="300">
+            <span class="ct">300 J</span>
+            <span class="cs">500 J &minus; 200 J</span>
+          </button>
+          <button class="choice-card" type="button" data-final-ke="500">
+            <span class="ct">500 J</span>
+            <span class="cs">100 N &times; 5 m</span>
+          </button>
+          <button class="choice-card" type="button" data-final-ke="700">
+            <span class="ct">700 J</span>
+            <span class="cs">500 J + 200 J</span>
+          </button>
+        </div>
+
+        <div class="stage-actions">
+          <button class="main" type="button" data-level2-main>Watch the Energy Split</button>
+        </div>
+      </div>
+
+      <div class="stage" data-level-panel="3" hidden>
+        <div class="stage-head" aria-live="polite">
+          <p class="phase" data-level3-phase>Sliding to a Stop</p>
+          <h2 data-level3-question>The crate leaves the push with 300 J of kinetic energy and slides freely.</h2>
+          <p class="helper" data-level3-helper>Nothing pushes it anymore. Friction (40 N on the wood floor) keeps converting kinetic energy into heat until none is left.</p>
+        </div>
+
+        <div class="choice-row" data-level3-choices>
+          <button class="choice-card" type="button" data-slide="7.5">
+            <span class="ct">7.5 m</span>
+            <span class="cs">300 J &divide; 40 N</span>
+          </button>
+          <button class="choice-card" type="button" data-slide="15">
+            <span class="ct">15 m</span>
+            <span class="cs">2 &times; 300 J &divide; 40 N</span>
+          </button>
+          <button class="choice-card" type="button" data-slide="3.75">
+            <span class="ct">3.75 m</span>
+            <span class="cs">150 J &divide; 40 N</span>
+          </button>
+        </div>
+
+        <div class="stage-actions">
+          <button class="main" type="button" data-level3-main>Release the Crate</button>
+        </div>
+      </div>
+
+      <canvas data-canvas width="1200" height="580"></canvas>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const root = document.querySelector('[data-walkthrough]');
+      const canvas = root.querySelector('[data-canvas]');
+      const ctx = canvas.getContext('2d');
+      const phase = root.querySelector('[data-phase]');
+      const question = root.querySelector('[data-question]');
+      const helper = root.querySelector('[data-helper]');
+      const workRow = root.querySelector('[data-work-choices]');
+      const workButtons = [...root.querySelectorAll('[data-work]')];
+      const scenarioRow = root.querySelector('[data-scenarios]');
+      const scenarioButtons = [...root.querySelectorAll('[data-scenario]')];
+      const mainButton = root.querySelector('[data-main]');
+      const levelButtons = [...root.querySelectorAll('[data-level]')];
+      const levelPanels = [...root.querySelectorAll('[data-level-panel]')];
+      const level2Phase = root.querySelector('[data-level2-phase]');
+      const level2Question = root.querySelector('[data-level2-question]');
+      const level2Helper = root.querySelector('[data-level2-helper]');
+      const level2Buttons = [...root.querySelectorAll('[data-final-ke]')];
+      const level2MainButton = root.querySelector('[data-level2-main]');
+      const level3Phase = root.querySelector('[data-level3-phase]');
+      const level3Question = root.querySelector('[data-level3-question]');
+      const level3Helper = root.querySelector('[data-level3-helper]');
+      const level3Buttons = [...root.querySelectorAll('[data-slide]')];
+      const level3MainButton = root.querySelector('[data-level3-main]');
+      const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      // Shared state
+      let state = 'l1-work';
+      let activeLevel = 1;
+      let particles = [];
+      let demoRun = 0;
+      let isAnimating = true;
+
+      // Level 1 state — nothing about the surfaces is exposed until the student answers
+      let laneFractions = [0, 0, 0];
+      let laneFinished = [false, false, false];
+      let raceClock = 0;
+      let showInputWork = false;   // "Input: 500 J" chips
+      let floorsRevealed = false;  // surface colors, names, μk
+      let showCharts = false;      // energy bars + placement badges
+      let l1Choice = null;
+
+      // Levels 2 & 3 state
+      let crateProgress = 0;
+
+      const WORK_INPUT = 500;   // 100 N x 5 m
+      const FRICTION_WOOD = 40; // uk = 0.20 on N = 200 N
+      const KE_START = 300;     // Level 3 launch energy
+
+      // Canvas is taller for the three-lane race than for the single-crate levels
+      const CANVAS_SIZES = { 1: [1200, 580], 2: [1200, 420], 3: [1200, 420] };
+
+      // Level 1 race geometry
+      const RACE_START_X = 190;
+      const RACE_TRAVEL = 520;
+      const RACE_DIST = 5;      // meters
+      const TIME_SCALE = 1.6;   // physics seconds per real second
+
+      // Levels 2 & 3 geometry
+      const CRATE_START_X = 250;
+      const TRAVEL_DIST = 600;
+
+      // a = (100 N applied - friction) / 20 kg
+      const SURFACES = [
+        { key: 'ice',    letter: 'A', name: 'Ice',    mu: 0.05, friction: 10, lost: 50,  color: '#7dd3fc', accel: 4.5, placeLabel: '1st', medal: '#fbbf24' },
+        { key: 'wood',   letter: 'B', name: 'Wood',   mu: 0.20, friction: 40, lost: 200, color: '#b45309', accel: 3.0, placeLabel: '2nd', medal: '#cbd5e1' },
+        { key: 'carpet', letter: 'C', name: 'Carpet', mu: 0.45, friction: 90, lost: 450, color: '#f43f5e', accel: 0.5, placeLabel: '3rd', medal: '#d97706' }
+      ];
+      const RACE_MAX_T = Math.sqrt(2 * RACE_DIST / Math.min(...SURFACES.map(s => s.accel)));
+
+      function baseline() { return canvas.height - 130; }
+      function laneBase(i) { return (canvas.height / 3) * (i + 1) - 42; }
+
+      function applyCanvasSize() {
+        const [w, h] = CANVAS_SIZES[activeLevel];
+        if (canvas.width !== w) canvas.width = w;
+        if (canvas.height !== h) canvas.height = h;
+      }
+
+      function easeInOutQuad(t) {
+        return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      }
+      // Constant friction decelerating an object produces parabolic motion
+      function easeOutQuad(t) {
+        return 1 - (1 - t) * (1 - t);
+      }
+      function distanceFraction() {
+        return activeLevel === 3 ? easeOutQuad(crateProgress) : easeInOutQuad(crateProgress);
+      }
+
+      /* ---------- Drawing helpers ---------- */
+
+      function drawGlowingArrow(x1, y1, x2, y2, color, label, dashed = false, glow = true) {
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        const dist = Math.hypot(x2 - x1, y2 - y1);
+
+        ctx.save();
+        if (glow) {
+          ctx.shadowColor = color;
+          ctx.shadowBlur = 15;
+        }
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 8;
+        ctx.lineCap = 'round';
+        if (dashed) ctx.setLineDash([12, 12]);
+
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x1 + Math.cos(angle) * (dist - 15), y1 + Math.sin(angle) * (dist - 15));
+        ctx.stroke();
+
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - 25 * Math.cos(angle - 0.4), y2 - 25 * Math.sin(angle - 0.4));
+        ctx.lineTo(x2 - 25 * Math.cos(angle + 0.4), y2 - 25 * Math.sin(angle + 0.4));
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.shadowBlur = 0;
+        ctx.font = '800 20px "Inter", system-ui';
+        ctx.textAlign = 'center';
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#0f172a';
+        ctx.strokeText(label, (x1 + x2) / 2, (y1 + y2) / 2 - 25);
+        ctx.fillStyle = color;
+        ctx.fillText(label, (x1 + x2) / 2, (y1 + y2) / 2 - 25);
+        ctx.restore();
+      }
+
+      function drawMiniArrow(x1, y1, x2, y2, color, label) {
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2 - 10 * Math.cos(angle), y2 - 10 * Math.sin(angle));
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - 14 * Math.cos(angle - 0.4), y2 - 14 * Math.sin(angle - 0.4));
+        ctx.lineTo(x2 - 14 * Math.cos(angle + 0.4), y2 - 14 * Math.sin(angle + 0.4));
+        ctx.closePath();
+        ctx.fill();
+        ctx.font = '800 14px "Inter", system-ui';
+        ctx.textAlign = 'center';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#0f172a';
+        ctx.strokeText(label, (x1 + x2) / 2, y1 - 12);
+        ctx.fillStyle = color;
+        ctx.fillText(label, (x1 + x2) / 2, y1 - 12);
+        ctx.restore();
+      }
+
+      function drawCrate(cx, cy, scale = 1) {
+        const width = 160;
+        const height = 120;
+        const left = -width / 2;
+        const top = -height;
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(scale, scale);
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, width * 0.55, 12, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#85532b';
+        ctx.fillRect(left, top, width, height);
+
+        ctx.fillStyle = '#a36b3b';
+        ctx.fillRect(left, top, width, 8);
+        ctx.fillStyle = '#5c3619';
+        ctx.fillRect(left, top + height - 8, width, 8);
+        ctx.fillRect(left, top, 8, height);
+        ctx.fillStyle = '#42240e';
+        ctx.fillRect(left + width - 8, top, 8, height);
+
+        ctx.strokeStyle = '#5c3619';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 1; i < 4; i++) {
+          ctx.moveTo(left + (width / 4) * i, top + 8);
+          ctx.lineTo(left + (width / 4) * i, top + height - 8);
+        }
+        ctx.stroke();
+
+        ctx.fillStyle = '#64748b';
+        const bSize = 16;
+        ctx.fillRect(left, top, bSize, bSize);
+        ctx.fillRect(left + width - bSize, top, bSize, bSize);
+        ctx.fillRect(left, top + height - bSize, bSize, bSize);
+        ctx.fillRect(left + width - bSize, top + height - bSize, bSize, bSize);
+
+        // Each rivet needs its own subpath, otherwise the arcs join into one filled shape
+        ctx.fillStyle = '#cbd5e1';
+        [[left + 6, top + 6], [left + width - 6, top + 6], [left + 6, top + height - 6], [left + width - 6, top + height - 6]]
+          .forEach(([rx, ry]) => {
+            ctx.beginPath();
+            ctx.arc(rx, ry, 3, 0, Math.PI * 2);
+            ctx.fill();
+          });
+
+        ctx.strokeStyle = '#704321';
+        ctx.lineWidth = 14;
+        ctx.lineCap = 'square';
+        ctx.beginPath();
+        ctx.moveTo(left + 15, top + 15);
+        ctx.lineTo(left + width - 15, top + height - 15);
+        ctx.moveTo(left + width - 15, top + 15);
+        ctx.lineTo(left + 15, top + height - 15);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#4a2b13';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      function spawnDust(x, y) {
+        if (Math.random() > 0.4) return;
+        for (let i = 0; i < 2; i++) {
+          particles.push({
+            type: 'dust',
+            x: x + (Math.random() - 0.5) * 60,
+            y: y - 5,
+            vx: -1 - Math.random() * 2,
+            vy: (Math.random() - 1) * 1.5,
+            life: 1.0,
+            size: Math.random() * 9 + 5,
+            rot: Math.random() * Math.PI * 2
+          });
+        }
+      }
+
+      // Heat given off at the contact surface; intensity 0..1 scales with friction
+      function spawnEmbers(x, y, intensity) {
+        if (Math.random() > intensity * 1.4) return;
+        const count = intensity > 0.5 ? 3 : 1;
+        for (let i = 0; i < count; i++) {
+          particles.push({
+            type: 'ember',
+            x: x + (Math.random() - 0.5) * 90,
+            y: y - 4,
+            vx: (Math.random() - 0.5) * 1.2,
+            vy: -0.8 - Math.random() * 1.4,
+            life: 0.9,
+            size: Math.random() * 5 + 3,
+            hot: Math.random() < 0.5,
+            rot: 0
+          });
+        }
+      }
+
+      function updateAndDrawParticles() {
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          p.life -= 0.02;
+
+          if (p.life <= 0) {
+            particles.splice(i, 1);
+            continue;
+          }
+
+          ctx.save();
+          if (p.type === 'ember') {
+            ctx.fillStyle = p.hot ? `rgba(239, 68, 68, ${p.life})` : `rgba(249, 115, 22, ${p.life})`;
+            ctx.shadowColor = '#ef4444';
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+            ctx.fill();
+          } else {
+            p.size += 0.2;
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rot);
+            ctx.fillStyle = `rgba(148, 163, 184, ${p.life * 0.4})`;
+            ctx.beginPath();
+            ctx.rect(-p.size / 2, -p.size / 2, p.size, p.size);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+      }
+
+      // The energy account: red = thermal energy so far, blue = kinetic energy so far
+      function drawEnergyBar(totalJ, heatJ, keJ, title, hideKE) {
+        const barW = 420;
+        const barH = 24;
+        const x = canvas.width - barW - 40;
+        const y = 40;
+
+        ctx.save();
+        ctx.font = '700 14px "Inter", system-ui';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText(title, x, y - 10);
+
+        ctx.beginPath();
+        ctx.roundRect(x, y, barW, barH, 8);
+        ctx.fillStyle = '#1e293b';
+        ctx.fill();
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(x, y, barW, barH, 8);
+        ctx.clip();
+        const heatW = barW * heatJ / totalJ;
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(x, y, heatW, barH);
+        ctx.fillStyle = '#3b82f6';
+        ctx.fillRect(x + heatW, y, barW * keJ / totalJ, barH);
+        ctx.restore();
+
+        ctx.font = '800 15px "Inter", system-ui';
+        const ly = y + barH + 22;
+        let lx = x;
+        const heatText = `Heat: ${Math.round(heatJ)} J`;
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(lx, ly - 12, 12, 12);
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillText(heatText, lx + 18, ly);
+        lx += 18 + ctx.measureText(heatText).width + 26;
+        ctx.fillStyle = '#3b82f6';
+        ctx.fillRect(lx, ly - 12, 12, 12);
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillText(`Kinetic: ${hideKE ? '?' : Math.round(keJ) + ' J'}`, lx + 18, ly);
+        ctx.restore();
+      }
+
+      function drawMiniEnergyBar(x, y, w, h, heatJ, keJ, totalJ) {
+        ctx.save();
+        ctx.font = '700 12px "Inter", system-ui';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText('500 J input', x, y - 6);
+
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, 5);
+        ctx.fillStyle = '#1e293b';
+        ctx.fill();
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, 5);
+        ctx.clip();
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(x, y, w * heatJ / totalJ, h);
+        ctx.fillStyle = '#3b82f6';
+        ctx.fillRect(x + w * heatJ / totalJ, y, w * keJ / totalJ, h);
+        ctx.restore();
+
+        ctx.font = '800 13px "Inter", system-ui';
+        ctx.fillStyle = '#ef4444';
+        ctx.fillText(`Heat ${Math.round(heatJ)} J`, x, y + h + 15);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#3b82f6';
+        ctx.fillText(`KE ${Math.round(keJ)} J`, x + w, y + h + 15);
+        ctx.restore();
+      }
+
+      /* ---------- Level 1: three-lane race ---------- */
+
+      function drawRaceView() {
+        const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        grad.addColorStop(0, '#0f172a');
+        grad.addColorStop(1, '#1e293b');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        if (state === 'l1-racing' || state === 'l1-result') {
+          ctx.fillStyle = '#f8fafc';
+          ctx.font = '800 20px "Inter", system-ui';
+          ctx.textAlign = 'center';
+          ctx.fillText(`Race clock: ${raceClock.toFixed(1)} s`, canvas.width / 2, 30);
+        }
+
+        const startX = RACE_START_X - 42;
+        const finishX = RACE_START_X + RACE_TRAVEL + 40;
+        const laneH = canvas.height / 3;
+
+        SURFACES.forEach((s, i) => {
+          const baseY = laneBase(i);
+          const frac = laneFractions[i];
+
+          if (i > 0) {
+            ctx.strokeStyle = 'rgba(51, 65, 85, 0.55)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([10, 10]);
+            ctx.beginPath();
+            ctx.moveTo(0, baseY - laneH + 34);
+            ctx.lineTo(canvas.width, baseY - laneH + 34);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+
+          // Floor — stays neutral gray until the surfaces are revealed
+          ctx.fillStyle = '#020617';
+          ctx.fillRect(0, baseY - 3, canvas.width, 10);
+          ctx.fillStyle = floorsRevealed ? s.color : '#475569';
+          ctx.fillRect(0, baseY - 3, canvas.width, 4);
+
+          // Start and finish lines
+          ctx.strokeStyle = '#64748b';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 6]);
+          ctx.beginPath();
+          ctx.moveTo(startX, baseY - 88);
+          ctx.lineTo(startX, baseY + 4);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          ctx.strokeStyle = '#10b981';
+          ctx.lineWidth = 3;
+          ctx.setLineDash([8, 6]);
+          ctx.beginPath();
+          ctx.moveTo(finishX, baseY - 88);
+          ctx.lineTo(finishX, baseY + 4);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = '#10b981';
+          ctx.font = '800 12px "Inter", system-ui';
+          ctx.textAlign = 'center';
+          ctx.fillText('FINISH', finishX, baseY - 95);
+
+          // 5 m dimension line under the lane
+          ctx.strokeStyle = '#10b981';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(startX, baseY + 16);
+          ctx.lineTo(finishX, baseY + 16);
+          ctx.moveTo(startX, baseY + 10);
+          ctx.lineTo(startX, baseY + 22);
+          ctx.moveTo(finishX, baseY + 10);
+          ctx.lineTo(finishX, baseY + 22);
+          ctx.stroke();
+          ctx.fillStyle = '#10b981';
+          ctx.font = '800 14px "Inter", system-ui';
+          ctx.textAlign = 'left';
+          ctx.fillText('d = 5 m', finishX + 14, baseY + 21);
+
+          // Lane label — box id, then the surface once revealed, then the input-work chip
+          ctx.textAlign = 'left';
+          const labelY = baseY - 96;
+          let lx = 30;
+
+          ctx.font = '800 16px "Inter", system-ui';
+          ctx.fillStyle = floorsRevealed ? s.color : '#e2e8f0';
+          const label = `Box ${s.letter}`;
+          ctx.fillText(label, lx, labelY);
+          lx += ctx.measureText(label).width;
+
+          if (floorsRevealed) {
+            ctx.font = '700 15px "Inter", system-ui';
+            ctx.fillStyle = '#94a3b8';
+            const sub = ` — ${s.name}, μk = ${s.mu.toFixed(2)}`;
+            ctx.fillText(sub, lx, labelY);
+            lx += ctx.measureText(sub).width;
+          }
+
+          if (showInputWork) {
+            ctx.font = '800 15px "Inter", system-ui';
+            ctx.fillStyle = '#3b82f6';
+            ctx.fillText('  ·  Input work: 500 J', lx, labelY);
+          }
+
+          // Energy account — hidden until the prediction is locked in
+          if (showCharts) {
+            drawMiniEnergyBar(860, baseY - 90, 250, 16, s.lost * frac, (WORK_INPUT - s.lost) * frac, WORK_INPUT);
+          }
+
+          const cx = RACE_START_X + RACE_TRAVEL * frac;
+          if (state === 'l1-racing' && frac > 0 && frac < 1) {
+            spawnDust(cx - 26, baseY);
+            spawnEmbers(cx, baseY, s.friction / 90);
+          }
+          drawCrate(cx, baseY, 0.5);
+
+          if (frac < 1) {
+            drawMiniArrow(cx + 46, baseY - 30, cx + 116, baseY - 30, '#f97316', 'F = 100 N');
+          }
+
+          if (showCharts && laneFinished[i]) {
+            ctx.font = '900 24px "Inter", system-ui';
+            ctx.textAlign = 'left';
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#0f172a';
+            ctx.strokeText(s.placeLabel, 782, baseY - 18);
+            ctx.fillStyle = s.medal;
+            ctx.fillText(s.placeLabel, 782, baseY - 18);
+          }
+        });
+      }
+
+      /* ---------- Levels 2 & 3: single crate ---------- */
+
+      function drawEnvironment(markerLabel) {
+        const BASE_Y = baseline();
+        const wallGrad = ctx.createLinearGradient(0, 0, 0, BASE_Y);
+        wallGrad.addColorStop(0, '#0f172a');
+        wallGrad.addColorStop(1, '#1e293b');
+        ctx.fillStyle = wallGrad;
+        ctx.fillRect(0, 0, canvas.width, BASE_Y);
+
+        ctx.fillStyle = '#0b1120';
+        ctx.fillRect(0, BASE_Y, canvas.width, canvas.height - BASE_Y);
+
+        ctx.fillStyle = '#020617';
+        ctx.fillRect(0, BASE_Y - 4, canvas.width, 8);
+        ctx.fillStyle = '#b45309';
+        ctx.fillRect(0, BASE_Y - 4, canvas.width, 3);
+
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 4;
+        const markerY = BASE_Y + 60;
+        ctx.beginPath();
+        ctx.moveTo(CRATE_START_X, markerY);
+        ctx.lineTo(CRATE_START_X + TRAVEL_DIST, markerY);
+        ctx.moveTo(CRATE_START_X, markerY - 10);
+        ctx.lineTo(CRATE_START_X, markerY + 10);
+        ctx.moveTo(CRATE_START_X + TRAVEL_DIST, markerY - 10);
+        ctx.lineTo(CRATE_START_X + TRAVEL_DIST, markerY + 10);
+        ctx.stroke();
+
+        ctx.fillStyle = '#10b981';
+        ctx.font = '800 18px "Inter", system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(markerLabel, CRATE_START_X + TRAVEL_DIST / 2, markerY + 26);
+      }
+
+      function drawSingleCrateView() {
+        const BASE_Y = baseline();
+        const pd = distanceFraction();
+        const markerLabel = activeLevel === 3
+          ? (state === 'result' ? '7.5 meters' : 'd = ?')
+          : '5 meters';
+
+        drawEnvironment(markerLabel);
+
+        const currentX = CRATE_START_X + TRAVEL_DIST * pd;
+
+        if (state === 'demo' && crateProgress > 0 && pd < 1) {
+          spawnDust(currentX - 50, BASE_Y);
+          spawnEmbers(currentX, BASE_Y, FRICTION_WOOD / 90);
+        }
+        updateAndDrawParticles();
+
+        drawCrate(currentX, BASE_Y);
+
+        if (activeLevel === 2) {
+          drawGlowingArrow(currentX + 60, BASE_Y - 60, currentX + 270, BASE_Y - 60, '#f97316', 'Push: 100 N');
+          drawGlowingArrow(currentX - 60, BASE_Y - 30, currentX - 185, BASE_Y - 30, '#ef4444', 'Friction: 40 N');
+        } else if (state !== 'intro' && pd < 1) {
+          drawGlowingArrow(currentX - 60, BASE_Y - 30, currentX - 185, BASE_Y - 30, '#ef4444', 'Friction: 40 N');
+          const vLen = 60 + 150 * (1 - pd);
+          drawGlowingArrow(currentX + 60, BASE_Y - 140, currentX + 60 + vLen, BASE_Y - 140, '#94a3b8', 'motion', true, false);
+        }
+
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+        ctx.beginPath();
+        ctx.roundRect(20, 18, 270, 68, 12);
+        ctx.fill();
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        const statLine1 = activeLevel === 2 ? 'Push: 100 N over 5 m' : 'No push — free slide';
+        const statLine2 = activeLevel === 2 ? 'friction = 40 N • input = 500 J' : 'KE₀ = 300 J • friction = 40 N';
+
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = '800 17px "Inter", system-ui';
+        ctx.textAlign = 'left';
+        ctx.fillText(statLine1, 38, 46);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '700 14px "Inter", system-ui';
+        ctx.fillText(statLine2, 38, 70);
+
+        if (state === 'intro') return;
+
+        if (activeLevel === 2) {
+          drawEnergyBar(WORK_INPUT, 200 * pd, 300 * pd, 'Energy account — 500 J of input work', state !== 'result');
+        } else {
+          const heat = KE_START * pd;
+          drawEnergyBar(KE_START, heat, KE_START - heat, 'Energy account — 300 J of starting KE', false);
+        }
+      }
+
+      function renderLoop() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (activeLevel === 1) {
+          drawRaceView();
+          updateAndDrawParticles();
+        } else {
+          drawSingleCrateView();
+        }
+
+        if (isAnimating) requestAnimationFrame(renderLoop);
+      }
+
+      /* ---------- Level 1 flow ---------- */
+
+      function resetLevel1() {
+        demoRun += 1;
+        state = 'l1-work';
+        laneFractions = [0, 0, 0];
+        laneFinished = [false, false, false];
+        raceClock = 0;
+        particles = [];
+        showInputWork = false;
+        floorsRevealed = false;
+        showCharts = false;
+        l1Choice = null;
+
+        phase.textContent = 'Step 1 · Work input';
+        question.textContent = 'Each box gets the same 100 N push over the same 5 m. How much work does the push do on each box?';
+        helper.textContent = 'The floors are covered for now — all you can see is the applied force and the distance.';
+
+        workRow.hidden = false;
+        workButtons.forEach(btn => {
+          btn.disabled = false;
+          btn.classList.remove('selected', 'correct', 'incorrect');
+        });
+
+        scenarioRow.hidden = true;
+        scenarioButtons.forEach(btn => {
+          btn.disabled = true;
+          btn.classList.remove('selected', 'correct', 'incorrect');
+          root.querySelector(`[data-result="${btn.dataset.scenario}"]`).textContent = '';
+        });
+
+        mainButton.hidden = true;
+      }
+
+      function handleWorkSelection(button) {
+        if (state !== 'l1-work') return;
+        const isCorrect = button.dataset.work === '500';
+        state = 'l1-work-result';
+        showInputWork = true;
+
+        workButtons.forEach(btn => {
+          btn.disabled = true;
+          if (btn.dataset.work === '500') btn.classList.add('correct');
+          if (btn === button) btn.classList.add(isCorrect ? 'selected' : 'incorrect');
+        });
+
+        phase.textContent = 'Step 1 · Result';
+        question.textContent = isCorrect
+          ? 'Correct — W = F × d = 100 N × 5 m = 500 J on every box.'
+          : 'Not quite — W = F × d = 100 N × 5 m = 500 J on every box.';
+        helper.textContent = 'Same force, same distance, so all three boxes receive exactly the same 500 J of input energy. The floor cannot change what goes in.';
+        mainButton.textContent = 'Reveal the Floors';
+        mainButton.hidden = false;
+      }
+
+      function revealFloors() {
+        state = 'l1-predict';
+        floorsRevealed = true;
+        phase.textContent = 'Step 2 · Predict';
+        question.textContent = 'All three boxes received the same 500 J. Which box will lose the most of it to friction?';
+        helper.textContent = 'μk is the coefficient of kinetic friction — a bigger μk means a bigger friction force resisting the slide.';
+        workRow.hidden = true;
+        scenarioRow.hidden = false;
+        scenarioButtons.forEach(btn => { btn.disabled = false; });
+        mainButton.hidden = true;
+      }
+
+      function handleScenarioSelection(key, button) {
+        if (state !== 'l1-predict') return;
+        l1Choice = key;
+        scenarioButtons.forEach(btn => {
+          btn.disabled = true;
+          btn.classList.toggle('selected', btn === button);
+        });
+        runRace();
+      }
+
+      function runRace() {
+        const runId = ++demoRun;
+        state = 'l1-racing';
+        showCharts = true;
+        laneFractions = [0, 0, 0];
+        laneFinished = [false, false, false];
+        raceClock = 0;
+        particles = [];
+
+        phase.textContent = 'Step 3 · The evidence';
+        question.textContent = 'Same 500 J in, same 5 m of travel — watch where each box’s energy goes.';
+        helper.textContent = 'Friction force fk = μk × N, with N = mg = 200 N for every box.';
+
+        let start = null;
+
+        function frame(timestamp) {
+          if (runId !== demoRun) return;
+          if (!start) start = timestamp;
+          raceClock = reduceMotion ? RACE_MAX_T : Math.min(((timestamp - start) / 1000) * TIME_SCALE, RACE_MAX_T);
+
+          SURFACES.forEach((s, i) => {
+            // From rest: d = ½at², capped at the 5 m finish line
+            laneFractions[i] = Math.min(1, (0.5 * s.accel * raceClock * raceClock) / RACE_DIST);
+            if (laneFractions[i] === 1 && !laneFinished[i]) {
+              laneFinished[i] = true;
+              root.querySelector(`[data-result="${s.key}"]`).textContent = `${s.placeLabel} · ${s.lost} J lost`;
+            }
+          });
+
+          if (raceClock < RACE_MAX_T) {
+            requestAnimationFrame(frame);
+            return;
+          }
+
+          setTimeout(() => {
+            if (runId !== demoRun) return;
+            showL1Result();
+          }, reduceMotion ? 0 : 600);
+        }
+
+        requestAnimationFrame(frame);
+      }
+
+      function showL1Result() {
+        state = 'l1-result';
+        const isCorrect = l1Choice === 'carpet';
+
+        scenarioButtons.forEach(btn => {
+          if (btn.dataset.scenario === 'carpet') btn.classList.add('correct');
+          else if (btn.dataset.scenario === l1Choice) btn.classList.add('incorrect');
+        });
+
+        phase.textContent = 'Energy analysis';
+        if (isCorrect) {
+          question.textContent = 'Correct! Box C on carpet lost the most energy.';
+          helper.textContent = 'fk = 0.45 × 200 N = 90 N, so heat = 90 N × 5 m = 450 J of its 500 J. Only 50 J was left as kinetic energy — that is why it finished last.';
+        } else if (l1Choice === 'ice') {
+          question.textContent = 'Not quite — Box A on ice lost the LEAST energy.';
+          helper.textContent = 'Ice: fk = 0.05 × 200 N = 10 N, so only 50 J became heat and 450 J stayed kinetic — that is why it won. Carpet lost the most: 90 N × 5 m = 450 J.';
+        } else {
+          question.textContent = 'Not quite — Box C on carpet lost the most energy.';
+          helper.textContent = 'Wood: fk = 0.20 × 200 N = 40 N → 200 J of heat. Carpet is rougher: fk = 90 N → 450 J of its 500 J became heat.';
+        }
+
+        mainButton.textContent = 'Start Level 1 Over';
+        mainButton.hidden = false;
+      }
+
+      /* ---------- Level 2: Energy Accounting ---------- */
+
+      function runLevel2Trial() {
+        const runId = ++demoRun;
+        state = 'demo';
+        crateProgress = 0;
+        particles = [];
+        level2MainButton.hidden = true;
+        level2Buttons.forEach(btn => {
+          btn.disabled = true;
+          btn.classList.remove('selected', 'correct', 'incorrect');
+        });
+        level2Phase.textContent = 'Energy Trial';
+        level2Question.textContent = 'Watch the energy account: the input work splits into kinetic energy and heat.';
+        level2Helper.textContent = 'Heat generated = fk × d = 40 N × 5 m = 200 J. The kinetic energy is whatever is left.';
+        let start = null;
+        const duration = reduceMotion ? 100 : 1800;
+
+        function animateTrial(timestamp) {
+          if (runId !== demoRun) return;
+          if (!start) start = timestamp;
+          crateProgress = Math.min((timestamp - start) / duration, 1);
+          if (crateProgress < 1) {
+            requestAnimationFrame(animateTrial);
+            return;
+          }
+          state = 'level2-select';
+          level2Phase.textContent = 'Complete the Energy Account';
+          level2Question.textContent = 'How much kinetic energy does the crate have after 5 m?';
+          level2Helper.textContent = 'Kinetic energy = input work − energy lost as heat.';
+          level2Buttons.forEach(btn => { btn.disabled = false; });
+        }
+
+        requestAnimationFrame(animateTrial);
+      }
+
+      function handleLevel2Selection(button) {
+        if (state !== 'level2-select') return;
+        const isCorrect = Number(button.dataset.finalKe) === 300;
+        state = 'result';
+        level2Buttons.forEach(btn => {
+          btn.disabled = true;
+          if (Number(btn.dataset.finalKe) === 300) btn.classList.add('correct');
+          if (btn === button) btn.classList.add(isCorrect ? 'selected' : 'incorrect');
+        });
+        level2Phase.textContent = 'Energy Account Analysis';
+        if (isCorrect) {
+          level2Question.textContent = 'Correct! The crate keeps 300 J of kinetic energy.';
+          level2Helper.textContent = 'KE = 500 J − 200 J = 300 J. The missing 200 J was not destroyed — it became thermal energy in the floor and the crate.';
+        } else {
+          level2Question.textContent = 'Not quite. Friction took a 200 J share as heat.';
+          level2Helper.textContent = 'The push put in 500 J, but friction converted 40 N × 5 m = 200 J into heat. KE = 500 J − 200 J = 300 J.';
+        }
+        level2MainButton.textContent = 'Watch the Energy Split Again';
+        level2MainButton.hidden = false;
+      }
+
+      function resetLevel2() {
+        demoRun += 1;
+        state = 'intro';
+        crateProgress = 0;
+        particles = [];
+        level2Phase.textContent = 'Energy Accounting';
+        level2Question.textContent = 'The push does 500 J of work — but the crate does not keep it all.';
+        level2Helper.textContent = 'Given: m = 20 kg, μk = 0.20, g = 10 m/s². A 100 N push moves the crate 5 m from rest on the wood floor; friction = 40 N.';
+        level2MainButton.hidden = false;
+        level2MainButton.textContent = 'Watch the Energy Split';
+        level2Buttons.forEach(btn => {
+          btn.disabled = true;
+          btn.classList.remove('selected', 'correct', 'incorrect');
+        });
+      }
+
+      /* ---------- Level 3: Sliding to a Stop ---------- */
+
+      function runLevel3Trial() {
+        const runId = ++demoRun;
+        state = 'demo';
+        crateProgress = 0;
+        particles = [];
+        level3MainButton.hidden = true;
+        level3Buttons.forEach(btn => {
+          btn.disabled = true;
+          btn.classList.remove('selected', 'correct', 'incorrect');
+        });
+        level3Phase.textContent = 'Free Slide';
+        level3Question.textContent = 'No push — watch the kinetic energy drain into heat.';
+        level3Helper.textContent = 'Every meter of sliding converts 40 J of kinetic energy into thermal energy.';
+        let start = null;
+        const duration = reduceMotion ? 100 : 2200;
+
+        function animateTrial(timestamp) {
+          if (runId !== demoRun) return;
+          if (!start) start = timestamp;
+          crateProgress = Math.min((timestamp - start) / duration, 1);
+          if (crateProgress < 1) {
+            requestAnimationFrame(animateTrial);
+            return;
+          }
+          state = 'level3-select';
+          level3Phase.textContent = 'Use the Energy Account';
+          level3Question.textContent = 'How far did the crate slide before stopping?';
+          level3Helper.textContent = 'All 300 J must become heat: fk × d = KE₀.';
+          level3Buttons.forEach(btn => { btn.disabled = false; });
+        }
+
+        requestAnimationFrame(animateTrial);
+      }
+
+      function handleLevel3Selection(button) {
+        if (state !== 'level3-select') return;
+        const isCorrect = Number(button.dataset.slide) === 7.5;
+        state = 'result';
+        level3Buttons.forEach(btn => {
+          btn.disabled = true;
+          if (Number(btn.dataset.slide) === 7.5) btn.classList.add('correct');
+          if (btn === button) btn.classList.add(isCorrect ? 'selected' : 'incorrect');
+        });
+        level3Phase.textContent = 'Stopping Distance Analysis';
+        level3Question.textContent = isCorrect
+          ? 'Correct! The crate slides 7.5 m.'
+          : 'Not quite. Friction must absorb ALL 300 J of kinetic energy.';
+        level3Helper.textContent = 'fk × d = KE₀ → d = 300 J ÷ 40 N = 7.5 m. All 300 J is now thermal energy in the floor and the crate.';
+        level3MainButton.textContent = 'Release the Crate Again';
+        level3MainButton.hidden = false;
+      }
+
+      function resetLevel3() {
+        demoRun += 1;
+        state = 'intro';
+        crateProgress = 0;
+        particles = [];
+        level3Phase.textContent = 'Sliding to a Stop';
+        level3Question.textContent = 'The crate leaves the push with 300 J of kinetic energy and slides freely.';
+        level3Helper.textContent = 'Nothing pushes it anymore. Friction (40 N on the wood floor) keeps converting kinetic energy into heat until none is left.';
+        level3MainButton.hidden = false;
+        level3MainButton.textContent = 'Release the Crate';
+        level3Buttons.forEach(btn => {
+          btn.disabled = true;
+          btn.classList.remove('selected', 'correct', 'incorrect');
+        });
+      }
+
+      function reset() {
+        applyCanvasSize();
+        if (activeLevel === 2) resetLevel2();
+        else if (activeLevel === 3) resetLevel3();
+        else resetLevel1();
+      }
+
+      /* ---------- Wiring ---------- */
+
+      workButtons.forEach(btn => btn.addEventListener('click', () => handleWorkSelection(btn)));
+      scenarioButtons.forEach(btn => btn.addEventListener('click', () => handleScenarioSelection(btn.dataset.scenario, btn)));
+      level2Buttons.forEach(btn => btn.addEventListener('click', () => handleLevel2Selection(btn)));
+      level3Buttons.forEach(btn => btn.addEventListener('click', () => handleLevel3Selection(btn)));
+
+      levelButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          activeLevel = Number(btn.dataset.level);
+          levelButtons.forEach(levelButton => levelButton.classList.toggle('active', levelButton === btn));
+          levelPanels.forEach(panel => { panel.hidden = Number(panel.dataset.levelPanel) !== activeLevel; });
+          reset();
+        });
+      });
+
+      mainButton.addEventListener('click', () => {
+        if (state === 'l1-work-result') revealFloors();
+        else if (state === 'l1-result') resetLevel1();
+      });
+      level2MainButton.addEventListener('click', () => {
+        if (state === 'result') resetLevel2();
+        else if (state === 'intro') runLevel2Trial();
+      });
+      level3MainButton.addEventListener('click', () => {
+        if (state === 'result') resetLevel3();
+        else if (state === 'intro') runLevel3Trial();
+      });
+      root.querySelector('[data-reset]').addEventListener('click', reset);
+
+      reset();
+      requestAnimationFrame(renderLoop);
+    })();
+  </script>
+</body>
+</html>
