@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Net Electric Force Vector Model</title>
+  <style>
+    :root{--blue:#285f9f;--navy:#153456;--ink:#142238;--muted:#52657b;--line:#b8cadc;--pale:#f4f9ff;--orange:#d95f18;--green:#17643a;--violet:#5b21b6}
+    *{box-sizing:border-box}
+    html,body{margin:0;background:transparent;color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+    button{font:inherit;min-height:44px}
+    .nef-app{width:min(100%,1080px);margin:auto;border:5px solid #285f9f;border-radius:24px;overflow:hidden;background:#fff;box-shadow:0 18px 48px rgba(21,52,86,.14)}
+    .nef-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:17px 21px;border-bottom:1px solid var(--line);background:linear-gradient(110deg,#fff,#eef7ff)}
+    .nef-kicker{margin:0 0 3px;color:var(--blue);font-size:.74rem;font-weight:800;letter-spacing:.11em;text-transform:uppercase}
+    h1{margin:0;color:var(--navy);font-size:clamp(1.25rem,4vw,1.85rem);line-height:1.08}
+    .nef-reset{padding:8px 14px;border:1px solid #6c87a3;border-radius:999px;background:#fff;color:var(--navy);font-weight:750;cursor:pointer}
+    .nef-body{padding:17px}
+    .nef-stage{position:relative;border:1px solid #96afc8;border-radius:18px;overflow:hidden;background:linear-gradient(rgba(40,95,159,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(40,95,159,.055) 1px,transparent 1px),var(--pale);background-size:30px 30px}
+    .nef-stage svg{display:block;width:100%;height:360px}
+    .nef-progress{display:flex;gap:6px;margin:0 0 11px;padding:0;list-style:none}
+    .nef-progress li{flex:1;height:7px;border-radius:99px;background:#dbe6f2}
+    .nef-progress li[data-state="done"]{background:var(--green)}
+    .nef-progress li[data-state="current"]{background:var(--orange)}
+    .nef-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,.85fr);gap:14px;margin-top:14px}
+    .nef-card{padding:14px;border:1px solid var(--line);border-radius:16px;background:#fbfdff}
+    .nef-step{margin:0 0 4px;color:var(--blue);font-size:.72rem;font-weight:850;letter-spacing:.1em;text-transform:uppercase}
+    .nef-scenario{margin:0 0 8px;color:var(--navy);font-size:1rem;font-weight:850}
+    .nef-description{margin:0;color:var(--ink);font-size:.9rem;font-weight:650;line-height:1.4}
+    .nef-question{margin:0;color:var(--navy);font-weight:850;line-height:1.35}
+    .nef-choices{display:grid;gap:7px;margin-top:10px}
+    .nef-choice{padding:10px 11px;border:1px solid #6c87a3;border-radius:10px;background:#fff;color:var(--ink);font-weight:750;text-align:left;cursor:pointer}
+    .nef-choice:hover{background:#e8f2fd}
+    .nef-vectors{margin:11px 0 0;padding:0;list-style:none;display:grid;gap:5px;font-family:ui-monospace,Consolas,monospace;font-size:.86rem;font-weight:750;color:var(--navy)}
+    .nef-vectors li{padding:7px 9px;border:1px solid var(--line);border-left-width:6px;border-radius:9px;background:#fff}
+    .nef-vectors li[data-role="a"]{border-left-color:var(--orange)}
+    .nef-vectors li[data-role="b"]{border-left-color:var(--blue)}
+    .nef-vectors li[data-role="net"]{border-left-color:var(--violet)}
+    .nef-feedback{margin:10px 0 0;padding:10px 11px;border-radius:10px;background:#e8f7ed;color:#14532d;font-size:.87rem;font-weight:650;line-height:1.4}
+    .nef-feedback[data-tone="note"]{background:#fff0e5;color:#7c2d12}
+    .nef-primary{width:100%;margin-top:10px;padding:10px 13px;border:0;border-radius:10px;background:var(--blue);color:#fff;font-weight:850;cursor:pointer}
+    [hidden]{display:none!important}
+    :focus-visible{outline:3px solid #d95f18;outline-offset:3px}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    @media(max-width:760px){.nef-grid{grid-template-columns:1fr}.nef-body{padding:12px}.nef-stage svg{height:290px}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}}
+  </style>
+</head>
+<body>
+  <main class="nef-app" id="net-force-app">
+    <header class="nef-head">
+      <div><p class="nef-kicker">Unit 6 &middot; Coulomb's law</p><h1>Net Electric Force Vector Model</h1></div>
+      <button class="nef-reset" id="reset" type="button">Reset</button>
+    </header>
+    <div class="nef-body">
+      <ol class="nef-progress" id="progress" aria-label="Scenario progress"><li></li><li></li><li></li><li></li><li></li></ol>
+      <section class="nef-stage" aria-labelledby="stage-description">
+        <p class="sr-only" id="stage-description">A test charge sits near two source charges. After a prediction, each Coulomb force vector is drawn separately and then added.</p>
+        <svg viewBox="0 0 1000 360" role="img" aria-labelledby="stage-title stage-desc">
+          <title id="stage-title">Test charge with two source charges</title>
+          <desc id="stage-desc" data-scene-desc>Scenario layout.</desc>
+          <defs>
+            <marker id="nefA" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L12 6 L0 12 Z" fill="#d95f18"/></marker>
+            <marker id="nefB" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L12 6 L0 12 Z" fill="#285f9f"/></marker>
+            <marker id="nefNet" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L12 6 L0 12 Z" fill="#5b21b6"/></marker>
+          </defs>
+          <g id="charges"></g>
+          <g id="vectors"></g>
+        </svg>
+      </section>
+      <div class="nef-grid">
+        <section class="nef-card" aria-labelledby="scenario-title">
+          <p class="nef-step" id="scenario-counter">Scenario 1 of 5</p>
+          <h2 class="nef-scenario" id="scenario-title">Scenario</h2>
+          <p class="nef-description" id="description">Description</p>
+          <ul class="nef-vectors" id="vector-list" hidden></ul>
+        </section>
+        <section class="nef-card" aria-labelledby="question">
+          <p class="nef-step" id="prompt-step">Predict first</p>
+          <p class="nef-question" id="question">Which way does the net force on the test charge point?</p>
+          <div class="nef-choices" id="choices"></div>
+          <p class="nef-feedback" id="feedback" role="status" aria-live="polite" hidden></p>
+          <button class="nef-primary" id="main-button" type="button" hidden>Next scenario</button>
+        </section>
+      </div>
+    </div>
+    <p class="sr-only" id="status" role="status" aria-live="polite">Scenario 1 of 5. Choose the direction of the net force.</p>
+    <script>
+      (() => {
+        'use strict';
+        const K = 8.99e9, SVG = 'http://www.w3.org/2000/svg';
+        const ORIGIN_X = 500, ORIGIN_Y = 240, METER = 700, NEWTON = 155;
+        const LABELS = ['Right', 'Up and right', 'Up', 'Up and left', 'Left', 'Down and left', 'Down', 'Down and right'];
+        const e = {
+          charges: document.getElementById('charges'), vectors: document.getElementById('vectors'),
+          sceneDesc: document.querySelector('[data-scene-desc]'), progress: document.getElementById('progress').children,
+          counter: document.getElementById('scenario-counter'), title: document.getElementById('scenario-title'),
+          description: document.getElementById('description'), vectorList: document.getElementById('vector-list'),
+          promptStep: document.getElementById('prompt-step'), question: document.getElementById('question'),
+          choices: document.getElementById('choices'), feedback: document.getElementById('feedback'),
+          main: document.getElementById('main-button'), reset: document.getElementById('reset'),
+          status: document.getElementById('status')
+        };
+        const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const scenarios = [
+          {
+            title: 'Balanced neighbours',
+            description: 'Two equal positive charges sit the same distance on either side of the test charge.',
+            sources: [{ q: 4, x: -0.25, y: 0 }, { q: 4, x: 0.25, y: 0 }],
+            explanation: 'Equal charges at equal distances push equally hard in opposite directions, so the vectors cancel.'
+          },
+          {
+            title: 'Unequal charges',
+            description: 'The left charge is four times the right charge, both the same distance away.',
+            sources: [{ q: 8, x: -0.25, y: 0 }, { q: 2, x: 0.25, y: 0 }],
+            explanation: 'Both pushes are along the same line, so the stronger left charge wins by the difference.'
+          },
+          {
+            title: 'One push, one pull',
+            description: 'The left charge is positive and the right charge is negative, both equal in size.',
+            sources: [{ q: 4, x: -0.25, y: 0 }, { q: -4, x: 0.25, y: 0 }],
+            explanation: 'A push from the left and a pull to the right point the same way, so the magnitudes add.'
+          },
+          {
+            title: 'Right angle',
+            description: 'One positive charge sits to the left of the test charge and one sits directly above it.',
+            sources: [{ q: 4, x: -0.25, y: 0 }, { q: 4, x: 0, y: 0.25 }],
+            explanation: 'Perpendicular vectors do not cancel or add directly; the resultant is the diagonal of their rectangle.'
+          },
+          {
+            title: 'Charge versus distance',
+            description: 'The right charge is four times larger, but it also sits twice as far away.',
+            sources: [{ q: 2, x: -0.2, y: 0 }, { q: 8, x: 0.4, y: 0 }],
+            explanation: 'Four times the charge over twice the distance squared gives exactly the same force, so they cancel.'
+          }
+        ];
+        const TEST = { q: 1, x: 0, y: 0 };
+        let index = 0, state = 'predict', timers = [], completionSent = false;
+
+        function screenX(x) { return ORIGIN_X + x * METER; }
+        function screenY(y) { return ORIGIN_Y - y * METER; }
+        function forceFrom(source) {
+          const dx = TEST.x - source.x, dy = TEST.y - source.y;
+          const distance = Math.hypot(dx, dy);
+          const magnitude = K * Math.abs(source.q * 1e-6) * Math.abs(TEST.q * 1e-6) / (distance * distance);
+          const attract = source.q * TEST.q < 0 ? -1 : 1;
+          return { fx: attract * magnitude * dx / distance, fy: attract * magnitude * dy / distance, magnitude: magnitude };
+        }
+        function labelFor(fx, fy, magnitude) {
+          if (magnitude < 1e-9) return 'No net force';
+          const angle = Math.atan2(fy, fx) * 180 / Math.PI;
+          return LABELS[((Math.round(angle / 45) % 8) + 8) % 8];
+        }
+        function opposite(label) {
+          const at = LABELS.indexOf(label);
+          return at < 0 ? 'No net force' : LABELS[(at + 4) % 8];
+        }
+        function analyse(scenario) {
+          const a = forceFrom(scenario.sources[0]), b = forceFrom(scenario.sources[1]);
+          const fx = a.fx + b.fx, fy = a.fy + b.fy;
+          const magnitude = Math.hypot(fx, fy);
+          return { a: a, b: b, fx: fx, fy: fy, magnitude: magnitude < 1e-6 ? 0 : magnitude };
+        }
+        function shuffle(list) { const copy = list.slice(); for (let i = copy.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [copy[i], copy[j]] = [copy[j], copy[i]]; } return copy; }
+        function node(name, attributes) {
+          const element = document.createElementNS(SVG, name);
+          Object.keys(attributes).forEach((key) => element.setAttribute(key, attributes[key]));
+          return element;
+        }
+        function text(x, y, value, options) {
+          const element = node('text', { x: x, y: y, 'text-anchor': (options && options.anchor) || 'middle', fill: (options && options.fill) || '#153456', 'font-size': (options && options.size) || 15, 'font-weight': 850, stroke: '#fff', 'stroke-width': 4, 'paint-order': 'stroke' });
+          element.textContent = value;
+          return element;
+        }
+        function drawCharges() {
+          const scenario = scenarios[index];
+          e.charges.replaceChildren();
+          scenario.sources.forEach((source, order) => {
+            const x = screenX(source.x), y = screenY(source.y), radius = 20 + Math.abs(source.q) * 1.7;
+            e.charges.append(node('circle', { cx: x, cy: y, r: radius, fill: source.q > 0 ? '#f0764b' : '#5b8fd0', stroke: source.q > 0 ? '#7c2d12' : '#153456', 'stroke-width': 4 }));
+            e.charges.append(text(x, y + 9, source.q > 0 ? '+' : '−', { fill: '#fff', size: 26 }));
+            e.charges.append(text(x, y + radius + 24, (order === 0 ? 'q₁ = ' : 'q₂ = ') + (source.q > 0 ? '+' : '−') + Math.abs(source.q).toFixed(1) + ' µC'));
+            const midX = (x + screenX(TEST.x)) / 2, midY = (y + screenY(TEST.y)) / 2;
+            e.charges.append(node('line', { x1: x, y1: y, x2: screenX(TEST.x), y2: screenY(TEST.y), stroke: '#a8bccf', 'stroke-width': 2, 'stroke-dasharray': '5 6' }));
+            e.charges.append(text(midX, midY - 12, Math.hypot(source.x - TEST.x, source.y - TEST.y).toFixed(2) + ' m', { fill: '#52657b', size: 13 }));
+          });
+          const tx = screenX(TEST.x), ty = screenY(TEST.y);
+          e.charges.append(node('circle', { cx: tx, cy: ty, r: 17, fill: '#fff', stroke: '#5b21b6', 'stroke-width': 4 }));
+          e.charges.append(text(tx, ty + 7, '+', { fill: '#5b21b6', size: 22 }));
+          e.charges.append(text(tx, ty - 30, 'test +1.0 µC', { fill: '#5b21b6', size: 14 }));
+          e.sceneDesc.textContent = scenario.description;
+        }
+        function drawVector(fx, fy, colour, marker, label, dash) {
+          const x1 = screenX(TEST.x), y1 = screenY(TEST.y);
+          const x2 = x1 + fx * NEWTON, y2 = y1 - fy * NEWTON;
+          const group = node('g', {});
+          group.append(node('line', { x1: x1, y1: y1, x2: x2, y2: y2, stroke: colour, 'stroke-width': dash ? 4 : 6, 'stroke-dasharray': dash || 'none', 'marker-end': 'url(#' + marker + ')' }));
+          if (label) {
+            const dx = x2 - x1, dy = y2 - y1, span = Math.hypot(dx, dy) || 1;
+            const offsetX = -dy / span * 22, offsetY = dx / span * 22;
+            group.append(text((x1 + x2) / 2 + offsetX, (y1 + y2) / 2 + offsetY + 5, label, { fill: colour, size: 15 }));
+          }
+          e.vectors.append(group);
+        }
+        function showPlaceholder() {
+          e.vectors.replaceChildren();
+          e.vectors.append(text(screenX(TEST.x) + 105, screenY(TEST.y) - 62, 'F net = ?', { fill: '#5b21b6', size: 20 }));
+        }
+        function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+        function reveal(picked) {
+          const scenario = scenarios[index], result = analyse(scenario);
+          e.vectors.replaceChildren();
+          e.vectorList.replaceChildren();
+          e.vectorList.hidden = false;
+          const rows = [
+            { role: 'a', text: 'F₁ = ' + result.a.magnitude.toFixed(2) + ' N ' + labelFor(result.a.fx, result.a.fy, result.a.magnitude).toLowerCase() },
+            { role: 'b', text: 'F₂ = ' + result.b.magnitude.toFixed(2) + ' N ' + labelFor(result.b.fx, result.b.fy, result.b.magnitude).toLowerCase() },
+            { role: 'net', text: result.magnitude === 0 ? 'F net = 0 N' : 'F net = ' + result.magnitude.toFixed(2) + ' N ' + labelFor(result.fx, result.fy, result.magnitude).toLowerCase() }
+          ];
+          const steps = [
+            () => { drawVector(result.a.fx, result.a.fy, '#d95f18', 'nefA', 'F₁'); addRow(rows[0]); },
+            () => { drawVector(result.b.fx, result.b.fy, '#285f9f', 'nefB', 'F₂'); addRow(rows[1]); },
+            () => {
+              if (result.magnitude === 0) {
+                e.vectors.append(text(screenX(TEST.x), screenY(TEST.y) - 62, 'F net = 0 N', { fill: '#5b21b6', size: 20 }));
+              } else {
+                drawVector(result.a.fx + result.b.fx, result.a.fy + result.b.fy, '#5b21b6', 'nefNet', 'F net');
+              }
+              addRow(rows[2]);
+              finishReveal(picked, result);
+            }
+          ];
+          if (reduce) { steps.forEach((run) => run()); return; }
+          steps.forEach((run, order) => { timers.push(setTimeout(run, 500 + order * 850)); });
+        }
+        function addRow(row) {
+          const item = document.createElement('li');
+          item.dataset.role = row.role;
+          item.textContent = row.text;
+          e.vectorList.append(item);
+        }
+        function finishReveal(picked, result) {
+          state = 'result';
+          e.promptStep.textContent = 'Result';
+          const answer = labelFor(result.fx, result.fy, result.magnitude);
+          e.question.textContent = 'Net force: ' + answer.toLowerCase() + '.';
+          e.feedback.textContent = (picked === answer ? 'Correct. ' : 'Not quite. ') + scenarios[index].explanation;
+          e.feedback.dataset.tone = picked === answer ? 'success' : 'note';
+          e.feedback.hidden = false;
+          e.main.textContent = index === scenarios.length - 1 ? 'Replay from scenario 1' : 'Next scenario';
+          e.main.hidden = false;
+          e.status.textContent = 'Net force is ' + answer.toLowerCase() + '. ' + scenarios[index].explanation;
+          if (index === scenarios.length - 1) sendCompletion();
+        }
+        function choose(option) {
+          if (state !== 'predict') return;
+          state = 'reveal';
+          e.choices.querySelectorAll('button').forEach((button) => { button.disabled = true; });
+          e.choices.hidden = true;
+          e.promptStep.textContent = 'Watch the vectors';
+          e.question.textContent = 'Each force is drawn on its own, then added.';
+          e.status.textContent = 'Drawing each Coulomb force vector.';
+          reveal(option);
+        }
+        function renderChoices() {
+          const result = analyse(scenarios[index]);
+          const correct = labelFor(result.fx, result.fy, result.magnitude);
+          const candidates = [correct, labelFor(result.a.fx, result.a.fy, result.a.magnitude), labelFor(result.b.fx, result.b.fy, result.b.magnitude), opposite(correct), 'No net force'];
+          const unique = [];
+          candidates.forEach((label) => { if (!unique.includes(label)) unique.push(label); });
+          e.choices.replaceChildren();
+          shuffle(unique.slice(0, 4)).forEach((label) => {
+            const button = document.createElement('button');
+            button.type = 'button'; button.className = 'nef-choice'; button.textContent = label;
+            button.addEventListener('click', () => choose(label), { once: true });
+            e.choices.append(button);
+          });
+        }
+        function renderScenario() {
+          clearTimers();
+          const scenario = scenarios[index];
+          state = 'predict';
+          [...e.progress].forEach((item, order) => { item.dataset.state = order < index ? 'done' : order === index ? 'current' : 'open'; });
+          e.counter.textContent = 'Scenario ' + (index + 1) + ' of ' + scenarios.length;
+          e.title.textContent = scenario.title;
+          e.description.textContent = scenario.description;
+          e.vectorList.replaceChildren();
+          e.vectorList.hidden = true;
+          e.promptStep.textContent = 'Predict first';
+          e.question.textContent = 'Which way does the net force on the test charge point?';
+          e.feedback.hidden = true;
+          e.main.hidden = true;
+          e.choices.hidden = false;
+          drawCharges();
+          showPlaceholder();
+          renderChoices();
+          e.status.textContent = 'Scenario ' + (index + 1) + ' of ' + scenarios.length + '. ' + scenario.description + ' Choose the direction of the net force.';
+        }
+        function sendCompletion() {
+          if (completionSent) return;
+          completionSent = true;
+          window.parent.postMessage({ type: 'complete' }, '*');
+        }
+        function advance() {
+          index = index === scenarios.length - 1 ? 0 : index + 1;
+          renderScenario();
+        }
+        function reset() { index = 0; renderScenario(); }
+
+        e.main.addEventListener('click', advance);
+        e.reset.addEventListener('click', reset);
+        reset();
+      })();
+    </script>
+  </main>
+</body>
+</html>

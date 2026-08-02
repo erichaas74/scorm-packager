@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cosmic Decoder</title>
+    <style>
+        body { font-family: sans-serif; background: #111; color: white; padding: 20px; text-align: center; }
+        canvas { background: white; border-radius: 4px; margin: 20px 0; }
+        .controls { background: #222; display: inline-block; padding: 20px; border-radius: 8px; }
+        input[type="range"] { width: 300px; }
+        .val-display { font-weight: bold; color: #00ffcc; font-size: 1.2em; }
+    </style>
+</head>
+<body>
+    <h2>Stellar Spectra & Doppler Shift</h2>
+    <div class="controls">
+        <label>Star Velocity relative to Earth:</label><br><br>
+        <input type="range" id="velocity" min="-50" max="50" value="0"><br><br>
+        Speed: <span class="val-display" id="velVal">0</span> % of c<br>
+        <span id="shiftType" style="color:#aaa;">(Stationary)</span>
+    </div>
+    
+    <div>
+        <h3>Observed Star Spectrum</h3>
+        <canvas id="spectrumCanvas" width="600" height="100"></canvas>
+        <h3>Reference Spectrum (Lab)</h3>
+        <canvas id="refCanvas" width="600" height="50"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('spectrumCanvas');
+        const refCanvas = document.getElementById('refCanvas');
+        const ctx = canvas.getContext('2d');
+        const refCtx = refCanvas.getContext('2d');
+        const slider = document.getElementById('velocity');
+        const velVal = document.getElementById('velVal');
+        const shiftType = document.getElementById('shiftType');
+
+        // Known hydrogen absorption line positions (mocked relative to canvas width)
+        const baseLines = [100, 200, 350, 480]; 
+
+        function drawSpectrum(context, height, shift) {
+            // Draw continuous rainbow background
+            let gradient = context.createLinearGradient(0, 0, 600, 0);
+            gradient.addColorStop(0, "blue");
+            gradient.addColorStop(0.33, "cyan");
+            gradient.addColorStop(0.66, "yellow");
+            gradient.addColorStop(1, "red");
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, 600, height);
+
+            // Draw absorption lines
+            context.fillStyle = "black";
+            baseLines.forEach(line => {
+                context.fillRect(line + shift, 0, 3, height);
+            });
+        }
+
+        function update() {
+            let v = parseInt(slider.value);
+            velVal.innerText = v;
+            
+            if(v > 0) {
+                shiftType.innerText = "Redshifted (Moving Away)";
+                shiftType.style.color = "#ff6666";
+            } else if (v < 0) {
+                shiftType.innerText = "Blueshifted (Moving Closer)";
+                shiftType.style.color = "#66ccff";
+            } else {
+                shiftType.innerText = "(Stationary)";
+                shiftType.style.color = "#aaa";
+            }
+
+            // Shift factor based on velocity
+            let shiftAmount = v * 1.5; 
+            drawSpectrum(ctx, canvas.height, shiftAmount);
+        }
+
+        // Draw static reference spectrum once
+        drawSpectrum(refCtx, refCanvas.height, 0);
+        
+        slider.addEventListener('input', update);
+        update();
+    </script>
+</body>
+</html>

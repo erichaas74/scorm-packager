@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Doppler and Spectral-Line Shift</title>
+<style>
+
+:root{
+  --blue:#285f9f;
+  --blue-dark:#17436f;
+  --ink:#172033;
+  --muted:#5c6678;
+  --line:#cfd8e6;
+  --soft:#eef5fb;
+  --panel:#ffffff;
+  --good:#17643b;
+  --warn:#8a4b08;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:transparent;font-family:Arial,Helvetica,sans-serif;color:var(--ink)}
+body{padding:10px}
+button,input{font:inherit}
+button{min-height:44px;min-width:44px;border-radius:10px;border:2px solid var(--blue);background:#fff;color:var(--blue-dark);font-weight:700;padding:10px 14px;cursor:pointer}
+button:hover{background:#f2f7fc}
+button:focus-visible,input:focus-visible{outline:4px solid #f2b705;outline-offset:3px}
+button[disabled]{opacity:.55;cursor:not-allowed}
+.rph-app{max-width:980px;margin:0 auto;border:5px solid var(--blue);border-radius:22px;background:#fff;overflow:hidden}
+.rph-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);background:#f8fbfe}
+.rph-title{margin:0;font-size:1.05rem;color:var(--blue-dark)}
+.rph-stage{min-height:440px;padding:18px;background:linear-gradient(180deg,#f9fcff,#eef5fb);display:grid;place-items:center}
+.rph-scene{width:min(100%,860px);min-height:330px;border:1px solid var(--line);border-radius:18px;background:white;position:relative;overflow:hidden}
+.rph-card{padding:16px;border-top:1px solid var(--line);background:#fff}
+.rph-prompt{margin:0 0 12px;font-weight:700;font-size:1.05rem}
+.rph-setup{margin:0 0 12px;color:var(--muted)}
+.rph-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.rph-feedback{min-height:48px;margin:12px 0 0;padding:10px 12px;border-radius:10px;background:#f5f7fa;color:var(--ink)}
+.rph-controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.rph-progress{font-size:.9rem;color:var(--muted);font-weight:700}
+.rph-hidden{display:none!important}
+.rph-status{position:absolute;left:-9999px}
+.rph-legend{display:flex;flex-wrap:wrap;gap:10px;padding:10px 12px;font-size:.86rem;color:var(--muted)}
+.rph-chip{display:inline-flex;align-items:center;gap:6px}
+.rph-dot{width:12px;height:12px;border-radius:50%;display:inline-block;border:1px solid #455}
+svg{width:100%;height:auto;display:block}
+@media(max-width:700px){
+  .rph-stage{min-height:360px;padding:10px}
+  .rph-scene{min-height:300px}
+  .rph-choices{grid-template-columns:1fr}
+  .rph-top{align-items:flex-start}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}
+
+
+.dp-space{fill:#0c1730}.dp-star{fill:#fff;opacity:.85}.dp-source{fill:#f4c542;stroke:#8b6c00;stroke-width:3}
+.dp-observer{fill:#d8e4ef;stroke:#52657a;stroke-width:3}.dp-line{stroke-width:4}.dp-text{font:700 16px Arial;fill:#fff}
+.dp-small{font:14px Arial;fill:#dce7f2}.dp-spectrum{fill:#fff;stroke:#8aa0ba;stroke-width:2}.dp-abs{stroke:#1c2d45;stroke-width:5}
+.dp-arrow{stroke:#fff;stroke-width:4;marker-end:url(#arrow)}
+
+</style>
+</head>
+<body>
+<main class="rph-app">
+
+<header class="rph-top">
+ <h1 class="rph-title">Doppler and Spectral-Line Shift</h1>
+ <div class="rph-progress" id="progress">Scenario 1 of 3</div>
+ <button id="resetBtn" type="button">Reset</button>
+</header>
+<section class="rph-stage" aria-label="Light Doppler shift simulation">
+ <div class="rph-scene">
+  <svg viewBox="0 0 860 330" role="img" aria-labelledby="dpTitle dpDesc">
+   <title id="dpTitle">Moving light source and observed spectrum</title>
+   <desc id="dpDesc">A source moves toward, away from, or sideways relative to an observer. Spectral lines shift only after the prediction.</desc>
+   <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#fff"/></marker>
+   <linearGradient id="spec" x1="0" x2="1"><stop offset="0" stop-color="#6b3fc7"/><stop offset=".2" stop-color="#2f63de"/><stop offset=".4" stop-color="#27a85b"/><stop offset=".58" stop-color="#e3d645"/><stop offset=".78" stop-color="#ed8a33"/><stop offset="1" stop-color="#d7443e"/></linearGradient></defs>
+   <rect class="dp-space" width="860" height="330"/>
+   <g id="stars"></g>
+   <circle class="dp-source" id="source" cx="230" cy="125" r="34"/>
+   <text class="dp-text" x="196" y="182">source</text>
+   <ellipse class="dp-observer" cx="690" cy="125" rx="54" ry="34"/>
+   <circle cx="690" cy="125" r="12" fill="#172033"/>
+   <text class="dp-text" x="654" y="182">observer</text>
+   <line id="motionArrow" class="dp-arrow" x1="270" y1="80" x2="360" y2="80"/>
+   <text id="motionLabel" class="dp-small" x="275" y="58"></text>
+   <rect class="dp-spectrum" x="190" y="235" width="500" height="48" rx="8" fill="url(#spec)"/>
+   <g id="lines">
+    <line class="dp-abs" x1="330" y1="235" x2="330" y2="283"/>
+    <line class="dp-abs" x1="430" y1="235" x2="430" y2="283"/>
+    <line class="dp-abs" x1="560" y1="235" x2="560" y2="283"/>
+   </g>
+   <text class="dp-small" x="190" y="312">observed absorption spectrum</text>
+  </svg>
+ </div>
+</section>
+<section class="rph-card" aria-live="polite">
+ <p class="rph-setup" id="setup"></p><p class="rph-prompt" id="prompt"></p>
+ <div class="rph-choices" id="choices"></div><p class="rph-feedback" id="feedback"></p>
+ <div class="rph-controls"><button id="mainBtn" type="button">Start</button><button id="replayBtn" class="rph-hidden" type="button">Replay reveal</button></div>
+</section>
+<p class="rph-status" id="status" role="status" aria-live="polite"></p>
+
+<script>
+
+(() => {
+ const scenarios=[
+  {setup:'The source moves toward the observer.',q:'How will the spectral lines shift?',c:['Toward blue','Toward red','No shift'],a:0,f:'The lines shift toward blue. Approaching motion increases observed frequency while light speed remains unchanged.',dir:'toward',shift:-45},
+  {setup:'The source moves away from the observer.',q:'How will the spectral lines shift?',c:['Toward blue','Toward red','No shift'],a:1,f:'The lines shift toward red. Receding motion decreases observed frequency while light speed remains unchanged.',dir:'away',shift:45},
+  {setup:'The source moves sideways at the closest point.',q:'What first-order shift is expected?',c:['Strong blue shift','Strong red shift','Little or no shift'],a:2,f:'Little or no first-order shift appears at that instant. The motion is mostly perpendicular to the line of sight.',dir:'side',shift:0}
+ ];
+ let i=0,state='setup',completionSent=false,raf=null;
+ const $=s=>document.querySelector(s),source=$('#source'),arrow=$('#motionArrow'),motionLabel=$('#motionLabel'),lines=$('#lines'),
+ choices=$('#choices'),feedback=$('#feedback'),setup=$('#setup'),prompt=$('#prompt'),main=$('#mainBtn'),replay=$('#replayBtn'),progress=$('#progress'),status=$('#status');
+ for(let k=0;k<34;k++){let c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('class','dp-star');c.setAttribute('cx',Math.random()*860);c.setAttribute('cy',Math.random()*215);c.setAttribute('r',Math.random()*1.8+0.6);$('#stars').appendChild(c)}
+ function shuffle(a){return a.map((v,idx)=>({v,idx,r:Math.random()})).sort((x,y)=>x.r-y.r)}
+ function resetLines(){lines.setAttribute('transform','translate(0,0)');source.setAttribute('cx',230)}
+ function prep(){
+  const d=scenarios[i].dir;
+  if(d==='toward'){arrow.setAttribute('x1',270);arrow.setAttribute('y1',80);arrow.setAttribute('x2',360);arrow.setAttribute('y2',80);motionLabel.textContent='toward observer'}
+  if(d==='away'){arrow.setAttribute('x1',220);arrow.setAttribute('y1',80);arrow.setAttribute('x2',130);arrow.setAttribute('y2',80);motionLabel.textContent='away from observer'}
+  if(d==='side'){arrow.setAttribute('x1',230);arrow.setAttribute('y1',82);arrow.setAttribute('x2',230);arrow.setAttribute('y2',25);motionLabel.textContent='sideways'}
+ }
+ function render(){
+  const s=scenarios[i];progress.textContent=`Scenario ${i+1} of ${scenarios.length}`;prep();setup.textContent=s.setup;prompt.textContent=state==='predict'?s.q:'';feedback.textContent=state==='explain'?s.f:'';
+  choices.innerHTML='';if(state==='predict')shuffle(s.c).forEach(o=>{let b=document.createElement('button');b.type='button';b.textContent=o.v;b.onclick=()=>choose(o.idx);choices.appendChild(b)});
+  main.textContent=state==='setup'?'Start':state==='explain'?(i===scenarios.length-1?'Finish':'Next scenario'):state==='complete'?'Completed':'Revealing…';
+  main.disabled=['predict','reveal','complete'].includes(state);replay.classList.toggle('rph-hidden',state!=='explain');
+  if(state==='complete'){setup.textContent='Walkthrough complete.';prompt.textContent='';feedback.textContent='Relative motion changes observed wavelength and frequency, not the vacuum speed of light.'}
+ }
+ function choose(){if(state!=='predict')return;state='reveal';render();play(()=>{state='explain';status.textContent=scenarios[i].f;render()})}
+ function play(done){
+  resetLines();const s=scenarios[i],reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,steps=reduced?1:42;let n=0;
+  function frame(){n++;let t=n/steps;lines.setAttribute('transform',`translate(${s.shift*t},0)`);if(s.dir==='toward')source.setAttribute('cx',230+35*t);if(s.dir==='away')source.setAttribute('cx',230-35*t);if(s.dir==='side')source.setAttribute('cy',125-35*t);if(n<steps)raf=requestAnimationFrame(frame);else done()}frame()
+ }
+ main.onclick=()=>{if(state==='setup'){state='predict';render()}else if(state==='explain'){if(i<scenarios.length-1){i++;state='setup';resetLines();source.setAttribute('cy',125);render()}else{state='complete';render();completeOnce()}}};
+ replay.onclick=()=>{state='reveal';render();play(()=>{state='explain';render()})};
+ $('#resetBtn').onclick=()=>{if(raf)cancelAnimationFrame(raf);i=0;state='setup';resetLines();source.setAttribute('cy',125);render()};
+ function completeOnce(){if(completionSent)return;completionSent=true;window.parent.postMessage({type:'complete'},'*')}
+ render();
+})();
+
+</script>
+</main>
+</body>
+</html>

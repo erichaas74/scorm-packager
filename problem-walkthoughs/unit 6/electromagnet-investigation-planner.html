@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Electromagnet Investigation Planner</title>
+  <style>
+    :root{--blue:#285f9f;--navy:#153456;--ink:#142238;--muted:#52657b;--line:#b8cadc;--pale:#f4f9ff;--orange:#d95f18;--green:#17643a}
+    *{box-sizing:border-box}
+    html,body{margin:0;background:transparent;color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+    button,input,select{font:inherit}button,input,select{min-height:44px}
+    .eip-app{width:min(100%,1080px);margin:auto;border:5px solid #285f9f;border-radius:24px;overflow:hidden;background:#fff;box-shadow:0 18px 48px rgba(21,52,86,.14)}
+    .eip-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:17px 21px;border-bottom:1px solid var(--line);background:linear-gradient(110deg,#fff,#eef7ff)}
+    .eip-kicker{margin:0 0 3px;color:var(--blue);font-size:.74rem;font-weight:800;letter-spacing:.11em;text-transform:uppercase}
+    h1{margin:0;color:var(--navy);font-size:clamp(1.25rem,4vw,1.85rem);line-height:1.08}
+    h2{margin:0 0 8px;color:var(--navy);font-size:.95rem}
+    .eip-reset{padding:8px 14px;border:1px solid #6c87a3;border-radius:999px;background:#fff;color:var(--navy);font-weight:750;cursor:pointer}
+    .eip-body{padding:17px}
+    .eip-stage{border:1px solid #96afc8;border-radius:18px;overflow:hidden;background:linear-gradient(rgba(40,95,159,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(40,95,159,.055) 1px,transparent 1px),var(--pale);background-size:30px 30px}
+    .eip-stage svg{display:block;width:100%;height:300px}
+    .eip-readouts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:11px}
+    .eip-readout{padding:10px 11px;border:1px solid var(--line);border-radius:12px;background:#fff}
+    .eip-readout span{display:block;color:var(--muted);font-size:.7rem;font-weight:800;text-transform:uppercase}
+    .eip-readout output{display:block;margin-top:2px;color:var(--navy);font-size:1.05rem;font-weight:850}
+    .eip-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(290px,.95fr);gap:14px;margin-top:14px}
+    .eip-card{padding:14px;border:1px solid var(--line);border-radius:16px;background:#fbfdff}
+    .eip-card.locked{background:#f2f5f8;border-style:dashed}
+    .eip-field+.eip-field{margin-top:11px}
+    .eip-label{display:flex;justify-content:space-between;gap:8px;margin-bottom:5px;color:var(--navy);font-size:.8rem;font-weight:800}
+    .eip-label[data-role="iv"]::after{content:"changing";margin-left:auto;padding:1px 7px;border-radius:99px;background:#fff0e5;color:#7c2d12;font-size:.66rem;letter-spacing:.06em;text-transform:uppercase}
+    .eip-label[data-role="cv"]::after{content:"held fixed";margin-left:auto;padding:1px 7px;border-radius:99px;background:#e8eef5;color:#3d5771;font-size:.66rem;letter-spacing:.06em;text-transform:uppercase}
+    .eip-range{width:100%;accent-color:var(--orange)}
+    select{width:100%;padding:8px 10px;border:1px solid #6c87a3;border-radius:10px;background:#fff;color:var(--ink);font-weight:700}
+    input:disabled,select:disabled{opacity:.75}
+    .eip-choices{display:grid;gap:7px;margin-top:9px}
+    .eip-choice{padding:10px 11px;border:1px solid #6c87a3;border-radius:10px;background:#fff;color:var(--ink);font-weight:750;text-align:left;cursor:pointer}
+    .eip-choice:hover{background:#e8f2fd}
+    .eip-note{margin:9px 0 0;color:var(--muted);font-size:.78rem;line-height:1.4}
+    .eip-table-wrap{max-height:196px;overflow:auto;border:1px solid var(--line);border-radius:12px;background:#fff;margin-top:9px}
+    table{width:100%;border-collapse:collapse;font-size:.86rem}
+    th,td{padding:7px 9px;border-bottom:1px solid #e3ecf5;text-align:right}
+    th:first-child,td:first-child{text-align:left}
+    thead th{position:sticky;top:0;background:#eef5fc;color:var(--navy);font-size:.72rem;text-transform:uppercase}
+    .eip-empty{padding:13px;color:var(--muted);font-size:.85rem;text-align:left}
+    .eip-run{width:100%;margin-top:10px;padding:11px 14px;border:0;border-radius:10px;background:var(--blue);color:#fff;font-weight:850;cursor:pointer}
+    .eip-run:disabled{opacity:.5;cursor:not-allowed}
+    .eip-feedback{margin:10px 0 0;padding:10px 11px;border-radius:10px;background:#e8f7ed;color:#14532d;font-size:.86rem;font-weight:650;line-height:1.4}
+    .eip-feedback[data-tone="note"]{background:#fff0e5;color:#7c2d12}
+    .eip-question{margin:0;color:var(--navy);font-weight:850;line-height:1.35}
+    .eip-step{margin:0 0 5px;color:var(--blue);font-size:.72rem;font-weight:850;letter-spacing:.1em;text-transform:uppercase}
+    [hidden]{display:none!important}
+    :focus-visible{outline:3px solid #d95f18;outline-offset:3px}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    @media(max-width:760px){.eip-grid{grid-template-columns:1fr}.eip-body{padding:12px}.eip-stage svg{height:250px}.eip-readouts{grid-template-columns:1fr}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}}
+  </style>
+</head>
+<body>
+  <main class="eip-app" id="electromagnet-planner-app">
+    <header class="eip-head">
+      <div><p class="eip-kicker">Unit 6 &middot; Investigation design</p><h1>Electromagnet Investigation Planner</h1></div>
+      <button class="eip-reset" id="reset" type="button">Reset</button>
+    </header>
+    <div class="eip-body">
+      <section class="eip-stage" aria-labelledby="stage-description">
+        <p class="sr-only" id="stage-description">A coil wrapped around a core is connected to a battery. Paper clips hang from the core when current flows.</p>
+        <svg viewBox="0 0 1000 300" role="img" aria-labelledby="stage-title stage-desc">
+          <title id="stage-title">Electromagnet lifting paper clips</title>
+          <desc id="stage-desc" data-stage-desc>An electromagnet with an adjustable coil, current, core, and clip distance.</desc>
+          <rect x="60" y="70" width="150" height="120" rx="12" fill="#fff" stroke="#6b8298" stroke-width="3"/>
+          <text x="135" y="115" text-anchor="middle" fill="#153456" font-size="15" font-weight="850">BATTERY</text>
+          <text x="135" y="150" text-anchor="middle" fill="#d95f18" font-size="20" font-weight="850" id="current-text">2.0 A</text>
+          <path d="M210 100 H300" stroke="#c9781f" stroke-width="6" fill="none"/>
+          <path d="M210 160 H300" stroke="#c9781f" stroke-width="6" fill="none"/>
+          <rect id="core" x="300" y="105" width="380" height="50" rx="8" fill="#9aa7b4" stroke="#5d6b7a" stroke-width="3"/>
+          <text id="core-text" x="450" y="188" text-anchor="middle" fill="#22303f" font-size="15" font-weight="850">IRON CORE</text>
+          <g id="coils" fill="none" stroke="#c9781f" stroke-width="6"></g>
+          <g id="clips"></g>
+          <line id="gap-line" x1="690" y1="130" x2="690" y2="130" stroke="#6b8298" stroke-width="3" stroke-dasharray="6 6"/>
+          <text id="gap-text" x="740" y="240" text-anchor="middle" fill="#52657b" font-size="14" font-weight="800"></text>
+        </svg>
+      </section>
+      <div class="eip-readouts">
+        <div class="eip-readout"><span>Field at the clips</span><output id="field-output">&mdash;</output></div>
+        <div class="eip-readout"><span>Clips lifted</span><output id="clips-output">&mdash;</output></div>
+        <div class="eip-readout"><span>Trials recorded</span><output id="trial-output">0</output></div>
+      </div>
+      <div class="eip-grid">
+        <section class="eip-card" id="controls" aria-labelledby="controls-heading">
+          <h2 id="controls-heading">Setup</h2>
+          <p class="eip-step" id="controls-step">Step 1 &middot; Design</p>
+          <p class="eip-question" id="design-question">Choose the one variable you will change.</p>
+          <div class="eip-choices" id="design-choices"></div>
+          <div id="variable-fields" hidden>
+            <div class="eip-field"><label class="eip-label" for="current-slider" data-role="cv"><span>Current</span><output id="current-label">2.0 A</output></label><input class="eip-range" id="current-slider" type="range" min="0.5" max="4" step="0.5" value="2"></div>
+            <div class="eip-field"><label class="eip-label" for="turns-slider" data-role="cv"><span>Coil turns</span><output id="turns-label">20</output></label><input class="eip-range" id="turns-slider" type="range" min="5" max="40" step="5" value="20"></div>
+            <div class="eip-field"><label class="eip-label" for="core-select" data-role="cv"><span>Core material</span><output id="core-label">Iron</output></label><select id="core-select"><option value="air">Air (no core)</option><option value="aluminum">Aluminum</option><option value="steel">Steel</option><option value="iron" selected>Iron</option></select></div>
+            <div class="eip-field"><label class="eip-label" for="gap-slider" data-role="cv"><span>Distance to clips</span><output id="gap-label">0.00 m</output></label><input class="eip-range" id="gap-slider" type="range" min="0" max="0.06" step="0.01" value="0"></div>
+            <button class="eip-run" id="run" type="button">Run trial</button>
+            <p class="eip-note">Relative classroom model: air and aluminum cores &times;1, steel &times;12, iron &times;20.</p>
+          </div>
+        </section>
+        <section class="eip-card" id="data-card" aria-labelledby="data-heading">
+          <h2 id="data-heading">Trial table</h2>
+          <p class="eip-note" id="fixed-note">Choose an independent variable to build the table.</p>
+          <div class="eip-table-wrap" hidden id="table-wrap">
+            <table>
+              <thead><tr><th scope="col">Trial</th><th scope="col" id="iv-heading">Variable</th><th scope="col">Field (mT)</th><th scope="col">Clips</th></tr></thead>
+              <tbody id="rows"><tr><td colspan="4" class="eip-empty">No trials yet.</td></tr></tbody>
+            </table>
+          </div>
+          <div id="analysis" hidden>
+            <p class="eip-step">Step 3 &middot; Conclusion</p>
+            <p class="eip-question" id="analysis-question">What does your data show?</p>
+            <div class="eip-choices" id="analysis-choices"></div>
+          </div>
+          <p class="eip-feedback" id="feedback" role="status" aria-live="polite" hidden></p>
+        </section>
+      </div>
+    </div>
+    <p class="sr-only" id="status" role="status" aria-live="polite">Choose the one variable you will change.</p>
+    <script>
+      (() => {
+        'use strict';
+        const MU = 1.26e-6, LENGTH = 0.05;
+        const CORES = { air: { label: 'Air (no core)', mu: 1 }, aluminum: { label: 'Aluminum', mu: 1 }, steel: { label: 'Steel', mu: 12 }, iron: { label: 'Iron', mu: 20 } };
+        const VARIABLES = {
+          current: { label: 'Current', unit: 'A', control: 'current-slider', heading: 'Current (A)', format: (v) => v.toFixed(1),
+            question: 'What does your data show about current?',
+            options: [{ text: 'More current gives a stronger field', correct: true }, { text: 'Current does not change the field', correct: false }, { text: 'More current gives a weaker field', correct: false }, { text: 'Current only matters with an air core', correct: false }],
+            why: 'Field strength rose with every increase in current while turns, core, and distance stayed fixed.' },
+          turns: { label: 'Coil turns', unit: 'turns', control: 'turns-slider', heading: 'Turns', format: (v) => String(v),
+            question: 'What does your data show about coil turns?',
+            options: [{ text: 'More turns give a stronger field', correct: true }, { text: 'Turns do not change the field', correct: false }, { text: 'More turns give a weaker field', correct: false }, { text: 'Turns matter only above 30', correct: false }],
+            why: 'Each added turn adds field, and nothing else in the setup changed.' },
+          core: { label: 'Core material', unit: '', control: 'core-select', heading: 'Core', format: (v) => CORES[v].label,
+            question: 'What does your data show about core material?',
+            options: [{ text: 'Iron gives the strongest field', correct: true }, { text: 'Aluminum is as strong as iron', correct: false }, { text: 'Core material makes no difference', correct: false }, { text: 'Air gives the strongest field', correct: false }],
+            why: 'Iron and steel concentrate the field; aluminum measured the same as no core at all.' },
+          gap: { label: 'Distance to clips', unit: 'm', control: 'gap-slider', heading: 'Distance (m)', format: (v) => v.toFixed(2),
+            question: 'What does your data show about distance?',
+            options: [{ text: 'Field weakens as distance grows', correct: true }, { text: 'Field is the same at every distance', correct: false }, { text: 'Field strengthens as distance grows', correct: false }, { text: 'Distance matters only for iron cores', correct: false }],
+            why: 'Every centimetre of extra gap cut the measured field, with current, turns, and core unchanged.' }
+        };
+        const e = {
+          coils: document.getElementById('coils'), clips: document.getElementById('clips'), core: document.getElementById('core'),
+          coreText: document.getElementById('core-text'), currentText: document.getElementById('current-text'),
+          gapLine: document.getElementById('gap-line'), gapText: document.getElementById('gap-text'),
+          stageDesc: document.querySelector('[data-stage-desc]'),
+          fieldOut: document.getElementById('field-output'), clipsOut: document.getElementById('clips-output'),
+          trialOut: document.getElementById('trial-output'), designChoices: document.getElementById('design-choices'),
+          designQuestion: document.getElementById('design-question'), controlsStep: document.getElementById('controls-step'),
+          fields: document.getElementById('variable-fields'), run: document.getElementById('run'),
+          fixedNote: document.getElementById('fixed-note'), tableWrap: document.getElementById('table-wrap'),
+          ivHeading: document.getElementById('iv-heading'), rows: document.getElementById('rows'),
+          analysis: document.getElementById('analysis'), analysisQuestion: document.getElementById('analysis-question'),
+          analysisChoices: document.getElementById('analysis-choices'), feedback: document.getElementById('feedback'),
+          reset: document.getElementById('reset'), status: document.getElementById('status'),
+          current: document.getElementById('current-slider'), turns: document.getElementById('turns-slider'),
+          coreSelect: document.getElementById('core-select'), gap: document.getElementById('gap-slider'),
+          currentLabel: document.getElementById('current-label'), turnsLabel: document.getElementById('turns-label'),
+          coreLabel: document.getElementById('core-label'), gapLabel: document.getElementById('gap-label')
+        };
+        let independent = null, trials = [], analysisReady = false, completionSent = false;
+
+        function settings() {
+          return { current: Number(e.current.value), turns: Number(e.turns.value), core: e.coreSelect.value, gap: Number(e.gap.value) };
+        }
+        function fieldStrength() {
+          const s = settings(), falloff = Math.pow(0.02 / (0.02 + s.gap), 2);
+          return MU * CORES[s.core].mu * s.turns * s.current / LENGTH * 1000 * falloff;
+        }
+        function clipCount() { return Math.min(12, Math.floor(fieldStrength() / 4)); }
+        function shuffle(list) { const copy = list.slice(); for (let i = copy.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [copy[i], copy[j]] = [copy[j], copy[i]]; } return copy; }
+
+        function draw() {
+          const s = settings();
+          const drawn = Math.round(s.turns / 5) * 2;
+          const spacing = 280 / Math.max(drawn, 1);
+          const loops = [];
+          for (let i = 0; i < drawn; i++) {
+            const x = 315 + i * spacing;
+            loops.push('<path d="M' + x + ' 100 a 14 30 0 0 1 0 60"/>');
+          }
+          e.coils.innerHTML = loops.join('');
+          e.core.setAttribute('fill', s.core === 'air' ? '#e6edf4' : s.core === 'aluminum' ? '#cbd5df' : '#9aa7b4');
+          e.coreText.textContent = CORES[s.core].label.toUpperCase().replace(' (NO CORE)', '');
+          e.currentText.textContent = s.current.toFixed(1) + ' A';
+          const gapPixels = s.gap * 1400;
+          const clipTop = 158 + gapPixels;
+          e.gapLine.setAttribute('x1', 700); e.gapLine.setAttribute('x2', 700);
+          e.gapLine.setAttribute('y1', 155); e.gapLine.setAttribute('y2', clipTop);
+          e.gapText.textContent = s.gap > 0 ? s.gap.toFixed(2) + ' m gap' : 'clips touching';
+          const count = clipCount();
+          e.gapText.setAttribute('x', 770);
+          e.gapText.setAttribute('y', Math.min(292, clipTop + Math.max(1, Math.ceil(count / 4)) * 24 + 18));
+          const shapes = [];
+          for (let i = 0; i < count; i++) {
+            const column = i % 4, row = Math.floor(i / 4);
+            const x = 690 + column * 42, y = clipTop + 4 + row * 24;
+            shapes.push('<rect x="' + x + '" y="' + y + '" width="30" height="16" rx="8" fill="none" stroke="#7c8b9a" stroke-width="4"/>');
+          }
+          e.clips.innerHTML = shapes.join('');
+          e.currentLabel.textContent = s.current.toFixed(1) + ' A';
+          e.turnsLabel.textContent = String(s.turns);
+          e.coreLabel.textContent = CORES[s.core].label;
+          e.gapLabel.textContent = s.gap.toFixed(2) + ' m';
+          e.fieldOut.textContent = fieldStrength().toFixed(1) + ' mT';
+          e.clipsOut.textContent = String(count);
+          e.stageDesc.textContent = 'Coil of ' + s.turns + ' turns, ' + s.current.toFixed(1) + ' amps, ' + CORES[s.core].label + ' core, clips ' + s.gap.toFixed(2) + ' meters away, lifting ' + count + ' clips.';
+        }
+        function fixedSummary() {
+          const s = settings(), parts = [];
+          if (independent !== 'current') parts.push('current ' + s.current.toFixed(1) + ' A');
+          if (independent !== 'turns') parts.push(s.turns + ' turns');
+          if (independent !== 'core') parts.push(CORES[s.core].label.toLowerCase() + ' core');
+          if (independent !== 'gap') parts.push('gap ' + s.gap.toFixed(2) + ' m');
+          return parts.join(', ');
+        }
+        function applyLocks() {
+          const map = { current: e.current, turns: e.turns, core: e.coreSelect, gap: e.gap };
+          Object.keys(map).forEach((key) => {
+            map[key].disabled = key !== independent;
+            const label = document.querySelector('label[for="' + map[key].id + '"]');
+            label.dataset.role = key === independent ? 'iv' : 'cv';
+          });
+          e.fixedNote.textContent = 'Held fixed: ' + fixedSummary() + '.';
+        }
+        function chooseVariable(key) {
+          if (independent) return;
+          independent = key;
+          e.designChoices.hidden = true;
+          e.designQuestion.textContent = 'Changing ' + VARIABLES[key].label.toLowerCase() + ' only.';
+          e.controlsStep.textContent = 'Step 2 · Run trials';
+          e.fields.hidden = false;
+          e.tableWrap.hidden = false;
+          e.ivHeading.textContent = VARIABLES[key].heading;
+          applyLocks();
+          draw();
+          e.status.textContent = VARIABLES[key].label + ' is now the independent variable. The other three controls are locked. Run four trials.';
+        }
+        function runTrial() {
+          const s = settings();
+          const value = independent === 'core' ? s.core : s[independent];
+          trials.push({ value: value, display: VARIABLES[independent].format(value), field: fieldStrength(), clips: clipCount() });
+          renderRows();
+          e.trialOut.textContent = String(trials.length);
+          e.status.textContent = 'Trial ' + trials.length + ' recorded: ' + VARIABLES[independent].label + ' ' + VARIABLES[independent].format(value) + ', field ' + fieldStrength().toFixed(1) + ' millitesla, ' + clipCount() + ' clips.';
+          const distinct = new Set(trials.map((trial) => trial.display)).size;
+          if (!analysisReady && trials.length >= 4 && distinct >= 3) openAnalysis();
+          else if (!analysisReady) e.fixedNote.textContent = 'Held fixed: ' + fixedSummary() + '. Need 4 trials across at least 3 different values (' + trials.length + ' recorded, ' + distinct + ' different).';
+        }
+        function renderRows() {
+          if (!trials.length) { e.rows.innerHTML = '<tr><td colspan="4" class="eip-empty">No trials yet.</td></tr>'; return; }
+          e.rows.innerHTML = trials.map((trial, order) => '<tr><td>' + (order + 1) + '</td><td>' + trial.display + '</td><td>' + trial.field.toFixed(1) + '</td><td>' + trial.clips + '</td></tr>').join('');
+        }
+        function openAnalysis() {
+          analysisReady = true;
+          e.analysis.hidden = false;
+          e.run.disabled = true;
+          e.fixedNote.textContent = 'Held fixed all four trials: ' + fixedSummary() + '.';
+          const variable = VARIABLES[independent];
+          e.analysisQuestion.textContent = variable.question;
+          e.analysisChoices.replaceChildren();
+          shuffle(variable.options).forEach((option) => {
+            const button = document.createElement('button');
+            button.type = 'button'; button.className = 'eip-choice'; button.textContent = option.text;
+            button.addEventListener('click', () => concludeWith(option), { once: true });
+            e.analysisChoices.append(button);
+          });
+          e.status.textContent = 'Four trials recorded. Answer the conclusion question.';
+        }
+        function concludeWith(option) {
+          e.analysisChoices.querySelectorAll('button').forEach((button) => { button.disabled = true; });
+          e.feedback.textContent = (option.correct ? 'Correct. ' : 'Not quite. ') + VARIABLES[independent].why;
+          e.feedback.dataset.tone = option.correct ? 'success' : 'note';
+          e.feedback.hidden = false;
+          e.status.textContent = VARIABLES[independent].why;
+          sendCompletion();
+        }
+        function sendCompletion() {
+          if (completionSent) return;
+          completionSent = true;
+          window.parent.postMessage({ type: 'complete' }, '*');
+        }
+        function renderDesignChoices() {
+          e.designChoices.replaceChildren();
+          Object.keys(VARIABLES).forEach((key) => {
+            const button = document.createElement('button');
+            button.type = 'button'; button.className = 'eip-choice'; button.textContent = VARIABLES[key].label;
+            button.addEventListener('click', () => chooseVariable(key));
+            e.designChoices.append(button);
+          });
+          e.designChoices.hidden = false;
+        }
+        function reset() {
+          independent = null; trials = []; analysisReady = false;
+          e.current.value = '2'; e.turns.value = '20'; e.coreSelect.value = 'iron'; e.gap.value = '0';
+          e.current.disabled = false; e.turns.disabled = false; e.coreSelect.disabled = false; e.gap.disabled = false;
+          ['current-slider', 'turns-slider', 'core-select', 'gap-slider'].forEach((id) => { document.querySelector('label[for="' + id + '"]').dataset.role = 'cv'; });
+          e.fields.hidden = true; e.tableWrap.hidden = true; e.analysis.hidden = true;
+          e.feedback.hidden = true; e.run.disabled = false;
+          e.designQuestion.textContent = 'Choose the one variable you will change.';
+          e.controlsStep.textContent = 'Step 1 · Design';
+          e.fixedNote.textContent = 'Choose an independent variable to build the table.';
+          e.trialOut.textContent = '0';
+          renderRows(); renderDesignChoices(); draw();
+          e.status.textContent = 'Choose the one variable you will change.';
+        }
+
+        [e.current, e.turns, e.gap].forEach((control) => control.addEventListener('input', draw));
+        e.coreSelect.addEventListener('change', draw);
+        e.run.addEventListener('click', runTrial);
+        e.reset.addEventListener('click', reset);
+        reset();
+      })();
+    </script>
+  </main>
+</body>
+</html>

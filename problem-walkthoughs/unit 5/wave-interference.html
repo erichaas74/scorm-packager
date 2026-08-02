@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interference: Adding Two Pulses</title>
+  <style>
+    :root {
+      --navy: #153456;
+      --blue: #285f9f;
+      --blue-dark: #174b86;
+      --blue-soft: #e8f2fd;
+      --orange: #e56b24;
+      --orange-soft: #fff1e8;
+      --ink: #132238;
+      --muted: #52657b;
+      --line: #c8d7e8;
+      --surface: #ffffff;
+      --stage: #f4f9ff;
+      --success-soft: #e8f7ed;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      margin: 0;
+      background: transparent;
+      color: var(--ink);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    button { font: inherit; touch-action: manipulation; min-height: 44px; }
+
+    .wif-app {
+      width: min(100%, 1080px);
+      margin: 0 auto;
+      border: 5px solid #285f9f;
+      border-radius: 24px;
+      overflow: hidden;
+      background: var(--surface);
+      box-shadow: 0 18px 48px rgba(21, 52, 86, 0.14);
+    }
+
+    .wif-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 18px 22px 15px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(115deg, #fff 0%, #eef7ff 100%);
+    }
+
+    .wif-kicker {
+      margin: 0 0 3px;
+      color: var(--blue);
+      font-size: 0.73rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--navy);
+      font-size: clamp(1.3rem, 3.9vw, 1.95rem);
+      letter-spacing: -0.03em;
+      line-height: 1.08;
+    }
+
+    .wif-reset {
+      flex: 0 0 auto;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--blue-dark);
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    .wif-main { padding: 18px; }
+
+    .wif-stage {
+      position: relative;
+      border: 1px solid #adc6df;
+      border-radius: 18px;
+      overflow: hidden;
+      background: var(--stage);
+    }
+
+    .wif-stage-top {
+      position: absolute;
+      z-index: 2;
+      inset: 12px 13px auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .wif-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 30px;
+      padding: 5px 11px;
+      border: 1px solid rgba(40, 95, 159, 0.23);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.93);
+      color: var(--navy);
+      font-size: 0.78rem;
+      font-weight: 800;
+      box-shadow: 0 4px 14px rgba(21, 52, 86, 0.08);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 1000 / 340;
+    }
+
+    .wif-readouts {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 9px;
+      margin-top: 12px;
+    }
+
+    .wif-readout {
+      min-width: 0;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: #fff;
+    }
+
+    .wif-readout-label {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--muted);
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .wif-readout output {
+      display: block;
+      color: var(--navy);
+      font-size: clamp(0.95rem, 2.3vw, 1.15rem);
+      font-weight: 850;
+      line-height: 1.2;
+    }
+
+    .wif-sum { background: #fff8f2; border-color: #f0c6a4; }
+
+    .wif-workbench {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(255px, 0.82fr);
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .wif-panel {
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #f9fbfe;
+    }
+
+    .wif-scene-title { margin: 0 0 6px; color: var(--navy); font-size: 1rem; font-weight: 850; }
+    .wif-scene-text { margin: 0; color: var(--muted); font-size: 0.9rem; line-height: 1.45; }
+
+    .wif-progress { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 13px; }
+
+    .wif-pip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border: 1px solid #9db4cc;
+      border-radius: 50%;
+      background: #fff;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    .wif-pip[data-state="current"] { border-color: var(--blue); background: var(--blue-soft); color: var(--blue-dark); }
+    .wif-pip[data-state="done"] { border-color: var(--blue); background: var(--blue); color: #fff; }
+
+    .wif-playback { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
+
+    .wif-icon-btn {
+      flex: 1 1 120px;
+      padding: 9px 12px;
+      border: 1px solid #9db4cc;
+      border-radius: 11px;
+      background: #fff;
+      color: var(--navy);
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .wif-icon-btn[aria-pressed="true"] { border-color: var(--blue); background: var(--blue-soft); color: var(--blue-dark); }
+    .wif-icon-btn:disabled { cursor: not-allowed; opacity: 0.58; }
+
+    .wif-prompt-panel { display: flex; flex-direction: column; justify-content: center; background: #fff; }
+
+    .wif-step-label {
+      margin: 0 0 5px;
+      color: var(--blue);
+      font-size: 0.72rem;
+      font-weight: 850;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .wif-question { margin: 0; color: var(--navy); font-size: 1.02rem; font-weight: 800; line-height: 1.35; }
+
+    .wif-choices { display: grid; gap: 7px; margin-top: 11px; }
+
+    .wif-choice {
+      min-height: 43px;
+      padding: 9px 12px;
+      border: 1px solid #9eb4cb;
+      border-radius: 11px;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 750;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .wif-choice:hover:not(:disabled) { border-color: var(--blue); background: var(--blue-soft); }
+
+    .wif-feedback {
+      margin: 10px 0 0;
+      padding: 10px 12px;
+      border-radius: 11px;
+      background: var(--success-soft);
+      color: #14532d;
+      font-size: 0.88rem;
+      font-weight: 650;
+      line-height: 1.42;
+    }
+
+    .wif-feedback[data-tone="note"] { background: var(--orange-soft); color: #7c2d12; }
+
+    .wif-primary {
+      width: 100%;
+      margin-top: 11px;
+      padding: 10px 14px;
+      border: 0;
+      border-radius: 11px;
+      background: var(--blue);
+      color: #fff;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 5px 13px rgba(40,95,159,0.22);
+    }
+
+    .wif-primary:hover { background: var(--blue-dark); }
+    .wif-primary:disabled, .wif-choice:disabled { cursor: not-allowed; opacity: 0.58; }
+
+    [hidden] { display: none !important; }
+
+    :focus-visible { outline: 3px solid #e56b24; outline-offset: 3px; }
+
+    .wif-sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 760px) {
+      .wif-main { padding: 12px; }
+      .wif-workbench { grid-template-columns: 1fr; }
+      .wif-readouts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 480px) {
+      .wif-header { align-items: flex-start; padding: 15px 14px 13px; }
+      .wif-readout { padding: 9px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wif-app" id="interference-app">
+    <header class="wif-header">
+      <div>
+        <p class="wif-kicker">Unit 5 · Lesson 1 · Part 3</p>
+        <h1>Interference: Adding Two Pulses</h1>
+      </div>
+      <button class="wif-reset" id="reset-button" type="button">Reset</button>
+    </header>
+
+    <div class="wif-main">
+      <section class="wif-stage">
+        <div class="wif-stage-top" aria-hidden="true">
+          <span class="wif-badge" id="setup-badge">Two pulses approaching</span>
+          <span class="wif-badge" id="motion-badge">Ready</span>
+        </div>
+        <canvas id="rope-canvas" role="img" aria-labelledby="canvas-label"></canvas>
+        <p class="wif-sr-only" id="canvas-label">Two pulses travel toward each other along one rope and overlap at a marked point in the middle.</p>
+      </section>
+
+      <div class="wif-readouts">
+        <div class="wif-readout">
+          <span class="wif-readout-label">Pulse A at marker</span>
+          <output id="a-output">0.0 cm</output>
+        </div>
+        <div class="wif-readout">
+          <span class="wif-readout-label">Pulse B at marker</span>
+          <output id="b-output">0.0 cm</output>
+        </div>
+        <div class="wif-readout wif-sum">
+          <span class="wif-readout-label">Rope at marker</span>
+          <output id="sum-output">?</output>
+        </div>
+        <div class="wif-readout">
+          <span class="wif-readout-label">After overlap</span>
+          <output id="after-output">?</output>
+        </div>
+      </div>
+
+      <div class="wif-workbench">
+        <section class="wif-panel" aria-label="Scene setup and playback">
+          <p class="wif-scene-title" id="scene-title">Two crests</p>
+          <p class="wif-scene-text" id="scene-text">A 3 cm crest travels right; an identical 3 cm crest travels left.</p>
+          <div class="wif-progress" id="progress" role="list" aria-label="Scenario progress"></div>
+          <div class="wif-playback">
+            <button class="wif-icon-btn" id="slow-button" type="button" aria-pressed="false">½× Slow motion</button>
+            <button class="wif-icon-btn" id="replay-button" type="button" disabled>↻ Replay</button>
+            <button class="wif-icon-btn" id="through-button" type="button" hidden>▶ Play past overlap</button>
+          </div>
+        </section>
+
+        <section class="wif-panel wif-prompt-panel" aria-labelledby="prompt-question">
+          <p class="wif-step-label" id="step-label">Predict first</p>
+          <p class="wif-question" id="prompt-question">At the instant they fully overlap, how high is the rope?</p>
+          <div class="wif-choices" id="choices"></div>
+          <p class="wif-feedback" id="feedback" role="status" aria-live="polite" hidden></p>
+          <button class="wif-primary" id="main-button" type="button" hidden>Next scenario</button>
+        </section>
+      </div>
+    </div>
+
+    <p class="wif-sr-only" id="status" role="status" aria-live="polite">Interference simulation ready.</p>
+
+    <script>
+      (() => {
+        'use strict';
+
+        const W = 1000;
+        const H = 340;
+        const BASE = 186;
+        const MARK = 500;
+        const START_A = 120;
+        const START_B = 880;
+        const V = 300;                 // px per second
+        const PX_PER_CM = 18;
+        const PULSE_W = 62;
+        const MEET = (MARK - START_A) / V;
+
+        const scenarios = [
+          {
+            title: 'Two crests',
+            text: 'A 3 cm crest travels right; an identical 3 cm crest travels left.',
+            a: 3, b: 3, freeze: MEET, past: MEET + 1.25,
+            question: 'At the instant they fully overlap, how high is the rope?',
+            options: [
+              { text: '6 cm — the two heights add', correct: true },
+              { text: '3 cm — the taller one wins', correct: false },
+              { text: '0 cm — they cancel', correct: false }
+            ],
+            after: 'Both continue',
+            explanation: 'The rope reaches 6 cm. Overlapping displacements add, so two crests build one taller crest.'
+          },
+          {
+            title: 'Crest meets equal trough',
+            text: 'A 3 cm crest travels right; a 3 cm trough travels left.',
+            a: 3, b: -3, freeze: MEET, past: MEET + 1.25,
+            question: 'At full overlap, what does the rope look like?',
+            options: [
+              { text: 'Flat for an instant', correct: true },
+              { text: 'A 6 cm crest', correct: false },
+              { text: 'A 3 cm crest', correct: false }
+            ],
+            after: 'Both continue',
+            explanation: 'The rope goes flat. Adding +3 cm and −3 cm at every point leaves zero displacement.'
+          },
+          {
+            title: 'After the cancellation',
+            text: 'The same crest and trough, played past the flat moment.',
+            a: 3, b: -3, freeze: MEET + 1.25, past: MEET + 1.25,
+            question: 'After that flat moment, what do the two pulses do?',
+            options: [
+              { text: 'Both continue on, unchanged', correct: true },
+              { text: 'They cancel out and vanish', correct: false },
+              { text: 'They bounce back the way they came', correct: false }
+            ],
+            after: 'Both continue',
+            explanation: 'Both keep going unchanged. The cancellation was in the shape only; each pulse still carries its energy.'
+          },
+          {
+            title: 'Unequal pulses',
+            text: 'A 3 cm crest travels right; a 1.5 cm trough travels left.',
+            a: 3, b: -1.5, freeze: MEET, past: MEET + 1.25,
+            question: 'At full overlap, what is the rope displacement at the marker?',
+            options: [
+              { text: '+1.5 cm', correct: true },
+              { text: '+4.5 cm', correct: false },
+              { text: '0 cm', correct: false }
+            ],
+            after: 'Both continue',
+            explanation: 'The rope sits at +1.5 cm. Partial cancellation still follows the same rule: add the displacements.'
+          },
+          {
+            title: 'Superposition builder',
+            text: 'At the marker, pulse A reads +3 cm and pulse B reads −1 cm.',
+            a: 3, b: -1, freeze: MEET, past: MEET + 1.25,
+            question: 'What does the rope read at the marker?',
+            options: [
+              { text: '+2 cm', correct: true },
+              { text: '−2 cm', correct: false },
+              { text: '+4 cm', correct: false },
+              { text: '0 cm', correct: false }
+            ],
+            after: 'Both continue',
+            explanation: 'The rope reads +2 cm. Superposition is a signed sum: +3 cm plus −1 cm.'
+          }
+        ];
+
+        const el = {
+          canvas: document.getElementById('rope-canvas'),
+          setupBadge: document.getElementById('setup-badge'),
+          motionBadge: document.getElementById('motion-badge'),
+          aOut: document.getElementById('a-output'),
+          bOut: document.getElementById('b-output'),
+          sumOut: document.getElementById('sum-output'),
+          afterOut: document.getElementById('after-output'),
+          sceneTitle: document.getElementById('scene-title'),
+          sceneText: document.getElementById('scene-text'),
+          progress: document.getElementById('progress'),
+          slow: document.getElementById('slow-button'),
+          replay: document.getElementById('replay-button'),
+          through: document.getElementById('through-button'),
+          stepLabel: document.getElementById('step-label'),
+          question: document.getElementById('prompt-question'),
+          choices: document.getElementById('choices'),
+          feedback: document.getElementById('feedback'),
+          main: document.getElementById('main-button'),
+          reset: document.getElementById('reset-button'),
+          status: document.getElementById('status')
+        };
+
+        const ctx = el.canvas.getContext('2d');
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        let index = 0;
+        let state = 'predict';        // predict → reveal → explain
+        let simTime = 0;
+        let stopAt = 0;
+        let running = false;
+        let slow = false;
+        let previousFrame = 0;
+        let pendingCorrect = false;
+        let completionSent = false;
+
+        function scenario() { return scenarios[index]; }
+
+        function gauss(x, center) {
+          const u = (x - center) / PULSE_W;
+          return Math.exp(-u * u);
+        }
+
+        function componentA(x) {
+          return scenario().a * PX_PER_CM * gauss(x, START_A + V * simTime);
+        }
+
+        function componentB(x) {
+          return scenario().b * PX_PER_CM * gauss(x, START_B - V * simTime);
+        }
+
+        function fitCanvas() {
+          const ratio = window.devicePixelRatio || 1;
+          const cssWidth = el.canvas.clientWidth || W;
+          const cssHeight = cssWidth * (H / W);
+          el.canvas.width = Math.round(cssWidth * ratio);
+          el.canvas.height = Math.round(cssHeight * ratio);
+          ctx.setTransform((cssWidth * ratio) / W, 0, 0, (cssHeight * ratio) / H, 0, 0);
+        }
+
+        function drawCurve(fn, color, width, dashed, dashOffset = 0) {
+          ctx.save();
+          if (dashed) {
+            ctx.setLineDash([9, 9]);
+            ctx.lineDashOffset = dashOffset;
+          }
+          ctx.beginPath();
+          for (let x = 20; x <= W - 20; x += 3) {
+            const y = BASE - fn(x);
+            if (x === 20) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+          }
+          ctx.strokeStyle = color;
+          ctx.lineWidth = width;
+          ctx.lineJoin = 'round';
+          ctx.lineCap = 'round';
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        function draw() {
+          ctx.clearRect(0, 0, W, H);
+          ctx.fillStyle = '#f4f9ff';
+          ctx.fillRect(0, 0, W, H);
+
+          // equilibrium line
+          ctx.save();
+          ctx.setLineDash([7, 9]);
+          ctx.strokeStyle = '#b9c8d8';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(20, BASE);
+          ctx.lineTo(W - 20, BASE);
+          ctx.stroke();
+          ctx.restore();
+
+          // marker line
+          ctx.save();
+          ctx.setLineDash([5, 7]);
+          ctx.strokeStyle = '#8ca7c2';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(MARK, 44);
+          ctx.lineTo(MARK, H - 46);
+          ctx.stroke();
+          ctx.restore();
+          ctx.fillStyle = '#52657b';
+          ctx.font = '800 14px system-ui, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('MARKER', MARK, H - 26);
+
+          if (state !== 'predict') {
+            drawCurve(componentA, 'rgba(40,95,159,0.7)', 4, true, 0);
+            drawCurve(componentB, 'rgba(122,93,181,0.7)', 4, true, 9);
+          }
+          drawCurve((x) => componentA(x) + componentB(x), '#e56b24', 8, false);
+
+          // marker dot on the rope
+          const sum = componentA(MARK) + componentB(MARK);
+          ctx.beginPath();
+          ctx.arc(MARK, BASE - sum, 9, 0, Math.PI * 2);
+          ctx.fillStyle = '#153456';
+          ctx.fill();
+
+          // travel direction labels
+          ctx.font = '800 15px system-ui, sans-serif';
+          ctx.fillStyle = '#285f9f';
+          ctx.textAlign = 'left';
+          ctx.fillText('pulse A →', 32, 70);
+          ctx.fillStyle = '#7a5db5';
+          ctx.textAlign = 'right';
+          ctx.fillText('← pulse B', W - 32, 70);
+          ctx.textAlign = 'left';
+        }
+
+        function updateReadouts() {
+          const aCm = componentA(MARK) / PX_PER_CM;
+          const bCm = componentB(MARK) / PX_PER_CM;
+          el.aOut.textContent = `${aCm >= 0 ? '+' : '−'}${Math.abs(aCm).toFixed(1)} cm`;
+          el.bOut.textContent = `${bCm >= 0 ? '+' : '−'}${Math.abs(bCm).toFixed(1)} cm`;
+          if (state === 'predict') {
+            el.sumOut.textContent = '?';
+            el.afterOut.textContent = '?';
+          } else {
+            const sum = aCm + bCm;
+            el.sumOut.textContent = `${sum >= 0 ? '+' : '−'}${Math.abs(sum).toFixed(1)} cm`;
+          }
+        }
+
+        function shuffle(items) {
+          const result = items.slice();
+          for (let i = result.length - 1; i > 0; i -= 1) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [result[i], result[j]] = [result[j], result[i]];
+          }
+          return result;
+        }
+
+        function renderProgress() {
+          el.progress.replaceChildren();
+          scenarios.forEach((item, i) => {
+            const pip = document.createElement('span');
+            pip.className = 'wif-pip';
+            pip.setAttribute('role', 'listitem');
+            pip.textContent = String(i + 1);
+            pip.dataset.state = i < index ? 'done' : i === index ? 'current' : 'todo';
+            pip.setAttribute('aria-label', `Scenario ${i + 1} of ${scenarios.length}${i === index ? ', current' : i < index ? ', done' : ''}`);
+            el.progress.append(pip);
+          });
+        }
+
+        function renderChoices(options, handler) {
+          el.choices.replaceChildren();
+          shuffle(options).forEach((option) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'wif-choice';
+            button.textContent = option.text;
+            button.addEventListener('click', () => handler(option), { once: true });
+            el.choices.append(button);
+          });
+        }
+
+        function lockChoices() {
+          el.choices.querySelectorAll('button').forEach((button) => { button.disabled = true; });
+        }
+
+        function loadScenario() {
+          const s = scenario();
+          state = 'predict';
+          simTime = 0;
+          running = false;
+          el.sceneTitle.textContent = s.title;
+          el.sceneText.textContent = s.text;
+          el.setupBadge.textContent = s.title;
+          el.motionBadge.textContent = 'Ready';
+          el.afterOut.textContent = '?';
+          el.stepLabel.textContent = `Predict · scenario ${index + 1} of ${scenarios.length}`;
+          el.question.textContent = s.question;
+          el.feedback.hidden = true;
+          el.main.hidden = true;
+          el.replay.disabled = true;
+          el.through.hidden = true;
+          el.choices.hidden = false;
+          renderChoices(s.options, choose);
+          renderProgress();
+          updateReadouts();
+          draw();
+          el.status.textContent = `${s.title}. ${s.text} Choose a prediction.`;
+        }
+
+        function choose(option) {
+          if (state !== 'predict') return;
+          lockChoices();
+          el.choices.hidden = true;
+          state = 'reveal';
+          pendingCorrect = option.correct;
+          el.stepLabel.textContent = 'Watch them overlap';
+          el.question.textContent = 'Dashed curves are the two pulses. Orange is the rope.';
+          simTime = 0;
+          stopAt = scenario().freeze;
+          running = true;
+          el.motionBadge.textContent = slow ? 'Playing · ½×' : 'Playing · 1×';
+          el.status.textContent = 'Reveal running.';
+          if (reduceMotion) {
+            simTime = stopAt;
+            running = false;
+            finishReveal();
+          }
+        }
+
+        function finishReveal() {
+          const s = scenario();
+          running = false;
+          state = 'explain';
+          updateReadouts();
+          draw();
+          el.afterOut.textContent = s.after;
+          el.motionBadge.textContent = 'Frozen';
+          el.question.textContent = 'What the rope did:';
+          el.feedback.textContent = s.explanation;
+          el.feedback.dataset.tone = pendingCorrect ? 'success' : 'note';
+          el.feedback.hidden = false;
+          el.replay.disabled = false;
+          el.through.hidden = simTime >= s.past - 0.01;
+          el.main.textContent = index === scenarios.length - 1 ? 'Finish' : 'Next scenario';
+          el.main.hidden = false;
+          el.stepLabel.textContent = 'Evidence';
+          el.status.textContent = s.explanation;
+        }
+
+        function playPast() {
+          if (state !== 'explain') return;
+          stopAt = scenario().past;
+          running = true;
+          el.through.hidden = true;
+          el.motionBadge.textContent = slow ? 'Playing · ½×' : 'Playing · 1×';
+          el.status.textContent = 'Playing past the overlap.';
+        }
+
+        function replay() {
+          if (state === 'predict') return;
+          simTime = 0;
+          stopAt = scenario().past;
+          running = true;
+          el.through.hidden = true;
+          el.motionBadge.textContent = slow ? 'Playing · ½×' : 'Playing · 1×';
+        }
+
+        function handleMain() {
+          if (state === 'complete') { index = 0; loadScenario(); return; }
+          if (index < scenarios.length - 1) {
+            index += 1;
+            loadScenario();
+            return;
+          }
+          state = 'complete';
+          renderProgress();
+          el.stepLabel.textContent = 'All five overlaps done';
+          el.question.textContent = 'Waves add, then move on.';
+          el.feedback.textContent = 'Overlapping pulses add displacement by displacement. Afterwards each pulse continues exactly as before.';
+          el.feedback.dataset.tone = 'success';
+          el.feedback.hidden = false;
+          el.main.textContent = 'Start over';
+          sendCompletion();
+        }
+
+        function sendCompletion() {
+          if (completionSent) return;
+          completionSent = true;
+          window.parent.postMessage({ type: 'complete' }, '*');
+          el.status.textContent = 'Interference walkthrough complete.';
+        }
+
+        function animate(now) {
+          const delta = previousFrame ? Math.min((now - previousFrame) / 1000, 0.05) : 0;
+          previousFrame = now;
+          if (running) {
+            simTime += delta * (slow ? 0.5 : 1);
+            if (simTime >= stopAt) {
+              simTime = stopAt;
+              running = false;
+              el.motionBadge.textContent = 'Frozen';
+              if (state === 'reveal') finishReveal();
+              else el.through.hidden = simTime >= scenario().past - 0.01;
+            }
+          }
+          if (state !== 'predict') updateReadouts();
+          draw();
+          requestAnimationFrame(animate);
+        }
+
+        function reset() {
+          index = 0;
+          completionSent = false;
+          slow = false;
+          el.slow.setAttribute('aria-pressed', 'false');
+          loadScenario();
+        }
+
+        el.slow.addEventListener('click', () => {
+          slow = !slow;
+          el.slow.setAttribute('aria-pressed', String(slow));
+          if (running) el.motionBadge.textContent = slow ? 'Playing · ½×' : 'Playing · 1×';
+        });
+        el.replay.addEventListener('click', replay);
+        el.through.addEventListener('click', playPast);
+        el.main.addEventListener('click', handleMain);
+        el.reset.addEventListener('click', reset);
+        window.addEventListener('resize', () => { fitCanvas(); draw(); });
+        document.addEventListener('visibilitychange', () => { if (document.hidden) previousFrame = 0; });
+
+        fitCanvas();
+        reset();
+        requestAnimationFrame(animate);
+      })();
+    </script>
+  </main>
+</body>
+</html>

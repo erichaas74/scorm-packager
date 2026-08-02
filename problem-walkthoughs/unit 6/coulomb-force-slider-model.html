@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Coulomb Force Slider Model</title>
+  <style>
+    :root{--blue:#285f9f;--navy:#153456;--ink:#142238;--muted:#52657b;--line:#b8cadc;--pale:#f4f9ff;--orange:#d95f18;--green:#17643a}
+    *{box-sizing:border-box}
+    html,body{margin:0;background:transparent;color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+    button,input,select{font:inherit}button,input,select{min-height:44px}
+    .cfs-app{width:min(100%,1080px);margin:auto;border:5px solid #285f9f;border-radius:24px;overflow:hidden;background:#fff;box-shadow:0 18px 48px rgba(21,52,86,.14)}
+    .cfs-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:17px 21px;border-bottom:1px solid var(--line);background:linear-gradient(110deg,#fff,#eef7ff)}
+    .cfs-kicker{margin:0 0 3px;color:var(--blue);font-size:.74rem;font-weight:800;letter-spacing:.11em;text-transform:uppercase}
+    h1{margin:0;color:var(--navy);font-size:clamp(1.35rem,4vw,2rem);line-height:1.08}
+    .cfs-reset{padding:8px 14px;border:1px solid #6c87a3;border-radius:999px;background:#fff;color:var(--navy);font-weight:750;cursor:pointer}
+    .cfs-body{padding:17px}
+    .cfs-stage{position:relative;border:1px solid #96afc8;border-radius:18px;overflow:hidden;background:linear-gradient(rgba(40,95,159,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(40,95,159,.055) 1px,transparent 1px),var(--pale);background-size:30px 30px}
+    .cfs-stage svg{display:block;width:100%;height:320px}
+    .cfs-equation{margin:11px 0 0;padding:11px 13px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--navy);font-family:ui-monospace,"Cascadia Code",Consolas,monospace;font-size:.92rem;font-weight:700;overflow-x:auto;white-space:nowrap}
+    .cfs-readouts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:9px}
+    .cfs-readout{padding:10px 11px;border:1px solid var(--line);border-radius:12px;background:#fff}
+    .cfs-readout span{display:block;color:var(--muted);font-size:.7rem;font-weight:800;text-transform:uppercase}
+    .cfs-readout output{display:block;margin-top:2px;color:var(--navy);font-size:1.08rem;font-weight:850}
+    .cfs-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(260px,.9fr);gap:14px;margin-top:14px}
+    .cfs-controls,.cfs-prompt{padding:14px;border:1px solid var(--line);border-radius:16px;background:#fbfdff}
+    .cfs-label{display:flex;justify-content:space-between;gap:8px;margin-bottom:6px;color:var(--navy);font-size:.8rem;font-weight:800}
+    .cfs-range{width:100%;accent-color:var(--orange)}
+    .cfs-field+.cfs-field{margin-top:12px}
+    .cfs-model-note{margin:10px 0 0;color:var(--muted);font-size:.77rem;line-height:1.35}
+    .cfs-step{margin:0 0 5px;color:var(--blue);font-size:.72rem;font-weight:850;letter-spacing:.1em;text-transform:uppercase}
+    .cfs-question{margin:0;color:var(--navy);font-weight:850;line-height:1.35}
+    .cfs-choices{display:grid;gap:7px;margin-top:10px}
+    .cfs-choice{padding:9px 11px;border:1px solid #6c87a3;border-radius:10px;background:#fff;color:var(--ink);font-weight:750;text-align:left;cursor:pointer}
+    .cfs-choice:hover{background:#e8f2fd}
+    .cfs-feedback{margin:10px 0 0;padding:10px 11px;border-radius:10px;background:#e8f7ed;color:#14532d;font-size:.87rem;font-weight:650;line-height:1.4}
+    .cfs-feedback[data-tone="note"]{background:#fff0e5;color:#7c2d12}
+    .cfs-primary{width:100%;margin-top:10px;padding:10px 13px;border:0;border-radius:10px;background:var(--blue);color:#fff;font-weight:850;cursor:pointer}
+    [hidden]{display:none!important}
+    :focus-visible{outline:3px solid #d95f18;outline-offset:3px}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    @media(max-width:700px){.cfs-grid{grid-template-columns:1fr}.cfs-body{padding:12px}.cfs-stage svg{height:270px}.cfs-equation{font-size:.8rem}}
+    @media(max-width:440px){.cfs-head{align-items:flex-start;padding:14px}.cfs-readouts{grid-template-columns:1fr}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}}
+  </style>
+</head>
+<body>
+  <main class="cfs-app" id="coulomb-slider-app">
+    <header class="cfs-head">
+      <div><p class="cfs-kicker">Unit 6 &middot; Coulomb's law</p><h1>Coulomb Force Slider Model</h1></div>
+      <button class="cfs-reset" id="reset" type="button">Reset</button>
+    </header>
+    <div class="cfs-body">
+      <section class="cfs-stage" aria-labelledby="stage-description">
+        <p class="sr-only" id="stage-description">Two charges sit on a horizontal axis. Arrows on each charge show the Coulomb force, pointing apart for repulsion and toward each other for attraction.</p>
+        <svg viewBox="0 0 1000 320" role="img" aria-labelledby="svg-title svg-desc">
+          <title id="svg-title">Two charges and their Coulomb force arrows</title>
+          <desc id="svg-desc">Charge one on the left and charge two on the right, separated by an adjustable distance, with force arrows of equal length on both charges.</desc>
+          <defs>
+            <marker id="arrowPos" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L12 6 L0 12 Z" fill="#d95f18"/></marker>
+            <marker id="arrowNeg" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L12 6 L0 12 Z" fill="#285f9f"/></marker>
+          </defs>
+          <line x1="40" y1="150" x2="960" y2="150" stroke="#c3d4e4" stroke-width="2" stroke-dasharray="7 7"/>
+          <g id="force-layer">
+            <line id="force-1" x1="0" y1="150" x2="0" y2="150" stroke="#d95f18" stroke-width="9" marker-end="url(#arrowPos)"/>
+            <line id="force-2" x1="0" y1="150" x2="0" y2="150" stroke="#d95f18" stroke-width="9" marker-end="url(#arrowPos)"/>
+            <text id="force-1-label" x="0" y="112" text-anchor="middle" fill="#153456" font-size="16" font-weight="850"></text>
+            <text id="force-2-label" x="0" y="112" text-anchor="middle" fill="#153456" font-size="16" font-weight="850"></text>
+          </g>
+          <g id="charge-1"><circle id="charge-1-dot" cx="0" cy="150" r="30" fill="#f0764b" stroke="#7c2d12" stroke-width="4"/><text id="charge-1-sign" x="0" y="158" text-anchor="middle" fill="#fff" font-size="30" font-weight="850">+</text><text id="charge-1-label" x="0" y="212" text-anchor="middle" fill="#153456" font-size="15" font-weight="850">q&#8321;</text></g>
+          <g id="charge-2"><circle id="charge-2-dot" cx="0" cy="150" r="30" fill="#f0764b" stroke="#7c2d12" stroke-width="4"/><text id="charge-2-sign" x="0" y="158" text-anchor="middle" fill="#fff" font-size="30" font-weight="850">+</text><text id="charge-2-label" x="0" y="212" text-anchor="middle" fill="#153456" font-size="15" font-weight="850">q&#8322;</text></g>
+          <g id="ruler"><line id="ruler-line" x1="0" y1="258" x2="0" y2="258" stroke="#6b8298" stroke-width="3"/><line id="ruler-cap-1" x1="0" y1="242" x2="0" y2="274" stroke="#6b8298" stroke-width="3"/><line id="ruler-cap-2" x1="0" y1="242" x2="0" y2="274" stroke="#6b8298" stroke-width="3"/><text id="ruler-label" x="500" y="296" text-anchor="middle" fill="#52657b" font-size="16" font-weight="800">r</text></g>
+        </svg>
+      </section>
+      <p class="cfs-equation" id="equation" aria-label="Coulomb's law with current values">F = k q&#8321; q&#8322; / r&#178;</p>
+      <div class="cfs-readouts">
+        <div class="cfs-readout"><span>Force magnitude</span><output id="force-output">&mdash;</output></div>
+        <div class="cfs-readout"><span>Interaction</span><output id="type-output">&mdash;</output></div>
+        <div class="cfs-readout"><span>Coulomb constant</span><output>8.99 &times; 10&#8313; N&middot;m&#178;/C&#178;</output></div>
+      </div>
+      <div class="cfs-grid">
+        <section class="cfs-controls" aria-label="Charge and distance controls">
+          <div class="cfs-field"><label class="cfs-label" for="q1-slider"><span>Charge q&#8321;</span><output id="q1-label">+4.0 &micro;C</output></label><input class="cfs-range" id="q1-slider" type="range" min="-10" max="10" step="0.5" value="4" disabled></div>
+          <div class="cfs-field"><label class="cfs-label" for="q2-slider"><span>Charge q&#8322;</span><output id="q2-label">+4.0 &micro;C</output></label><input class="cfs-range" id="q2-slider" type="range" min="-10" max="10" step="0.5" value="4" disabled></div>
+          <div class="cfs-field"><label class="cfs-label" for="r-slider"><span>Center-to-center distance r</span><output id="r-label">0.20 m</output></label><input class="cfs-range" id="r-slider" type="range" min="0.1" max="1" step="0.05" value="0.2" disabled></div>
+          <p class="cfs-model-note">Arrow length grows with force but is compressed, so read exact values from the force readout.</p>
+        </section>
+        <section class="cfs-prompt" aria-labelledby="question">
+          <p class="cfs-step" id="step">Predict first</p>
+          <p class="cfs-question" id="question">q&#8321; doubles to +8.0 &micro;C while q&#8322; and r stay fixed. The force becomes&hellip;</p>
+          <div class="cfs-choices" id="choices"></div>
+          <p class="cfs-feedback" id="feedback" role="status" aria-live="polite" hidden></p>
+          <button class="cfs-primary" id="main-button" type="button" hidden>Explore the sliders</button>
+        </section>
+      </div>
+    </div>
+    <p class="sr-only" id="status" role="status" aria-live="polite">Two charges of positive four microcoulombs sit zero point two meters apart. Choose a prediction.</p>
+    <script>
+      (() => {
+        'use strict';
+        const K = 8.99e9;
+        const e = {
+          f1: document.getElementById('force-1'), f2: document.getElementById('force-2'),
+          f1Label: document.getElementById('force-1-label'), f2Label: document.getElementById('force-2-label'),
+          c1: document.getElementById('charge-1'), c2: document.getElementById('charge-2'),
+          c1Dot: document.getElementById('charge-1-dot'), c2Dot: document.getElementById('charge-2-dot'),
+          c1Sign: document.getElementById('charge-1-sign'), c2Sign: document.getElementById('charge-2-sign'),
+          c1Text: document.getElementById('charge-1-label'), c2Text: document.getElementById('charge-2-label'),
+          rulerLine: document.getElementById('ruler-line'), rulerCap1: document.getElementById('ruler-cap-1'),
+          rulerCap2: document.getElementById('ruler-cap-2'), rulerLabel: document.getElementById('ruler-label'),
+          equation: document.getElementById('equation'), forceOut: document.getElementById('force-output'),
+          typeOut: document.getElementById('type-output'), q1: document.getElementById('q1-slider'),
+          q2: document.getElementById('q2-slider'), r: document.getElementById('r-slider'),
+          q1Label: document.getElementById('q1-label'), q2Label: document.getElementById('q2-label'),
+          rLabel: document.getElementById('r-label'), step: document.getElementById('step'),
+          question: document.getElementById('question'), choices: document.getElementById('choices'),
+          feedback: document.getElementById('feedback'), main: document.getElementById('main-button'),
+          reset: document.getElementById('reset'), status: document.getElementById('status')
+        };
+        const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+        let state = 'predict', q1 = 4, q2 = 4, r = 0.2, growing = false, growTo = 8, previous = 0, pending = false, completionSent = false;
+
+        function force() { return K * Math.abs(q1 * 1e-6) * Math.abs(q2 * 1e-6) / (r * r); }
+        function sign() { return Math.sign(q1) * Math.sign(q2); }
+        function formatForce(value) {
+          if (value === 0) return '0 N';
+          if (value >= 0.01) return value.toFixed(2) + ' N';
+          return value.toExponential(2).replace('e-', ' × 10⁻') + ' N';
+        }
+        function formatCharge(value) { return (value > 0 ? '+' : value < 0 ? '−' : '') + Math.abs(value).toFixed(1) + ' µC'; }
+        function arrowLength(value) { return 200 * value / (value + 7) + 15; }
+
+        function draw() {
+          const gap = 120 + (r - 0.1) / 0.9 * 400;
+          const x1 = 500 - gap / 2, x2 = 500 + gap / 2;
+          const rad1 = 16 + Math.abs(q1) * 1.6, rad2 = 16 + Math.abs(q2) * 1.6;
+          e.c1.setAttribute('transform', 'translate(' + x1 + ' 0)');
+          e.c2.setAttribute('transform', 'translate(' + x2 + ' 0)');
+          e.c1Dot.setAttribute('r', rad1); e.c2Dot.setAttribute('r', rad2);
+          e.c1Dot.setAttribute('fill', q1 > 0 ? '#f0764b' : q1 < 0 ? '#5b8fd0' : '#c3ced9');
+          e.c2Dot.setAttribute('fill', q2 > 0 ? '#f0764b' : q2 < 0 ? '#5b8fd0' : '#c3ced9');
+          e.c1Dot.setAttribute('stroke', q1 > 0 ? '#7c2d12' : q1 < 0 ? '#153456' : '#6b8298');
+          e.c2Dot.setAttribute('stroke', q2 > 0 ? '#7c2d12' : q2 < 0 ? '#153456' : '#6b8298');
+          e.c1Sign.textContent = q1 > 0 ? '+' : q1 < 0 ? '−' : '0';
+          e.c2Sign.textContent = q2 > 0 ? '+' : q2 < 0 ? '−' : '0';
+          e.c1Text.textContent = 'q₁ = ' + formatCharge(q1);
+          e.c2Text.textContent = 'q₂ = ' + formatCharge(q2);
+          e.c1Text.setAttribute('y', 160 + rad1 + 26); e.c2Text.setAttribute('y', 160 + rad2 + 26);
+
+          const f = force(), s = sign(), length = arrowLength(f);
+          const show = s !== 0;
+          e.f1.setAttribute('visibility', show ? 'visible' : 'hidden');
+          e.f2.setAttribute('visibility', show ? 'visible' : 'hidden');
+          if (show) {
+            const outward = s > 0;
+            const start1 = x1 - (outward ? rad1 + 4 : -(rad1 + 4));
+            const start2 = x2 + (outward ? rad2 + 4 : -(rad2 + 4));
+            const end1 = start1 + (outward ? -length : length);
+            const end2 = start2 + (outward ? length : -length);
+            e.f1.setAttribute('x1', start1); e.f1.setAttribute('x2', end1);
+            e.f2.setAttribute('x1', start2); e.f2.setAttribute('x2', end2);
+            const stroke = outward ? '#d95f18' : '#285f9f';
+            e.f1.setAttribute('stroke', stroke); e.f2.setAttribute('stroke', stroke);
+            e.f1.setAttribute('marker-end', outward ? 'url(#arrowPos)' : 'url(#arrowNeg)');
+            e.f2.setAttribute('marker-end', outward ? 'url(#arrowPos)' : 'url(#arrowNeg)');
+            e.f1Label.setAttribute('x', (start1 + end1) / 2); e.f2Label.setAttribute('x', (start2 + end2) / 2);
+            const labelText = state === 'predict' || state === 'explore' || state === 'result' || state === 'final' || state === 'complete' ? formatForce(f) : '';
+            e.f1Label.textContent = labelText; e.f2Label.textContent = labelText;
+          } else { e.f1Label.textContent = ''; e.f2Label.textContent = ''; }
+
+          e.rulerLine.setAttribute('x1', x1); e.rulerLine.setAttribute('x2', x2);
+          e.rulerCap1.setAttribute('x1', x1); e.rulerCap1.setAttribute('x2', x1);
+          e.rulerCap2.setAttribute('x1', x2); e.rulerCap2.setAttribute('x2', x2);
+          e.rulerLabel.setAttribute('x', 500); e.rulerLabel.textContent = 'r = ' + r.toFixed(2) + ' m';
+
+          e.q1Label.textContent = formatCharge(q1); e.q2Label.textContent = formatCharge(q2);
+          e.rLabel.textContent = r.toFixed(2) + ' m';
+          e.forceOut.textContent = s === 0 ? '0 N' : formatForce(f);
+          e.typeOut.textContent = s > 0 ? 'Repulsion' : s < 0 ? 'Attraction' : 'No force';
+          e.equation.textContent = 'F = (8.99 × 10⁹)(' + Math.abs(q1).toFixed(1) + ' × 10⁻⁶)(' + Math.abs(q2).toFixed(1) + ' × 10⁻⁶) / (' + r.toFixed(2) + ')² = ' + (s === 0 ? '0 N' : formatForce(f));
+        }
+
+        function shuffle(list) { const copy = list.slice(); for (let i = copy.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [copy[i], copy[j]] = [copy[j], copy[i]]; } return copy; }
+        function renderChoices(options, handler) {
+          e.choices.replaceChildren();
+          shuffle(options).forEach((option) => {
+            const button = document.createElement('button');
+            button.type = 'button'; button.className = 'cfs-choice'; button.textContent = option.text;
+            button.addEventListener('click', () => handler(option), { once: true });
+            e.choices.append(button);
+          });
+        }
+        function lockChoices() { e.choices.querySelectorAll('button').forEach((button) => { button.disabled = true; }); }
+
+        function chooseDouble(option) {
+          if (state !== 'predict') return;
+          pending = option.correct; lockChoices(); e.choices.hidden = true;
+          state = 'growing'; growing = true;
+          e.step.textContent = 'Watch the charge grow';
+          e.question.textContent = 'q₁ is doubling to +8.0 µC.';
+          e.status.textContent = 'Charge one is doubling. Watch the force arrows.';
+          if (reduce) { q1 = growTo; finishGrowth(); }
+        }
+        function finishGrowth() {
+          growing = false; q1 = growTo; e.q1.value = String(q1); state = 'result'; draw();
+          e.question.textContent = 'The force doubled.';
+          e.feedback.textContent = (pending ? 'Correct. ' : 'Not quite. ') + 'Force went from 3.60 N to 7.19 N, because F is directly proportional to q₁.';
+          e.feedback.dataset.tone = pending ? 'success' : 'note';
+          e.feedback.hidden = false; e.main.textContent = 'Explore the sliders'; e.main.hidden = false;
+          e.status.textContent = 'Doubling charge one doubled the force to seven point one nine newtons.';
+        }
+        function beginExplore() {
+          state = 'explore'; e.q1.disabled = false; e.q2.disabled = false; e.r.disabled = false;
+          e.step.textContent = 'Test the model';
+          e.question.textContent = 'Change either charge, its sign, or the separation.';
+          e.feedback.textContent = 'Like signs push apart; opposite signs pull together. Watch the readout, not just the arrows.';
+          e.feedback.dataset.tone = 'success'; e.feedback.hidden = false;
+          e.main.textContent = 'Answer the last question'; e.main.hidden = false;
+          e.status.textContent = 'Sliders unlocked. Adjust charge one, charge two, and distance.';
+          draw();
+        }
+        function askFinal() {
+          state = 'final'; e.q1.disabled = true; e.q2.disabled = true; e.r.disabled = true;
+          e.step.textContent = 'Final prediction';
+          e.question.textContent = 'Which single change makes the force one quarter as large?';
+          e.feedback.hidden = true; e.main.hidden = true; e.choices.hidden = false;
+          renderChoices([
+            { text: 'Double the separation', correct: true },
+            { text: 'Halve the separation', correct: false },
+            { text: 'Halve one charge', correct: false },
+            { text: 'Double one charge', correct: false }
+          ], chooseFinal);
+          e.status.textContent = 'Final question. Which change makes the force one quarter as large?';
+        }
+        function chooseFinal(option) {
+          if (state !== 'final') return;
+          lockChoices(); state = 'complete';
+          e.question.textContent = 'Doubling r gives one quarter the force.';
+          e.feedback.textContent = (option.correct ? 'Correct. ' : 'Not quite. ') + 'r is squared in the denominator, so twice the distance divides the force by four. Halving a charge only halves it.';
+          e.feedback.dataset.tone = option.correct ? 'success' : 'note';
+          e.feedback.hidden = false; e.main.textContent = 'Replay'; e.main.hidden = false;
+          e.status.textContent = 'Doubling the distance gives one quarter of the force.';
+          sendCompletion();
+        }
+        function sendCompletion() {
+          if (completionSent) return;
+          completionSent = true;
+          window.parent.postMessage({ type: 'complete' }, '*');
+        }
+        function handleMain() {
+          if (state === 'result') beginExplore();
+          else if (state === 'explore') askFinal();
+          else if (state === 'complete') reset();
+        }
+        function reset() {
+          state = 'predict'; q1 = 4; q2 = 4; r = 0.2; growing = false; pending = false;
+          e.q1.value = '4'; e.q2.value = '4'; e.r.value = '0.2';
+          e.q1.disabled = true; e.q2.disabled = true; e.r.disabled = true;
+          e.step.textContent = 'Predict first';
+          e.question.innerHTML = 'q₁ doubles to +8.0 µC while q₂ and r stay fixed. The force becomes…';
+          e.feedback.hidden = true; e.main.hidden = true; e.choices.hidden = false;
+          renderChoices([
+            { text: 'Twice as large', correct: true },
+            { text: 'Four times as large', correct: false },
+            { text: 'Half as large', correct: false },
+            { text: 'Unchanged', correct: false }
+          ], chooseDouble);
+          e.status.textContent = 'Two charges of positive four microcoulombs sit zero point two meters apart. Choose a prediction.';
+          draw();
+        }
+
+        e.q1.addEventListener('input', () => { q1 = Number(e.q1.value); draw(); e.status.textContent = 'Charge one ' + formatCharge(q1) + '. Force ' + e.forceOut.textContent + '. ' + e.typeOut.textContent + '.'; });
+        e.q2.addEventListener('input', () => { q2 = Number(e.q2.value); draw(); e.status.textContent = 'Charge two ' + formatCharge(q2) + '. Force ' + e.forceOut.textContent + '. ' + e.typeOut.textContent + '.'; });
+        e.r.addEventListener('input', () => { r = Number(e.r.value); draw(); e.status.textContent = 'Distance ' + r.toFixed(2) + ' meters. Force ' + e.forceOut.textContent + '.'; });
+        e.main.addEventListener('click', handleMain);
+        e.reset.addEventListener('click', reset);
+
+        function animate(now) {
+          const dt = previous ? Math.min((now - previous) / 1000, 0.05) : 0;
+          previous = now;
+          if (growing) {
+            q1 = Math.min(growTo, q1 + dt * 4);
+            draw();
+            if (q1 >= growTo) finishGrowth();
+          }
+          requestAnimationFrame(animate);
+        }
+        reset();
+        requestAnimationFrame(animate);
+      })();
+    </script>
+  </main>
+</body>
+</html>

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Double-Slit Photon Builder</title>
+<style>
+
+:root{
+  --blue:#285f9f;
+  --blue-dark:#17436f;
+  --ink:#172033;
+  --muted:#5c6678;
+  --line:#cfd8e6;
+  --soft:#eef5fb;
+  --panel:#ffffff;
+  --good:#17643b;
+  --warn:#8a4b08;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:transparent;font-family:Arial,Helvetica,sans-serif;color:var(--ink)}
+body{padding:10px}
+button,input{font:inherit}
+button{min-height:44px;min-width:44px;border-radius:10px;border:2px solid var(--blue);background:#fff;color:var(--blue-dark);font-weight:700;padding:10px 14px;cursor:pointer}
+button:hover{background:#f2f7fc}
+button:focus-visible,input:focus-visible{outline:4px solid #f2b705;outline-offset:3px}
+button[disabled]{opacity:.55;cursor:not-allowed}
+.rph-app{max-width:980px;margin:0 auto;border:5px solid var(--blue);border-radius:22px;background:#fff;overflow:hidden}
+.rph-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);background:#f8fbfe}
+.rph-title{margin:0;font-size:1.05rem;color:var(--blue-dark)}
+.rph-stage{min-height:440px;padding:18px;background:linear-gradient(180deg,#f9fcff,#eef5fb);display:grid;place-items:center}
+.rph-scene{width:min(100%,860px);min-height:330px;border:1px solid var(--line);border-radius:18px;background:white;position:relative;overflow:hidden}
+.rph-card{padding:16px;border-top:1px solid var(--line);background:#fff}
+.rph-prompt{margin:0 0 12px;font-weight:700;font-size:1.05rem}
+.rph-setup{margin:0 0 12px;color:var(--muted)}
+.rph-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.rph-feedback{min-height:48px;margin:12px 0 0;padding:10px 12px;border-radius:10px;background:#f5f7fa;color:var(--ink)}
+.rph-controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.rph-progress{font-size:.9rem;color:var(--muted);font-weight:700}
+.rph-hidden{display:none!important}
+.rph-status{position:absolute;left:-9999px}
+.rph-legend{display:flex;flex-wrap:wrap;gap:10px;padding:10px 12px;font-size:.86rem;color:var(--muted)}
+.rph-chip{display:inline-flex;align-items:center;gap:6px}
+.rph-dot{width:12px;height:12px;border-radius:50%;display:inline-block;border:1px solid #455}
+svg{width:100%;height:auto;display:block}
+@media(max-width:700px){
+  .rph-stage{min-height:360px;padding:10px}
+  .rph-scene{min-height:300px}
+  .rph-choices{grid-template-columns:1fr}
+  .rph-top{align-items:flex-start}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}
+
+
+.ds-emitter{fill:#285f9f}.ds-screen{fill:#eaf1f8;stroke:#8ea7c2;stroke-width:2}
+.ds-wall{fill:#5e6b7e}.ds-photon{fill:#f2b705;stroke:#8c6b00;stroke-width:1}
+.ds-hit{fill:#285f9f;opacity:.72}.ds-wave{fill:none;stroke:#285f9f;stroke-width:2;opacity:.75}
+.ds-label{font:700 16px Arial;fill:#24344c}.ds-small{font:14px Arial;fill:#5c6678}
+
+</style>
+</head>
+<body>
+<main class="rph-app">
+
+<header class="rph-top">
+  <h1 class="rph-title">Double-Slit Photon Builder</h1>
+  <div class="rph-progress" id="progress">Scenario 1 of 3</div>
+  <button id="resetBtn" type="button">Reset</button>
+</header>
+<section class="rph-stage" aria-label="Double-slit light simulation">
+  <div class="rph-scene">
+    <svg viewBox="0 0 860 330" role="img" aria-labelledby="dsTitle dsDesc">
+      <title id="dsTitle">Photon source, slit wall, and detection screen</title>
+      <desc id="dsDesc">A light source is on the left, a wall with one or two openings is in the center, and a detection screen is on the right.</desc>
+      <rect x="0" y="0" width="860" height="330" fill="#ffffff"/>
+      <circle class="ds-emitter" cx="80" cy="165" r="30"/>
+      <text class="ds-label" x="35" y="215">source</text>
+      <rect class="ds-wall" x="380" y="30" width="28" height="270" rx="8"/>
+      <rect id="slit1" x="378" y="115" width="32" height="22" fill="#fff"/>
+      <rect id="slit2" x="378" y="193" width="32" height="22" fill="#fff"/>
+      <text class="ds-label" x="343" y="320">barrier</text>
+      <rect class="ds-screen" x="740" y="35" width="42" height="260" rx="8"/>
+      <text class="ds-label" x="714" y="320">screen</text>
+      <g id="waveLayer"></g>
+      <g id="photonLayer"></g>
+      <g id="hitLayer"></g>
+      <text id="sceneLabel" class="ds-small" x="430" y="26"></text>
+    </svg>
+    <div class="rph-legend">
+      <span class="rph-chip"><span class="rph-dot" style="background:#f2b705"></span>single photon</span>
+      <span class="rph-chip"><span class="rph-dot" style="background:#285f9f"></span>detection</span>
+    </div>
+  </div>
+</section>
+<section class="rph-card" aria-live="polite">
+  <p class="rph-setup" id="setup"></p>
+  <p class="rph-prompt" id="prompt"></p>
+  <div class="rph-choices" id="choices"></div>
+  <p class="rph-feedback" id="feedback"></p>
+  <div class="rph-controls">
+    <button id="mainBtn" type="button">Start</button>
+    <button id="replayBtn" type="button" class="rph-hidden">Replay reveal</button>
+  </div>
+</section>
+<p class="rph-status" id="status" role="status" aria-live="polite"></p>
+
+<script>
+
+(() => {
+  const scenarios = [
+    {title:'One slit', setup:'A single opening is available.', question:'What pattern will build on the screen?', choices:['One broad band','Many evenly spaced bands','No detections'], correct:0,
+     result:'One broad band forms. A single slit spreads light but does not create a two-slit interference pattern.', mode:'single'},
+    {title:'Two slits, many photons', setup:'Both openings are available.', question:'What pattern will build on the screen?', choices:['Two bright spots only','Bright and dark bands','One solid band'], correct:1,
+     result:'Bright and dark bands form. The overlapping paths reinforce at some locations and cancel at others.', mode:'double'},
+    {title:'Two slits, one photon at a time', setup:'Photons are released individually through two openings.', question:'What will many single detections eventually form?', choices:['A random rectangle','An interference pattern','Two narrow piles'], correct:1,
+     result:'An interference pattern gradually appears. Each photon arrives as a point, but the full distribution is wave-like.', mode:'photon'}
+  ];
+  let i=0, state='setup', prediction=null, completed=false, completionSent=false, anim=null;
+  const $=s=>document.querySelector(s);
+  const progress=$('#progress'), setup=$('#setup'), prompt=$('#prompt'), choices=$('#choices'), feedback=$('#feedback'),
+        mainBtn=$('#mainBtn'), replayBtn=$('#replayBtn'), slit2=$('#slit2'), hitLayer=$('#hitLayer'), photonLayer=$('#photonLayer'),
+        waveLayer=$('#waveLayer'), sceneLabel=$('#sceneLabel'), status=$('#status');
+  function clearScene(){ hitLayer.innerHTML=''; photonLayer.innerHTML=''; waveLayer.innerHTML=''; if(anim) cancelAnimationFrame(anim); }
+  function shuffle(arr){return arr.map((v,idx)=>({v,idx,r:Math.random()})).sort((a,b)=>a.r-b.r)}
+  function render(){
+    const s=scenarios[i]; progress.textContent=`Scenario ${i+1} of ${scenarios.length}`; sceneLabel.textContent=s.title;
+    slit2.style.display=s.mode==='single'?'none':'block';
+    setup.textContent=s.setup;
+    prompt.textContent=state==='predict'?s.question:'';
+    choices.innerHTML='';
+    feedback.textContent=state==='explain'?s.result:'';
+    if(state==='predict'){
+      shuffle(s.choices).forEach(o=>{
+        const b=document.createElement('button'); b.type='button'; b.textContent=o.v; b.onclick=()=>choose(o.idx); choices.appendChild(b);
+      });
+    }
+    mainBtn.textContent=state==='setup'?'Start':state==='explain'?(i===scenarios.length-1?'Finish':'Next scenario'):'Revealing…';
+    mainBtn.disabled=state==='predict'||state==='reveal'||state==='complete';
+    replayBtn.classList.toggle('rph-hidden',state!=='explain');
+    if(state==='complete'){ setup.textContent='Walkthrough complete.'; prompt.textContent=''; feedback.textContent='You used both wave and particle evidence to interpret light behavior.'; mainBtn.textContent='Completed';}
+  }
+  function choose(v){ if(state!=='predict')return; prediction=v; state='reveal'; render(); play(()=>{state='explain'; status.textContent=scenarios[i].result; render();}); }
+  function addHit(y,r=4,opacity=.75){ const c=document.createElementNS('http://www.w3.org/2000/svg','circle'); c.setAttribute('cx','761');c.setAttribute('cy',y);c.setAttribute('r',r);c.setAttribute('class','ds-hit');c.setAttribute('opacity',opacity);hitLayer.appendChild(c);}
+  function play(done){
+    clearScene(); const s=scenarios[i], reduced=matchMedia('(prefers-reduced-motion: reduce)').matches, total=reduced?1:(s.mode==='photon'?70:40);
+    let n=0;
+    function frame(){
+      n++;
+      let y;
+      if(s.mode==='single'){ y=165+(Math.random()-0.5)*95; }
+      else {
+        const bands=[75,105,135,165,195,225,255];
+        const weights=[.25,.55,.85,1,.85,.55,.25];
+        let k=Math.floor(Math.random()*bands.length);
+        y=bands[k]+(Math.random()-0.5)*13/weights[k];
+      }
+      addHit(Math.max(45,Math.min(285,y)),s.mode==='photon'?3:5);
+      if(s.mode==='photon'){
+        const p=document.createElementNS('http://www.w3.org/2000/svg','circle'); p.setAttribute('cx','110');p.setAttribute('cy','165');p.setAttribute('r','5');p.setAttribute('class','ds-photon');photonLayer.appendChild(p);
+        setTimeout(()=>p.remove(),120);
+      }
+      if(n<total){ anim=requestAnimationFrame(frame);} else {done();}
+    }
+    frame();
+  }
+  mainBtn.onclick=()=>{
+    if(state==='setup'){state='predict'; render();}
+    else if(state==='explain'){
+      if(i<scenarios.length-1){i++;state='setup';prediction=null;clearScene();render();}
+      else {state='complete';render();completeOnce();}
+    }
+  };
+  replayBtn.onclick=()=>{state='reveal';render();play(()=>{state='explain';render();});};
+  $('#resetBtn').onclick=()=>{i=0;state='setup';prediction=null;completed=false;clearScene();render();};
+  function completeOnce(){ if(completionSent)return; completionSent=true; window.parent.postMessage({type:'complete'},'*'); }
+  render();
+})();
+
+</script>
+</main>
+</body>
+</html>

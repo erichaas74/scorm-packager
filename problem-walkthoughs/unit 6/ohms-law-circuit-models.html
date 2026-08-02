@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ohm's Law and Circuit Models</title>
+  <style>
+    /* Rise Compatibility: Transparent background */
+    html, body {
+      background: transparent;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      color: #1a1a1a;
+      box-sizing: border-box;
+    }
+    
+    *, *::before, *::after {
+      box-sizing: inherit;
+    }
+
+    .walkthrough {
+      max-width: 760px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      padding: 1rem;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 0.5rem;
+    }
+
+    .header h2 {
+      margin: 0;
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .progress {
+      font-size: 0.875rem;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    /* Simulation Stage */
+    .stage {
+      width: 100%;
+      height: 280px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Standardized Learner Card */
+    .card {
+      border: 5px solid #285f9f;
+      border-radius: 12px;
+      padding: 1.5rem;
+      background: #ffffff;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .card p {
+      margin: 0 0 1rem 0;
+      line-height: 1.5;
+    }
+
+    #prompt-text {
+      font-weight: 600;
+      font-size: 1.05rem;
+    }
+
+    /* Accessible Interactive Controls */
+    .choices {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 500;
+      padding: 0.875rem 1rem;
+      border: 2px solid #cbd5e1;
+      border-radius: 6px;
+      background: #ffffff;
+      color: #1e293b;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s ease;
+      min-height: 48px;
+    }
+
+    button:hover {
+      border-color: #285f9f;
+      background: #f0f7ff;
+    }
+
+    button:focus-visible {
+      outline: 3px solid #285f9f;
+      outline-offset: 2px;
+    }
+
+    .action-btn {
+      text-align: center;
+      background: #285f9f;
+      color: #ffffff;
+      border-color: #285f9f;
+      margin-top: 1rem;
+      width: 100%;
+    }
+
+    .action-btn:hover {
+      background: #1e4b82;
+      border-color: #1e4b82;
+      color: #ffffff;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  
+  <main class="walkthrough">
+    
+    <div class="header">
+      <h2 id="scenario-title">Scenario Title</h2>
+      <span class="progress" id="progress" aria-live="polite">1 / 4</span>
+    </div>
+
+    <!-- The physical situation the learner watches -->
+    <div class="stage" aria-label="Circuit Simulation Stage" role="img">
+      <svg id="sim-svg" width="100%" height="100%" viewBox="0 0 760 280">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569" />
+          </marker>
+        </defs>
+        <g id="svg-content"></g>
+      </svg>
+    </div>
+
+    <!-- The decision card -->
+    <div class="card" aria-live="polite">
+      <p id="setup-text"></p>
+      <p id="prompt-text"></p>
+      
+      <div id="choices" class="choices" role="group" aria-label="Prediction Choices"></div>
+      
+      <div id="feedback-panel" class="hidden">
+        <p id="feedback-text"></p>
+        <button id="next-btn" class="action-btn">Next Scenario</button>
+      </div>
+    </div>
+
+    <script>
+      /** 
+       * Base SVG elements for drawing simple circuits and graphs
+       */
+      const drawCircuit = () => `
+        <path d="M 230 190 L 230 90 L 350 90" stroke="#64748b" stroke-width="4" fill="none"/>
+        <path d="M 410 90 L 530 90 L 530 190 L 410 190" stroke="#64748b" stroke-width="4" fill="none"/>
+        <path d="M 350 190 L 230 190" stroke="#64748b" stroke-width="4" fill="none"/>
+        
+        <!-- Resistor -->
+        <path d="M 350 90 L 355 75 L 365 105 L 375 75 L 385 105 L 395 75 L 405 105 L 410 90" stroke="#b45309" stroke-width="4" fill="none"/>
+        <text x="380" y="60" text-anchor="middle" font-size="16" font-weight="bold" fill="#b45309" id="resistor-label"></text>
+
+        <!-- Battery -->
+        <line x1="350" y1="175" x2="350" y2="205" stroke="#1e293b" stroke-width="4"/>
+        <line x1="365" y1="180" x2="365" y2="200" stroke="#1e293b" stroke-width="8"/>
+        <line x1="380" y1="175" x2="380" y2="205" stroke="#1e293b" stroke-width="4"/>
+        <line x1="395" y1="180" x2="395" y2="200" stroke="#1e293b" stroke-width="8"/>
+        <line x1="410" y1="175" x2="410" y2="205" stroke="#1e293b" stroke-width="4"/>
+        <text x="380" y="235" text-anchor="middle" font-size="16" font-weight="bold" fill="#1e293b" id="battery-label"></text>
+
+        <!-- Ammeter -->
+        <circle cx="530" cy="140" r="22" fill="#ffffff" stroke="#64748b" stroke-width="4"/>
+        <text x="530" y="146" text-anchor="middle" font-size="18" font-weight="bold" fill="#64748b">A</text>
+        <text x="580" y="146" font-size="16" font-weight="bold" fill="#3b82f6" id="ammeter-label"></text>
+      `;
+
+      const drawGraphAxes = () => `
+        <line x1="250" y1="240" x2="250" y2="40" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+        <line x1="250" y1="240" x2="520" y2="240" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+        <text x="235" y="50" font-size="14" font-weight="bold" fill="#475569">Current (I)</text>
+        <text x="510" y="260" font-size="14" font-weight="bold" fill="#475569">Voltage (V)</text>
+      `;
+
+      const scenarios = [
+        {
+          title: "Missing-Variable Circuit Challenge",
+          setup: "A circuit has a 12 V battery and an unknown resistor. The ammeter reads 3 A.",
+          promptText: "Which equation correctly rearranges Ohm's Law (V = IR) to find the resistance?",
+          choices: [
+            { text: "R = V / I" },
+            { text: "R = V × I" },
+            { text: "R = I / V" }
+          ],
+          feedback: "Resistance is calculated by V / I. Dividing 12 V by 3 A reveals a 4 &Omega; resistor.",
+          getSVG: (reveal) => {
+            let svg = drawCircuit();
+            svg = svg.replace('id="battery-label"></text>', 'id="battery-label">12 V</text>');
+            svg = svg.replace('id="ammeter-label"></text>', 'id="ammeter-label">3 A</text>');
+            
+            if (!reveal) {
+              svg = svg.replace('id="resistor-label"></text>', 'id="resistor-label">R = ?</text>');
+            } else {
+              svg = svg.replace('id="resistor-label"></text>', 'id="resistor-label">R = 4 &Omega;</text>');
+              svg += `<text x="380" y="140" text-anchor="middle" font-size="20" font-weight="bold" fill="#059669">R = 12V / 3A = 4&Omega;</text>`;
+            }
+            return svg;
+          }
+        },
+        {
+          title: "Ohm's Law Proportions",
+          setup: "A circuit has a fixed 10 &Omega; resistor and a 5 V battery, resulting in 0.5 A of current.",
+          promptText: "If the battery is swapped for a 10 V battery, what happens to the current?",
+          choices: [
+            { text: "It doubles" },
+            { text: "It drops in half" },
+            { text: "It stays the same" }
+          ],
+          feedback: "The current doubles to 1.0 A. Voltage and current are directly proportional when resistance is constant.",
+          getSVG: (reveal) => {
+            let svg = drawCircuit();
+            svg = svg.replace('id="resistor-label"></text>', 'id="resistor-label">10 &Omega;</text>');
+            
+            if (!reveal) {
+              svg = svg.replace('id="battery-label"></text>', 'id="battery-label">5 V</text>');
+              svg = svg.replace('id="ammeter-label"></text>', 'id="ammeter-label">0.5 A</text>');
+            } else {
+              svg = svg.replace('id="battery-label"></text>', 'id="battery-label">10 V</text>');
+              svg = svg.replace('id="ammeter-label"></text>', 'id="ammeter-label">1.0 A</text>');
+              svg += `<text x="380" y="140" text-anchor="middle" font-size="20" font-weight="bold" fill="#059669">Double V &rarr; Double I</text>`;
+            }
+            return svg;
+          }
+        },
+        {
+          title: "Voltage-Current Graph Builder",
+          setup: "Voltage is steadily increased across a standard fixed resistor.",
+          promptText: "What shape will the Current vs. Voltage (I-V) graph form?",
+          choices: [
+            { text: "A straight diagonal line" },
+            { text: "A curve bending upward" },
+            { text: "A flat horizontal line" }
+          ],
+          feedback: "It forms a straight diagonal line. This constant slope represents a constant resistance, characteristic of ohmic materials.",
+          getSVG: (reveal) => {
+            let svg = drawGraphAxes();
+            if (!reveal) {
+              svg += `<text x="380" y="150" text-anchor="middle" font-size="36" font-weight="bold" fill="#94a3b8">?</text>`;
+            } else {
+              svg += `
+                <line x1="250" y1="240" x2="480" y2="70" stroke="#3b82f6" stroke-width="4" />
+                <text x="390" y="110" font-size="14" font-weight="bold" fill="#3b82f6">Constant Slope (Fixed R)</text>
+              `;
+            }
+            return svg;
+          }
+        },
+        {
+          title: "Ohmic vs. Non-Ohmic Materials",
+          setup: "Voltage is steadily increased across an incandescent light bulb filament, causing it to heat up.",
+          promptText: "How does this heating affect the bulb's Current vs. Voltage (I-V) graph?",
+          choices: [
+            { text: "Curves downward (less current added)" },
+            { text: "Curves upward (more current added)" },
+            { text: "Remains a straight line" }
+          ],
+          feedback: "The line curves downward. The hot filament increases in resistance, drawing less and less additional current per volt.",
+          getSVG: (reveal) => {
+            let svg = drawGraphAxes();
+            svg += `
+              <line x1="250" y1="240" x2="480" y2="70" stroke="#94a3b8" stroke-width="2" stroke-dasharray="6,6"/>
+              <text x="490" y="80" font-size="12" fill="#94a3b8">Ohmic reference</text>
+            `;
+            if (!reveal) {
+              svg += `<text x="380" y="150" text-anchor="middle" font-size="36" font-weight="bold" fill="#94a3b8">?</text>`;
+            } else {
+              svg += `
+                <path d="M 250 240 C 350 160, 420 150, 480 150" stroke="#ef4444" stroke-width="4" fill="none"/>
+                <text x="490" y="155" font-size="14" font-weight="bold" fill="#ef4444">Non-Ohmic Bulb</text>
+                <text x="490" y="175" font-size="12" fill="#ef4444">(Resistance increased)</text>
+              `;
+            }
+            return svg;
+          }
+        }
+      ];
+
+      // Walkthrough State Machine
+      let currentScenarioIndex = 0;
+      let state = 'setup'; // 'setup' -> 'reveal'
+      let completed = false;
+
+      // Utility: Shuffle choices
+      function shuffle(array) {
+        let currentIndex = array.length, randomIndex;
+        while (currentIndex !== 0) {
+          randomIndex = Math.floor(Math.random() * currentIndex);
+          currentIndex--;
+          [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+        }
+        return array;
+      }
+
+      function renderScenario() {
+        state = 'setup';
+        const scen = scenarios[currentScenarioIndex];
+        
+        // Reset Text and Progress
+        document.getElementById('scenario-title').innerText = scen.title;
+        document.getElementById('progress').innerText = `${currentScenarioIndex + 1} / ${scenarios.length}`;
+        document.getElementById('setup-text').innerHTML = scen.setup;
+        document.getElementById('prompt-text').innerHTML = scen.promptText;
+        
+        // Render SVG for Prediction state
+        document.getElementById('svg-content').innerHTML = scen.getSVG(false);
+
+        // Manage Card Visibility Blocks
+        const choicesDiv = document.getElementById('choices');
+        choicesDiv.innerHTML = '';
+        choicesDiv.classList.remove('hidden');
+        document.getElementById('prompt-text').classList.remove('hidden');
+        document.getElementById('feedback-panel').classList.add('hidden');
+
+        // Build Buttons
+        const shuffledOptions = shuffle([...scen.choices]);
+        shuffledOptions.forEach(opt => {
+          const btn = document.createElement('button');
+          btn.innerHTML = opt.text;
+          btn.onclick = () => choose();
+          choicesDiv.appendChild(btn);
+        });
+      }
+
+      function choose() {
+        if (state !== 'setup') return;
+        state = 'reveal';
+
+        const scen = scenarios[currentScenarioIndex];
+
+        // 1. Hide choices and prompt
+        document.getElementById('choices').classList.add('hidden');
+        document.getElementById('prompt-text').classList.add('hidden');
+
+        // 2. Reveal visual evidence synchronized with the choice
+        document.getElementById('svg-content').innerHTML = scen.getSVG(true);
+
+        // 3. Show succinct feedback block
+        const fbPanel = document.getElementById('feedback-panel');
+        fbPanel.classList.remove('hidden');
+        document.getElementById('feedback-text').innerHTML = scen.feedback;
+
+        // 4. Update the Next action
+        const nextBtn = document.getElementById('next-btn');
+        if (currentScenarioIndex === scenarios.length - 1) {
+          nextBtn.innerText = "Finish";
+          nextBtn.onclick = finishWalkthrough;
+        } else {
+          nextBtn.innerText = "Next Scenario";
+          nextBtn.onclick = () => {
+            currentScenarioIndex++;
+            renderScenario();
+          };
+        }
+      }
+
+      function finishWalkthrough() {
+        if (!completed) {
+          window.parent.postMessage({ type: 'complete' }, '*');
+          completed = true;
+        }
+        document.getElementById('feedback-text').innerHTML = "<strong>Walkthrough complete.</strong> You have successfully applied Ohm's Law to predict circuit behavior and interpret V-I graphs.";
+        document.getElementById('next-btn').classList.add('hidden');
+      }
+
+      // Initialize the first loop
+      renderScenario();
+    </script>
+  </main>
+</body>
+</html>

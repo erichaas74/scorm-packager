@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sim 2: Photon Impact & Ionization Threshold</title>
+<style>
+  :root {
+    --bg: #0f172a; --card: #1e293b; --accent: #f97316;
+    --text: #e2e8f0; --muted: #94a3b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; padding: 16px;
+  }
+  h1 { font-size: 1.35rem; color: var(--accent); margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 16px; }
+  .layout {
+    display: grid; grid-template-columns: 1fr 340px; gap: 16px;
+    max-width: 1200px; margin: 0 auto;
+  }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+  .canvas-wrap, .controls {
+    background: var(--card); border-radius: 12px; padding: 14px;
+  }
+  canvas { width: 100%; height: auto; display: block; border-radius: 8px; background: #0b1220; }
+  .controls { display: flex; flex-direction: column; gap: 14px; }
+  label { font-size: 0.85rem; color: var(--muted); display: block; margin-bottom: 4px; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  button {
+    background: #334155; color: var(--text); border: none;
+    padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 0.85rem;
+  }
+  button:hover { background: #475569; }
+  button.active { background: var(--accent); color: #0f172a; font-weight: 600; }
+  .info-box {
+    background: #0f172a; border-left: 3px solid var(--accent);
+    padding: 10px 12px; border-radius: 0 8px 8px 0;
+    font-size: 0.84rem; line-height: 1.45;
+  }
+  .threshold {
+    background: #0f172a; border-radius: 8px; padding: 10px; text-align: center;
+  }
+  .threshold .val { font-size: 1.3rem; font-weight: 700; }
+  .prediction {
+    background: #7c2d12; border-radius: 8px; padding: 10px; font-size: 0.82rem;
+  }
+  .prediction strong { color: #fdba74; }
+</style>
+</head>
+<body>
+  <h1>Simulation 2: Photon Impact & Ionization Threshold</h1>
+  <p class="subtitle">Part 2 · What happens when photons hit matter?</p>
+
+  <div class="layout">
+    <div class="canvas-wrap">
+      <canvas id="c" width="800" height="460"></canvas>
+    </div>
+
+    <div class="controls">
+      <div>
+        <label>Photon frequency / energy</label>
+        <input type="range" id="energy" min="0" max="100" value="25">
+        <span id="eLabel" style="font-size:0.8rem;color:#fdba74"></span>
+      </div>
+
+      <div class="btn-row">
+        <button id="fireBtn" style="background:#ea580c;flex:1;">Fire Photon →</button>
+        <button id="resetBtn">Reset Atom</button>
+      </div>
+
+      <div class="threshold">
+        <div class="val" id="status">Below threshold</div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-top:4px">
+          Typical ionization energy ≈ 10–15 eV
+        </div>
+      </div>
+
+      <div class="info-box" id="info">
+        Low-energy photons (radio, microwave, IR, visible) can only heat or excite electrons temporarily.
+        High-energy photons (UV, X-ray, gamma) can knock electrons completely free → ionization.
+      </div>
+
+      <div class="prediction">
+        <strong>Misconceptions to challenge:</strong><br>
+        • Do microwaves change atomic nuclei?<br>
+        • Do microwaves make food radioactive?<br>
+        • Are all forms of radiation equally dangerous?<br>
+        • Does a brighter low-frequency source become ionizing?
+      </div>
+    </div>
+  </div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+const IONIZATION_THRESHOLD = 55; // slider value corresponding to ~12 eV
+
+let sliderVal = 25;
+let photon = null;          // {x, y, vx, energy}
+let electron = null;        // ejected electron
+let atomState = 'intact';   // intact | excited | ionized
+let flash = 0;
+let heatParticles = [];
+
+const energySlider = document.getElementById('energy');
+const eLabel = document.getElementById('eLabel');
+const status = document.getElementById('status');
+const info = document.getElementById('info');
+
+function energyFromSlider(s) {
+  // map 0-100 → ~0.001 eV (radio) to ~1 MeV (gamma) roughly log
+  return Math.pow(10, -3 + s * 0.09); // eV
+}
+function formatE(e) {
+  if (e >= 1e6) return (e/1e6).toFixed(2) + ' MeV';
+  if (e >= 1e3) return (e/1e3).toFixed(1) + ' keV';
+  if (e >= 1) return e.toFixed(1) + ' eV';
+  return (e*1000).toFixed(1) + ' meV';
+}
+function regionName(s) {
+  if (s < 15) return 'Radio / Microwave';
+  if (s < 30) return 'Infrared';
+  if (s < 45) return 'Visible';
+  if (s < 60) return 'Ultraviolet';
+  if (s < 80) return 'X-ray';
+  return 'Gamma ray';
+}
+
+function updateLabels() {
+  const e = energyFromSlider(sliderVal);
+  eLabel.textContent = formatE(e) + '  ·  ' + regionName(sliderVal);
+  if (sliderVal < IONIZATION_THRESHOLD) {
+    status.textContent = 'Below ionization threshold';
+    status.style.color = '#94a3b8';
+  } else {
+    status.textContent = 'Above ionization threshold';
+    status.style.color = '#f97316';
+  }
+}
+energySlider.oninput = () => {
+  sliderVal = +energySlider.value;
+  updateLabels();
+};
+updateLabels();
+
+document.getElementById('fireBtn').onclick = () => {
+  if (photon) return;
+  const e = energyFromSlider(sliderVal);
+  photon = { x: 60, y: H/2, vx: 6 + sliderVal * 0.04, energy: e, s: sliderVal };
+  atomState = 'intact';
+  electron = null;
+  heatParticles = [];
+  flash = 0;
+};
+
+document.getElementById('resetBtn').onclick = () => {
+  photon = null;
+  electron = null;
+  atomState = 'intact';
+  heatParticles = [];
+  flash = 0;
+};
+
+function drawAtom(cx, cy) {
+  // Nucleus
+  ctx.beginPath();
+  ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+  ctx.fillStyle = '#f87171';
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('+', cx, cy + 4);
+
+  // Electron orbit
+  if (atomState !== 'ionized') {
+    ctx.beginPath();
+    ctx.arc(cx, cy, 55, 0, Math.PI * 2);
+    ctx.strokeStyle = '#475569';
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Electron
+    const angle = atomState === 'excited' ? performance.now() / 80 : performance.now() / 400;
+    const ex = cx + Math.cos(angle) * 55;
+    const ey = cy + Math.sin(angle) * 55;
+    ctx.beginPath();
+    ctx.arc(ex, ey, 7, 0, Math.PI * 2);
+    ctx.fillStyle = '#38bdf8';
+    ctx.fill();
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.fillText('e⁻', ex, ey + 3);
+  }
+  ctx.textAlign = 'left';
+}
+
+function draw() {
+  ctx.fillStyle = '#0b1220';
+  ctx.fillRect(0, 0, W, H);
+
+  // Labels
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '13px sans-serif';
+  ctx.fillText('Incoming photon', 40, 30);
+  ctx.fillText('Atom / Molecule', W/2 - 30, 30);
+
+  const atomX = W * 0.62, atomY = H / 2;
+
+  // Heat particles (for non-ionizing absorption)
+  heatParticles.forEach((p, i) => {
+    p.x += p.vx; p.y += p.vy; p.life--;
+    ctx.globalAlpha = Math.max(0, p.life / 40);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#fbbf24';
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    if (p.life <= 0) heatParticles.splice(i, 1);
+  });
+
+  // Photon
+  if (photon) {
+    photon.x += photon.vx;
+
+    // Draw photon as small wave packet / circle
+    const col = photon.s < 45 ? '#22c55e' : photon.s < 60 ? '#a78bfa' : '#f97316';
+    ctx.beginPath();
+    ctx.arc(photon.x, photon.y, 10, 0, Math.PI * 2);
+    ctx.fillStyle = col;
+    ctx.fill();
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('γ', photon.x, photon.y + 4);
+    ctx.textAlign = 'left';
+
+    // Collision check
+    if (photon.x > atomX - 30 && !electron && atomState === 'intact') {
+      if (photon.s >= IONIZATION_THRESHOLD) {
+        // Ionize
+        atomState = 'ionized';
+        electron = {
+          x: atomX + 55, y: atomY,
+          vx: 3 + (photon.s - IONIZATION_THRESHOLD) * 0.08,
+          vy: (Math.random() - 0.5) * 2
+        };
+        flash = 20;
+        info.innerHTML = '<b style="color:#f97316">IONIZATION!</b> Photon energy was high enough to eject an electron. The atom is now a positive ion. This can damage DNA or create free radicals.';
+      } else {
+        // Non-ionizing: excite or heat
+        atomState = 'excited';
+        flash = 12;
+        for (let i = 0; i < 12; i++) {
+          heatParticles.push({
+            x: atomX, y: atomY,
+            vx: (Math.random() - 0.5) * 4,
+            vy: (Math.random() - 0.5) * 4,
+            life: 30 + Math.random() * 20
+          });
+        }
+        if (photon.s < 30) {
+          info.innerHTML = '<b style="color:#fbbf24">Heating only.</b> Photon energy is far below the ionization threshold. Energy is absorbed as molecular vibration / rotation → heat. No electrons are removed. Food is not made radioactive.';
+        } else {
+          info.innerHTML = '<b style="color:#22c55e">Excitation / temporary energy transfer.</b> Electron may jump to a higher orbit briefly, then fall back (fluorescence / heat). No permanent ionization.';
+        }
+      }
+      photon = null;
+    }
+
+    if (photon && photon.x > W + 20) photon = null;
+  }
+
+  // Flash
+  if (flash > 0) {
+    ctx.fillStyle = `rgba(249, 115, 22, ${flash / 30})`;
+    ctx.beginPath();
+    ctx.arc(atomX, atomY, 80, 0, Math.PI * 2);
+    ctx.fill();
+    flash--;
+  }
+
+  // Atom
+  drawAtom(atomX, atomY);
+
+  // Ejected electron
+  if (electron) {
+    electron.x += electron.vx;
+    electron.y += electron.vy;
+    ctx.beginPath();
+    ctx.arc(electron.x, electron.y, 7, 0, Math.PI * 2);
+    ctx.fillStyle = '#38bdf8';
+    ctx.fill();
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('e⁻', electron.x, electron.y + 3);
+    ctx.textAlign = 'left';
+
+    if (electron.x > W + 30) electron = null;
+  }
+
+  // Threshold line visual
+  ctx.strokeStyle = '#475569';
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath();
+  ctx.moveTo(40, H - 40);
+  ctx.lineTo(W - 40, H - 40);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#64748b';
+  ctx.font = '11px sans-serif';
+  ctx.fillText('Ionization threshold (≈ 10–15 eV)', 40, H - 22);
+
+  requestAnimationFrame(draw);
+}
+draw();
+</script>
+</body>
+</html>

@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ripple Tank: Refraction and Diffraction</title>
+  <style>
+    :root {
+      --navy: #153456;
+      --blue: #285f9f;
+      --blue-dark: #174b86;
+      --blue-soft: #e8f2fd;
+      --orange: #e56b24;
+      --orange-soft: #fff1e8;
+      --ink: #132238;
+      --muted: #52657b;
+      --line: #c8d7e8;
+      --surface: #ffffff;
+      --stage: #f4f9ff;
+      --success-soft: #e8f7ed;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      margin: 0;
+      background: transparent;
+      color: var(--ink);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    button { font: inherit; touch-action: manipulation; min-height: 44px; }
+
+    .wrd-app {
+      width: min(100%, 1080px);
+      margin: 0 auto;
+      border: 5px solid #285f9f;
+      border-radius: 24px;
+      overflow: hidden;
+      background: var(--surface);
+      box-shadow: 0 18px 48px rgba(21, 52, 86, 0.14);
+    }
+
+    .wrd-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 18px 22px 15px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(115deg, #fff 0%, #eef7ff 100%);
+    }
+
+    .wrd-kicker {
+      margin: 0 0 3px;
+      color: var(--blue);
+      font-size: 0.73rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--navy);
+      font-size: clamp(1.3rem, 3.9vw, 1.95rem);
+      letter-spacing: -0.03em;
+      line-height: 1.08;
+    }
+
+    .wrd-reset {
+      flex: 0 0 auto;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--blue-dark);
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    .wrd-main { padding: 18px; }
+
+    .wrd-stage {
+      position: relative;
+      border: 1px solid #adc6df;
+      border-radius: 18px;
+      overflow: hidden;
+      background: var(--stage);
+    }
+
+    .wrd-stage-top {
+      position: absolute;
+      z-index: 2;
+      inset: 12px 13px auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .wrd-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 30px;
+      padding: 5px 11px;
+      border: 1px solid rgba(40, 95, 159, 0.23);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.93);
+      color: var(--navy);
+      font-size: 0.78rem;
+      font-weight: 800;
+      box-shadow: 0 4px 14px rgba(21, 52, 86, 0.08);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 1000 / 440;
+    }
+
+    .wrd-readouts {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 9px;
+      margin-top: 12px;
+    }
+
+    .wrd-readout {
+      min-width: 0;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: #fff;
+    }
+
+    .wrd-readout-label {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--muted);
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .wrd-readout output {
+      display: block;
+      color: var(--navy);
+      font-size: clamp(0.92rem, 2.2vw, 1.1rem);
+      font-weight: 850;
+      line-height: 1.22;
+    }
+
+    .wrd-workbench {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(255px, 0.82fr);
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .wrd-panel {
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #f9fbfe;
+    }
+
+    .wrd-scene-title { margin: 0 0 6px; color: var(--navy); font-size: 1rem; font-weight: 850; }
+    .wrd-scene-text { margin: 0; color: var(--muted); font-size: 0.9rem; line-height: 1.45; }
+
+    .wrd-progress { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 13px; }
+
+    .wrd-pip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border: 1px solid #9db4cc;
+      border-radius: 50%;
+      background: #fff;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    .wrd-pip[data-state="current"] { border-color: var(--blue); background: var(--blue-soft); color: var(--blue-dark); }
+    .wrd-pip[data-state="done"] { border-color: var(--blue); background: var(--blue); color: #fff; }
+
+    .wrd-playback { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
+
+    .wrd-icon-btn {
+      flex: 1 1 120px;
+      padding: 9px 12px;
+      border: 1px solid #9db4cc;
+      border-radius: 11px;
+      background: #fff;
+      color: var(--navy);
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .wrd-icon-btn[aria-pressed="true"] { border-color: var(--blue); background: var(--blue-soft); color: var(--blue-dark); }
+    .wrd-icon-btn:disabled { cursor: not-allowed; opacity: 0.58; }
+
+    .wrd-prompt-panel { display: flex; flex-direction: column; justify-content: center; background: #fff; }
+
+    .wrd-step-label {
+      margin: 0 0 5px;
+      color: var(--blue);
+      font-size: 0.72rem;
+      font-weight: 850;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .wrd-question { margin: 0; color: var(--navy); font-size: 1.02rem; font-weight: 800; line-height: 1.35; }
+
+    .wrd-choices { display: grid; gap: 7px; margin-top: 11px; }
+
+    .wrd-choice {
+      min-height: 43px;
+      padding: 9px 12px;
+      border: 1px solid #9eb4cb;
+      border-radius: 11px;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 750;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .wrd-choice:hover:not(:disabled) { border-color: var(--blue); background: var(--blue-soft); }
+
+    .wrd-feedback {
+      margin: 10px 0 0;
+      padding: 10px 12px;
+      border-radius: 11px;
+      background: var(--success-soft);
+      color: #14532d;
+      font-size: 0.88rem;
+      font-weight: 650;
+      line-height: 1.42;
+    }
+
+    .wrd-feedback[data-tone="note"] { background: var(--orange-soft); color: #7c2d12; }
+
+    .wrd-primary {
+      width: 100%;
+      margin-top: 11px;
+      padding: 10px 14px;
+      border: 0;
+      border-radius: 11px;
+      background: var(--blue);
+      color: #fff;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 5px 13px rgba(40,95,159,0.22);
+    }
+
+    .wrd-primary:hover { background: var(--blue-dark); }
+    .wrd-primary:disabled, .wrd-choice:disabled { cursor: not-allowed; opacity: 0.58; }
+
+    [hidden] { display: none !important; }
+
+    :focus-visible { outline: 3px solid #e56b24; outline-offset: 3px; }
+
+    .wrd-sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 760px) {
+      .wrd-main { padding: 12px; }
+      .wrd-workbench { grid-template-columns: 1fr; }
+      .wrd-readouts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 480px) {
+      .wrd-header { align-items: flex-start; padding: 15px 14px 13px; }
+      .wrd-readout { padding: 9px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrd-app" id="ripple-app">
+    <header class="wrd-header">
+      <div>
+        <p class="wrd-kicker">Unit 5 · Lesson 1 · Part 3</p>
+        <h1>Ripple Tank: Refraction and Diffraction</h1>
+      </div>
+      <button class="wrd-reset" id="reset-button" type="button">Reset</button>
+    </header>
+
+    <div class="wrd-main">
+      <section class="wrd-stage">
+        <div class="wrd-stage-top" aria-hidden="true">
+          <span class="wrd-badge" id="setup-badge">Straight-on entry</span>
+          <span class="wrd-badge" id="motion-badge">Ready</span>
+        </div>
+        <canvas id="tank-canvas" role="img" aria-labelledby="canvas-label"></canvas>
+        <p class="wrd-sr-only" id="canvas-label">A ripple tank seen from above. Straight wavefronts travel from a source on the left toward a slower region, a wall with an opening, or an obstacle.</p>
+      </section>
+
+      <div class="wrd-readouts" id="readouts"></div>
+
+      <div class="wrd-workbench">
+        <section class="wrd-panel" aria-label="Scene setup and playback">
+          <p class="wrd-scene-title" id="scene-title">Straight-on entry</p>
+          <p class="wrd-scene-text" id="scene-text">Wavefronts head straight at a shallow region where they travel slower.</p>
+          <div class="wrd-progress" id="progress" role="list" aria-label="Scenario progress"></div>
+          <div class="wrd-playback">
+            <button class="wrd-icon-btn" id="pause-button" type="button" aria-pressed="false" disabled>❚❚ Pause</button>
+            <button class="wrd-icon-btn" id="slow-button" type="button" aria-pressed="false">½× Slow motion</button>
+            <button class="wrd-icon-btn" id="replay-button" type="button" disabled>↻ Replay</button>
+          </div>
+        </section>
+
+        <section class="wrd-panel wrd-prompt-panel" aria-labelledby="prompt-question">
+          <p class="wrd-step-label" id="step-label">Predict first</p>
+          <p class="wrd-question" id="prompt-question">Does the wave change direction as it enters the slow region?</p>
+          <div class="wrd-choices" id="choices"></div>
+          <p class="wrd-feedback" id="feedback" role="status" aria-live="polite" hidden></p>
+          <button class="wrd-primary" id="main-button" type="button" hidden>Next scenario</button>
+        </section>
+      </div>
+    </div>
+
+    <p class="wrd-sr-only" id="status" role="status" aria-live="polite">Ripple tank ready.</p>
+
+    <script>
+      (() => {
+        'use strict';
+
+        const W = 1000;
+        const H = 440;
+        const NX = 300;
+        const NY = 132;
+        const DT = 0.6;
+        const PAD = 13;              // absorbing border thickness in cells
+        const C_FAST = 1.0;
+        const STEPS_PER_FRAME = 4;
+
+        const scenarios = [
+          {
+            id: 'normal',
+            mode: 'refraction',
+            title: 'Straight-on entry',
+            text: 'Wavefronts head straight at a shallow region where they travel slower.',
+            theta: 0, cSlow: 0.55, lambda: 20, boundary: 130,
+            question: 'Entering the slow region head-on, does the wave change direction?',
+            options: [
+              { text: 'No — it slows but keeps going straight', correct: true },
+              { text: 'Yes — it bends toward the normal', correct: false },
+              { text: 'Yes — it bends away from the normal', correct: false }
+            ],
+            readouts: [
+              { label: 'Angle in', value: '0° (along normal)', gated: false },
+              { label: 'Speed', value: '1.00 → 0.55', gated: true },
+              { label: 'Wavelength', value: 'shorter', gated: true },
+              { label: 'Direction', value: 'unchanged', gated: true }
+            ],
+            explanation: 'The direction does not change. Every part of the front slows at the same instant, so nothing turns it.'
+          },
+          {
+            id: 'angled',
+            mode: 'refraction',
+            title: 'Angled entry',
+            text: 'The same slow region, but the wavefronts arrive at an angle.',
+            theta: 34, cSlow: 0.55, lambda: 20, boundary: 130,
+            question: 'Arriving at an angle, which way does the wave go in the slow region?',
+            options: [
+              { text: 'It bends toward the normal', correct: true },
+              { text: 'It keeps the same direction', correct: false },
+              { text: 'It bends away from the normal', correct: false }
+            ],
+            readouts: [
+              { label: 'Angle in', value: '34°', gated: false },
+              { label: 'Angle out', value: '18°', gated: true },
+              { label: 'Speed', value: '1.00 → 0.55', gated: true },
+              { label: 'Direction', value: 'toward normal', gated: true }
+            ],
+            explanation: 'It bends toward the normal. One edge of each front slows before the other, so the front pivots.'
+          },
+          {
+            id: 'frequency',
+            mode: 'refraction',
+            title: 'What survives the crossing',
+            text: 'The same angled entry, now with the source rate written on the tank.',
+            theta: 34, cSlow: 0.45, lambda: 22, boundary: 130,
+            question: 'Inside the slow region, which quantity is unchanged?',
+            options: [
+              { text: 'Frequency', correct: true },
+              { text: 'Wavelength', correct: false },
+              { text: 'Speed', correct: false }
+            ],
+            readouts: [
+              { label: 'Source rate', value: 'unchanged', gated: false },
+              { label: 'Frequency', value: 'same on both sides', gated: true },
+              { label: 'Speed', value: '1.00 → 0.45', gated: true },
+              { label: 'Wavelength', value: '0.45 × as long', gated: true }
+            ],
+            explanation: 'Frequency is unchanged. The boundary is shaken at the source rate, so slower speed means a shorter wavelength.'
+          },
+          {
+            id: 'wide-gap',
+            mode: 'slit',
+            title: 'Wide opening',
+            text: 'A wall blocks the tank except for an opening about six wavelengths wide.',
+            lambda: 16, wall: 130, gap: 96,
+            question: 'Past a wide opening, how much does the wave spread sideways?',
+            options: [
+              { text: 'Barely — it stays a straight beam', correct: true },
+              { text: 'A lot — it fans out in all directions', correct: false },
+              { text: 'Not at all — the wall stops it', correct: false }
+            ],
+            readouts: [
+              { label: 'Opening', value: '6 wavelengths', gated: false },
+              { label: 'Wavelength', value: '16 units', gated: false },
+              { label: 'Spreading', value: 'slight', gated: true },
+              { label: 'Beyond the wall', value: 'narrow beam', gated: true }
+            ],
+            explanation: 'It barely spreads. An opening much wider than the wavelength lets a nearly straight beam through.'
+          },
+          {
+            id: 'narrow-gap',
+            mode: 'slit',
+            title: 'Narrow opening',
+            text: 'The same wall and same wave, with the opening squeezed to about one wavelength.',
+            lambda: 16, wall: 130, gap: 18,
+            question: 'Now the opening is about one wavelength wide. How much does the wave spread?',
+            options: [
+              { text: 'A lot — it fans out in a wide arc', correct: true },
+              { text: 'Barely — it stays a straight beam', correct: false },
+              { text: 'Less than before — the gap is smaller', correct: false }
+            ],
+            readouts: [
+              { label: 'Opening', value: '1 wavelength', gated: false },
+              { label: 'Wavelength', value: '16 units', gated: false },
+              { label: 'Spreading', value: 'wide arc', gated: true },
+              { label: 'Beyond the wall', value: 'curved fronts', gated: true }
+            ],
+            explanation: 'It fans out widely. When the opening is about one wavelength, the gap acts like a single new source.'
+          },
+          {
+            id: 'obstacle',
+            mode: 'obstacle',
+            title: 'Around a block',
+            text: 'Two identical tanks, one block each: long waves on top, short waves below.',
+            lambdaLong: 30, lambdaShort: 8, block: 140,
+            question: 'Which wave fills in the shadow behind the block?',
+            options: [
+              { text: 'The long wavelength, on top', correct: true },
+              { text: 'The short wavelength, below', correct: false },
+              { text: 'Neither one gets behind it', correct: false }
+            ],
+            readouts: [
+              { label: 'Top tank', value: 'long wavelength', gated: false },
+              { label: 'Bottom tank', value: 'short wavelength', gated: false },
+              { label: 'Top shadow', value: 'filled in', gated: true },
+              { label: 'Bottom shadow', value: 'stays dark', gated: true }
+            ],
+            explanation: 'The long wave fills the shadow. Waves bend around an object best when the wavelength is close to its size.'
+          }
+        ];
+
+        const el = {
+          canvas: document.getElementById('tank-canvas'),
+          setupBadge: document.getElementById('setup-badge'),
+          motionBadge: document.getElementById('motion-badge'),
+          readouts: document.getElementById('readouts'),
+          sceneTitle: document.getElementById('scene-title'),
+          sceneText: document.getElementById('scene-text'),
+          progress: document.getElementById('progress'),
+          pause: document.getElementById('pause-button'),
+          slow: document.getElementById('slow-button'),
+          replay: document.getElementById('replay-button'),
+          stepLabel: document.getElementById('step-label'),
+          question: document.getElementById('prompt-question'),
+          choices: document.getElementById('choices'),
+          feedback: document.getElementById('feedback'),
+          main: document.getElementById('main-button'),
+          reset: document.getElementById('reset-button'),
+          status: document.getElementById('status')
+        };
+
+        const ctx = el.canvas.getContext('2d');
+        const field = document.createElement('canvas');
+        field.width = NX;
+        field.height = NY;
+        const fieldCtx = field.getContext('2d');
+        const image = fieldCtx.createImageData(NX, NY);
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        const size = NX * NY;
+        const uPrev = new Float32Array(size);
+        const uCur = new Float32Array(size);
+        const uNext = new Float32Array(size);
+        const speed = new Float32Array(size);
+        const wall = new Uint8Array(size);
+        const tint = new Uint8Array(size);
+        const damp = new Float32Array(size);
+
+        let index = 0;
+        let state = 'predict';       // predict → reveal → explain
+        let step = 0;
+        let holdStep = 0;            // where the run pauses while predicting
+        let running = false;
+        let paused = false;
+        let slow = false;
+        let pendingCorrect = false;
+        let completionSent = false;
+
+        function scenario() { return scenarios[index]; }
+
+        function idx(i, j) { return j * NX + i; }
+
+        function buildTank() {
+          const s = scenario();
+          uPrev.fill(0); uCur.fill(0); uNext.fill(0);
+          wall.fill(0); tint.fill(0);
+          speed.fill(C_FAST);
+          step = 0;
+
+          for (let j = 0; j < NY; j += 1) {
+            for (let i = 0; i < NX; i += 1) {
+              const k = idx(i, j);
+              const edge = Math.min(j, NY - 1 - j, NX - 1 - i);
+              const depth = Math.max(0, PAD - edge);
+              damp[k] = 1 - 0.22 * Math.pow(depth / PAD, 2);
+            }
+          }
+
+          if (s.mode === 'refraction') {
+            for (let j = 0; j < NY; j += 1) {
+              for (let i = s.boundary; i < NX; i += 1) {
+                speed[idx(i, j)] = s.cSlow;
+                tint[idx(i, j)] = 1;
+              }
+            }
+            holdStep = Math.round((s.boundary - 4) / (C_FAST * DT));
+          } else if (s.mode === 'slit') {
+            const half = Math.round(s.gap / 2);
+            const mid = Math.round(NY / 2);
+            for (let j = 0; j < NY; j += 1) {
+              if (j >= mid - half && j <= mid + half) continue;
+              for (let i = s.wall; i < s.wall + 4; i += 1) wall[idx(i, j)] = 1;
+            }
+            holdStep = Math.round((s.wall - 4) / (C_FAST * DT));
+          } else {
+            const mid = Math.round(NY / 2);
+            // a damping band, not a hard wall, keeps the two tanks separate without echoing
+            for (let j = mid - 5; j <= mid + 5; j += 1) {
+              const strength = 1 - Math.abs(j - mid) / 6;
+              for (let i = 0; i < NX; i += 1) damp[idx(i, j)] *= 1 - 0.5 * strength;
+            }
+            for (let i = 0; i < NX; i += 1) { wall[idx(i, mid)] = 1; }
+            [Math.round(mid / 2) - 2, Math.round(mid + mid / 2) + 2].forEach((center) => {
+              for (let j = center - 11; j <= center + 11; j += 1) {
+                for (let i = s.block; i < s.block + 6; i += 1) {
+                  if (j > 0 && j < NY - 1) wall[idx(i, j)] = 1;
+                }
+              }
+            });
+            holdStep = Math.round((s.block - 6) / (C_FAST * DT));
+          }
+        }
+
+        function sourceValue(j, time) {
+          const s = scenario();
+          const mid = NY / 2;
+          let lambda = s.lambda;
+          if (s.mode === 'obstacle') lambda = j < mid ? s.lambdaLong : s.lambdaShort;
+          const omega = (2 * Math.PI * C_FAST) / lambda;
+          const k = omega / C_FAST;
+          const theta = ((s.theta || 0) * Math.PI) / 180;
+          const ramp = Math.min(1, step / 45);
+          return ramp * Math.sin(omega * time - k * Math.sin(theta) * (j - mid));
+        }
+
+        function advance() {
+          for (let j = 1; j < NY - 1; j += 1) {
+            for (let i = 1; i < NX - 1; i += 1) {
+              const k = idx(i, j);
+              if (wall[k]) { uNext[k] = 0; continue; }
+              const c = speed[k] * DT;
+              const lap = uCur[k + 1] + uCur[k - 1] + uCur[k + NX] + uCur[k - NX] - 4 * uCur[k];
+              uNext[k] = (2 * uCur[k] - uPrev[k] + c * c * lap) * damp[k];
+            }
+          }
+          step += 1;
+          const time = step * DT;
+          for (let j = 1; j < NY - 1; j += 1) {
+            const value = sourceValue(j, time);
+            uNext[idx(1, j)] = value;
+            uNext[idx(2, j)] = value;
+          }
+          uPrev.set(uCur);
+          uCur.set(uNext);
+        }
+
+        function paint() {
+          const data = image.data;
+          for (let k = 0; k < size; k += 1) {
+            const p = k * 4;
+            if (wall[k]) {
+              data[p] = 88; data[p + 1] = 103; data[p + 2] = 122; data[p + 3] = 255;
+              continue;
+            }
+            const baseR = tint[k] ? 231 : 246;
+            const baseG = tint[k] ? 236 : 250;
+            const baseB = tint[k] ? 245 : 255;
+            let n = uCur[k];
+            if (n > 1) n = 1; else if (n < -1) n = -1;
+            let r; let g; let b;
+            if (n >= 0) {
+              r = baseR + (229 - baseR) * n;
+              g = baseG + (107 - baseG) * n;
+              b = baseB + (36 - baseB) * n;
+            } else {
+              const m = -n;
+              r = baseR + (26 - baseR) * m;
+              g = baseG + (80 - baseG) * m;
+              b = baseB + (143 - baseB) * m;
+            }
+            data[p] = r; data[p + 1] = g; data[p + 2] = b; data[p + 3] = 255;
+          }
+          fieldCtx.putImageData(image, 0, 0);
+        }
+
+        function fitCanvas() {
+          const ratio = window.devicePixelRatio || 1;
+          const cssWidth = el.canvas.clientWidth || W;
+          const cssHeight = cssWidth * (H / W);
+          el.canvas.width = Math.round(cssWidth * ratio);
+          el.canvas.height = Math.round(cssHeight * ratio);
+          ctx.setTransform((cssWidth * ratio) / W, 0, 0, (cssHeight * ratio) / H, 0, 0);
+        }
+
+        function toX(i) { return (i / NX) * W; }
+        function toY(j) { return (j / NY) * H; }
+
+        function arrow(x1, y1, x2, y2, color) {
+          const angle = Math.atan2(y2 - y1, x2 - x1);
+          ctx.strokeStyle = color;
+          ctx.fillStyle = color;
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(x2, y2);
+          ctx.lineTo(x2 - 15 * Math.cos(angle - 0.4), y2 - 15 * Math.sin(angle - 0.4));
+          ctx.lineTo(x2 - 15 * Math.cos(angle + 0.4), y2 - 15 * Math.sin(angle + 0.4));
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        function label(text, x, y, color, align = 'left', size = 15) {
+          ctx.font = `800 ${size}px system-ui, sans-serif`;
+          ctx.textAlign = align;
+          ctx.lineJoin = 'round';
+          ctx.lineWidth = 5;
+          ctx.strokeStyle = 'rgba(255,255,255,0.92)';
+          ctx.strokeText(text, x, y);
+          ctx.fillStyle = color;
+          ctx.fillText(text, x, y);
+          ctx.textAlign = 'left';
+        }
+
+        function drawOverlay() {
+          const s = scenario();
+
+          if (s.mode === 'refraction') {
+            const bx = toX(s.boundary);
+            ctx.strokeStyle = '#153456';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(bx, 0);
+            ctx.lineTo(bx, H);
+            ctx.stroke();
+            label('fast', bx - 14, H - 16, '#153456', 'right');
+            label('slow', bx + 14, H - 16, '#153456', 'left');
+
+            if (state !== 'predict') {
+              const hitY = H / 2;
+              ctx.save();
+              ctx.setLineDash([8, 8]);
+              ctx.strokeStyle = '#5b7087';
+              ctx.lineWidth = 2;
+              ctx.beginPath();
+              ctx.moveTo(bx - 130, hitY);
+              ctx.lineTo(bx + 150, hitY);
+              ctx.stroke();
+              ctx.restore();
+              label('normal', bx + 92, hitY - 14, '#3c4f63', 'left', 14);
+
+              const t1 = ((s.theta || 0) * Math.PI) / 180;
+              const t2 = Math.asin((s.cSlow / C_FAST) * Math.sin(t1));
+              const inLen = 150;
+              arrow(bx - inLen * Math.cos(t1), hitY - inLen * Math.sin(t1), bx, hitY, '#153456');
+              const outLen = 165;
+              arrow(bx, hitY, bx + outLen * Math.cos(t2), hitY + outLen * Math.sin(t2), '#9a3d0d');
+            }
+          }
+
+          if (s.mode === 'slit') {
+            const gx = toX(s.wall);
+            const mid = H / 2;
+            const halfGap = (s.gap / 2 / NY) * H;
+            ctx.strokeStyle = '#e56b24';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(gx - 16, mid - halfGap);
+            ctx.lineTo(gx - 16, mid + halfGap);
+            ctx.moveTo(gx - 26, mid - halfGap);
+            ctx.lineTo(gx - 6, mid - halfGap);
+            ctx.moveTo(gx - 26, mid + halfGap);
+            ctx.lineTo(gx - 6, mid + halfGap);
+            ctx.stroke();
+            label(s.gap > 40 ? 'wide opening' : 'narrow opening', gx - 34, mid + 5, '#9a3d0d', 'right');
+          }
+
+          if (s.mode === 'obstacle') {
+            label('long wavelength', 22, 72, '#153456', 'left');
+            label('short wavelength', 22, H / 2 + 30, '#153456', 'left');
+            if (state !== 'predict') {
+              const bx = toX(s.block + 8);
+              label('shadow', bx + 24, H / 4 + 6, '#9a3d0d', 'left', 14);
+              label('shadow', bx + 24, (3 * H) / 4 + 6, '#9a3d0d', 'left', 14);
+            }
+          }
+
+          label('source', 16, H - 16, '#3c4f63', 'left', 14);
+        }
+
+        function render() {
+          paint();
+          ctx.clearRect(0, 0, W, H);
+          ctx.imageSmoothingEnabled = true;
+          ctx.drawImage(field, 0, 0, W, H);
+          drawOverlay();
+        }
+
+        function shuffle(items) {
+          const result = items.slice();
+          for (let i = result.length - 1; i > 0; i -= 1) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [result[i], result[j]] = [result[j], result[i]];
+          }
+          return result;
+        }
+
+        function renderProgress() {
+          el.progress.replaceChildren();
+          scenarios.forEach((item, i) => {
+            const pip = document.createElement('span');
+            pip.className = 'wrd-pip';
+            pip.setAttribute('role', 'listitem');
+            pip.textContent = String(i + 1);
+            pip.dataset.state = i < index ? 'done' : i === index ? 'current' : 'todo';
+            pip.setAttribute('aria-label', `Scenario ${i + 1} of ${scenarios.length}${i === index ? ', current' : i < index ? ', done' : ''}`);
+            el.progress.append(pip);
+          });
+        }
+
+        function renderReadouts() {
+          const s = scenario();
+          el.readouts.replaceChildren();
+          s.readouts.forEach((item) => {
+            const box = document.createElement('div');
+            box.className = 'wrd-readout';
+            const label = document.createElement('span');
+            label.className = 'wrd-readout-label';
+            label.textContent = item.label;
+            const value = document.createElement('output');
+            value.textContent = item.gated && state === 'predict' ? '?' : item.value;
+            box.append(label, value);
+            el.readouts.append(box);
+          });
+        }
+
+        function renderChoices(options, handler) {
+          el.choices.replaceChildren();
+          shuffle(options).forEach((option) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'wrd-choice';
+            button.textContent = option.text;
+            button.addEventListener('click', () => handler(option), { once: true });
+            el.choices.append(button);
+          });
+        }
+
+        function lockChoices() {
+          el.choices.querySelectorAll('button').forEach((button) => { button.disabled = true; });
+        }
+
+        function loadScenario() {
+          const s = scenario();
+          state = 'predict';
+          paused = false;
+          buildTank();
+          el.sceneTitle.textContent = s.title;
+          el.sceneText.textContent = s.text;
+          el.setupBadge.textContent = s.title;
+          el.motionBadge.textContent = 'Wave approaching';
+          el.stepLabel.textContent = `Predict · scenario ${index + 1} of ${scenarios.length}`;
+          el.question.textContent = s.question;
+          el.feedback.hidden = true;
+          el.main.hidden = true;
+          el.replay.disabled = true;
+          el.pause.disabled = true;
+          el.pause.setAttribute('aria-pressed', 'false');
+          el.pause.textContent = '❚❚ Pause';
+          el.choices.hidden = false;
+          renderChoices(s.options, choose);
+          renderProgress();
+          renderReadouts();
+          running = true;
+          if (reduceMotion) {
+            while (step < holdStep) advance();
+            running = false;
+            el.motionBadge.textContent = 'Paused at the boundary';
+          }
+          render();
+          el.status.textContent = `${s.title}. ${s.text} Choose a prediction.`;
+        }
+
+        function choose(option) {
+          if (state !== 'predict') return;
+          lockChoices();
+          el.choices.hidden = true;
+          state = 'reveal';
+          pendingCorrect = option.correct;
+          running = true;
+          paused = false;
+          el.pause.disabled = false;
+          el.motionBadge.textContent = slow ? 'Playing · ½×' : 'Playing · 1×';
+          el.stepLabel.textContent = 'Watch the tank';
+          el.question.textContent = 'The wave passes the boundary.';
+          renderReadouts();
+          el.status.textContent = 'Reveal running.';
+          if (reduceMotion) {
+            const target = holdStep + 620;
+            while (step < target) advance();
+            running = false;
+            render();
+            finishReveal();
+          }
+        }
+
+        function finishReveal() {
+          const s = scenario();
+          state = 'explain';
+          renderReadouts();
+          el.question.textContent = 'What the tank showed:';
+          el.feedback.textContent = s.explanation;
+          el.feedback.dataset.tone = pendingCorrect ? 'success' : 'note';
+          el.feedback.hidden = false;
+          el.replay.disabled = false;
+          el.main.textContent = index === scenarios.length - 1 ? 'Finish' : 'Next scenario';
+          el.main.hidden = false;
+          el.stepLabel.textContent = 'Evidence';
+          el.status.textContent = s.explanation;
+        }
+
+        function handleMain() {
+          if (state === 'complete') { index = 0; loadScenario(); return; }
+          if (index < scenarios.length - 1) {
+            index += 1;
+            loadScenario();
+            return;
+          }
+          state = 'complete';
+          renderProgress();
+          el.stepLabel.textContent = 'All six tanks done';
+          el.question.textContent = 'Speed sets bending; wavelength sets spreading.';
+          el.feedback.textContent = 'A wave bends only when one edge of the front slows first. It spreads most when the gap or object is close to its wavelength.';
+          el.feedback.dataset.tone = 'success';
+          el.feedback.hidden = false;
+          el.main.textContent = 'Start over';
+          sendCompletion();
+        }
+
+        function sendCompletion() {
+          if (completionSent) return;
+          completionSent = true;
+          window.parent.postMessage({ type: 'complete' }, '*');
+          el.status.textContent = 'Ripple tank walkthrough complete.';
+        }
+
+        function replay() {
+          if (state === 'predict') return;
+          buildTank();
+          running = true;
+          paused = false;
+          el.pause.setAttribute('aria-pressed', 'false');
+          el.pause.textContent = '❚❚ Pause';
+          el.motionBadge.textContent = slow ? 'Playing · ½×' : 'Playing · 1×';
+        }
+
+        function animate() {
+          if (running && !paused) {
+            const steps = slow ? Math.round(STEPS_PER_FRAME / 2) : STEPS_PER_FRAME;
+            for (let n = 0; n < steps; n += 1) {
+              if (state === 'predict' && step >= holdStep) {
+                running = false;
+                el.motionBadge.textContent = 'Paused at the boundary';
+                break;
+              }
+              advance();
+            }
+            if (state === 'reveal' && step >= holdStep + 620) finishReveal();
+            render();
+          }
+          requestAnimationFrame(animate);
+        }
+
+        function reset() {
+          index = 0;
+          completionSent = false;
+          slow = false;
+          el.slow.setAttribute('aria-pressed', 'false');
+          loadScenario();
+        }
+
+        el.pause.addEventListener('click', () => {
+          paused = !paused;
+          el.pause.setAttribute('aria-pressed', String(paused));
+          el.pause.textContent = paused ? '▶ Play' : '❚❚ Pause';
+          el.motionBadge.textContent = paused ? 'Paused' : (slow ? 'Playing · ½×' : 'Playing · 1×');
+        });
+
+        el.slow.addEventListener('click', () => {
+          slow = !slow;
+          el.slow.setAttribute('aria-pressed', String(slow));
+          if (running && !paused) el.motionBadge.textContent = slow ? 'Playing · ½×' : 'Playing · 1×';
+        });
+
+        el.replay.addEventListener('click', replay);
+        el.main.addEventListener('click', handleMain);
+        el.reset.addEventListener('click', reset);
+        window.addEventListener('resize', () => { fitCanvas(); render(); });
+
+        fitCanvas();
+        reset();
+        requestAnimationFrame(animate);
+      })();
+    </script>
+  </main>
+</body>
+</html>

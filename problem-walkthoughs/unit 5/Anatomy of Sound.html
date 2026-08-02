@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulation 1: Anatomy of Sound</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --text-color: #f8fafc;
+            --accent: #38bdf8;
+            --accent-hover: #0284c7;
+            --danger: #ef4444;
+            --success: #22c55e;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 900px;
+            width: 100%;
+            background-color: var(--panel-bg);
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid #334155;
+        }
+
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 1.5rem;
+        }
+
+        .header p {
+            margin: 0;
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        .main-stage {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .view-toggles {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 15px;
+            background: #0f172a;
+        }
+
+        .view-toggles button {
+            background-color: #334155;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+
+        .view-toggles button.active {
+            background-color: var(--accent);
+        }
+
+        .view-toggles button:hover:not(.active) {
+            background-color: #475569;
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            background-color: #000;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .hearing-feedback {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        .hearing-feedback.can-hear {
+            color: var(--success);
+            border: 1px solid var(--success);
+        }
+
+        .hearing-feedback.cannot-hear {
+            color: var(--danger);
+            border: 1px solid var(--danger);
+        }
+
+        .controls {
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            border-top: 1px solid #334155;
+        }
+
+        @media (max-width: 600px) {
+            .controls {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .control-group select {
+            padding: 8px;
+            background: #334155;
+            color: white;
+            border: 1px solid #475569;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        input[type=range] {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .info-panel {
+            grid-column: 1 / -1;
+            background: #334155;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Simulation 1: Anatomy of Sound</h1>
+        <p>Decouple pitch from loudness, explore hearing ranges, and visualize intensity.</p>
+    </div>
+
+    <div class="main-stage">
+        <div class="view-toggles">
+            <button class="active" onclick="setView('waveform')" id="btn-waveform">Waveform Canvas</button>
+            <button onclick="setView('decibel')" id="btn-decibel">Decibel Visualizer</button>
+            <button onclick="setView('cochlea')" id="btn-cochlea">Cochlea (Inner Ear)</button>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="simCanvas"></canvas>
+            <div id="hearingFeedback" class="hearing-feedback can-hear">Subject can hear this sound.</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label>
+                <span>Frequency (Pitch)</span>
+                <span id="freqDisplay">440 Hz</span>
+            </label>
+            <!-- Range 0-100 mapped logarithmically to 20Hz - 110,000Hz in JS -->
+            <input type="range" id="freqSlider" min="0" max="100" value="44.2"> 
+        </div>
+
+        <div class="control-group">
+            <label>
+                <span>Amplitude (Loudness)</span>
+                <span id="ampDisplay">60 dB</span>
+            </label>
+            <input type="range" id="ampSlider" min="20" max="120" value="60">
+        </div>
+
+        <div class="control-group" style="grid-column: 1 / -1;">
+            <label for="subjectSelect">Hearing Subject</label>
+            <select id="subjectSelect">
+                <option value="young">Young Human (20 Hz - 20,000 Hz)</option>
+                <option value="older">Older Human (20 Hz - 14,000 Hz)</option>
+                <option value="dog">Dog (67 Hz - 45,000 Hz)</option>
+                <option value="bat">Bat (2,000 Hz - 110,000 Hz)</option>
+            </select>
+        </div>
+
+        <div class="info-panel" id="infoPanel">
+            <strong>Waveform View:</strong> Notice how increasing amplitude (loudness) makes the wave taller, while changing frequency (pitch) changes how packed the waves are. They are independent!
+        </div>
+    </div>
+</div>
+
+<script>
+    // Elements
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    const freqSlider = document.getElementById('freqSlider');
+    const ampSlider = document.getElementById('ampSlider');
+    const freqDisplay = document.getElementById('freqDisplay');
+    const ampDisplay = document.getElementById('ampDisplay');
+    const subjectSelect = document.getElementById('subjectSelect');
+    const hearingFeedback = document.getElementById('hearingFeedback');
+    const infoPanel = document.getElementById('infoPanel');
+
+    // Canvas Sizing
+    let width = canvas.width = canvas.parentElement.clientWidth;
+    let height = canvas.height = canvas.parentElement.clientHeight;
+
+    window.addEventListener('resize', () => {
+        width = canvas.width = canvas.parentElement.clientWidth;
+        height = canvas.height = canvas.parentElement.clientHeight;
+        initParticles(); // Re-init particles on resize
+    });
+
+    // State Variables
+    let currentView = 'waveform';
+    let time = 0;
+    
+    // Limits
+    const minFreq = 20;
+    const maxFreq = 110000;
+    
+    const subjectLimits = {
+        young: { min: 20, max: 20000 },
+        older: { min: 20, max: 14000 },
+        dog: { min: 67, max: 45000 },
+        bat: { min: 2000, max: 110000 }
+    };
+
+    // Helper: Map linear 0-100 slider to logarithmic frequency
+    function getFrequency() {
+        const sliderVal = parseFloat(freqSlider.value) / 100;
+        const logMin = Math.log10(minFreq);
+        const logMax = Math.log10(maxFreq);
+        return Math.pow(10, logMin + sliderVal * (logMax - logMin));
+    }
+
+    // Helper: Map linear 0-100 slider visually back for specific frequencies (if needed)
+    function setSliderFromFreq(targetFreq) {
+        const logMin = Math.log10(minFreq);
+        const logMax = Math.log10(maxFreq);
+        const logTarget = Math.log10(targetFreq);
+        freqSlider.value = ((logTarget - logMin) / (logMax - logMin)) * 100;
+    }
+
+    // View Switching
+    window.setView = function(view) {
+        currentView = view;
+        document.querySelectorAll('.view-toggles button').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`btn-${view}`).classList.add('active');
+
+        if(view === 'waveform') {
+            infoPanel.innerHTML = "<strong>Waveform View:</strong> Notice how increasing amplitude (loudness) makes the wave taller, while changing frequency (pitch) changes how packed the waves are. They are independent!";
+        } else if(view === 'decibel') {
+            infoPanel.innerHTML = "<strong>Decibel Visualizer:</strong> The Decibel (dB) scale is logarithmic. Going from 20 dB to 60 dB doesn't triple the intensity—it multiplies it by 10,000! Watch particle density change exponentially.";
+            initParticles();
+        } else if(view === 'cochlea') {
+            infoPanel.innerHTML = "<strong>Cochlea View:</strong> High frequencies (pitch) resonate near the base (outside) of the cochlea, while low frequencies travel deeper to the apex (inside).";
+        }
+    };
+
+    // Particle System (For Decibel View)
+    let particles = [];
+    function initParticles() {
+        particles = [];
+        // Max particles limited for performance, but scaled logarithmically
+        for(let i=0; i<3000; i++) {
+            particles.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                vx: (Math.random() - 0.5) * 2,
+                vy: (Math.random() - 0.5) * 2
+            });
+        }
+    }
+    initParticles();
+
+    // Main Draw Loop
+    function draw() {
+        time += 0.05;
+        ctx.clearRect(0, 0, width, height);
+
+        const freq = getFrequency();
+        const amp = parseFloat(ampSlider.value);
+        const subject = subjectSelect.value;
+
+        // Update Displays
+        freqDisplay.innerText = freq > 1000 ? (freq/1000).toFixed(1) + ' kHz' : Math.round(freq) + ' Hz';
+        ampDisplay.innerText = amp + ' dB';
+
+        // Check Hearing Range
+        const limits = subjectLimits[subject];
+        if (freq >= limits.min && freq <= limits.max) {
+            hearingFeedback.innerText = "Subject CAN hear this sound.";
+            hearingFeedback.className = "hearing-feedback can-hear";
+        } else {
+            hearingFeedback.innerText = "Subject CANNOT hear this sound.";
+            hearingFeedback.className = "hearing-feedback cannot-hear";
+        }
+
+        if (currentView === 'waveform') {
+            drawWaveform(freq, amp);
+        } else if (currentView === 'decibel') {
+            drawDecibels(amp);
+        } else if (currentView === 'cochlea') {
+            drawCochlea(freq);
+        }
+
+        requestAnimationFrame(draw);
+    }
+
+    // 1. Draw Waveform
+    function drawWaveform(freq, amp) {
+        // Map dB (20-120) to visual height (10px - height/2)
+        const visualAmp = (amp / 120) * (height / 2.5);
+        
+        // Map frequency to visual wave cycles. 
+        // 20Hz -> 1 cycle, 100kHz -> extremely packed.
+        // We use log10 to keep it visually comprehensible.
+        const logRatio = (Math.log10(freq) - Math.log10(20)) / (Math.log10(110000) - Math.log10(20));
+        const cycles = 1 + logRatio * 30; // 1 to 31 cycles on screen
+
+        ctx.beginPath();
+        ctx.strokeStyle = "#38bdf8";
+        ctx.lineWidth = 3;
+        
+        // Draw axis
+        ctx.moveTo(0, height/2);
+        ctx.lineTo(width, height/2);
+        ctx.strokeStyle = "#334155";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.strokeStyle = "#38bdf8";
+        ctx.lineWidth = 3;
+
+        for (let x = 0; x < width; x++) {
+            const angle = (x / width) * Math.PI * 2 * cycles + (time * 2);
+            const y = height / 2 + Math.sin(angle) * visualAmp;
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+    }
+
+    // 2. Draw Decibels (Particles)
+    function drawDecibels(amp) {
+        // Calculate intensity based on dB: I = 10^(dB/10)
+        // We scale it down significantly so we don't crash the browser.
+        // 20dB -> baseline (10 particles). 120dB -> max visual particles (3000)
+        // We use a visual scaling trick: 10^(amp/10) is true physics, 
+        // but for rendering 20 to 120 dB we map to an array size.
+        
+        const minDB = 20;
+        const maxDB = 120;
+        
+        // Visual exponent curve to simulate logarithmic density jump without actually rendering 1 trillion particles
+        const normalizedAmp = (amp - minDB) / (maxDB - minDB);
+        let activeParticles = Math.floor(10 + Math.pow(normalizedAmp, 2) * 2990);
+        if (activeParticles > 3000) activeParticles = 3000;
+
+        ctx.fillStyle = "#22c55e";
+        
+        // Intensity text overlay
+        ctx.font = "20px Arial";
+        ctx.fillStyle = "rgba(255,255,255,0.7)";
+        const intensityFactor = Math.pow(10, (amp - 20) / 10).toLocaleString();
+        ctx.fillText(`Intensity: ${intensityFactor}x relative to 20 dB`, 20, height - 30);
+
+        ctx.fillStyle = "#38bdf8";
+        const jitter = (amp / 120) * 5; // Louder = faster vibration
+
+        for (let i = 0; i < activeParticles; i++) {
+            let p = particles[i];
+            
+            // Jitter movement based on amplitude
+            p.x += p.vx * jitter;
+            p.y += p.vy * jitter;
+
+            // Wrap around
+            if(p.x < 0) p.x = width;
+            if(p.x > width) p.x = 0;
+            if(p.y < 0) p.y = height;
+            if(p.y > height) p.y = 0;
+
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // 3. Draw Cochlea (Inner Ear Resonance)
+    function drawCochlea(freq) {
+        const cx = width / 2;
+        const cy = height / 2 + 30;
+        const maxRadius = Math.min(width, height) / 2.5;
+        
+        // Draw Spiral (Unrolled Cochlea conceptually)
+        ctx.beginPath();
+        ctx.strokeStyle = "#475569";
+        ctx.lineWidth = 15;
+        ctx.lineCap = "round";
+
+        const numTurns = 3;
+        const points = 200;
+        let spiralCoords = [];
+
+        for(let i=0; i<=points; i++) {
+            const t = i / points;
+            const angle = t * Math.PI * 2 * numTurns;
+            const r = maxRadius * (1 - t*0.8); // radius decreases
+            const x = cx + Math.cos(angle) * r;
+            const y = cy + Math.sin(angle) * r;
+            spiralCoords.push({x, y});
+            
+            if(i===0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // Map Frequency to a point on the spiral
+        // High Freq (Base) -> Outer part (t=0)
+        // Low Freq (Apex) -> Inner part (t=1)
+        // Human range conceptually. Let's map 20 - 20000 Hz along the spiral.
+        // Frequencies above 20000Hz (Bat) will stay at the very entrance (t=0).
+        
+        let tHighlight = 0;
+        if(freq >= 20000) {
+            tHighlight = 0; // Very base
+        } else if (freq <= 20) {
+            tHighlight = 1; // Very apex
+        } else {
+            // Logarithmic mapping for position
+            const logMin = Math.log10(20);
+            const logMax = Math.log10(20000);
+            const logTarget = Math.log10(freq);
+            // Reverse mapping: High freq = small t (outside). Low freq = large t (inside).
+            tHighlight = 1 - ((logTarget - logMin) / (logMax - logMin));
+        }
+
+        const index = Math.floor(tHighlight * points);
+        const targetPt = spiralCoords[index];
+
+        // Draw Resonance Glow
+        if (targetPt) {
+            ctx.beginPath();
+            ctx.arc(targetPt.x, targetPt.y, 20 + Math.sin(time*5)*5, 0, Math.PI*2);
+            ctx.fillStyle = "rgba(56, 189, 248, 0.5)";
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(targetPt.x, targetPt.y, 10, 0, Math.PI*2);
+            ctx.fillStyle = "#38bdf8";
+            ctx.fill();
+        }
+
+        // Labels
+        ctx.font = "16px Arial";
+        ctx.fillStyle = "#94a3b8";
+        ctx.fillText("Base (High Pitch)", cx + maxRadius + 20, cy);
+        ctx.fillText("Apex (Low Pitch)", cx - 60, cy - 20);
+    }
+
+    // Start Simulation
+    draw();
+
+</script>
+</body>
+</html>

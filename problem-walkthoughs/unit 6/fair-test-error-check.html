@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Fair-Test Error Check</title>
+  <style>
+    :root{--blue:#285f9f;--navy:#153456;--ink:#142238;--muted:#52657b;--line:#b8cadc;--pale:#f4f9ff;--orange:#d95f18;--green:#17643a}
+    *{box-sizing:border-box}
+    html,body{margin:0;background:transparent;color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+    button{font:inherit;min-height:44px}
+    .fte-app{width:min(100%,1080px);margin:auto;border:5px solid #285f9f;border-radius:24px;overflow:hidden;background:#fff;box-shadow:0 18px 48px rgba(21,52,86,.14)}
+    .fte-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:17px 21px;border-bottom:1px solid var(--line);background:linear-gradient(110deg,#fff,#eef7ff)}
+    .fte-kicker{margin:0 0 3px;color:var(--blue);font-size:.74rem;font-weight:800;letter-spacing:.11em;text-transform:uppercase}
+    h1{margin:0;color:var(--navy);font-size:clamp(1.25rem,4vw,1.85rem);line-height:1.08}
+    h2{margin:0;color:var(--navy);font-size:1rem}
+    .fte-reset{padding:8px 14px;border:1px solid #6c87a3;border-radius:999px;background:#fff;color:var(--navy);font-weight:750;cursor:pointer}
+    .fte-body{padding:17px}
+    .fte-progress{display:flex;gap:6px;margin:0 0 11px;padding:0;list-style:none}
+    .fte-progress li{flex:1;height:7px;border-radius:99px;background:#dbe6f2}
+    .fte-progress li[data-state="done"]{background:var(--green)}
+    .fte-progress li[data-state="current"]{background:var(--orange)}
+    .fte-stage{border:1px solid #96afc8;border-radius:18px;background:linear-gradient(rgba(40,95,159,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(40,95,159,.055) 1px,transparent 1px),var(--pale);background-size:30px 30px;padding:12px}
+    .fte-stage svg{display:block;width:100%;height:150px}
+    .fte-designs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+    .fte-design{padding:13px;border:1px solid var(--line);border-radius:14px;background:#fff}
+    .fte-design h3{margin:0 0 8px;color:var(--navy);font-size:.95rem}
+    .fte-design dl{margin:0;font-size:.84rem;line-height:1.45}
+    .fte-design dt{color:var(--blue);font-size:.7rem;font-weight:850;letter-spacing:.08em;text-transform:uppercase;margin-top:7px}
+    .fte-design dd{margin:2px 0 0;color:var(--ink);font-weight:650}
+    .fte-data{margin-top:9px}
+    table{width:100%;border-collapse:collapse;font-size:.8rem}
+    th,td{padding:5px 7px;border-bottom:1px solid #e3ecf5;text-align:right}
+    th:first-child,td:first-child{text-align:left}
+    thead th{background:#eef5fc;color:var(--navy);font-size:.67rem;text-transform:uppercase}
+    thead th[data-changed="yes"]{background:#fff0e5;color:#7c2d12}
+    .fte-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,.8fr);gap:14px;margin-top:14px}
+    .fte-card{padding:14px;border:1px solid var(--line);border-radius:16px;background:#fbfdff}
+    .fte-step{margin:0 0 4px;color:var(--blue);font-size:.72rem;font-weight:850;letter-spacing:.1em;text-transform:uppercase}
+    .fte-question{margin:0;color:var(--navy);font-weight:850;line-height:1.35}
+    .fte-choices{display:grid;gap:7px;margin-top:10px}
+    .fte-choice{padding:10px 11px;border:1px solid #6c87a3;border-radius:10px;background:#fff;color:var(--ink);font-weight:750;text-align:left;cursor:pointer}
+    .fte-choice:hover{background:#e8f2fd}
+    .fte-feedback{margin:10px 0 0;padding:10px 11px;border-radius:10px;background:#e8f7ed;color:#14532d;font-size:.86rem;font-weight:650;line-height:1.4}
+    .fte-feedback[data-tone="note"]{background:#fff0e5;color:#7c2d12}
+    .fte-primary{width:100%;margin-top:10px;padding:10px 13px;border:0;border-radius:10px;background:var(--blue);color:#fff;font-weight:850;cursor:pointer}
+    .fte-verdict{margin:9px 0 0;padding:8px 10px;border-radius:9px;border:1px solid var(--line);background:#f7fbff;color:var(--navy);font-size:.81rem;font-weight:800}
+    [hidden]{display:none!important}
+    :focus-visible{outline:3px solid #d95f18;outline-offset:3px}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    @media(max-width:760px){.fte-designs,.fte-grid{grid-template-columns:1fr}.fte-body{padding:12px}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}}
+  </style>
+</head>
+<body>
+  <main class="fte-app" id="fair-test-app">
+    <header class="fte-head">
+      <div><p class="fte-kicker">Unit 6 &middot; Investigation design</p><h1>Fair-Test Error Check</h1></div>
+      <button class="fte-reset" id="reset" type="button">Reset</button>
+    </header>
+    <div class="fte-body">
+      <ol class="fte-progress" id="progress" aria-label="Round progress"><li></li><li></li><li></li></ol>
+      <section class="fte-stage" aria-labelledby="stage-description">
+        <p class="sr-only" id="stage-description">The same electromagnet apparatus is used for both designs: a battery, a coil around a core, and paper clips.</p>
+        <svg viewBox="0 0 620 150" role="img" aria-labelledby="stage-title stage-desc">
+          <title id="stage-title">Electromagnet test apparatus</title>
+          <desc id="stage-desc">A battery wired to a coil around a core, with paper clips beneath the core.</desc>
+          <rect x="30" y="35" width="90" height="70" rx="10" fill="#fff" stroke="#6b8298" stroke-width="3"/>
+          <text x="75" y="70" text-anchor="middle" fill="#153456" font-size="13" font-weight="850">BATTERY</text>
+          <text x="75" y="90" text-anchor="middle" fill="#d95f18" font-size="13" font-weight="850">current</text>
+          <path d="M120 50 H180" stroke="#c9781f" stroke-width="5"/><path d="M120 90 H180" stroke="#c9781f" stroke-width="5"/>
+          <rect x="180" y="48" width="290" height="44" rx="8" fill="#9aa7b4" stroke="#5d6b7a" stroke-width="3"/>
+          <text x="325" y="76" text-anchor="middle" fill="#22303f" font-size="13" font-weight="850">CORE</text>
+          <g fill="none" stroke="#c9781f" stroke-width="5"><path d="M195 45 a 12 25 0 0 1 0 50"/><path d="M235 45 a 12 25 0 0 1 0 50"/><path d="M275 45 a 12 25 0 0 1 0 50"/><path d="M315 45 a 12 25 0 0 1 0 50"/><path d="M355 45 a 12 25 0 0 1 0 50"/><path d="M395 45 a 12 25 0 0 1 0 50"/></g>
+          <text x="345" y="30" text-anchor="middle" fill="#7c2d12" font-size="13" font-weight="850">coil turns</text>
+          <g stroke="#7c8b9a" stroke-width="4" fill="none"><rect x="300" y="105" width="28" height="15" rx="7"/><rect x="340" y="105" width="28" height="15" rx="7"/><rect x="380" y="105" width="28" height="15" rx="7"/></g>
+          <text x="500" y="118" text-anchor="middle" fill="#52657b" font-size="13" font-weight="800">clips at a set distance</text>
+        </svg>
+        <div class="fte-designs" id="designs"></div>
+      </section>
+      <div class="fte-grid">
+        <section class="fte-card" aria-labelledby="round-title">
+          <p class="fte-step" id="round-counter">Round 1 of 3</p>
+          <h2 id="round-title">Round</h2>
+          <p class="fte-question" id="round-goal" style="font-weight:650;font-size:.9rem;margin-top:6px"></p>
+          <p class="fte-verdict" id="verdict" hidden></p>
+        </section>
+        <section class="fte-card" aria-labelledby="question">
+          <p class="fte-step" id="prompt-step">Predict first</p>
+          <p class="fte-question" id="question">Which design can support a conclusion?</p>
+          <div class="fte-choices" id="choices"></div>
+          <p class="fte-feedback" id="feedback" role="status" aria-live="polite" hidden></p>
+          <button class="fte-primary" id="main-button" type="button" hidden>Next round</button>
+        </section>
+      </div>
+    </div>
+    <p class="sr-only" id="status" role="status" aria-live="polite">Round 1 of 3. Compare the two designs and choose.</p>
+    <script>
+      (() => {
+        'use strict';
+        const MU = { air: 1, aluminum: 1, steel: 12, iron: 20 };
+        function field(turns, current, core, gap) {
+          const falloff = Math.pow(0.02 / (0.02 + gap), 2);
+          return 1.26e-6 * MU[core] * turns * current / 0.05 * 1000 * falloff;
+        }
+        const rounds = [
+          {
+            goal: 'Both teams want to know whether more coil turns make a stronger electromagnet.',
+            controlled: {
+              changes: 'Coil turns: 5, 10, 15, 20',
+              fixed: 'Current 2.0 A, iron core, clips touching',
+              columns: [{ text: 'Turns', changed: true }, { text: 'Current (A)', changed: false }, { text: 'Field (mT)', changed: false }],
+              rows: [5, 10, 15, 20].map((turns) => [turns, '2.0', field(turns, 2, 'iron', 0).toFixed(1)])
+            },
+            flawed: {
+              changes: 'Coil turns: 5, 10, 15, 20 and current: 1.0, 2.0, 3.0, 4.0 A',
+              fixed: 'Iron core, clips touching',
+              columns: [{ text: 'Turns', changed: true }, { text: 'Current (A)', changed: true }, { text: 'Field (mT)', changed: false }],
+              rows: [[5, 1], [10, 2], [15, 3], [20, 4]].map((pair) => [pair[0], pair[1].toFixed(1), field(pair[0], pair[1], 'iron', 0).toFixed(1)])
+            },
+            explanation: 'Turns and current rose together, so the bigger field cannot be credited to either one.'
+          },
+          {
+            goal: 'Both teams want to know whether more current makes a stronger electromagnet.',
+            controlled: {
+              changes: 'Current: 1.0, 2.0, 3.0, 4.0 A',
+              fixed: '20 turns, iron core, clips touching',
+              columns: [{ text: 'Current (A)', changed: true }, { text: 'Clip gap (m)', changed: false }, { text: 'Field (mT)', changed: false }],
+              rows: [1, 2, 3, 4].map((current) => [current.toFixed(1), '0.00', field(20, current, 'iron', 0).toFixed(1)])
+            },
+            flawed: {
+              changes: 'Current: 1.0, 2.0, 3.0, 4.0 A and clip gap: 0.00, 0.01, 0.02, 0.03 m',
+              fixed: '20 turns, iron core',
+              columns: [{ text: 'Current (A)', changed: true }, { text: 'Clip gap (m)', changed: true }, { text: 'Field (mT)', changed: false }],
+              rows: [[1, 0], [2, 0.01], [3, 0.02], [4, 0.03]].map((pair) => [pair[0].toFixed(1), pair[1].toFixed(2), field(20, pair[0], 'iron', pair[1]).toFixed(1)])
+            },
+            explanation: 'The sliding gap weakened every later reading, so this data makes more current look worse.'
+          },
+          {
+            goal: 'Both teams want to know which core material gives the strongest field.',
+            controlled: {
+              changes: 'Core: air, aluminum, steel, iron',
+              fixed: '20 turns, 2.0 A, clips touching',
+              columns: [{ text: 'Core', changed: true }, { text: 'Turns', changed: false }, { text: 'Field (mT)', changed: false }],
+              rows: ['air', 'aluminum', 'steel', 'iron'].map((core) => [core, 20, field(20, 2, core, 0).toFixed(1)])
+            },
+            flawed: {
+              changes: 'Core: air, aluminum, steel, iron and turns: 30, 25, 15, 10',
+              fixed: '2.0 A, clips touching',
+              columns: [{ text: 'Core', changed: true }, { text: 'Turns', changed: true }, { text: 'Field (mT)', changed: false }],
+              rows: [['air', 30], ['aluminum', 25], ['steel', 15], ['iron', 10]].map((pair) => [pair[0], pair[1], field(pair[1], 2, pair[0], 0).toFixed(1)])
+            },
+            explanation: 'The coil was rebuilt for every core, so the core alone cannot explain the difference.'
+          }
+        ];
+        const e = {
+          designs: document.getElementById('designs'), progress: document.getElementById('progress').children,
+          counter: document.getElementById('round-counter'), title: document.getElementById('round-title'),
+          goal: document.getElementById('round-goal'), verdict: document.getElementById('verdict'),
+          promptStep: document.getElementById('prompt-step'), question: document.getElementById('question'),
+          choices: document.getElementById('choices'), feedback: document.getElementById('feedback'),
+          main: document.getElementById('main-button'), reset: document.getElementById('reset'),
+          status: document.getElementById('status')
+        };
+        let index = 0, order = [], answered = false, completionSent = false;
+
+        function shuffle(list) { const copy = list.slice(); for (let i = copy.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [copy[i], copy[j]] = [copy[j], copy[i]]; } return copy; }
+        function designCard(design, label, showData) {
+          const header = design.columns.map((column) => '<th scope="col" data-changed="' + (column.changed ? 'yes' : 'no') + '">' + column.text + (column.changed ? ' (changed)' : '') + '</th>').join('');
+          const body = design.rows.map((row) => '<tr>' + row.map((cell) => '<td>' + cell + '</td>').join('') + '</tr>').join('');
+          return '<article class="fte-design"><h3>' + label + '</h3><dl>' +
+            '<dt>Changes</dt><dd>' + design.changes + '</dd>' +
+            '<dt>Held fixed</dt><dd>' + design.fixed + '</dd></dl>' +
+            (showData ? '<div class="fte-data"><table><caption class="sr-only">' + label + ' results</caption><thead><tr>' + header + '</tr></thead><tbody>' + body + '</tbody></table></div>' : '') + '</article>';
+        }
+        function renderDesigns(showData) {
+          e.designs.innerHTML = order.map((entry) => designCard(entry.design, entry.label, showData)).join('');
+        }
+        function correctLabel() { return order.find((entry) => entry.kind === 'controlled').label; }
+        function renderRound() {
+          const round = rounds[index];
+          answered = false;
+          order = shuffle([{ kind: 'controlled', design: round.controlled }, { kind: 'flawed', design: round.flawed }]);
+          order.forEach((entry, position) => { entry.label = 'Design ' + (position + 1); });
+          [...e.progress].forEach((item, position) => { item.dataset.state = position < index ? 'done' : position === index ? 'current' : 'open'; });
+          e.counter.textContent = 'Round ' + (index + 1) + ' of ' + rounds.length;
+          e.title.textContent = 'Two teams, one question';
+          e.goal.textContent = round.goal;
+          e.verdict.hidden = true;
+          e.promptStep.textContent = 'Predict first';
+          e.question.textContent = 'Which design can support a conclusion?';
+          e.feedback.hidden = true;
+          e.main.hidden = true;
+          e.choices.hidden = false;
+          renderDesigns(false);
+          renderChoices();
+          e.status.textContent = 'Round ' + (index + 1) + ' of ' + rounds.length + '. ' + round.goal + ' Choose which design can support a conclusion.';
+        }
+        function renderChoices() {
+          e.choices.replaceChildren();
+          shuffle([order[0].label, order[1].label, 'Both designs', 'Neither design']).forEach((label) => {
+            const button = document.createElement('button');
+            button.type = 'button'; button.className = 'fte-choice'; button.textContent = label;
+            button.addEventListener('click', () => choose(label), { once: true });
+            e.choices.append(button);
+          });
+        }
+        function choose(label) {
+          if (answered) return;
+          answered = true;
+          e.choices.querySelectorAll('button').forEach((button) => { button.disabled = true; });
+          e.choices.hidden = true;
+          renderDesigns(true);
+          const answer = correctLabel();
+          const flawed = order.find((entry) => entry.kind === 'flawed').label;
+          e.promptStep.textContent = 'Both designs run';
+          e.question.textContent = answer + ' is the fair test.';
+          e.verdict.textContent = flawed + ' changed two variables at once, so its result is not usable.';
+          e.verdict.hidden = false;
+          e.feedback.textContent = (label === answer ? 'Correct. ' : 'Not quite. ') + rounds[index].explanation;
+          e.feedback.dataset.tone = label === answer ? 'success' : 'note';
+          e.feedback.hidden = false;
+          e.main.textContent = index === rounds.length - 1 ? 'Replay from round 1' : 'Next round';
+          e.main.hidden = false;
+          e.status.textContent = answer + ' is the fair test. ' + rounds[index].explanation;
+          if (index === rounds.length - 1) sendCompletion();
+        }
+        function sendCompletion() {
+          if (completionSent) return;
+          completionSent = true;
+          window.parent.postMessage({ type: 'complete' }, '*');
+        }
+        function advance() {
+          index = index === rounds.length - 1 ? 0 : index + 1;
+          renderRound();
+        }
+        function reset() { index = 0; renderRound(); }
+
+        e.main.addEventListener('click', advance);
+        e.reset.addEventListener('click', reset);
+        reset();
+      })();
+    </script>
+  </main>
+</body>
+</html>

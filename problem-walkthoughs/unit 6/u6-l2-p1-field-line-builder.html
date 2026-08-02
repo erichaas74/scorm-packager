@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Electric Field-Line Model Walkthrough</title>
+  <style>
+    :root {
+      --blue:#285f9f; --blue-dark:#173f70; --ink:#17263a; --muted:#52657a;
+      --soft:#eef6ff; --line:#bfd0e2; --positive:#d64045; --negative:#2457c5;
+      --field:#6f3fb2; --correct:#18794e; --focus:#ffbf47;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;background:transparent;font-family:Arial,Helvetica,sans-serif;color:var(--ink)}
+    body{padding:8px}
+    .rph-app{width:min(100%,960px);margin:0 auto;border:5px solid var(--blue);border-radius:24px;background:linear-gradient(180deg,#fff,#f4f9ff);padding:18px;box-shadow:0 16px 34px rgba(23,63,112,.14)}
+    .rph-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}
+    .rph-kicker{margin:0 0 3px;color:var(--blue);font-size:.78rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+    h1{margin:0;font-size:clamp(1.25rem,2.8vw,1.85rem);line-height:1.1}
+    button{font:inherit;font-weight:800;cursor:pointer;min-height:44px;border-radius:13px;border:2px solid transparent;transition:transform .15s ease,box-shadow .15s ease}
+    button:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(23,63,112,.14)}
+    button:focus-visible{outline:4px solid var(--focus);outline-offset:2px}
+    button:disabled{opacity:.58;cursor:default;transform:none;box-shadow:none}
+    .rph-reset{background:#fff;border-color:var(--line);color:var(--blue-dark);padding:9px 14px;white-space:nowrap}
+    .rph-main{background:var(--blue);color:#fff;padding:11px 20px}
+    .rph-progress{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:.9rem;font-weight:700;margin-bottom:10px}
+    .rph-dots{display:flex;gap:6px}.rph-dot{width:11px;height:11px;border-radius:50%;background:#cad7e6;border:1px solid #a7b9cc}.rph-dot.active{background:var(--blue)}
+    .rph-stage{border:2px solid #c6d6e8;border-radius:18px;background:radial-gradient(circle at 50% 45%,#fff 0%,#edf5ff 78%);overflow:hidden}
+    .rph-scene{min-height:315px;position:relative}
+    svg{display:block;width:100%;height:315px}
+    .rph-model-label{position:absolute;top:12px;left:14px;padding:6px 10px;border-radius:999px;background:#fff;border:1px solid var(--line);font-weight:800;font-size:.82rem;color:var(--blue-dark)}
+    .rph-question{background:rgba(255,255,255,.97);border-top:2px solid #c6d6e8;padding:14px}
+    .rph-prompt{margin:0 0 10px;font-size:1.02rem;font-weight:800}.rph-directions{margin:0 0 10px;color:var(--muted);font-size:.9rem}
+    .rph-choices{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+    .rph-choice{background:#fff;border-color:var(--line);color:var(--ink);padding:10px 12px}
+    .rph-feedback{min-height:2.7em;margin:10px 0 0;font-weight:700;line-height:1.35}
+    .rph-actions{display:flex;justify-content:flex-end;margin-top:10px}.rph-hidden{display:none!important}
+    .charge-text{font-size:27px;font-weight:900;fill:#fff;text-anchor:middle;dominant-baseline:central}
+    .charge-caption{font-size:15px;font-weight:800;fill:var(--ink);text-anchor:middle}
+    .candidate-line{stroke:var(--field);stroke-width:4;fill:none;stroke-linecap:round}
+    .correct-line{stroke:var(--correct);stroke-width:5;fill:none;stroke-linecap:round}
+    .error-ring{fill:none;stroke:#b42318;stroke-width:5;stroke-dasharray:8 6}
+    .correct-tag{fill:var(--correct);font-size:18px;font-weight:900}
+    @media(max-width:680px){body{padding:3px}.rph-app{padding:12px;border-radius:18px}.rph-choices{grid-template-columns:repeat(2,minmax(0,1fr))}.rph-scene,svg{min-height:300px;height:300px}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation-duration:.001ms!important}}
+  </style>
+</head>
+<body>
+<main class="rph-app" aria-labelledby="title">
+  <div class="rph-top">
+    <div><p class="rph-kicker">Unit 6 · Lesson 2 · Part 1</p><h1 id="title">Field-Line Model Check</h1></div>
+    <button class="rph-reset" id="resetBtn" type="button">Reset</button>
+  </div>
+  <div class="rph-progress"><span id="progressText">Model 1 of 4</span><div class="rph-dots" id="dots" aria-hidden="true"></div></div>
+  <section class="rph-stage" aria-label="Electric field-line model walkthrough">
+    <div class="rph-scene">
+      <span class="rph-model-label" id="modelLabel">Proposed model</span>
+      <svg id="scene" viewBox="0 0 800 315" role="img" aria-labelledby="sceneTitle sceneDesc">
+        <title id="sceneTitle">A proposed electric field-line model</title>
+        <desc id="sceneDesc">Inspect the arrows and paths, then identify any rule violation.</desc>
+        <defs>
+          <marker id="purpleArrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 Z" fill="#6f3fb2"></path></marker>
+          <marker id="greenArrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 Z" fill="#18794e"></path></marker>
+        </defs>
+        <g id="charges"></g>
+        <g id="candidate"></g>
+        <g id="corrected" class="rph-hidden"></g>
+        <g id="errorMark" class="rph-hidden"></g>
+      </svg>
+    </div>
+    <div class="rph-question">
+      <p class="rph-prompt">What is wrong with this field-line model?</p>
+      <p class="rph-directions">Select one rule before revealing the corrected model.</p>
+      <div class="rph-choices" id="choices"></div>
+      <p class="rph-feedback" id="feedback" role="status" aria-live="polite"></p>
+      <div class="rph-actions"><button class="rph-main rph-hidden" id="nextBtn" type="button">Next model</button></div>
+    </div>
+  </section>
+  <script>
+    (()=>{
+      const NS='http://www.w3.org/2000/svg';
+      const scenarios=[
+        {kind:'positiveInward',answer:'Arrows reversed',explain:'Field lines must point away from a positive charge.'},
+        {kind:'negativeInward',answer:'Nothing',explain:'The arrows point toward the negative charge and the lines do not cross.'},
+        {kind:'dipoleCross',answer:'Lines cross',explain:'A field has only one direction at any point, so field lines cannot cross.'},
+        {kind:'twoPositiveStop',answer:'Lines stop in space',explain:'Field lines begin on positive charges and continue outward or end on negative charges.'}
+      ];
+      const optionText=['Nothing','Arrows reversed','Lines cross','Lines stop in space'];
+      let index=0,state='predict',completionSent=false;
+      const charges=document.getElementById('charges'),candidate=document.getElementById('candidate'),corrected=document.getElementById('corrected'),errorMark=document.getElementById('errorMark');
+      const choices=document.getElementById('choices'),feedback=document.getElementById('feedback'),nextBtn=document.getElementById('nextBtn'),resetBtn=document.getElementById('resetBtn');
+      const progressText=document.getElementById('progressText'),dots=document.getElementById('dots'),modelLabel=document.getElementById('modelLabel');
+
+      function el(name,attrs={}){const n=document.createElementNS(NS,name);Object.entries(attrs).forEach(([k,v])=>n.setAttribute(k,v));return n}
+      function shuffle(a){const c=[...a];for(let i=c.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[c[i],c[j]]=[c[j],c[i]]}return c}
+      function charge(x,y,sign){const g=el('g');g.appendChild(el('circle',{cx:x,cy:y,r:40,fill:sign==='+'?'#d64045':'#2457c5'}));const t=el('text',{x,y,class:'charge-text'});t.textContent=sign;g.appendChild(t);return g}
+      function path(group,d,cls='candidate-line',marker='url(#purpleArrow)'){group.appendChild(el('path',{d,class:cls,'marker-end':marker}))}
+      function line(group,x1,y1,x2,y2,cls='candidate-line',marker='url(#purpleArrow)'){group.appendChild(el('line',{x1,y1,x2,y2,class:cls,'marker-end':marker}))}
+      function radial(group,inward,cls,marker){const cx=400,cy=155;[[400,45],[510,80],[545,155],[510,230],[400,265],[290,230],[255,155],[290,80]].forEach(([x,y])=>{if(inward)line(group,x,y,cx+(x-cx)*.34,cy+(y-cy)*.34,cls,marker);else line(group,cx+(x-cx)*.34,cy+(y-cy)*.34,x,y,cls,marker)})}
+      function draw(){
+        [charges,candidate,corrected,errorMark].forEach(g=>g.innerHTML=''); corrected.classList.add('rph-hidden'); errorMark.classList.add('rph-hidden'); modelLabel.textContent='Proposed model';
+        const s=scenarios[index];
+        if(s.kind==='positiveInward'){
+          charges.appendChild(charge(400,155,'+')); radial(candidate,true,'candidate-line','url(#purpleArrow)'); radial(corrected,false,'correct-line','url(#greenArrow)');
+          errorMark.appendChild(el('circle',{cx:400,cy:155,r:95,class:'error-ring'}));
+        } else if(s.kind==='negativeInward'){
+          charges.appendChild(charge(400,155,'−')); radial(candidate,true,'candidate-line','url(#purpleArrow)'); radial(corrected,true,'correct-line','url(#greenArrow)');
+        } else if(s.kind==='dipoleCross'){
+          charges.appendChild(charge(245,155,'+')); charges.appendChild(charge(555,155,'−'));
+          path(candidate,'M285 135 C380 45 465 265 515 175'); path(candidate,'M285 175 C380 265 465 45 515 135');
+          path(candidate,'M285 135 C360 75 440 75 515 135','correct-line','url(#greenArrow)'); path(candidate,'M285 175 C360 235 440 235 515 175','correct-line','url(#greenArrow)'); line(corrected,285,155,515,155,'correct-line','url(#greenArrow)');
+          errorMark.appendChild(el('circle',{cx:400,cy:155,r:38,class:'error-ring'}));
+        } else {
+          charges.appendChild(charge(260,155,'+')); charges.appendChild(charge(540,155,'+'));
+          line(candidate,300,155,385,155); line(candidate,500,155,415,155); path(candidate,'M285 125 C350 70 450 70 515 125');
+          path(corrected,'M300 135 C370 95 430 35 400 10','correct-line','url(#greenArrow)'); path(corrected,'M500 135 C430 95 370 35 400 10','correct-line','url(#greenArrow)');
+          path(corrected,'M285 175 C210 230 150 245 85 250','correct-line','url(#greenArrow)'); path(corrected,'M515 175 C590 230 650 245 715 250','correct-line','url(#greenArrow)');
+          errorMark.appendChild(el('ellipse',{cx:400,cy:155,rx:55,ry:32,class:'error-ring'}));
+        }
+      }
+      function dotsRender(){dots.innerHTML='';scenarios.forEach((_,i)=>{const d=document.createElement('span');d.className='rph-dot'+(i===index?' active':'');dots.appendChild(d)})}
+      function render(){state='predict';progressText.textContent=`Model ${index+1} of ${scenarios.length}`;dotsRender();draw();feedback.textContent='';nextBtn.classList.add('rph-hidden');choices.innerHTML='';shuffle(optionText).forEach(label=>{const b=document.createElement('button');b.type='button';b.className='rph-choice';b.textContent=label;b.addEventListener('click',()=>choose(label));choices.appendChild(b)})}
+      function choose(label){if(state!=='predict')return;state='reveal';[...choices.querySelectorAll('button')].forEach(b=>b.disabled=true);candidate.classList.add('rph-hidden');corrected.classList.remove('rph-hidden');errorMark.classList.remove('rph-hidden');modelLabel.textContent='Corrected model';const s=scenarios[index];const first=label===s.answer?`${s.answer} is the correct diagnosis.`:`The issue is ${s.answer.toLowerCase()}, not ${label.toLowerCase()}.`;feedback.textContent=`${first} ${s.explain}`;nextBtn.textContent=index===scenarios.length-1?'Finish':'Next model';nextBtn.classList.remove('rph-hidden');nextBtn.focus()}
+      function next(){if(state!=='reveal')return;if(index<scenarios.length-1){index++;render()}else{feedback.textContent='Complete. Field lines show direction, relative strength, and a field that never has two directions at one point.';nextBtn.classList.add('rph-hidden');if(!completionSent){completionSent=true;window.parent.postMessage({type:'complete'},'*')}}}
+      function reset(){index=0;completionSent=false;render()}
+      nextBtn.addEventListener('click',next);resetBtn.addEventListener('click',reset);render();
+    })();
+  </script>
+</main>
+</body>
+</html>

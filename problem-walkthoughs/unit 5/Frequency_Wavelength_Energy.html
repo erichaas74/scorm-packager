@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sim 1: Frequency · Wavelength · Photon Energy</title>
+<style>
+  :root {
+    --bg: #0f172a; --card: #1e293b; --accent: #a78bfa;
+    --text: #e2e8f0; --muted: #94a3b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; padding: 16px;
+  }
+  h1 { font-size: 1.35rem; color: var(--accent); margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 16px; }
+  .layout {
+    display: grid; grid-template-columns: 1fr 340px; gap: 16px;
+    max-width: 1200px; margin: 0 auto;
+  }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+  .canvas-wrap, .controls {
+    background: var(--card); border-radius: 12px; padding: 14px;
+  }
+  canvas { width: 100%; height: auto; display: block; border-radius: 8px; background: #0b1220; }
+  .controls { display: flex; flex-direction: column; gap: 14px; }
+  label { font-size: 0.85rem; color: var(--muted); display: block; margin-bottom: 4px; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .readout {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+  .card {
+    background: #0f172a; border-radius: 8px; padding: 10px; text-align: center;
+  }
+  .card .val { font-size: 1.25rem; font-weight: 700; color: var(--accent); }
+  .card .lbl { font-size: 0.72rem; color: var(--muted); }
+  .info-box {
+    background: #0f172a; border-left: 3px solid var(--accent);
+    padding: 10px 12px; border-radius: 0 8px 8px 0;
+    font-size: 0.84rem; line-height: 1.45;
+  }
+  .region {
+    text-align: center; font-size: 1.1rem; font-weight: 700;
+    padding: 8px; border-radius: 8px; background: #0f172a;
+  }
+  .prediction {
+    background: #2e1065; border-radius: 8px; padding: 10px; font-size: 0.82rem;
+  }
+  .prediction strong { color: #c4b5fd; }
+  .formula {
+    font-family: 'Courier New', monospace; background: #1e1b4b;
+    padding: 8px; border-radius: 6px; font-size: 0.88rem; text-align: center;
+  }
+</style>
+</head>
+<body>
+  <h1>Simulation 1: Frequency · Wavelength · Photon Energy</h1>
+  <p class="subtitle">Part 2 · Radiation Frequency and Energy · Connect f, λ and E</p>
+
+  <div class="layout">
+    <div class="canvas-wrap">
+      <canvas id="c" width="800" height="460"></canvas>
+    </div>
+
+    <div class="controls">
+      <div>
+        <label>Frequency (log scale)</label>
+        <input type="range" id="freq" min="0" max="100" value="40">
+        <span id="freqLabel" style="font-size:0.8rem;color:#c4b5fd"></span>
+      </div>
+
+      <div class="region" id="regionBox">Visible Light</div>
+
+      <div class="readout">
+        <div class="card">
+          <div class="val" id="eVal">2.5 eV</div>
+          <div class="lbl">Photon Energy</div>
+        </div>
+        <div class="card">
+          <div class="val" id="lamVal">500 nm</div>
+          <div class="lbl">Wavelength</div>
+        </div>
+      </div>
+
+      <div class="formula">
+        E = hf &nbsp;&nbsp;|&nbsp;&nbsp; c = λf &nbsp;&nbsp;|&nbsp;&nbsp; λ ↓ when f ↑
+      </div>
+
+      <div class="info-box" id="info">
+        Drag the slider. Higher frequency → shorter wavelength → higher energy per photon.
+        The coloured bar shows the region of the electromagnetic spectrum.
+      </div>
+
+      <div class="prediction">
+        <strong>Test these ideas:</strong><br>
+        • If frequency increases, does wavelength also increase?<br>
+        • Does a brighter source change the energy of each photon?<br>
+        • Which region has the most energetic photons?
+      </div>
+    </div>
+  </div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+// Map slider 0-100 to frequency decades (radio → gamma)
+// Approximate log frequency from 10^6 Hz (radio) to 10^20 Hz (gamma)
+function sliderToFreq(s) {
+  // 0 → 1e6 Hz, 100 → 1e20 Hz
+  return Math.pow(10, 6 + s * 0.14);
+}
+
+const h = 4.135667696e-15; // eV·s
+const c = 3e8; // m/s
+
+const regions = [
+  { name: 'Radio',        maxF: 3e9,   color: '#64748b' },
+  { name: 'Microwave',    maxF: 3e11,  color: '#0ea5e9' },
+  { name: 'Infrared',     maxF: 4e14,  color: '#f97316' },
+  { name: 'Visible',      maxF: 7.5e14,color: '#22c55e' },
+  { name: 'Ultraviolet',  maxF: 3e16,  color: '#8b5cf6' },
+  { name: 'X-ray',        maxF: 3e19,  color: '#ec4899' },
+  { name: 'Gamma ray',    maxF: 1e22,  color: '#ef4444' }
+];
+
+function getRegion(f) {
+  for (const r of regions) if (f < r.maxF) return r;
+  return regions[regions.length - 1];
+}
+
+function formatFreq(f) {
+  if (f >= 1e18) return (f / 1e18).toFixed(1) + ' EHz';
+  if (f >= 1e15) return (f / 1e15).toFixed(1) + ' PHz';
+  if (f >= 1e12) return (f / 1e12).toFixed(1) + ' THz';
+  if (f >= 1e9)  return (f / 1e9).toFixed(1) + ' GHz';
+  if (f >= 1e6)  return (f / 1e6).toFixed(1) + ' MHz';
+  return f.toExponential(1) + ' Hz';
+}
+function formatEnergy(e) {
+  if (e >= 1e6) return (e / 1e6).toFixed(2) + ' MeV';
+  if (e >= 1e3) return (e / 1e3).toFixed(1) + ' keV';
+  if (e >= 1)   return e.toFixed(2) + ' eV';
+  return (e * 1000).toFixed(1) + ' meV';
+}
+function formatLambda(lam) {
+  if (lam >= 1) return lam.toFixed(2) + ' m';
+  if (lam >= 1e-3) return (lam * 1e3).toFixed(1) + ' mm';
+  if (lam >= 1e-6) return (lam * 1e6).toFixed(1) + ' µm';
+  if (lam >= 1e-9) return (lam * 1e9).toFixed(0) + ' nm';
+  if (lam >= 1e-12) return (lam * 1e12).toFixed(1) + ' pm';
+  return lam.toExponential(1) + ' m';
+}
+
+const freqSlider = document.getElementById('freq');
+const freqLabel = document.getElementById('freqLabel');
+const eVal = document.getElementById('eVal');
+const lamVal = document.getElementById('lamVal');
+const regionBox = document.getElementById('regionBox');
+const info = document.getElementById('info');
+
+let currentF = sliderToFreq(40);
+
+function update() {
+  currentF = sliderToFreq(+freqSlider.value);
+  const E = h * currentF;           // eV
+  const lambda = c / currentF;      // m
+  const reg = getRegion(currentF);
+
+  freqLabel.textContent = formatFreq(currentF);
+  eVal.textContent = formatEnergy(E);
+  lamVal.textContent = formatLambda(lambda);
+  regionBox.textContent = reg.name;
+  regionBox.style.color = reg.color;
+  regionBox.style.border = `2px solid ${reg.color}`;
+
+  if (reg.name === 'Gamma ray' || reg.name === 'X-ray') {
+    info.innerHTML = `<b style="color:${reg.color}">${reg.name}:</b> Very high frequency → very short λ → photons carry enough energy to ionize atoms and damage DNA.`;
+  } else if (reg.name === 'Ultraviolet') {
+    info.innerHTML = `<b style="color:${reg.color}">Ultraviolet:</b> Can break chemical bonds and cause sunburn / DNA damage. Higher energy than visible light.`;
+  } else if (reg.name === 'Visible') {
+    info.innerHTML = `<b style="color:${reg.color}">Visible light:</b> Photon energies (~1.8–3.1 eV) can excite electrons but usually do not ionize atoms.`;
+  } else if (reg.name === 'Infrared' || reg.name === 'Microwave') {
+    info.innerHTML = `<b style="color:${reg.color}">${reg.name}:</b> Photon energy is too low to ionize. Energy is absorbed as heat (molecular vibration / rotation).`;
+  } else {
+    info.innerHTML = `<b style="color:${reg.color}">Radio:</b> Extremely low photon energy. Safe for communication; no ionization.`;
+  }
+}
+
+freqSlider.oninput = update;
+update();
+
+// Draw spectrum bar + photon + wave
+function draw() {
+  ctx.fillStyle = '#0b1220';
+  ctx.fillRect(0, 0, W, H);
+
+  // Spectrum gradient bar
+  const barY = 60, barH = 40, barX = 40, barW = W - 80;
+  const grad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+  // approximate colours across spectrum
+  grad.addColorStop(0.00, '#64748b'); // radio
+  grad.addColorStop(0.15, '#0ea5e9'); // microwave
+  grad.addColorStop(0.30, '#f97316'); // IR
+  grad.addColorStop(0.42, '#ef4444'); // red
+  grad.addColorStop(0.48, '#eab308'); // yellow
+  grad.addColorStop(0.52, '#22c55e'); // green
+  grad.addColorStop(0.58, '#3b82f6'); // blue
+  grad.addColorStop(0.65, '#8b5cf6'); // UV
+  grad.addColorStop(0.80, '#ec4899'); // X-ray
+  grad.addColorStop(1.00, '#ef4444'); // gamma
+  ctx.fillStyle = grad;
+  ctx.fillRect(barX, barY, barW, barH);
+  ctx.strokeStyle = '#475569';
+  ctx.strokeRect(barX, barY, barW, barH);
+
+  // Labels under bar
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '11px sans-serif';
+  ctx.fillText('Radio', barX, barY + barH + 16);
+  ctx.fillText('μwave', barX + barW * 0.15, barY + barH + 16);
+  ctx.fillText('IR', barX + barW * 0.30, barY + barH + 16);
+  ctx.fillText('Visible', barX + barW * 0.45, barY + barH + 16);
+  ctx.fillText('UV', barX + barW * 0.62, barY + barH + 16);
+  ctx.fillText('X-ray', barX + barW * 0.78, barY + barH + 16);
+  ctx.fillText('γ', barX + barW * 0.95, barY + barH + 16);
+
+  // Marker for current frequency
+  const s = +freqSlider.value;
+  const markerX = barX + (s / 100) * barW;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.moveTo(markerX, barY - 8);
+  ctx.lineTo(markerX - 7, barY - 20);
+  ctx.lineTo(markerX + 7, barY - 20);
+  ctx.closePath();
+  ctx.fill();
+
+  // Wave representation (schematic)
+  const waveY = 220;
+  const reg = getRegion(currentF);
+  ctx.strokeStyle = reg.color;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  // wavelength visual: shorter for higher f
+  const cycles = 2 + (s / 100) * 18;
+  for (let x = 0; x <= 700; x++) {
+    const y = waveY + Math.sin((x / 700) * cycles * Math.PI * 2) * 35;
+    if (x === 0) ctx.moveTo(50 + x, y);
+    else ctx.lineTo(50 + x, y);
+  }
+  ctx.stroke();
+
+  // Photon symbol
+  const phX = 400, phY = 340;
+  ctx.beginPath();
+  ctx.arc(phX, phY, 18, 0, Math.PI * 2);
+  ctx.fillStyle = reg.color;
+  ctx.fill();
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('γ', phX, phY + 5);
+  ctx.textAlign = 'left';
+
+  // Energy arrow
+  const eHeight = 20 + (s / 100) * 80;
+  ctx.fillStyle = reg.color;
+  ctx.fillRect(phX + 40, phY - eHeight / 2, 14, eHeight);
+  ctx.fillStyle = '#e2e8f0';
+  ctx.font = '12px sans-serif';
+  ctx.fillText('Photon energy', phX + 60, phY + 4);
+
+  // Title
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '13px sans-serif';
+  ctx.fillText('Electromagnetic Spectrum  →  increasing frequency & energy →', 40, 30);
+
+  requestAnimationFrame(draw);
+}
+draw();
+</script>
+</body>
+</html>

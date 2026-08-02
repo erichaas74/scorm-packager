@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resistance Factors Explorer</title>
+  <style>
+    html, body { background: transparent; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; }
+    .app { max-width: 720px; margin: 0 auto; padding: 8px; box-sizing: border-box; }
+    .card { border: 5px solid #285f9f; border-radius: 12px; background: #f8fafc; overflow: hidden; display: flex; flex-direction: column; }
+    .header { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #e2e8f0; border-bottom: 1px solid #cbd5e1; }
+    .header h1 { margin: 0; font-size: 1rem; font-weight: 600; color: #1e293b; }
+    .stage { position: relative; width: 100%; aspect-ratio: 16/9; background: #0f172a; overflow: hidden; }
+    canvas { display: block; width: 100%; height: 100%; }
+    .prompt-area { padding: 12px; background: #fff; border-top: 1px solid #e2e8f0; min-height: 140px; display: flex; flex-direction: column; gap: 8px; }
+    .prompt { margin: 0; font-size: 0.95rem; color: #1e293b; line-height: 1.4; }
+    .choices { display: flex; flex-wrap: wrap; gap: 8px; }
+    .choices button { flex: 1 1 120px; padding: 10px 12px; font-size: 0.9rem; font-weight: 600; border: 2px solid #285f9f; border-radius: 8px; background: #fff; color: #1e293b; cursor: pointer; min-height: 44px; }
+    .choices button:hover, .choices button:focus { background: #dbeafe; outline: 2px solid #285f9f; outline-offset: 2px; }
+    .feedback { margin: 0; font-size: 0.9rem; color: #0f172a; min-height: 1.4em; }
+    .main-btn { align-self: flex-start; padding: 10px 20px; font-size: 0.95rem; font-weight: 600; border: none; border-radius: 8px; background: #285f9f; color: #fff; cursor: pointer; min-height: 44px; }
+    .main-btn:hover, .main-btn:focus { background: #1e4a7a; outline: 2px solid #1e4a7a; outline-offset: 2px; }
+    .hidden { display: none !important; }
+    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
+    .controls label { font-size: 0.8rem; color: #334155; display: flex; flex-direction: column; gap: 2px; }
+    .controls input[type="range"] { width: 100%; }
+    .controls select { font-size: 0.85rem; padding: 4px; }
+    .readout { font-family: ui-monospace, monospace; background: #e2e8f0; padding: 6px 10px; border-radius: 6px; font-size: 0.9rem; grid-column: 1 / -1; }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="card">
+      <div class="header">
+        <h1>Resistance Factors Explorer</h1>
+        <button class="main-btn" data-reset style="padding:6px 12px;font-size:0.85rem;background:#64748b;">Reset</button>
+      </div>
+      <div class="stage" aria-label="Wire whose properties can be changed">
+        <canvas id="c" width="640" height="360" role="img" aria-label="Wire with adjustable length, area, material"></canvas>
+      </div>
+      <div class="prompt-area" aria-live="polite">
+        <p class="prompt" data-prompt>Resistance depends on material, length, area, and temperature.</p>
+        <div class="choices" data-choices hidden>
+          <button data-choice="up">Resistance rises</button>
+          <button data-choice="down">Resistance falls</button>
+          <button data-choice="same">No change</button>
+        </div>
+        <div class="controls" data-controls hidden>
+          <label>Material
+            <select id="mat">
+              <option value="1.7">Copper (low ρ)</option>
+              <option value="2.8">Aluminum</option>
+              <option value="10">Nichrome (high ρ)</option>
+            </select>
+          </label>
+          <label>Length (m)
+            <input type="range" id="len" min="0.5" max="4" value="1" step="0.5">
+          </label>
+          <label>Area (mm²)
+            <input type="range" id="area" min="0.5" max="4" value="1" step="0.5">
+          </label>
+          <label>Temp factor
+            <input type="range" id="temp" min="0.8" max="1.4" value="1" step="0.1">
+          </label>
+          <span class="readout" data-readout>R = ? Ω</span>
+        </div>
+        <p class="feedback" data-feedback></p>
+        <button class="main-btn" data-main>Start</button>
+      </div>
+    </section>
+  </main>
+  <script>
+    (function() {
+      const canvas = document.getElementById('c');
+      const ctx = canvas.getContext('2d');
+      const promptEl = document.querySelector('[data-prompt]');
+      const choicesEl = document.querySelector('[data-choices]');
+      const feedbackEl = document.querySelector('[data-feedback]');
+      const mainBtn = document.querySelector('[data-main]');
+      const resetBtn = document.querySelector('[data-reset]');
+      const controlsEl = document.querySelector('[data-controls]');
+      const readoutEl = document.querySelector('[data-readout]');
+      const matEl = document.getElementById('mat');
+      const lenEl = document.getElementById('len');
+      const areaEl = document.getElementById('area');
+      const tempEl = document.getElementById('temp');
+
+      let state = 'setup';
+      let prediction = null;
+      let rho = 1.7, L = 1, A = 1, T = 1;
+      let showR = false;
+      let completed = false;
+      let scenario = 0; // 0 length, 1 area
+
+      function calcR() {
+        // simplified: R proportional to rho * L / A * T
+        return (rho * L / A * T).toFixed(2);
+      }
+
+      function draw() {
+        const W = canvas.width, H = canvas.height;
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, W, H);
+
+        // wire visual
+        const wireLen = 120 + L * 80;
+        const wireThick = 8 + A * 10;
+        const x0 = (W - wireLen) / 2;
+        const y0 = H / 2;
+
+        // color by material
+        const colors = { '1.7': '#f97316', '2.8': '#a3a3a3', '10': '#a855f7' };
+        ctx.fillStyle = colors[String(rho)] || '#f97316';
+        ctx.beginPath();
+        ctx.roundRect(x0, y0 - wireThick / 2, wireLen, wireThick, 4);
+        ctx.fill();
+
+        // ends
+        ctx.fillStyle = '#64748b';
+        ctx.fillRect(x0 - 20, y0 - 16, 20, 32);
+        ctx.fillRect(x0 + wireLen, y0 - 16, 20, 32);
+
+        // labels
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = '13px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('L = ' + L + ' m', W / 2, y0 - wireThick / 2 - 16);
+        ctx.fillText('A ≈ ' + A + ' mm²', W / 2, y0 + wireThick / 2 + 22);
+
+        if (showR) {
+          ctx.fillStyle = '#fbbf24';
+          ctx.font = 'bold 18px system-ui';
+          ctx.fillText('R = ρL / A ≈ ' + calcR() + ' Ω', W / 2, H - 24);
+        }
+
+        // formula reminder
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '12px system-ui';
+        ctx.textAlign = 'left';
+        ctx.fillText('R = ρ L / A   (higher T → higher R for metals)', 20, 28);
+      }
+
+      function updateReadout() {
+        if (showR) readoutEl.textContent = 'R ≈ ' + calcR() + ' Ω';
+        else readoutEl.textContent = 'R = ? Ω';
+      }
+
+      function render() {
+        choicesEl.classList.add('hidden');
+        controlsEl.classList.add('hidden');
+        mainBtn.classList.remove('hidden');
+        feedbackEl.textContent = '';
+        showR = false;
+
+        if (state === 'setup') {
+          promptEl.textContent = 'Resistance depends on material, length, area, and temperature.';
+          mainBtn.textContent = 'Start';
+          rho = 1.7; L = 1; A = 1; T = 1;
+          matEl.value = '1.7'; lenEl.value = 1; areaEl.value = 1; tempEl.value = 1;
+          draw();
+        } else if (state === 'predict') {
+          // first predict about length
+          promptEl.textContent = 'If you make the wire longer (same material & thickness), what happens to R?';
+          choicesEl.classList.remove('hidden');
+          choicesEl.innerHTML = '';
+          const opts = [
+            { v: 'up', t: 'Resistance rises' },
+            { v: 'down', t: 'Resistance falls' },
+            { v: 'same', t: 'No change' }
+          ];
+          for (let i = opts.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [opts[i], opts[j]] = [opts[j], opts[i]];
+          }
+          opts.forEach(o => {
+            const b = document.createElement('button');
+            b.dataset.choice = o.v;
+            b.textContent = o.t;
+            b.addEventListener('click', () => choose(o.v));
+            choicesEl.appendChild(b);
+          });
+          mainBtn.classList.add('hidden');
+          draw();
+        } else if (state === 'adjust') {
+          promptEl.textContent = 'Change each factor. Watch R.';
+          controlsEl.classList.remove('hidden');
+          showR = true;
+          updateReadout();
+          mainBtn.textContent = 'Finish';
+          draw();
+        } else if (state === 'explain') {
+          feedbackEl.textContent = 'Longer or thinner wire, higher resistivity, or higher temperature all raise R. Wider wire lowers R.';
+          mainBtn.textContent = 'Replay';
+          showR = true;
+          updateReadout();
+          draw();
+          if (!completed) {
+            completed = true;
+            try { window.parent.postMessage({ type: 'complete' }, '*'); } catch (e) {}
+          }
+        }
+      }
+
+      function choose(v) {
+        if (state !== 'predict') return;
+        prediction = v;
+        state = 'adjust';
+        render();
+      }
+
+      function onControl() {
+        rho = +matEl.value;
+        L = +lenEl.value;
+        A = +areaEl.value;
+        T = +tempEl.value;
+        updateReadout();
+        draw();
+      }
+      matEl.addEventListener('change', onControl);
+      lenEl.addEventListener('input', onControl);
+      areaEl.addEventListener('input', onControl);
+      tempEl.addEventListener('input', onControl);
+
+      mainBtn.addEventListener('click', () => {
+        if (state === 'setup') {
+          state = 'predict';
+          render();
+        } else if (state === 'adjust') {
+          state = 'explain';
+          render();
+        } else if (state === 'explain') {
+          state = 'setup';
+          prediction = null;
+          completed = false;
+          render();
+        }
+      });
+
+      resetBtn.addEventListener('click', () => {
+        state = 'setup';
+        prediction = null;
+        completed = false;
+        render();
+      });
+
+      render();
+    })();
+  </script>
+</body>
+</html>

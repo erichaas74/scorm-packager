@@ -5,7 +5,9 @@ const archiver = require('archiver');
 const root = __dirname;
 const outputDir = path.join(root, 'rise-zips');
 const indexHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-const active = [...new Set(
+// Optional relative paths package only those files and leave other generated ZIPs untouched.
+const requested = process.argv.slice(2).map((entry) => decodeURIComponent(entry).replace(/\\/g, '/'));
+const active = requested.length ? requested : [...new Set(
   [...indexHtml.matchAll(/<a\b[^>]*class=["'][^"']*\bopen-btn\b[^"']*["'][^>]*href=["']([^"']+\.html)["']/gi)]
     .map((match) => decodeURIComponent(match[1]))
 )];
@@ -100,9 +102,11 @@ function writeZip(target, html) {
 async function main() {
   fs.mkdirSync(outputDir, { recursive: true });
   const expectedNames = new Set(active.map(packageName));
-  for (const entry of fs.readdirSync(outputDir, { withFileTypes: true })) {
-    if (entry.isFile() && entry.name.endsWith('.zip') && !expectedNames.has(entry.name)) {
-      fs.unlinkSync(path.join(outputDir, entry.name));
+  if (!requested.length) {
+    for (const entry of fs.readdirSync(outputDir, { withFileTypes: true })) {
+      if (entry.isFile() && entry.name.endsWith('.zip') && !expectedNames.has(entry.name)) {
+        fs.unlinkSync(path.join(outputDir, entry.name));
+      }
     }
   }
 

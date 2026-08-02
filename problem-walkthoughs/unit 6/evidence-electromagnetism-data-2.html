@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Evidence from Electromagnetism Data</title>
+  <style>
+    /* Rise Compatibility: Transparent background */
+    html, body {
+      background: transparent;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      color: #1a1a1a;
+      box-sizing: border-box;
+    }
+    
+    *, *::before, *::after {
+      box-sizing: inherit;
+    }
+
+    .walkthrough {
+      max-width: 760px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      padding: 1rem;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 0.5rem;
+    }
+
+    .header h2 {
+      margin: 0;
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .progress {
+      font-size: 0.875rem;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    /* Simulation Stage */
+    .stage {
+      width: 100%;
+      height: 280px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Standardized Learner Card */
+    .card {
+      border: 5px solid #285f9f;
+      border-radius: 12px;
+      padding: 1.5rem;
+      background: #ffffff;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .card p {
+      margin: 0 0 1rem 0;
+      line-height: 1.5;
+    }
+
+    #prompt-text {
+      font-weight: 600;
+      font-size: 1.05rem;
+    }
+
+    /* Accessible Interactive Controls */
+    .choices {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 500;
+      padding: 0.875rem 1rem;
+      border: 2px solid #cbd5e1;
+      border-radius: 6px;
+      background: #ffffff;
+      color: #1e293b;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s ease;
+      min-height: 48px;
+    }
+
+    button:hover {
+      border-color: #285f9f;
+      background: #f0f7ff;
+    }
+
+    button:focus-visible {
+      outline: 3px solid #285f9f;
+      outline-offset: 2px;
+    }
+
+    .action-btn {
+      text-align: center;
+      background: #285f9f;
+      color: #ffffff;
+      border-color: #285f9f;
+      margin-top: 1rem;
+      width: 100%;
+    }
+
+    .action-btn:hover {
+      background: #1e4b82;
+      border-color: #1e4b82;
+      color: #ffffff;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  
+  <main class="walkthrough">
+    
+    <div class="header">
+      <h2 id="scenario-title">Scenario Title</h2>
+      <span class="progress" id="progress" aria-live="polite">1 / 4</span>
+    </div>
+
+    <!-- The physical situation the learner watches -->
+    <div class="stage" aria-label="Data Analysis Stage" role="img">
+      <svg id="sim-svg" width="100%" height="100%" viewBox="0 0 760 280">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569" />
+          </marker>
+        </defs>
+        <g id="svg-content"></g>
+      </svg>
+    </div>
+
+    <!-- The decision card -->
+    <div class="card" aria-live="polite">
+      <p id="setup-text"></p>
+      <p id="prompt-text"></p>
+      
+      <div id="choices" class="choices" role="group" aria-label="Prediction Choices"></div>
+      
+      <div id="feedback-panel" class="hidden">
+        <p id="feedback-text"></p>
+        <button id="next-btn" class="action-btn">Next Scenario</button>
+      </div>
+    </div>
+
+    <script>
+      /** 
+       * Common Graph Axes
+       */
+      const drawAxes = (xLabel, yLabel) => `
+        <line x1="150" y1="230" x2="150" y2="40" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+        <line x1="150" y1="230" x2="600" y2="230" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+        <text x="375" y="265" text-anchor="middle" font-size="16" font-weight="bold" fill="#475569">${xLabel}</text>
+        <text x="130" y="135" transform="rotate(-90 130,135)" text-anchor="middle" font-size="16" font-weight="bold" fill="#475569">${yLabel}</text>
+      `;
+
+      /** 
+       * Type 2 Scenario Array
+       */
+      const scenarios = [
+        {
+          title: "Current vs. Field Graph",
+          setup: "A lab group runs trials increasing the current in a wire and measures the magnetic field.",
+          promptText: "What claim is best supported by this plotted data?",
+          choices: [
+            { text: "Field strength is directly proportional to current" },
+            { text: "Field strength is inversely proportional to current" },
+            { text: "Current has no effect on field strength" }
+          ],
+          feedback: "Field strength is directly proportional to current. The data points form a straight line, indicating a constant rate of increase.",
+          getSVG: (reveal) => {
+            let svg = drawAxes("Current (A)", "Magnetic Field (mT)");
+            // Data points
+            svg += `
+              <circle cx="200" cy="200" r="6" fill="#3b82f6" />
+              <circle cx="280" cy="160" r="6" fill="#3b82f6" />
+              <circle cx="360" cy="120" r="6" fill="#3b82f6" />
+              <circle cx="440" cy="80" r="6" fill="#3b82f6" />
+              <circle cx="520" cy="40" r="6" fill="#3b82f6" />
+            `;
+            if (reveal) {
+              svg += `
+                <line x1="150" y1="225" x2="540" y2="30" stroke="#3b82f6" stroke-width="3" stroke-dasharray="6,4" />
+                <text x="400" y="70" font-size="16" font-weight="bold" fill="#3b82f6">Linear Trend</text>
+              `;
+            }
+            return svg;
+          }
+        },
+        {
+          title: "Coil Turns vs. Lifting Strength",
+          setup: "Engineers add wire turns to an iron-core electromagnet and record the maximum mass it can lift.",
+          promptText: "What does this data suggest about adding more coil turns?",
+          choices: [
+            { text: "Strength increases infinitely" },
+            { text: "Strength increases but hits a practical limit" },
+            { text: "Adding turns eventually weakens the magnet" }
+          ],
+          feedback: "Strength increases but hits a practical limit. The graph flattens out as the iron core becomes magnetically saturated.",
+          getSVG: (reveal) => {
+            let svg = drawAxes("Number of Coil Turns", "Mass Lifted (kg)");
+            // Curve points: strong initially, then flattening
+            svg += `
+              <circle cx="200" cy="170" r="6" fill="#ef4444" />
+              <circle cx="280" cy="110" r="6" fill="#ef4444" />
+              <circle cx="360" cy="70" r="6" fill="#ef4444" />
+              <circle cx="440" cy="60" r="6" fill="#ef4444" />
+              <circle cx="520" cy="55" r="6" fill="#ef4444" />
+            `;
+            if (reveal) {
+              svg += `
+                <path d="M 150 230 Q 280 90 540 50" stroke="#ef4444" stroke-width="3" stroke-dasharray="6,4" fill="none" />
+                <text x="440" y="45" font-size="16" font-weight="bold" fill="#ef4444">Saturation Limit</text>
+              `;
+            }
+            return svg;
+          }
+        },
+        {
+          title: "Distance Data Comparison",
+          setup: "A sensor measures the magnetic field at various distances from a straight wire.",
+          promptText: "What pattern describes the relationship between distance and field strength?",
+          choices: [
+            { text: "Field strength decreases as distance increases" },
+            { text: "Field strength increases as distance increases" },
+            { text: "Field strength remains constant over distance" }
+          ],
+          feedback: "Field strength decreases as distance increases. The curve drops sharply near the wire and levels off farther away.",
+          getSVG: (reveal) => {
+            let svg = drawAxes("Distance from Wire (cm)", "Magnetic Field (mT)");
+            // Inverse curve points
+            svg += `
+              <circle cx="180" cy="50" r="6" fill="#10b981" />
+              <circle cx="260" cy="140" r="6" fill="#10b981" />
+              <circle cx="340" cy="180" r="6" fill="#10b981" />
+              <circle cx="420" cy="205" r="6" fill="#10b981" />
+              <circle cx="500" cy="215" r="6" fill="#10b981" />
+            `;
+            if (reveal) {
+              svg += `
+                <path d="M 170 30 Q 230 180 540 220" stroke="#10b981" stroke-width="3" stroke-dasharray="6,4" fill="none" />
+                <text x="320" y="160" font-size="16" font-weight="bold" fill="#10b981">Inverse Relationship</text>
+              `;
+            }
+            return svg;
+          }
+        },
+        {
+          title: "Claim-Evidence-Reasoning",
+          setup: "A wire running 5 A of current produces a field of 10 mT at the sensor.",
+          promptText: "Using the evidence gathered in earlier trials, how can we exactly double the field to 20 mT?",
+          choices: [
+            { text: "Double the current to 10 A" },
+            { text: "Halve the current to 2.5 A" },
+            { text: "Move the sensor twice as far away" }
+          ],
+          feedback: "Double the current to 10 A. Because current and field strength are directly proportional, doubling one exactly doubles the other.",
+          getSVG: (reveal) => {
+            let svg = `
+              <!-- Wire -->
+              <rect x="250" y="100" width="260" height="12" fill="#b45309" />
+              <path d="M 280 106 L 310 106 L 300 96 M 310 106 L 300 116" stroke="#fff" stroke-width="2" fill="none"/>
+              <text x="220" y="112" font-size="16" font-weight="bold" fill="#b45309" id="current-label">5 A</text>
+              
+              <!-- Sensor -->
+              <rect x="340" y="160" width="80" height="40" rx="4" fill="#334155" />
+              <rect x="350" y="165" width="60" height="30" rx="2" fill="#e2e8f0" />
+              <text x="380" y="185" text-anchor="middle" font-size="16" font-weight="bold" fill="#0f172a" id="sensor-label">10 mT</text>
+              <path d="M 380 160 L 380 130" stroke="#475569" stroke-width="3" stroke-dasharray="4,4" fill="none"/>
+            `;
+            
+            if (reveal) {
+              svg = svg.replace('id="current-label">5 A</text>', 'id="current-label">10 A</text>');
+              svg = svg.replace('id="sensor-label">10 mT</text>', 'id="sensor-label">20 mT</text>');
+              
+              svg += `
+                <!-- Highlights -->
+                <circle cx="220" cy="107" r="20" stroke="#3b82f6" stroke-width="3" fill="none" />
+                <circle cx="380" cy="180" r="30" stroke="#3b82f6" stroke-width="3" fill="none" />
+                <text x="380" y="235" text-anchor="middle" font-size="16" font-weight="bold" fill="#3b82f6">Directly Proportional Change</text>
+              `;
+            }
+            return svg;
+          }
+        }
+      ];
+
+      // Walkthrough State Machine
+      let currentScenarioIndex = 0;
+      let state = 'setup'; // 'setup' -> 'reveal'
+      let completed = false;
+
+      // Utility: Shuffle choices
+      function shuffle(array) {
+        let currentIndex = array.length, randomIndex;
+        while (currentIndex !== 0) {
+          randomIndex = Math.floor(Math.random() * currentIndex);
+          currentIndex--;
+          [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+        }
+        return array;
+      }
+
+      function renderScenario() {
+        state = 'setup';
+        const scen = scenarios[currentScenarioIndex];
+        
+        // Reset Text and Progress
+        document.getElementById('scenario-title').innerText = scen.title;
+        document.getElementById('progress').innerText = `${currentScenarioIndex + 1} / ${scenarios.length}`;
+        document.getElementById('setup-text').innerHTML = scen.setup;
+        document.getElementById('prompt-text').innerHTML = scen.promptText;
+        
+        // Render SVG for Prediction state
+        document.getElementById('svg-content').innerHTML = scen.getSVG(false);
+
+        // Manage Card Visibility Blocks
+        const choicesDiv = document.getElementById('choices');
+        choicesDiv.innerHTML = '';
+        choicesDiv.classList.remove('hidden');
+        document.getElementById('prompt-text').classList.remove('hidden');
+        document.getElementById('feedback-panel').classList.add('hidden');
+
+        // Build Buttons
+        const shuffledOptions = shuffle([...scen.choices]);
+        shuffledOptions.forEach(opt => {
+          const btn = document.createElement('button');
+          btn.innerText = opt.text;
+          btn.onclick = () => choose();
+          choicesDiv.appendChild(btn);
+        });
+      }
+
+      function choose() {
+        if (state !== 'setup') return;
+        state = 'reveal';
+
+        const scen = scenarios[currentScenarioIndex];
+
+        // Hide choices and prompt
+        document.getElementById('choices').classList.add('hidden');
+        document.getElementById('prompt-text').classList.add('hidden');
+
+        // Reveal visual evidence synchronized with the choice
+        document.getElementById('svg-content').innerHTML = scen.getSVG(true);
+
+        // Show succinct feedback block
+        const fbPanel = document.getElementById('feedback-panel');
+        fbPanel.classList.remove('hidden');
+        document.getElementById('feedback-text').innerHTML = scen.feedback;
+
+        // Update the Next action
+        const nextBtn = document.getElementById('next-btn');
+        if (currentScenarioIndex === scenarios.length - 1) {
+          nextBtn.innerText = "Finish";
+          nextBtn.onclick = finishWalkthrough;
+        } else {
+          nextBtn.innerText = "Next Scenario";
+          nextBtn.onclick = () => {
+            currentScenarioIndex++;
+            renderScenario();
+          };
+        }
+      }
+
+      function finishWalkthrough() {
+        if (!completed) {
+          window.parent.postMessage({ type: 'complete' }, '*');
+          completed = true;
+        }
+        document.getElementById('feedback-text').innerHTML = "<strong>Walkthrough complete.</strong> You have successfully used evidence from data to support claims about electromagnetism.";
+        document.getElementById('next-btn').classList.add('hidden');
+      }
+
+      // Initialize the first loop
+      renderScenario();
+    </script>
+  </main>
+</body>
+</html>

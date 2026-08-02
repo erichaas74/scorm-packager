@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Field-Strength Sensor Lab</title>
+  <style>
+    :root{--blue:#285f9f;--navy:#153456;--ink:#142238;--muted:#52657b;--line:#b8cadc;--pale:#f4f9ff;--orange:#d95f18;--green:#17643a}
+    *{box-sizing:border-box}
+    html,body{margin:0;background:transparent;color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+    button,input{font:inherit}button,input{min-height:44px}
+    .fss-app{width:min(100%,1080px);margin:auto;border:5px solid #285f9f;border-radius:24px;overflow:hidden;background:#fff;box-shadow:0 18px 48px rgba(21,52,86,.14)}
+    .fss-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:17px 21px;border-bottom:1px solid var(--line);background:linear-gradient(110deg,#fff,#eef7ff)}
+    .fss-kicker{margin:0 0 3px;color:var(--blue);font-size:.74rem;font-weight:800;letter-spacing:.11em;text-transform:uppercase}
+    h1{margin:0;color:var(--navy);font-size:clamp(1.25rem,4vw,1.85rem);line-height:1.08}
+    h2{margin:0 0 8px;color:var(--navy);font-size:.95rem}
+    .fss-reset{padding:8px 14px;border:1px solid #6c87a3;border-radius:999px;background:#fff;color:var(--navy);font-weight:750;cursor:pointer}
+    .fss-body{padding:17px}
+    .fss-stage{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:12px}
+    .fss-panel{border:1px solid #96afc8;border-radius:16px;overflow:hidden;background:linear-gradient(rgba(40,95,159,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(40,95,159,.055) 1px,transparent 1px),var(--pale);background-size:30px 30px}
+    .fss-panel svg{display:block;width:100%;height:250px}
+    .fss-controls{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:13px;align-items:end;margin-top:13px;padding:14px;border:1px solid var(--line);border-radius:16px;background:#fbfdff}
+    .fss-label{display:flex;justify-content:space-between;gap:8px;margin-bottom:6px;color:var(--navy);font-size:.8rem;font-weight:800}
+    .fss-range{width:100%;accent-color:var(--orange)}
+    .fss-measure{padding:11px 18px;border:0;border-radius:10px;background:var(--blue);color:#fff;font-weight:850;cursor:pointer}
+    .fss-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,.95fr);gap:14px;margin-top:14px}
+    .fss-card{padding:14px;border:1px solid var(--line);border-radius:16px;background:#fbfdff}
+    .fss-card.locked{background:#f2f5f8;border-style:dashed}
+    .fss-table-wrap{max-height:210px;overflow:auto;border:1px solid var(--line);border-radius:12px;background:#fff}
+    table{width:100%;border-collapse:collapse;font-size:.86rem}
+    th,td{padding:6px 9px;border-bottom:1px solid #e3ecf5;text-align:right}
+    th:first-child,td:first-child{text-align:left}
+    thead th{position:sticky;top:0;background:#eef5fc;color:var(--navy);font-size:.71rem;text-transform:uppercase}
+    .fss-empty{padding:13px;color:var(--muted);font-size:.85rem;text-align:left}
+    .fss-check{margin:10px 0 0;padding:0;list-style:none;display:grid;gap:4px;color:var(--muted);font-size:.81rem;font-weight:700}
+    .fss-check li[data-done="yes"]{color:var(--green)}
+    .fss-check b{font-family:ui-monospace,Consolas,monospace}
+    .fss-question{margin:0 0 6px;color:var(--navy);font-weight:850;line-height:1.35;font-size:.93rem}
+    .fss-choices{display:grid;gap:7px;margin-bottom:10px}
+    .fss-choice{padding:10px 11px;border:1px solid #6c87a3;border-radius:10px;background:#fff;color:var(--ink);font-weight:750;text-align:left;cursor:pointer}
+    .fss-choice:hover{background:#e8f2fd}
+    .fss-feedback{margin:10px 0 0;padding:10px 11px;border-radius:10px;background:#e8f7ed;color:#14532d;font-size:.86rem;font-weight:650;line-height:1.4}
+    .fss-feedback[data-tone="note"]{background:#fff0e5;color:#7c2d12}
+    .fss-note{margin:9px 0 0;color:var(--muted);font-size:.78rem;line-height:1.4}
+    [hidden]{display:none!important}
+    :focus-visible{outline:3px solid #d95f18;outline-offset:3px}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    @media(max-width:760px){.fss-stage,.fss-grid,.fss-controls{grid-template-columns:1fr}.fss-body{padding:12px}.fss-panel svg{height:215px}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}}
+  </style>
+</head>
+<body>
+  <main class="fss-app" id="sensor-lab-app">
+    <header class="fss-head">
+      <div><p class="fss-kicker">Unit 6 &middot; Investigation design</p><h1>Field-Strength Sensor Lab</h1></div>
+      <button class="fss-reset" id="reset" type="button">Reset</button>
+    </header>
+    <div class="fss-body">
+      <div class="fss-stage">
+        <section class="fss-panel" aria-labelledby="scene-description">
+          <p class="sr-only" id="scene-description">A vertical wire carries current upward. A magnetic sensor sits at a measured distance to the right of the wire.</p>
+          <svg viewBox="0 0 620 250" role="img" aria-labelledby="scene-title scene-desc">
+            <title id="scene-title">Magnetic sensor beside a current-carrying wire</title>
+            <desc id="scene-desc" data-scene-desc>A sensor measures the magnetic field at an adjustable distance from the wire.</desc>
+            <defs><marker id="fssArrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L12 6 L0 12 Z" fill="#c9781f"/></marker></defs>
+            <line x1="120" y1="230" x2="120" y2="24" stroke="#c9781f" stroke-width="8" marker-end="url(#fssArrow)"/>
+            <text x="120" y="245" text-anchor="middle" fill="#7c2d12" font-size="13" font-weight="850">8.0 A wire</text>
+            <line id="rule" x1="120" y1="120" x2="120" y2="120" stroke="#6b8298" stroke-width="3" stroke-dasharray="6 6"/>
+            <text id="rule-label" x="200" y="104" text-anchor="middle" fill="#52657b" font-size="14" font-weight="800" stroke="#fff" stroke-width="4" paint-order="stroke">5.0 cm</text>
+            <g id="sensor">
+              <rect x="-34" y="-40" width="68" height="80" rx="10" fill="#fff" stroke="#285f9f" stroke-width="4"/>
+              <rect x="-24" y="-30" width="48" height="30" rx="5" fill="#dbeafe"/>
+              <text id="sensor-value" x="0" y="-9" text-anchor="middle" fill="#153456" font-size="15" font-weight="850">—</text>
+              <circle cx="0" cy="18" r="9" fill="#d95f18"/>
+              <text x="0" y="60" text-anchor="middle" fill="#153456" font-size="13" font-weight="850">SENSOR</text>
+            </g>
+          </svg>
+        </section>
+        <section class="fss-panel" aria-labelledby="graph-description">
+          <p class="sr-only" id="graph-description">Scatter graph of measured field strength against distance from the wire.</p>
+          <svg viewBox="0 0 420 250" role="img" aria-labelledby="graph-title graph-desc">
+            <title id="graph-title">Field strength versus distance</title>
+            <desc id="graph-desc" data-graph-desc>No measurements recorded yet.</desc>
+            <line x1="62" y1="18" x2="62" y2="205" stroke="#6b8298" stroke-width="2"/>
+            <line x1="62" y1="205" x2="400" y2="205" stroke="#6b8298" stroke-width="2"/>
+            <text x="16" y="112" fill="#52657b" font-size="13" font-weight="800" transform="rotate(-90 16 112)" text-anchor="middle">Field (µT)</text>
+            <text x="231" y="240" text-anchor="middle" fill="#52657b" font-size="13" font-weight="800">Distance (cm)</text>
+            <g id="axes"></g>
+            <path id="curve" fill="none" stroke="#285f9f" stroke-width="3" stroke-dasharray="6 6" hidden></path>
+            <g id="points"></g>
+          </svg>
+        </section>
+      </div>
+      <div class="fss-controls">
+        <div><label class="fss-label" for="distance-slider"><span>Sensor distance from wire</span><output id="distance-label">5.0 cm</output></label><input class="fss-range" id="distance-slider" type="range" min="2" max="20" step="1" value="5"></div>
+        <button class="fss-measure" id="measure" type="button">Take measurement</button>
+      </div>
+      <div class="fss-grid">
+        <section class="fss-card" aria-labelledby="data-heading">
+          <h2 id="data-heading">Measurements</h2>
+          <div class="fss-table-wrap">
+            <table>
+              <thead><tr><th scope="col">#</th><th scope="col">Distance (cm)</th><th scope="col">Field (µT)</th></tr></thead>
+              <tbody id="rows"><tr><td colspan="3" class="fss-empty">No measurements yet.</td></tr></tbody>
+            </table>
+          </div>
+          <ul class="fss-check" id="checklist">
+            <li data-done="no"><b>&bull;</b> Take 6 measurements <span id="count-note">(0 of 6)</span></li>
+            <li data-done="no"><b>&bull;</b> Include one at 4 cm or closer</li>
+            <li data-done="no"><b>&bull;</b> Include one at 16 cm or farther</li>
+            <li data-done="no"><b>&bull;</b> Repeat one distance a second time</li>
+          </ul>
+          <p class="fss-note">The sensor reads to &plusmn;2%, so repeats will not match exactly.</p>
+        </section>
+        <section class="fss-card locked" id="analysis" aria-labelledby="analysis-heading">
+          <h2 id="analysis-heading">Analysis</h2>
+          <p class="fss-question" id="lock-note">Complete the checklist to unlock the analysis questions.</p>
+          <div id="analysis-fields" hidden>
+            <p class="fss-question" id="q1">In your data, doubling the distance changed the field by about what factor?</p>
+            <div class="fss-choices" id="choices-1"></div>
+            <div id="second" hidden>
+              <p class="fss-question">Why measure the same distance more than once?</p>
+              <div class="fss-choices" id="choices-2"></div>
+            </div>
+          </div>
+          <p class="fss-feedback" id="feedback" role="status" aria-live="polite" hidden></p>
+        </section>
+      </div>
+    </div>
+    <p class="sr-only" id="status" role="status" aria-live="polite">Set a distance, then take a measurement.</p>
+    <script>
+      (() => {
+        'use strict';
+        const CURRENT = 8, R_MIN = 2, R_MAX = 20, FIELD_MAX = 90;
+        const e = {
+          rule: document.getElementById('rule'), ruleLabel: document.getElementById('rule-label'),
+          sensor: document.getElementById('sensor'), sensorValue: document.getElementById('sensor-value'),
+          sceneDesc: document.querySelector('[data-scene-desc]'), graphDesc: document.querySelector('[data-graph-desc]'),
+          axes: document.getElementById('axes'), points: document.getElementById('points'), curve: document.getElementById('curve'),
+          slider: document.getElementById('distance-slider'), label: document.getElementById('distance-label'),
+          measure: document.getElementById('measure'), rows: document.getElementById('rows'),
+          checklist: document.getElementById('checklist').querySelectorAll('li'), countNote: document.getElementById('count-note'),
+          analysis: document.getElementById('analysis'), lockNote: document.getElementById('lock-note'),
+          fields: document.getElementById('analysis-fields'), choices1: document.getElementById('choices-1'),
+          second: document.getElementById('second'), choices2: document.getElementById('choices-2'),
+          feedback: document.getElementById('feedback'), reset: document.getElementById('reset'),
+          status: document.getElementById('status')
+        };
+        let distance = 5, readings = [], unlocked = false, firstDone = false, completionSent = false;
+        // SVG elements do not implement the HTML `hidden` property, so toggle the attribute directly.
+        function show(element, visible) { if (visible) element.removeAttribute('hidden'); else element.setAttribute('hidden', ''); }
+
+        function trueField(cm) { return 2e-7 * CURRENT / (cm / 100) * 1e6; }
+        function graphX(cm) { return 62 + cm / 22 * 330; }
+        function graphY(value) { return 205 - Math.min(value / FIELD_MAX, 1) * 185; }
+        function drawAxes() {
+          const parts = [];
+          for (let cm = 5; cm <= 20.01; cm += 5) {
+            const x = graphX(cm);
+            parts.push('<line x1="' + x + '" y1="205" x2="' + x + '" y2="211" stroke="#6b8298" stroke-width="2"/>');
+            parts.push('<text x="' + x + '" y="226" text-anchor="middle" fill="#52657b" font-size="12" font-weight="750">' + cm + '</text>');
+          }
+          [0, 30, 60, 90].forEach((value) => {
+            const y = graphY(value);
+            parts.push('<line x1="56" y1="' + y + '" x2="62" y2="' + y + '" stroke="#6b8298" stroke-width="2"/>');
+            parts.push('<text x="52" y="' + (y + 4) + '" text-anchor="end" fill="#52657b" font-size="12" font-weight="750">' + value + '</text>');
+          });
+          e.axes.innerHTML = parts.join('');
+        }
+        function drawScene() {
+          const x = 120 + distance * 21;
+          e.sensor.setAttribute('transform', 'translate(' + x + ' 120)');
+          e.rule.setAttribute('x1', 120); e.rule.setAttribute('x2', x - 34);
+          e.rule.setAttribute('y1', 120); e.rule.setAttribute('y2', 120);
+          e.ruleLabel.setAttribute('x', (120 + x - 34) / 2);
+          e.ruleLabel.textContent = distance.toFixed(1) + ' cm';
+          e.sensorValue.textContent = trueField(distance).toFixed(1);
+          e.label.textContent = distance.toFixed(1) + ' cm';
+          e.sceneDesc.textContent = 'Sensor ' + distance.toFixed(1) + ' centimetres from the wire, reading about ' + trueField(distance).toFixed(1) + ' microtesla.';
+        }
+        function drawPoints() {
+          e.points.innerHTML = readings.map((reading) => '<circle cx="' + graphX(reading.cm).toFixed(1) + '" cy="' + graphY(reading.field).toFixed(1) + '" r="6" fill="#d95f18" stroke="#fff" stroke-width="2"/>').join('');
+          e.graphDesc.textContent = readings.length ? readings.map((reading) => reading.field.toFixed(1) + ' microtesla at ' + reading.cm + ' centimetres').join('; ') : 'No measurements recorded yet.';
+        }
+        function drawCurve() {
+          const parts = [];
+          for (let cm = 1.9; cm <= R_MAX + 0.001; cm += 0.2) parts.push((parts.length ? 'L' : 'M') + graphX(cm).toFixed(1) + ' ' + graphY(trueField(cm)).toFixed(1));
+          e.curve.setAttribute('d', parts.join(' '));
+          show(e.curve, true);
+        }
+        function renderRows() {
+          if (!readings.length) { e.rows.innerHTML = '<tr><td colspan="3" class="fss-empty">No measurements yet.</td></tr>'; return; }
+          e.rows.innerHTML = readings.map((reading, order) => '<tr><td>' + (order + 1) + '</td><td>' + reading.cm + '</td><td>' + reading.field.toFixed(1) + '</td></tr>').join('');
+        }
+        function updateChecklist() {
+          const counts = {};
+          readings.forEach((reading) => { counts[reading.cm] = (counts[reading.cm] || 0) + 1; });
+          const done = [
+            readings.length >= 6,
+            readings.some((reading) => reading.cm <= 4),
+            readings.some((reading) => reading.cm >= 16),
+            Object.keys(counts).some((key) => counts[key] >= 2)
+          ];
+          e.countNote.textContent = '(' + Math.min(readings.length, 6) + ' of 6)';
+          e.checklist.forEach((item, order) => {
+            item.dataset.done = done[order] ? 'yes' : 'no';
+            item.querySelector('b').textContent = done[order] ? '✓' : '•';
+          });
+          if (!unlocked && done.every(Boolean)) unlock();
+        }
+        function unlock() {
+          unlocked = true;
+          e.analysis.classList.remove('locked');
+          e.lockNote.hidden = true;
+          e.fields.hidden = false;
+          e.status.textContent = 'Analysis unlocked. Answer the question about doubling the distance.';
+        }
+        function measure() {
+          const field = trueField(distance) * (0.98 + Math.random() * 0.04);
+          readings.push({ cm: distance, field: field });
+          renderRows(); drawPoints(); updateChecklist();
+          e.status.textContent = 'Measurement ' + readings.length + ': ' + field.toFixed(1) + ' microtesla at ' + distance + ' centimetres.';
+        }
+        function shuffle(list) { const copy = list.slice(); for (let i = copy.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [copy[i], copy[j]] = [copy[j], copy[i]]; } return copy; }
+        function renderChoices(container, options, handler) {
+          container.replaceChildren();
+          shuffle(options).forEach((option) => {
+            const button = document.createElement('button');
+            button.type = 'button'; button.className = 'fss-choice'; button.textContent = option.text;
+            button.addEventListener('click', () => handler(option), { once: true });
+            container.append(button);
+          });
+        }
+        function chooseFactor(option) {
+          if (!unlocked || firstDone) return;
+          firstDone = true;
+          e.choices1.querySelectorAll('button').forEach((button) => { button.disabled = true; });
+          drawCurve();
+          e.feedback.textContent = (option.correct ? 'Correct. ' : 'Not quite. ') + 'Doubling the distance halves the field: this wire follows 1/r, not 1/r² like Coulomb’s law.';
+          e.feedback.dataset.tone = option.correct ? 'success' : 'note';
+          e.feedback.hidden = false;
+          e.second.hidden = false;
+          e.status.textContent = 'Doubling the distance halves the field. One more question.';
+        }
+        function chooseRepeat(option) {
+          if (!firstDone) return;
+          e.choices2.querySelectorAll('button').forEach((button) => { button.disabled = true; });
+          e.feedback.textContent = (option.correct ? 'Correct. ' : 'Not quite. ') + 'Repeats show how much the reading itself wanders, so a real change can be told apart from sensor scatter.';
+          e.feedback.dataset.tone = option.correct ? 'success' : 'note';
+          e.status.textContent = 'Repeat trials separate a real change from measurement scatter. Activity complete.';
+          sendCompletion();
+        }
+        function sendCompletion() {
+          if (completionSent) return;
+          completionSent = true;
+          window.parent.postMessage({ type: 'complete' }, '*');
+        }
+        function reset() {
+          readings = []; unlocked = false; firstDone = false; distance = 5;
+          e.slider.value = '5';
+          e.analysis.classList.add('locked'); e.lockNote.hidden = false; e.fields.hidden = true;
+          e.second.hidden = true; e.feedback.hidden = true; show(e.curve, false);
+          renderChoices(e.choices1, [
+            { text: 'About one half', correct: true },
+            { text: 'About one quarter', correct: false },
+            { text: 'No change', correct: false },
+            { text: 'About double', correct: false }
+          ], chooseFactor);
+          renderChoices(e.choices2, [
+            { text: 'To check the reading is repeatable', correct: true },
+            { text: 'To make the field stronger', correct: false },
+            { text: 'To raise the average value', correct: false },
+            { text: 'Repeats are never needed', correct: false }
+          ], chooseRepeat);
+          renderRows(); drawPoints(); drawScene(); updateChecklist();
+          e.status.textContent = 'Set a distance, then take a measurement.';
+        }
+
+        e.slider.addEventListener('input', () => { distance = Number(e.slider.value); drawScene(); });
+        e.measure.addEventListener('click', measure);
+        e.reset.addEventListener('click', reset);
+        drawAxes();
+        reset();
+      })();
+    </script>
+  </main>
+</body>
+</html>

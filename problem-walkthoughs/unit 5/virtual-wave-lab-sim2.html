@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulation 2: Virtual Wave Lab</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --text-color: #f8fafc;
+            --accent: #10b981;
+            --accent-hover: #059669;
+            --wave-main: #38bdf8;
+            --wave-inc: #f43f5e;
+            --wave-ref: #eab308;
+            --node-color: #a855f7;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            background-color: var(--panel-bg);
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid #334155;
+        }
+
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 1.5rem;
+        }
+
+        .header p {
+            margin: 0;
+            color: #94a3b8;
+            font-size: 0.95rem;
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            height: 450px;
+            background-color: #000;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .status-badge {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #334155;
+            transition: 0.3s;
+        }
+
+        .status-badge.resonance {
+            border-color: var(--accent);
+            color: var(--accent);
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .controls {
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            border-top: 1px solid #334155;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        select, input[type=range] {
+            padding: 10px;
+            background: #334155;
+            color: white;
+            border: 1px solid #475569;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .toggles {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .legend {
+            grid-column: 1 / -1;
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            padding-top: 10px;
+            font-size: 0.9rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .color-box {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+        
+        .info-panel {
+            grid-column: 1 / -1;
+            background: #334155;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: #cbd5e1;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Simulation 2: The Virtual Wave Lab</h1>
+        <p>Drive an oscillator to discover resonance, standing waves, and boundary conditions.</p>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="simCanvas"></canvas>
+        <div id="statusBadge" class="status-badge">No Resonance</div>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label for="apparatusSelect">System Boundary / Apparatus</label>
+            <select id="apparatusSelect">
+                <option value="string">Guitar String (Fixed - Fixed)</option>
+                <option value="open-open">Open-Open Pipe (Free - Free)</option>
+                <option value="open-closed">Open-Closed Pipe (Fixed - Free)</option>
+            </select>
+
+            <label style="margin-top: 10px;">
+                <span>Driving Frequency</span>
+                <span id="freqDisplay">1.0 Hz</span>
+            </label>
+            <input type="range" id="freqSlider" min="5" max="110" value="5" step="0.5">
+        </div>
+
+        <div class="toggles">
+            <label class="toggle-row">
+                <input type="checkbox" id="toggleIncRef"> 
+                Show Incident & Reflected Waves
+            </label>
+            <label class="toggle-row">
+                <input type="checkbox" id="toggleNodes"> 
+                Highlight Nodes (N) & Antinodes (A)
+            </label>
+            <label class="toggle-row">
+                <input type="checkbox" id="toggleParticles" checked> 
+                Enable Particle Tracker
+            </label>
+        </div>
+
+        <div class="info-panel" id="infoPanel">
+            Adjust the Driving Frequency to find the natural resonant frequencies (harmonics) of the chosen apparatus. Notice how the open-closed pipe skips even harmonics!
+        </div>
+
+        <div class="legend">
+            <div class="legend-item"><div class="color-box" style="background: var(--wave-main)"></div> Resultant Wave</div>
+            <div class="legend-item"><div class="color-box" style="background: var(--wave-inc)"></div> Incident Wave</div>
+            <div class="legend-item"><div class="color-box" style="background: var(--wave-ref)"></div> Reflected Wave</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // UI Elements
+    const apparatusSelect = document.getElementById('apparatusSelect');
+    const freqSlider = document.getElementById('freqSlider');
+    const freqDisplay = document.getElementById('freqDisplay');
+    const toggleIncRef = document.getElementById('toggleIncRef');
+    const toggleNodes = document.getElementById('toggleNodes');
+    const toggleParticles = document.getElementById('toggleParticles');
+    const statusBadge = document.getElementById('statusBadge');
+    
+    let width = canvas.width = canvas.parentElement.clientWidth;
+    let height = canvas.height = canvas.parentElement.clientHeight;
+    
+    window.addEventListener('resize', () => {
+        width = canvas.width = canvas.parentElement.clientWidth;
+        height = canvas.height = canvas.parentElement.clientHeight;
+    });
+
+    let time = 0;
+    const padding = 100; // Left/right padding for the apparatus
+    
+    // Fundamental settings
+    const f1 = 20; // Fundamental frequency unit
+    
+    function draw() {
+        time += 0.05;
+        ctx.clearRect(0, 0, width, height);
+        
+        const apparatus = apparatusSelect.value;
+        const driveFreq = parseFloat(freqSlider.value);
+        freqDisplay.innerText = driveFreq.toFixed(1) + ' Hz';
+        
+        // Determine allowed harmonics based on apparatus
+        let allowedHarmonics = [];
+        if (apparatus === 'string' || apparatus === 'open-open') {
+            allowedHarmonics = [20, 40, 60, 80, 100]; // n = 1, 2, 3, 4, 5
+        } else if (apparatus === 'open-closed') {
+            allowedHarmonics = [20, 60, 100]; // n = 1, 3, 5
+        }
+        
+        // Check for resonance (how close is driveFreq to an allowed harmonic)
+        let nearest = allowedHarmonics.reduce((prev, curr) => 
+            Math.abs(curr - driveFreq) < Math.abs(prev - driveFreq) ? curr : prev
+        );
+        
+        const detune = Math.abs(driveFreq - nearest);
+        const resonanceTolerance = 3;
+        let isResonating = detune <= resonanceTolerance;
+        let harmonicNumber = nearest / f1;
+        
+        // Amplitude calculation
+        let maxAmp = height / 3;
+        let baseAmp = 10; // small chaotic amplitude when not resonating
+        let A = baseAmp;
+        
+        if (isResonating) {
+            // Sharply peak amplitude as detune approaches 0
+            A = baseAmp + (maxAmp - baseAmp) * (1 - (detune / resonanceTolerance)**2);
+            statusBadge.innerText = `RESONANCE: ${harmonicNumber}${getOrdinal(harmonicNumber)} Harmonic`;
+            statusBadge.className = 'status-badge resonance';
+        } else {
+            statusBadge.innerText = "No Resonance (Chaotic Waves)";
+            statusBadge.className = 'status-badge';
+            // When not resonating, we'll draw a messy traveling wave
+        }
+        
+        const L = width - padding * 2;
+        const startX = padding;
+        const endX = width - padding;
+        const midY = height / 2;
+
+        // Draw Apparatus Boundaries
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = "#475569";
+        ctx.beginPath();
+        if (apparatus === 'string') {
+            // Fixed at both ends (walls)
+            ctx.moveTo(startX, midY - 60); ctx.lineTo(startX, midY + 60);
+            ctx.moveTo(endX, midY - 60); ctx.lineTo(endX, midY + 60);
+        } else if (apparatus === 'open-open') {
+            // Dashed open ends
+            ctx.setLineDash([5, 5]);
+            ctx.moveTo(startX, midY - 60); ctx.lineTo(startX, midY + 60);
+            ctx.moveTo(endX, midY - 60); ctx.lineTo(endX, midY + 60);
+            ctx.setLineDash([]);
+        } else if (apparatus === 'open-closed') {
+            // Closed (wall) at start, Open at end
+            ctx.moveTo(startX, midY - 60); ctx.lineTo(startX, midY + 60);
+            ctx.setLineDash([5, 5]);
+            ctx.moveTo(endX, midY - 60); ctx.lineTo(endX, midY + 60);
+            ctx.setLineDash([]);
+        }
+        ctx.stroke();
+
+        // Draw center axis
+        ctx.beginPath();
+        ctx.strokeStyle = "#334155";
+        ctx.lineWidth = 1;
+        ctx.moveTo(startX, midY);
+        ctx.lineTo(endX, midY);
+        ctx.stroke();
+
+        // Wave formulas
+        // Wave number k
+        let k;
+        if (apparatus === 'string' || apparatus === 'open-open') {
+            k = (harmonicNumber * Math.PI) / L;
+        } else {
+            k = (harmonicNumber * Math.PI) / (2 * L); 
+        }
+
+        // Angular frequency
+        let omega = 0.2 * harmonicNumber; 
+        if (!isResonating) {
+            // Chaotic wave behavior
+            k = (driveFreq / 10) * Math.PI / L;
+            omega = driveFreq * 0.1;
+        }
+
+        // Draw Incident and Reflected Waves (if toggled)
+        if (toggleIncRef.checked) {
+            drawComponentWave(startX, endX, L, A/2, k, omega, 'inc', apparatus, isResonating);
+            drawComponentWave(startX, endX, L, A/2, k, omega, 'ref', apparatus, isResonating);
+        }
+
+        // Draw Resultant Wave
+        ctx.beginPath();
+        ctx.strokeStyle = "#38bdf8";
+        ctx.lineWidth = 3;
+        
+        let particlePositions = [];
+
+        for (let x = 0; x <= L; x += 2) {
+            let y = getResultantY(x, L, A, k, omega, apparatus, isResonating, driveFreq);
+            let screenX = startX + x;
+            let screenY = midY - y;
+            
+            if (x === 0) ctx.moveTo(screenX, screenY);
+            else ctx.lineTo(screenX, screenY);
+
+            // Save positions for particles (e.g. 15 evenly spaced particles)
+            if (x % Math.floor(L / 15) === 0 || x === L) {
+                particlePositions.push({sx: screenX, sy: screenY, localX: x, yVal: y});
+            }
+        }
+        ctx.stroke();
+
+        // Draw Particles
+        if (toggleParticles.checked) {
+            particlePositions.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.sx, p.sy, 6, 0, Math.PI * 2);
+                ctx.fillStyle = "#fff";
+                ctx.fill();
+                ctx.strokeStyle = "#000";
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            });
+        }
+
+        // Draw Nodes/Antinodes
+        if (toggleNodes.checked && isResonating) {
+            drawNodesAntinodes(startX, midY, L, harmonicNumber, apparatus);
+        }
+
+        requestAnimationFrame(draw);
+    }
+
+    function getResultantY(x, L, A, k, omega, apparatus, isResonating, driveFreq) {
+        if (!isResonating) {
+            // Just a traveling wave with small chaotic reflections
+            return A * Math.sin(k * x - driveFreq*time*0.05) + A*0.5 * Math.sin(k * x + driveFreq*time*0.06);
+        }
+
+        if (apparatus === 'string') {
+            // Nodes at ends: sin(kx)
+            return A * Math.sin(k * x) * Math.cos(omega * time);
+        } else if (apparatus === 'open-open') {
+            // Antinodes at ends: cos(kx)
+            return A * Math.cos(k * x) * Math.cos(omega * time);
+        } else if (apparatus === 'open-closed') {
+            // Node at x=0, Antinode at x=L: sin(kx)
+            return A * Math.sin(k * x) * Math.cos(omega * time);
+        }
+        return 0;
+    }
+
+    function drawComponentWave(startX, endX, L, A, k, omega, type, apparatus, isResonating) {
+        ctx.beginPath();
+        ctx.strokeStyle = type === 'inc' ? 'rgba(244, 63, 94, 0.7)' : 'rgba(234, 179, 8, 0.7)';
+        ctx.lineWidth = 2;
+
+        for (let x = 0; x <= L; x += 2) {
+            let y = 0;
+            // Phase shift handling to ensure they sum to the correct standing wave
+            if (apparatus === 'string' || apparatus === 'open-closed') {
+                // resultant = sin(kx)cos(wt) = 0.5*[sin(kx-wt) + sin(kx+wt)]
+                if (type === 'inc') y = A * Math.sin(k * x - omega * time);
+                if (type === 'ref') y = A * Math.sin(k * x + omega * time);
+            } else if (apparatus === 'open-open') {
+                // resultant = cos(kx)cos(wt) = 0.5*[cos(kx-wt) + cos(kx+wt)]
+                if (type === 'inc') y = A * Math.cos(k * x - omega * time);
+                if (type === 'ref') y = A * Math.cos(k * x + omega * time);
+            }
+
+            // Mess up the phases if not resonating to show chaos
+            if (!isResonating) {
+                 if (type === 'inc') y = A * Math.sin(k * x - omega * time * 2);
+                 if (type === 'ref') y = A * 0.5 * Math.sin(k * x + omega * time * 2.1 + 1);
+            }
+
+            let screenX = startX + x;
+            let screenY = height / 2 - y;
+            if (x === 0) ctx.moveTo(screenX, screenY);
+            else ctx.lineTo(screenX, screenY);
+        }
+        ctx.stroke();
+    }
+
+    function drawNodesAntinodes(startX, midY, L, n, apparatus) {
+        ctx.font = "bold 14px Arial";
+        ctx.textAlign = "center";
+        
+        let nodes = [];
+        let antinodes = [];
+
+        if (apparatus === 'string') {
+            // Nodes at x = m * (L/n) for m=0..n
+            for(let m=0; m<=n; m++) nodes.push(m * (L/n));
+            // Antinodes in between
+            for(let m=0; m<n; m++) antinodes.push((m + 0.5) * (L/n));
+        } else if (apparatus === 'open-open') {
+            // Antinodes at ends. x = m * (L/n) for m=0..n
+            for(let m=0; m<=n; m++) antinodes.push(m * (L/n));
+            // Nodes in between
+            for(let m=0; m<n; m++) nodes.push((m + 0.5) * (L/n));
+        } else if (apparatus === 'open-closed') {
+            // n is odd (1, 3, 5)
+            let lambda_fourths = n; 
+            let segment = L / lambda_fourths;
+            for(let m=0; m<=lambda_fourths; m++) {
+                if (m % 2 === 0) nodes.push(m * segment); // 0, 2, 4 are nodes
+                else antinodes.push(m * segment); // 1, 3, 5 are antinodes
+            }
+        }
+
+        ctx.fillStyle = "#a855f7";
+        nodes.forEach(x => {
+            ctx.fillText("N", startX + x, midY + 80);
+            ctx.beginPath();
+            ctx.arc(startX + x, midY, 4, 0, Math.PI*2);
+            ctx.fill();
+        });
+
+        ctx.fillStyle = "#10b981";
+        antinodes.forEach(x => {
+            ctx.fillText("A", startX + x, midY - 70);
+            // draw subtle dotted line
+            ctx.beginPath();
+            ctx.setLineDash([3, 3]);
+            ctx.strokeStyle = "rgba(16, 185, 129, 0.3)";
+            ctx.moveTo(startX + x, midY - 60);
+            ctx.lineTo(startX + x, midY + 60);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        });
+    }
+
+    function getOrdinal(n) {
+        const s = ["th", "st", "nd", "rd"];
+        const v = n % 100;
+        return s[(v - 20) % 10] || s[v] || s[0];
+    }
+
+    // Start Simulation
+    draw();
+</script>
+</body>
+</html>

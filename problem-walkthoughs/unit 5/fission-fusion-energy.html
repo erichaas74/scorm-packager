@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fission, Fusion, and the Chain Reaction</title>
+  <style>
+    :root {
+      --navy: #153456;
+      --blue: #285f9f;
+      --blue-dark: #174b86;
+      --blue-soft: #e8f2fd;
+      --cyan: #36a6c9;
+      --orange: #e56b24;
+      --orange-soft: #fff1e8;
+      --ink: #132238;
+      --muted: #52657b;
+      --line: #c8d7e8;
+      --surface: #ffffff;
+      --stage: #f4f9ff;
+      --success-soft: #e8f7ed;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      margin: 0;
+      background: transparent;
+      color: var(--ink);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    button { font: inherit; touch-action: manipulation; min-height: 44px; }
+
+    .ffe-app {
+      width: min(100%, 1080px);
+      margin: 0 auto;
+      border: 5px solid #285f9f;
+      border-radius: 24px;
+      overflow: hidden;
+      background: var(--surface);
+      box-shadow: 0 18px 48px rgba(21, 52, 86, 0.14);
+    }
+
+    .ffe-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 18px 22px 15px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(115deg, #fff 0%, #eef7ff 100%);
+    }
+
+    .ffe-kicker {
+      margin: 0 0 3px;
+      color: var(--blue);
+      font-size: 0.73rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--navy);
+      font-size: clamp(1.3rem, 3.9vw, 1.95rem);
+      letter-spacing: -0.03em;
+      line-height: 1.08;
+    }
+
+    .ffe-reset {
+      flex: 0 0 auto;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--blue-dark);
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    .ffe-main { padding: 18px; }
+
+    .ffe-stage {
+      position: relative;
+      border: 1px solid #adc6df;
+      border-radius: 18px;
+      overflow: hidden;
+      background: var(--stage);
+    }
+
+    .ffe-stage-top {
+      position: absolute;
+      z-index: 2;
+      inset: 12px 13px auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .ffe-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 30px;
+      padding: 5px 11px;
+      border: 1px solid rgba(40, 95, 159, 0.23);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.93);
+      color: var(--navy);
+      font-size: 0.78rem;
+      font-weight: 800;
+      box-shadow: 0 4px 14px rgba(21, 52, 86, 0.08);
+    }
+
+    .ffe-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--cyan); }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 1000 / 360;
+    }
+
+    .ffe-readouts {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 9px;
+      margin-top: 12px;
+    }
+
+    .ffe-readout {
+      min-width: 0;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: #fff;
+    }
+
+    .ffe-readout-label {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--muted);
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .ffe-readout output {
+      display: block;
+      color: var(--navy);
+      font-size: clamp(0.88rem, 2.1vw, 1.05rem);
+      font-weight: 850;
+      line-height: 1.25;
+    }
+
+    .ffe-workbench {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(255px, 0.82fr);
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .ffe-panel {
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #f9fbfe;
+    }
+
+    .ffe-scene-title {
+      margin: 0 0 6px;
+      color: var(--navy);
+      font-size: 1rem;
+      font-weight: 850;
+    }
+
+    .ffe-scene-text {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    .ffe-progress { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 13px; }
+
+    .ffe-pip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border: 1px solid #9db4cc;
+      border-radius: 50%;
+      background: #fff;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    .ffe-pip[data-state="current"] { border-color: var(--blue); background: var(--blue-soft); color: var(--blue-dark); }
+    .ffe-pip[data-state="done"] { border-color: var(--blue); background: var(--blue); color: #fff; }
+
+    .ffe-playback { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
+
+    .ffe-icon-btn {
+      flex: 1 1 120px;
+      padding: 9px 12px;
+      border: 1px solid #9db4cc;
+      border-radius: 11px;
+      background: #fff;
+      color: var(--navy);
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .ffe-icon-btn[aria-pressed="true"] { border-color: var(--blue); background: var(--blue-soft); color: var(--blue-dark); }
+    .ffe-icon-btn:disabled { cursor: not-allowed; opacity: 0.58; }
+
+    .ffe-prompt-panel {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      background: #fff;
+    }
+
+    .ffe-step-label {
+      margin: 0 0 5px;
+      color: var(--blue);
+      font-size: 0.72rem;
+      font-weight: 850;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .ffe-question {
+      margin: 0;
+      color: var(--navy);
+      font-size: 1.02rem;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .ffe-choices { display: grid; gap: 7px; margin-top: 11px; }
+
+    .ffe-choice {
+      min-height: 43px;
+      padding: 9px 12px;
+      border: 1px solid #9eb4cb;
+      border-radius: 11px;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 750;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .ffe-choice:hover:not(:disabled) { border-color: var(--blue); background: var(--blue-soft); }
+
+    .ffe-feedback {
+      margin: 10px 0 0;
+      padding: 10px 12px;
+      border-radius: 11px;
+      background: var(--success-soft);
+      color: #14532d;
+      font-size: 0.88rem;
+      font-weight: 650;
+      line-height: 1.42;
+    }
+
+    .ffe-feedback[data-tone="note"] { background: var(--orange-soft); color: #7c2d12; }
+
+    .ffe-primary {
+      width: 100%;
+      margin-top: 11px;
+      padding: 10px 14px;
+      border: 0;
+      border-radius: 11px;
+      background: var(--blue);
+      color: #fff;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 5px 13px rgba(40,95,159,0.22);
+    }
+
+    .ffe-primary:hover { background: var(--blue-dark); }
+    .ffe-primary:disabled, .ffe-choice:disabled { cursor: not-allowed; opacity: 0.58; }
+
+    [hidden] { display: none !important; }
+
+    :focus-visible { outline: 3px solid #e56b24; outline-offset: 3px; }
+
+    .ffe-sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 760px) {
+      .ffe-main { padding: 12px; }
+      .ffe-workbench { grid-template-columns: 1fr; }
+      .ffe-readouts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 480px) {
+      .ffe-header { align-items: flex-start; padding: 15px 14px 13px; }
+      .ffe-readout { padding: 9px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="ffe-app" id="fission-app">
+    <header class="ffe-header">
+      <div>
+        <p class="ffe-kicker">Unit 5 · Lesson 5 · Part 2</p>
+        <h1>Fission, Fusion, and the Chain Reaction</h1>
+      </div>
+      <button class="ffe-reset" id="reset-button" type="button">Reset</button>
+    </header>
+
+    <div class="ffe-main">
+      <section class="ffe-stage">
+        <div class="ffe-stage-top" aria-hidden="true">
+          <span class="ffe-badge"><span class="ffe-dot"></span><span id="scene-badge">Uranium-235</span></span>
+          <span class="ffe-badge" id="motion-badge">Ready</span>
+        </div>
+        <canvas id="scene-canvas" role="img" aria-labelledby="canvas-label"></canvas>
+        <p class="ffe-sr-only" id="canvas-label">Animated nuclear scenes: a uranium nucleus splitting, two light nuclei joining, an energy comparison chart, and a neutron chain reaction. All results are also written in the readouts and feedback text.</p>
+      </section>
+
+      <div class="ffe-readouts">
+        <div class="ffe-readout">
+          <span class="ffe-readout-label">Process</span>
+          <output id="process-output">Fission</output>
+        </div>
+        <div class="ffe-readout">
+          <span class="ffe-readout-label">Before</span>
+          <output id="before-output">?</output>
+        </div>
+        <div class="ffe-readout">
+          <span class="ffe-readout-label">After</span>
+          <output id="after-output">?</output>
+        </div>
+        <div class="ffe-readout">
+          <span class="ffe-readout-label">Energy released</span>
+          <output id="energy-output">?</output>
+        </div>
+      </div>
+
+      <div class="ffe-workbench">
+        <section class="ffe-panel" aria-label="Scene setup and playback">
+          <p class="ffe-scene-title" id="scene-title">Splitting uranium-235</p>
+          <p class="ffe-scene-text" id="scene-text">A slow neutron drifts toward a uranium-235 nucleus.</p>
+          <div class="ffe-progress" id="progress" role="list" aria-label="Scenario progress"></div>
+          <div class="ffe-playback">
+            <button class="ffe-icon-btn" id="slow-button" type="button" aria-pressed="false">½× Slow motion</button>
+            <button class="ffe-icon-btn" id="replay-button" type="button" disabled>↻ Replay</button>
+            <button class="ffe-icon-btn" id="rods-button" type="button" aria-pressed="false" hidden>Pull the control rods out</button>
+          </div>
+        </section>
+
+        <section class="ffe-panel ffe-prompt-panel" aria-labelledby="prompt-question">
+          <p class="ffe-step-label" id="step-label">Predict first</p>
+          <p class="ffe-question" id="prompt-question">Add up everything afterward. The total mass is:</p>
+          <div class="ffe-choices" id="choices"></div>
+          <p class="ffe-feedback" id="feedback" role="status" aria-live="polite" hidden></p>
+          <button class="ffe-primary" id="main-button" type="button" hidden>Next scenario</button>
+        </section>
+      </div>
+    </div>
+
+    <p class="ffe-sr-only" id="status" role="status" aria-live="polite">Nuclear energy walkthrough ready.</p>
+
+    <script>
+      (() => {
+        'use strict';
+
+        const W = 1000;
+        const H = 360;
+        const PROTON = '#2f6fb5';
+        const NEUTRON = '#7b8b9d';
+        const HEAT = '#e56b24';
+
+        const scenarios = [
+          {
+            id: 'fission',
+            title: 'Splitting uranium-235',
+            text: 'A slow neutron drifts toward a uranium-235 nucleus.',
+            badge: 'Uranium-235',
+            process: 'Fission',
+            freeze: 3.0,
+            question: 'Add up everything afterward. The total mass is:',
+            options: [
+              { text: 'Slightly less than before', correct: true },
+              { text: 'Exactly the same as before', correct: false },
+              { text: 'Slightly more than before', correct: false }
+            ],
+            before: '236.053 u',
+            after: '235.867 u',
+            energy: '≈ 200 MeV',
+            explanation: 'The pieces weigh slightly less. That missing 0.19 u is what left as 200 MeV of energy.'
+          },
+          {
+            id: 'fusion',
+            title: 'Joining hydrogen nuclei',
+            text: 'Deuterium and tritium are driven together hard enough to touch.',
+            badge: 'Deuterium + tritium',
+            process: 'Fusion',
+            freeze: 3.0,
+            question: 'What comes out of this reaction?',
+            options: [
+              { text: 'Helium-4 and one free neutron', correct: true },
+              { text: 'Two helium-3 nuclei', correct: false },
+              { text: 'Lithium-5 and nothing else', correct: false }
+            ],
+            before: '5.030 u',
+            after: '5.011 u',
+            energy: '≈ 17.6 MeV',
+            explanation: 'Helium-4 plus a spare neutron. Five nucleons went in and five came out, but bound more tightly, so mass converted to energy.'
+          },
+          {
+            id: 'scale',
+            title: 'How big is nuclear energy?',
+            text: 'One fission event, one fusion event, and one TNT molecule reacting.',
+            badge: 'Energy per event',
+            process: 'Energy scale',
+            freeze: 2.6,
+            question: 'One fission releases how much more energy than one TNT molecule?',
+            options: [
+              { text: 'About ten million times more', correct: true },
+              { text: 'About a thousand times more', correct: false },
+              { text: 'About ten times more', correct: false }
+            ],
+            before: 'TNT molecule ≈ 30 eV',
+            after: 'Fission ≈ 200 MeV',
+            energy: '≈ 10 million ×',
+            explanation: 'Roughly ten million times more. Chemistry rearranges outer electrons, while fission unbinds the nucleus itself.'
+          },
+          {
+            id: 'chain',
+            title: 'Chain reaction in a reactor',
+            text: 'Each fission throws out about three neutrons into the fuel.',
+            badge: 'Reactor core',
+            process: 'Chain reaction',
+            freeze: 3.4,
+            question: 'In a steady reactor, how many of those three cause the next fission?',
+            options: [
+              { text: 'About one, on average', correct: true },
+              { text: 'All three of them', correct: false },
+              { text: 'None — the reaction dies out', correct: false }
+            ],
+            before: '3 neutrons released',
+            after: '1 new fission',
+            energy: 'Steady · k ≈ 1',
+            explanation: 'About one. The others escape the fuel or are absorbed by control rods, which is exactly what holds the rate steady.'
+          }
+        ];
+
+        const el = {
+          canvas: document.getElementById('scene-canvas'),
+          sceneBadge: document.getElementById('scene-badge'),
+          motionBadge: document.getElementById('motion-badge'),
+          process: document.getElementById('process-output'),
+          before: document.getElementById('before-output'),
+          after: document.getElementById('after-output'),
+          energy: document.getElementById('energy-output'),
+          sceneTitle: document.getElementById('scene-title'),
+          sceneText: document.getElementById('scene-text'),
+          progress: document.getElementById('progress'),
+          slow: document.getElementById('slow-button'),
+          replay: document.getElementById('replay-button'),
+          rods: document.getElementById('rods-button'),
+          stepLabel: document.getElementById('step-label'),
+          question: document.getElementById('prompt-question'),
+          choices: document.getElementById('choices'),
+          feedback: document.getElementById('feedback'),
+          main: document.getElementById('main-button'),
+          reset: document.getElementById('reset-button'),
+          status: document.getElementById('status')
+        };
+
+        const ctx = el.canvas.getContext('2d');
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        let index = 0;
+        let state = 'predict';      // predict → reveal → explain → complete
+        let simTime = 0;
+        let running = false;
+        let slow = false;
+        let previousFrame = 0;
+        let completionSent = false;
+        let pendingCorrect = false;
+        let rodsOut = false;
+
+        function scenario() { return scenarios[index]; }
+        function revealed() { return state !== 'predict'; }
+        function clamp01(value) { return Math.max(0, Math.min(1, value)); }
+
+        function fitCanvas() {
+          const ratio = window.devicePixelRatio || 1;
+          const cssWidth = el.canvas.clientWidth || W;
+          const cssHeight = cssWidth * (H / W);
+          el.canvas.width = Math.round(cssWidth * ratio);
+          el.canvas.height = Math.round(cssHeight * ratio);
+          ctx.setTransform((cssWidth * ratio) / W, 0, 0, (cssHeight * ratio) / H, 0, 0);
+        }
+
+        function label(text, x, y, color, size) {
+          ctx.font = `800 ${size || 15}px system-ui, sans-serif`;
+          ctx.fillStyle = color;
+          ctx.textAlign = 'center';
+          ctx.fillText(text, x, y);
+          ctx.textAlign = 'left';
+        }
+
+        function blob(x, y, radius, color, text) {
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(x, y, radius, 0, Math.PI * 2);
+          ctx.fill();
+          if (text) {
+            ctx.font = `850 ${Math.max(13, radius * 0.38)}px system-ui, sans-serif`;
+            ctx.fillStyle = '#fff';
+            ctx.textAlign = 'center';
+            ctx.fillText(text, x, y + radius * 0.14);
+            ctx.textAlign = 'left';
+          }
+        }
+
+        function neutron(x, y, radius) {
+          ctx.fillStyle = NEUTRON;
+          ctx.beginPath();
+          ctx.arc(x, y, radius || 9, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        function cluster(x, y, protons, neutrons, name) {
+          const spots = [[-14, -12], [14, -12], [-14, 14], [14, 14], [0, 0]];
+          const list = [];
+          for (let i = 0; i < protons; i += 1) list.push(PROTON);
+          for (let i = 0; i < neutrons; i += 1) list.push(NEUTRON);
+          ctx.fillStyle = 'rgba(40, 95, 159, 0.08)';
+          ctx.beginPath();
+          ctx.arc(x, y, 40, 0, Math.PI * 2);
+          ctx.fill();
+          list.forEach((color, i) => {
+            const spot = spots[i % spots.length];
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(x + spot[0], y + spot[1], 13, 0, Math.PI * 2);
+            ctx.fill();
+          });
+          if (name) label(name, x, y + 62, '#153456', 16);
+        }
+
+        function burst(x, y, strength, text, textX) {
+          if (strength <= 0) return;
+          ctx.strokeStyle = `rgba(229, 107, 36, ${0.75 * (1 - strength)})`;
+          ctx.lineWidth = 6;
+          ctx.beginPath();
+          ctx.arc(x, y, 40 + 150 * strength, 0, Math.PI * 2);
+          ctx.stroke();
+          if (text) label(text, textX === undefined ? x : textX, y - 96, '#9a3d0d', 17);
+        }
+
+        function drawFission(t) {
+          const hit = 0.6;
+          const split = 1.2;
+          const cx = 420;
+          const cy = 188;
+          if (!revealed()) {
+            neutron(150, cy, 11);
+            label('slow neutron', 150, cy - 26, '#52657b', 14);
+            blob(cx, cy, 64, PROTON, 'U-235');
+            label('uranium-235', cx, cy + 92, '#153456', 16);
+            return;
+          }
+          if (t < hit) {
+            const u = t / hit;
+            neutron(150 + (cx - 76 - 150) * u, cy, 11);
+            blob(cx, cy, 64, PROTON, 'U-235');
+            label('uranium-235', cx, cy + 92, '#153456', 16);
+            return;
+          }
+          if (t < split) {
+            const u = (t - hit) / (split - hit);
+            ctx.fillStyle = PROTON;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, 64 * (1 + 0.85 * u), 64 * (1 - 0.3 * u), 0, 0, Math.PI * 2);
+            ctx.fill();
+            label('U-236 · unstable', cx, cy + 100, '#7c2d12', 16);
+            return;
+          }
+          const v = clamp01((t - split) / 1.3);
+          const ease = 1 - Math.pow(1 - v, 2);
+          blob(cx - 60 - 250 * ease, cy - 34 * ease, 50, '#7a5db5', 'Ba-141');
+          blob(cx + 62 + 264 * ease, cy + 30 * ease, 42, '#2f8f9f', 'Kr-92');
+          const targets = [[cx + 30, cy - 118], [cx + 250, cy - 70], [cx + 120, cy + 116]];
+          targets.forEach(([tx, ty]) => {
+            neutron(cx + (tx - cx) * ease, cy + (ty - cy) * ease, 10);
+          });
+          label('3 neutrons', cx - 40, cy + 140, '#52657b', 15);
+          burst(cx, cy, clamp01(v * 1.4), '≈ 200 MeV released', cx - 160);
+        }
+
+        function drawFusion(t) {
+          const cy = 180;
+          const meet = 1.0;
+          if (!revealed()) {
+            cluster(300, cy, 1, 1, 'deuterium');
+            cluster(700, cy, 1, 2, 'tritium');
+            return;
+          }
+          if (t < meet) {
+            const u = t / meet;
+            cluster(300 + 170 * u, cy, 1, 1, 'deuterium');
+            cluster(700 - 170 * u, cy, 1, 2, 'tritium');
+            return;
+          }
+          const v = clamp01((t - meet) / 1.4);
+          const ease = 1 - Math.pow(1 - v, 2);
+          cluster(470 - 130 * ease, cy + 26 * ease, 2, 2, 'helium-4');
+          neutron(540 + 330 * ease, cy - 70 * ease, 13);
+          label('neutron', 540 + 330 * ease, cy - 70 * ease - 30, '#52657b', 15);
+          burst(500, cy, clamp01(v * 1.4), '≈ 17.6 MeV released');
+        }
+
+        function drawScale(t) {
+          const baseline = 306;
+          const maxHeight = 208;
+          const bars = [
+            { x: 230, name: 'TNT molecule', value: 30, text: '30 eV', color: '#9db4cc' },
+            { x: 500, name: 'D–T fusion', value: 17.6e6, text: '17.6 MeV', color: '#36a6c9' },
+            { x: 770, name: 'U-235 fission', value: 200e6, text: '200 MeV', color: HEAT }
+          ];
+          const grow = revealed() ? clamp01(t / 1.5) : 0;
+
+          ctx.strokeStyle = '#dbe6f3';
+          ctx.lineWidth = 1.5;
+          ctx.font = '700 12px system-ui, sans-serif';
+          ctx.textAlign = 'left';
+          [0, 3, 6, 9].forEach((decade) => {
+            const y = baseline - (decade / 9) * maxHeight;
+            ctx.beginPath();
+            ctx.moveTo(120, y);
+            ctx.lineTo(W - 60, y);
+            ctx.stroke();
+            ctx.fillStyle = '#8ca7c2';
+            ctx.fillText(`10${({ 0: '⁰', 3: '³', 6: '⁶', 9: '⁹' })[decade]} eV`, 62, y + 4);
+          });
+          ctx.strokeStyle = '#c8d7e8';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(120, baseline);
+          ctx.lineTo(W - 60, baseline);
+          ctx.stroke();
+          label('energy per event · each gridline is 1000×', 540, 60, '#52657b', 15);
+
+          bars.forEach((bar) => {
+            const full = (Math.log10(bar.value) / 9) * maxHeight;
+            const height = full * grow;
+            ctx.save();
+            if (grow === 0) {
+              ctx.setLineDash([7, 7]);
+              ctx.strokeStyle = '#9db4cc';
+              ctx.lineWidth = 3;
+              ctx.strokeRect(bar.x - 62, baseline - full, 124, full);
+              label('?', bar.x, baseline - full - 16, '#52657b', 22);
+            } else {
+              ctx.fillStyle = bar.color;
+              ctx.fillRect(bar.x - 62, baseline - height, 124, height);
+              if (grow > 0.85) label(bar.text, bar.x, baseline - height - 14, '#153456', 17);
+            }
+            ctx.restore();
+            label(bar.name, bar.x, baseline + 28, '#52657b', 15);
+          });
+        }
+
+        function star(x, y, radius) {
+          ctx.fillStyle = HEAT;
+          ctx.beginPath();
+          for (let i = 0; i < 12; i += 1) {
+            const angle = (Math.PI * i) / 6;
+            const r = i % 2 === 0 ? radius : radius * 0.45;
+            const px = x + Math.cos(angle) * r;
+            const py = y + Math.sin(angle) * r;
+            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        function arrow(x1, y1, x2, y2, color) {
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+          const angle = Math.atan2(y2 - y1, x2 - x1);
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.moveTo(x2, y2);
+          ctx.lineTo(x2 - 11 * Math.cos(angle - 0.4), y2 - 11 * Math.sin(angle - 0.4));
+          ctx.lineTo(x2 - 11 * Math.cos(angle + 0.4), y2 - 11 * Math.sin(angle + 0.4));
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        function drawChain(t) {
+          const top = 74;
+          const bottom = 312;
+          const midY = (top + bottom) / 2;
+          const columns = [175, 425, 675, 905];
+          const rodX = [300, 550, 800];
+
+          ctx.fillStyle = '#eef4fb';
+          ctx.strokeStyle = '#adc6df';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          if (ctx.roundRect) ctx.roundRect(70, top, W - 140, bottom - top, 18);
+          else ctx.rect(70, top, W - 140, bottom - top);
+          ctx.fill();
+          ctx.stroke();
+          label('fuel core', 126, top - 14, '#52657b', 14);
+
+          if (!rodsOut) {
+            rodX.forEach((x) => {
+              ctx.fillStyle = '#5b7087';
+              ctx.fillRect(x - 8, top + 10, 16, bottom - top - 20);
+            });
+            label('control rods', 550, top - 14, '#52657b', 14);
+          }
+
+          const progress = revealed() ? clamp01(t / 2.8) : 0;
+
+          if (!rodsOut) {
+            star(columns[0], midY, 22);
+            if (progress === 0) {
+              arrow(columns[0] + 26, midY, columns[0] + 86, midY, '#9db4cc');
+              arrow(columns[0] + 20, midY - 14, columns[0] + 74, top + 46, '#9db4cc');
+              arrow(columns[0] + 20, midY + 14, columns[0] + 74, bottom - 46, '#9db4cc');
+              label('?', columns[0] + 104, midY + 7, '#52657b', 22);
+              label('?', columns[0] + 92, top + 38, '#52657b', 22);
+              label('?', columns[0] + 92, bottom - 30, '#52657b', 22);
+              return;
+            }
+            for (let g = 0; g < 3; g += 1) {
+              const a = clamp01((progress - g * 0.3) / 0.3);
+              if (a <= 0) break;
+              const x = columns[g];
+              const nextX = columns[g + 1];
+              arrow(x + 26, midY, x + 26 + (nextX - 52 - x) * a, midY, '#2f6fb5');
+              arrow(x + 20, midY - 14, x + 20 + 58 * a, midY - 14 - (midY - top - 48) * a, '#b45309');
+              arrow(x + 20, midY + 14, x + 20 + (rodX[g] - x - 32) * a, midY + 14 + (bottom - midY - 48) * a, '#42546a');
+              if (a >= 1) {
+                star(nextX, midY, 22);
+                label('escaped', x + 78, top + 34, '#9a3d0d', 13);
+                label('absorbed', rodX[g] + 52, bottom - 22, '#42546a', 13);
+              }
+            }
+            if (progress > 0.92) label('one fission per generation · steady', 500, bottom + 32, '#1f7a45', 16);
+            return;
+          }
+
+          const gen0 = [midY];
+          const gen1 = [midY - 86, midY, midY + 86];
+          const gen2 = [];
+          gen1.forEach((y) => { [-30, 0, 30].forEach((offset) => gen2.push(y + offset)); });
+          const generations = [gen0, gen1, gen2];
+
+          generations.forEach((rows, g) => {
+            const a = clamp01((progress - g * 0.32) / 0.32);
+            if (a <= 0) return;
+            rows.forEach((y) => star(columns[g], y, g === 2 ? 11 : 20));
+            if (g === 2) return;
+            const next = generations[g + 1];
+            rows.forEach((y, i) => {
+              next.slice(i * 3, i * 3 + 3).forEach((ny) => {
+                arrow(columns[g] + 24, y, columns[g] + 24 + (columns[g + 1] - 40 - columns[g]) * a,
+                  y + (ny - y) * a, '#b45309');
+              });
+            });
+          });
+          if (progress > 0.92) label('1 → 3 → 9 fissions · runaway', 500, bottom + 32, '#9a3d0d', 16);
+        }
+
+        function draw() {
+          ctx.clearRect(0, 0, W, H);
+          ctx.fillStyle = '#f4f9ff';
+          ctx.fillRect(0, 0, W, H);
+          const id = scenario().id;
+          if (id === 'fission') drawFission(simTime);
+          else if (id === 'fusion') drawFusion(simTime);
+          else if (id === 'scale') drawScale(simTime);
+          else drawChain(simTime);
+        }
+
+        function shuffle(items) {
+          const result = items.slice();
+          for (let i = result.length - 1; i > 0; i -= 1) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [result[i], result[j]] = [result[j], result[i]];
+          }
+          return result;
+        }
+
+        function renderProgress() {
+          el.progress.replaceChildren();
+          scenarios.forEach((item, i) => {
+            const pip = document.createElement('span');
+            pip.className = 'ffe-pip';
+            pip.setAttribute('role', 'listitem');
+            pip.textContent = String(i + 1);
+            pip.dataset.state = i < index ? 'done' : i === index ? 'current' : 'todo';
+            pip.setAttribute('aria-label', `Scenario ${i + 1} of ${scenarios.length}${i === index ? ', current' : i < index ? ', done' : ''}`);
+            el.progress.append(pip);
+          });
+        }
+
+        function renderChoices(options, handler) {
+          el.choices.replaceChildren();
+          shuffle(options).forEach((option) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'ffe-choice';
+            button.textContent = option.text;
+            button.addEventListener('click', () => handler(option), { once: true });
+            el.choices.append(button);
+          });
+        }
+
+        function lockChoices() {
+          el.choices.querySelectorAll('button').forEach((button) => { button.disabled = true; });
+        }
+
+        function loadScenario() {
+          const s = scenario();
+          state = 'predict';
+          simTime = 0;
+          running = false;
+          rodsOut = false;
+          el.rods.hidden = true;
+          el.rods.setAttribute('aria-pressed', 'false');
+          el.rods.textContent = 'Pull the control rods out';
+          el.sceneTitle.textContent = s.title;
+          el.sceneText.textContent = s.text;
+          el.sceneBadge.textContent = s.badge;
+          el.process.textContent = s.process;
+          el.before.textContent = '?';
+          el.after.textContent = '?';
+          el.energy.textContent = '?';
+          el.motionBadge.textContent = 'Ready';
+          el.stepLabel.textContent = `Predict · scenario ${index + 1} of ${scenarios.length}`;
+          el.question.textContent = s.question;
+          el.feedback.hidden = true;
+          el.main.hidden = true;
+          el.replay.disabled = true;
+          el.choices.hidden = false;
+          renderChoices(s.options, choose);
+          renderProgress();
+          draw();
+          el.status.textContent = `${s.title}. ${s.text} Choose a prediction.`;
+        }
+
+        function choose(option) {
+          if (state !== 'predict') return;
+          lockChoices();
+          el.choices.hidden = true;
+          state = 'reveal';
+          el.stepLabel.textContent = 'Watch it happen';
+          el.question.textContent = 'Running the reaction.';
+          el.motionBadge.textContent = slow ? 'Playing · ½×' : 'Playing · 1×';
+          simTime = 0;
+          running = true;
+          el.status.textContent = 'Reveal running.';
+          if (reduceMotion) {
+            simTime = scenario().freeze;
+            finishReveal(option.correct);
+          } else {
+            pendingCorrect = option.correct;
+          }
+        }
+
+        function finishReveal(correct) {
+          const s = scenario();
+          running = false;
+          simTime = s.freeze;
+          state = 'explain';
+          draw();
+          el.before.textContent = s.before;
+          el.after.textContent = s.after;
+          el.energy.textContent = s.energy;
+          el.motionBadge.textContent = 'Frozen';
+          el.question.textContent = 'What the ledger shows:';
+          el.feedback.textContent = s.explanation;
+          el.feedback.dataset.tone = correct ? 'success' : 'note';
+          el.feedback.hidden = false;
+          el.replay.disabled = false;
+          if (s.id === 'chain') el.rods.hidden = false;
+          el.main.textContent = index === scenarios.length - 1 ? 'Finish' : 'Next scenario';
+          el.main.hidden = false;
+          el.stepLabel.textContent = 'Evidence';
+          el.status.textContent = s.explanation;
+        }
+
+        function handleMain() {
+          if (state === 'complete') { index = 0; loadScenario(); return; }
+          if (index < scenarios.length - 1) {
+            index += 1;
+            loadScenario();
+            return;
+          }
+          state = 'complete';
+          renderProgress();
+          el.stepLabel.textContent = 'All four scenes done';
+          el.question.textContent = 'Splitting and joining both release energy.';
+          el.feedback.textContent = 'Each one ends with slightly less mass than it started with, and that difference is the energy. Nothing is created — it is converted.';
+          el.feedback.dataset.tone = 'success';
+          el.feedback.hidden = false;
+          el.main.textContent = 'Start over';
+          sendCompletion();
+        }
+
+        function sendCompletion() {
+          if (completionSent) return;
+          completionSent = true;
+          window.parent.postMessage({ type: 'complete' }, '*');
+          el.status.textContent = 'Fission and fusion walkthrough complete.';
+        }
+
+        function replay() {
+          if (state !== 'explain' && state !== 'complete') return;
+          simTime = 0;
+          running = true;
+          el.motionBadge.textContent = slow ? 'Playing · ½×' : 'Playing · 1×';
+        }
+
+        function animate(now) {
+          const delta = previousFrame ? Math.min((now - previousFrame) / 1000, 0.05) : 0;
+          previousFrame = now;
+          if (running) {
+            simTime += delta * (slow ? 0.5 : 1);
+            const limit = scenario().freeze;
+            if (simTime >= limit) {
+              simTime = limit;
+              running = false;
+              el.motionBadge.textContent = 'Frozen';
+              if (state === 'reveal') finishReveal(pendingCorrect);
+            }
+          }
+          draw();
+          requestAnimationFrame(animate);
+        }
+
+        function reset() {
+          index = 0;
+          slow = false;
+          el.slow.setAttribute('aria-pressed', 'false');
+          loadScenario();
+        }
+
+        el.slow.addEventListener('click', () => {
+          slow = !slow;
+          el.slow.setAttribute('aria-pressed', String(slow));
+          if (running) el.motionBadge.textContent = slow ? 'Playing · ½×' : 'Playing · 1×';
+        });
+        el.replay.addEventListener('click', replay);
+        el.rods.addEventListener('click', () => {
+          if (scenario().id !== 'chain' || state === 'predict') return;
+          rodsOut = !rodsOut;
+          el.rods.setAttribute('aria-pressed', String(rodsOut));
+          el.rods.textContent = rodsOut ? 'Put the control rods back' : 'Pull the control rods out';
+          el.energy.textContent = rodsOut ? 'Runaway · k ≈ 3' : 'Steady · k ≈ 1';
+          el.after.textContent = rodsOut ? '3 new fissions' : '1 new fission';
+          el.feedback.textContent = rodsOut
+            ? 'With nothing absorbing them, all three neutrons find fuel and each generation triples.'
+            : scenario().explanation;
+          el.status.textContent = el.feedback.textContent;
+          replay();
+        });
+        el.main.addEventListener('click', handleMain);
+        el.reset.addEventListener('click', reset);
+        window.addEventListener('resize', () => { fitCanvas(); draw(); });
+        document.addEventListener('visibilitychange', () => { if (document.hidden) previousFrame = 0; });
+
+        fitCanvas();
+        reset();
+        requestAnimationFrame(animate);
+      })();
+    </script>
+  </main>
+</body>
+</html>

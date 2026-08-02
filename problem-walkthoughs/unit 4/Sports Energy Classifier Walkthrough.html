@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sports Energy Classifier Walkthrough</title>
+  <style>
+    /* Rise 360 compatibility: Transparent background[cite: 1] */
+    html, body {
+      background: transparent;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #333;
+      display: flex;
+      justify-content: center;
+    }
+
+    .walkthrough {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px;
+    }
+
+    /* Simulation stage > 60% of height[cite: 1] */
+    .stage {
+      width: 100%;
+      height: 400px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid #ddd;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Fixed-width, rounded inner card with standard hex border[cite: 1] */
+    .card {
+      width: 100%;
+      background: #ffffff;
+      border: 5px solid #285f9f;
+      border-radius: 8px;
+      padding: 20px;
+      box-sizing: border-box;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .setup-text {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      margin-top: 0;
+    }
+
+    .prompt-text {
+      font-size: 1rem;
+      margin-bottom: 16px;
+    }
+
+    .choices {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    button {
+      padding: 10px 16px;
+      font-size: 1rem;
+      border: 2px solid #285f9f;
+      background: #ffffff;
+      color: #285f9f;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      background: #eef4fb;
+    }
+
+    button:focus-visible {
+      outline: 3px solid #ff9900;
+      outline-offset: 2px;
+    }
+
+    button.primary {
+      background: #285f9f;
+      color: #ffffff;
+    }
+
+    button.primary:hover {
+      background: #1c4575;
+    }
+
+    .feedback-area {
+      min-height: 3rem;
+      padding-top: 10px;
+      border-top: 1px solid #eee;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .feedback-text {
+      margin: 0;
+      font-weight: 500;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 10px;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+
+  <main class="walkthrough">
+    <div class="stage" aria-label="Simulation stage showing the current sports scenario" role="img">
+      <canvas id="simCanvas" width="800" height="400"></canvas>
+    </div>
+
+    <div class="card" aria-live="polite">
+      <p id="setupText" class="setup-text"></p>
+      <p id="promptText" class="prompt-text">What is the primary form of energy at this exact instant?</p>
+      
+      <div id="choicesContainer" class="choices" hidden>
+        <!-- Buttons injected by JS -->
+      </div>
+
+      <div id="feedbackContainer" class="feedback-area" hidden>
+        <p id="feedbackText" class="feedback-text"></p>
+        <div class="controls">
+          <button id="retryBtn" hidden>Retry</button>
+          <button id="nextBtn" class="primary" hidden>Next Scenario</button>
+        </div>
+      </div>
+
+      <button id="startBtn" class="primary">Start Simulation</button>
+    </div>
+  </main>
+
+  <script>
+    // --- SCENARIO DATA ---
+    const scenarios = [
+      {
+        id: 'archery',
+        description: 'An archer holds the bowstring back at maximum tension.',
+        correctType: 'Stored Elastic',
+        options: ['Stored Elastic', 'Moving Kinetic', 'Rotating Kinetic'],
+        feedbackCorrect: 'Stored Elastic is correct. The flexed limbs of the bow hold energy until release.',
+        feedbackIncorrect: 'Look at the stretched bowstring. Energy is stored in the flexed material.'
+      },
+      {
+        id: 'tennis',
+        description: 'The tennis player strikes a flat serve down the center line.',
+        correctType: 'Moving Kinetic',
+        options: ['Stored Elastic', 'Moving Kinetic', 'Stored Gravitational'],
+        feedbackCorrect: 'Moving Kinetic is correct. The ball is traveling horizontally at high speed.',
+        feedbackIncorrect: 'Notice the blur of the ball. It is actively traveling across the court.'
+      },
+      {
+        id: 'skater',
+        description: 'A figure skater pulls their arms in for a tight, rapid spin.',
+        correctType: 'Rotating Kinetic',
+        options: ['Rotating Kinetic', 'Stored Gravitational', 'Moving Kinetic'],
+        feedbackCorrect: 'Rotating Kinetic is correct. The skater is spinning in place around a central axis.',
+        feedbackIncorrect: 'The skater remains in one spot on the ice but is spinning rapidly.'
+      },
+      {
+        id: 'diver',
+        description: 'A high diver stands perfectly motionless at the edge of a 10-meter platform.',
+        correctType: 'Stored Gravitational',
+        options: ['Moving Kinetic', 'Rotating Kinetic', 'Stored Gravitational'],
+        feedbackCorrect: 'Stored Gravitational is correct. The diver has potential energy due to their height.',
+        feedbackIncorrect: 'The diver is not moving yet, but they are high above the water.'
+      },
+      {
+        id: 'polevault',
+        description: 'The vaulter is at the peak of their plant, with the pole bent to its absolute maximum.',
+        correctType: 'Stored Elastic',
+        options: ['Stored Elastic', 'Rotating Kinetic', 'Stored Gravitational'],
+        feedbackCorrect: 'Stored Elastic is correct. The heavily bent fiberglass pole acts like a giant spring.',
+        feedbackIncorrect: 'Look at the extreme bend in the pole. It is ready to snap back and launch the vaulter.'
+      }
+    ];
+
+    // --- STATE MACHINE ---
+    let currentScenarioIndex = 0;
+    let state = 'setup'; // setup → predict → reveal → explain[cite: 1]
+    let animationPhase = 'static'; // static, frozen, animating
+
+    // --- DOM ELEMENTS ---
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    const setupText = document.getElementById('setupText');
+    const promptText = document.getElementById('promptText');
+    const choicesContainer = document.getElementById('choicesContainer');
+    const feedbackContainer = document.getElementById('feedbackContainer');
+    const feedbackText = document.getElementById('feedbackText');
+    const startBtn = document.getElementById('startBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const nextBtn = document.getElementById('nextBtn');
+
+    // --- INITIALIZATION ---
+    function init() {
+      loadScenario(0);
+      
+      startBtn.addEventListener('click', () => {
+        state = 'predict';
+        animationPhase = 'frozen'; // Freeze at decision point[cite: 1]
+        renderUI();
+        drawCanvas();
+      });
+
+      retryBtn.addEventListener('click', () => {
+        state = 'predict';
+        animationPhase = 'frozen';
+        renderUI();
+        drawCanvas();
+      });
+
+      nextBtn.addEventListener('click', () => {
+        if (currentScenarioIndex < scenarios.length - 1) {
+          loadScenario(currentScenarioIndex + 1);
+        } else {
+          // Guarded completion message[cite: 1]
+          if (!window.completionSent) {
+            window.parent.postMessage({ type: 'complete' }, '*');
+            window.completionSent = true;
+          }
+          setupText.textContent = "Module Complete!";
+          promptText.hidden = true;
+          feedbackContainer.hidden = true;
+        }
+      });
+    }
+
+    function loadScenario(index) {
+      currentScenarioIndex = index;
+      state = 'setup';
+      animationPhase = 'static';
+      const sc = scenarios[currentScenarioIndex];
+      
+      setupText.textContent = sc.description; // 1 sentence setup[cite: 1]
+      promptText.hidden = true;
+      
+      // Shuffle options[cite: 1]
+      const shuffledOptions = [...sc.options].sort(() => Math.random() - 0.5);
+      
+      choicesContainer.innerHTML = '';
+      shuffledOptions.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.textContent = opt;
+        btn.dataset.choice = opt;
+        btn.addEventListener('click', () => handleChoice(opt));
+        choicesContainer.appendChild(btn);
+      });
+
+      // Clear previous styles/states[cite: 1]
+      renderUI();
+      drawCanvas();
+    }
+
+    function renderUI() {
+      if (state === 'setup') {
+        startBtn.hidden = false;
+        choicesContainer.hidden = true;
+        feedbackContainer.hidden = true;
+        promptText.hidden = true;
+      } 
+      else if (state === 'predict') {
+        startBtn.hidden = true;
+        promptText.hidden = false;
+        choicesContainer.hidden = false;
+        feedbackContainer.hidden = true;
+        
+        // Reset button styles
+        Array.from(choicesContainer.children).forEach(btn => {
+          btn.style.backgroundColor = '';
+          btn.style.color = '';
+          btn.disabled = false;
+        });
+      } 
+      else if (state === 'explain') {
+        choicesContainer.hidden = true;
+        promptText.hidden = true;
+        feedbackContainer.hidden = false;
+      }
+    }
+
+    function handleChoice(selectedVal) {
+      if (state !== 'predict') return;
+      
+      const sc = scenarios[currentScenarioIndex];
+      const isCorrect = (selectedVal === sc.correctType);
+      
+      state = 'reveal';
+      animationPhase = 'animating';
+      choicesContainer.hidden = true;
+      promptText.hidden = true;
+
+      // Simulate outcome animation duration (evidence draws DURING this)[cite: 1]
+      let frame = 0;
+      function animate() {
+        frame++;
+        drawCanvas(frame);
+        if (frame < 60) {
+          requestAnimationFrame(animate);
+        } else {
+          state = 'explain';
+          showFeedback(isCorrect, sc);
+        }
+      }
+      animate();
+    }
+
+    function showFeedback(isCorrect, sc) {
+      renderUI();
+      if (isCorrect) {
+        feedbackText.textContent = sc.feedbackCorrect;
+        // Explicit success logic: Next shows, Retry hides
+        nextBtn.hidden = false;
+        retryBtn.hidden = true;
+        
+        if (currentScenarioIndex === scenarios.length - 1) {
+          nextBtn.textContent = "Finish Module";
+        }
+      } else {
+        feedbackText.textContent = sc.feedbackIncorrect;
+        // Explicit failure logic: Retry shows, Next hides
+        nextBtn.hidden = true;
+        retryBtn.hidden = false;
+      }
+    }
+
+    // --- CANVAS RENDERING ---
+    function drawCanvas(frame = 0) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const sc = scenarios[currentScenarioIndex];
+      
+      ctx.save();
+      
+      // Placeholder drawing logic for scenarios
+      if (sc.id === 'tennis') {
+        drawTennisCourt(frame);
+      } else if (sc.id === 'polevault') {
+        drawPoleVault(frame);
+      } else {
+        // Generic representation for others to save space
+        ctx.fillStyle = '#285f9f';
+        ctx.font = '24px sans-serif';
+        ctx.fillText(`Scenario: ${sc.id} (Visual Placeholder)`, 250, 200);
+        
+        if (animationPhase === 'frozen') {
+          ctx.fillStyle = 'red';
+          ctx.fillText('MOTION FROZEN: Make a prediction', 220, 250);
+        } else if (animationPhase === 'animating') {
+          ctx.fillStyle = 'green';
+          ctx.fillText(`ANIMATING OUTCOME... (Frame ${frame})`, 250, 250);
+        }
+      }
+      
+      ctx.restore();
+    }
+
+    function drawTennisCourt(frame) {
+      // Horizontally oriented court layout
+      const courtX = 150;
+      const courtY = 100;
+      const courtW = 500;
+      const courtH = 200;
+      
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = '#2e8b57';
+      ctx.strokeRect(courtX, courtY, courtW, courtH); // Outer bounds
+
+      ctx.beginPath();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      
+      // Net (Vertical down the middle)
+      const netX = courtX + courtW / 2;
+      ctx.moveTo(netX, courtY - 10);
+      ctx.lineTo(netX, courtY + courtH + 10);
+      
+      // Service lines (Vertical, parallel to net)
+      const leftServiceX = courtX + 110;
+      const rightServiceX = courtX + courtW - 110;
+      ctx.moveTo(leftServiceX, courtY + 25);
+      ctx.lineTo(leftServiceX, courtY + courtH - 25);
+      ctx.moveTo(rightServiceX, courtY + 25);
+      ctx.lineTo(rightServiceX, courtY + courtH - 25);
+      
+      // Center service line (Horizontal)
+      const centerServiceY = courtY + courtH / 2;
+      ctx.moveTo(leftServiceX, centerServiceY);
+      ctx.lineTo(rightServiceX, centerServiceY);
+      
+      ctx.stroke();
+
+      // Draw Ball based on phase
+      ctx.fillStyle = '#ccff00';
+      let ballX = courtX + 50; // Serve origin
+      if (animationPhase === 'frozen') {
+        // Frozen right as it leaves the racket
+        ballX = courtX + 60;
+      } else if (animationPhase === 'animating') {
+        // Ball travels horizontally across the court
+        ballX = courtX + 60 + (frame * 6);
+      }
+      
+      ctx.beginPath();
+      ctx.arc(ballX, centerServiceY - 40, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    function drawPoleVault(frame) {
+      // Ground
+      ctx.fillStyle = '#666';
+      ctx.fillRect(100, 300, 600, 10);
+      
+      // Plant box
+      ctx.fillStyle = '#333';
+      ctx.fillRect(400, 300, 30, 10);
+
+      ctx.lineWidth = 4;
+      
+      if (animationPhase === 'static' || animationPhase === 'frozen') {
+        // Maximum bend
+        ctx.beginPath();
+        ctx.strokeStyle = '#ff9900'; // Fiberglass pole
+        ctx.moveTo(415, 305); // Plant point
+        ctx.quadraticCurveTo(300, 200, 380, 100); // Extreme bend
+        ctx.stroke();
+        
+        // Vaulter
+        ctx.fillStyle = '#285f9f';
+        ctx.beginPath();
+        ctx.arc(380, 100, 15, 0, Math.PI * 2); // Head
+        ctx.fill();
+        ctx.fillRect(375, 115, 10, 40); // Body
+
+      } else if (animationPhase === 'animating') {
+        // Pole straightening and vaulter launching
+        const bendControlX = 300 + (frame * 2); // Pole straightens out
+        const vaulterY = 100 - (frame * 2);     // Vaulter goes up
+        const vaulterX = 380 + (frame * 1.5);   // Vaulter moves forward
+        
+        ctx.beginPath();
+        ctx.strokeStyle = '#ff9900';
+        ctx.moveTo(415, 305);
+        ctx.quadraticCurveTo(bendControlX, 200, vaulterX, vaulterY);
+        ctx.stroke();
+
+        ctx.fillStyle = '#285f9f';
+        ctx.beginPath();
+        ctx.arc(vaulterX, vaulterY, 15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(vaulterX - 5, vaulterY + 15, 10, 40);
+      }
+    }
+
+    // Run
+    init();
+  </script>
+</body>
+</html>

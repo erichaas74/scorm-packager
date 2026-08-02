@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claim-Evidence-Reasoning Reveal</title>
+  <style>
+    html, body { background: transparent; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; }
+    .app { max-width: 720px; margin: 0 auto; padding: 8px; box-sizing: border-box; }
+    .card { border: 5px solid #285f9f; border-radius: 12px; background: #f8fafc; overflow: hidden; display: flex; flex-direction: column; }
+    .header { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #e2e8f0; border-bottom: 1px solid #cbd5e1; }
+    .header h1 { margin: 0; font-size: 1rem; font-weight: 600; color: #1e293b; }
+    .stage { position: relative; width: 100%; aspect-ratio: 16/10; background: #0f172a; overflow: auto; padding: 14px; box-sizing: border-box; color: #e2e8f0; font-size: 0.85rem; }
+    .prompt-area { padding: 12px; background: #fff; border-top: 1px solid #e2e8f0; min-height: 140px; display: flex; flex-direction: column; gap: 8px; }
+    .prompt { margin: 0; font-size: 0.95rem; color: #1e293b; line-height: 1.4; }
+    .choices { display: flex; flex-wrap: wrap; gap: 8px; }
+    .choices button { flex: 1 1 150px; padding: 10px 12px; font-size: 0.85rem; font-weight: 600; border: 2px solid #285f9f; border-radius: 8px; background: #fff; color: #1e293b; cursor: pointer; min-height: 44px; text-align: left; }
+    .choices button:hover, .choices button:focus { background: #dbeafe; outline: 2px solid #285f9f; outline-offset: 2px; }
+    .feedback { margin: 0; font-size: 0.9rem; color: #0f172a; min-height: 1.4em; }
+    .main-btn { align-self: flex-start; padding: 10px 20px; font-size: 0.95rem; font-weight: 600; border: none; border-radius: 8px; background: #285f9f; color: #fff; cursor: pointer; min-height: 44px; }
+    .main-btn:hover, .main-btn:focus { background: #1e4a7a; outline: 2px solid #1e4a7a; outline-offset: 2px; }
+    .hidden { display: none !important; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+    th, td { border: 1px solid #334155; padding: 5px 8px; text-align: center; }
+    th { background: #334155; }
+    .model-box { background: #1e293b; border: 1px solid #475569; border-radius: 8px; padding: 10px; margin-top: 8px; display: none; }
+    .model-box.visible { display: block; }
+    .step-label { color: #fbbf24; font-weight: 600; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="card">
+      <div class="header">
+        <h1>Claim-Evidence-Reasoning Reveal</h1>
+        <button class="main-btn" data-reset style="padding:6px 12px;font-size:0.85rem;background:#64748b;">Reset</button>
+      </div>
+      <div class="stage" aria-label="Electromagnet trial data and CER steps">
+        <div data-table>
+          <p style="margin:0 0 8px;color:#94a3b8;">Electromagnet trials (fixed core, fixed current)</p>
+          <table>
+            <tr><th>Trial</th><th>Turns</th><th>B at 2 cm (mT)</th><th>Paper clips lifted</th></tr>
+            <tr><td>1</td><td>25</td><td>3.1</td><td>4</td></tr>
+            <tr><td>2</td><td>50</td><td>6.0</td><td>9</td></tr>
+            <tr><td>3</td><td>75</td><td>8.8</td><td>13</td></tr>
+            <tr><td>4</td><td>100</td><td>11.2</td><td>16</td></tr>
+          </table>
+        </div>
+        <div class="model-box" data-model>
+          <div class="step-label">Magnetic-field model</div>
+          <p style="margin:0;">More turns → stronger field around the core (B ∝ N for fixed I). Stronger field → greater force on nearby ferromagnetic objects → more clips lifted. The pattern is consistent with B increasing nearly linearly with turn count in this range.</p>
+        </div>
+      </div>
+      <div class="prompt-area" aria-live="polite">
+        <p class="prompt" data-prompt>Four trials vary only the number of turns.</p>
+        <div class="choices" data-choices hidden></div>
+        <p class="feedback" data-feedback></p>
+        <button class="main-btn" data-main>Start</button>
+      </div>
+    </section>
+  </main>
+  <script>
+    (function() {
+      const promptEl = document.querySelector('[data-prompt]');
+      const choicesEl = document.querySelector('[data-choices]');
+      const feedbackEl = document.querySelector('[data-feedback]');
+      const mainBtn = document.querySelector('[data-main]');
+      const resetBtn = document.querySelector('[data-reset]');
+      const modelBox = document.querySelector('[data-model]');
+
+      let state = 'setup'; // setup → claim → evidence → reveal
+      let claim = null;
+      let evidence = null;
+      let completed = false;
+
+      const claims = [
+        { v: 'moreN', t: 'More turns produce a stronger field and greater lift' },
+        { v: 'noEffect', t: 'Turn count has no effect on field or lift' },
+        { v: 'lessN', t: 'Fewer turns produce stronger lift' }
+      ];
+      const evidences = [
+        { v: 'both', t: 'Both B and clips rise steadily with turns' },
+        { v: 'clipsOnly', t: 'Only the clip count changes; B is random' },
+        { v: 'flat', t: 'B and clips stay roughly constant' }
+      ];
+
+      function shuffle(arr) {
+        const a = arr.slice();
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      }
+
+      function render() {
+        choicesEl.classList.add('hidden');
+        mainBtn.classList.remove('hidden');
+        feedbackEl.textContent = '';
+        modelBox.classList.remove('visible');
+
+        if (state === 'setup') {
+          promptEl.textContent = 'Four trials vary only the number of turns.';
+          mainBtn.textContent = 'Start';
+        } else if (state === 'claim') {
+          promptEl.textContent = 'Select the claim best supported by the data.';
+          choicesEl.classList.remove('hidden');
+          choicesEl.innerHTML = '';
+          shuffle(claims).forEach(o => {
+            const b = document.createElement('button');
+            b.dataset.choice = o.v;
+            b.textContent = o.t;
+            b.addEventListener('click', () => chooseClaim(o.v));
+            choicesEl.appendChild(b);
+          });
+          mainBtn.classList.add('hidden');
+        } else if (state === 'evidence') {
+          promptEl.textContent = 'Which evidence most strongly supports your claim?';
+          choicesEl.classList.remove('hidden');
+          choicesEl.innerHTML = '';
+          shuffle(evidences).forEach(o => {
+            const b = document.createElement('button');
+            b.dataset.choice = o.v;
+            b.textContent = o.t;
+            b.addEventListener('click', () => chooseEvidence(o.v));
+            choicesEl.appendChild(b);
+          });
+          mainBtn.classList.add('hidden');
+        } else if (state === 'reveal') {
+          modelBox.classList.add('visible');
+          const claimOk = claim === 'moreN';
+          const evidOk = evidence === 'both';
+          if (claimOk && evidOk) {
+            feedbackEl.textContent = 'Claim and evidence match the data. The model explains why both B and lift rise with turns.';
+          } else {
+            feedbackEl.textContent = 'Strongest support: more turns → higher B and more lift. The model links N to field strength to force.';
+          }
+          mainBtn.textContent = 'Replay';
+          if (!completed) {
+            completed = true;
+            try { window.parent.postMessage({ type: 'complete' }, '*'); } catch (e) {}
+          }
+        }
+      }
+
+      function chooseClaim(v) {
+        if (state !== 'claim') return;
+        claim = v;
+        state = 'evidence';
+        render();
+      }
+
+      function chooseEvidence(v) {
+        if (state !== 'evidence') return;
+        evidence = v;
+        state = 'reveal';
+        render();
+      }
+
+      mainBtn.addEventListener('click', () => {
+        if (state === 'setup') {
+          state = 'claim';
+          render();
+        } else if (state === 'reveal') {
+          state = 'setup';
+          claim = null;
+          evidence = null;
+          completed = false;
+          render();
+        }
+      });
+
+      resetBtn.addEventListener('click', () => {
+        state = 'setup';
+        claim = null;
+        evidence = null;
+        completed = false;
+        render();
+      });
+
+      render();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Work Against the Field</title>
+  <style>
+    html, body {
+      background: transparent;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+    }
+    .app {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+    .card {
+      border: 5px solid #285f9f;
+      border-radius: 12px;
+      background: #f8fafc;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: #e2e8f0;
+      border-bottom: 1px solid #cbd5e1;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    .stage {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16/10;
+      background: #0f172a;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+    canvas:active { cursor: grabbing; }
+    .prompt-area {
+      padding: 12px;
+      background: #fff;
+      border-top: 1px solid #e2e8f0;
+      min-height: 120px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .prompt {
+      margin: 0;
+      font-size: 0.95rem;
+      color: #1e293b;
+      line-height: 1.4;
+    }
+    .choices {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .choices button {
+      flex: 1 1 140px;
+      padding: 10px 12px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border: 2px solid #285f9f;
+      border-radius: 8px;
+      background: #fff;
+      color: #1e293b;
+      cursor: pointer;
+      min-height: 44px;
+    }
+    .choices button:hover, .choices button:focus {
+      background: #dbeafe;
+      outline: 2px solid #285f9f;
+      outline-offset: 2px;
+    }
+    .feedback {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #0f172a;
+      min-height: 1.4em;
+    }
+    .main-btn {
+      align-self: flex-start;
+      padding: 10px 20px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      background: #285f9f;
+      color: #fff;
+      cursor: pointer;
+      min-height: 44px;
+    }
+    .main-btn:hover, .main-btn:focus {
+      background: #1e4a7a;
+      outline: 2px solid #1e4a7a;
+      outline-offset: 2px;
+    }
+    .hidden { display: none !important; }
+    .status {
+      font-size: 0.85rem;
+      color: #475569;
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="card" data-wt>
+      <div class="header">
+        <h1>Work Against the Field</h1>
+        <button class="main-btn" data-reset style="padding:6px 12px;font-size:0.85rem;background:#64748b;">Reset</button>
+      </div>
+      <div class="stage" aria-label="Charge near positive plate">
+        <canvas id="c" width="640" height="400" role="img" aria-label="Positive plate on left, movable positive charge"></canvas>
+      </div>
+      <div class="prompt-area" aria-live="polite">
+        <p class="prompt" data-prompt>A positive charge is near a positive plate.</p>
+        <div class="choices" data-choices hidden>
+          <button data-choice="external">External force does work</button>
+          <button data-choice="field">Field does the work</button>
+          <button data-choice="none">No work is done</button>
+        </div>
+        <p class="feedback" data-feedback></p>
+        <p class="status" data-status></p>
+        <button class="main-btn" data-main>Start</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function() {
+      const canvas = document.getElementById('c');
+      const ctx = canvas.getContext('2d');
+      const promptEl = document.querySelector('[data-prompt]');
+      const choicesEl = document.querySelector('[data-choices]');
+      const feedbackEl = document.querySelector('[data-feedback]');
+      const mainBtn = document.querySelector('[data-main]');
+      const resetBtn = document.querySelector('[data-reset]');
+      const statusEl = document.querySelector('[data-status]');
+
+      let state = 'setup'; // setup → predict → drag → explain
+      let prediction = null;
+      let chargeX = 380;
+      let startX = 380;
+      let dragging = false;
+      let movedToward = null; // 'toward' or 'away'
+      let completed = false;
+      const plateX = 80;
+      const plateW = 40;
+
+      function draw() {
+        const W = canvas.width;
+        const H = canvas.height;
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, W, H);
+
+        // positive plate
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(plateX, 40, plateW, H - 80);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 20px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('+', plateX + plateW / 2, H / 2);
+
+        // field arrows (rightward, away from + plate)
+        if (state === 'drag' || state === 'explain') {
+          ctx.strokeStyle = 'rgba(148, 163, 184, 0.6)';
+          ctx.lineWidth = 2;
+          for (let y = 70; y < H - 50; y += 40) {
+            for (let x = plateX + plateW + 30; x < W - 40; x += 55) {
+              ctx.beginPath();
+              ctx.moveTo(x, y);
+              ctx.lineTo(x + 22, y);
+              ctx.lineTo(x + 16, y - 5);
+              ctx.moveTo(x + 22, y);
+              ctx.lineTo(x + 16, y + 5);
+              ctx.stroke();
+            }
+          }
+        }
+
+        // charge
+        const cy = H / 2;
+        ctx.beginPath();
+        ctx.arc(chargeX, cy, 18, 0, Math.PI * 2);
+        ctx.fillStyle = '#f97316';
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 18px system-ui';
+        ctx.fillText('+', chargeX, cy + 6);
+
+        // labels
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = '13px system-ui';
+        ctx.textAlign = 'left';
+        ctx.fillText('← Higher V          Lower V →', plateX + plateW + 20, H - 20);
+
+        if (state === 'explain' && movedToward) {
+          ctx.font = '14px system-ui';
+          if (movedToward === 'toward') {
+            ctx.fillStyle = '#fbbf24';
+            ctx.fillText('You pushed against the field → external work', 160, 40);
+          } else {
+            ctx.fillStyle = '#4ade80';
+            ctx.fillText('Field pushes charge away → field does work', 160, 40);
+          }
+        }
+      }
+
+      function render() {
+        choicesEl.classList.add('hidden');
+        mainBtn.classList.remove('hidden');
+        feedbackEl.textContent = '';
+        statusEl.textContent = '';
+
+        if (state === 'setup') {
+          promptEl.textContent = 'A positive charge is near a positive plate.';
+          mainBtn.textContent = 'Start';
+          chargeX = 380;
+          startX = 380;
+          movedToward = null;
+          draw();
+        } else if (state === 'predict') {
+          promptEl.textContent = 'If you drag the + charge closer to the + plate, who does positive work?';
+          choicesEl.classList.remove('hidden');
+          choicesEl.innerHTML = '';
+          const opts = [
+            { v: 'external', t: 'External force does work' },
+            { v: 'field', t: 'Field does the work' },
+            { v: 'none', t: 'No work is done' }
+          ];
+          for (let i = opts.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [opts[i], opts[j]] = [opts[j], opts[i]];
+          }
+          opts.forEach(o => {
+            const b = document.createElement('button');
+            b.dataset.choice = o.v;
+            b.textContent = o.t;
+            b.addEventListener('click', () => choose(o.v));
+            choicesEl.appendChild(b);
+          });
+          mainBtn.classList.add('hidden');
+          draw();
+        } else if (state === 'drag') {
+          promptEl.textContent = 'Drag the charge left (toward plate) or right (away).';
+          statusEl.textContent = 'Release when finished.';
+          mainBtn.classList.add('hidden');
+          draw();
+        } else if (state === 'explain') {
+          if (movedToward === 'toward') {
+            feedbackEl.textContent = 'External force did positive work. PE increased as you moved against the field.';
+          } else if (movedToward === 'away') {
+            feedbackEl.textContent = 'The field did positive work. PE decreased as the charge moved with the force.';
+          } else {
+            feedbackEl.textContent = 'Move the charge to see who does work.';
+          }
+          mainBtn.textContent = 'Replay';
+          draw();
+          if (!completed && movedToward) {
+            completed = true;
+            try { window.parent.postMessage({ type: 'complete' }, '*'); } catch (e) {}
+          }
+        }
+      }
+
+      function choose(v) {
+        if (state !== 'predict') return;
+        prediction = v;
+        state = 'drag';
+        startX = chargeX;
+        render();
+      }
+
+      mainBtn.addEventListener('click', () => {
+        if (state === 'setup') {
+          state = 'predict';
+          render();
+        } else if (state === 'explain') {
+          state = 'setup';
+          prediction = null;
+          chargeX = 380;
+          movedToward = null;
+          completed = false;
+          render();
+        }
+      });
+
+      resetBtn.addEventListener('click', () => {
+        state = 'setup';
+        prediction = null;
+        chargeX = 380;
+        movedToward = null;
+        completed = false;
+        render();
+      });
+
+      function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        return (clientX - rect.left) * scaleX;
+      }
+
+      function onDown(e) {
+        if (state !== 'drag') return;
+        const x = getPos(e);
+        if (Math.abs(x - chargeX) < 30) {
+          dragging = true;
+          e.preventDefault();
+        }
+      }
+      function onMove(e) {
+        if (!dragging || state !== 'drag') return;
+        chargeX = Math.max(plateX + plateW + 30, Math.min(canvas.width - 40, getPos(e)));
+        draw();
+        e.preventDefault();
+      }
+      function onUp() {
+        if (!dragging) return;
+        dragging = false;
+        if (chargeX < startX - 15) movedToward = 'toward';
+        else if (chargeX > startX + 15) movedToward = 'away';
+        else movedToward = null;
+        state = 'explain';
+        render();
+      }
+
+      canvas.addEventListener('mousedown', onDown);
+      canvas.addEventListener('mousemove', onMove);
+      canvas.addEventListener('mouseup', onUp);
+      canvas.addEventListener('mouseleave', onUp);
+      canvas.addEventListener('touchstart', onDown, { passive: false });
+      canvas.addEventListener('touchmove', onMove, { passive: false });
+      canvas.addEventListener('touchend', onUp);
+
+      // keyboard
+      canvas.tabIndex = 0;
+      canvas.addEventListener('keydown', (e) => {
+        if (state !== 'drag') return;
+        if (e.key === 'ArrowLeft') {
+          chargeX = Math.max(plateX + plateW + 30, chargeX - 20);
+          draw();
+        }
+        if (e.key === 'ArrowRight') {
+          chargeX = Math.min(canvas.width - 40, chargeX + 20);
+          draw();
+        }
+        if (e.key === 'Enter' || e.key === ' ') {
+          if (chargeX < startX - 15) movedToward = 'toward';
+          else if (chargeX > startX + 15) movedToward = 'away';
+          state = 'explain';
+          render();
+        }
+      });
+
+      render();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Inverse-Square Distance Test</title>
+  <style>
+    :root{--blue:#285f9f;--navy:#153456;--ink:#142238;--muted:#52657b;--line:#b8cadc;--pale:#f4f9ff;--orange:#d95f18;--green:#17643a}
+    *{box-sizing:border-box}
+    html,body{margin:0;background:transparent;color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+    button,input{font:inherit}button,input{min-height:44px}
+    .iss-app{width:min(100%,1080px);margin:auto;border:5px solid #285f9f;border-radius:24px;overflow:hidden;background:#fff;box-shadow:0 18px 48px rgba(21,52,86,.14)}
+    .iss-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:17px 21px;border-bottom:1px solid var(--line);background:linear-gradient(110deg,#fff,#eef7ff)}
+    .iss-kicker{margin:0 0 3px;color:var(--blue);font-size:.74rem;font-weight:800;letter-spacing:.11em;text-transform:uppercase}
+    h1{margin:0;color:var(--navy);font-size:clamp(1.3rem,4vw,1.9rem);line-height:1.08}
+    h2{margin:0 0 8px;color:var(--navy);font-size:.95rem}
+    .iss-reset{padding:8px 14px;border:1px solid #6c87a3;border-radius:999px;background:#fff;color:var(--navy);font-weight:750;cursor:pointer}
+    .iss-body{padding:17px}
+    .iss-stage{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:12px}
+    .iss-panel{border:1px solid #96afc8;border-radius:16px;overflow:hidden;background:linear-gradient(rgba(40,95,159,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(40,95,159,.055) 1px,transparent 1px),var(--pale);background-size:30px 30px}
+    .iss-panel svg{display:block;width:100%;height:250px}
+    .iss-controls{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:13px;align-items:end;margin-top:13px;padding:14px;border:1px solid var(--line);border-radius:16px;background:#fbfdff}
+    .iss-label{display:flex;justify-content:space-between;gap:8px;margin-bottom:6px;color:var(--navy);font-size:.8rem;font-weight:800}
+    .iss-range{width:100%;accent-color:var(--orange)}
+    .iss-record{padding:11px 18px;border:0;border-radius:10px;background:var(--blue);color:#fff;font-weight:850;cursor:pointer}
+    .iss-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,.95fr);gap:14px;margin-top:14px}
+    .iss-card{padding:14px;border:1px solid var(--line);border-radius:16px;background:#fbfdff}
+    .iss-card.locked{background:#f2f5f8;border-style:dashed}
+    .iss-table-wrap{max-height:230px;overflow:auto;border:1px solid var(--line);border-radius:12px;background:#fff}
+    table{width:100%;border-collapse:collapse;font-size:.88rem}
+    caption{padding:7px 9px;color:var(--muted);font-size:.74rem;font-weight:800;text-transform:uppercase;text-align:left}
+    th,td{padding:7px 9px;border-bottom:1px solid #e3ecf5;text-align:right}
+    th:first-child,td:first-child{text-align:left}
+    thead th{position:sticky;top:0;background:#eef5fc;color:var(--navy);font-size:.74rem;text-transform:uppercase}
+    .iss-empty{padding:14px;color:var(--muted);font-size:.85rem}
+    .iss-check{margin:11px 0 0;padding:0;list-style:none;display:grid;gap:5px;color:var(--muted);font-size:.82rem;font-weight:700}
+    .iss-check li[data-done="yes"]{color:var(--green)}
+    .iss-check b{font-family:ui-monospace,Consolas,monospace}
+    .iss-question{margin:0 0 8px;color:var(--navy);font-weight:800;line-height:1.35;font-size:.92rem}
+    .iss-answer{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .iss-answer input{width:120px;padding:8px 10px;border:1px solid #6c87a3;border-radius:10px}
+    .iss-unit{color:var(--muted);font-weight:800}
+    .iss-choices{display:grid;gap:7px;margin-top:8px}
+    .iss-choice{padding:9px 11px;border:1px solid #6c87a3;border-radius:10px;background:#fff;color:var(--ink);font-weight:750;text-align:left;cursor:pointer}
+    .iss-choice:hover{background:#e8f2fd}
+    .iss-feedback{margin:10px 0 0;padding:10px 11px;border-radius:10px;background:#e8f7ed;color:#14532d;font-size:.86rem;font-weight:650;line-height:1.4}
+    .iss-feedback[data-tone="note"]{background:#fff0e5;color:#7c2d12}
+    .iss-primary{margin-top:10px;padding:10px 15px;border:0;border-radius:10px;background:var(--blue);color:#fff;font-weight:850;cursor:pointer}
+    [hidden]{display:none!important}
+    :focus-visible{outline:3px solid #d95f18;outline-offset:3px}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    @media(max-width:760px){.iss-stage,.iss-grid,.iss-controls{grid-template-columns:1fr}.iss-body{padding:12px}.iss-panel svg{height:210px}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}}
+  </style>
+</head>
+<body>
+  <main class="iss-app" id="inverse-square-app">
+    <header class="iss-head">
+      <div><p class="iss-kicker">Unit 6 &middot; Coulomb's law</p><h1>Inverse-Square Distance Test</h1></div>
+      <button class="iss-reset" id="reset" type="button">Reset</button>
+    </header>
+    <div class="iss-body">
+      <div class="iss-stage">
+        <section class="iss-panel" aria-labelledby="scene-description">
+          <p class="sr-only" id="scene-description">Two fixed positive charges repel. The separation slider moves the right-hand charge and the force arrows change length.</p>
+          <svg viewBox="0 0 620 250" role="img" aria-labelledby="scene-title scene-desc">
+            <title id="scene-title">Two repelling charges at an adjustable separation</title>
+            <desc id="scene-desc">A three microcoulomb charge on the left and a two microcoulomb charge on the right push apart with equal and opposite force arrows.</desc>
+            <defs><marker id="issArrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L12 6 L0 12 Z" fill="#d95f18"/></marker></defs>
+            <line x1="20" y1="120" x2="600" y2="120" stroke="#c3d4e4" stroke-width="2" stroke-dasharray="7 7"/>
+            <line id="scene-force-1" x1="0" y1="120" x2="0" y2="120" stroke="#d95f18" stroke-width="6" marker-end="url(#issArrow)"/>
+            <line id="scene-force-2" x1="0" y1="120" x2="0" y2="120" stroke="#d95f18" stroke-width="6" marker-end="url(#issArrow)"/>
+            <g id="scene-charge-1"><circle cx="0" cy="120" r="26" fill="#f0764b" stroke="#7c2d12" stroke-width="4"/><text x="0" y="128" text-anchor="middle" fill="#fff" font-size="26" font-weight="850">+</text><text x="0" y="172" text-anchor="middle" fill="#153456" font-size="14" font-weight="850">q&#8321; = 3.0 &micro;C</text></g>
+            <g id="scene-charge-2"><circle cx="0" cy="120" r="22" fill="#f0764b" stroke="#7c2d12" stroke-width="4"/><text x="0" y="128" text-anchor="middle" fill="#fff" font-size="24" font-weight="850">+</text><text x="0" y="172" text-anchor="middle" fill="#153456" font-size="14" font-weight="850">q&#8322; = 2.0 &micro;C</text></g>
+            <g><line id="scene-ruler" x1="0" y1="205" x2="0" y2="205" stroke="#6b8298" stroke-width="3"/><line id="scene-cap-1" x1="0" y1="192" x2="0" y2="218" stroke="#6b8298" stroke-width="3"/><line id="scene-cap-2" x1="0" y1="192" x2="0" y2="218" stroke="#6b8298" stroke-width="3"/><text id="scene-ruler-label" x="310" y="238" text-anchor="middle" fill="#52657b" font-size="15" font-weight="800">r</text></g>
+          </svg>
+        </section>
+        <section class="iss-panel" aria-labelledby="graph-description">
+          <p class="sr-only" id="graph-description">Scatter graph of measured force against separation. Each recorded trial adds one point.</p>
+          <svg viewBox="0 0 420 250" role="img" aria-labelledby="graph-title graph-desc">
+            <title id="graph-title">Force versus separation graph</title>
+            <desc id="graph-desc" data-graph-desc>No trials recorded yet.</desc>
+            <line x1="62" y1="18" x2="62" y2="205" stroke="#6b8298" stroke-width="2"/>
+            <line x1="62" y1="205" x2="400" y2="205" stroke="#6b8298" stroke-width="2"/>
+            <text x="16" y="112" fill="#52657b" font-size="13" font-weight="800" transform="rotate(-90 16 112)" text-anchor="middle">Force (N)</text>
+            <text x="231" y="240" text-anchor="middle" fill="#52657b" font-size="13" font-weight="800">Separation r (m)</text>
+            <g id="graph-axes"></g>
+            <path id="graph-curve" fill="none" stroke="#285f9f" stroke-width="3" stroke-dasharray="6 6" hidden></path>
+            <g id="graph-points"></g>
+          </svg>
+        </section>
+      </div>
+      <div class="iss-controls">
+        <div><label class="iss-label" for="r-slider"><span>Separation r</span><output id="r-label">0.30 m</output></label><input class="iss-range" id="r-slider" type="range" min="0.1" max="0.5" step="0.05" value="0.3"></div>
+        <button class="iss-record" id="record" type="button">Record trial</button>
+      </div>
+      <div class="iss-grid">
+        <section class="iss-card" aria-labelledby="data-heading">
+          <h2 id="data-heading">Trial data</h2>
+          <div class="iss-table-wrap">
+            <table>
+              <caption>Measured separation and force</caption>
+              <thead><tr><th scope="col">Trial</th><th scope="col">r (m)</th><th scope="col">F (N)</th></tr></thead>
+              <tbody id="rows"><tr><td colspan="3" class="iss-empty">No trials recorded.</td></tr></tbody>
+            </table>
+          </div>
+          <ul class="iss-check" id="checklist">
+            <li data-done="no"><b>&bull;</b> Record 5 trials <span id="count-note">(0 of 5)</span></li>
+            <li data-done="no"><b>&bull;</b> Include one trial at 0.15 m or closer</li>
+            <li data-done="no"><b>&bull;</b> Include one trial at 0.40 m or farther</li>
+          </ul>
+        </section>
+        <section class="iss-card locked" id="analysis" aria-labelledby="analysis-heading">
+          <h2 id="analysis-heading">Analysis</h2>
+          <p class="iss-question" id="lock-note">Complete the checklist to unlock the analysis questions.</p>
+          <div id="analysis-fields" hidden>
+            <p class="iss-question" id="numeric-question">One trial at r = 0.20 m measured 1.35 N. Predict F at r = 0.40 m.</p>
+            <div class="iss-answer">
+              <label class="sr-only" for="numeric-input">Predicted force at 0.40 meters, in newtons</label>
+              <input id="numeric-input" type="number" step="0.01" inputmode="decimal" placeholder="0.00">
+              <span class="iss-unit">N (&plusmn; 0.05)</span>
+              <button class="iss-primary" id="check" type="button" style="margin-top:0">Check</button>
+            </div>
+            <div id="second-question" hidden>
+              <p class="iss-question">Tripling the separation changes the force by what factor?</p>
+              <div class="iss-choices" id="choices"></div>
+            </div>
+          </div>
+          <p class="iss-feedback" id="feedback" role="status" aria-live="polite" hidden></p>
+        </section>
+      </div>
+    </div>
+    <p class="sr-only" id="status" role="status" aria-live="polite">Set a separation, then record a trial.</p>
+    <script>
+      (() => {
+        'use strict';
+        const K = 8.99e9, Q1 = 3e-6, Q2 = 2e-6, PRODUCT = K * Q1 * Q2;
+        const F_MAX = 6, R_MIN = 0.1, R_MAX = 0.5;
+        const e = {
+          f1: document.getElementById('scene-force-1'), f2: document.getElementById('scene-force-2'),
+          c1: document.getElementById('scene-charge-1'), c2: document.getElementById('scene-charge-2'),
+          ruler: document.getElementById('scene-ruler'), cap1: document.getElementById('scene-cap-1'),
+          cap2: document.getElementById('scene-cap-2'), rulerLabel: document.getElementById('scene-ruler-label'),
+          axes: document.getElementById('graph-axes'), points: document.getElementById('graph-points'),
+          curve: document.getElementById('graph-curve'), graphDesc: document.querySelector('[data-graph-desc]'),
+          slider: document.getElementById('r-slider'), rLabel: document.getElementById('r-label'),
+          record: document.getElementById('record'), rows: document.getElementById('rows'),
+          checklist: document.getElementById('checklist').querySelectorAll('li'), countNote: document.getElementById('count-note'),
+          analysis: document.getElementById('analysis'), lockNote: document.getElementById('lock-note'),
+          fields: document.getElementById('analysis-fields'), numeric: document.getElementById('numeric-input'),
+          check: document.getElementById('check'), second: document.getElementById('second-question'),
+          choices: document.getElementById('choices'), feedback: document.getElementById('feedback'),
+          reset: document.getElementById('reset'), status: document.getElementById('status')
+        };
+        let r = 0.3, trials = [], unlocked = false, numericDone = false, completionSent = false;
+        // SVG elements do not implement the HTML `hidden` property, so toggle the attribute directly.
+        function show(element, visible) { if (visible) element.removeAttribute('hidden'); else element.setAttribute('hidden', ''); }
+
+        function force(distance) { return PRODUCT / (distance * distance); }
+        function formatForce(value) { return value >= 1 ? value.toFixed(2) : value.toFixed(3); }
+        function graphX(distance) { return 62 + (distance - 0.05) / (R_MAX + 0.05 - 0.05) * 330; }
+        function graphY(value) { return 205 - Math.min(value / F_MAX, 1) * 185; }
+
+        function drawAxes() {
+          const parts = [];
+          for (let d = 0.1; d <= 0.5001; d += 0.1) {
+            const x = graphX(d);
+            parts.push('<line x1="' + x + '" y1="205" x2="' + x + '" y2="211" stroke="#6b8298" stroke-width="2"/>');
+            parts.push('<text x="' + x + '" y="226" text-anchor="middle" fill="#52657b" font-size="12" font-weight="750">' + d.toFixed(1) + '</text>');
+          }
+          [0, 2, 4, 6].forEach((value) => {
+            const y = graphY(value);
+            parts.push('<line x1="56" y1="' + y + '" x2="62" y2="' + y + '" stroke="#6b8298" stroke-width="2"/>');
+            parts.push('<text x="52" y="' + (y + 4) + '" text-anchor="end" fill="#52657b" font-size="12" font-weight="750">' + value + '</text>');
+          });
+          e.axes.innerHTML = parts.join('');
+        }
+        function drawScene() {
+          const gap = 90 + (r - R_MIN) / (R_MAX - R_MIN) * 330;
+          const x1 = 310 - gap / 2, x2 = 310 + gap / 2;
+          e.c1.setAttribute('transform', 'translate(' + x1 + ' 0)');
+          e.c2.setAttribute('transform', 'translate(' + x2 + ' 0)');
+          const length = 150 * force(r) / (force(r) + 2.2) + 30;
+          e.f1.setAttribute('x1', x1 - 30); e.f1.setAttribute('x2', x1 - 30 - length);
+          e.f2.setAttribute('x1', x2 + 26); e.f2.setAttribute('x2', x2 + 26 + length);
+          e.ruler.setAttribute('x1', x1); e.ruler.setAttribute('x2', x2);
+          e.cap1.setAttribute('x1', x1); e.cap1.setAttribute('x2', x1);
+          e.cap2.setAttribute('x1', x2); e.cap2.setAttribute('x2', x2);
+          e.rulerLabel.textContent = 'r = ' + r.toFixed(2) + ' m';
+          e.rLabel.textContent = r.toFixed(2) + ' m';
+        }
+        function drawPoints() {
+          e.points.innerHTML = trials.map((trial) => '<circle cx="' + graphX(trial.r).toFixed(1) + '" cy="' + graphY(trial.f).toFixed(1) + '" r="6" fill="#d95f18" stroke="#fff" stroke-width="2"/>').join('');
+          e.graphDesc.textContent = trials.length
+            ? trials.map((trial) => formatForce(trial.f) + ' newtons at ' + trial.r.toFixed(2) + ' meters').join('; ')
+            : 'No trials recorded yet.';
+        }
+        function drawCurve() {
+          const parts = [];
+          for (let d = 0.095; d <= R_MAX + 0.001; d += 0.005) parts.push((parts.length ? 'L' : 'M') + graphX(d).toFixed(1) + ' ' + graphY(force(d)).toFixed(1));
+          e.curve.setAttribute('d', parts.join(' '));
+          show(e.curve, true);
+        }
+        function renderRows() {
+          if (!trials.length) { e.rows.innerHTML = '<tr><td colspan="3" class="iss-empty">No trials recorded.</td></tr>'; return; }
+          e.rows.innerHTML = trials.map((trial, index) => '<tr><td>' + (index + 1) + '</td><td>' + trial.r.toFixed(2) + '</td><td>' + formatForce(trial.f) + '</td></tr>').join('');
+        }
+        function updateChecklist() {
+          const near = trials.some((trial) => trial.r <= 0.15), far = trials.some((trial) => trial.r >= 0.4);
+          const done = [trials.length >= 5, near, far];
+          e.countNote.textContent = '(' + Math.min(trials.length, 5) + ' of 5)';
+          e.checklist.forEach((item, index) => {
+            item.dataset.done = done[index] ? 'yes' : 'no';
+            item.querySelector('b').textContent = done[index] ? '✓' : '•';
+          });
+          if (!unlocked && done.every(Boolean)) unlock();
+        }
+        function unlock() {
+          unlocked = true;
+          e.analysis.classList.remove('locked');
+          e.lockNote.hidden = true;
+          e.fields.hidden = false;
+          e.status.textContent = 'Analysis unlocked. Predict the force at zero point four meters.';
+          e.numeric.focus();
+        }
+        function recordTrial() {
+          if (trials.some((trial) => Math.abs(trial.r - r) < 0.001)) {
+            e.status.textContent = 'A trial at ' + r.toFixed(2) + ' meters is already recorded. Move the slider.';
+            return;
+          }
+          trials.push({ r: r, f: force(r) });
+          trials.sort((a, b) => a.r - b.r);
+          renderRows(); drawPoints(); updateChecklist();
+          e.status.textContent = 'Trial recorded: ' + r.toFixed(2) + ' meters, ' + formatForce(force(r)) + ' newtons. ' + trials.length + ' trials total.';
+        }
+        function checkNumeric() {
+          const value = Number(e.numeric.value);
+          if (e.numeric.value === '' || Number.isNaN(value)) {
+            e.feedback.textContent = 'Enter a number in newtons before checking.';
+            e.feedback.dataset.tone = 'note'; e.feedback.hidden = false; return;
+          }
+          if (Math.abs(value - 0.34) <= 0.05) {
+            numericDone = true;
+            e.numeric.readOnly = true; e.check.disabled = true;
+            e.feedback.textContent = 'Correct. Doubling r from 0.20 m to 0.40 m divides 1.35 N by four, giving about 0.34 N.';
+            e.feedback.dataset.tone = 'success'; e.feedback.hidden = false;
+            e.second.hidden = false;
+            e.status.textContent = 'Correct. One more question.';
+          } else {
+            e.feedback.textContent = 'Not within tolerance. Compare a pair of your own trials where one separation is double the other.';
+            e.feedback.dataset.tone = 'note'; e.feedback.hidden = false;
+            e.status.textContent = 'Not within tolerance. Your entry is kept; try again.';
+          }
+        }
+        function shuffle(list) { const copy = list.slice(); for (let i = copy.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [copy[i], copy[j]] = [copy[j], copy[i]]; } return copy; }
+        function renderChoices() {
+          e.choices.replaceChildren();
+          shuffle([
+            { text: 'One ninth', correct: true },
+            { text: 'One third', correct: false },
+            { text: 'One sixth', correct: false },
+            { text: 'Three times', correct: false }
+          ]).forEach((option) => {
+            const button = document.createElement('button');
+            button.type = 'button'; button.className = 'iss-choice'; button.textContent = option.text;
+            button.addEventListener('click', () => chooseFactor(option), { once: true });
+            e.choices.append(button);
+          });
+        }
+        function chooseFactor(option) {
+          if (!numericDone) return;
+          e.choices.querySelectorAll('button').forEach((button) => { button.disabled = true; });
+          e.feedback.textContent = (option.correct ? 'Correct. ' : 'Not quite. ') + 'Three times the separation squares to nine in the denominator, so the force is one ninth. The dashed 1/r² curve now runs through your points.';
+          e.feedback.dataset.tone = option.correct ? 'success' : 'note';
+          e.feedback.hidden = false;
+          drawCurve();
+          e.status.textContent = 'Tripling the separation gives one ninth of the force. Activity complete.';
+          sendCompletion();
+        }
+        function sendCompletion() {
+          if (completionSent) return;
+          completionSent = true;
+          window.parent.postMessage({ type: 'complete' }, '*');
+        }
+        function reset() {
+          trials = []; unlocked = false; numericDone = false; r = 0.3;
+          e.slider.value = '0.3';
+          e.numeric.value = ''; e.numeric.readOnly = false; e.check.disabled = false;
+          e.second.hidden = true; e.fields.hidden = true; e.lockNote.hidden = false;
+          e.analysis.classList.add('locked');
+          e.feedback.hidden = true; show(e.curve, false);
+          renderRows(); drawPoints(); drawScene(); updateChecklist(); renderChoices();
+          e.status.textContent = 'Set a separation, then record a trial.';
+        }
+
+        e.slider.addEventListener('input', () => { r = Number(e.slider.value); drawScene(); });
+        e.record.addEventListener('click', recordTrial);
+        e.check.addEventListener('click', checkNumeric);
+        e.numeric.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); checkNumeric(); } });
+        e.reset.addEventListener('click', reset);
+        drawAxes();
+        reset();
+      })();
+    </script>
+  </main>
+</body>
+</html>

@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Half-Life Lab: One Nucleus Versus a Population</title>
+  <style>
+    :root {
+      --navy: #153456;
+      --blue: #285f9f;
+      --blue-dark: #174b86;
+      --blue-soft: #e8f2fd;
+      --cyan: #36a6c9;
+      --orange: #e56b24;
+      --orange-soft: #fff1e8;
+      --ink: #132238;
+      --muted: #52657b;
+      --line: #c8d7e8;
+      --surface: #ffffff;
+      --stage: #f4f9ff;
+      --success-soft: #e8f7ed;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      margin: 0;
+      background: transparent;
+      color: var(--ink);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    button { font: inherit; touch-action: manipulation; min-height: 44px; }
+
+    .hlp-app {
+      width: min(100%, 1080px);
+      margin: 0 auto;
+      border: 5px solid #285f9f;
+      border-radius: 24px;
+      overflow: hidden;
+      background: var(--surface);
+      box-shadow: 0 18px 48px rgba(21, 52, 86, 0.14);
+    }
+
+    .hlp-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 18px 22px 15px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(115deg, #fff 0%, #eef7ff 100%);
+    }
+
+    .hlp-kicker {
+      margin: 0 0 3px;
+      color: var(--blue);
+      font-size: 0.73rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--navy);
+      font-size: clamp(1.3rem, 3.9vw, 1.95rem);
+      letter-spacing: -0.03em;
+      line-height: 1.08;
+    }
+
+    .hlp-reset {
+      flex: 0 0 auto;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--blue-dark);
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    .hlp-main { padding: 18px; }
+
+    .hlp-stage {
+      position: relative;
+      border: 1px solid #adc6df;
+      border-radius: 18px;
+      overflow: hidden;
+      background: var(--stage);
+    }
+
+    .hlp-stage-top {
+      position: absolute;
+      z-index: 2;
+      inset: 12px 13px auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .hlp-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 30px;
+      padding: 5px 11px;
+      border: 1px solid rgba(40, 95, 159, 0.23);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.93);
+      color: var(--navy);
+      font-size: 0.78rem;
+      font-weight: 800;
+      box-shadow: 0 4px 14px rgba(21, 52, 86, 0.08);
+    }
+
+    .hlp-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--orange); }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 1000 / 340;
+    }
+
+    .hlp-readouts {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 9px;
+      margin-top: 12px;
+    }
+
+    .hlp-readout {
+      min-width: 0;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: #fff;
+    }
+
+    .hlp-readout-label {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--muted);
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .hlp-readout output {
+      display: block;
+      color: var(--navy);
+      font-size: clamp(0.9rem, 2.2vw, 1.08rem);
+      font-weight: 850;
+      line-height: 1.25;
+    }
+
+    .hlp-workbench {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 0.88fr);
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .hlp-panel {
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #f9fbfe;
+    }
+
+    .hlp-panel-title {
+      margin: 0 0 6px;
+      color: var(--navy);
+      font-size: 1rem;
+      font-weight: 850;
+    }
+
+    .hlp-panel-text {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    .hlp-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+    .hlp-primary {
+      flex: 1 1 180px;
+      padding: 10px 14px;
+      border: 0;
+      border-radius: 11px;
+      background: var(--blue);
+      color: #fff;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 5px 13px rgba(40,95,159,0.22);
+    }
+
+    .hlp-primary:hover:not(:disabled) { background: var(--blue-dark); }
+    .hlp-primary:disabled, .hlp-choice:disabled, .hlp-check:disabled { cursor: not-allowed; opacity: 0.58; }
+
+    .hlp-secondary {
+      flex: 0 1 150px;
+      padding: 9px 12px;
+      border: 1px solid #9db4cc;
+      border-radius: 11px;
+      background: #fff;
+      color: var(--navy);
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .hlp-table-wrap {
+      max-height: 232px;
+      margin-top: 12px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+
+    caption {
+      padding: 8px 10px;
+      color: var(--muted);
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-align: left;
+      text-transform: uppercase;
+    }
+
+    th, td {
+      padding: 7px 10px;
+      border-bottom: 1px solid #e3ecf6;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    th:first-child, td:first-child { text-align: left; }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      background: var(--blue-soft);
+      color: var(--blue-dark);
+      font-size: 0.74rem;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    tbody td { color: var(--navy); font-weight: 750; }
+    .hlp-empty td { color: var(--muted); font-weight: 600; text-align: left; }
+
+    .hlp-analysis { background: #fff; }
+    .hlp-analysis[data-locked="true"] { background: #f4f6fa; }
+
+    .hlp-lock {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 12px;
+      padding: 9px 11px;
+      border-radius: 11px;
+      background: var(--orange-soft);
+      color: #7c2d12;
+      font-size: 0.85rem;
+      font-weight: 750;
+    }
+
+    .hlp-question { margin: 14px 0 0; }
+    .hlp-question:first-of-type { margin-top: 4px; }
+
+    .hlp-question-text {
+      margin: 0 0 7px;
+      color: var(--navy);
+      font-size: 0.95rem;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .hlp-choices { display: grid; gap: 6px; }
+
+    .hlp-choice {
+      min-height: 42px;
+      padding: 8px 11px;
+      border: 1px solid #9eb4cb;
+      border-radius: 11px;
+      background: #fff;
+      color: var(--ink);
+      font-size: 0.88rem;
+      font-weight: 700;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .hlp-choice:hover:not(:disabled) { border-color: var(--blue); background: var(--blue-soft); }
+    .hlp-choice[data-state="right"] { border-color: #1f7a45; background: var(--success-soft); color: #14532d; }
+    .hlp-choice[data-state="wrong"] { border-color: #b45309; background: var(--orange-soft); color: #7c2d12; }
+    .hlp-choice:disabled[data-state] { opacity: 1; }
+
+    .hlp-numeric { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+    .hlp-numeric label { color: var(--muted); font-size: 0.83rem; font-weight: 750; }
+
+    input[type="number"] {
+      width: 108px;
+      min-height: 44px;
+      padding: 8px 10px;
+      border: 1px solid #9eb4cb;
+      border-radius: 11px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      font-weight: 750;
+    }
+
+    .hlp-unit { color: var(--muted); font-size: 0.85rem; font-weight: 750; }
+
+    .hlp-check {
+      padding: 9px 14px;
+      border: 1px solid var(--blue);
+      border-radius: 11px;
+      background: var(--blue-soft);
+      color: var(--blue-dark);
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .hlp-note {
+      margin: 7px 0 0;
+      padding: 8px 11px;
+      border-radius: 10px;
+      background: var(--success-soft);
+      color: #14532d;
+      font-size: 0.84rem;
+      font-weight: 650;
+      line-height: 1.4;
+    }
+
+    .hlp-note[data-tone="note"] { background: var(--orange-soft); color: #7c2d12; }
+
+    .hlp-summary {
+      margin: 14px 0 0;
+      padding: 11px 13px;
+      border-radius: 12px;
+      background: var(--blue-soft);
+      color: var(--navy);
+      font-size: 0.9rem;
+      font-weight: 750;
+      line-height: 1.45;
+    }
+
+    [hidden] { display: none !important; }
+
+    :focus-visible { outline: 3px solid #e56b24; outline-offset: 3px; }
+
+    .hlp-sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 760px) {
+      .hlp-main { padding: 12px; }
+      .hlp-workbench { grid-template-columns: 1fr; }
+      .hlp-readouts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 480px) {
+      .hlp-header { align-items: flex-start; padding: 15px 14px 13px; }
+      .hlp-readout { padding: 9px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="hlp-app" id="halflife-app">
+    <header class="hlp-header">
+      <div>
+        <p class="hlp-kicker">Unit 5 · Lesson 5 · Part 2</p>
+        <h1>Half-Life Lab: One Nucleus Versus a Population</h1>
+      </div>
+      <button class="hlp-reset" id="reset-button" type="button">New sample</button>
+    </header>
+
+    <div class="hlp-main">
+      <section class="hlp-stage">
+        <div class="hlp-stage-top" aria-hidden="true">
+          <span class="hlp-badge"><span class="hlp-dot"></span><span id="sample-badge">240 unstable nuclei</span></span>
+          <span class="hlp-badge" id="run-badge">Ready</span>
+        </div>
+        <canvas id="sample-canvas" role="img" aria-labelledby="canvas-label"></canvas>
+        <p class="hlp-sr-only" id="canvas-label">A grid of 240 nuclei. Unstable nuclei are orange, decayed nuclei are grey, and one tagged nucleus is ringed. Counts are also given in the readouts and data table.</p>
+      </section>
+
+      <div class="hlp-readouts">
+        <div class="hlp-readout">
+          <span class="hlp-readout-label">Half-lives run</span>
+          <output id="interval-output">0</output>
+        </div>
+        <div class="hlp-readout">
+          <span class="hlp-readout-label">Time elapsed</span>
+          <output id="time-output">0 s</output>
+        </div>
+        <div class="hlp-readout">
+          <span class="hlp-readout-label">Still unstable</span>
+          <output id="remaining-output">240</output>
+        </div>
+        <div class="hlp-readout">
+          <span class="hlp-readout-label">Tagged nucleus</span>
+          <output id="tagged-output">Still unstable</output>
+        </div>
+      </div>
+
+      <div class="hlp-workbench">
+        <section class="hlp-panel" aria-label="Trial controls and data table">
+          <p class="hlp-panel-title">Run the sample</p>
+          <p class="hlp-panel-text">Each run advances the clock by one half-life of 20 seconds.</p>
+          <div class="hlp-controls">
+            <button class="hlp-primary" id="run-button" type="button">Run one half-life</button>
+            <button class="hlp-secondary" id="tag-button" type="button">Tag a new nucleus</button>
+          </div>
+          <div class="hlp-table-wrap">
+            <table>
+              <caption>Trial data</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Half-lives</th>
+                  <th scope="col">Time (s)</th>
+                  <th scope="col">Unstable left</th>
+                  <th scope="col">Decayed this run</th>
+                </tr>
+              </thead>
+              <tbody id="table-body">
+                <tr class="hlp-empty"><td colspan="4">No runs yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="hlp-panel hlp-analysis" id="analysis-panel" data-locked="true" aria-labelledby="analysis-title">
+          <p class="hlp-panel-title" id="analysis-title">Analysis</p>
+          <p class="hlp-lock" id="analysis-lock">Run 4 half-lives to unlock these questions.</p>
+
+          <div class="hlp-question">
+            <p class="hlp-question-text" id="q1-text">Using your table, about how many of the original 240 are still unstable after 6 half-lives?</p>
+            <div class="hlp-numeric">
+              <label for="q1-input">Your answer</label>
+              <input type="number" id="q1-input" min="0" max="240" step="1" inputmode="numeric" aria-describedby="q1-note" disabled>
+              <span class="hlp-unit">nuclei</span>
+              <button class="hlp-check" id="q1-check" type="button" disabled>Check</button>
+            </div>
+            <p class="hlp-note" id="q1-note" role="status" aria-live="polite" hidden></p>
+          </div>
+
+          <div class="hlp-question">
+            <p class="hlp-question-text" id="q2-text">What does one half-life do to this sample?</p>
+            <div class="hlp-choices" id="q2-choices"></div>
+            <p class="hlp-note" id="q2-note" role="status" aria-live="polite" hidden></p>
+          </div>
+
+          <div class="hlp-question">
+            <p class="hlp-question-text" id="q3-text">Before the first run, could the exact half-life in which your tagged nucleus decays have been predicted?</p>
+            <div class="hlp-choices" id="q3-choices"></div>
+            <p class="hlp-note" id="q3-note" role="status" aria-live="polite" hidden></p>
+          </div>
+
+          <p class="hlp-summary" id="summary" hidden></p>
+        </section>
+      </div>
+    </div>
+
+    <p class="hlp-sr-only" id="status" role="status" aria-live="polite">Half-life lab ready.</p>
+
+    <script>
+      (() => {
+        'use strict';
+
+        const W = 1000;
+        const H = 340;
+        const COLS = 24;
+        const ROWS = 10;
+        const TOTAL = COLS * ROWS;
+        const HALF_LIFE = 20;        // seconds
+        const UNLOCK_RUNS = 4;
+        const FADE = 0.9;            // seconds of decay animation per run
+
+        const ALIVE = '#e56b24';
+        const DEAD = '#9db4cc';
+
+        const el = {
+          canvas: document.getElementById('sample-canvas'),
+          sampleBadge: document.getElementById('sample-badge'),
+          runBadge: document.getElementById('run-badge'),
+          interval: document.getElementById('interval-output'),
+          time: document.getElementById('time-output'),
+          remaining: document.getElementById('remaining-output'),
+          tagged: document.getElementById('tagged-output'),
+          run: document.getElementById('run-button'),
+          tag: document.getElementById('tag-button'),
+          tableBody: document.getElementById('table-body'),
+          analysis: document.getElementById('analysis-panel'),
+          lock: document.getElementById('analysis-lock'),
+          q1Input: document.getElementById('q1-input'),
+          q1Check: document.getElementById('q1-check'),
+          q1Note: document.getElementById('q1-note'),
+          q2Choices: document.getElementById('q2-choices'),
+          q2Note: document.getElementById('q2-note'),
+          q3Choices: document.getElementById('q3-choices'),
+          q3Note: document.getElementById('q3-note'),
+          summary: document.getElementById('summary'),
+          reset: document.getElementById('reset-button'),
+          status: document.getElementById('status')
+        };
+
+        const ctx = el.canvas.getContext('2d');
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        const questions = {
+          q2: {
+            solved: false,
+            options: [
+              { text: 'About half of whatever is left decays', correct: true,
+                note: 'Yes. Each run removes roughly half of the survivors, so the count keeps halving instead of ever reaching zero.' },
+              { text: 'Half decays, then the rest goes in the next one', correct: false,
+                note: 'Your second row would then be zero. Compare it with the first row and try again.' },
+              { text: 'Every nucleus has decayed by two half-lives', correct: false,
+                note: 'Check the count after your second run — a quarter of the sample was still unstable.' }
+            ]
+          },
+          q3: {
+            solved: false,
+            options: [
+              { text: 'No — each nucleus only has a chance per half-life', correct: true,
+                note: 'Right. One nucleus is a coin flip each interval; only the large sample follows a smooth curve.' },
+              { text: 'Yes — every nucleus decays at exactly one half-life', correct: false,
+                note: 'Half the sample was still unstable after one half-life, so they cannot all decay on schedule.' },
+              { text: 'Yes — its place in the grid sets its decay time', correct: false,
+                note: 'Tag a new nucleus and run again — position has nothing to do with when it goes.' }
+            ]
+          }
+        };
+
+        let nuclei = [];
+        let taggedIndex = 0;
+        let runs = 0;
+        let animating = false;
+        let animationTime = 0;
+        let previousFrame = 0;
+        let completionSent = false;
+        let q1Solved = false;
+
+        function buildSample() {
+          nuclei = [];
+          for (let i = 0; i < TOTAL; i += 1) {
+            nuclei.push({ alive: true, decayedRun: null, fade: 0, offset: Math.random() });
+          }
+          taggedIndex = Math.floor(Math.random() * TOTAL);
+        }
+
+        function settledRemaining() { return nuclei.filter((n) => n.alive).length; }
+
+        function fitCanvas() {
+          const ratio = window.devicePixelRatio || 1;
+          const cssWidth = el.canvas.clientWidth || W;
+          const cssHeight = cssWidth * (H / W);
+          el.canvas.width = Math.round(cssWidth * ratio);
+          el.canvas.height = Math.round(cssHeight * ratio);
+          ctx.setTransform((cssWidth * ratio) / W, 0, 0, (cssHeight * ratio) / H, 0, 0);
+        }
+
+        function cellPosition(i) {
+          const marginX = 46;
+          const top = 104;
+          const bottom = 20;
+          const colWidth = (W - marginX * 2) / (COLS - 1);
+          const rowHeight = (H - top - bottom) / (ROWS - 1);
+          return {
+            x: marginX + (i % COLS) * colWidth,
+            y: top + Math.floor(i / COLS) * rowHeight
+          };
+        }
+
+        function draw() {
+          ctx.clearRect(0, 0, W, H);
+          ctx.fillStyle = '#f4f9ff';
+          ctx.fillRect(0, 0, W, H);
+
+          ctx.font = '700 15px system-ui, sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillStyle = ALIVE;
+          ctx.beginPath();
+          ctx.arc(46, 74, 9, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#52657b';
+          ctx.fillText('unstable', 62, 80);
+          ctx.fillStyle = DEAD;
+          ctx.beginPath();
+          ctx.arc(166, 74, 6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#52657b';
+          ctx.fillText('decayed', 180, 80);
+
+          nuclei.forEach((n, i) => {
+            const { x, y } = cellPosition(i);
+            const fade = n.fade;
+            if (fade <= 0) {
+              ctx.fillStyle = ALIVE;
+              ctx.beginPath();
+              ctx.arc(x, y, 9, 0, Math.PI * 2);
+              ctx.fill();
+            } else if (fade >= 1) {
+              ctx.fillStyle = DEAD;
+              ctx.beginPath();
+              ctx.arc(x, y, 5, 0, Math.PI * 2);
+              ctx.fill();
+            } else {
+              ctx.globalAlpha = 1 - fade * 0.55;
+              ctx.fillStyle = ALIVE;
+              ctx.beginPath();
+              ctx.arc(x, y, 9 - 4 * fade, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.globalAlpha = 1;
+              ctx.strokeStyle = '#b45309';
+              ctx.lineWidth = 2;
+              ctx.beginPath();
+              ctx.arc(x, y, 9 + 12 * fade, 0, Math.PI * 2);
+              ctx.stroke();
+            }
+          });
+
+          const tag = cellPosition(taggedIndex);
+          ctx.strokeStyle = '#153456';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(tag.x, tag.y, 15, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.font = '800 13px system-ui, sans-serif';
+          ctx.fillStyle = '#153456';
+          ctx.textAlign = 'center';
+          ctx.fillText('tagged', tag.x, tag.y - 21);
+          ctx.textAlign = 'left';
+        }
+
+        function updateReadouts() {
+          const left = settledRemaining();
+          el.interval.textContent = String(runs);
+          el.time.textContent = `${runs * HALF_LIFE} s`;
+          el.remaining.textContent = String(left);
+          const tagged = nuclei[taggedIndex];
+          el.tagged.textContent = tagged.alive
+            ? 'Still unstable'
+            : `Decayed in half-life ${tagged.decayedRun}`;
+          el.sampleBadge.textContent = `${left} of ${TOTAL} unstable`;
+        }
+
+        function addRow(decayedThisRun) {
+          const placeholder = el.tableBody.querySelector('.hlp-empty');
+          if (placeholder) placeholder.remove();
+          const row = document.createElement('tr');
+          [runs, runs * HALF_LIFE, settledRemaining(), decayedThisRun].forEach((value) => {
+            const cell = document.createElement('td');
+            cell.textContent = String(value);
+            row.append(cell);
+          });
+          el.tableBody.append(row);
+        }
+
+        function runHalfLife() {
+          if (animating) return;
+          const alive = nuclei.filter((n) => n.alive);
+          if (!alive.length) {
+            el.status.textContent = 'Every nucleus in the sample has decayed. Start a new sample to run again.';
+            return;
+          }
+          runs += 1;
+          let decayed = 0;
+          alive.forEach((n) => {
+            if (Math.random() < 0.5) {
+              n.alive = false;
+              n.decayedRun = runs;
+              n.offset = Math.random() * 0.55;
+              decayed += 1;
+            }
+          });
+
+          addRow(decayed);
+          updateReadouts();
+          el.runBadge.textContent = `Half-life ${runs}`;
+
+          if (reduceMotion) {
+            nuclei.forEach((n) => { if (!n.alive) n.fade = 1; });
+            draw();
+          } else {
+            animating = true;
+            animationTime = 0;
+            el.run.disabled = true;
+          }
+
+          el.status.textContent = `Half-life ${runs}: ${decayed} decayed, ${settledRemaining()} still unstable.`;
+          if (runs >= UNLOCK_RUNS) unlockAnalysis();
+        }
+
+        function unlockAnalysis() {
+          if (el.analysis.dataset.locked === 'false') return;
+          el.analysis.dataset.locked = 'false';
+          el.lock.hidden = true;
+          el.q1Input.disabled = false;
+          el.q1Check.disabled = false;
+          el.q2Choices.querySelectorAll('button').forEach((button) => { button.disabled = false; });
+          el.q3Choices.querySelectorAll('button').forEach((button) => { button.disabled = false; });
+          el.status.textContent = 'Analysis questions unlocked.';
+        }
+
+        function checkQ1() {
+          const value = Number(el.q1Input.value);
+          if (el.q1Input.value === '' || Number.isNaN(value)) {
+            el.q1Note.dataset.tone = 'note';
+            el.q1Note.textContent = 'Enter a number of nuclei first.';
+            el.q1Note.hidden = false;
+            return;
+          }
+          if (value >= 2 && value <= 6) {
+            q1Solved = true;
+            el.q1Note.dataset.tone = 'success';
+            el.q1Note.textContent = 'Close enough. Halving 240 six times leaves about 4, so the sample thins out but never quite empties.';
+            el.q1Input.readOnly = true;
+            el.q1Check.disabled = true;
+          } else {
+            el.q1Note.dataset.tone = 'note';
+            el.q1Note.textContent = value > 6
+              ? 'Too many. Keep halving your last table row two more times.'
+              : 'Too few. Halving 240 six times does not reach zero.';
+          }
+          el.q1Note.hidden = false;
+          checkComplete();
+        }
+
+        function renderChoiceQuestion(key, container, note) {
+          container.replaceChildren();
+          const shuffled = questions[key].options.slice();
+          for (let i = shuffled.length - 1; i > 0; i -= 1) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+          }
+          shuffled.forEach((option) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'hlp-choice';
+            button.textContent = option.text;
+            button.disabled = el.analysis.dataset.locked === 'true';
+            button.addEventListener('click', () => {
+              if (questions[key].solved) return;
+              button.dataset.state = option.correct ? 'right' : 'wrong';
+              note.dataset.tone = option.correct ? 'success' : 'note';
+              note.textContent = option.note;
+              note.hidden = false;
+              if (option.correct) {
+                questions[key].solved = true;
+                container.querySelectorAll('button').forEach((other) => { other.disabled = true; });
+                checkComplete();
+              }
+            });
+            container.append(button);
+          });
+        }
+
+        function checkComplete() {
+          if (!q1Solved || !questions.q2.solved || !questions.q3.solved) return;
+          el.summary.textContent = 'A single nucleus is unpredictable, yet 240 of them halve on schedule. That is why half-life describes populations, not individuals.';
+          el.summary.hidden = false;
+          if (completionSent) return;
+          completionSent = true;
+          window.parent.postMessage({ type: 'complete' }, '*');
+          el.status.textContent = 'Half-life lab analysis complete.';
+        }
+
+        function animate(now) {
+          const delta = previousFrame ? Math.min((now - previousFrame) / 1000, 0.05) : 0;
+          previousFrame = now;
+          if (animating) {
+            animationTime += delta;
+            let pending = false;
+            nuclei.forEach((n) => {
+              if (n.alive || n.fade >= 1) return;
+              const start = n.offset * FADE * 0.6;
+              n.fade = Math.max(0, Math.min(1, (animationTime - start) / (FADE * 0.5)));
+              if (n.fade < 1) pending = true;
+            });
+            if (!pending || animationTime > FADE + 0.4) {
+              nuclei.forEach((n) => { if (!n.alive) n.fade = 1; });
+              animating = false;
+              el.run.disabled = false;
+              el.runBadge.textContent = settledRemaining() ? `Half-life ${runs}` : 'Sample spent';
+            }
+          }
+          draw();
+          requestAnimationFrame(animate);
+        }
+
+        function reset() {
+          buildSample();
+          runs = 0;
+          animating = false;
+          el.run.disabled = false;
+          el.runBadge.textContent = 'Ready';
+          el.tableBody.replaceChildren();
+          const row = document.createElement('tr');
+          row.className = 'hlp-empty';
+          const cell = document.createElement('td');
+          cell.colSpan = 4;
+          cell.textContent = 'No runs yet.';
+          row.append(cell);
+          el.tableBody.append(row);
+
+          el.analysis.dataset.locked = 'true';
+          el.lock.hidden = false;
+          el.q1Input.value = '';
+          el.q1Input.readOnly = false;
+          el.q1Input.disabled = true;
+          el.q1Check.disabled = true;
+          el.q1Note.hidden = true;
+          q1Solved = false;
+          questions.q2.solved = false;
+          questions.q3.solved = false;
+          el.q2Note.hidden = true;
+          el.q3Note.hidden = true;
+          el.summary.hidden = true;
+          renderChoiceQuestion('q2', el.q2Choices, el.q2Note);
+          renderChoiceQuestion('q3', el.q3Choices, el.q3Note);
+
+          updateReadouts();
+          draw();
+          el.status.textContent = 'New sample of 240 unstable nuclei. Run one half-life to begin.';
+        }
+
+        el.run.addEventListener('click', runHalfLife);
+        el.tag.addEventListener('click', () => {
+          const alive = nuclei.map((n, i) => ({ n, i })).filter((item) => item.n.alive);
+          const pool = alive.length ? alive : nuclei.map((n, i) => ({ n, i }));
+          taggedIndex = pool[Math.floor(Math.random() * pool.length)].i;
+          updateReadouts();
+          draw();
+          el.status.textContent = 'A different nucleus is now tagged.';
+        });
+        el.q1Check.addEventListener('click', checkQ1);
+        el.q1Input.addEventListener('keydown', (event) => { if (event.key === 'Enter') checkQ1(); });
+        el.reset.addEventListener('click', reset);
+        window.addEventListener('resize', () => { fitCanvas(); draw(); });
+        document.addEventListener('visibilitychange', () => { if (document.hidden) previousFrame = 0; });
+
+        fitCanvas();
+        reset();
+        requestAnimationFrame(animate);
+      })();
+    </script>
+  </main>
+</body>
+</html>

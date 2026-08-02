@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sim 2: Speed of Sound Explorer</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --accent: #34d399;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 16px;
+  }
+  h1 { font-size: 1.4rem; margin-bottom: 4px; color: var(--accent); }
+  .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 16px; }
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 16px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+  .canvas-wrap {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 12px;
+  }
+  canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 8px;
+    background: #0b1220;
+  }
+  .controls {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .control-group label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  button {
+    background: #334155;
+    color: var(--text);
+    border: none;
+    padding: 9px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background 0.15s;
+  }
+  button:hover { background: #475569; }
+  button.active {
+    background: var(--accent);
+    color: #0f172a;
+    font-weight: 600;
+  }
+  .info-box {
+    background: #0f172a;
+    border-left: 3px solid var(--accent);
+    padding: 10px 12px;
+    border-radius: 0 8px 8px 0;
+    font-size: 0.85rem;
+    line-height: 1.45;
+  }
+  .speed-display {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--accent);
+    text-align: center;
+    padding: 8px;
+    background: #0f172a;
+    border-radius: 8px;
+  }
+  .speed-display small { font-size: 0.75rem; color: var(--muted); font-weight: 400; }
+  .prediction {
+    background: #134e4a;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 0.82rem;
+  }
+  .prediction strong { color: #6ee7b7; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+  th, td {
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 1px solid #334155;
+  }
+  th { color: var(--muted); font-weight: 500; }
+</style>
+</head>
+<body>
+  <h1>Simulation 2: Speed of Sound Explorer</h1>
+  <p class="subtitle">Unit 5 Lesson 2 · Part 1 · How medium & temperature affect sound speed</p>
+
+  <div class="layout">
+    <div class="canvas-wrap">
+      <canvas id="c" width="800" height="440"></canvas>
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <label>Choose medium</label>
+        <div class="btn-row">
+          <button id="btnGas" class="active">Gas (Air)</button>
+          <button id="btnLiquid">Liquid (Water)</button>
+          <button id="btnSolid">Solid (Steel)</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label>Temperature (affects gas most)</label>
+        <div class="btn-row">
+          <button id="btnCold">Cold (−10 °C)</button>
+          <button id="btnRoom" class="active">Room (20 °C)</button>
+          <button id="btnHot">Hot (40 °C)</button>
+        </div>
+      </div>
+
+      <div class="speed-display">
+        <span id="speedNum">343</span> m/s<br>
+        <small id="speedNote">Air at 20 °C</small>
+      </div>
+
+      <div class="btn-row">
+        <button id="fireBtn" style="background:#059669; flex:1;">Fire Pulse →</button>
+        <button id="resetBtn">Reset</button>
+      </div>
+
+      <div class="info-box" id="info">
+        Sound travels by particles bumping into neighbors. In solids the particles are tightly bound and springy → fastest. Liquids are intermediate. Gases are slowest because molecules are far apart.
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>Medium</th><th>Approx. speed</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Air (20 °C)</td><td>~343 m/s</td></tr>
+          <tr><td>Water</td><td>~1480 m/s</td></tr>
+          <tr><td>Steel</td><td>~5100 m/s</td></tr>
+        </tbody>
+      </table>
+
+      <div class="prediction">
+        <strong>Misconceptions to test:</strong><br>
+        • Does sound travel faster in denser media?<br>
+        • Will sound reach you sooner on a hot day?<br>
+        • Why is steel faster even though air is “lighter”?
+      </div>
+    </div>
+  </div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+const speeds = {
+  gas:   { cold: 319, room: 343, hot: 355, label: 'Air', color: '#38bdf8' },
+  liquid:{ cold: 1400, room: 1480, hot: 1520, label: 'Water', color: '#22d3ee' },
+  solid: { cold: 5000, room: 5100, hot: 5150, label: 'Steel', color: '#a78bfa' }
+};
+
+let medium = 'gas';
+let temp = 'room';
+let pulseX = 80;
+let firing = false;
+let startTime = 0;
+let arrived = false;
+
+const speedNum = document.getElementById('speedNum');
+const speedNote = document.getElementById('speedNote');
+const info = document.getElementById('info');
+
+function setMedium(m) {
+  medium = m;
+  ['btnGas','btnLiquid','btnSolid'].forEach(id => document.getElementById(id).classList.remove('active'));
+  document.getElementById('btn' + m.charAt(0).toUpperCase() + m.slice(1)).classList.add('active');
+  updateSpeed();
+  resetPulse();
+}
+function setTemp(t) {
+  temp = t;
+  ['btnCold','btnRoom','btnHot'].forEach(id => document.getElementById(id).classList.remove('active'));
+  document.getElementById('btn' + t.charAt(0).toUpperCase() + t.slice(1)).classList.add('active');
+  updateSpeed();
+  resetPulse();
+}
+function updateSpeed() {
+  const s = speeds[medium][temp];
+  speedNum.textContent = s;
+  const tLabel = temp === 'cold' ? '−10 °C' : temp === 'hot' ? '40 °C' : '20 °C';
+  speedNote.textContent = `${speeds[medium].label} at ${tLabel}`;
+
+  if (medium === 'solid') {
+    info.innerHTML = '<b>Solid (steel):</b> Particles are tightly linked by strong elastic forces. Even though density is high, the restoring force is huge → sound races through at ~5100 m/s.';
+  } else if (medium === 'liquid') {
+    info.innerHTML = '<b>Liquid (water):</b> Molecules are closer than in air and interact more strongly, so sound travels about 4× faster than in air (~1480 m/s).';
+  } else {
+    info.innerHTML = '<b>Gas (air):</b> Molecules are far apart. Higher temperature → faster molecular motion → slightly higher sound speed. Cold air slows sound.';
+  }
+}
+
+document.getElementById('btnGas').onclick = () => setMedium('gas');
+document.getElementById('btnLiquid').onclick = () => setMedium('liquid');
+document.getElementById('btnSolid').onclick = () => setMedium('solid');
+document.getElementById('btnCold').onclick = () => setTemp('cold');
+document.getElementById('btnRoom').onclick = () => setTemp('room');
+document.getElementById('btnHot').onclick = () => setTemp('hot');
+
+function resetPulse() {
+  pulseX = 80;
+  firing = false;
+  arrived = false;
+}
+document.getElementById('resetBtn').onclick = resetPulse;
+
+document.getElementById('fireBtn').onclick = () => {
+  if (firing) return;
+  pulseX = 80;
+  firing = true;
+  arrived = false;
+  startTime = performance.now();
+};
+
+const trackY = H / 2;
+const startX = 80;
+const endX = W - 80;
+
+function draw() {
+  ctx.fillStyle = '#0b1220';
+  ctx.fillRect(0, 0, W, H);
+
+  // Track
+  ctx.strokeStyle = '#334155';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(startX, trackY);
+  ctx.lineTo(endX, trackY);
+  ctx.stroke();
+
+  // Start & finish markers
+  ctx.fillStyle = '#64748b';
+  ctx.fillRect(startX - 4, trackY - 25, 8, 50);
+  ctx.fillRect(endX - 4, trackY - 25, 8, 50);
+  ctx.font = '12px sans-serif';
+  ctx.fillText('Source', startX - 20, trackY + 50);
+  ctx.fillText('Detector', endX - 25, trackY + 50);
+
+  // Medium background tint
+  const col = speeds[medium].color;
+  ctx.fillStyle = col + '18';
+  ctx.fillRect(startX, trackY - 60, endX - startX, 120);
+
+  // Particles hint (static)
+  const spacing = medium === 'solid' ? 8 : medium === 'liquid' ? 14 : 22;
+  for (let x = startX + 10; x < endX - 10; x += spacing) {
+    ctx.beginPath();
+    ctx.arc(x, trackY, medium === 'solid' ? 3 : 4, 0, Math.PI * 2);
+    ctx.fillStyle = col + '55';
+    ctx.fill();
+  }
+
+  // Moving pulse
+  if (firing) {
+    const realSpeed = speeds[medium][temp]; // m/s
+    // Map real speed to pixels: we pretend the track is 100 m long
+    const trackLengthM = 100;
+    const pxPerM = (endX - startX) / trackLengthM;
+    const elapsed = (performance.now() - startTime) / 1000; // seconds
+    pulseX = startX + realSpeed * elapsed * pxPerM;
+
+    if (pulseX >= endX) {
+      pulseX = endX;
+      firing = false;
+      arrived = true;
+    }
+
+    // Draw compression pulse
+    const grd = ctx.createRadialGradient(pulseX, trackY, 0, pulseX, trackY, 30);
+    grd.addColorStop(0, col);
+    grd.addColorStop(1, 'transparent');
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.arc(pulseX, trackY, 30, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(pulseX, trackY, 6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Arrival message
+  if (arrived) {
+    ctx.fillStyle = varAccent();
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    const time = ((endX - startX) / ((endX - startX) / 100) / speeds[medium][temp]).toFixed(3);
+    ctx.fillText(`Arrived! Travel time ≈ ${time} s for 100 m`, W / 2, 40);
+    ctx.textAlign = 'left';
+  }
+
+  // Title of current medium
+  ctx.fillStyle = col;
+  ctx.font = 'bold 15px sans-serif';
+  ctx.fillText(speeds[medium].label + ' medium', 20, 30);
+
+  requestAnimationFrame(draw);
+}
+function varAccent() { return speeds[medium].color; }
+updateSpeed();
+draw();
+</script>
+</body>
+</html>

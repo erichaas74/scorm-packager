@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coil Turns vs. Lifting Strength</title>
+  <style>
+    html, body { background: transparent; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; }
+    .app { max-width: 720px; margin: 0 auto; padding: 8px; box-sizing: border-box; }
+    .card { border: 5px solid #285f9f; border-radius: 12px; background: #f8fafc; overflow: hidden; display: flex; flex-direction: column; }
+    .header { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #e2e8f0; border-bottom: 1px solid #cbd5e1; }
+    .header h1 { margin: 0; font-size: 1rem; font-weight: 600; color: #1e293b; }
+    .stage { position: relative; width: 100%; aspect-ratio: 16/10; background: #0f172a; overflow: hidden; }
+    canvas { display: block; width: 100%; height: 100%; }
+    .prompt-area { padding: 12px; background: #fff; border-top: 1px solid #e2e8f0; min-height: 130px; display: flex; flex-direction: column; gap: 8px; }
+    .prompt { margin: 0; font-size: 0.95rem; color: #1e293b; line-height: 1.4; }
+    .choices { display: flex; flex-wrap: wrap; gap: 8px; }
+    .choices button { flex: 1 1 140px; padding: 10px 12px; font-size: 0.9rem; font-weight: 600; border: 2px solid #285f9f; border-radius: 8px; background: #fff; color: #1e293b; cursor: pointer; min-height: 44px; }
+    .choices button:hover, .choices button:focus { background: #dbeafe; outline: 2px solid #285f9f; outline-offset: 2px; }
+    .feedback { margin: 0; font-size: 0.9rem; color: #0f172a; min-height: 1.4em; }
+    .main-btn { align-self: flex-start; padding: 10px 20px; font-size: 0.95rem; font-weight: 600; border: none; border-radius: 8px; background: #285f9f; color: #fff; cursor: pointer; min-height: 44px; }
+    .main-btn:hover, .main-btn:focus { background: #1e4a7a; outline: 2px solid #1e4a7a; outline-offset: 2px; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="card">
+      <div class="header">
+        <h1>Coil Turns vs. Lifting Strength</h1>
+        <button class="main-btn" data-reset style="padding:6px 12px;font-size:0.85rem;background:#64748b;">Reset</button>
+      </div>
+      <div class="stage" aria-label="Electromagnet with variable turns and lifting mass">
+        <canvas id="c" width="640" height="400" role="img" aria-label="Coil around iron core lifting masses"></canvas>
+      </div>
+      <div class="prompt-area" aria-live="polite">
+        <p class="prompt" data-prompt>An iron-core electromagnet lifts paper clips.</p>
+        <div class="choices" data-choices hidden>
+          <button data-choice="rise">Lifting strength keeps rising</button>
+          <button data-choice="level">Strength levels off at high N</button>
+          <button data-choice="fall">Strength falls after a peak</button>
+        </div>
+        <p class="feedback" data-feedback></p>
+        <button class="main-btn" data-main>Start</button>
+      </div>
+    </section>
+  </main>
+  <script>
+    (function() {
+      const canvas = document.getElementById('c');
+      const ctx = canvas.getContext('2d');
+      const promptEl = document.querySelector('[data-prompt]');
+      const choicesEl = document.querySelector('[data-choices]');
+      const feedbackEl = document.querySelector('[data-feedback]');
+      const mainBtn = document.querySelector('[data-main]');
+      const resetBtn = document.querySelector('[data-reset]');
+
+      let state = 'setup';
+      let prediction = null;
+      let turns = [20, 40, 60, 80, 100, 120];
+      let data = [];
+      let idx = 0;
+      let completed = false;
+
+      // lifting mass rises then levels (saturation / practical limit)
+      function liftMass(N) {
+        const base = 0.04 * N;
+        const sat = 5.5 * (1 - Math.exp(-N / 70));
+        return +(Math.min(base, sat) + (Math.random() - 0.5) * 0.15).toFixed(2);
+      }
+
+      function draw() {
+        const W = canvas.width, H = canvas.height;
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, W, H);
+
+        // core
+        const coreX = 120, coreY = 80, coreW = 60, coreH = 180;
+        ctx.fillStyle = '#64748b';
+        ctx.fillRect(coreX, coreY, coreW, coreH);
+
+        // windings visual based on current trial
+        const Nshow = data.length ? turns[Math.min(idx, turns.length - 1)] : 20;
+        ctx.strokeStyle = '#f97316';
+        ctx.lineWidth = 2;
+        const layers = Math.min(8, Math.floor(Nshow / 15));
+        for (let i = 0; i < layers; i++) {
+          ctx.beginPath();
+          ctx.ellipse(coreX + coreW / 2, coreY + 30 + i * 18, 40 + i * 2, 12, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = '12px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('N = ' + (data.length ? turns[Math.min(data.length - 1, turns.length - 1)] : '—'), coreX + coreW / 2, coreY + coreH + 20);
+
+        // paper clips / mass
+        if (data.length) {
+          const m = data[data.length - 1].m;
+          const clips = Math.round(m * 4);
+          ctx.fillStyle = '#94a3b8';
+          for (let i = 0; i < Math.min(clips, 18); i++) {
+            const cx = coreX + coreW / 2 + (i % 3 - 1) * 14;
+            const cy = coreY + coreH + 40 + Math.floor(i / 3) * 12;
+            ctx.fillRect(cx - 6, cy, 12, 8);
+          }
+          ctx.fillStyle = '#fbbf24';
+          ctx.font = 'bold 14px system-ui';
+          ctx.fillText(m + ' g', coreX + coreW / 2, coreY + coreH + 110);
+        }
+
+        // graph on right
+        const ox = 280, oy = H - 50, gw = 320, gh = 280;
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(ox, oy);
+        ctx.lineTo(ox + gw, oy);
+        ctx.moveTo(ox, oy);
+        ctx.lineTo(ox, oy - gh);
+        ctx.stroke();
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '11px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('Turns N', ox + gw / 2, H - 14);
+        ctx.save();
+        ctx.translate(ox - 28, oy - gh / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText('Max lift (g)', 0, 0);
+        ctx.restore();
+
+        // points
+        ctx.fillStyle = '#38bdf8';
+        data.forEach(d => {
+          const x = ox + (d.N / 130) * gw;
+          const y = oy - (d.m / 6) * gh;
+          ctx.beginPath();
+          ctx.arc(x, y, 5, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        if (data.length >= 4 && (state === 'explain' || state === 'predict')) {
+          // saturation hint curve
+          ctx.strokeStyle = 'rgba(251, 191, 36, 0.6)';
+          ctx.beginPath();
+          for (let n = 10; n <= 130; n += 5) {
+            const m = 5.5 * (1 - Math.exp(-n / 70));
+            const x = ox + (n / 130) * gw;
+            const y = oy - (m / 6) * gh;
+            if (n === 10) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+      }
+
+      function render() {
+        choicesEl.classList.add('hidden');
+        mainBtn.classList.remove('hidden');
+        feedbackEl.textContent = '';
+
+        if (state === 'setup') {
+          promptEl.textContent = 'An iron-core electromagnet lifts paper clips.';
+          mainBtn.textContent = 'Start trials';
+          data = [];
+          idx = 0;
+          draw();
+        } else if (state === 'collect') {
+          if (idx < turns.length) {
+            promptEl.textContent = 'Trial: N = ' + turns[idx] + ' turns. Measure max lifting mass.';
+            mainBtn.textContent = 'Run trial';
+          } else {
+            state = 'predict';
+            render();
+            return;
+          }
+          draw();
+        } else if (state === 'predict') {
+          promptEl.textContent = 'What does the trend show at higher turn counts?';
+          choicesEl.classList.remove('hidden');
+          choicesEl.innerHTML = '';
+          const opts = [
+            { v: 'rise', t: 'Lifting strength keeps rising' },
+            { v: 'level', t: 'Strength levels off at high N' },
+            { v: 'fall', t: 'Strength falls after a peak' }
+          ];
+          for (let i = opts.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [opts[i], opts[j]] = [opts[j], opts[i]];
+          }
+          opts.forEach(o => {
+            const b = document.createElement('button');
+            b.dataset.choice = o.v;
+            b.textContent = o.t;
+            b.addEventListener('click', () => choose(o.v));
+            choicesEl.appendChild(b);
+          });
+          mainBtn.classList.add('hidden');
+          draw();
+        } else if (state === 'explain') {
+          feedbackEl.textContent = 'Strength rises with turns then levels off. Core saturation and practical limits appear at high N.';
+          mainBtn.textContent = 'Replay';
+          draw();
+          if (!completed) {
+            completed = true;
+            try { window.parent.postMessage({ type: 'complete' }, '*'); } catch (e) {}
+          }
+        }
+      }
+
+      function choose(v) {
+        if (state !== 'predict') return;
+        prediction = v;
+        state = 'explain';
+        render();
+      }
+
+      mainBtn.addEventListener('click', () => {
+        if (state === 'setup') {
+          state = 'collect';
+          render();
+        } else if (state === 'collect') {
+          if (idx < turns.length) {
+            data.push({ N: turns[idx], m: liftMass(turns[idx]) });
+            idx++;
+            render();
+          }
+        } else if (state === 'explain') {
+          state = 'setup';
+          prediction = null;
+          completed = false;
+          render();
+        }
+      });
+
+      resetBtn.addEventListener('click', () => {
+        state = 'setup';
+        prediction = null;
+        data = [];
+        idx = 0;
+        completed = false;
+        render();
+      });
+
+      render();
+    })();
+  </script>
+</body>
+</html>

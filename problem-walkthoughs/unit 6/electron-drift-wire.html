@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Electron Drift in a Wire</title>
+  <style>
+    html, body { background: transparent; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; }
+    .app { max-width: 720px; margin: 0 auto; padding: 8px; box-sizing: border-box; }
+    .card { border: 5px solid #285f9f; border-radius: 12px; background: #f8fafc; overflow: hidden; display: flex; flex-direction: column; }
+    .header { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #e2e8f0; border-bottom: 1px solid #cbd5e1; }
+    .header h1 { margin: 0; font-size: 1rem; font-weight: 600; color: #1e293b; }
+    .stage { position: relative; width: 100%; aspect-ratio: 16/9; background: #0f172a; overflow: hidden; }
+    canvas { display: block; width: 100%; height: 100%; }
+    .prompt-area { padding: 12px; background: #fff; border-top: 1px solid #e2e8f0; min-height: 120px; display: flex; flex-direction: column; gap: 8px; }
+    .prompt { margin: 0; font-size: 0.95rem; color: #1e293b; line-height: 1.4; }
+    .choices { display: flex; flex-wrap: wrap; gap: 8px; }
+    .choices button { flex: 1 1 130px; padding: 10px 12px; font-size: 0.9rem; font-weight: 600; border: 2px solid #285f9f; border-radius: 8px; background: #fff; color: #1e293b; cursor: pointer; min-height: 44px; }
+    .choices button:hover, .choices button:focus { background: #dbeafe; outline: 2px solid #285f9f; outline-offset: 2px; }
+    .feedback { margin: 0; font-size: 0.9rem; color: #0f172a; min-height: 1.4em; }
+    .main-btn { align-self: flex-start; padding: 10px 20px; font-size: 0.95rem; font-weight: 600; border: none; border-radius: 8px; background: #285f9f; color: #fff; cursor: pointer; min-height: 44px; }
+    .main-btn:hover, .main-btn:focus { background: #1e4a7a; outline: 2px solid #1e4a7a; outline-offset: 2px; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="card">
+      <div class="header">
+        <h1>Electron Drift in a Wire</h1>
+        <button class="main-btn" data-reset style="padding:6px 12px;font-size:0.85rem;background:#64748b;">Reset</button>
+      </div>
+      <div class="stage" aria-label="Wire with electrons and switch">
+        <canvas id="c" width="640" height="360" role="img" aria-label="Circuit wire with random electron motion"></canvas>
+      </div>
+      <div class="prompt-area" aria-live="polite">
+        <p class="prompt" data-prompt>Electrons move randomly inside a metal wire.</p>
+        <div class="choices" data-choices hidden>
+          <button data-choice="all">All electrons start drifting at once</button>
+          <button data-choice="wave">A wave of drift starts at the battery</button>
+          <button data-choice="slow">Only electrons near the switch move</button>
+        </div>
+        <p class="feedback" data-feedback></p>
+        <button class="main-btn" data-main>Start</button>
+      </div>
+    </section>
+  </main>
+  <script>
+    (function() {
+      const canvas = document.getElementById('c');
+      const ctx = canvas.getContext('2d');
+      const promptEl = document.querySelector('[data-prompt]');
+      const choicesEl = document.querySelector('[data-choices]');
+      const feedbackEl = document.querySelector('[data-feedback]');
+      const mainBtn = document.querySelector('[data-main]');
+      const resetBtn = document.querySelector('[data-reset]');
+
+      let state = 'setup';
+      let prediction = null;
+      let switchClosed = false;
+      let electrons = [];
+      let animId = null;
+      let completed = false;
+      let t = 0;
+
+      function initElectrons() {
+        electrons = [];
+        for (let i = 0; i < 48; i++) {
+          electrons.push({
+            x: 80 + Math.random() * 480,
+            y: 140 + Math.random() * 80,
+            vx: (Math.random() - 0.5) * 1.2,
+            vy: (Math.random() - 0.5) * 0.8,
+            drift: 0
+          });
+        }
+      }
+
+      function draw() {
+        const W = canvas.width, H = canvas.height;
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, W, H);
+
+        // battery
+        ctx.fillStyle = '#64748b';
+        ctx.fillRect(20, 150, 40, 60);
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(20, 150, 40, 20);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 12px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('+', 40, 164);
+        ctx.fillText('−', 40, 200);
+
+        // wire (top and bottom rails)
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(60, 160);
+        ctx.lineTo(580, 160);
+        ctx.lineTo(580, 200);
+        ctx.lineTo(60, 200);
+        ctx.stroke();
+
+        // switch
+        ctx.strokeStyle = switchClosed ? '#22c55e' : '#f97316';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        if (switchClosed) {
+          ctx.moveTo(300, 155);
+          ctx.lineTo(340, 155);
+        } else {
+          ctx.moveTo(300, 155);
+          ctx.lineTo(330, 130);
+        }
+        ctx.stroke();
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = '12px system-ui';
+        ctx.fillText(switchClosed ? 'CLOSED' : 'OPEN', 320, 120);
+
+        // electrons
+        electrons.forEach(e => {
+          ctx.beginPath();
+          ctx.arc(e.x, e.y, 5, 0, Math.PI * 2);
+          ctx.fillStyle = '#38bdf8';
+          ctx.fill();
+        });
+
+        // labels
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '12px system-ui';
+        ctx.textAlign = 'left';
+        if (state === 'reveal' || state === 'explain') {
+          ctx.fillText('Signal ~ light speed   |   Drift ~ mm/s', 70, H - 16);
+        }
+      }
+
+      function tick() {
+        t += 1;
+        electrons.forEach(e => {
+          // random thermal motion
+          e.vx += (Math.random() - 0.5) * 0.3;
+          e.vy += (Math.random() - 0.5) * 0.2;
+          e.vx *= 0.92;
+          e.vy *= 0.92;
+          // net drift when switch closed
+          if (switchClosed) {
+            e.drift = 0.35; // slow right-to-left conventional? electrons leftward toward +
+            e.x -= e.drift;
+          }
+          e.x += e.vx;
+          e.y += e.vy;
+          // bounds inside wire
+          if (e.x < 70) e.x = 570;
+          if (e.x > 570) e.x = 70;
+          if (e.y < 145) { e.y = 145; e.vy *= -1; }
+          if (e.y > 215) { e.y = 215; e.vy *= -1; }
+        });
+        draw();
+        animId = requestAnimationFrame(tick);
+      }
+
+      function render() {
+        choicesEl.classList.add('hidden');
+        mainBtn.classList.remove('hidden');
+        feedbackEl.textContent = '';
+
+        if (state === 'setup') {
+          promptEl.textContent = 'Electrons move randomly inside a metal wire.';
+          mainBtn.textContent = 'Start';
+          switchClosed = false;
+          initElectrons();
+          draw();
+          if (!animId) tick();
+        } else if (state === 'predict') {
+          promptEl.textContent = 'When the switch closes, how does net drift begin?';
+          choicesEl.classList.remove('hidden');
+          choicesEl.innerHTML = '';
+          const opts = [
+            { v: 'all', t: 'All electrons start drifting at once' },
+            { v: 'wave', t: 'A wave of drift starts at the battery' },
+            { v: 'slow', t: 'Only electrons near the switch move' }
+          ];
+          for (let i = opts.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [opts[i], opts[j]] = [opts[j], opts[i]];
+          }
+          opts.forEach(o => {
+            const b = document.createElement('button');
+            b.dataset.choice = o.v;
+            b.textContent = o.t;
+            b.addEventListener('click', () => choose(o.v));
+            choicesEl.appendChild(b);
+          });
+          mainBtn.classList.add('hidden');
+          draw();
+        } else if (state === 'reveal') {
+          promptEl.textContent = '';
+          mainBtn.classList.add('hidden');
+          switchClosed = true;
+          draw();
+          setTimeout(() => {
+            state = 'explain';
+            render();
+          }, 1800);
+        } else if (state === 'explain') {
+          feedbackEl.textContent = 'All free electrons begin a slow net drift almost at once. The electric field spreads near light speed; drift itself is very slow.';
+          mainBtn.textContent = 'Replay';
+          if (!completed) {
+            completed = true;
+            try { window.parent.postMessage({ type: 'complete' }, '*'); } catch (e) {}
+          }
+        }
+      }
+
+      function choose(v) {
+        if (state !== 'predict') return;
+        prediction = v;
+        state = 'reveal';
+        render();
+      }
+
+      mainBtn.addEventListener('click', () => {
+        if (state === 'setup') {
+          state = 'predict';
+          render();
+        } else if (state === 'explain') {
+          state = 'setup';
+          prediction = null;
+          switchClosed = false;
+          completed = false;
+          initElectrons();
+          render();
+        }
+      });
+
+      resetBtn.addEventListener('click', () => {
+        state = 'setup';
+        prediction = null;
+        switchClosed = false;
+        completed = false;
+        if (animId) { cancelAnimationFrame(animId); animId = null; }
+        initElectrons();
+        render();
+      });
+
+      initElectrons();
+      render();
+    })();
+  </script>
+</body>
+</html>

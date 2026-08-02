@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2D Wave & SHM Simulation</title>
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f8f9fa;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0;
+    padding: 20px;
+  }
+  canvas {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    margin: 20px 0;
+  }
+  .dashboard {
+    display: flex;
+    gap: 30px;
+    font-family: monospace;
+    font-size: 1.2rem;
+    background: #333;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 6px;
+  }
+  .controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 800px;
+  }
+  button {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.2s;
+  }
+  button:hover { background: #0056b3; }
+  .info-panel {
+    margin-top: 15px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    min-height: 30px;
+    text-align: center;
+    max-width: 800px;
+  }
+</style>
+</head>
+<body>
+
+  <h1>Periodic Wave & Oscillator Model</h1>
+  
+  <!-- Simple Harmonic Motion Reveal (Tracking variables) -->
+  <div class="dashboard">
+    <span id="dispStr">y: 0.00</span>
+    <span id="velStr">v: 0.00</span>
+    <span id="accStr">a: 0.00</span>
+  </div>
+
+  <canvas id="simCanvas" width="800" height="400"></canvas>
+  
+  <div class="controls">
+    <button id="btnForce">Toggle Restoring Force Vector</button>
+    <button id="btnSpeed">Where is Speed Max?</button>
+    <button id="btnAccel">Where is Acceleration Max?</button>
+  </div>
+  
+  <div id="infoText" class="info-panel">Click a button to explore the physics!</div>
+
+<script>
+  const canvas = document.getElementById('simCanvas');
+  const ctx = canvas.getContext('2d');
+  const infoText = document.getElementById('infoText');
+
+  // Physics constraints
+  let t = 0;
+  const A = 100;        // Amplitude
+  const w = 0.05;       // Angular frequency
+  const eqY = 200;      // Equilibrium Y (Center of canvas)
+  const massX = 150;    // X position of the oscillator
+  const waveSpeed = 2;  // Speed of the wave moving right
+
+  let waveHistory = [];
+  let showForce = false;
+  let showSpeed = false;
+  let showAccel = false;
+
+  // Interaction Logic (Reveals)
+  document.getElementById('btnForce').onclick = () => { showForce = !showForce; };
+  
+  document.getElementById('btnSpeed').onclick = () => {
+    showSpeed = true;
+    showAccel = false;
+    infoText.innerText = "Speed is greatest at equilibrium (the dashed line)! Notice the green velocity vector is longest when passing the center.";
+    infoText.style.color = "#28a745";
+  };
+  
+  document.getElementById('btnAccel').onclick = () => {
+    showAccel = true;
+    showSpeed = false;
+    infoText.innerText = "Acceleration is greatest at maximum displacement (the peaks/troughs)! The red vector peaks when the mass turns around.";
+    infoText.style.color = "#dc3545";
+  };
+
+  function drawSpring(endY) {
+    ctx.beginPath();
+    ctx.moveTo(massX, 0);
+    const coils = 12;
+    const coilHeight = endY / coils;
+    for(let i = 1; i <= coils; i++) {
+      let xOffset = (i % 2 === 0) ? 15 : -15;
+      if (i === coils) xOffset = 0;
+      ctx.lineTo(massX + xOffset, i * coilHeight);
+    }
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  function drawArrow(fromx, fromy, tox, toy, color) {
+    const headlen = 10;
+    const dx = tox - fromx;
+    const dy = toy - fromy;
+    if (Math.abs(dy) < 1) return; // Hide vector if it's practically zero
+    const angle = Math.atan2(dy, dx);
+    
+    ctx.beginPath();
+    ctx.moveTo(fromx, fromy);
+    ctx.lineTo(tox, toy);
+    ctx.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
+    ctx.moveTo(tox, toy);
+    ctx.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
+  function update() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Equations of Simple Harmonic Motion
+    const y = A * Math.sin(w * t);
+    const v = A * w * Math.cos(w * t);
+    const a = -A * w * w * Math.sin(w * t);
+    
+    const currentY = eqY + y;
+    
+    // Update live dashboard
+    document.getElementById('dispStr').innerText = `y: ${y.toFixed(1)}`;
+    document.getElementById('velStr').innerText = `v: ${v.toFixed(1)}`;
+    document.getElementById('accStr').innerText = `a: ${a.toFixed(1)}`;
+
+    // Generate periodic source model (Wave production)
+    waveHistory.unshift(currentY);
+    if (waveHistory.length > (canvas.width - massX) / waveSpeed) {
+      waveHistory.pop();
+    }
+    
+    // Draw Equilibrium Line
+    ctx.beginPath();
+    ctx.moveTo(0, eqY);
+    ctx.lineTo(canvas.width, eqY);
+    ctx.strokeStyle = '#ccc';
+    ctx.setLineDash([5, 5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    
+    // Draw the continuous Wave
+    ctx.beginPath();
+    for (let i = 0; i < waveHistory.length; i++) {
+      ctx.lineTo(massX + i * waveSpeed, waveHistory[i]);
+    }
+    ctx.strokeStyle = '#007bff';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    
+    // Draw Oscillator Connection (Spring and Mass)
+    drawSpring(currentY - 20);
+    ctx.fillStyle = '#ff6b6b';
+    ctx.fillRect(massX - 25, currentY - 20, 50, 40);
+    
+    // Draw Restoring Force Model Vector (Purple)
+    if (showForce) {
+      // Force points opposite to displacement
+      drawArrow(massX - 40, currentY, massX - 40, currentY - y * 0.6, 'purple');
+    }
+    
+    // Draw Velocity Vector (Green)
+    if (showSpeed) {
+      drawArrow(massX + 40, currentY, massX + 40, currentY + v * 15, '#28a745');
+    }
+    
+    // Draw Acceleration Vector (Red)
+    if (showAccel) {
+      drawArrow(massX + 60, currentY, massX + 60, currentY + a * 200, '#dc3545');
+    }
+    
+    t += 1;
+    requestAnimationFrame(update); // Loop the animation
+  }
+
+  update();
+</script>
+</body>
+</html>

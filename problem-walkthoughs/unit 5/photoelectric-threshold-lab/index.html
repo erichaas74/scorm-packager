@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Photoelectric Threshold Lab</title>
+<style>
+
+:root{
+  --blue:#285f9f;
+  --blue-dark:#17436f;
+  --ink:#172033;
+  --muted:#5c6678;
+  --line:#cfd8e6;
+  --soft:#eef5fb;
+  --panel:#ffffff;
+  --good:#17643b;
+  --warn:#8a4b08;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:transparent;font-family:Arial,Helvetica,sans-serif;color:var(--ink)}
+body{padding:10px}
+button,input{font:inherit}
+button{min-height:44px;min-width:44px;border-radius:10px;border:2px solid var(--blue);background:#fff;color:var(--blue-dark);font-weight:700;padding:10px 14px;cursor:pointer}
+button:hover{background:#f2f7fc}
+button:focus-visible,input:focus-visible{outline:4px solid #f2b705;outline-offset:3px}
+button[disabled]{opacity:.55;cursor:not-allowed}
+.rph-app{max-width:980px;margin:0 auto;border:5px solid var(--blue);border-radius:22px;background:#fff;overflow:hidden}
+.rph-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);background:#f8fbfe}
+.rph-title{margin:0;font-size:1.05rem;color:var(--blue-dark)}
+.rph-stage{min-height:440px;padding:18px;background:linear-gradient(180deg,#f9fcff,#eef5fb);display:grid;place-items:center}
+.rph-scene{width:min(100%,860px);min-height:330px;border:1px solid var(--line);border-radius:18px;background:white;position:relative;overflow:hidden}
+.rph-card{padding:16px;border-top:1px solid var(--line);background:#fff}
+.rph-prompt{margin:0 0 12px;font-weight:700;font-size:1.05rem}
+.rph-setup{margin:0 0 12px;color:var(--muted)}
+.rph-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.rph-feedback{min-height:48px;margin:12px 0 0;padding:10px 12px;border-radius:10px;background:#f5f7fa;color:var(--ink)}
+.rph-controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.rph-progress{font-size:.9rem;color:var(--muted);font-weight:700}
+.rph-hidden{display:none!important}
+.rph-status{position:absolute;left:-9999px}
+.rph-legend{display:flex;flex-wrap:wrap;gap:10px;padding:10px 12px;font-size:.86rem;color:var(--muted)}
+.rph-chip{display:inline-flex;align-items:center;gap:6px}
+.rph-dot{width:12px;height:12px;border-radius:50%;display:inline-block;border:1px solid #455}
+svg{width:100%;height:auto;display:block}
+@media(max-width:700px){
+  .rph-stage{min-height:360px;padding:10px}
+  .rph-scene{min-height:300px}
+  .rph-choices{grid-template-columns:1fr}
+  .rph-top{align-items:flex-start}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}
+
+
+.pe-metal{fill:#8897aa;stroke:#49596b;stroke-width:2}.pe-light{stroke-width:8;stroke-linecap:round}
+.pe-electron{fill:#285f9f}.pe-meter{fill:#eef5fb;stroke:#6e86a0;stroke-width:2}.pe-text{font:700 16px Arial;fill:#24344c}
+.pe-small{font:14px Arial;fill:#5c6678}.pe-scale{fill:#dce7f2}.pe-fill{fill:#285f9f}
+
+</style>
+</head>
+<body>
+<main class="rph-app">
+
+<header class="rph-top">
+  <h1 class="rph-title">Photoelectric Threshold Lab</h1>
+  <div class="rph-progress" id="progress">Scenario 1 of 4</div>
+  <button id="resetBtn" type="button">Reset</button>
+</header>
+<section class="rph-stage" aria-label="Photoelectric effect simulation">
+  <div class="rph-scene">
+    <svg viewBox="0 0 860 330" role="img" aria-labelledby="peTitle peDesc">
+      <title id="peTitle">Light shining on a metal surface</title>
+      <desc id="peDesc">A colored light beam shines on a metal plate. Emitted electrons and a meter appear only during the reveal.</desc>
+      <rect width="860" height="330" fill="#fff"/>
+      <rect class="pe-metal" x="565" y="70" width="46" height="190" rx="8"/>
+      <text class="pe-text" x="540" y="290">metal</text>
+      <line id="beam" class="pe-light" x1="140" y1="165" x2="550" y2="165" stroke="#8a2be2"/>
+      <text id="beamLabel" class="pe-text" x="125" y="135">light</text>
+      <g id="electrons"></g>
+      <rect class="pe-meter" x="680" y="70" width="120" height="120" rx="12"/>
+      <text class="pe-small" x="700" y="98">electron count</text>
+      <rect class="pe-scale" x="705" y="115" width="70" height="24" rx="6"/>
+      <rect id="countFill" class="pe-fill" x="705" y="115" width="0" height="24" rx="6"/>
+      <text class="pe-small" x="700" y="170">max KE</text>
+      <rect class="pe-scale" x="705" y="184" width="70" height="24" rx="6"/>
+      <rect id="keFill" class="pe-fill" x="705" y="184" width="0" height="24" rx="6"/>
+    </svg>
+  </div>
+</section>
+<section class="rph-card" aria-live="polite">
+  <p class="rph-setup" id="setup"></p>
+  <p class="rph-prompt" id="prompt"></p>
+  <div class="rph-choices" id="choices"></div>
+  <p class="rph-feedback" id="feedback"></p>
+  <div class="rph-controls">
+    <button id="mainBtn" type="button">Start</button>
+    <button id="replayBtn" class="rph-hidden" type="button">Replay reveal</button>
+  </div>
+</section>
+<p class="rph-status" id="status" role="status" aria-live="polite"></p>
+
+<script>
+
+(() => {
+ const scenarios=[
+  {setup:'Dim red light shines on the metal.',q:'Will electrons be emitted?',c:['Yes, a few','No electrons','Yes, many'],a:1,f:'No electrons are emitted. The photon frequency is below the metal’s threshold.',color:'#d63b2f',count:0,ke:0},
+  {setup:'Very bright red light shines on the same metal.',q:'Will brightness overcome the threshold?',c:['Yes','No','Only after time'],a:1,f:'Brightness still does not eject electrons. More low-energy photons do not replace the required threshold frequency.',color:'#d63b2f',count:0,ke:0},
+  {setup:'Dim violet light shines on the same metal.',q:'What will happen?',c:['Electrons are emitted','Nothing changes','The metal cools'],a:0,f:'Electrons are emitted. Violet photons exceed the threshold even when the beam is dim.',color:'#7a4dd8',count:4,ke:42},
+  {setup:'Bright violet light replaces the dim violet light.',q:'Which measurement increases most?',c:['Electron count','Energy per photon','Light speed'],a:0,f:'The electron count increases. Brightness mainly changes the number of photons, not each photon’s energy.',color:'#7a4dd8',count:10,ke:42}
+ ];
+ let i=0,state='setup',completionSent=false,anim=null;
+ const $=s=>document.querySelector(s), choices=$('#choices'), feedback=$('#feedback'),setup=$('#setup'),prompt=$('#prompt'),
+ main=$('#mainBtn'),replay=$('#replayBtn'),electrons=$('#electrons'),countFill=$('#countFill'),keFill=$('#keFill'),beam=$('#beam'),progress=$('#progress'),status=$('#status');
+ function shuffle(a){return a.map((v,idx)=>({v,idx,r:Math.random()})).sort((x,y)=>x.r-y.r)}
+ function clear(){electrons.innerHTML='';countFill.setAttribute('width',0);keFill.setAttribute('width',0);if(anim)cancelAnimationFrame(anim)}
+ function render(){
+  const s=scenarios[i]; progress.textContent=`Scenario ${i+1} of ${scenarios.length}`;beam.setAttribute('stroke',s.color);
+  setup.textContent=s.setup;prompt.textContent=state==='predict'?s.q:'';feedback.textContent=state==='explain'?s.f:'';
+  choices.innerHTML=''; if(state==='predict')shuffle(s.c).forEach(o=>{let b=document.createElement('button');b.type='button';b.textContent=o.v;b.onclick=()=>choose(o.idx);choices.appendChild(b)});
+  main.textContent=state==='setup'?'Start':state==='explain'?(i===scenarios.length-1?'Finish':'Next scenario'):state==='complete'?'Completed':'Revealing…';
+  main.disabled=['predict','reveal','complete'].includes(state);replay.classList.toggle('rph-hidden',state!=='explain');
+  if(state==='complete'){setup.textContent='Walkthrough complete.';prompt.textContent='';feedback.textContent='Frequency controls whether emission begins; brightness mainly controls how many photons arrive.'}
+ }
+ function choose(){if(state!=='predict')return;state='reveal';render();play(()=>{state='explain';status.textContent=scenarios[i].f;render()})}
+ function play(done){
+  clear(); const s=scenarios[i], reduced=matchMedia('(prefers-reduced-motion: reduce)').matches, steps=reduced?1:36;let n=0;
+  function frame(){n++;countFill.setAttribute('width',70*(s.count/10)*(n/steps));keFill.setAttribute('width',70*(s.ke/60)*(n/steps));
+   if(s.count>0 && n%4===0){let e=document.createElementNS('http://www.w3.org/2000/svg','circle');e.setAttribute('class','pe-electron');e.setAttribute('cx',620+Math.random()*120);e.setAttribute('cy',90+Math.random()*150);e.setAttribute('r',5);electrons.appendChild(e)}
+   if(n<steps)anim=requestAnimationFrame(frame);else done()
+  } frame()
+ }
+ main.onclick=()=>{if(state==='setup'){state='predict';render()}else if(state==='explain'){if(i<scenarios.length-1){i++;state='setup';clear();render()}else{state='complete';render();completeOnce()}}};
+ replay.onclick=()=>{state='reveal';render();play(()=>{state='explain';render()})};
+ $('#resetBtn').onclick=()=>{i=0;state='setup';clear();render()};
+ function completeOnce(){if(completionSent)return;completionSent=true;window.parent.postMessage({type:'complete'},'*')}
+ render();
+})();
+
+</script>
+</main>
+</body>
+</html>

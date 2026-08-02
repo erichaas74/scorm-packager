@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Current vs. Field Graph</title>
+  <style>
+    html, body { background: transparent; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; }
+    .app { max-width: 720px; margin: 0 auto; padding: 8px; box-sizing: border-box; }
+    .card { border: 5px solid #285f9f; border-radius: 12px; background: #f8fafc; overflow: hidden; display: flex; flex-direction: column; }
+    .header { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #e2e8f0; border-bottom: 1px solid #cbd5e1; }
+    .header h1 { margin: 0; font-size: 1rem; font-weight: 600; color: #1e293b; }
+    .stage { position: relative; width: 100%; aspect-ratio: 16/10; background: #0f172a; overflow: hidden; }
+    canvas { display: block; width: 100%; height: 100%; }
+    .prompt-area { padding: 12px; background: #fff; border-top: 1px solid #e2e8f0; min-height: 130px; display: flex; flex-direction: column; gap: 8px; }
+    .prompt { margin: 0; font-size: 0.95rem; color: #1e293b; line-height: 1.4; }
+    .choices { display: flex; flex-wrap: wrap; gap: 8px; }
+    .choices button { flex: 1 1 140px; padding: 10px 12px; font-size: 0.9rem; font-weight: 600; border: 2px solid #285f9f; border-radius: 8px; background: #fff; color: #1e293b; cursor: pointer; min-height: 44px; }
+    .choices button:hover, .choices button:focus { background: #dbeafe; outline: 2px solid #285f9f; outline-offset: 2px; }
+    .feedback { margin: 0; font-size: 0.9rem; color: #0f172a; min-height: 1.4em; }
+    .main-btn { align-self: flex-start; padding: 10px 20px; font-size: 0.95rem; font-weight: 600; border: none; border-radius: 8px; background: #285f9f; color: #fff; cursor: pointer; min-height: 44px; }
+    .main-btn:hover, .main-btn:focus { background: #1e4a7a; outline: 2px solid #1e4a7a; outline-offset: 2px; }
+    .hidden { display: none !important; }
+    .table-wrap { font-size: 0.8rem; overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #cbd5e1; padding: 4px 8px; text-align: center; }
+    th { background: #e2e8f0; }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="card">
+      <div class="header">
+        <h1>Current vs. Field Graph</h1>
+        <button class="main-btn" data-reset style="padding:6px 12px;font-size:0.85rem;background:#64748b;">Reset</button>
+      </div>
+      <div class="stage" aria-label="Data table and graph of current vs magnetic field">
+        <canvas id="c" width="640" height="400" role="img" aria-label="Scatter plot of current versus field strength"></canvas>
+      </div>
+      <div class="prompt-area" aria-live="polite">
+        <p class="prompt" data-prompt>Run trials: increase current through a coil and measure B.</p>
+        <div class="choices" data-choices hidden>
+          <button data-choice="linear">B rises in proportion to I</button>
+          <button data-choice="const">B stays roughly constant</button>
+          <button data-choice="drop">B falls as I rises</button>
+        </div>
+        <p class="feedback" data-feedback></p>
+        <button class="main-btn" data-main>Start</button>
+      </div>
+    </section>
+  </main>
+  <script>
+    (function() {
+      const canvas = document.getElementById('c');
+      const ctx = canvas.getContext('2d');
+      const promptEl = document.querySelector('[data-prompt]');
+      const choicesEl = document.querySelector('[data-choices]');
+      const feedbackEl = document.querySelector('[data-feedback]');
+      const mainBtn = document.querySelector('[data-main]');
+      const resetBtn = document.querySelector('[data-reset]');
+
+      let state = 'setup';
+      let prediction = null;
+      let trials = [];
+      let trialIndex = 0;
+      let completed = false;
+      const currents = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0];
+      // B ≈ k * I with small noise
+      function measureB(I) {
+        return +(0.42 * I + (Math.random() - 0.5) * 0.04).toFixed(2);
+      }
+
+      function draw() {
+        const W = canvas.width, H = canvas.height;
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, W, H);
+
+        // axes
+        const ox = 60, oy = H - 50, gw = W - 100, gh = H - 90;
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(ox, oy);
+        ctx.lineTo(ox + gw, oy);
+        ctx.moveTo(ox, oy);
+        ctx.lineTo(ox, oy - gh);
+        ctx.stroke();
+
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = '12px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('Current I (A)', ox + gw / 2, H - 12);
+        ctx.save();
+        ctx.translate(16, oy - gh / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText('Field B (mT)', 0, 0);
+        ctx.restore();
+
+        // ticks
+        for (let i = 0; i <= 6; i++) {
+          const x = ox + (i / 6) * gw;
+          ctx.beginPath();
+          ctx.moveTo(x, oy);
+          ctx.lineTo(x, oy + 5);
+          ctx.stroke();
+          ctx.fillText((i * 0.5).toFixed(1), x, oy + 18);
+        }
+        for (let i = 0; i <= 4; i++) {
+          const y = oy - (i / 4) * gh;
+          ctx.beginPath();
+          ctx.moveTo(ox - 5, y);
+          ctx.lineTo(ox, y);
+          ctx.stroke();
+          ctx.textAlign = 'right';
+          ctx.fillText((i * 0.4).toFixed(1), ox - 8, y + 4);
+        }
+
+        // points
+        ctx.fillStyle = '#38bdf8';
+        trials.forEach(t => {
+          const x = ox + (t.I / 3) * gw;
+          const y = oy - (t.B / 1.6) * gh;
+          ctx.beginPath();
+          ctx.arc(x, y, 6, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        // trend line after enough points
+        if (trials.length >= 3 && (state === 'reveal' || state === 'explain' || state === 'collect')) {
+          ctx.strokeStyle = 'rgba(251, 191, 36, 0.7)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          const x1 = ox, y1 = oy;
+          const x2 = ox + gw, y2 = oy - (0.42 * 3 / 1.6) * gh;
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+        }
+
+        // table overlay
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+        ctx.fillRect(W - 170, 12, 155, 20 + trials.length * 18);
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = '11px system-ui';
+        ctx.textAlign = 'left';
+        ctx.fillText('I (A)   B (mT)', W - 160, 28);
+        trials.forEach((t, i) => {
+          ctx.fillText(t.I.toFixed(1) + '      ' + t.B.toFixed(2), W - 160, 46 + i * 18);
+        });
+      }
+
+      function render() {
+        choicesEl.classList.add('hidden');
+        mainBtn.classList.remove('hidden');
+        feedbackEl.textContent = '';
+
+        if (state === 'setup') {
+          promptEl.textContent = 'Run trials: increase current through a coil and measure B.';
+          mainBtn.textContent = 'Start trials';
+          trials = [];
+          trialIndex = 0;
+          draw();
+        } else if (state === 'collect') {
+          if (trialIndex < currents.length) {
+            promptEl.textContent = 'Trial ' + (trialIndex + 1) + ': Set I = ' + currents[trialIndex] + ' A. Record B.';
+            mainBtn.textContent = 'Run trial';
+          } else {
+            state = 'predict';
+            render();
+            return;
+          }
+          draw();
+        } else if (state === 'predict') {
+          promptEl.textContent = 'What pattern do the data support?';
+          choicesEl.classList.remove('hidden');
+          choicesEl.innerHTML = '';
+          const opts = [
+            { v: 'linear', t: 'B rises in proportion to I' },
+            { v: 'const', t: 'B stays roughly constant' },
+            { v: 'drop', t: 'B falls as I rises' }
+          ];
+          for (let i = opts.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [opts[i], opts[j]] = [opts[j], opts[i]];
+          }
+          opts.forEach(o => {
+            const b = document.createElement('button');
+            b.dataset.choice = o.v;
+            b.textContent = o.t;
+            b.addEventListener('click', () => choose(o.v));
+            choicesEl.appendChild(b);
+          });
+          mainBtn.classList.add('hidden');
+          draw();
+        } else if (state === 'explain') {
+          feedbackEl.textContent = 'B rises roughly in proportion to I. The data support a linear relationship between current and field strength.';
+          mainBtn.textContent = 'Replay';
+          draw();
+          if (!completed) {
+            completed = true;
+            try { window.parent.postMessage({ type: 'complete' }, '*'); } catch (e) {}
+          }
+        }
+      }
+
+      function choose(v) {
+        if (state !== 'predict') return;
+        prediction = v;
+        state = 'explain';
+        render();
+      }
+
+      mainBtn.addEventListener('click', () => {
+        if (state === 'setup') {
+          state = 'collect';
+          render();
+        } else if (state === 'collect') {
+          if (trialIndex < currents.length) {
+            const I = currents[trialIndex];
+            trials.push({ I, B: measureB(I) });
+            trialIndex++;
+            render();
+          }
+        } else if (state === 'explain') {
+          state = 'setup';
+          prediction = null;
+          completed = false;
+          render();
+        }
+      });
+
+      resetBtn.addEventListener('click', () => {
+        state = 'setup';
+        prediction = null;
+        trials = [];
+        trialIndex = 0;
+        completed = false;
+        render();
+      });
+
+      render();
+    })();
+  </script>
+</body>
+</html>

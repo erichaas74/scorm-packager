@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Microcoulomb Unit Converter</title>
+  <style>
+    :root{--blue:#285f9f;--navy:#153456;--ink:#142238;--muted:#52657b;--line:#b8cadc;--pale:#f4f9ff;--orange:#d95f18;--green:#17643a}
+    *{box-sizing:border-box}
+    html,body{margin:0;background:transparent;color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+    button{font:inherit;min-height:44px}
+    .muc-app{width:min(100%,1080px);margin:auto;border:5px solid #285f9f;border-radius:24px;overflow:hidden;background:#fff;box-shadow:0 18px 48px rgba(21,52,86,.14)}
+    .muc-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:17px 21px;border-bottom:1px solid var(--line);background:linear-gradient(110deg,#fff,#eef7ff)}
+    .muc-kicker{margin:0 0 3px;color:var(--blue);font-size:.74rem;font-weight:800;letter-spacing:.11em;text-transform:uppercase}
+    h1{margin:0;color:var(--navy);font-size:clamp(1.3rem,4vw,1.9rem);line-height:1.08}
+    .muc-reset{padding:8px 14px;border:1px solid #6c87a3;border-radius:999px;background:#fff;color:var(--navy);font-weight:750;cursor:pointer}
+    .muc-body{padding:17px;display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,.95fr);gap:14px}
+    .muc-stage{border:1px solid #96afc8;border-radius:18px;overflow:hidden;background:linear-gradient(rgba(40,95,159,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(40,95,159,.055) 1px,transparent 1px),var(--pale);background-size:30px 30px}
+    .muc-stage svg{display:block;width:100%;height:290px}
+    .muc-given{margin:11px 0 0;padding:12px 13px;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--navy);font-size:.88rem;font-weight:700;line-height:1.5}
+    .muc-given b{color:var(--blue)}
+    .muc-panel{padding:15px;border:1px solid var(--line);border-radius:16px;background:#fbfdff;display:flex;flex-direction:column}
+    .muc-progress{display:flex;gap:6px;margin-bottom:11px;padding:0;list-style:none}
+    .muc-progress li{flex:1;height:7px;border-radius:99px;background:#dbe6f2}
+    .muc-progress li[data-state="done"]{background:var(--green)}
+    .muc-progress li[data-state="current"]{background:var(--orange)}
+    .muc-step{margin:0 0 4px;color:var(--blue);font-size:.72rem;font-weight:850;letter-spacing:.1em;text-transform:uppercase}
+    .muc-title{margin:0 0 8px;color:var(--navy);font-size:1.02rem;font-weight:850}
+    .muc-question{margin:0;color:var(--ink);font-weight:750;line-height:1.35;font-size:.92rem}
+    .muc-equations{margin:11px 0 0;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;font-family:ui-monospace,"Cascadia Code",Consolas,monospace;font-size:.9rem;font-weight:700;color:var(--navy);display:grid;gap:5px;overflow-x:auto}
+    .muc-equations span[data-gated="yes"]{color:var(--orange)}
+    .muc-choices{display:grid;gap:7px;margin-top:11px}
+    .muc-choice{padding:10px 11px;border:1px solid #6c87a3;border-radius:10px;background:#fff;color:var(--ink);font-family:ui-monospace,Consolas,monospace;font-weight:750;text-align:left;cursor:pointer}
+    .muc-choice:hover{background:#e8f2fd}
+    .muc-choice[data-picked="correct"]{border-color:var(--green);background:#e8f7ed}
+    .muc-choice[data-picked="wrong"]{border-color:#b45309;background:#fff0e5}
+    .muc-feedback{margin:10px 0 0;padding:10px 11px;border-radius:10px;background:#e8f7ed;color:#14532d;font-size:.86rem;font-weight:650;line-height:1.4}
+    .muc-feedback[data-tone="note"]{background:#fff0e5;color:#7c2d12}
+    .muc-nav{display:flex;gap:8px;margin-top:auto;padding-top:12px}
+    .muc-nav button{flex:1;padding:10px 12px;border:1px solid #6c87a3;border-radius:10px;background:#fff;color:var(--navy);font-weight:800;cursor:pointer}
+    .muc-nav button.primary{border:0;background:var(--blue);color:#fff}
+    .muc-nav button:disabled{opacity:.45;cursor:not-allowed}
+    [hidden]{display:none!important}
+    :focus-visible{outline:3px solid #d95f18;outline-offset:3px}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    @media(max-width:780px){.muc-body{grid-template-columns:1fr;padding:12px}.muc-stage svg{height:230px}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}}
+  </style>
+</head>
+<body>
+  <main class="muc-app" id="microcoulomb-app">
+    <header class="muc-head">
+      <div><p class="muc-kicker">Unit 6 &middot; Coulomb's law</p><h1>Microcoulomb Unit Converter</h1></div>
+      <button class="muc-reset" id="reset" type="button">New problem</button>
+    </header>
+    <div class="muc-body">
+      <div>
+        <section class="muc-stage" aria-labelledby="stage-description">
+          <p class="sr-only" id="stage-description">Two charges separated by a measured distance. The quantity used in the current step is highlighted.</p>
+          <svg viewBox="0 0 620 290" role="img" aria-labelledby="stage-title stage-desc">
+            <title id="stage-title">Two charges separated by a measured distance</title>
+            <desc id="stage-desc" data-scene-desc>Charge one and charge two with the separation labeled.</desc>
+            <defs><marker id="mucArrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L12 6 L0 12 Z" fill="#7a8ea3"/></marker></defs>
+            <line x1="20" y1="130" x2="600" y2="130" stroke="#c3d4e4" stroke-width="2" stroke-dasharray="7 7"/>
+            <line id="force-arrow-1" x1="0" y1="130" x2="0" y2="130" stroke="#7a8ea3" stroke-width="5" marker-end="url(#mucArrow)"/>
+            <line id="force-arrow-2" x1="0" y1="130" x2="0" y2="130" stroke="#7a8ea3" stroke-width="5" marker-end="url(#mucArrow)"/>
+            <text id="force-label" x="310" y="78" text-anchor="middle" fill="#153456" font-size="17" font-weight="850">F = ?</text>
+            <g id="halo-1"><circle cx="150" cy="130" r="44" fill="none" stroke="#d95f18" stroke-width="4" stroke-dasharray="8 7" visibility="hidden"/></g>
+            <g id="halo-2"><circle cx="470" cy="130" r="44" fill="none" stroke="#d95f18" stroke-width="4" stroke-dasharray="8 7" visibility="hidden"/></g>
+            <g><circle id="dot-1" cx="150" cy="130" r="30" fill="#f0764b" stroke="#7c2d12" stroke-width="4"/><text id="sign-1" x="150" y="139" text-anchor="middle" fill="#fff" font-size="28" font-weight="850">+</text><text id="label-1" x="150" y="192" text-anchor="middle" fill="#153456" font-size="15" font-weight="850">q&#8321;</text></g>
+            <g><circle id="dot-2" cx="470" cy="130" r="30" fill="#f0764b" stroke="#7c2d12" stroke-width="4"/><text id="sign-2" x="470" y="139" text-anchor="middle" fill="#fff" font-size="28" font-weight="850">+</text><text id="label-2" x="470" y="192" text-anchor="middle" fill="#153456" font-size="15" font-weight="850">q&#8322;</text></g>
+            <g id="ruler-group"><line x1="150" y1="232" x2="470" y2="232" stroke="#6b8298" stroke-width="3"/><line x1="150" y1="219" x2="150" y2="245" stroke="#6b8298" stroke-width="3"/><line x1="470" y1="219" x2="470" y2="245" stroke="#6b8298" stroke-width="3"/><text id="ruler-label" x="310" y="270" text-anchor="middle" fill="#52657b" font-size="16" font-weight="800">r</text></g>
+          </svg>
+        </section>
+        <p class="muc-given" id="given">Given values</p>
+      </div>
+      <section class="muc-panel" aria-labelledby="step-title">
+        <ol class="muc-progress" id="progress" aria-label="Step progress"><li></li><li></li><li></li><li></li><li></li></ol>
+        <p class="muc-step" id="step-counter">Step 1 of 5</p>
+        <h2 class="muc-title" id="step-title">Convert q&#8321; to coulombs</h2>
+        <p class="muc-question" id="question">Question</p>
+        <div class="muc-equations" id="equations"></div>
+        <div class="muc-choices" id="choices"></div>
+        <p class="muc-feedback" id="feedback" role="status" aria-live="polite" hidden></p>
+        <div class="muc-nav">
+          <button id="back" type="button">Back</button>
+          <button id="next" class="primary" type="button">Next</button>
+        </div>
+      </section>
+    </div>
+    <p class="sr-only" id="status" role="status" aria-live="polite">Step 1 of 5. Convert charge one to coulombs.</p>
+    <script>
+      (() => {
+        'use strict';
+        const K = 8.99e9;
+        const e = {
+          dot1: document.getElementById('dot-1'), dot2: document.getElementById('dot-2'),
+          sign1: document.getElementById('sign-1'), sign2: document.getElementById('sign-2'),
+          label1: document.getElementById('label-1'), label2: document.getElementById('label-2'),
+          halo1: document.getElementById('halo-1').firstElementChild, halo2: document.getElementById('halo-2').firstElementChild,
+          ruler: document.getElementById('ruler-group'), rulerLabel: document.getElementById('ruler-label'),
+          arrow1: document.getElementById('force-arrow-1'), arrow2: document.getElementById('force-arrow-2'),
+          forceLabel: document.getElementById('force-label'), sceneDesc: document.querySelector('[data-scene-desc]'),
+          given: document.getElementById('given'), progress: document.getElementById('progress').children,
+          counter: document.getElementById('step-counter'), title: document.getElementById('step-title'),
+          question: document.getElementById('question'), equations: document.getElementById('equations'),
+          choices: document.getElementById('choices'), feedback: document.getElementById('feedback'),
+          back: document.getElementById('back'), next: document.getElementById('next'),
+          reset: document.getElementById('reset'), status: document.getElementById('status')
+        };
+        const SUPERS = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
+        function sup(value) { return String(value).split('').map((character) => SUPERS[character] || character).join(''); }
+        function sci(value, digits) {
+          if (value === 0) return '0';
+          let exponent = Math.floor(Math.log10(Math.abs(value)));
+          let mantissa = value / Math.pow(10, exponent);
+          if (Math.abs(Number(mantissa.toFixed(digits === undefined ? 2 : digits))) >= 10) { mantissa /= 10; exponent += 1; }
+          return mantissa.toFixed(digits === undefined ? 2 : digits) + ' × 10' + sup(exponent);
+        }
+        function num(value) {
+          const size = Math.abs(value);
+          if (size >= 0.01 && size < 10000) return Number(value.toPrecision(3)).toString();
+          return sci(value);
+        }
+        function shuffle(list) { const copy = list.slice(); for (let i = copy.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [copy[i], copy[j]] = [copy[j], copy[i]]; } return copy; }
+        function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
+
+        let problem = null, steps = [], completed = [], choiceCache = [], current = 0, completionSent = false;
+
+        function buildProblem() {
+          const magnitudes = [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8];
+          const q1 = pick(magnitudes), q2 = pick(magnitudes), r = pick([0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.5]);
+          const negative = Math.random() < 0.4;
+          const Q1 = q1 * 1e-6, Q2 = q2 * 1e-6;
+          const top = K * Q1 * Q2, rSquared = r * r;
+          return { q1: q1, q2: q2, r: r, negative: negative, Q1: Q1, Q2: Q2, top: top, rSquared: rSquared, force: top / rSquared };
+        }
+        function buildSteps(p) {
+          return [
+            {
+              title: 'Convert q₁ to coulombs',
+              question: 'What is ' + p.q1.toFixed(1) + ' µC written in coulombs?',
+              focus: 'q1', unit: ' C',
+              lines: (done) => ['1 µC = 1 × 10⁻⁶ C', 'q₁ = ' + p.q1.toFixed(1) + ' µC', done ? 'q₁ = ' + sci(p.Q1) + ' C' : 'q₁ = ?'],
+              correct: p.Q1,
+              distractors: [p.q1 * 1e-3, p.q1 * 1e-9, p.q1 * 1e6],
+              why: 'Micro means 10⁻⁶, so the number shrinks by six decimal places.'
+            },
+            {
+              title: 'Convert q₂ to coulombs',
+              question: 'What is ' + p.q2.toFixed(1) + ' µC written in coulombs?',
+              focus: 'q2', unit: ' C',
+              lines: (done) => ['1 µC = 1 × 10⁻⁶ C', 'q₂ = ' + p.q2.toFixed(1) + ' µC', done ? 'q₂ = ' + sci(p.Q2) + ' C' : 'q₂ = ?'],
+              correct: p.Q2,
+              distractors: [p.q2 * 1e-3, p.q2 * 1e-9, p.q2 * 1e6],
+              why: 'Both charges must be in coulombs before they enter the equation.'
+            },
+            {
+              title: 'Square the distance',
+              question: 'What is r² for r = ' + p.r.toFixed(2) + ' m?',
+              focus: 'r', unit: ' m²',
+              lines: (done) => ['r = ' + p.r.toFixed(2) + ' m', 'r² = (' + p.r.toFixed(2) + ')²', done ? 'r² = ' + num(p.rSquared) + ' m²' : 'r² = ?'],
+              correct: p.rSquared,
+              distractors: [p.r, 2 * p.r, p.rSquared / 10],
+              why: 'The denominator uses the distance squared, not the distance.'
+            },
+            {
+              title: 'Multiply the numerator',
+              question: 'What is k q₁ q₂ with the charges in coulombs?',
+              focus: 'force', unit: ' N·m²',
+              lines: (done) => ['k q₁ q₂', '(8.99 × 10⁹)(' + sci(p.Q1) + ')(' + sci(p.Q2) + ')', done ? '= ' + num(p.top) + ' N·m²' : '= ?'],
+              correct: p.top,
+              distractors: [K * p.q1 * p.q2, p.Q1 * p.Q2, K * (p.Q1 + p.Q2)],
+              why: 'Multiply the constant by both converted charges.'
+            },
+            {
+              title: 'Divide to get the force',
+              question: 'What is the force magnitude F?',
+              focus: 'force', unit: ' N',
+              lines: (done) => ['F = k q₁ q₂ / r²', 'F = ' + num(p.top) + ' / ' + num(p.rSquared), done ? 'F = ' + num(p.force) + ' N' : 'F = ?'],
+              correct: p.force,
+              distractors: [p.top / p.r, p.top * p.rSquared, p.force * 10],
+              why: 'Divide the numerator by r², and the answer carries units of newtons.'
+            }
+          ];
+        }
+        function optionsFor(index) {
+          if (choiceCache[index]) return choiceCache[index];
+          const step = steps[index];
+          const seen = new Set([num(step.correct)]);
+          const options = [{ text: num(step.correct) + step.unit, correct: true }];
+          step.distractors.forEach((value) => {
+            const text = num(value);
+            if (seen.has(text)) return;
+            seen.add(text);
+            options.push({ text: text + step.unit, correct: false });
+          });
+          choiceCache[index] = shuffle(options);
+          return choiceCache[index];
+        }
+        function drawScene() {
+          const p = problem;
+          e.sign1.textContent = '+';
+          e.sign2.textContent = p.negative ? '−' : '+';
+          e.dot2.setAttribute('fill', p.negative ? '#5b8fd0' : '#f0764b');
+          e.dot2.setAttribute('stroke', p.negative ? '#153456' : '#7c2d12');
+          e.label1.textContent = 'q₁ = +' + p.q1.toFixed(1) + ' µC';
+          e.label2.textContent = 'q₂ = ' + (p.negative ? '−' : '+') + p.q2.toFixed(1) + ' µC';
+          e.rulerLabel.textContent = 'r = ' + p.r.toFixed(2) + ' m';
+          const focus = steps[current].focus;
+          e.halo1.setAttribute('visibility', focus === 'q1' ? 'visible' : 'hidden');
+          e.halo2.setAttribute('visibility', focus === 'q2' ? 'visible' : 'hidden');
+          e.ruler.setAttribute('opacity', focus === 'r' ? '1' : '.55');
+          const outward = !p.negative;
+          const length = focus === 'force' ? 92 : 58;
+          const start1 = 150 + (outward ? -34 : 34), start2 = 470 + (outward ? 34 : -34);
+          e.arrow1.setAttribute('x1', start1); e.arrow1.setAttribute('x2', start1 + (outward ? -length : length));
+          e.arrow2.setAttribute('x1', start2); e.arrow2.setAttribute('x2', start2 + (outward ? length : -length));
+          const shown = completed[4];
+          const stroke = focus === 'force' ? (outward ? '#d95f18' : '#285f9f') : '#7a8ea3';
+          e.arrow1.setAttribute('stroke', stroke); e.arrow2.setAttribute('stroke', stroke);
+          e.forceLabel.textContent = shown ? 'F = ' + num(problem.force) + ' N · ' + (outward ? 'repulsion' : 'attraction') : 'F = ?';
+          e.sceneDesc.textContent = 'Charge one is ' + p.q1.toFixed(1) + ' microcoulombs, charge two is ' + (p.negative ? 'negative ' : 'positive ') + p.q2.toFixed(1) + ' microcoulombs, separated by ' + p.r.toFixed(2) + ' meters.';
+        }
+        function renderChoices() {
+          e.choices.replaceChildren();
+          optionsFor(current).forEach((option) => {
+            const button = document.createElement('button');
+            button.type = 'button'; button.className = 'muc-choice'; button.textContent = option.text;
+            if (completed[current]) {
+              button.disabled = true;
+              if (option.correct) button.dataset.picked = 'correct';
+            } else {
+              button.addEventListener('click', () => choose(option));
+            }
+            e.choices.append(button);
+          });
+        }
+        function render() {
+          const step = steps[current];
+          [...e.progress].forEach((item, index) => {
+            item.dataset.state = completed[index] ? 'done' : index === current ? 'current' : 'open';
+          });
+          e.counter.textContent = 'Step ' + (current + 1) + ' of ' + steps.length;
+          e.title.textContent = step.title;
+          e.question.textContent = step.question;
+          e.equations.replaceChildren();
+          step.lines(Boolean(completed[current])).forEach((line, index) => {
+            const row = document.createElement('span');
+            row.textContent = line;
+            if (index === 2 && !completed[current]) row.dataset.gated = 'yes';
+            e.equations.append(row);
+          });
+          e.feedback.hidden = !completed[current];
+          if (completed[current]) {
+            e.feedback.textContent = 'Correct. ' + step.why;
+            e.feedback.dataset.tone = 'success';
+          }
+          e.back.disabled = current === 0;
+          e.next.disabled = !completed[current];
+          e.next.textContent = current === steps.length - 1 ? 'Finish' : 'Next';
+          renderChoices();
+          drawScene();
+        }
+        function choose(option) {
+          if (completed[current]) return;
+          if (!option.correct) {
+            e.feedback.textContent = 'Not that one. ' + steps[current].why;
+            e.feedback.dataset.tone = 'note';
+            e.feedback.hidden = false;
+            e.status.textContent = 'Not correct. Try another option.';
+            e.choices.querySelectorAll('button').forEach((button) => { if (button.textContent === option.text) button.dataset.picked = 'wrong'; });
+            return;
+          }
+          completed[current] = true;
+          e.status.textContent = 'Correct. ' + steps[current].title + ' gives ' + option.text + '.';
+          render();
+        }
+        function next() {
+          if (!completed[current]) return;
+          if (current === steps.length - 1) { finish(); return; }
+          current += 1; render();
+          e.status.textContent = 'Step ' + (current + 1) + ' of ' + steps.length + '. ' + steps[current].title + '.';
+        }
+        function finish() {
+          e.feedback.textContent = 'F = ' + num(problem.force) + ' N, a ' + (problem.negative ? 'attraction' : 'repulsion') + '. Converting µC to C first is what keeps the exponent right.';
+          e.feedback.dataset.tone = 'success';
+          e.feedback.hidden = false;
+          e.next.disabled = true;
+          e.status.textContent = 'All five steps complete. Force is ' + num(problem.force) + ' newtons.';
+          drawScene();
+          sendCompletion();
+        }
+        function sendCompletion() {
+          if (completionSent) return;
+          completionSent = true;
+          window.parent.postMessage({ type: 'complete' }, '*');
+        }
+        function reset() {
+          problem = buildProblem();
+          steps = buildSteps(problem);
+          completed = []; choiceCache = []; current = 0;
+          e.given.innerHTML = 'Given: <b>q₁ = +' + problem.q1.toFixed(1) + ' µC</b>, <b>q₂ = ' + (problem.negative ? '−' : '+') + problem.q2.toFixed(1) + ' µC</b>, <b>r = ' + problem.r.toFixed(2) + ' m</b>, k = 8.99 × 10⁹ N·m²/C².';
+          render();
+          e.status.textContent = 'New problem. Step 1 of 5. ' + steps[0].title + '.';
+        }
+
+        e.back.addEventListener('click', () => { if (current > 0) { current -= 1; render(); } });
+        e.next.addEventListener('click', next);
+        e.reset.addEventListener('click', reset);
+        reset();
+      })();
+    </script>
+  </main>
+</body>
+</html>

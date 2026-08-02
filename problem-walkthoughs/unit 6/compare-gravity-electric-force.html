@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compare Gravity and Electric Force</title>
+  <style>
+    /* Rise Compatibility: Transparent background */
+    html, body {
+      background: transparent;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      color: #1a1a1a;
+      box-sizing: border-box;
+    }
+    
+    *, *::before, *::after {
+      box-sizing: inherit;
+    }
+
+    .walkthrough {
+      max-width: 760px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      padding: 1rem;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 0.5rem;
+    }
+
+    .header h2 {
+      margin: 0;
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .progress {
+      font-size: 0.875rem;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    /* Simulation Stage */
+    .stage {
+      width: 100%;
+      height: 280px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Standardized Learner Card */
+    .card {
+      border: 5px solid #285f9f;
+      border-radius: 12px;
+      padding: 1.5rem;
+      background: #ffffff;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .card p {
+      margin: 0 0 1rem 0;
+      line-height: 1.5;
+    }
+
+    #prompt-text {
+      font-weight: 600;
+      font-size: 1.05rem;
+    }
+
+    /* Accessible Interactive Controls */
+    .choices {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 500;
+      padding: 0.875rem 1rem;
+      border: 2px solid #cbd5e1;
+      border-radius: 6px;
+      background: #ffffff;
+      color: #1e293b;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s ease;
+      min-height: 48px; /* WCAG Pointer Target minimum */
+    }
+
+    button:hover {
+      border-color: #285f9f;
+      background: #f0f7ff;
+    }
+
+    button:focus-visible {
+      outline: 3px solid #285f9f;
+      outline-offset: 2px;
+    }
+
+    .action-btn {
+      text-align: center;
+      background: #285f9f;
+      color: #ffffff;
+      border-color: #285f9f;
+      margin-top: 1rem;
+      width: 100%;
+    }
+
+    .action-btn:hover {
+      background: #1e4b82;
+      border-color: #1e4b82;
+      color: #ffffff;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  
+  <main class="walkthrough">
+    
+    <div class="header">
+      <h2 id="scenario-title">Scenario Title</h2>
+      <span class="progress" id="progress" aria-live="polite">1 / 4</span>
+    </div>
+
+    <!-- The physical situation the learner watches -->
+    <div class="stage" aria-label="Force Simulation Stage" role="img">
+      <svg id="sim-svg" width="100%" height="100%" viewBox="0 0 760 280">
+        <defs>
+          <marker id="arrow-blue" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#3b82f6" />
+          </marker>
+          <marker id="arrow-red" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#ef4444" />
+          </marker>
+          <marker id="arrow-blue-lg" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#3b82f6" />
+          </marker>
+          <marker id="arrow-red-lg" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#ef4444" />
+          </marker>
+        </defs>
+        <g id="svg-content"></g>
+      </svg>
+    </div>
+
+    <!-- The decision card -->
+    <div class="card" aria-live="polite">
+      <p id="setup-text"></p>
+      <p id="prompt-text"></p>
+      
+      <div id="choices" class="choices" role="group" aria-label="Prediction Choices"></div>
+      
+      <div id="feedback-panel" class="hidden">
+        <p id="feedback-text"></p>
+        <button id="next-btn" class="action-btn">Next Scenario</button>
+      </div>
+    </div>
+
+    <script>
+      /** 
+       * Type 2 Scenario Array
+       * Encompasses all 4 comparative simulation models. 
+       */
+      const scenarios = [
+        {
+          id: 1,
+          title: "Model: Side-by-Side Force Law",
+          setup: "Two masses and two charges interact at distance $r$.",
+          promptText: "If we double the separation distance to $2r$, what happens to the strength of both forces?",
+          choices: [
+            { text: "Cut in half" },
+            { text: "Cut to one-fourth" },
+            { text: "Stays the same" }
+          ],
+          feedback: "Both decrease to one-fourth. Both formulas ($F_g = G\\frac{m_1 m_2}{r^2}$ and $F_e = k\\frac{q_1 q_2}{r^2}$) share an inverse-square structure.",
+          getSVG: (reveal) => {
+            if (!reveal) {
+              return `
+                <circle cx="200" cy="80" r="20" fill="#cbd5e1" />
+                <circle cx="400" cy="80" r="20" fill="#cbd5e1" />
+                <text x="300" y="70" text-anchor="middle" font-size="16" fill="#475569">Masses (r)</text>
+                <text x="300" y="90" text-anchor="middle" font-size="28" font-weight="bold" fill="#94a3b8">?</text>
+
+                <circle cx="200" cy="200" r="20" fill="#fecaca" />
+                <circle cx="400" cy="200" r="20" fill="#fecaca" />
+                <text x="300" y="190" text-anchor="middle" font-size="16" fill="#475569">Charges (r)</text>
+                <text x="300" y="210" text-anchor="middle" font-size="28" font-weight="bold" fill="#94a3b8">?</text>
+              `;
+            } else {
+              return `
+                <circle cx="120" cy="80" r="20" fill="#cbd5e1" />
+                <circle cx="480" cy="80" r="20" fill="#cbd5e1" />
+                <text x="300" y="60" text-anchor="middle" font-size="16" fill="#475569">Distance 2r</text>
+                <path d="M 150 80 L 190 80" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow-blue)"/>
+                <path d="M 450 80 L 410 80" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow-blue)"/>
+                <text x="300" y="85" text-anchor="middle" font-size="16" font-weight="bold" fill="#3b82f6">F decreased to 1/4</text>
+
+                <circle cx="120" cy="200" r="20" fill="#fecaca" />
+                <circle cx="480" cy="200" r="20" fill="#fecaca" />
+                <text x="300" y="180" text-anchor="middle" font-size="16" fill="#475569">Distance 2r</text>
+                <path d="M 150 200 L 190 200" stroke="#ef4444" stroke-width="2" marker-end="url(#arrow-red)"/>
+                <path d="M 450 200 L 410 200" stroke="#ef4444" stroke-width="2" marker-end="url(#arrow-red)"/>
+                <text x="300" y="205" text-anchor="middle" font-size="16" font-weight="bold" fill="#ef4444">F decreased to 1/4</text>
+              `;
+            }
+          }
+        },
+        {
+          id: 2,
+          title: "Model: Attraction vs. Repulsion",
+          setup: "Two identical negatively charged asteroids float in space.",
+          promptText: "Which direction do the gravitational and electric forces act?",
+          choices: [
+            { text: "Both attract" },
+            { text: "Both repel" },
+            { text: "Gravity attracts, electric repels" }
+          ],
+          feedback: "Gravity attracts, electric repels. Gravity remains purely attractive, while identical charges repel.",
+          getSVG: (reveal) => {
+            const base = `
+              <circle cx="280" cy="140" r="45" fill="#94a3b8" />
+              <text x="280" y="147" text-anchor="middle" fill="#ffffff" font-size="24" font-weight="bold">-</text>
+              <circle cx="480" cy="140" r="45" fill="#94a3b8" />
+              <text x="480" y="147" text-anchor="middle" fill="#ffffff" font-size="24" font-weight="bold">-</text>
+            `;
+            if (!reveal) {
+              return base + `<text x="380" y="150" text-anchor="middle" font-size="36" font-weight="bold" fill="#94a3b8">?</text>`;
+            } else {
+              return base + `
+                <!-- Gravity -->
+                <path d="M 335 120 L 375 120" stroke="#3b82f6" stroke-width="3" marker-end="url(#arrow-blue)"/>
+                <path d="M 425 120 L 385 120" stroke="#3b82f6" stroke-width="3" marker-end="url(#arrow-blue)"/>
+                <text x="380" y="105" text-anchor="middle" fill="#3b82f6" font-weight="bold" font-size="15">Gravity</text>
+                
+                <!-- Electric -->
+                <path d="M 225 160 L 185 160" stroke="#ef4444" stroke-width="3" marker-end="url(#arrow-red)"/>
+                <path d="M 535 160 L 575 160" stroke="#ef4444" stroke-width="3" marker-end="url(#arrow-red)"/>
+                <text x="380" y="175" text-anchor="middle" fill="#ef4444" font-weight="bold" font-size="15">Electric</text>
+              `;
+            }
+          }
+        },
+        {
+          id: 3,
+          title: "Scale: Particle Comparison",
+          setup: "A proton and an electron interact at a separation of $10^{-10}$ meters.",
+          promptText: "Which force pulls them together more strongly?",
+          choices: [
+            { text: "Gravity is stronger" },
+            { text: "Electric is stronger" },
+            { text: "They are equal" }
+          ],
+          feedback: "Electric is stronger. At the atomic scale, the electric force is roughly $10^{39}$ times greater than gravity.",
+          getSVG: (reveal) => {
+            const base = `
+              <circle cx="320" cy="140" r="18" fill="#ef4444" />
+              <text x="320" y="145" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="bold">p+</text>
+              <circle cx="440" cy="140" r="12" fill="#3b82f6" />
+              <text x="440" y="145" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="bold">e-</text>
+            `;
+            if (!reveal) {
+              return base + `<text x="380" y="150" text-anchor="middle" font-size="36" font-weight="bold" fill="#94a3b8">?</text>`;
+            } else {
+              return base + `
+                <path d="M 345 135 L 415 135" stroke="#ef4444" stroke-width="8" marker-end="url(#arrow-red-lg)"/>
+                <text x="380" y="115" text-anchor="middle" fill="#ef4444" font-weight="bold" font-size="14">Electric (Enormous)</text>
+                
+                <path d="M 345 160 L 355 160" stroke="#3b82f6" stroke-width="1" />
+                <text x="380" y="175" text-anchor="middle" fill="#3b82f6" font-size="13">Gravity (Negligible)</text>
+              `;
+            }
+          }
+        },
+        {
+          id: 4,
+          title: "Scale: Astronomical Comparison",
+          setup: "The Earth and the Moon orbit each other.",
+          promptText: "Which force dominates their interaction?",
+          choices: [
+            { text: "Gravity" },
+            { text: "Electric force" },
+            { text: "They are equal" }
+          ],
+          feedback: "Gravity dominates. Astronomical objects are electrically neutral, leaving gravity as the ruling interaction.",
+          getSVG: (reveal) => {
+            const base = `
+              <circle cx="220" cy="140" r="60" fill="#22c55e" />
+              <text x="220" y="145" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="bold">Earth</text>
+              <circle cx="540" cy="140" r="25" fill="#94a3b8" />
+              <text x="540" y="145" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="bold">Moon</text>
+            `;
+            if (!reveal) {
+              return base + `<text x="380" y="150" text-anchor="middle" font-size="36" font-weight="bold" fill="#94a3b8">?</text>`;
+            } else {
+              return base + `
+                <path d="M 295 135 L 420 135" stroke="#3b82f6" stroke-width="6" marker-end="url(#arrow-blue-lg)"/>
+                <text x="380" y="115" text-anchor="middle" fill="#3b82f6" font-weight="bold" font-size="14">Gravity (Dominant)</text>
+                
+                <text x="380" y="165" text-anchor="middle" fill="#ef4444" font-size="13">Electric (Zero - Neutral)</text>
+              `;
+            }
+          }
+        }
+      ];
+
+      // Walkthrough State Machine
+      let currentScenarioIndex = 0;
+      let state = 'setup'; // 'setup' -> 'reveal'
+      let completed = false;
+
+      // Utility: Shuffle choices so the correct answer is not in a fixed slot
+      function shuffle(array) {
+        let currentIndex = array.length, randomIndex;
+        while (currentIndex !== 0) {
+          randomIndex = Math.floor(Math.random() * currentIndex);
+          currentIndex--;
+          [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+        }
+        return array;
+      }
+
+      function renderScenario() {
+        state = 'setup';
+        const scen = scenarios[currentScenarioIndex];
+        
+        // Reset Text and Progress
+        document.getElementById('scenario-title').innerText = scen.title;
+        document.getElementById('progress').innerText = `${currentScenarioIndex + 1} / ${scenarios.length}`;
+        document.getElementById('setup-text').innerHTML = scen.setup;
+        document.getElementById('prompt-text').innerHTML = scen.promptText;
+        
+        // Render SVG for Prediction state
+        document.getElementById('svg-content').innerHTML = scen.getSVG(false);
+
+        // Manage Card Visibility Blocks
+        const choicesDiv = document.getElementById('choices');
+        choicesDiv.innerHTML = '';
+        choicesDiv.classList.remove('hidden');
+        document.getElementById('prompt-text').classList.remove('hidden');
+        document.getElementById('feedback-panel').classList.add('hidden');
+
+        // Build Buttons
+        const shuffledOptions = shuffle([...scen.choices]);
+        shuffledOptions.forEach(opt => {
+          const btn = document.createElement('button');
+          btn.innerText = opt.text;
+          btn.onclick = () => choose();
+          choicesDiv.appendChild(btn);
+        });
+      }
+
+      function choose() {
+        if (state !== 'setup') return;
+        state = 'reveal';
+
+        const scen = scenarios[currentScenarioIndex];
+
+        // 1. Hide choices and prompt
+        document.getElementById('choices').classList.add('hidden');
+        document.getElementById('prompt-text').classList.add('hidden');
+
+        // 2. Reveal visual evidence synchronized with the choice
+        document.getElementById('svg-content').innerHTML = scen.getSVG(true);
+
+        // 3. Show succinct feedback block
+        const fbPanel = document.getElementById('feedback-panel');
+        fbPanel.classList.remove('hidden');
+        document.getElementById('feedback-text').innerHTML = scen.feedback;
+
+        // 4. Update the Next action
+        const nextBtn = document.getElementById('next-btn');
+        if (currentScenarioIndex === scenarios.length - 1) {
+          nextBtn.innerText = "Finish";
+          nextBtn.onclick = finishWalkthrough;
+        } else {
+          nextBtn.innerText = "Next Scenario";
+          nextBtn.onclick = () => {
+            currentScenarioIndex++;
+            renderScenario();
+          };
+        }
+      }
+
+      function finishWalkthrough() {
+        if (!completed) {
+          window.parent.postMessage({ type: 'complete' }, '*');
+          completed = true;
+        }
+        document.getElementById('feedback-text').innerHTML = "<strong>Walkthrough complete.</strong> You have successfully compared the mathematical structure, direction, and relative strength of gravitational and electric forces.";
+        document.getElementById('next-btn').classList.add('hidden');
+      }
+
+      // Initialize the first loop
+      renderScenario();
+    </script>
+  </main>
+</body>
+</html>

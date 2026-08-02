@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Electric Potential Landscape</title>
+  <style>
+    html, body {
+      background: transparent;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+    }
+    .app {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+    .card {
+      border: 5px solid #285f9f;
+      border-radius: 12px;
+      background: #f8fafc;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: #e2e8f0;
+      border-bottom: 1px solid #cbd5e1;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    .stage {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16/10;
+      background: #0f172a;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+    .prompt-area {
+      padding: 12px;
+      background: #fff;
+      border-top: 1px solid #e2e8f0;
+      min-height: 110px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .prompt {
+      margin: 0;
+      font-size: 0.95rem;
+      color: #1e293b;
+      line-height: 1.4;
+    }
+    .choices {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .choices button {
+      flex: 1 1 120px;
+      padding: 10px 12px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border: 2px solid #285f9f;
+      border-radius: 8px;
+      background: #fff;
+      color: #1e293b;
+      cursor: pointer;
+      min-height: 44px;
+    }
+    .choices button:hover, .choices button:focus {
+      background: #dbeafe;
+      outline: 2px solid #285f9f;
+      outline-offset: 2px;
+    }
+    .feedback {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #0f172a;
+      min-height: 1.4em;
+    }
+    .main-btn {
+      align-self: flex-start;
+      padding: 10px 20px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      background: #285f9f;
+      color: #fff;
+      cursor: pointer;
+      min-height: 44px;
+    }
+    .main-btn:hover, .main-btn:focus {
+      background: #1e4a7a;
+      outline: 2px solid #1e4a7a;
+      outline-offset: 2px;
+    }
+    .hidden { display: none !important; }
+    .readout {
+      display: flex;
+      gap: 16px;
+      font-size: 0.85rem;
+      color: #334155;
+      flex-wrap: wrap;
+    }
+    .readout span {
+      background: #e2e8f0;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="card" data-wt>
+      <div class="header">
+        <h1>Electric Potential Landscape</h1>
+        <button class="main-btn" data-reset style="padding:6px 12px;font-size:0.85rem;background:#64748b;">Reset</button>
+      </div>
+      <div class="stage" aria-label="Potential map with test charge">
+        <canvas id="c" width="640" height="400" role="img" aria-label="Color map of electric potential around a positive charge"></canvas>
+      </div>
+      <div class="prompt-area" aria-live="polite">
+        <p class="prompt" data-prompt>A positive test charge is near a fixed + source charge.</p>
+        <div class="choices" data-choices hidden>
+          <button data-choice="higher">Higher potential</button>
+          <button data-choice="lower">Lower potential</button>
+          <button data-choice="same">Same potential</button>
+        </div>
+        <div class="readout" data-readout hidden>
+          <span data-v>V ≈ —</span>
+          <span data-pe>PE ≈ —</span>
+        </div>
+        <p class="feedback" data-feedback></p>
+        <button class="main-btn" data-main>Start</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function() {
+      const canvas = document.getElementById('c');
+      const ctx = canvas.getContext('2d');
+      const promptEl = document.querySelector('[data-prompt]');
+      const choicesEl = document.querySelector('[data-choices]');
+      const feedbackEl = document.querySelector('[data-feedback]');
+      const mainBtn = document.querySelector('[data-main]');
+      const resetBtn = document.querySelector('[data-reset]');
+      const readoutEl = document.querySelector('[data-readout]');
+      const vEl = document.querySelector('[data-v]');
+      const peEl = document.querySelector('[data-pe]');
+
+      let state = 'setup'; // setup → predict → explore → explain
+      let prediction = null;
+      let testX = 420;
+      let testY = 200;
+      let dragging = false;
+      let completed = false;
+      const source = { x: 220, y: 200, q: 1 };
+      const k = 1; // simplified units
+
+      function potential(x, y) {
+        const dx = x - source.x;
+        const dy = y - source.y;
+        const r = Math.sqrt(dx * dx + dy * dy) || 1;
+        return k * source.q / r * 100; // scale for display
+      }
+
+      function drawMap() {
+        const W = canvas.width;
+        const H = canvas.height;
+        const img = ctx.createImageData(W, H);
+        const data = img.data;
+        for (let y = 0; y < H; y++) {
+          for (let x = 0; x < W; x++) {
+            const V = potential(x, y);
+            // map V to color: high = red/yellow, low = blue
+            const t = Math.max(0, Math.min(1, (V + 20) / 120));
+            const r = Math.floor(255 * t);
+            const g = Math.floor(180 * (1 - Math.abs(t - 0.5) * 2));
+            const b = Math.floor(255 * (1 - t));
+            const i = (y * W + x) * 4;
+            data[i] = r;
+            data[i + 1] = g;
+            data[i + 2] = b;
+            data[i + 3] = 220;
+          }
+        }
+        ctx.putImageData(img, 0, 0);
+
+        // source charge
+        ctx.beginPath();
+        ctx.arc(source.x, source.y, 16, 0, Math.PI * 2);
+        ctx.fillStyle = '#ef4444';
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 16px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('+', source.x, source.y + 5);
+
+        // equipotential circles (faint)
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.lineWidth = 1;
+        for (let r = 40; r < 200; r += 30) {
+          ctx.beginPath();
+          ctx.arc(source.x, source.y, r, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        // test charge
+        ctx.beginPath();
+        ctx.arc(testX, testY, 12, 0, Math.PI * 2);
+        ctx.fillStyle = '#f97316';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 12px system-ui';
+        ctx.fillText('+', testX, testY + 4);
+
+        // V label
+        const V = potential(testX, testY);
+        ctx.fillStyle = '#fff';
+        ctx.font = '13px system-ui';
+        ctx.textAlign = 'left';
+        ctx.fillText('High V near +  →  Low V far away', 12, H - 12);
+      }
+
+      function updateReadout() {
+        const V = potential(testX, testY);
+        const PE = V * 1; // q_test = +1
+        vEl.textContent = `V ≈ ${V.toFixed(1)}`;
+        peEl.textContent = `PE ≈ ${PE.toFixed(1)}`;
+      }
+
+      function render() {
+        choicesEl.classList.add('hidden');
+        readoutEl.classList.add('hidden');
+        mainBtn.classList.remove('hidden');
+        feedbackEl.textContent = '';
+
+        if (state === 'setup') {
+          promptEl.textContent = 'A positive test charge is near a fixed + source charge.';
+          mainBtn.textContent = 'Start';
+          drawMap();
+        } else if (state === 'predict') {
+          promptEl.textContent = 'If you move the test charge farther from the source, does potential increase or decrease?';
+          choicesEl.classList.remove('hidden');
+          choicesEl.innerHTML = '';
+          const opts = [
+            { v: 'higher', t: 'Higher potential' },
+            { v: 'lower', t: 'Lower potential' },
+            { v: 'same', t: 'Same potential' }
+          ];
+          // shuffle
+          for (let i = opts.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [opts[i], opts[j]] = [opts[j], opts[i]];
+          }
+          opts.forEach(o => {
+            const b = document.createElement('button');
+            b.dataset.choice = o.v;
+            b.textContent = o.t;
+            b.addEventListener('click', () => choose(o.v));
+            choicesEl.appendChild(b);
+          });
+          mainBtn.classList.add('hidden');
+          drawMap();
+        } else if (state === 'explore') {
+          promptEl.textContent = 'Drag the orange test charge. Watch voltage and PE.';
+          readoutEl.classList.remove('hidden');
+          mainBtn.textContent = 'Finish';
+          updateReadout();
+          drawMap();
+        } else if (state === 'explain') {
+          promptEl.textContent = '';
+          feedbackEl.textContent = 'Potential is lower farther from the + source. PE of a + test charge falls as it moves away.';
+          mainBtn.textContent = 'Replay';
+          drawMap();
+          if (!completed) {
+            completed = true;
+            try { window.parent.postMessage({ type: 'complete' }, '*'); } catch (e) {}
+          }
+        }
+      }
+
+      function choose(v) {
+        if (state !== 'predict') return;
+        prediction = v;
+        state = 'explore';
+        render();
+      }
+
+      mainBtn.addEventListener('click', () => {
+        if (state === 'setup') {
+          state = 'predict';
+          render();
+        } else if (state === 'explore') {
+          state = 'explain';
+          render();
+        } else if (state === 'explain') {
+          state = 'setup';
+          prediction = null;
+          testX = 420;
+          testY = 200;
+          completed = false;
+          render();
+        }
+      });
+
+      resetBtn.addEventListener('click', () => {
+        state = 'setup';
+        prediction = null;
+        testX = 420;
+        testY = 200;
+        completed = false;
+        render();
+      });
+
+      // pointer events for drag
+      function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+          x: (clientX - rect.left) * scaleX,
+          y: (clientY - rect.top) * scaleY
+        };
+      }
+
+      function onDown(e) {
+        if (state !== 'explore') return;
+        const p = getPos(e);
+        const dx = p.x - testX;
+        const dy = p.y - testY;
+        if (dx * dx + dy * dy < 400) {
+          dragging = true;
+          e.preventDefault();
+        }
+      }
+      function onMove(e) {
+        if (!dragging || state !== 'explore') return;
+        const p = getPos(e);
+        testX = Math.max(20, Math.min(canvas.width - 20, p.x));
+        testY = Math.max(20, Math.min(canvas.height - 20, p.y));
+        updateReadout();
+        drawMap();
+        e.preventDefault();
+      }
+      function onUp() {
+        dragging = false;
+      }
+
+      canvas.addEventListener('mousedown', onDown);
+      canvas.addEventListener('mousemove', onMove);
+      canvas.addEventListener('mouseup', onUp);
+      canvas.addEventListener('mouseleave', onUp);
+      canvas.addEventListener('touchstart', onDown, { passive: false });
+      canvas.addEventListener('touchmove', onMove, { passive: false });
+      canvas.addEventListener('touchend', onUp);
+
+      // keyboard alternative
+      canvas.tabIndex = 0;
+      canvas.addEventListener('keydown', (e) => {
+        if (state !== 'explore') return;
+        const step = 12;
+        if (e.key === 'ArrowLeft') testX = Math.max(20, testX - step);
+        if (e.key === 'ArrowRight') testX = Math.min(canvas.width - 20, testX + step);
+        if (e.key === 'ArrowUp') testY = Math.max(20, testY - step);
+        if (e.key === 'ArrowDown') testY = Math.min(canvas.height - 20, testY + step);
+        updateReadout();
+        drawMap();
+      });
+
+      render();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nuclear Change Tracker: Alpha, Beta, and Gamma</title>
+  <style>
+    :root {
+      --navy: #153456;
+      --blue: #285f9f;
+      --blue-dark: #174b86;
+      --blue-soft: #e8f2fd;
+      --cyan: #36a6c9;
+      --orange: #e56b24;
+      --orange-soft: #fff1e8;
+      --ink: #132238;
+      --muted: #52657b;
+      --line: #c8d7e8;
+      --surface: #ffffff;
+      --stage: #f4f9ff;
+      --success-soft: #e8f7ed;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      margin: 0;
+      background: transparent;
+      color: var(--ink);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    button { font: inherit; touch-action: manipulation; min-height: 44px; }
+
+    .ndt-app {
+      width: min(100%, 1080px);
+      margin: 0 auto;
+      border: 5px solid #285f9f;
+      border-radius: 24px;
+      overflow: hidden;
+      background: var(--surface);
+      box-shadow: 0 18px 48px rgba(21, 52, 86, 0.14);
+    }
+
+    .ndt-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 18px 22px 15px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(115deg, #fff 0%, #eef7ff 100%);
+    }
+
+    .ndt-kicker {
+      margin: 0 0 3px;
+      color: var(--blue);
+      font-size: 0.73rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--navy);
+      font-size: clamp(1.3rem, 3.9vw, 1.95rem);
+      letter-spacing: -0.03em;
+      line-height: 1.08;
+    }
+
+    .ndt-reset {
+      flex: 0 0 auto;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--blue-dark);
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    .ndt-main { padding: 18px; }
+
+    .ndt-stage {
+      position: relative;
+      border: 1px solid #adc6df;
+      border-radius: 18px;
+      overflow: hidden;
+      background: var(--stage);
+    }
+
+    .ndt-stage-top {
+      position: absolute;
+      z-index: 2;
+      inset: 12px 13px auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .ndt-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 30px;
+      padding: 5px 11px;
+      border: 1px solid rgba(40, 95, 159, 0.23);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.93);
+      color: var(--navy);
+      font-size: 0.78rem;
+      font-weight: 800;
+      box-shadow: 0 4px 14px rgba(21, 52, 86, 0.08);
+    }
+
+    .ndt-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--cyan);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 1000 / 360;
+    }
+
+    .ndt-readouts {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 9px;
+      margin-top: 12px;
+    }
+
+    .ndt-readout {
+      min-width: 0;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: #fff;
+    }
+
+    .ndt-readout-label {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--muted);
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .ndt-readout output {
+      display: block;
+      color: var(--navy);
+      font-size: clamp(0.9rem, 2.2vw, 1.08rem);
+      font-weight: 850;
+      line-height: 1.25;
+    }
+
+    .ndt-workbench {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(255px, 0.82fr);
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .ndt-panel {
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #f9fbfe;
+    }
+
+    .ndt-scene-title {
+      margin: 0 0 6px;
+      color: var(--navy);
+      font-size: 1rem;
+      font-weight: 850;
+    }
+
+    .ndt-scene-text {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    .ndt-progress {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 13px;
+    }
+
+    .ndt-pip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border: 1px solid #9db4cc;
+      border-radius: 50%;
+      background: #fff;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    .ndt-pip[data-state="current"] { border-color: var(--blue); background: var(--blue-soft); color: var(--blue-dark); }
+    .ndt-pip[data-state="done"] { border-color: var(--blue); background: var(--blue); color: #fff; }
+
+    .ndt-playback { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
+
+    .ndt-icon-btn {
+      flex: 1 1 120px;
+      padding: 9px 12px;
+      border: 1px solid #9db4cc;
+      border-radius: 11px;
+      background: #fff;
+      color: var(--navy);
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .ndt-icon-btn[aria-pressed="true"] { border-color: var(--blue); background: var(--blue-soft); color: var(--blue-dark); }
+
+    .ndt-prompt-panel {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      background: #fff;
+    }
+
+    .ndt-step-label {
+      margin: 0 0 5px;
+      color: var(--blue);
+      font-size: 0.72rem;
+      font-weight: 850;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .ndt-question {
+      margin: 0;
+      color: var(--navy);
+      font-size: 1.02rem;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .ndt-choices { display: grid; gap: 7px; margin-top: 11px; }
+
+    .ndt-choice {
+      min-height: 43px;
+      padding: 9px 12px;
+      border: 1px solid #9eb4cb;
+      border-radius: 11px;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 750;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .ndt-choice:hover:not(:disabled) { border-color: var(--blue); background: var(--blue-soft); }
+
+    .ndt-feedback {
+      margin: 10px 0 0;
+      padding: 10px 12px;
+      border-radius: 11px;
+      background: var(--success-soft);
+      color: #14532d;
+      font-size: 0.88rem;
+      font-weight: 650;
+      line-height: 1.42;
+    }
+
+    .ndt-feedback[data-tone="note"] { background: var(--orange-soft); color: #7c2d12; }
+
+    .ndt-primary {
+      width: 100%;
+      margin-top: 11px;
+      padding: 10px 14px;
+      border: 0;
+      border-radius: 11px;
+      background: var(--blue);
+      color: #fff;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 5px 13px rgba(40,95,159,0.22);
+    }
+
+    .ndt-primary:hover { background: var(--blue-dark); }
+    .ndt-primary:disabled, .ndt-choice:disabled { cursor: not-allowed; opacity: 0.58; }
+
+    [hidden] { display: none !important; }
+
+    :focus-visible { outline: 3px solid #e56b24; outline-offset: 3px; }
+
+    .ndt-sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 760px) {
+      .ndt-main { padding: 12px; }
+      .ndt-workbench { grid-template-columns: 1fr; }
+      .ndt-readouts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 480px) {
+      .ndt-header { align-items: flex-start; padding: 15px 14px 13px; }
+      .ndt-stage-top { align-items: flex-start; }
+      .ndt-readout { padding: 9px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="ndt-app" id="decay-app">
+    <header class="ndt-header">
+      <div>
+        <p class="ndt-kicker">Unit 5 · Lesson 5 · Part 2</p>
+        <h1>Nuclear Change Tracker</h1>
+      </div>
+      <button class="ndt-reset" id="reset-button" type="button">Reset</button>
+    </header>
+
+    <div class="ndt-main">
+      <section class="ndt-stage">
+        <div class="ndt-stage-top" aria-hidden="true">
+          <span class="ndt-badge"><span class="ndt-dot"></span><span id="nuclide-badge">Radium-226</span></span>
+          <span class="ndt-badge" id="motion-badge">Ready</span>
+        </div>
+        <canvas id="nucleus-canvas" role="img" aria-labelledby="canvas-label"></canvas>
+        <p class="ndt-sr-only" id="canvas-label">A nucleus built from protons and neutrons. During a decay, emitted particles or a gamma ray travel away to the right and the remaining nucleus is relabeled.</p>
+      </section>
+
+      <div class="ndt-readouts">
+        <div class="ndt-readout">
+          <span class="ndt-readout-label">Protons</span>
+          <output id="proton-output">88 → ?</output>
+        </div>
+        <div class="ndt-readout">
+          <span class="ndt-readout-label">Neutrons</span>
+          <output id="neutron-output">138 → ?</output>
+        </div>
+        <div class="ndt-readout">
+          <span class="ndt-readout-label">Nuclide</span>
+          <output id="nuclide-output">Ra-226 → ?</output>
+        </div>
+        <div class="ndt-readout">
+          <span class="ndt-readout-label">Emitted</span>
+          <output id="emitted-output">?</output>
+        </div>
+      </div>
+
+      <div class="ndt-workbench">
+        <section class="ndt-panel" aria-label="Scene setup and playback">
+          <p class="ndt-scene-title" id="scene-title">Alpha decay</p>
+          <p class="ndt-scene-text" id="scene-text">Radium-226 ejects a tight cluster of two protons and two neutrons.</p>
+          <div class="ndt-progress" id="progress" role="list" aria-label="Scenario progress"></div>
+          <div class="ndt-playback">
+            <button class="ndt-icon-btn" id="slow-button" type="button" aria-pressed="false">½× Slow motion</button>
+            <button class="ndt-icon-btn" id="replay-button" type="button" disabled>↻ Replay decay</button>
+          </div>
+        </section>
+
+        <section class="ndt-panel ndt-prompt-panel" aria-labelledby="prompt-question">
+          <p class="ndt-step-label" id="step-label">Predict first</p>
+          <p class="ndt-question" id="prompt-question">What is left behind?</p>
+          <div class="ndt-choices" id="choices"></div>
+          <p class="ndt-feedback" id="feedback" role="status" aria-live="polite" hidden></p>
+          <button class="ndt-primary" id="main-button" type="button" hidden>Next scenario</button>
+        </section>
+      </div>
+    </div>
+
+    <p class="ndt-sr-only" id="status" role="status" aria-live="polite">Nuclear change tracker ready.</p>
+
+    <script>
+      (() => {
+        'use strict';
+
+        const W = 1000;
+        const H = 360;
+        const CX = 330;            // nucleus center
+        const CY = 186;
+        const R = 76;              // nucleus radius, same for every nuclide
+        const TRAVEL = 470;        // how far an emitted particle flies
+
+        const PROTON = '#2f6fb5';
+        const NEUTRON = '#7b8b9d';
+
+        const scenarios = [
+          {
+            id: 'alpha',
+            title: 'Alpha decay',
+            text: 'Radium-226 ejects a tight cluster of two protons and two neutrons.',
+            mode: 'alpha',
+            Z: 88, N: 138, symbol: 'Ra-226', name: 'Radium-226',
+            after: { Z: 86, N: 136, symbol: 'Rn-222', name: 'Radon-222' },
+            emitted: 'Alpha (2p + 2n)',
+            emitLabel: 'alpha particle · helium-4 nucleus',
+            question: 'What is left behind?',
+            options: [
+              { text: 'Radon-222: 86 protons, 136 neutrons', correct: true },
+              { text: 'Radium-222: 88 protons, 134 neutrons', correct: false },
+              { text: 'Radon-226: 86 protons, 140 neutrons', correct: false }
+            ],
+            explanation: 'It becomes radon-222. Two protons left, so the element changed, and four nucleons went with the alpha particle.'
+          },
+          {
+            id: 'beta-minus',
+            title: 'Beta-minus decay',
+            text: 'Inside carbon-14, one neutron turns into a proton.',
+            mode: 'beta-',
+            Z: 6, N: 8, symbol: 'C-14', name: 'Carbon-14',
+            after: { Z: 7, N: 7, symbol: 'N-14', name: 'Nitrogen-14' },
+            emitted: 'Beta (e⁻) + antineutrino',
+            emitLabel: 'beta particle · electron',
+            question: 'What is the nucleus now?',
+            options: [
+              { text: 'Nitrogen-14: 7 protons, 7 neutrons', correct: true },
+              { text: 'Carbon-13: 6 protons, 7 neutrons', correct: false },
+              { text: 'Boron-14: 5 protons, 9 neutrons', correct: false }
+            ],
+            explanation: 'Carbon becomes nitrogen-14. The nucleon count holds at 14 because a neutron converted rather than left.'
+          },
+          {
+            id: 'beta-plus',
+            title: 'Beta-plus decay',
+            text: 'Inside sodium-22, one proton turns into a neutron.',
+            mode: 'beta+',
+            Z: 11, N: 11, symbol: 'Na-22', name: 'Sodium-22',
+            after: { Z: 10, N: 12, symbol: 'Ne-22', name: 'Neon-22' },
+            emitted: 'Positron (e⁺) + neutrino',
+            emitLabel: 'positron · positive beta particle',
+            question: 'What is the nucleus now?',
+            options: [
+              { text: 'Neon-22: 10 protons, 12 neutrons', correct: true },
+              { text: 'Magnesium-22: 12 protons, 10 neutrons', correct: false },
+              { text: 'Sodium-21: 11 protons, 10 neutrons', correct: false }
+            ],
+            explanation: 'Sodium becomes neon-22. Charge moved out with the positron, so the proton count fell while the mass number stayed 22.'
+          },
+          {
+            id: 'gamma',
+            title: 'Gamma emission',
+            text: 'Technetium-99m sits in an excited state after an earlier decay.',
+            mode: 'gamma',
+            Z: 43, N: 56, symbol: 'Tc-99m', name: 'Technetium-99m',
+            after: { Z: 43, N: 56, symbol: 'Tc-99', name: 'Technetium-99' },
+            emitted: 'Gamma photon',
+            emitLabel: 'gamma ray · high-energy photon',
+            question: 'What does the gamma ray change?',
+            options: [
+              { text: 'Technetium-99: same 43 protons, 56 neutrons', correct: true },
+              { text: 'Molybdenum-99: 42 protons, 57 neutrons', correct: false },
+              { text: 'Technetium-98: 43 protons, 55 neutrons', correct: false }
+            ],
+            explanation: 'The counts do not move at all. The photon carries energy away, dropping the same nucleus to its ground state.'
+          }
+        ];
+
+        const el = {
+          canvas: document.getElementById('nucleus-canvas'),
+          nuclideBadge: document.getElementById('nuclide-badge'),
+          motionBadge: document.getElementById('motion-badge'),
+          protons: document.getElementById('proton-output'),
+          neutrons: document.getElementById('neutron-output'),
+          nuclide: document.getElementById('nuclide-output'),
+          emitted: document.getElementById('emitted-output'),
+          sceneTitle: document.getElementById('scene-title'),
+          sceneText: document.getElementById('scene-text'),
+          progress: document.getElementById('progress'),
+          slow: document.getElementById('slow-button'),
+          replay: document.getElementById('replay-button'),
+          stepLabel: document.getElementById('step-label'),
+          question: document.getElementById('prompt-question'),
+          choices: document.getElementById('choices'),
+          feedback: document.getElementById('feedback'),
+          main: document.getElementById('main-button'),
+          reset: document.getElementById('reset-button'),
+          status: document.getElementById('status')
+        };
+
+        const ctx = el.canvas.getContext('2d');
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        const FREEZE = 2.6;
+        const EMIT_START = 0.5;
+        const EMIT_SPAN = 1.5;
+
+        let index = 0;
+        let state = 'predict';       // predict → reveal → explain → complete
+        let simTime = 0;
+        let running = false;
+        let slow = false;
+        let previousFrame = 0;
+        let completionSent = false;
+        let pendingCorrect = false;
+        let layout = [];
+        let marked = [];             // nucleons that leave or convert
+
+        function scenario() { return scenarios[index]; }
+
+        function buildLayout(s) {
+          const A = s.Z + s.N;
+          const dot = Math.max(2.7, Math.min(15, R / (1.12 * Math.sqrt(A))));
+          const types = [];
+          for (let i = 0; i < s.Z; i += 1) types.push('p');
+          for (let i = 0; i < s.N; i += 1) types.push('n');
+
+          let seed = A * 7919 + s.Z * 104729 + 12345;
+          const rand = () => {
+            seed = (seed * 1664525 + 1013904223) % 4294967296;
+            return seed / 4294967296;
+          };
+          for (let i = types.length - 1; i > 0; i -= 1) {
+            const j = Math.floor(rand() * (i + 1));
+            [types[i], types[j]] = [types[j], types[i]];
+          }
+
+          const golden = Math.PI * (3 - Math.sqrt(5));
+          layout = types.map((type, i) => {
+            const radius = R * Math.sqrt((i + 0.5) / A);
+            const angle = i * golden;
+            return {
+              type,
+              baseType: type,
+              x: Math.cos(angle) * radius,
+              y: Math.sin(angle) * radius,
+              radius,
+              dot
+            };
+          });
+
+          marked = [];
+          if (s.mode === 'alpha') {
+            const outer = layout.slice().sort((a, b) => b.radius - a.radius);
+            const protons = outer.filter((n) => n.type === 'p').slice(0, 2);
+            const neutrons = outer.filter((n) => n.type === 'n').slice(0, 2);
+            marked = protons.concat(neutrons);
+            marked.forEach((n) => { n.leaves = true; });
+          } else if (s.mode === 'beta-') {
+            const target = layout.filter((n) => n.type === 'n').sort((a, b) => a.radius - b.radius)[0];
+            target.converts = 'p';
+            marked = [target];
+          } else if (s.mode === 'beta+') {
+            const target = layout.filter((n) => n.type === 'p').sort((a, b) => a.radius - b.radius)[0];
+            target.converts = 'n';
+            marked = [target];
+          }
+        }
+
+        function emitProgress() {
+          if (state === 'predict') return 0;
+          return Math.max(0, Math.min(1, (simTime - EMIT_START) / EMIT_SPAN));
+        }
+
+        function nucleonColor(node, converted) {
+          const type = converted && node.converts ? node.converts : node.baseType;
+          return type === 'p' ? PROTON : NEUTRON;
+        }
+
+        function fitCanvas() {
+          const ratio = window.devicePixelRatio || 1;
+          const cssWidth = el.canvas.clientWidth || W;
+          const cssHeight = cssWidth * (H / W);
+          el.canvas.width = Math.round(cssWidth * ratio);
+          el.canvas.height = Math.round(cssHeight * ratio);
+          ctx.setTransform((cssWidth * ratio) / W, 0, 0, (cssHeight * ratio) / H, 0, 0);
+        }
+
+        function drawLegend() {
+          ctx.font = '700 15px system-ui, sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillStyle = PROTON;
+          ctx.beginPath();
+          ctx.arc(38, 82, 9, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#52657b';
+          ctx.fillText('proton', 54, 88);
+          ctx.fillStyle = NEUTRON;
+          ctx.beginPath();
+          ctx.arc(140, 82, 9, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#52657b';
+          ctx.fillText('neutron', 156, 88);
+        }
+
+        function drawEnergyLadder(dropped) {
+          const x = 60;
+          const excited = 248;
+          const ground = 312;
+          ctx.strokeStyle = '#9db4cc';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(x, excited);
+          ctx.lineTo(x + 128, excited);
+          ctx.moveTo(x, ground);
+          ctx.lineTo(x + 128, ground);
+          ctx.stroke();
+          ctx.font = '700 13px system-ui, sans-serif';
+          ctx.fillStyle = '#52657b';
+          ctx.textAlign = 'left';
+          ctx.fillText('excited state', x, excited - 12);
+          ctx.fillText('ground state', x, ground + 24);
+          const y = excited + (ground - excited) * dropped;
+          ctx.fillStyle = dropped > 0.98 ? '#1f7a45' : '#e56b24';
+          ctx.beginPath();
+          ctx.arc(x + 64, y, 11, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        function drawWavyPhoton(fromX, toX, y) {
+          ctx.strokeStyle = '#8b3fbf';
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          for (let x = fromX; x <= toX; x += 3) {
+            const wy = y + Math.sin((x - fromX) / 9) * 11;
+            if (x === fromX) ctx.moveTo(x, wy); else ctx.lineTo(x, wy);
+          }
+          ctx.stroke();
+        }
+
+        function draw() {
+          const s = scenario();
+          const progress = emitProgress();
+          const converted = state !== 'predict' && simTime > EMIT_START * 0.7;
+          const wobble = running && simTime < EMIT_START ? Math.sin(simTime * 34) * 2.2 : 0;
+
+          ctx.clearRect(0, 0, W, H);
+          ctx.fillStyle = '#f4f9ff';
+          ctx.fillRect(0, 0, W, H);
+          drawLegend();
+
+          // nucleus halo
+          ctx.fillStyle = 'rgba(40, 95, 159, 0.07)';
+          ctx.beginPath();
+          ctx.arc(CX, CY, R + 16, 0, Math.PI * 2);
+          ctx.fill();
+          if (s.mode === 'gamma' && progress < 0.35) {
+            ctx.strokeStyle = 'rgba(229, 107, 36, 0.55)';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.arc(CX, CY, R + 16, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+
+          // nucleons that stay
+          layout.forEach((node) => {
+            if (node.leaves && progress > 0) return;
+            const x = CX + node.x + wobble;
+            const y = CY + node.y;
+            ctx.fillStyle = nucleonColor(node, converted);
+            ctx.beginPath();
+            ctx.arc(x, y, node.dot, 0, Math.PI * 2);
+            ctx.fill();
+            if (node.converts && converted) {
+              ctx.strokeStyle = '#e56b24';
+              ctx.lineWidth = 3;
+              ctx.beginPath();
+              ctx.arc(x, y, node.dot + 5, 0, Math.PI * 2);
+              ctx.stroke();
+            }
+          });
+
+          // emitted particles
+          const travelX = CX + R + 30 + TRAVEL * progress;
+          const travelY = CY - 46 * progress;
+          if (progress > 0) {
+            if (s.mode === 'alpha') {
+              const cluster = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
+              marked.forEach((node, i) => {
+                ctx.fillStyle = node.baseType === 'p' ? PROTON : NEUTRON;
+                ctx.beginPath();
+                ctx.arc(travelX + cluster[i][0] * 11, travelY + cluster[i][1] * 11, 10, 0, Math.PI * 2);
+                ctx.fill();
+              });
+            } else if (s.mode === 'beta-' || s.mode === 'beta+') {
+              ctx.fillStyle = s.mode === 'beta-' ? '#1f2f45' : '#b0246b';
+              ctx.beginPath();
+              ctx.arc(travelX, travelY, 12, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillStyle = '#fff';
+              ctx.font = '850 16px system-ui, sans-serif';
+              ctx.textAlign = 'center';
+              ctx.fillText(s.mode === 'beta-' ? '−' : '+', travelX, travelY + 6);
+              ctx.setLineDash([3, 5]);
+              ctx.strokeStyle = '#9db4cc';
+              ctx.lineWidth = 3;
+              ctx.beginPath();
+              ctx.arc(travelX - 34, travelY + 34, 7, 0, Math.PI * 2);
+              ctx.stroke();
+              ctx.setLineDash([]);
+            } else {
+              drawWavyPhoton(CX + R + 24, travelX, travelY);
+            }
+            ctx.font = '800 15px system-ui, sans-serif';
+            ctx.fillStyle = '#7c2d12';
+            ctx.textAlign = 'center';
+            ctx.fillText(s.emitLabel, Math.min(travelX, W - 150), travelY - 42);
+          }
+
+          if (s.mode === 'gamma') drawEnergyLadder(progress);
+
+          // nuclide caption under the nucleus
+          ctx.textAlign = 'center';
+          ctx.font = '850 20px system-ui, sans-serif';
+          ctx.fillStyle = '#153456';
+          const label = state === 'predict' || progress < 0.6 ? s.name : s.after.name;
+          ctx.fillText(label, CX, CY + R + 52);
+          ctx.font = '700 14px system-ui, sans-serif';
+          ctx.fillStyle = '#52657b';
+          const counts = state === 'predict' || progress < 0.6
+            ? `${s.Z} protons · ${s.N} neutrons`
+            : `${s.after.Z} protons · ${s.after.N} neutrons`;
+          ctx.fillText(counts, CX, CY + R + 74);
+          ctx.textAlign = 'left';
+        }
+
+        function shuffle(items) {
+          const result = items.slice();
+          for (let i = result.length - 1; i > 0; i -= 1) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [result[i], result[j]] = [result[j], result[i]];
+          }
+          return result;
+        }
+
+        function renderProgress() {
+          el.progress.replaceChildren();
+          scenarios.forEach((item, i) => {
+            const pip = document.createElement('span');
+            pip.className = 'ndt-pip';
+            pip.setAttribute('role', 'listitem');
+            pip.textContent = String(i + 1);
+            pip.dataset.state = i < index ? 'done' : i === index ? 'current' : 'todo';
+            pip.setAttribute('aria-label', `Scenario ${i + 1} of ${scenarios.length}${i === index ? ', current' : i < index ? ', done' : ''}`);
+            el.progress.append(pip);
+          });
+        }
+
+        function renderChoices(options, handler) {
+          el.choices.replaceChildren();
+          shuffle(options).forEach((option) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'ndt-choice';
+            button.textContent = option.text;
+            button.addEventListener('click', () => handler(option), { once: true });
+            el.choices.append(button);
+          });
+        }
+
+        function lockChoices() {
+          el.choices.querySelectorAll('button').forEach((button) => { button.disabled = true; });
+        }
+
+        function loadScenario() {
+          const s = scenario();
+          state = 'predict';
+          simTime = 0;
+          running = false;
+          buildLayout(s);
+          el.sceneTitle.textContent = s.title;
+          el.sceneText.textContent = s.text;
+          el.nuclideBadge.textContent = s.name;
+          el.protons.textContent = `${s.Z} → ?`;
+          el.neutrons.textContent = `${s.N} → ?`;
+          el.nuclide.textContent = `${s.symbol} → ?`;
+          el.emitted.textContent = '?';
+          el.motionBadge.textContent = 'Ready';
+          el.stepLabel.textContent = `Predict · scenario ${index + 1} of ${scenarios.length}`;
+          el.question.textContent = s.question;
+          el.feedback.hidden = true;
+          el.main.hidden = true;
+          el.replay.disabled = true;
+          el.choices.hidden = false;
+          renderChoices(s.options, choose);
+          renderProgress();
+          draw();
+          el.status.textContent = `${s.title}. ${s.text} Choose a prediction.`;
+        }
+
+        function choose(option) {
+          if (state !== 'predict') return;
+          lockChoices();
+          el.choices.hidden = true;
+          state = 'reveal';
+          el.stepLabel.textContent = 'Watch the nucleus';
+          el.question.textContent = 'The decay happens now.';
+          el.motionBadge.textContent = slow ? 'Playing · ½×' : 'Playing · 1×';
+          simTime = 0;
+          running = true;
+          el.status.textContent = 'Reveal running.';
+          if (reduceMotion) {
+            simTime = FREEZE;
+            finishReveal(option.correct);
+          } else {
+            pendingCorrect = option.correct;
+          }
+        }
+
+        function finishReveal(correct) {
+          const s = scenario();
+          running = false;
+          simTime = FREEZE;
+          state = 'explain';
+          draw();
+          el.protons.textContent = `${s.Z} → ${s.after.Z}`;
+          el.neutrons.textContent = `${s.N} → ${s.after.N}`;
+          el.nuclide.textContent = `${s.symbol} → ${s.after.symbol}`;
+          el.emitted.textContent = s.emitted;
+          el.nuclideBadge.textContent = s.after.name;
+          el.motionBadge.textContent = 'Frozen';
+          el.question.textContent = 'What the tracker recorded:';
+          el.feedback.textContent = s.explanation;
+          el.feedback.dataset.tone = correct ? 'success' : 'note';
+          el.feedback.hidden = false;
+          el.replay.disabled = false;
+          el.main.textContent = index === scenarios.length - 1 ? 'Finish' : 'Next scenario';
+          el.main.hidden = false;
+          el.stepLabel.textContent = 'Evidence';
+          el.status.textContent = s.explanation;
+        }
+
+        function handleMain() {
+          if (state === 'complete') { index = 0; loadScenario(); return; }
+          if (index < scenarios.length - 1) {
+            index += 1;
+            loadScenario();
+            return;
+          }
+          state = 'complete';
+          renderProgress();
+          el.stepLabel.textContent = 'All four processes done';
+          el.question.textContent = 'Nothing vanished in any of them.';
+          el.feedback.textContent = 'Every nucleon and every unit of charge was still there afterward, either in the new nucleus or in the emitted particle.';
+          el.feedback.dataset.tone = 'success';
+          el.feedback.hidden = false;
+          el.main.textContent = 'Start over';
+          sendCompletion();
+        }
+
+        function sendCompletion() {
+          if (completionSent) return;
+          completionSent = true;
+          window.parent.postMessage({ type: 'complete' }, '*');
+          el.status.textContent = 'Nuclear change tracker complete.';
+        }
+
+        function replay() {
+          if (state !== 'explain' && state !== 'complete') return;
+          simTime = 0;
+          running = true;
+          el.motionBadge.textContent = slow ? 'Playing · ½×' : 'Playing · 1×';
+        }
+
+        function animate(now) {
+          const delta = previousFrame ? Math.min((now - previousFrame) / 1000, 0.05) : 0;
+          previousFrame = now;
+          if (running) {
+            simTime += delta * (slow ? 0.5 : 1);
+            if (simTime >= FREEZE) {
+              simTime = FREEZE;
+              running = false;
+              el.motionBadge.textContent = 'Frozen';
+              if (state === 'reveal') finishReveal(pendingCorrect);
+            }
+          }
+          draw();
+          requestAnimationFrame(animate);
+        }
+
+        function reset() {
+          index = 0;
+          slow = false;
+          el.slow.setAttribute('aria-pressed', 'false');
+          loadScenario();
+        }
+
+        el.slow.addEventListener('click', () => {
+          slow = !slow;
+          el.slow.setAttribute('aria-pressed', String(slow));
+          if (running) el.motionBadge.textContent = slow ? 'Playing · ½×' : 'Playing · 1×';
+        });
+        el.replay.addEventListener('click', replay);
+        el.main.addEventListener('click', handleMain);
+        el.reset.addEventListener('click', reset);
+        window.addEventListener('resize', () => { fitCanvas(); draw(); });
+        document.addEventListener('visibilitychange', () => { if (document.hidden) previousFrame = 0; });
+
+        fitCanvas();
+        reset();
+        requestAnimationFrame(animate);
+      })();
+    </script>
+  </main>
+</body>
+</html>

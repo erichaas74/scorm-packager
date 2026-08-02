@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sim 3: Intensity, Distance & Spherical Waves</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --accent: #f472b6;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 16px;
+  }
+  h1 { font-size: 1.4rem; margin-bottom: 4px; color: var(--accent); }
+  .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 16px; }
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 16px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+  .canvas-wrap {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 12px;
+  }
+  canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 8px;
+    background: #0b1220;
+  }
+  .controls {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .control-group label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  button {
+    background: #334155;
+    color: var(--text);
+    border: none;
+    padding: 9px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+  button:hover { background: #475569; }
+  button.active {
+    background: var(--accent);
+    color: #0f172a;
+    font-weight: 600;
+  }
+  .info-box {
+    background: #0f172a;
+    border-left: 3px solid var(--accent);
+    padding: 10px 12px;
+    border-radius: 0 8px 8px 0;
+    font-size: 0.85rem;
+    line-height: 1.45;
+  }
+  .readout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .readout-card {
+    background: #0f172a;
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+  }
+  .readout-card .val {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .readout-card .lbl {
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  .prediction {
+    background: #4a1942;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 0.82rem;
+  }
+  .prediction strong { color: #f9a8d4; }
+  .formula {
+    font-family: 'Courier New', monospace;
+    background: #1e1b4b;
+    padding: 8px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+  <h1>Simulation 3: Intensity, Distance & Spherical Waves</h1>
+  <p class="subtitle">Unit 5 Lesson 2 · Part 1 · Inverse-square law & expanding wavefronts</p>
+
+  <div class="layout">
+    <div class="canvas-wrap">
+      <canvas id="c" width="800" height="480"></canvas>
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <label>Detector distance from source</label>
+        <input type="range" id="dist" min="40" max="320" value="120">
+        <span id="distVal">Distance = 1.0× reference</span>
+      </div>
+
+      <div class="control-group">
+        <label>Source power (energy output)</label>
+        <input type="range" id="power" min="20" max="100" value="60">
+      </div>
+
+      <div class="btn-row">
+        <button id="doubleBtn">Double Distance</button>
+        <button id="resetBtn">Reset</button>
+      </div>
+
+      <div class="readout">
+        <div class="readout-card">
+          <div class="val" id="intVal">1.00</div>
+          <div class="lbl">Relative Intensity</div>
+        </div>
+        <div class="readout-card">
+          <div class="val" id="areaVal">1.00</div>
+          <div class="lbl">Relative Surface Area</div>
+        </div>
+      </div>
+
+      <div class="formula">
+        I ∝ 1 / r² &nbsp;&nbsp;→&nbsp;&nbsp; 2× distance = ¼ intensity
+      </div>
+
+      <div class="info-box" id="info">
+        Sound spreads as expanding spherical shells. The same energy is distributed over a larger and larger surface area (4πr²). Double the distance → area becomes 4× → intensity falls to ¼.
+      </div>
+
+      <div class="prediction">
+        <strong>Key questions:</strong><br>
+        • If you double your distance from a speaker, is the intensity cut in half?<br>
+        • Why does a spherical wavefront get “weaker” even though energy is conserved?<br>
+        • Does the wave carry matter outward?
+      </div>
+    </div>
+  </div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+const srcX = 80, srcY = H / 2;
+let detectorDist = 120; // pixels from source
+let power = 60;
+let t = 0;
+const waves = []; // expanding rings
+
+const distSlider = document.getElementById('dist');
+const powerSlider = document.getElementById('power');
+const intVal = document.getElementById('intVal');
+const areaVal = document.getElementById('areaVal');
+const distVal = document.getElementById('distVal');
+const info = document.getElementById('info');
+
+const refDist = 120; // reference distance for relative calculations
+
+function updateReadouts() {
+  const r = detectorDist / refDist;
+  const intensity = 1 / (r * r);
+  const area = r * r;
+  intVal.textContent = intensity.toFixed(2);
+  areaVal.textContent = area.toFixed(2);
+  distVal.textContent = `Distance = ${r.toFixed(2)}× reference`;
+
+  if (Math.abs(r - 2) < 0.05) {
+    info.innerHTML = '<b style="color:#f9a8d4">Doubled distance!</b> Surface area is now 4× larger, so intensity is exactly ¼. This is the inverse-square law.';
+  } else if (r > 2.5) {
+    info.innerHTML = 'Far from the source the energy is spread over a huge sphere. Intensity drops rapidly — that is why distant sounds are quiet.';
+  } else {
+    info.innerHTML = 'Sound spreads as expanding spherical shells. The same energy is distributed over a larger surface area (4πr²). Double the distance → area ×4 → intensity ×¼.';
+  }
+}
+
+distSlider.oninput = () => {
+  detectorDist = +distSlider.value;
+  updateReadouts();
+};
+powerSlider.oninput = () => {
+  power = +powerSlider.value;
+};
+
+document.getElementById('doubleBtn').onclick = () => {
+  detectorDist = Math.min(320, refDist * 2);
+  distSlider.value = detectorDist;
+  updateReadouts();
+};
+document.getElementById('resetBtn').onclick = () => {
+  detectorDist = 120;
+  power = 60;
+  distSlider.value = 120;
+  powerSlider.value = 60;
+  updateReadouts();
+};
+
+// Spawn new wavefronts periodically
+setInterval(() => {
+  waves.push({ r: 0, alpha: 1 });
+}, 600);
+
+function draw() {
+  ctx.fillStyle = '#0b1220';
+  ctx.fillRect(0, 0, W, H);
+
+  // Source
+  ctx.beginPath();
+  ctx.arc(srcX, srcY, 14, 0, Math.PI * 2);
+  ctx.fillStyle = '#f472b6';
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(srcX, srcY, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '12px sans-serif';
+  ctx.fillText('Source', srcX - 18, srcY + 35);
+
+  // Expanding spherical wavefronts (shown as circles in 2-D)
+  for (let i = waves.length - 1; i >= 0; i--) {
+    const w = waves[i];
+    w.r += 1.8;
+    w.alpha = Math.max(0, 1 - w.r / 380);
+    if (w.alpha <= 0) {
+      waves.splice(i, 1);
+      continue;
+    }
+    // Intensity falls with r² → opacity / line width reflects that
+    const intensityFactor = Math.min(1, (40 / Math.max(w.r, 20)) ** 1.2);
+    ctx.beginPath();
+    ctx.arc(srcX, srcY, w.r, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(244, 114, 182, ${w.alpha * intensityFactor * (power / 60)})`;
+    ctx.lineWidth = 2 + intensityFactor * 3;
+    ctx.stroke();
+  }
+
+  // Detector
+  const detX = srcX + detectorDist;
+  const detY = srcY;
+  ctx.beginPath();
+  ctx.arc(detX, detY, 12, 0, Math.PI * 2);
+  ctx.fillStyle = '#38bdf8';
+  ctx.fill();
+  ctx.strokeStyle = '#7dd3fc';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '12px sans-serif';
+  ctx.fillText('Detector', detX - 22, detY + 32);
+
+  // Distance line
+  ctx.strokeStyle = '#475569';
+  ctx.setLineDash([5, 5]);
+  ctx.beginPath();
+  ctx.moveTo(srcX + 14, srcY);
+  ctx.lineTo(detX - 12, srcY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Intensity bar at detector (visual height = intensity)
+  const r = detectorDist / refDist;
+  const intensity = 1 / (r * r);
+  const barH = Math.min(160, intensity * 80 * (power / 60));
+  ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
+  ctx.fillRect(detX + 25, detY - barH / 2, 18, barH);
+  ctx.strokeStyle = '#38bdf8';
+  ctx.strokeRect(detX + 25, detY - barH / 2, 18, barH);
+  ctx.fillStyle = '#7dd3fc';
+  ctx.font = '11px sans-serif';
+  ctx.fillText('I', detX + 30, detY - barH / 2 - 6);
+
+  // Legend
+  ctx.fillStyle = '#64748b';
+  ctx.font = '11px sans-serif';
+  ctx.fillText('Circles = spherical wavefronts (energy spreading over larger area)', 20, H - 20);
+
+  t += 0.05;
+  requestAnimationFrame(draw);
+}
+updateReadouts();
+draw();
+</script>
+</body>
+</html>

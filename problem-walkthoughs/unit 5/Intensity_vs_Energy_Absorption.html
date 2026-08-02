@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sim 3: Intensity vs Photon Energy & Absorption</title>
+<style>
+  :root {
+    --bg: #0f172a; --card: #1e293b; --accent: #22d3ee;
+    --text: #e2e8f0; --muted: #94a3b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; padding: 16px;
+  }
+  h1 { font-size: 1.35rem; color: var(--accent); margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 16px; }
+  .layout {
+    display: grid; grid-template-columns: 1fr 340px; gap: 16px;
+    max-width: 1200px; margin: 0 auto;
+  }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+  .canvas-wrap, .controls {
+    background: var(--card); border-radius: 12px; padding: 14px;
+  }
+  canvas { width: 100%; height: auto; display: block; border-radius: 8px; background: #0b1220; }
+  .controls { display: flex; flex-direction: column; gap: 14px; }
+  label { font-size: 0.85rem; color: var(--muted); display: block; margin-bottom: 4px; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  button {
+    background: #334155; color: var(--text); border: none;
+    padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 0.82rem;
+  }
+  button:hover { background: #475569; }
+  button.active { background: var(--accent); color: #0f172a; font-weight: 600; }
+  .info-box {
+    background: #0f172a; border-left: 3px solid var(--accent);
+    padding: 10px 12px; border-radius: 0 8px 8px 0;
+    font-size: 0.84rem; line-height: 1.45;
+  }
+  .readout {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+  .card {
+    background: #0f172a; border-radius: 8px; padding: 10px; text-align: center;
+  }
+  .card .val { font-size: 1.2rem; font-weight: 700; color: var(--accent); }
+  .card .lbl { font-size: 0.72rem; color: var(--muted); }
+  .prediction {
+    background: #164e63; border-radius: 8px; padding: 10px; font-size: 0.82rem;
+  }
+  .prediction strong { color: #67e8f9; }
+  .key-point {
+    background: #0f172a; border-radius: 8px; padding: 10px; font-size: 0.85rem;
+    border: 1px solid #334155;
+  }
+</style>
+</head>
+<body>
+  <h1>Simulation 3: Intensity vs Photon Energy & Absorption</h1>
+  <p class="subtitle">Part 2 · Brightness ≠ Energy per photon · Material absorption</p>
+
+  <div class="layout">
+    <div class="canvas-wrap">
+      <canvas id="c" width="800" height="480"></canvas>
+    </div>
+
+    <div class="controls">
+      <div>
+        <label>Photon energy (frequency)</label>
+        <input type="range" id="energy" min="0" max="100" value="30">
+        <span id="eLabel" style="font-size:0.8rem;color:#67e8f9"></span>
+      </div>
+
+      <div>
+        <label>Intensity / Brightness (number of photons)</label>
+        <input type="range" id="intensity" min="5" max="80" value="25">
+        <span id="iLabel" style="font-size:0.8rem;color:#67e8f9"></span>
+      </div>
+
+      <div>
+        <label>Material in the path</label>
+        <div class="btn-row">
+          <button id="mAir" class="active">Air</button>
+          <button id="mSkin">Skin</button>
+          <button id="mGlass">Glass</button>
+          <button id="mMetal">Metal</button>
+          <button id="mLead">Lead</button>
+        </div>
+      </div>
+
+      <div class="readout">
+        <div class="card">
+          <div class="val" id="ePerPhoton">~2 eV</div>
+          <div class="lbl">Energy per photon</div>
+        </div>
+        <div class="card">
+          <div class="val" id="photonCount">25</div>
+          <div class="lbl">Relative photon rate</div>
+        </div>
+      </div>
+
+      <div class="key-point">
+        <b>Key idea:</b> Increasing brightness only increases the <em>number</em> of photons.
+        It does <b>not</b> increase the energy of each individual photon.
+        Only raising frequency does that.
+      </div>
+
+      <div class="info-box" id="info">
+        Choose a material and watch how different frequencies are transmitted or absorbed.
+        High-energy photons (X-rays, gamma) can penetrate further; low-energy ones are often absorbed as heat.
+      </div>
+
+      <div class="prediction">
+        <strong>Challenge questions:</strong><br>
+        • Does a brighter low-frequency source automatically become ionizing?<br>
+        • Why can X-rays pass through soft tissue but not dense bone/metal?<br>
+        • Do microwaves make food radioactive after the oven stops?
+      </div>
+    </div>
+  </div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+let energyS = 30;      // 0-100
+let intensity = 25;    // number of photons shown
+let material = 'air';
+
+// Approximate absorption coefficients (higher = more absorption) by energy band
+const absorb = {
+  air:   { low: 0.05, mid: 0.02, high: 0.01 },
+  skin:  { low: 0.9,  mid: 0.4,  high: 0.15 },
+  glass: { low: 0.3,  mid: 0.7,  high: 0.1 },
+  metal: { low: 0.95, mid: 0.85, high: 0.5 },
+  lead:  { low: 0.99, mid: 0.95, high: 0.7 }
+};
+
+const photons = []; // flying photons {x,y,vx,energyBand,alive}
+
+function energyBand(s) {
+  if (s < 35) return 'low';   // radio–IR–visible
+  if (s < 65) return 'mid';   // UV
+  return 'high';              // X/gamma
+}
+function energyLabel(s) {
+  if (s < 15) return 'Radio / Microwave (~µeV–meV)';
+  if (s < 30) return 'Infrared (~0.1 eV)';
+  if (s < 45) return 'Visible (~2 eV)';
+  if (s < 65) return 'Ultraviolet (~5–20 eV)';
+  if (s < 85) return 'X-ray (~keV)';
+  return 'Gamma (~MeV)';
+}
+function formatE(s) {
+  if (s < 15) return '~0.001 eV';
+  if (s < 30) return '~0.1 eV';
+  if (s < 45) return '~2 eV';
+  if (s < 65) return '~10 eV';
+  if (s < 85) return '~10 keV';
+  return '~1 MeV';
+}
+
+const eSlider = document.getElementById('energy');
+const iSlider = document.getElementById('intensity');
+const eLabel = document.getElementById('eLabel');
+const iLabel = document.getElementById('iLabel');
+const ePerPhoton = document.getElementById('ePerPhoton');
+const photonCount = document.getElementById('photonCount');
+const info = document.getElementById('info');
+
+function updateUI() {
+  eLabel.textContent = energyLabel(energyS);
+  iLabel.textContent = intensity + ' (relative rate)';
+  ePerPhoton.textContent = formatE(energyS);
+  photonCount.textContent = intensity;
+
+  const band = energyBand(energyS);
+  const a = absorb[material][band];
+  if (a > 0.7) {
+    info.innerHTML = `<b>Strong absorption</b> in ${material}. Most photons deposit their energy (as heat or ionization) inside the material and do not pass through.`;
+  } else if (a > 0.3) {
+    info.innerHTML = `<b>Partial transmission</b> through ${material}. Some photons are absorbed, others continue.`;
+  } else {
+    info.innerHTML = `<b>Mostly transmitted</b> through ${material}. Low interaction probability at this energy.`;
+  }
+}
+
+eSlider.oninput = () => { energyS = +eSlider.value; updateUI(); };
+iSlider.oninput = () => { intensity = +iSlider.value; updateUI(); };
+
+function setMaterial(m) {
+  material = m;
+  ['mAir','mSkin','mGlass','mMetal','mLead'].forEach(id => {
+    document.getElementById(id).classList.remove('active');
+  });
+  document.getElementById('m' + m.charAt(0).toUpperCase() + m.slice(1)).classList.add('active');
+  updateUI();
+}
+document.getElementById('mAir').onclick = () => setMaterial('air');
+document.getElementById('mSkin').onclick = () => setMaterial('skin');
+document.getElementById('mGlass').onclick = () => setMaterial('glass');
+document.getElementById('mMetal').onclick = () => setMaterial('metal');
+document.getElementById('mLead').onclick = () => setMaterial('lead');
+
+updateUI();
+
+// Spawn photons continuously based on intensity
+let spawnTimer = 0;
+function spawnPhoton() {
+  const band = energyBand(energyS);
+  photons.push({
+    x: 40,
+    y: 80 + Math.random() * (H - 160),
+    vx: 3 + Math.random() * 2,
+    band,
+    alive: true,
+    absorbed: false
+  });
+}
+
+function draw() {
+  ctx.fillStyle = '#0b1220';
+  ctx.fillRect(0, 0, W, H);
+
+  // Source
+  ctx.fillStyle = '#22d3ee';
+  ctx.beginPath();
+  ctx.arc(40, H/2, 16, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Src', 40, H/2 + 4);
+  ctx.textAlign = 'left';
+
+  // Material slab
+  const slabX = 280, slabW = 180;
+  const colors = {
+    air: 'rgba(148,163,184,0.15)',
+    skin: 'rgba(251,146,60,0.35)',
+    glass: 'rgba(125,211,252,0.3)',
+    metal: 'rgba(148,163,184,0.55)',
+    lead: 'rgba(100,116,139,0.7)'
+  };
+  ctx.fillStyle = colors[material];
+  ctx.fillRect(slabX, 50, slabW, H - 100);
+  ctx.strokeStyle = '#475569';
+  ctx.strokeRect(slabX, 50, slabW, H - 100);
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '13px sans-serif';
+  ctx.fillText(material.toUpperCase(), slabX + 20, 40);
+
+  // Detector
+  ctx.fillStyle = '#64748b';
+  ctx.fillRect(W - 70, 80, 30, H - 160);
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '11px sans-serif';
+  ctx.fillText('Detector', W - 75, H - 50);
+
+  // Photons
+  spawnTimer++;
+  const spawnRate = Math.max(2, 40 - intensity / 2);
+  if (spawnTimer > spawnRate) {
+    spawnPhoton();
+    spawnTimer = 0;
+  }
+
+  for (let i = photons.length - 1; i >= 0; i--) {
+    const p = photons[i];
+    if (!p.alive) { photons.splice(i, 1); continue; }
+
+    p.x += p.vx;
+
+    // Absorption check inside slab
+    if (p.x > slabX && p.x < slabX + slabW && !p.absorbed) {
+      const a = absorb[material][p.band];
+      if (Math.random() < a * 0.08) {
+        p.absorbed = true;
+        p.alive = false;
+        // small heat flash
+        ctx.fillStyle = 'rgba(251,191,36,0.6)';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+        continue;
+      }
+    }
+
+    // Draw photon
+    let col = '#22c55e';
+    if (p.band === 'mid') col = '#a78bfa';
+    if (p.band === 'high') col = '#f97316';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = col;
+    ctx.fill();
+
+    if (p.x > W - 40) {
+      // hit detector
+      p.alive = false;
+    }
+  }
+
+  // Legend
+  ctx.fillStyle = '#64748b';
+  ctx.font = '11px sans-serif';
+  ctx.fillText('Green = low-E  ·  Purple = UV  ·  Orange = X/γ', 40, H - 18);
+
+  // Note about intensity
+  ctx.fillStyle = '#67e8f9';
+  ctx.font = '12px sans-serif';
+  ctx.fillText('More intensity = more photons of the SAME energy', 200, 28);
+
+  requestAnimationFrame(draw);
+}
+draw();
+</script>
+</body>
+</html>

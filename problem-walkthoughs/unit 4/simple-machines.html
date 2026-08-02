@@ -14,6 +14,7 @@
         }
         #canvas-container {
             position: relative;
+            box-sizing: border-box; /* keep the 5px border inside the 100% width */
             width: 100%;
             height: 72vh;
             min-height: 480px;
@@ -47,38 +48,205 @@
             left: 12px;
             right: 12px;
             bottom: 12px;
-            padding: 10px 14px;
+            padding: 10px 14px 13px;
             border: 1px solid rgba(22, 163, 74, 0.35);
-            border-radius: 0.8rem;
-            background: rgba(255, 255, 255, 0.94);
+            border-radius: 0.9rem;
+            background: rgba(255, 255, 255, 0.96);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
             backdrop-filter: blur(6px);
         }
-        .steps-panel {
+        .control-label {
+            display: block;
+            margin: 0 0 7px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: #475569;
+        }
+        .choice-row { display: flex; align-items: stretch; gap: 8px; }
+        .choice-group {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 8px;
+        }
+        .choice-btn {
+            min-width: 0;
+            padding: 11px 4px;
+            border: 2px solid #bbf7d0;
+            border-radius: 0.7rem;
+            background: #f0fdf4;
+            color: #166534;
+            font-size: clamp(0.95rem, 2vw, 1.15rem);
+            font-weight: 800;
+            line-height: 1.15;
+            font-variant-numeric: tabular-nums;
+            cursor: pointer;
+            transition: background-color 0.15s ease, transform 0.15s ease;
+        }
+        .choice-btn:hover { background: #dcfce7; }
+        .choice-btn[aria-checked="true"] {
+            background: #16a34a;
+            border-color: #15803d;
+            color: #ffffff;
+            box-shadow: 0 4px 10px rgba(22, 163, 74, 0.35);
+            transform: translateY(-1px);
+        }
+        .choice-arrow {
+            width: 48px;
+            border: 2px solid #bbf7d0;
+            border-radius: 0.7rem;
+            background: #ffffff;
+            color: #166534;
+            font-size: 1.2rem;
+            font-weight: 900;
+            cursor: pointer;
+        }
+        .choice-arrow:hover:not(:disabled) { background: #dcfce7; }
+        .choice-arrow:disabled { opacity: 0.35; cursor: not-allowed; }
+        .hud {
             position: absolute;
             z-index: 2;
+            box-sizing: border-box;     /* so the widths below are the real footprint */
             top: 12px;
-            left: 12px;
-            right: 12px;
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 8px;
-            pointer-events: none;
-        }
-        .step-card {
-            min-width: 0;
-            padding: 9px 10px;
-            border: 1px solid rgba(34, 197, 94, 0.35);
-            border-radius: 0.75rem;
-            background: rgba(255, 255, 255, 0.94);
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+            width: min(34%, 240px);     /* a quarter narrower, to free the middle */
+            padding: 10px 12px;
+            border-radius: 0.85rem;
+            background: rgba(255, 255, 255, 0.96);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
             backdrop-filter: blur(6px);
+        }
+        .hud-left { left: 12px; border: 1px solid rgba(22, 163, 74, 0.45); }
+        .hud-right { right: 12px; border: 1px solid rgba(37, 99, 235, 0.45); }
+        .hud-title {
+            display: block;
+            font-size: 0.7rem;
+            font-weight: 800;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: #475569;
+        }
+        .hud-value {
+            display: block;
+            font-size: clamp(1.35rem, 3.4vw, 1.95rem);
+            font-weight: 900;
+            line-height: 1.05;
+            font-variant-numeric: tabular-nums;
+        }
+        .hud-left .hud-value { color: #15803d; }
+        .hud-right .hud-value { color: #1d4ed8; }
+        .hud-eq {
+            display: block;
+            margin-top: 2px;
+            font-size: 0.79rem;
+            font-weight: 700;
+            color: #334155;
+            font-variant-numeric: tabular-nums;
+        }
+        .ask {
+            position: absolute;
+            z-index: 2;
+            box-sizing: border-box;     /* so the widths below are the real footprint */
+            padding: 11px 13px 12px;
+            border: 1px solid rgba(40, 95, 159, 0.4);
+            border-radius: 0.85rem;
+            background: rgba(255, 255, 255, 0.97);
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.13);
+            backdrop-filter: blur(6px);
+        }
+        /* Between the two readout cards for the machines drawn low (ramp, lever,
+           screw); down the right-hand side for the ones drawn tall and central. */
+        .ask[data-place="between"] {
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            /* Above the 900px breakpoint each card is its 240px cap, so the gap
+               between them is the container minus both cards and their margins. */
+            width: calc(100% - 524px);
+            max-width: 470px;
+        }
+        .ask[data-place="right"] {
+            top: 50%;
+            right: 12px;
+            transform: translateY(-50%);
+            width: min(36%, 340px);
+        }
+        /* Not enough room to sit between the cards — drop below them instead. */
+        @media (max-width: 900px) {
+            .ask[data-place="between"] {
+                top: 104px;
+                width: min(62%, 460px);
+                max-width: none;
+            }
+        }
+        .ask-step {
+            margin: 0 0 3px;
+            color: #285f9f;
+            font-size: 0.68rem;
+            font-weight: 850;
+            letter-spacing: 0.09em;
+            text-transform: uppercase;
+        }
+        .ask-question { margin: 0 0 8px; color: #153456; font-size: 0.95rem; font-weight: 800; line-height: 1.3; }
+        .ask-options { display: flex; flex-wrap: wrap; gap: 7px; }
+        .ask-opt {
+            padding: 9px 12px;
+            border: 2px solid #cfe0f0;
+            border-radius: 0.65rem;
+            background: #ffffff;
+            color: #142238;
+            font-weight: 750;
+            cursor: pointer;
+        }
+        .ask-opt:hover { background: #eef5fc; }
+        .ask-opt[aria-pressed="true"] { border-color: #285f9f; background: #e8f2fd; }
+        /* `display` on a flex container beats the UA rule for [hidden], so make the
+           attribute authoritative for every element in this page. */
+        [hidden] { display: none !important; }
+        .ask-result { display: flex; align-items: center; gap: 10px; margin-top: 9px; }
+        .ask-feedback {
+            flex: 1;
+            margin: 0;
+            padding: 9px 11px;
+            border-radius: 0.6rem;
+            background: #e8f7ed;
+            color: #14532d;
+            font-size: 0.84rem;
+            font-weight: 650;
+            line-height: 1.4;
+        }
+        .ask-feedback[data-tone="note"] { background: #fff0e5; color: #7c2d12; }
+        .ask-next {
+            flex: 0 0 auto;
+            padding: 9px 14px;
+            border: 0;
+            border-radius: 0.6rem;
+            background: var(--rise-brand, #285f9f);
+            color: #ffffff;
+            font-weight: 850;
+            cursor: pointer;
         }
         @media (max-width: 640px) {
             #canvas-container { height: 66vh; min-height: 440px; }
-            .canvas-panel { left: 8px; right: 8px; bottom: 8px; }
-            .steps-panel { top: 8px; left: 8px; right: 8px; gap: 5px; }
-            .step-card { padding: 7px 6px; }
+            .canvas-panel { left: 8px; right: 8px; bottom: 8px; padding: 9px 9px 11px; }
+            .hud { top: 8px; width: calc(50% - 12px); padding: 8px 9px; }
+            .hud-left { left: 8px; }
+            .hud-right { right: 8px; }
+            .hud-eq { font-size: 0.68rem; }
+            .choice-btn { padding: 10px 2px; }
+            .choice-arrow { width: 38px; }
+            /* Too narrow for a side column — every machine uses the top strip. */
+            .ask[data-place="between"], .ask[data-place="right"] {
+                top: 98px;
+                right: auto;
+                left: 50%;
+                transform: translateX(-50%);
+                width: calc(100% - 16px);
+                max-width: none;
+                padding: 9px 10px 10px;
+            }
+            .ask-question { font-size: 0.88rem; }
         }
     </style>
 
@@ -218,70 +386,70 @@
             <!-- Buttons generated by JavaScript -->
         </nav>
 
-        <div class="mt-2 flex flex-wrap items-baseline gap-x-2 rounded-lg bg-white px-3 py-2 border border-green-200 shadow-sm">
-            <strong id="desc-title" class="text-green-800">Inclined Plane</strong>
-            <span id="desc-text" class="text-sm text-gray-600">Bed height is fixed — a gentler angle just makes the ramp longer.</span>
-        </div>
     </header>
 
     <div class="w-full max-w-6xl">
         <div id="canvas-container">
             <canvas id="simCanvas" role="img" aria-label="Six Simple Machines: Sim Canvas visual"></canvas>
 
-            <section class="steps-panel" aria-label="Three-step force calculation">
-                <div class="step-card">
-                    <div class="flex items-center gap-1.5">
-                        <span class="rounded-full bg-green-600 px-2 py-0.5 text-xs font-black text-white">1</span>
-                        <strong class="text-xs sm:text-sm text-gray-800">Work</strong>
-                    </div>
-                    <div class="mt-1 text-xs text-gray-500">W = mgh</div>
-                    <div class="work-value text-xs sm:text-sm font-bold text-green-800">12 &times; 10 &times; 1 = 120 J</div>
-                </div>
+            <section class="hud hud-left" aria-label="Work done on the load">
+                <span class="hud-title">Work on the load</span>
+                <span class="hud-value">120 J</span>
+                <span class="hud-eq">120 N &times; 1.0 m</span>
+            </section>
 
-                <div class="step-card">
-                    <div class="flex items-center gap-1.5">
-                        <span class="rounded-full bg-red-600 px-2 py-0.5 text-xs font-black text-white">2</span>
-                        <strong class="text-xs sm:text-sm text-gray-800">Lift force</strong>
-                    </div>
-                    <div class="mt-1 text-xs text-gray-500">F<sub>g</sub> = mg</div>
-                    <div class="work-value text-xs sm:text-sm font-bold text-red-700">12 &times; 10 = 120 N</div>
-                </div>
+            <section class="hud hud-right" aria-label="Force you apply" aria-live="polite">
+                <span class="hud-title">Force you apply</span>
+                <span class="hud-value" id="hud-force">60.0 N</span>
+                <span class="hud-eq" id="hud-force-eq">120 N &divide; 2.0 = 60.0 N</span>
+            </section>
 
-                <div class="step-card" aria-live="polite">
-                    <div class="flex items-center gap-1.5">
-                        <span class="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-black text-white">3</span>
-                        <strong class="text-xs sm:text-sm text-gray-800">Machine force</strong>
-                    </div>
-                    <div class="mt-1 text-xs text-gray-500">F<sub>in</sub> = F<sub>g</sub> &divide; MA</div>
-                    <div id="machine-force-equation" class="work-value text-xs sm:text-sm font-bold text-blue-700">120 &divide; 2.0 = 60.0 N</div>
+            <section class="ask" id="ask" data-place="between" aria-labelledby="ask-question">
+                <p class="ask-step" id="ask-step">Question 1 of 2 &middot; Force</p>
+                <p class="ask-question" id="ask-question">Question</p>
+                <div class="ask-options" id="ask-options" role="group" aria-labelledby="ask-question"></div>
+                <div class="ask-result" id="ask-result" hidden>
+                    <p class="ask-feedback" id="ask-feedback" role="status" aria-live="polite"></p>
+                    <button class="ask-next" id="ask-next" type="button">Next question</button>
                 </div>
             </section>
 
             <div class="canvas-panel">
-                <div class="flex items-center gap-3">
-                    <label id="control-label" for="sim-slider" class="text-sm font-bold text-gray-700 whitespace-nowrap">Ramp angle:</label>
-                    <input type="range" id="sim-slider" min="0" max="100" value="50" class="w-full h-2 bg-green-200 rounded-lg appearance-none cursor-pointer" aria-label="Sim Slider">
-                    <output id="control-value" for="sim-slider" class="min-w-16 text-right font-bold text-green-700">30&deg;</output>
-                </div>
-                <div class="mt-2 pt-2 border-t border-gray-200 flex flex-wrap justify-center items-center gap-x-2 text-xs sm:text-sm font-bold text-gray-700">
-                    <span class="text-blue-700">You:</span>
-                    <span id="input-equation" class="work-value">60.0 N &times; 2.0 m</span>
-                    <span class="text-green-700">&asymp;</span>
-                    <span class="text-red-700">Load:</span>
-                    <span id="output-equation" class="work-value">120.0 N &times; 1.0 m</span>
-                    <span class="rounded bg-green-100 px-2 py-0.5 text-green-800">120 J</span>
+                <span class="control-label" id="control-label">Ramp angle</span>
+                <div class="choice-row">
+                    <button class="choice-arrow" id="choice-prev" type="button" aria-label="Previous setting">&#9664;</button>
+                    <div class="choice-group" id="choice-group" role="radiogroup" aria-labelledby="control-label"></div>
+                    <button class="choice-arrow" id="choice-next" type="button" aria-label="Next setting">&#9654;</button>
                 </div>
             </div>
         </div>
+
     </div>
 
     <script>
         const canvas = document.getElementById('simCanvas');
         const ctx = canvas.getContext('2d');
-        const slider = document.getElementById('sim-slider');
         const controlLabel = document.getElementById('control-label');
-        const controlValue = document.getElementById('control-value');
-        
+        const choiceGroup = document.getElementById('choice-group');
+        const choicePrev = document.getElementById('choice-prev');
+        const choiceNext = document.getElementById('choice-next');
+        const hudForce = document.getElementById('hud-force');
+        const hudForceEquation = document.getElementById('hud-force-eq');
+        const ask = document.getElementById('ask');
+        const askStep = document.getElementById('ask-step');
+        const askQuestion = document.getElementById('ask-question');
+        const askOptions = document.getElementById('ask-options');
+        const askResult = document.getElementById('ask-result');
+        const askFeedback = document.getElementById('ask-feedback');
+        const askNext = document.getElementById('ask-next');
+        let askIndex = 0;
+        let askTimer = 0;
+
+        // Five fixed settings per machine; index 2 (the middle) is always the start.
+        const MIDDLE_CHOICE = 2;
+        let choiceIndex = MIDDLE_CHOICE;
+        let controlSetting = 50;
+
         let cw, ch;
         let activeMachine = 0;
         const riseVisitedMachines = new Set([0]);
@@ -304,60 +472,168 @@
         const machinesData = [
             {
                 id: 'inclined_plane',
+                askPlace: 'between',
                 name: 'Inclined Plane',
-                desc: 'Bed height is fixed — a gentler angle just makes the ramp longer.',
                 controlName: 'Ramp angle',
-                defaultValue: 50
+                choices: [0, 25, 50, 75, 100],
+                questions: [
+                    {
+                        prompt: 'When the ramp angle gets smaller, the force you push with…',
+                        options: [
+                            { text: 'Gets smaller', correct: true, feedback: 'A gentler ramp has more mechanical advantage (1 ÷ sin θ): 85 N at 45° falls to 31 N at 15°.' },
+                            { text: 'Gets bigger', correct: false, feedback: 'The steep ramp is the hard one — easing the angle raises the mechanical advantage, so the push falls.' },
+                            { text: 'Stays the same', correct: false, feedback: 'Only the load stays at 120 N. Step through the angles and watch the force card change.' }
+                        ]
+                    },
+                    {
+                        prompt: 'When the ramp angle gets smaller, the distance you push over…',
+                        options: [
+                            { text: 'Gets longer', correct: true, feedback: 'The bed height is fixed, so a gentler angle only stretches the ramp: 1.4 m at 45° becomes 3.9 m at 15°.' },
+                            { text: 'Gets shorter', correct: false, feedback: 'The steep ramp is the short one; easing the angle stretches the slope you push along.' },
+                            { text: 'Stays the same', correct: false, feedback: 'Force × distance has to stay 120 J, so a smaller push must act over a longer ramp.' }
+                        ]
+                    }
+                ]
             },
             {
                 id: 'lever',
+                askPlace: 'between',
                 name: 'Lever',
-                desc: 'Fulcrum past halfway: more force, but a shorter push.',
                 controlName: 'Fulcrum position',
-                defaultValue: 10
+                choices: [0, 25, 50, 75, 100],
+                questions: [
+                    {
+                        prompt: 'When the fulcrum moves closer to the load, your push…',
+                        options: [
+                            { text: 'Gets smaller', correct: true, feedback: 'A short load arm with a long effort arm gives MA 4 at 20%, so 30 N lifts the 120 N load.' },
+                            { text: 'Gets bigger', correct: false, feedback: 'That is the fulcrum moving the other way, past halfway, where the effort arm becomes the short one.' },
+                            { text: 'Stays the same', correct: false, feedback: 'Only with the fulcrum at 50% do the arms match and your push equal the 120 N load.' }
+                        ]
+                    },
+                    {
+                        prompt: 'When the fulcrum moves closer to the load, your hand’s travel…',
+                        options: [
+                            { text: 'Gets longer', correct: true, feedback: 'The long effort arm sweeps the bigger arc — 4.00 m down for 1.0 m of lift.' },
+                            { text: 'Gets shorter', correct: false, feedback: 'The long arm always travels farther; the short arm is the one with the small sweep.' },
+                            { text: 'Stays the same', correct: false, feedback: 'Both ends move 1.0 m only at 50%, where the arms are equal.' }
+                        ]
+                    }
+                ]
             },
             {
                 id: 'wedge',
+                askPlace: 'right',
                 name: 'Wedge',
-                desc: 'Thin wedge: less force, driven much further.',
                 controlName: 'Wedge slope',
-                defaultValue: 30
+                choices: [0, 25, 50, 75, 100],
+                questions: [
+                    {
+                        prompt: 'When the wedge gets thinner, the hammer force…',
+                        options: [
+                            { text: 'Gets smaller', correct: true, feedback: 'A thin wedge is a longer slope for each bit of opening: 60 N at 2 : 1 drops to 20 N at 6 : 1.' },
+                            { text: 'Gets bigger', correct: false, feedback: 'The thick 2 : 1 wedge is the hard one — a steep slope with little mechanical advantage.' },
+                            { text: 'Stays the same', correct: false, feedback: 'The splitting force stays 120 N; the hammer force is what the slope changes.' }
+                        ]
+                    },
+                    {
+                        prompt: 'When the wedge gets thinner, the distance it is driven…',
+                        options: [
+                            { text: 'Gets longer', correct: true, feedback: 'It takes 6.0 m of travel at 6 : 1 instead of 2.0 m at 2 : 1, which is why each blow can be gentler.' },
+                            { text: 'Gets shorter', correct: false, feedback: 'The thick wedge splits in a short distance; the thin one has to be driven deep.' },
+                            { text: 'Stays the same', correct: false, feedback: 'The log always opens the same 1.0 m — the wedge’s own travel is what changes.' }
+                        ]
+                    }
+                ]
             },
             {
                 id: 'wheel_axle',
+                askPlace: 'right',
                 name: 'Wheel & Axle',
-                desc: 'Bigger wheel: less force, longer crank path.',
                 controlName: 'Wheel : axle ratio',
-                defaultValue: 50
+                choices: [0, 25, 50, 75, 100],
+                questions: [
+                    {
+                        prompt: 'When the wheel gets bigger, the force on the rim…',
+                        options: [
+                            { text: 'Gets smaller', correct: true, feedback: 'A bigger wheel is a longer lever on the same axle: 80 N at 1.5 : 1 falls to 30 N at 4.0 : 1.' },
+                            { text: 'Gets bigger', correct: false, feedback: 'A bigger wheel raises the mechanical advantage, so the crank force falls.' },
+                            { text: 'Stays the same', correct: false, feedback: 'The bucket still weighs 120 N, but your crank force tracks the wheel : axle ratio.' }
+                        ]
+                    },
+                    {
+                        prompt: 'When the wheel gets bigger, your hand’s path…',
+                        options: [
+                            { text: 'Gets longer', correct: true, feedback: 'At 4.0 : 1 the rim sweeps 4.0 m of rope for every 1.0 m the bucket rises.' },
+                            { text: 'Gets shorter', correct: false, feedback: 'A bigger rim covers more distance per turn, not less.' },
+                            { text: 'Stays the same', correct: false, feedback: 'Only a 1 : 1 wheel and axle would move your hand the same 1.0 m as the bucket.' }
+                        ]
+                    }
+                ]
             },
             {
                 id: 'pulley',
+                askPlace: 'between',
                 name: 'Pulley',
-                desc: 'More supporting ropes: less force, more rope pulled.',
                 controlName: 'Supporting ropes',
-                defaultValue: 50
+                choices: [0, 20, 40, 60, 80],
+                questions: [
+                    {
+                        prompt: 'When more ropes support the load, your pull…',
+                        options: [
+                            { text: 'Gets smaller', correct: true, feedback: 'The strands share the 120 N: one rope holds all of it, five ropes hold 24 N each.' },
+                            { text: 'Gets bigger', correct: false, feedback: 'More strands share the load, so each one — and your hand — takes less.' },
+                            { text: 'Stays the same', correct: false, feedback: 'Compare 1 rope with 5: the force card falls from 120 N to 24 N.' }
+                        ]
+                    },
+                    {
+                        prompt: 'When more ropes support the load, the rope you pull through…',
+                        options: [
+                            { text: 'Gets longer', correct: true, feedback: 'Every strand must shorten by 1.0 m, so five strands mean 5 m running through your hands.' },
+                            { text: 'Gets shorter', correct: false, feedback: 'The load still rises a full 1.0 m, so the rope you pull can never be shorter than that.' },
+                            { text: 'Stays the same', correct: false, feedback: 'Only a single strand pulls 1.0 m; each extra strand adds another metre.' }
+                        ]
+                    }
+                ]
             },
             {
                 id: 'screw',
+                askPlace: 'between',
                 name: 'Screw',
-                desc: 'Finer pitch: less force, many more turns.',
-                controlName: 'Thread pitch',
-                defaultValue: 50
+                controlName: 'Thread pitch (cm per turn)',
+                choices: [0, 25, 50, 75, 100],
+                questions: [
+                    {
+                        prompt: 'When the thread pitch gets finer, the handle force…',
+                        options: [
+                            { text: 'Gets smaller', correct: true, feedback: 'A fine thread climbs less per turn: 7.6 N at 8.0 cm falls to 1.9 N at 2.0 cm.' },
+                            { text: 'Gets bigger', correct: false, feedback: 'Fine threads make the job easier; the coarse 8.0 cm pitch is the harder one.' },
+                            { text: 'Stays the same', correct: false, feedback: 'The load stays 120 N, but the handle force drops as the pitch gets finer.' }
+                        ]
+                    },
+                    {
+                        prompt: 'When the thread pitch gets finer, the handle path…',
+                        options: [
+                            { text: 'Gets longer', correct: true, feedback: 'More turns are needed: 15.7 m of handle path at 8.0 cm becomes 62.8 m at 2.0 cm.' },
+                            { text: 'Gets shorter', correct: false, feedback: 'Fewer turns come with a coarse pitch, not a fine one.' },
+                            { text: 'Stays the same', correct: false, feedback: 'The handle path is MA times the lift, so it grows as the pitch gets finer.' }
+                        ]
+                    }
+                ]
             }
         ];
 
         // Every machine does the SAME job: lift a 12 kg load (120 N) exactly 1.0 m.
-        // Work out = 120 J no matter where the slider sits. The slider only changes
+        // Work out = 120 J at every setting. The chosen setting only changes
         // the machine's mechanical advantage, which trades effort force against
         // effort distance: F_in x d_in = 120 J = F_out x d_out.
         const idealWork = 120;
         const LOAD_FORCE = 120;      // N
         const LOAD_DISTANCE = 1.0;   // m
 
-        // Slider -> mechanical advantage for each machine, plus the physical
-        // property the slider is actually changing (used by the drawings).
-        function machineParams() {
-            const f = Number(slider.value) / 100;
+        // Setting -> mechanical advantage for each machine, plus the physical
+        // property the setting is actually changing (used by the drawings).
+        function machineParams(setting = controlSetting) {
+            const f = setting / 100;
 
             switch (activeMachine) {
                 case 0: {   // Inclined plane: height is fixed by the truck bed,
@@ -406,7 +682,7 @@
                     const ma = (2 * Math.PI * handleRadiusCm) / pitchCm;
                     return {
                         ma,
-                        controlDisplay: `${pitchCm.toFixed(1)} cm/turn`,
+                        controlDisplay: `${pitchCm.toFixed(1)}`,
                         pitchM: pitchCm / 100
                     };
                 }
@@ -441,15 +717,21 @@
         }
 
         // Small shared label helper for on-canvas annotations.
+        function labelFont() {
+            return `bold ${Math.max(12, Math.min(16, cw * 0.019))}px Arial`;
+        }
+
         function label(text, x, y, color = colors.metalDark, align = 'center') {
             ctx.fillStyle = color;
             ctx.textAlign = align;
-            ctx.font = `bold ${Math.max(12, Math.min(16, cw * 0.019))}px Arial`;
+            ctx.font = labelFont();
             ctx.fillText(text, x, y);
             ctx.textAlign = 'center';
         }
 
-        // Dashed measuring line with a caption, used to show the two distances.
+        // Dashed measuring line with a caption. A vertical caption sits clear to the
+        // RIGHT of its line (flipping left only at the canvas edge) so the number
+        // never sits on top of the line; a horizontal caption sits above it.
         function measure(x1, y1, x2, y2, text, color) {
             ctx.save();
             ctx.setLineDash([6, 5]);
@@ -460,7 +742,54 @@
                      x1 + (vertical ? 7 : 0), y1 + (vertical ? 0 : 7), color, 2);
             drawLine(x2 - (vertical ? 7 : 0), y2 - (vertical ? 0 : 7),
                      x2 + (vertical ? 7 : 0), y2 + (vertical ? 0 : 7), color, 2);
-            label(text, (x1 + x2) / 2 + (vertical ? 0 : 0), (y1 + y2) / 2 - 8, color);
+
+            if (!vertical) {
+                label(text, (x1 + x2) / 2, Math.min(y1, y2) - 9, color);
+                return;
+            }
+
+            ctx.font = labelFont();
+            const gap = 13;
+            const width = ctx.measureText(text).width;
+            const lineX = (x1 + x2) / 2;
+            if (lineX + gap + width <= cw - 8) {
+                label(text, lineX + gap, (y1 + y2) / 2 + 5, color, 'left');
+            } else {
+                // No room to the right: drop below the foot of the line rather than
+                // flip back over the line. Below stays clear of the effort arrow,
+                // which always rises from the top end of its measure.
+                const x = Math.min(cw - 8 - width / 2, Math.max(width / 2 + 8, lineX));
+                label(text, x, Math.max(y1, y2) + 21, color);
+            }
+        }
+
+        // Measuring line that runs along a slope, for effort distances applied
+        // along a ramp — the hypotenuse, not the horizontal run beneath it. The
+        // line is pushed clear of the surface along the outward normal and the
+        // caption is rotated to read up the slope.
+        function measureSlope(x1, y1, x2, y2, text, color, offset) {
+            const dx = x2 - x1, dy = y2 - y1;
+            const length = Math.hypot(dx, dy) || 1;
+            const nx = dy / length, ny = -dx / length;
+            const ax = x1 + nx * offset, ay = y1 + ny * offset;
+            const bx = x2 + nx * offset, by = y2 + ny * offset;
+
+            ctx.save();
+            ctx.setLineDash([6, 5]);
+            drawLine(ax, ay, bx, by, color, 2);
+            ctx.restore();
+            drawLine(ax - nx * 7, ay - ny * 7, ax + nx * 7, ay + ny * 7, color, 2);
+            drawLine(bx - nx * 7, by - ny * 7, bx + nx * 7, by + ny * 7, color, 2);
+
+            ctx.save();
+            ctx.translate((ax + bx) / 2, (ay + by) / 2);
+            ctx.rotate(Math.atan2(dy, dx));
+            ctx.fillStyle = color;
+            ctx.textAlign = 'center';
+            ctx.font = labelFont();
+            ctx.fillText(text, 0, -9);
+            ctx.restore();
+            ctx.textAlign = 'center';
         }
 
         function formatNumber(value) {
@@ -468,13 +797,113 @@
             return value.toFixed(value < 1 ? 2 : 1);
         }
 
+        function currentChoices() {
+            return machinesData[activeMachine].choices;
+        }
+
         function updateWorkExplanation() {
             const metrics = getMachineMetrics();
 
-            controlValue.textContent = metrics.controlDisplay;
-            document.getElementById('input-equation').textContent = `${formatNumber(metrics.effortForce)} N \u00d7 ${formatNumber(metrics.effortDistance)} m`;
-            document.getElementById('output-equation').textContent = `${formatNumber(metrics.loadForce)} N \u00d7 ${formatNumber(metrics.loadDistance)} m`;
-            document.getElementById('machine-force-equation').textContent = `${formatNumber(metrics.loadForce)} \u00f7 ${formatNumber(metrics.mechanicalAdvantage)} = ${formatNumber(metrics.effortForce)} N`;
+            hudForce.textContent = `${formatNumber(metrics.effortForce)} N`;
+            hudForceEquation.textContent = `${formatNumber(metrics.loadForce)} N \u00f7 ${formatNumber(metrics.mechanicalAdvantage)} = ${formatNumber(metrics.effortForce)} N`;
+        }
+
+        function updateChoiceState() {
+            [...choiceGroup.children].forEach((button, index) => {
+                const selected = index === choiceIndex;
+                button.setAttribute('aria-checked', selected ? 'true' : 'false');
+                button.tabIndex = selected ? 0 : -1;
+            });
+            choicePrev.disabled = choiceIndex === 0;
+            choiceNext.disabled = choiceIndex === currentChoices().length - 1;
+        }
+
+        function setChoice(index, moveFocus) {
+            const choices = currentChoices();
+            const next = Math.max(0, Math.min(choices.length - 1, index));
+            if (next === choiceIndex && moveFocus !== 'force') return;
+            choiceIndex = next;
+            controlSetting = choices[choiceIndex];
+            updateChoiceState();
+            if (moveFocus === true) choiceGroup.children[choiceIndex].focus();
+            updateWorkExplanation();
+            drawScene();
+        }
+
+        function shuffle(list) {
+            const copy = list.slice();
+            for (let i = copy.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [copy[i], copy[j]] = [copy[j], copy[i]];
+            }
+            return copy;
+        }
+
+        // Optional self-check: question 1 (force) is shown first and is replaced by
+        // question 2 (distance) once it has been answered. Nothing here gates the
+        // simulation — the learner can answer whenever, or ignore it entirely.
+        function renderQuestion() {
+            const machine = machinesData[activeMachine];
+            const question = machine.questions[askIndex];
+
+            clearTimeout(askTimer);
+            ask.dataset.place = machine.askPlace;
+
+            askStep.textContent = `Question ${askIndex + 1} of ${machine.questions.length} · ${askIndex === 0 ? 'Force' : 'Distance'}`;
+            askQuestion.textContent = question.prompt;
+            askResult.hidden = true;
+            askOptions.hidden = false;
+            askOptions.replaceChildren();
+
+            shuffle(question.options).forEach((option) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'ask-opt';
+                button.textContent = option.text;
+                button.setAttribute('aria-pressed', 'false');
+                button.addEventListener('click', () => {
+                    // The result takes the place of the options, so the panel keeps
+                    // its size and never grows over the machine underneath it.
+                    const last = askIndex === machine.questions.length - 1;
+                    askFeedback.textContent = `${option.correct ? 'Correct.' : 'Not quite.'} ${option.feedback}`;
+                    askFeedback.dataset.tone = option.correct ? 'success' : 'note';
+                    askNext.textContent = last ? 'Back to question 1' : 'Next question';
+                    askOptions.hidden = true;
+                    askResult.hidden = false;
+
+                    // Move on by itself once there has been time to read the
+                    // feedback; the button is still there for anyone quicker. The
+                    // last answer stays put — there is no new question to go to.
+                    if (!last) {
+                        const words = askFeedback.textContent.split(/\s+/).length;
+                        askTimer = setTimeout(advanceQuestion, Math.min(6000, 2200 + words * 180));
+                    }
+                });
+                askOptions.append(button);
+            });
+        }
+
+        function advanceQuestion() {
+            const machine = machinesData[activeMachine];
+            askIndex = askIndex < machine.questions.length - 1 ? askIndex + 1 : 0;
+            renderQuestion();
+        }
+
+        function renderChoices() {
+            const machine = machinesData[activeMachine];
+            choiceGroup.replaceChildren();
+            machine.choices.forEach((setting, index) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'choice-btn';
+                button.setAttribute('role', 'radio');
+                button.textContent = machineParams(setting).controlDisplay;
+                button.addEventListener('click', () => setChoice(index, false));
+                choiceGroup.appendChild(button);
+            });
+            choicePrev.setAttribute('aria-label', `Previous ${machine.controlName.toLowerCase()}`);
+            choiceNext.setAttribute('aria-label', `Next ${machine.controlName.toLowerCase()}`);
+            updateChoiceState();
         }
 
         function initUI() {
@@ -493,12 +922,23 @@
             window.addEventListener('resize', resizeCanvas);
             resizeCanvas();
             
-            slider.addEventListener('input', (e) => {
-                // Force redraw when slider moves if not animating constantly
-                updateWorkExplanation();
-                drawScene(); 
+            choicePrev.addEventListener('click', () => setChoice(choiceIndex - 1, false));
+            choiceNext.addEventListener('click', () => setChoice(choiceIndex + 1, false));
+
+            askNext.addEventListener('click', advanceQuestion);
+
+            choiceGroup.addEventListener('keydown', (event) => {
+                const steps = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 };
+                if (event.key in steps) setChoice(choiceIndex + steps[event.key], true);
+                else if (event.key === 'Home') setChoice(0, true);
+                else if (event.key === 'End') setChoice(currentChoices().length - 1, true);
+                else return;
+                event.preventDefault();
             });
 
+            renderChoices();
+            askIndex = 0;
+            renderQuestion();
             updateWorkExplanation();
         }
 
@@ -513,14 +953,16 @@
                 btn.classList.toggle('active', i === index);
                 btn.setAttribute('aria-pressed', i === index ? 'true' : 'false');
             });
-            document.getElementById('desc-title').textContent = data.name;
-            document.getElementById('desc-text').textContent = data.desc;
-            controlLabel.textContent = data.controlName + ':';
-            
-            // Reset the control for this machine.
-            slider.value = data.defaultValue;
+            controlLabel.textContent = data.controlName;
+
+            // Every machine starts on its middle setting.
+            choiceIndex = MIDDLE_CHOICE;
+            controlSetting = data.choices[MIDDLE_CHOICE];
+            renderChoices();
+            askIndex = 0;
+            renderQuestion();
             time = 0;
-            
+
             updateWorkExplanation();
             drawScene();
         }
@@ -593,7 +1035,9 @@
             // The truck bed height IS the 1.0 m lift and never changes.
             // Room is reserved for the longest ramp (the shallowest angle, 15°).
             const minAngle = 15 * Math.PI / 180;
-            const maxRun = cw * 0.62;
+            // Reserve a left margin so even the longest (15°) ramp leaves room for
+            // the height measure beside its foot on a narrow embed.
+            const maxRun = Math.max(cw * 0.25, cw * 0.72 - 150);
             const lift = Math.min(ch * 0.22, maxRun * Math.tan(minAngle));
             const pxPerM = lift / LOAD_DISTANCE;
             const bedY = groundY - lift;
@@ -612,8 +1056,9 @@
             drawRect(bedLeftX, bedY - ch * 0.06, 8, ch * 0.06, '#7f8c8d');           // headboard
             const wheelR = Math.min(ch * 0.06, cw * 0.035);
             [bedLeftX + cw * 0.055, truckRight - cw * 0.06].forEach(x => {
-                drawCircle(x, groundY - wheelR * 0.2, wheelR, colors.metalDark, '#111827');
-                drawCircle(x, groundY - wheelR * 0.2, wheelR * 0.4, '#95a5a6');
+                // Centre one radius up so the tyre rests ON the ground, not sunk into it.
+                drawCircle(x, groundY - wheelR, wheelR, colors.metalDark, '#111827');
+                drawCircle(x, groundY - wheelR, wheelR * 0.4, '#95a5a6');
             });
 
             // --- Ramp (length changes, height does not) ----------------------
@@ -648,13 +1093,13 @@
             ctx.restore();
 
             // --- Distance annotations ----------------------------------------
-            // Height is always 1.0 m; the ramp length is what the slider changes.
-            measure(footX - 28, groundY, footX - 28, bedY, '1.0 m', colors.load);
-            measure(footX, groundY + 26, bedLeftX, groundY + 26,
-                    `${(rampLength / pxPerM).toFixed(1)} m of ramp`, 'blue');
-            label(`Push ${(LOAD_FORCE / ma).toFixed(0)} N along ${(rampLength / pxPerM).toFixed(1)} m  =  120 J`,
-                  cw * 0.5, ch * 0.30, colors.metalDark);
-            label(`Lift 120 N straight up 1.0 m  =  120 J`, cw * 0.5, ch * 0.35, colors.metalDark);
+            // Height is always 1.0 m; the ramp length is what the setting changes.
+            // The effort is applied along the slope, so its measure follows the
+            // hypotenuse — offset clear of the crate riding on it.
+            const heightMeasureX = Math.max(12, footX - 132);   // clear of the waiting crate
+            measure(heightMeasureX, groundY, heightMeasureX, bedY, '1.0 m', colors.load);
+            measureSlope(footX, groundY, bedLeftX, bedY,
+                    `${(rampLength / pxPerM).toFixed(1)} m of ramp`, 'blue', boxSize + 26);
         }
 
         function drawLever() {
@@ -675,13 +1120,15 @@
             const loadArmPx = boardLength * params.loadArm;
             const effortArmPx = boardLength * params.effortArm;
 
-            // The load always rises the same 1.0 m; the effort end sweeps MA times
-            // as far, so the lift is scaled to keep the long arm on screen.
+            // The load starts 1.0 m BELOW the horizontal and is raised up to it, so
+            // the beam finishes level. The effort end sweeps MA times as far, so the
+            // lift is scaled to keep the long arm on screen.
             const lift = Math.min(ch * 0.065, pivotH * 0.45);
             const pxPerM = lift / LOAD_DISTANCE;
             const p = liftProgress();
             const loadSideDir = -1;                     // load is always on the left
-            const theta = Math.asin(Math.min(0.9, (lift * p) / loadArmPx));
+            // p = 0 -> load end is one metre low; p = 1 -> beam horizontal.
+            const theta = -Math.asin(Math.min(0.9, (lift * (1 - p)) / loadArmPx));
 
             // Fulcrum
             drawPolygon([
@@ -724,17 +1171,14 @@
             // --- Distance annotations (in world coordinates) -------------------
             const loadTipX = fulcrumX + loadSide * loadArmPx;
             const effortTipX = fulcrumX + effortSide * effortArmPx * 0.92;
-            measure(loadTipX + loadSide * 30, pivotY, loadTipX + loadSide * 30, pivotY - lift,
-                    '1.0 m up', colors.load);
-            measure(effortTipX + effortSide * 34, pivotY,
-                    effortTipX + effortSide * 34, pivotY + lift * ma,
+            // The crate sits to the right of the load tip, so the measuring line goes
+            // far enough left for its caption to clear it — clamped onto the canvas,
+            // since the load end sits at the board's left edge on a narrow screen.
+            const loadMeasureX = Math.max(12, loadTipX + loadSide * 108);
+            measure(loadMeasureX, pivotY + lift, loadMeasureX, pivotY, '1.0 m up', colors.load);
+            measure(effortTipX + effortSide * 24, pivotY - lift * ma,
+                    effortTipX + effortSide * 24, pivotY,
                     `${ma.toFixed(2)} m down`, 'blue');
-            label(`Push ${(LOAD_FORCE / ma).toFixed(0)} N × ${ma.toFixed(2)} m = 120 J   →   lift 120 N × 1.0 m = 120 J`,
-                  cw * 0.5, ch * 0.30);
-            label(ma >= 1
-                    ? `Effort arm is longer — less force, longer push`
-                    : `Effort arm is shorter — more force, shorter push`,
-                  cw * 0.5, ch * 0.35, ma >= 1 ? 'blue' : '#c0392b');
         }
 
         function drawWedge() {
@@ -988,30 +1432,12 @@
                 {x: centerX + edge + arrowLen, y: arrowY}
             ], 'red');
 
-            // --- Readout ------------------------------------------------------
+            // --- Strike counter (progress, not a calculation) -------------------
             const fs = Math.max(13, Math.min(17, cw * 0.022));
             ctx.textAlign = 'left';
             ctx.font = `bold ${fs}px Arial`;
             ctx.fillStyle = colors.metalDark;
-            const bx = cw * 0.66;
-            let by = ch * 0.30;
-            const lineH = fs * 1.55;
-            ctx.fillText(`Wedge slope (MA): ${mechAdv.toFixed(1)} : 1`, bx, by);
-            by += lineH;
-            ctx.fillStyle = 'blue';
-            ctx.fillText(`Hammer force: ${hammerForce.toFixed(0)} N`, bx, by);
-            by += lineH;
-            ctx.fillText(`Driven in: ${(maxSink / pxPerM).toFixed(1)} m`, bx, by);
-            by += lineH;
-            ctx.fillStyle = '#c0392b';
-            ctx.fillText(`Splitting force: ${splitForce.toFixed(0)} N`, bx, by);
-            by += lineH;
-            ctx.fillText(`Log opens: 1.0 m`, bx, by);
-            by += lineH;
-            ctx.fillStyle = colors.metalDark;
-            ctx.fillText(`Work: ${hammerForce.toFixed(0)} × ${(maxSink / pxPerM).toFixed(1)} = 120 J`, bx, by);
-            by += lineH;
-            ctx.fillText(`Strike ${Math.min(landed, strikesNeeded)} of ${strikesNeeded}`, bx, by);
+            ctx.fillText(`Strike ${Math.min(landed, strikesNeeded)} of ${strikesNeeded}`, cw * 0.06, ch * 0.44);
             ctx.textAlign = 'center';
         }
 
@@ -1023,7 +1449,7 @@
 
             drawRect(0, groundY, cw, ch - groundY, colors.ground);
 
-            // Axle radius is fixed; the slider changes the WHEEL radius, so the
+            // Axle radius is fixed; the setting changes the WHEEL radius, so the
             // crank travels MA times as far as the rope lifts the bucket.
             const axleRadius = Math.min(cw, ch) * 0.045;
             const wheelRadius = axleRadius * ma;
@@ -1072,11 +1498,7 @@
             ctx.fillText('12 kg', ropeX, bucketTop + ch * 0.055);
 
             // Distances: bucket 1.0 m, crank handle MA metres around the rim
-            measure(ropeX - 52, wellTop - ch * 0.02, ropeX - 52, wellTop - ch * 0.02 - lift, '1.0 m', colors.load);
-            label(`Wheel : axle = ${ma.toFixed(1)} : 1`, cw * 0.66, ch * 0.32, colors.metalDark, 'left');
-            label(`Crank: ${(LOAD_FORCE / ma).toFixed(0)} N × ${ma.toFixed(1)} m = 120 J`,
-                  cw * 0.66, ch * 0.38, 'blue', 'left');
-            label(`Bucket: 120 N × 1.0 m = 120 J`, cw * 0.66, ch * 0.44, '#c0392b', 'left');
+            measure(ropeX - 112, wellTop - ch * 0.02, ropeX - 112, wellTop - ch * 0.02 - lift, '1.0 m', colors.load);
         }
 
         function drawPulley() {
@@ -1084,8 +1506,9 @@
             const strands = params.strands;              // ropes supporting the load
             const centerX = cw * 0.42;
 
-            // Ceiling beam
-            const beamY = ch * 0.33;
+            // Ceiling beam — kept below the question panel at the top of the canvas,
+            // which is a fixed pixel height rather than a fraction of it.
+            const beamY = Math.max(ch * 0.33, 248);
             drawRect(0, beamY - 22, cw, 22, colors.metalDark);
 
             // One continuous rope: it is anchored, then threaded down-and-up through
@@ -1203,14 +1626,11 @@
                 {x: freeX + 15, y: handY},
                 {x: freeX, y: handY + 28}
             ], colors.highlight, colors.metalDark);
-            label(`Pull ${(LOAD_FORCE / ma).toFixed(0)} N`, freeX, handY + 48, 'blue');
 
             // --- Distances -------------------------------------------------------
-            measure(blockLeft - 26, blockRestY, blockLeft - 26, blockRestY - lift, '1.0 m', colors.load);
+            measure(blockLeft - 86, blockRestY, blockLeft - 86, blockRestY - lift, '1.0 m', colors.load);
             measure(freeX + 52, handStartY, freeX + 52, handStartY + lift * ma,
                     `${ma.toFixed(0)} m`, 'blue');
-            label(`${strands} strand${strands > 1 ? 's' : ''} ${strands > 1 ? 'hold' : 'holds'} the 120 N load  →  ${(LOAD_FORCE / ma).toFixed(0)} N × ${ma.toFixed(0)} m = 120 J`,
-                  cw * 0.5, ch * 0.26);
         }
 
         function drawScrew() {
@@ -1223,7 +1643,7 @@
             const housingHeight = ch * 0.11;
             const housingTop = baseY - housingHeight;
 
-            // The jack always lifts the load the same 1.0 m. The slider changes the
+            // The jack always lifts the load the same 1.0 m. The setting changes the
             // thread pitch: a finer pitch means more turns (a longer handle path)
             // but less force on the handle.
             const maxLift = ch * 0.14;
@@ -1284,10 +1704,8 @@
             measure(centerX + platformWidth / 2 + 40, restY,
                     centerX + platformWidth / 2 + 40, restY - maxLift, '1.0 m', colors.load);
 
-            label(`${turnsTotal.toFixed(0)} turns × ${(2 * Math.PI * 0.20).toFixed(2)} m per turn = ${ma.toFixed(1)} m of handle path`,
-                  cw * 0.5, ch * 0.24, 'blue');
-            label(`Handle ${(LOAD_FORCE / ma).toFixed(1)} N × ${ma.toFixed(1)} m = 120 J = 120 N × 1.0 m   ·   turn ${Math.floor(p * turnsTotal)} of ${turnsTotal.toFixed(0)}`,
-                  cw * 0.5, ch * 0.285);
+            // Turn counter (progress, not a calculation), clear of the load block
+            label(`Turn ${Math.floor(p * turnsTotal)} of ${turnsTotal.toFixed(0)}`, cw * 0.11, ch * 0.3, colors.metalDark);
         }
 
         function drawScene() {

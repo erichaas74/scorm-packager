@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Charge Between Parallel Plates</title>
+  <style>
+    html, body {
+      background: transparent;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+    }
+    .app {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+    .card {
+      border: 5px solid #285f9f;
+      border-radius: 12px;
+      background: #f8fafc;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: #e2e8f0;
+      border-bottom: 1px solid #cbd5e1;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    .stage {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16/10;
+      background: #0f172a;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    .prompt-area {
+      padding: 12px;
+      background: #fff;
+      border-top: 1px solid #e2e8f0;
+      min-height: 120px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .prompt {
+      margin: 0;
+      font-size: 0.95rem;
+      color: #1e293b;
+      line-height: 1.4;
+    }
+    .choices {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .choices button {
+      flex: 1 1 120px;
+      padding: 10px 12px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border: 2px solid #285f9f;
+      border-radius: 8px;
+      background: #fff;
+      color: #1e293b;
+      cursor: pointer;
+      min-height: 44px;
+    }
+    .choices button:hover, .choices button:focus {
+      background: #dbeafe;
+      outline: 2px solid #285f9f;
+      outline-offset: 2px;
+    }
+    .choices button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+    .feedback {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #0f172a;
+      min-height: 1.4em;
+    }
+    .main-btn {
+      align-self: flex-start;
+      padding: 10px 20px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      background: #285f9f;
+      color: #fff;
+      cursor: pointer;
+      min-height: 44px;
+    }
+    .main-btn:hover, .main-btn:focus {
+      background: #1e4a7a;
+      outline: 2px solid #1e4a7a;
+      outline-offset: 2px;
+    }
+    .main-btn:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+    .hidden { display: none !important; }
+    .status {
+      font-size: 0.8rem;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="card" data-wt>
+      <div class="header">
+        <h1>Charge Between Parallel Plates</h1>
+        <button class="main-btn" data-reset style="padding:6px 12px;font-size:0.85rem;background:#64748b;">Reset</button>
+      </div>
+      <div class="stage" aria-label="Parallel plates simulation">
+        <canvas id="c" width="640" height="400" role="img" aria-label="Two horizontal plates with a charge between them"></canvas>
+      </div>
+      <div class="prompt-area" aria-live="polite">
+        <p class="prompt" data-prompt>A positive charge sits midway between charged plates.</p>
+        <div class="choices" data-choices hidden>
+          <button data-choice="up">Toward top plate</button>
+          <button data-choice="down">Toward bottom plate</button>
+          <button data-choice="stay">Stays still</button>
+        </div>
+        <p class="feedback" data-feedback></p>
+        <button class="main-btn" data-main>Start</button>
+        <p class="status" data-status></p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function() {
+      const canvas = document.getElementById('c');
+      const ctx = canvas.getContext('2d');
+      const promptEl = document.querySelector('[data-prompt]');
+      const choicesEl = document.querySelector('[data-choices]');
+      const feedbackEl = document.querySelector('[data-feedback]');
+      const mainBtn = document.querySelector('[data-main]');
+      const resetBtn = document.querySelector('[data-reset]');
+      const statusEl = document.querySelector('[data-status]');
+
+      let state = 'setup'; // setup → predict → reveal → explain
+      let prediction = null;
+      let chargeSign = 1; // +1 or -1
+      let scenario = 0;
+      let animProgress = 0;
+      let animId = null;
+      let completed = false;
+
+      const scenarios = [
+        { sign: 1, topPos: true, q: 'A positive charge sits midway between charged plates. Which way does it move?', correct: 'down' },
+        { sign: -1, topPos: true, q: 'A negative charge sits midway between charged plates. Which way does it move?', correct: 'up' },
+        { sign: 1, topPos: false, q: 'A positive charge sits midway between plates (bottom positive). Which way does it move?', correct: 'up' }
+      ];
+
+      function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+      }
+
+      function getScenario() {
+        return scenarios[scenario % scenarios.length];
+      }
+
+      function draw(t) {
+        const W = canvas.width;
+        const H = canvas.height;
+        ctx.clearRect(0, 0, W, H);
+
+        // Background
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, W, H);
+
+        // Plates
+        const plateH = 28;
+        const gap = 220;
+        const topY = 60;
+        const botY = topY + gap + plateH;
+        const sc = getScenario();
+        const topIsPos = sc.topPos;
+
+        // Field arrows (faint during predict)
+        if (state === 'reveal' || state === 'explain') {
+          ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
+          ctx.lineWidth = 2;
+          const dir = topIsPos ? 1 : -1; // field from + to -
+          for (let x = 80; x < W - 40; x += 50) {
+            for (let y = topY + plateH + 20; y < botY - 10; y += 40) {
+              ctx.beginPath();
+              if (dir > 0) {
+                ctx.moveTo(x, y);
+                ctx.lineTo(x, y + 18);
+                ctx.lineTo(x - 5, y + 12);
+                ctx.moveTo(x, y + 18);
+                ctx.lineTo(x + 5, y + 12);
+              } else {
+                ctx.moveTo(x, y + 18);
+                ctx.lineTo(x, y);
+                ctx.lineTo(x - 5, y + 6);
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + 5, y + 6);
+              }
+              ctx.stroke();
+            }
+          }
+        }
+
+        // Top plate
+        ctx.fillStyle = topIsPos ? '#ef4444' : '#3b82f6';
+        ctx.fillRect(40, topY, W - 80, plateH);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 16px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(topIsPos ? '+' : '−', W / 2, topY + 20);
+
+        // Bottom plate
+        ctx.fillStyle = topIsPos ? '#3b82f6' : '#ef4444';
+        ctx.fillRect(40, botY, W - 80, plateH);
+        ctx.fillStyle = '#fff';
+        ctx.fillText(topIsPos ? '−' : '+', W / 2, botY + 20);
+
+        // Charge position
+        let cy = (topY + plateH + botY) / 2;
+        if (state === 'reveal' || state === 'explain') {
+          const target = sc.correct === 'up' ? topY + plateH + 40 : (sc.correct === 'down' ? botY - 40 : cy);
+          cy = cy + (target - cy) * Math.min(1, animProgress);
+        }
+
+        // Charge
+        const r = 18;
+        ctx.beginPath();
+        ctx.arc(W / 2, cy, r, 0, Math.PI * 2);
+        ctx.fillStyle = sc.sign > 0 ? '#f97316' : '#22c55e';
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 18px system-ui';
+        ctx.fillText(sc.sign > 0 ? '+' : '−', W / 2, cy + 6);
+
+        // Labels during reveal/explain
+        if (state === 'reveal' || state === 'explain') {
+          ctx.fillStyle = '#e2e8f0';
+          ctx.font = '13px system-ui';
+          ctx.textAlign = 'left';
+          const fieldDir = topIsPos ? '↓ Field (high V → low V)' : '↑ Field (high V → low V)';
+          ctx.fillText(fieldDir, 50, H - 30);
+          if (sc.sign > 0) {
+            ctx.fillText('Force on + charge same direction as field', 50, H - 12);
+          } else {
+            ctx.fillText('Force on − charge opposite field', 50, H - 12);
+          }
+        }
+      }
+
+      function render() {
+        const sc = getScenario();
+        choicesEl.classList.add('hidden');
+        mainBtn.classList.remove('hidden');
+        feedbackEl.textContent = '';
+        statusEl.textContent = '';
+
+        if (state === 'setup') {
+          promptEl.textContent = 'A charge sits midway between charged plates.';
+          mainBtn.textContent = 'Start';
+          mainBtn.disabled = false;
+          draw(0);
+        } else if (state === 'predict') {
+          promptEl.textContent = sc.q;
+          choicesEl.classList.remove('hidden');
+          // rebuild choices
+          choicesEl.innerHTML = '';
+          const opts = [
+            { v: 'up', t: 'Toward top plate' },
+            { v: 'down', t: 'Toward bottom plate' },
+            { v: 'stay', t: 'Stays still' }
+          ];
+          shuffle(opts).forEach(o => {
+            const b = document.createElement('button');
+            b.dataset.choice = o.v;
+            b.textContent = o.t;
+            b.addEventListener('click', () => choose(o.v));
+            choicesEl.appendChild(b);
+          });
+          mainBtn.classList.add('hidden');
+          draw(0);
+        } else if (state === 'reveal') {
+          promptEl.textContent = '';
+          mainBtn.classList.add('hidden');
+          draw(animProgress);
+        } else if (state === 'explain') {
+          const correct = sc.correct;
+          const moved = correct === 'up' ? 'moves toward the top plate' : (correct === 'down' ? 'moves toward the bottom plate' : 'stays still');
+          const pe = (sc.sign > 0 && correct === 'down') || (sc.sign < 0 && correct === 'up')
+            ? 'Potential energy decreases as it moves with the force.'
+            : 'Potential energy increases only if forced against the field.';
+          feedbackEl.textContent = `It ${moved}. ${pe}`;
+          mainBtn.textContent = scenario < scenarios.length - 1 ? 'Next scenario' : 'Replay';
+          mainBtn.classList.remove('hidden');
+          mainBtn.disabled = false;
+          draw(1);
+          if (!completed) {
+            completed = true;
+            try { window.parent.postMessage({ type: 'complete' }, '*'); } catch (e) {}
+          }
+        }
+      }
+
+      function choose(v) {
+        if (state !== 'predict') return;
+        prediction = v;
+        state = 'reveal';
+        animProgress = 0;
+        render();
+        const start = performance.now();
+        function tick(now) {
+          animProgress = Math.min(1, (now - start) / 900);
+          draw(animProgress);
+          if (animProgress < 1) {
+            animId = requestAnimationFrame(tick);
+          } else {
+            state = 'explain';
+            render();
+          }
+        }
+        animId = requestAnimationFrame(tick);
+      }
+
+      mainBtn.addEventListener('click', () => {
+        if (state === 'setup') {
+          state = 'predict';
+          render();
+        } else if (state === 'explain') {
+          if (scenario < scenarios.length - 1) {
+            scenario++;
+            state = 'setup';
+            prediction = null;
+            animProgress = 0;
+            if (animId) cancelAnimationFrame(animId);
+            render();
+          } else {
+            // replay first
+            scenario = 0;
+            state = 'setup';
+            prediction = null;
+            animProgress = 0;
+            completed = false;
+            if (animId) cancelAnimationFrame(animId);
+            render();
+          }
+        }
+      });
+
+      resetBtn.addEventListener('click', () => {
+        scenario = 0;
+        state = 'setup';
+        prediction = null;
+        animProgress = 0;
+        completed = false;
+        if (animId) cancelAnimationFrame(animId);
+        render();
+      });
+
+      // initial
+      render();
+
+      // resize handling
+      function resize() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.floor(rect.width * dpr);
+        canvas.height = Math.floor(rect.height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        // keep logical size for drawing? simplify: redraw with current canvas size
+        draw(animProgress || 0);
+      }
+      // simple fixed for now; canvas has fixed size, CSS scales
+    })();
+  </script>
+  </main>
+</body>
+</html>

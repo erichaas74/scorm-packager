@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Duality Detective</title>
+    <style>
+        body { font-family: sans-serif; background: #1a1a24; color: white; padding: 20px; }
+        .container { display: flex; gap: 20px; }
+        .controls { width: 250px; background: #2a2a35; padding: 20px; border-radius: 8px; }
+        canvas { background: #000; border: 2px solid #555; border-radius: 8px; }
+        label { display: block; margin: 15px 0 5px; font-size: 14px; }
+        select, input { width: 100%; padding: 5px; }
+        .status { margin-top: 20px; font-size: 14px; color: #aaa; }
+    </style>
+</head>
+<body>
+    <h2>The Duality Detective</h2>
+    <div class="container">
+        <div class="controls">
+            <label>Detector Type:</label>
+            <select id="detector">
+                <option value="screen">Photographic Screen (Wave)</option>
+                <option value="metal">Metal Plate (Particle/Photoelectric)</option>
+            </select>
+            
+            <label>Light Color (Frequency):</label>
+            <input type="range" id="frequency" min="300" max="700" value="500">
+            
+            <label>Intensity:</label>
+            <input type="range" id="intensity" min="1" max="100" value="50">
+
+            <div class="status" id="statusMsg">Mode: Wave Interference</div>
+        </div>
+        <canvas id="simCanvas" width="500" height="300"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const detector = document.getElementById('detector');
+        const freqSlider = document.getElementById('frequency');
+        const intSlider = document.getElementById('intensity');
+        const statusMsg = document.getElementById('statusMsg');
+
+        let particles = [];
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const isWave = detector.value === 'screen';
+            const wavelength = freqSlider.value; // nanometers (approx)
+            const intensity = intSlider.value;
+            
+            // Convert wavelength to RGB (rough approximation for visualization)
+            let r = 0, g = 0, b = 0;
+            if (wavelength < 450) { b = 255; r = 100; }
+            else if (wavelength < 550) { g = 255; }
+            else { r = 255; }
+            const colorStr = `rgb(${r},${g},${b})`;
+
+            if (isWave) {
+                statusMsg.innerText = "Mode: Wave Interference. \nNotice the probability distribution.";
+                // Draw interference fringes
+                for(let x = 0; x < canvas.width; x += 2) {
+                    let distanceFromCenter = Math.abs(x - 250);
+                    let waveProb = Math.cos(distanceFromCenter / (wavelength/20)) ** 2;
+                    let alpha = (waveProb * intensity) / 100;
+                    ctx.fillStyle = `rgba(${r},${g},${b}, ${alpha})`;
+                    ctx.fillRect(x, 0, 2, canvas.height);
+                }
+            } else {
+                // Photoelectric effect
+                let threshold = 500; // Only green/blue light knocks off electrons
+                if (wavelength < threshold) {
+                    statusMsg.innerText = "Mode: Photoelectric Effect. \nHigh frequency light ejects electrons!";
+                    // Spawn electrons based on intensity
+                    if (Math.random() < intensity / 100) {
+                        particles.push({ x: 480, y: Math.random() * 300, vx: -2 - Math.random()*3 });
+                    }
+                } else {
+                    statusMsg.innerText = "Mode: Photoelectric Effect. \nFrequency too low. Intensity doesn't matter.";
+                }
+
+                // Draw Light beam hitting right wall
+                ctx.fillStyle = `rgba(${r},${g},${b}, ${intensity/200})`;
+                ctx.fillRect(0, 0, 500, 300);
+
+                // Draw Metal Plate
+                ctx.fillStyle = '#666';
+                ctx.fillRect(480, 0, 20, 300);
+
+                // Update & draw particles (electrons)
+                ctx.fillStyle = '#fff';
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    let p = particles[i];
+                    p.x += p.vx;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 3, 0, Math.PI*2);
+                    ctx.fill();
+                    if (p.x < 0) particles.splice(i, 1);
+                }
+            }
+            requestAnimationFrame(draw);
+        }
+        draw();
+    </script>
+</body>
+</html>

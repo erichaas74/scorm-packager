@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Open, Closed, and Short Circuit</title>
+  <style>
+    html, body { background: transparent; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; }
+    .app { max-width: 720px; margin: 0 auto; padding: 8px; box-sizing: border-box; }
+    .card { border: 5px solid #285f9f; border-radius: 12px; background: #f8fafc; overflow: hidden; display: flex; flex-direction: column; }
+    .header { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #e2e8f0; border-bottom: 1px solid #cbd5e1; }
+    .header h1 { margin: 0; font-size: 1rem; font-weight: 600; color: #1e293b; }
+    .stage { position: relative; width: 100%; aspect-ratio: 16/9; background: #0f172a; overflow: hidden; }
+    canvas { display: block; width: 100%; height: 100%; }
+    .prompt-area { padding: 12px; background: #fff; border-top: 1px solid #e2e8f0; min-height: 130px; display: flex; flex-direction: column; gap: 8px; }
+    .prompt { margin: 0; font-size: 0.95rem; color: #1e293b; line-height: 1.4; }
+    .choices { display: flex; flex-wrap: wrap; gap: 8px; }
+    .choices button { flex: 1 1 120px; padding: 10px 12px; font-size: 0.9rem; font-weight: 600; border: 2px solid #285f9f; border-radius: 8px; background: #fff; color: #1e293b; cursor: pointer; min-height: 44px; }
+    .choices button:hover, .choices button:focus { background: #dbeafe; outline: 2px solid #285f9f; outline-offset: 2px; }
+    .feedback { margin: 0; font-size: 0.9rem; color: #0f172a; min-height: 1.4em; }
+    .main-btn { align-self: flex-start; padding: 10px 20px; font-size: 0.95rem; font-weight: 600; border: none; border-radius: 8px; background: #285f9f; color: #fff; cursor: pointer; min-height: 44px; }
+    .main-btn:hover, .main-btn:focus { background: #1e4a7a; outline: 2px solid #1e4a7a; outline-offset: 2px; }
+    .hidden { display: none !important; }
+    .warn { color: #b91c1c; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="card">
+      <div class="header">
+        <h1>Open, Closed, and Short Circuit</h1>
+        <button class="main-btn" data-reset style="padding:6px 12px;font-size:0.85rem;background:#64748b;">Reset</button>
+      </div>
+      <div class="stage" aria-label="Circuit states: open, closed, short">
+        <canvas id="c" width="640" height="360" role="img" aria-label="Battery, switch, lamp, and optional short path"></canvas>
+      </div>
+      <div class="prompt-area" aria-live="polite">
+        <p class="prompt" data-prompt>A battery, switch, and lamp form a simple circuit.</p>
+        <div class="choices" data-choices hidden>
+          <button data-choice="zero">Current is zero</button>
+          <button data-choice="normal">Normal current through lamp</button>
+          <button data-choice="huge">Very large current (danger)</button>
+        </div>
+        <p class="feedback" data-feedback></p>
+        <button class="main-btn" data-main>Start</button>
+      </div>
+    </section>
+  </main>
+  <script>
+    (function() {
+      const canvas = document.getElementById('c');
+      const ctx = canvas.getContext('2d');
+      const promptEl = document.querySelector('[data-prompt]');
+      const choicesEl = document.querySelector('[data-choices]');
+      const feedbackEl = document.querySelector('[data-feedback]');
+      const mainBtn = document.querySelector('[data-main]');
+      const resetBtn = document.querySelector('[data-reset]');
+
+      let state = 'setup';
+      let prediction = null;
+      let mode = 'open'; // open | closed | short
+      let scenario = 0;
+      let particles = [];
+      let animId = null;
+      let completed = false;
+      let flash = 0;
+
+      const scenarios = [
+        { mode: 'open', q: 'The switch is open. What is the current?', correct: 'zero' },
+        { mode: 'closed', q: 'The switch is closed through the lamp. What is the current?', correct: 'normal' },
+        { mode: 'short', q: 'A low-resistance wire bypasses the lamp. What is the current?', correct: 'huge' }
+      ];
+
+      function initParticles() {
+        particles = [];
+        for (let i = 0; i < 16; i++) particles.push({ t: i / 16 });
+      }
+
+      function draw() {
+        const W = canvas.width, H = canvas.height;
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, W, H);
+
+        // battery
+        ctx.fillStyle = '#64748b';
+        ctx.fillRect(40, 140, 50, 80);
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(40, 140, 50, 28);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 14px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('+', 65, 160);
+        ctx.fillText('−', 65, 205);
+
+        // wires base
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(90, 155);
+        ctx.lineTo(220, 155); // to switch
+        ctx.moveTo(280, 155);
+        ctx.lineTo(400, 155); // after switch to lamp
+        ctx.lineTo(400, 100);
+        ctx.lineTo(520, 100);
+        ctx.lineTo(520, 220);
+        ctx.lineTo(400, 220);
+        ctx.lineTo(400, 205);
+        ctx.lineTo(90, 205);
+        ctx.stroke();
+
+        // switch
+        ctx.strokeStyle = mode === 'open' ? '#f97316' : '#22c55e';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        if (mode === 'open') {
+          ctx.moveTo(220, 155);
+          ctx.lineTo(260, 125);
+        } else {
+          ctx.moveTo(220, 155);
+          ctx.lineTo(280, 155);
+        }
+        ctx.stroke();
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = '12px system-ui';
+        ctx.fillText(mode === 'open' ? 'OPEN' : 'CLOSED', 250, 110);
+
+        // lamp
+        const lampOn = mode === 'closed';
+        ctx.beginPath();
+        ctx.arc(520, 160, 28, 0, Math.PI * 2);
+        ctx.fillStyle = lampOn ? '#fde047' : '#475569';
+        ctx.fill();
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = lampOn ? '#854d0e' : '#94a3b8';
+        ctx.font = '11px system-ui';
+        ctx.fillText('LAMP', 520, 164);
+
+        // short path
+        if (mode === 'short') {
+          ctx.strokeStyle = '#ef4444';
+          ctx.lineWidth = 6;
+          ctx.setLineDash([8, 6]);
+          ctx.beginPath();
+          ctx.moveTo(280, 155);
+          ctx.lineTo(280, 250);
+          ctx.lineTo(520, 250);
+          ctx.lineTo(520, 220);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = '#ef4444';
+          ctx.font = 'bold 13px system-ui';
+          ctx.fillText('SHORT', 400, 275);
+        }
+
+        // particles / current
+        if (mode === 'closed' || mode === 'short') {
+          const speed = mode === 'short' ? 0.025 : 0.008;
+          particles.forEach(p => {
+            p.t = (p.t + speed) % 1;
+            let x, y;
+            const tt = p.t;
+            if (mode === 'closed') {
+              // path through lamp
+              if (tt < 0.25) { x = 90 + tt / 0.25 * 310; y = 155; }
+              else if (tt < 0.4) { x = 400; y = 155 - (tt - 0.25) / 0.15 * 55; }
+              else if (tt < 0.55) { x = 400 + (tt - 0.4) / 0.15 * 120; y = 100; }
+              else if (tt < 0.7) { x = 520; y = 100 + (tt - 0.55) / 0.15 * 120; }
+              else if (tt < 0.85) { x = 520 - (tt - 0.7) / 0.15 * 120; y = 220; }
+              else { x = 400 - (tt - 0.85) / 0.15 * 310; y = 205; }
+            } else {
+              // short path
+              if (tt < 0.3) { x = 90 + tt / 0.3 * 190; y = 155; }
+              else if (tt < 0.5) { x = 280; y = 155 + (tt - 0.3) / 0.2 * 95; }
+              else if (tt < 0.75) { x = 280 + (tt - 0.5) / 0.25 * 240; y = 250; }
+              else { x = 520 - (tt - 0.75) / 0.25 * 430; y = 205; }
+            }
+            ctx.beginPath();
+            ctx.arc(x, y, mode === 'short' ? 6 : 4, 0, Math.PI * 2);
+            ctx.fillStyle = mode === 'short' ? '#f87171' : '#38bdf8';
+            ctx.fill();
+          });
+        }
+
+        // current label
+        ctx.font = 'bold 15px system-ui';
+        ctx.textAlign = 'left';
+        if (mode === 'open') {
+          ctx.fillStyle = '#94a3b8';
+          ctx.fillText('I = 0', 20, H - 20);
+        } else if (mode === 'closed') {
+          ctx.fillStyle = '#4ade80';
+          ctx.fillText('I = normal (safe)', 20, H - 20);
+        } else {
+          ctx.fillStyle = '#f87171';
+          ctx.fillText('I = VERY LARGE — danger!', 20, H - 20);
+          // warning flash
+          if (flash % 20 < 10) {
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.15)';
+            ctx.fillRect(0, 0, W, H);
+          }
+        }
+      }
+
+      function tick() {
+        flash++;
+        draw();
+        animId = requestAnimationFrame(tick);
+      }
+
+      function render() {
+        choicesEl.classList.add('hidden');
+        mainBtn.classList.remove('hidden');
+        feedbackEl.textContent = '';
+        const sc = scenarios[scenario];
+
+        if (state === 'setup') {
+          promptEl.textContent = 'A battery, switch, and lamp form a simple circuit.';
+          mainBtn.textContent = 'Start';
+          mode = 'open';
+          initParticles();
+          draw();
+          if (!animId) tick();
+        } else if (state === 'predict') {
+          mode = sc.mode;
+          promptEl.textContent = sc.q;
+          choicesEl.classList.remove('hidden');
+          choicesEl.innerHTML = '';
+          const opts = [
+            { v: 'zero', t: 'Current is zero' },
+            { v: 'normal', t: 'Normal current through lamp' },
+            { v: 'huge', t: 'Very large current (danger)' }
+          ];
+          for (let i = opts.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [opts[i], opts[j]] = [opts[j], opts[i]];
+          }
+          opts.forEach(o => {
+            const b = document.createElement('button');
+            b.dataset.choice = o.v;
+            b.textContent = o.t;
+            b.addEventListener('click', () => choose(o.v));
+            choicesEl.appendChild(b);
+          });
+          mainBtn.classList.add('hidden');
+          draw();
+        } else if (state === 'reveal') {
+          promptEl.textContent = '';
+          mainBtn.classList.add('hidden');
+          mode = sc.mode;
+          draw();
+          setTimeout(() => {
+            state = 'explain';
+            render();
+          }, 1400);
+        } else if (state === 'explain') {
+          if (sc.mode === 'open') {
+            feedbackEl.textContent = 'Current is zero. An open path stops charge flow.';
+          } else if (sc.mode === 'closed') {
+            feedbackEl.textContent = 'Normal current flows through the lamp. The load limits the current.';
+          } else {
+            feedbackEl.innerHTML = '<span class="warn">Very large current — danger!</span> The short bypasses the load; only tiny wire resistance remains.';
+          }
+          mainBtn.textContent = scenario < scenarios.length - 1 ? 'Next scenario' : 'Replay';
+          if (!completed && scenario === scenarios.length - 1) {
+            completed = true;
+            try { window.parent.postMessage({ type: 'complete' }, '*'); } catch (e) {}
+          }
+        }
+      }
+
+      function choose(v) {
+        if (state !== 'predict') return;
+        prediction = v;
+        state = 'reveal';
+        render();
+      }
+
+      mainBtn.addEventListener('click', () => {
+        if (state === 'setup') {
+          state = 'predict';
+          render();
+        } else if (state === 'explain') {
+          if (scenario < scenarios.length - 1) {
+            scenario++;
+            state = 'predict';
+            prediction = null;
+            render();
+          } else {
+            scenario = 0;
+            state = 'setup';
+            prediction = null;
+            completed = false;
+            mode = 'open';
+            render();
+          }
+        }
+      });
+
+      resetBtn.addEventListener('click', () => {
+        scenario = 0;
+        state = 'setup';
+        prediction = null;
+        mode = 'open';
+        completed = false;
+        if (animId) { cancelAnimationFrame(animId); animId = null; }
+        render();
+      });
+
+      initParticles();
+      render();
+    })();
+  </script>
+</body>
+</html>

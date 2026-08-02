@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulation 1: EM Spectrum & Energy Explorer</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --text-color: #f8fafc;
+            --accent: #f59e0b;
+            --accent-hover: #d97706;
+            --radio: #ef4444;
+            --gamma: #8b5cf6;
+            --success: #10b981;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            background-color: var(--panel-bg);
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid #334155;
+        }
+
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 1.5rem;
+        }
+
+        .header p {
+            margin: 0;
+            color: #94a3b8;
+            font-size: 0.95rem;
+        }
+
+        .view-toggles {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 15px;
+            background: #0f172a;
+        }
+
+        .view-toggles button {
+            background-color: #334155;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+
+        .view-toggles button.active {
+            background-color: var(--accent);
+            color: #000;
+        }
+
+        .view-toggles button:hover:not(.active) {
+            background-color: #475569;
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            background-color: #000;
+            border-bottom: 1px solid #334155;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .overlay-ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+        }
+
+        .readout-badge {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #334155;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+
+        .race-btn {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--success);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(16, 185, 129, 0.4);
+            display: none;
+        }
+
+        .race-btn:hover { background: #059669; }
+
+        .controls-wrapper {
+            padding: 20px;
+            background: var(--panel-bg);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        input[type=range] {
+            width: 100%;
+            cursor: pointer;
+            accent-color: var(--accent);
+        }
+
+        .spectrum-bar {
+            height: 10px;
+            border-radius: 5px;
+            background: linear-gradient(to right, #ef4444, #f97316, #eab308, #22c55e, #3b82f6, #8b5cf6);
+            margin-top: -5px;
+        }
+
+        .info-panel {
+            grid-column: 1 / -1;
+            background: #334155;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: #cbd5e1;
+        }
+
+        .highlight { color: var(--accent); font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Simulation 1: EM Spectrum & Energy Explorer</h1>
+        <p>Explore the relationship between wave speed, frequency, intensity, and photon energy in a vacuum.</p>
+    </div>
+
+    <div class="view-toggles">
+        <button class="active" onclick="setMode('race')" id="btn-race">Vacuum Race</button>
+        <button onclick="setMode('inspector')" id="btn-inspector">Photon Inspector</button>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="simCanvas"></canvas>
+        <div class="overlay-ui">
+            <div id="readoutType" class="readout-badge" style="display: none;">Wave Type: Visible Light</div>
+            <br>
+            <div id="readoutEnergy" class="readout-badge" style="border-color: var(--accent); color: var(--accent); display: none;">
+                Photon Energy: 2.5 eV
+            </div>
+        </div>
+        <button id="raceBtn" class="race-btn" onclick="startRace()">Start Vacuum Race</button>
+    </div>
+
+    <div class="controls-wrapper" id="inspectorControls" style="display: none;">
+        <div class="control-group">
+            <label>
+                <span>Frequency (EM Spectrum)</span>
+                <span id="freqDisplay">10^14 Hz</span>
+            </label>
+            <input type="range" id="freqSlider" min="0" max="100" value="50">
+            <div class="spectrum-bar"></div>
+            <span style="font-size: 0.8rem; color: #94a3b8; display: flex; justify-content: space-between;">
+                <span>Radio</span> <span>Microwave</span> <span>Visible</span> <span>X-Ray</span> <span>Gamma</span>
+            </span>
+        </div>
+
+        <div class="control-group">
+            <label>
+                <span>Intensity (Brightness)</span>
+                <span id="intensityDisplay">Medium</span>
+            </label>
+            <input type="range" id="intensitySlider" min="1" max="10" value="5">
+            <span style="font-size: 0.8rem; color: #94a3b8; margin-top: 15px;">
+                Controls the <em>number</em> of photons emitted per second, not their individual energy.
+            </span>
+        </div>
+
+        <div class="info-panel" id="dynamicInfo">
+            <strong>Photon Inspector:</strong> Notice how increasing the frequency changes the color and increases the individual photon energy. However, increasing the intensity only increases the quantity of photons, leaving their individual energy completely unchanged!
+        </div>
+    </div>
+    
+    <div class="controls-wrapper" id="raceControls">
+        <div class="info-panel">
+            <strong>Vacuum Race:</strong> We are pitting a low-frequency, low-energy Radio Wave against a high-frequency, high-energy Gamma Ray in a vacuum tube. Click "Start Vacuum Race" to see which one reaches the target first.
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // UI Elements
+    const raceBtn = document.getElementById('raceBtn');
+    const inspectorControls = document.getElementById('inspectorControls');
+    const raceControls = document.getElementById('raceControls');
+    
+    const freqSlider = document.getElementById('freqSlider');
+    const intensitySlider = document.getElementById('intensitySlider');
+    const freqDisplay = document.getElementById('freqDisplay');
+    const intensityDisplay = document.getElementById('intensityDisplay');
+    const readoutType = document.getElementById('readoutType');
+    const readoutEnergy = document.getElementById('readoutEnergy');
+    const dynamicInfo = document.getElementById('dynamicInfo');
+
+    let width = canvas.width = canvas.parentElement.clientWidth;
+    let height = canvas.height = canvas.parentElement.clientHeight;
+    
+    window.addEventListener('resize', () => {
+        width = canvas.width = canvas.parentElement.clientWidth;
+        height = canvas.height = canvas.parentElement.clientHeight;
+    });
+
+    // State Variables
+    let mode = 'race';
+    let time = 0;
+    
+    // Race State
+    let isRacing = false;
+    let raceProgress = 0; // 0 to 1
+    let raceWinner = false;
+
+    // Inspector State
+    let particles = [];
+    const h = 4.1357e-15; // Planck's constant in eV*s (simplified for simulation scaling)
+
+    function setMode(newMode) {
+        mode = newMode;
+        document.getElementById('btn-race').classList.remove('active');
+        document.getElementById('btn-inspector').classList.remove('active');
+        document.getElementById(`btn-${newMode}`).classList.add('active');
+
+        if (mode === 'race') {
+            raceControls.style.display = 'grid';
+            inspectorControls.style.display = 'none';
+            raceBtn.style.display = 'block';
+            readoutType.style.display = 'none';
+            readoutEnergy.style.display = 'none';
+            resetRace();
+        } else {
+            raceControls.style.display = 'none';
+            inspectorControls.style.display = 'grid';
+            raceBtn.style.display = 'none';
+            readoutType.style.display = 'inline-block';
+            readoutEnergy.style.display = 'inline-block';
+            particles = []; // Clear particles
+        }
+    }
+
+    // Initialize UI on load
+    setMode('race');
+
+    function resetRace() {
+        isRacing = false;
+        raceProgress = 0;
+        raceWinner = false;
+        raceBtn.innerText = "Start Vacuum Race";
+        raceBtn.style.background = "var(--success)";
+    }
+
+    window.startRace = function() {
+        if(isRacing || raceWinner) {
+            resetRace();
+        } else {
+            isRacing = true;
+            raceBtn.innerText = "Racing...";
+            raceBtn.style.background = "#475569";
+        }
+    }
+
+    // Helper to map slider (0-100) to actual frequency exponent (e.g. 10^6 to 10^20)
+    function getFrequencyData(sliderVal) {
+        // Map 0-100 to 6 - 20 (exponents of Hz)
+        const exp = 6 + (sliderVal / 100) * 14; 
+        const freq = Math.pow(10, exp);
+        
+        let type = "Radio Waves";
+        let color = "#ef4444";
+        if (exp > 9 && exp <= 11) { type = "Microwaves"; color = "#f97316"; }
+        else if (exp > 11 && exp <= 14) { type = "Infrared"; color = "#eab308"; }
+        else if (exp > 14 && exp <= 15) { type = "Visible Light"; color = "#22c55e"; }
+        else if (exp > 15 && exp <= 16.5) { type = "Ultraviolet"; color = "#3b82f6"; }
+        else if (exp > 16.5 && exp <= 19) { type = "X-Rays"; color = "#8b5cf6"; }
+        else if (exp > 19) { type = "Gamma Rays"; color = "#d946ef"; }
+
+        // Energy E = hf
+        const energyEv = h * freq;
+
+        return { exp, freq, type, color, energyEv };
+    }
+
+    function draw() {
+        time += 0.05;
+        ctx.clearRect(0, 0, width, height);
+
+        if (mode === 'race') {
+            drawRace();
+        } else {
+            drawInspector();
+        }
+
+        requestAnimationFrame(draw);
+    }
+
+    function drawRace() {
+        const startX = width * 0.1;
+        const endX = width * 0.9;
+        const trackLength = endX - startX;
+        
+        // Draw Finish Line
+        ctx.beginPath();
+        ctx.strokeStyle = "#475569";
+        ctx.setLineDash([10, 10]);
+        ctx.lineWidth = 4;
+        ctx.moveTo(endX, 50);
+        ctx.lineTo(endX, height - 50);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "bold 16px Arial";
+        ctx.fillText("Finish Line", endX - 40, 40);
+
+        // Update race logic
+        if (isRacing) {
+            raceProgress += 0.008; // Constant speed c
+            if (raceProgress >= 1) {
+                raceProgress = 1;
+                isRacing = false;
+                raceWinner = true;
+                raceBtn.innerText = "Reset Race";
+                raceBtn.style.background = "var(--accent)";
+            }
+        }
+
+        const currentX = startX + (raceProgress * trackLength);
+
+        // Track 1: Low Freq (Radio)
+        const y1 = height * 0.35;
+        ctx.beginPath();
+        ctx.strokeStyle = "#ef4444"; // Red
+        ctx.lineWidth = 3;
+        for(let x=startX; x<=currentX; x+=2) {
+            // Low frequency wave
+            let waveY = y1 + Math.sin((x - startX) * 0.05 - time*2) * 20;
+            if(x===startX) ctx.moveTo(x, waveY);
+            else ctx.lineTo(x, waveY);
+        }
+        ctx.stroke();
+        
+        // Photon head
+        ctx.beginPath();
+        ctx.arc(currentX, y1, 10, 0, Math.PI*2);
+        ctx.fillStyle = "#ef4444";
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.fillText("Radio Wave (Low Freq)", startX, y1 - 30);
+
+        // Track 2: High Freq (Gamma)
+        const y2 = height * 0.65;
+        ctx.beginPath();
+        ctx.strokeStyle = "#8b5cf6"; // Purple
+        ctx.lineWidth = 3;
+        for(let x=startX; x<=currentX; x+=2) {
+            // High frequency wave
+            let waveY = y2 + Math.sin((x - startX) * 0.4 - time*8) * 20;
+            if(x===startX) ctx.moveTo(x, waveY);
+            else ctx.lineTo(x, waveY);
+        }
+        ctx.stroke();
+
+        // Photon head
+        ctx.beginPath();
+        ctx.arc(currentX, y2, 10, 0, Math.PI*2);
+        ctx.fillStyle = "#8b5cf6";
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.fillText("Gamma Ray (High Freq)", startX, y2 - 30);
+
+        // Winner Text
+        if (raceWinner) {
+            ctx.fillStyle = "rgba(0,0,0,0.8)";
+            ctx.fillRect(width/2 - 250, height/2 - 40, 500, 80);
+            ctx.strokeStyle = varAccent = "#f59e0b";
+            ctx.strokeRect(width/2 - 250, height/2 - 40, 500, 80);
+            
+            ctx.fillStyle = "#fff";
+            ctx.textAlign = "center";
+            ctx.font = "bold 18px Arial";
+            ctx.fillText("It's a TIE! All EM waves travel at the same speed (c)", width/2, height/2 - 5);
+            ctx.fillStyle = "#f59e0b";
+            ctx.font = "14px Arial";
+            ctx.fillText("Higher frequency does NOT mean faster vacuum speed.", width/2, height/2 + 20);
+            ctx.textAlign = "left"; // reset
+        }
+    }
+
+    class Particle {
+        constructor(y, speed, color, amplitude, freqMultiplier) {
+            this.x = 0;
+            this.yBase = y;
+            this.speed = speed;
+            this.color = color;
+            this.amplitude = amplitude;
+            this.freqMultiplier = freqMultiplier;
+            this.birth = time;
+        }
+        update() {
+            this.x += this.speed;
+        }
+        draw(ctx) {
+            // Wavy path calculation
+            const y = this.yBase + Math.sin((this.x * this.freqMultiplier) - (time * 5)) * this.amplitude;
+            
+            ctx.beginPath();
+            ctx.arc(this.x, y, 6, 0, Math.PI*2);
+            ctx.fillStyle = this.color;
+            ctx.fill();
+            
+            // Glow effect
+            ctx.beginPath();
+            ctx.arc(this.x, y, 12, 0, Math.PI*2);
+            ctx.fillStyle = this.color;
+            ctx.globalAlpha = 0.3;
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+        }
+    }
+
+    function drawInspector() {
+        const fVal = freqSlider.value;
+        const iVal = parseInt(intensitySlider.value);
+        
+        const data = getFrequencyData(fVal);
+        
+        // Update Displays
+        freqDisplay.innerText = `10^${data.exp.toFixed(1)} Hz`;
+        readoutType.innerText = `Wave Type: ${data.type}`;
+        readoutType.style.borderColor = data.color;
+        
+        intensityDisplay.innerText = iVal === 1 ? "Dim" : iVal === 10 ? "Extremely Bright" : "Level " + iVal;
+
+        // Energy formatting
+        let energyStr = "";
+        if (data.energyEv < 0.001) energyStr = (data.energyEv * 1000).toFixed(2) + " meV";
+        else if (data.energyEv > 1000) energyStr = (data.energyEv / 1000).toFixed(2) + " keV";
+        else energyStr = data.energyEv.toFixed(2) + " eV";
+        
+        readoutEnergy.innerText = `Photon Energy (E=hf): ${energyStr}`;
+
+        // Source Emitter block
+        ctx.fillStyle = "#334155";
+        ctx.fillRect(0, height/2 - 40, 40, 80);
+        ctx.fillStyle = data.color;
+        ctx.fillRect(35, height/2 - 30, 10, 60); // glowing tip
+
+        // Visual mapping for wave
+        const visualFreq = 0.01 + (fVal / 100) * 0.1; 
+        const speed = 5; // Constant speed!
+
+        // Spawn particles based on INTENSITY
+        // Higher intensity = spawn more particles per frame
+        const spawnRate = iVal / 10; // 0.1 to 1.0 probability per frame
+        
+        // To make intensity very obvious, spawn multiple in a burst if intensity is max
+        const particlesToSpawn = Math.floor(iVal / 3) + (Math.random() < (iVal % 3)*0.33 ? 1 : 0);
+
+        if (Math.random() < 0.8) { // General pacing
+            for(let p=0; p<particlesToSpawn; p++) {
+                // Spread them slightly on Y axis for "brightness" thickness
+                let ySpread = (Math.random() - 0.5) * (iVal * 4);
+                particles.push(new Particle(height/2 + ySpread, speed, data.color, 40, visualFreq));
+            }
+        }
+
+        // Draw and update particles
+        for (let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i];
+            p.update();
+            p.draw(ctx);
+            
+            // Remove if off screen
+            if (p.x > width + 50) {
+                particles.splice(i, 1);
+            }
+        }
+        
+        // Dynamic Warning if they crank intensity
+        if (iVal > 7) {
+            ctx.fillStyle = "rgba(0,0,0,0.6)";
+            ctx.fillRect(width/2 - 150, height - 60, 300, 40);
+            ctx.fillStyle = "#f8fafc";
+            ctx.font = "14px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText("High Intensity = More Photons. Energy is unchanged.", width/2, height - 35);
+            ctx.textAlign = "left";
+        }
+    }
+
+</script>
+</body>
+</html>
