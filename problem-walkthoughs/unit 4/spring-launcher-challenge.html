@@ -149,28 +149,37 @@
     .prediction-choice-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 10px;
+      gap: 12px;
     }
     .choice {
-      padding: 13px 8px;
-      border: 1.5px solid var(--line);
-      border-radius: 12px;
-      background: #f7f9fc;
+      min-height: 58px;
+      padding: 15px 10px;
+      border: 2px solid #93b4e8;
+      border-radius: 14px;
+      background: linear-gradient(180deg, #ffffff 0%, #edf4ff 100%);
       color: var(--ink);
       font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
-      font-size: 16px;
-      font-weight: 700;
+      font-size: 17px;
+      font-weight: 800;
       cursor: pointer;
-      transition: border-color .15s, background .15s, transform .15s;
+      box-shadow: 0 3px 0 #c4d5ee, 0 7px 16px rgb(23 35 59 / 10%);
+      transition: border-color .15s, background .15s, box-shadow .15s, transform .15s;
     }
-    .choice:hover:not(:disabled) { border-color: var(--blue); background: var(--blue-soft); }
-    .choice:disabled { opacity: .55; cursor: not-allowed; }
+    .choice:hover:not(:disabled) {
+      border-color: var(--blue);
+      background: var(--blue-soft);
+      box-shadow: 0 4px 0 #7fa8e6, 0 9px 20px rgb(37 99 235 / 18%);
+      transform: translateY(-2px);
+    }
+    .choice:disabled { opacity: .7; cursor: not-allowed; }
     .choice.is-selected {
       border-color: var(--blue);
       background: var(--blue);
       color: #fff;
+      box-shadow: 0 3px 0 #173f96, 0 0 0 4px rgb(37 99 235 / 18%);
       transform: translateY(-1px);
     }
+    .choice.is-selected:disabled { opacity: 1; }
     .prediction-choice-grid.nudge { animation: nudge .45s ease; }
     @keyframes nudge { 0%,100% { transform: none; } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
 
@@ -449,6 +458,8 @@
     let introT = 0;
     let introNextState = 'setup';
     let hintVisible = false;
+    let autoAdvanceTimer = null;
+    let autoAdvanceCountdown = null;
     const INTRO_DURATION = 1.15;
 
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -1683,9 +1694,26 @@
         promptTitle.textContent = `PEs = ½kx² = ${correct.toFixed(1)} J.`;
       }
 
-      btnMain.classList.remove('hidden');
-      btnMain.disabled = false;
-      btnMain.textContent = 'Launch';
+      // Problems 1 and 2 move straight from the energy answer to the
+      // velocity question, so the learner never needs a separate launch button.
+      btnMain.classList.add('hidden');
+      setTimeout(beginLevelOneSpeedQuestion, 900);
+    }
+
+    function beginLevelOneSpeedQuestion() {
+      const r = rounds[currentRoundIdx];
+      if (r.level !== 1 || gameState !== 'predict' || l1Step !== 'energy') return;
+
+      l1Step = 'speed';
+      // The loop may be mid-load; always fire from full compression.
+      cart.s = -launchSetup.x;
+      cart.v = 0;
+      released = false;
+      demoPhase = 'fly';
+      demoT = 0;
+      renderPredictionChoices();
+      promptTitle.textContent = 'Solve for the velocity';
+      btnMain.classList.add('hidden');
     }
 
     function renderPredictionChoices() {
@@ -1707,6 +1735,7 @@
     }
 
     function initRound() {
+      clearAutoAdvance();
       const r = rounds[currentRoundIdx];
       cart.m = r.mass;
       cart.v = 0;
@@ -1769,6 +1798,47 @@
       resize();
     }
 
+    function clearAutoAdvance() {
+      if (autoAdvanceTimer !== null) clearTimeout(autoAdvanceTimer);
+      if (autoAdvanceCountdown !== null) clearInterval(autoAdvanceCountdown);
+      autoAdvanceTimer = null;
+      autoAdvanceCountdown = null;
+    }
+
+    function advanceToNextRound() {
+      clearAutoAdvance();
+      currentRoundIdx++;
+      if (currentRoundIdx >= rounds.length) {
+        gameState = 'gameover';
+        promptTitle.textContent = "Challenge complete";
+        window.RiseWalkthrough.complete();
+        btnMain.textContent = "Play again";
+      } else {
+        initRound();
+      }
+    }
+
+    function scheduleAutoAdvance() {
+      clearAutoAdvance();
+      const finishedRoundIdx = currentRoundIdx;
+      const advanceLabel = currentRoundIdx === rounds.length - 1 ? 'Finish' : 'Next round';
+      let secondsRemaining = 4;
+      btnMain.textContent = `${advanceLabel} (${secondsRemaining}s)`;
+
+      autoAdvanceCountdown = setInterval(() => {
+        if (gameState !== 'result' || currentRoundIdx !== finishedRoundIdx) {
+          clearAutoAdvance();
+          return;
+        }
+        secondsRemaining--;
+        if (secondsRemaining > 0) btnMain.textContent = `${advanceLabel} (${secondsRemaining}s)`;
+      }, 1000);
+
+      autoAdvanceTimer = setTimeout(() => {
+        if (gameState === 'result' && currentRoundIdx === finishedRoundIdx) advanceToNextRound();
+      }, 4000);
+    }
+
     function handleResult(speed, height) {
       gameState = 'result';
       const r = rounds[currentRoundIdx];
@@ -1803,10 +1873,10 @@
         promptTitle.textContent = `Peak ${height.toFixed(2)} m · target ${r.targetHeight.toFixed(1)} m`;
       }
 
-      // The launch button is hidden during level 1, but advancing still needs it
+      // Keep a manual advance available, then continue automatically after four seconds.
       btnMain.classList.remove('hidden');
       btnMain.disabled = false;
-      btnMain.textContent = "Next round";
+      scheduleAutoAdvance();
     }
 
     // ---------------------------------------------------------------
@@ -1885,21 +1955,6 @@
     btnMain.addEventListener('click', () => {
       const r = rounds[currentRoundIdx];
 
-      // Level 1: the energy answer releases the cart and asks for the speed
-      if (r.level === 1 && gameState === 'predict' && l1Step === 'energy') {
-        l1Step = 'speed';
-        // The loop may be mid-load; always fire from full compression
-        cart.s = -launchSetup.x;
-        cart.v = 0;
-        released = false;
-        demoPhase = 'fly';
-        demoT = 0;
-        renderPredictionChoices();
-        promptTitle.textContent = 'Solve for the velocity';
-        btnMain.classList.add('hidden');
-        return;
-      }
-
       if (gameState === 'predict' || gameState === 'setup') {
         if (gameState === 'predict' && selectedPrediction === null) {
           predictionChoices.classList.add('nudge');
@@ -1924,15 +1979,7 @@
         trail = [];
 
       } else if (gameState === 'result') {
-        currentRoundIdx++;
-        if (currentRoundIdx >= rounds.length) {
-          gameState = 'gameover';
-          promptTitle.textContent = "Challenge complete";
-          window.RiseWalkthrough.complete();
-          btnMain.textContent = "Play again";
-        } else {
-          initRound();
-        }
+        advanceToNextRound();
       } else if (gameState === 'gameover') {
         currentRoundIdx = 0;
         initRound();

@@ -172,8 +172,15 @@ const ctx = canvas.getContext('2d');
 const W = canvas.width, H = canvas.height;
 const floorY = 555, ballX = 300, ballRadius = 23;
 const springTop = 445, springBottom = floorY, maxCompression = 72, topY = 90;
-const cycleDuration = 4.8;
-const checkpoints = [0, 0.95, 2.40, 3.85];
+const contactY = springTop-ballRadius;
+const fallDistance = contactY-topY;
+const fallDuration = 2;
+const gravity = 2*fallDistance/(fallDuration*fallDuration);
+const impactSpeed = gravity*fallDuration;
+const springOmega = Math.sqrt((impactSpeed*impactSpeed+2*gravity*maxCompression)/(maxCompression*maxCompression));
+const contactDuration = (2*Math.PI-2*Math.atan(impactSpeed*springOmega/gravity))/springOmega;
+const cycleDuration = 2*fallDuration+contactDuration;
+const checkpoints = [0, 1.95, 2.40, 3.85];
 const answers = ['peg', 'ke', 'pes', 'ke'];
 const labels = { peg: 'PE gravity', ke: 'KE', pes: 'PE spring' };
 let questionIndex = 0;
@@ -187,6 +194,7 @@ let animationTime = 0;
 let resultMessage = '';
 let advanceTimer = 0;
 let hintActive = false;
+let completed = false;
 const riseAnsweredQuestions = new Set();
 const barHitboxes = [
   {x:625,y:225,w:74,h:280,key:'peg'},
@@ -196,24 +204,33 @@ const barHitboxes = [
 const hintHitbox = {x:684,y:548,w:142,h:28};
 
 function clamp(v,min,max){ return Math.max(min,Math.min(max,v)); }
-function easeInOut(t){ return .5-.5*Math.cos(Math.PI*t); }
 function getState(t){
-  const p=(t%cycleDuration)/cycleDuration; let y,compression=0;
-  if(p<.38){const q=easeInOut(p/.38); y=topY+q*(springTop-ballRadius-topY);}
-  else if(p<.5){const q=easeInOut((p-.38)/.12); compression=q*maxCompression; y=springTop-ballRadius+compression;}
-  else if(p<.62){const q=easeInOut((p-.5)/.12); compression=(1-q)*maxCompression; y=springTop-ballRadius+compression;}
-  else{const q=easeInOut((p-.62)/.38); y=springTop-ballRadius-q*(springTop-ballRadius-topY);}
-  const maxHeight=springTop-ballRadius-topY;
-  const height=clamp((springTop-ballRadius-y)/maxHeight,0,1);
-  const spring=clamp(compression/maxCompression,0,1);
-  const kinetic=clamp(1-height-spring,0,1);
-  const total=height+kinetic+spring||1;
-  return {y,compression,peG:height/total,ke:kinetic/total,peS:spring/total};
+  const cycleTime=t%cycleDuration;
+  const risingStart=fallDuration+contactDuration;
+  let y,velocity,compression=0;
+  if(cycleTime<fallDuration){
+    y=topY+.5*gravity*cycleTime*cycleTime;
+    velocity=gravity*cycleTime;
+  }else if(cycleTime<risingStart){
+    const contactTime=cycleTime-fallDuration;
+    compression=(impactSpeed/springOmega)*Math.sin(springOmega*contactTime)+(gravity/(springOmega*springOmega))*(1-Math.cos(springOmega*contactTime));
+    velocity=impactSpeed*Math.cos(springOmega*contactTime)+(gravity/springOmega)*Math.sin(springOmega*contactTime);
+    y=contactY+compression;
+  }else{
+    const riseTime=cycleTime-risingStart;
+    y=contactY-impactSpeed*riseTime+.5*gravity*riseTime*riseTime;
+    velocity=-impactSpeed+gravity*riseTime;
+  }
+  const gravitationalEnergy=gravity*(contactY-y);
+  const kineticEnergy=.5*velocity*velocity;
+  const springEnergy=.5*springOmega*springOmega*compression*compression;
+  const total=gravitationalEnergy+kineticEnergy+springEnergy||1;
+  return {y,compression,peG:clamp(gravitationalEnergy/total,0,1),ke:clamp(kineticEnergy/total,0,1),peS:clamp(springEnergy/total,0,1)};
 }
 function drawBackground(){
   ctx.clearRect(0,0,W,H); const g=ctx.createLinearGradient(0,0,0,H);
-  g.addColorStop(0,'#dbeafe'); g.addColorStop(.62,'#bfdbfe'); g.addColorStop(1,'#93c5fd'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-  ctx.strokeStyle='rgba(37,99,235,.14)'; ctx.lineWidth=1;
+  g.addColorStop(0,'#e1e8eb'); g.addColorStop(.62,'#c9d6da'); g.addColorStop(1,'#aebfc5'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='rgba(71,100,112,.16)'; ctx.lineWidth=1;
   for(let y=40;y<floorY;y+=40){ctx.beginPath();ctx.moveTo(30,y);ctx.lineTo(570,y);ctx.stroke();}
   const floorGlow=ctx.createLinearGradient(0,floorY,0,floorY+44);floorGlow.addColorStop(0,'#64748b');floorGlow.addColorStop(.12,'#cbd5e1');floorGlow.addColorStop(1,'#e2e8f0');ctx.fillStyle=floorGlow;ctx.fillRect(25,floorY,545,44);ctx.fillStyle='rgba(255,255,255,.58)';ctx.fillRect(25,floorY,545,2);
 }
@@ -226,8 +243,8 @@ function drawSpring(compression){
   const base=ctx.createLinearGradient(x-45,0,x+45,0);base.addColorStop(0,'#111827');base.addColorStop(.5,'#9ca3af');base.addColorStop(1,'#1f2937');ctx.fillStyle=base;ctx.fillRect(x-45,springBottom-3,90,6);ctx.restore();
 }
 function drawBall(y){
-  const grad=ctx.createRadialGradient(ballX-9,y-10,4,ballX,y,ballRadius);grad.addColorStop(0,'#fff7c2');grad.addColorStop(.35,'#fbbf24');grad.addColorStop(1,'#ea580c');
-  ctx.save();ctx.shadowColor='rgba(251,191,36,.75)';ctx.shadowBlur=20;ctx.fillStyle=grad;ctx.beginPath();ctx.arc(ballX,y,ballRadius,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#fed7aa';ctx.lineWidth=2;ctx.stroke();ctx.restore();
+  const grad=ctx.createRadialGradient(ballX-9,y-10,4,ballX,y,ballRadius);grad.addColorStop(0,'#f2e5b5');grad.addColorStop(.35,'#c99d4c');grad.addColorStop(1,'#9b5d34');
+  ctx.save();ctx.shadowColor='rgba(155,93,52,.42)';ctx.shadowBlur=15;ctx.fillStyle=grad;ctx.beginPath();ctx.arc(ballX,y,ballRadius,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#dfc58c';ctx.lineWidth=2;ctx.stroke();ctx.restore();
 }
 function drawFormulaCard(x,y,w,h,text,color){
   ctx.fillStyle='rgba(255,255,255,.92)';ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.beginPath();ctx.roundRect(x,y,w,h,9);ctx.fill();ctx.stroke();ctx.fillStyle='#0f172a';ctx.font='bold 15px Arial';ctx.textAlign='center';ctx.fillText(text,x+w/2,y+22);
@@ -238,7 +255,7 @@ function drawDimensionArrow(x,y1,y2,label,valueText,color){
   const mid=(top+bottom)/2;ctx.fillStyle='#fff';ctx.strokeStyle='#cbd5e1';ctx.lineWidth=1.5;ctx.beginPath();ctx.roundRect(x-58,mid-25,116,50,8);ctx.fill();ctx.stroke();ctx.fillStyle=color;ctx.font='bold 14px Arial';ctx.textAlign='center';ctx.fillText(label,x,mid-5);ctx.fillStyle='#0f172a';ctx.font='bold 15px Arial';ctx.fillText(valueText,x,mid+15);
 }
 function drawEnergyBox(x,label,value,color,key){
-  const y=225,w=74,h=280,showValues=revealed||hintActive,pulse=(!moving&&!revealed&&!hintActive)?(0.5+0.5*Math.sin(animationTime*4.2)):0;
+  const y=225,w=74,h=280,showValues=revealed||hintActive||completed,pulse=(!moving&&!revealed&&!hintActive)?(0.5+0.5*Math.sin(animationTime*4.2)):0;
   ctx.save();ctx.shadowColor=color;ctx.shadowBlur=selected===key?20:(!moving&&!revealed?8+10*pulse:0);
   ctx.fillStyle=selected===key?'rgba(219,234,254,.96)':'rgba(248,250,252,.94)';ctx.fillRect(x,y,w,h);ctx.strokeStyle=selected===key?'#1d4ed8':(pulse>.5?color:'#94a3b8');ctx.lineWidth=selected===key?4:2;ctx.strokeRect(x,y,w,h);
   if(showValues){const fillH=h*value,fill=ctx.createLinearGradient(0,y+h-fillH,0,y+h);fill.addColorStop(0,color);fill.addColorStop(1,'rgba(255,255,255,.58)');ctx.fillStyle=fill;ctx.fillRect(x,y+h-fillH,w,fillH);ctx.fillStyle='#0f172a';ctx.font='bold 16px Arial';ctx.textAlign='center';ctx.fillText(Math.round(value*100)+'%',x+w/2,y+h+28);}
@@ -260,20 +277,21 @@ function drawHeightScale(ballY){
   ctx.beginPath();ctx.moveTo(markerX,ballY);ctx.lineTo(markerX-9,ballY-5);ctx.lineTo(markerX-9,ballY+5);ctx.closePath();ctx.fill();
 }
 function drawScene(state){
-  drawBackground();ctx.textAlign='left';ctx.fillStyle='#0f172a';ctx.font='bold 20px Arial';ctx.fillText('Ball and Spring',38,34);ctx.font='15px Arial';ctx.fillStyle='#475569';ctx.fillText(hintActive?'Hint: watch the colored energy values for two cycles.':moving?'Watch the full cycle, then choose an energy box.':revealed?'Answer recorded. The next question is coming.':'Choose the flashing box with the greatest energy.',38,58);
+  drawBackground();ctx.textAlign='left';ctx.fillStyle='#0f172a';ctx.font='bold 20px Arial';ctx.fillText('Ball and Spring',38,34);ctx.font='15px Arial';ctx.fillStyle='#475569';ctx.fillText(completed?'Completed. Watch the energy transfer through each cycle.':hintActive?'Hint: watch the colored energy values for two cycles.':moving?'Watch the full cycle, then choose an energy box.':revealed?'Answer recorded. The next question is coming.':'Choose the flashing box with the greatest energy.',38,58);
   drawSpring(state.compression);drawBall(state.y);
-  drawFormulaCard(112,78,132,36,'PEg = mgh','#3b82f6');
-  drawFormulaCard(390,78,142,36,'KE = ½mv²','#f59e0b');
-  drawFormulaCard(ballX-92,575,184,36,'PE spring = ½kx²','#8b5cf6');
+  drawFormulaCard(112,78,132,36,'PEg = mgh','#4d7594');
+  drawFormulaCard(390,78,142,36,'KE = ½mv²','#a97832');
+  drawFormulaCard(ballX-92,575,184,36,'PE spring = ½kx²','#776886');
   drawHeightScale(state.y);
   const ppm=70;
   drawDimensionArrow(455,springTop,springTop+state.compression,'compression x',(state.compression/ppm).toFixed(2)+' m','#7c3aed');
   if (revealed) { ctx.font='bold 14px Arial'; ctx.fillStyle=selected===answers[questionIndex]?'#166534':'#9f1239'; ctx.textAlign='center'; ctx.fillText(resultMessage,755,170); }
-  drawEnergyBox(625,'PE gravity',state.peG,'#3b82f6','peg');drawEnergyBox(720,'KE',state.ke,'#f59e0b','ke');drawEnergyBox(815,'PE spring',state.peS,'#8b5cf6','pes');
+  drawEnergyBox(625,'PE gravity',state.peG,'#4d7594','peg');drawEnergyBox(720,'KE',state.ke,'#a97832','ke');drawEnergyBox(815,'PE spring',state.peS,'#776886','pes');
   ctx.fillStyle=hintActive?'#e2e8f0':'#ffffff';ctx.strokeStyle='#1e293b';ctx.lineWidth=2;ctx.beginPath();ctx.roundRect(hintHitbox.x,hintHitbox.y,hintHitbox.w,hintHitbox.h,14);ctx.fill();ctx.stroke();ctx.fillStyle='#000000';ctx.font='bold 13px Arial';ctx.textAlign='center';ctx.fillText(hintActive?'HINT ACTIVE':'SHOW HINT',hintHitbox.x+hintHitbox.w/2,hintHitbox.y+19);
 }
 canvas.addEventListener('click',e=>{
   const r=canvas.getBoundingClientRect();const x=(e.clientX-r.left)*canvas.width/r.width;const y=(e.clientY-r.top)*canvas.height/r.height;
+  if(completed)return;
   if(x>=hintHitbox.x&&x<=hintHitbox.x+hintHitbox.w&&y>=hintHitbox.y&&y<=hintHitbox.y+hintHitbox.h){requestHint();return;}
   if(hintActive||moving||revealed)return;
   const hit=barHitboxes.find(b=>x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h);if(!hit)return;
@@ -285,6 +303,7 @@ canvas.addEventListener('click',e=>{
 });
 canvas.addEventListener('keydown',e=>{
   const key=e.key.toLowerCase();
+  if(completed)return;
   if(key==='h'){requestHint();return;}
   const answerKeys={1:'peg',2:'ke',3:'pes'};
   if(!answerKeys[key]||hintActive||moving||revealed)return;
@@ -328,8 +347,17 @@ function animate(time){
   } else if(revealed){
     advanceTimer-=dt;
     if(advanceTimer<=0){
-      questionIndex=(questionIndex+1)%checkpoints.length;
-      runFullCycleThenStop(questionIndex);
+      if(riseAnsweredQuestions.size===checkpoints.length){
+        completed=true;
+        revealed=false;
+        selected=null;
+        resultMessage='';
+        moving=true;
+        targetTime=Infinity;
+      }else{
+        questionIndex=(questionIndex+1)%checkpoints.length;
+        runFullCycleThenStop(questionIndex);
+      }
     }
   }
   drawScene(getState(phaseTime));requestAnimationFrame(animate);
