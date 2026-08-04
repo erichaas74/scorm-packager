@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Microgravity: Still Gravity</title>
+<style>
+  :root{
+    --bg:#07111f;
+    --panel:#0d1b2d;
+    --panel2:#11243a;
+    --text:#eef7ff;
+    --muted:#a9bfd3;
+    --accent:#57b7ff;
+    --accent2:#7ee787;
+    --warn:#ffcf5a;
+    --danger:#ff7b72;
+    --line:rgba(255,255,255,.13);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;
+    background:radial-gradient(circle at 50% 0%, #102c49 0%, var(--bg) 48%);
+    color:var(--text);
+    min-height:100vh;
+    padding:18px;
+  }
+  .wrap{max-width:1280px;margin:0 auto}
+  h1{margin:0 0 6px;font-size:clamp(1.8rem,3.5vw,3rem)}
+  .sub{color:var(--muted);margin:0 0 16px;line-height:1.45}
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px}
+  .card{background:rgba(13,27,45,.94);border:1px solid var(--line);border-radius:22px;box-shadow:0 22px 60px rgba(0,0,0,.28)}
+  .canvas-card{padding:12px}
+  canvas{width:100%;height:auto;display:block;border-radius:16px;background:#030812}
+  .controls{padding:18px;display:flex;flex-direction:column;gap:14px}
+  .section{background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:14px}
+  .section h2{font-size:1rem;margin:0 0 10px}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0}
+  label{font-size:.9rem;color:var(--muted)}
+  input[type=range]{width:100%}
+  .value{font-weight:700;color:var(--text)}
+  .buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  button{
+    border:1px solid var(--line);background:#18304a;color:var(--text);padding:10px 12px;border-radius:12px;font-weight:700;cursor:pointer;
+  }
+  button:hover{filter:brightness(1.12)}
+  button.active{background:var(--accent);color:#03111e;border-color:transparent}
+  button.full{grid-column:1/-1}
+  .meter{height:16px;background:#07111f;border-radius:999px;overflow:hidden;border:1px solid var(--line)}
+  .fill{height:100%;background:linear-gradient(90deg,var(--accent2),var(--warn));width:90%;transition:width .25s}
+  .big{font-size:1.65rem;font-weight:800}
+  .note{font-size:.9rem;color:var(--muted);line-height:1.45}
+  .key{display:grid;grid-template-columns:12px 1fr;gap:8px 10px;align-items:center;font-size:.86rem;color:var(--muted)}
+  .dot{width:10px;height:10px;border-radius:50%}
+  .challenge{margin-top:16px;padding:16px 18px}
+  .challenge h2{margin:0 0 8px;font-size:1.1rem}
+  .question{font-size:1.05rem;font-weight:700;margin-bottom:10px}
+  .feedback{min-height:22px;color:var(--muted);margin-top:8px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}.controls{order:-1}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Microgravity: Still Gravity</h1>
+  <p class="sub">Astronauts do not float because gravity disappears. They float because the station, astronaut, and loose objects are all falling together around Earth.</p>
+
+  <div class="grid">
+    <div class="card canvas-card">
+      <canvas id="sim" width="900" height="650"></canvas>
+    </div>
+
+    <aside class="card controls">
+      <div class="section">
+        <h2>1. Choose the station altitude</h2>
+        <label for="altitude">Altitude above Earth</label>
+        <input id="altitude" type="range" min="0" max="5000" step="10" value="420" />
+        <div class="row"><span class="value" id="altitudeValue">420 km</span><span id="locationTag">ISS-like orbit</span></div>
+      </div>
+
+      <div class="section">
+        <h2>Gravity strength</h2>
+        <div class="big" id="gValue">8.68 m/s²</div>
+        <div class="meter"><div class="fill" id="gFill"></div></div>
+        <div class="row"><span>Compared with Earth surface</span><strong id="gPercent">88.5%</strong></div>
+        <p class="note">Gravity is still strong in low Earth orbit. It falls to half of surface gravity only at roughly 2,600 km altitude.</p>
+      </div>
+
+      <div class="section">
+        <h2>2. Select a motion mode</h2>
+        <div class="buttons">
+          <button id="heldBtn">Held Still</button>
+          <button id="orbitBtn" class="active">Orbiting</button>
+          <button id="noGravityBtn">Gravity Off</button>
+          <button id="slowBtn">Too Slow</button>
+          <button id="fastBtn">Too Fast</button>
+          <button id="resetBtn">Reset</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>What to watch</h2>
+        <div class="key">
+          <span class="dot" style="background:#57b7ff"></span><span>Gravity arrow points toward Earth</span>
+          <span class="dot" style="background:#7ee787"></span><span>Station motion path</span>
+          <span class="dot" style="background:#ffcf5a"></span><span>Astronaut and ball inside the station</span>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="card challenge">
+    <h2>Prediction Check</h2>
+    <div class="question" id="question">Why does the astronaut float while the station is orbiting?</div>
+    <div class="buttons" style="max-width:780px">
+      <button class="answer">There is no gravity in space.</button>
+      <button class="answer">The station blocks Earth's gravity.</button>
+      <button class="answer" data-correct="true">The astronaut and station are falling together.</button>
+      <button class="answer">The astronaut has no mass.</button>
+    </div>
+    <div class="feedback" id="feedback"></div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('sim');
+const ctx = canvas.getContext('2d');
+const altitude = document.getElementById('altitude');
+const altitudeValue = document.getElementById('altitudeValue');
+const locationTag = document.getElementById('locationTag');
+const gValue = document.getElementById('gValue');
+const gPercent = document.getElementById('gPercent');
+const gFill = document.getElementById('gFill');
+const feedback = document.getElementById('feedback');
+
+const R = 6371;
+const g0 = 9.81;
+let mode = 'orbit';
+let t = 0;
+let trail = [];
+let last = performance.now();
+
+const buttons = {
+  held: document.getElementById('heldBtn'),
+  orbit: document.getElementById('orbitBtn'),
+  noGravity: document.getElementById('noGravityBtn'),
+  slow: document.getElementById('slowBtn'),
+  fast: document.getElementById('fastBtn')
+};
+
+function gravityAt(h){ return g0 * Math.pow(R/(R+h),2); }
+function updateReadout(){
+  const h = Number(altitude.value);
+  const g = gravityAt(h);
+  const pct = g/g0*100;
+  altitudeValue.textContent = `${h.toLocaleString()} km`;
+  gValue.textContent = `${g.toFixed(2)} m/s²`;
+  gPercent.textContent = `${pct.toFixed(1)}%`;
+  gFill.style.width = `${Math.min(100,pct)}%`;
+  locationTag.textContent = h < 600 ? 'Low Earth orbit' : h < 3000 ? 'High orbit region' : 'Farther from Earth';
+  trail = [];
+}
+altitude.addEventListener('input', updateReadout);
+
+function setMode(next){
+  mode = next; t = 0; trail = [];
+  Object.entries(buttons).forEach(([k,b])=>b.classList.toggle('active',k===next));
+}
+buttons.held.onclick=()=>setMode('held');
+buttons.orbit.onclick=()=>setMode('orbit');
+buttons.noGravity.onclick=()=>setMode('noGravity');
+buttons.slow.onclick=()=>setMode('slow');
+buttons.fast.onclick=()=>setMode('fast');
+document.getElementById('resetBtn').onclick=()=>{ altitude.value=420; updateReadout(); setMode('orbit'); };
+
+document.querySelectorAll('.answer').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    if(btn.dataset.correct){
+      feedback.textContent='Correct. Gravity is pulling on everything, but the station, astronaut, and ball share the same free-fall motion.';
+      feedback.style.color='#7ee787';
+    }else{
+      feedback.textContent='Not quite. Watch the gravity arrows and compare the orbiting and gravity-off modes.';
+      feedback.style.color='#ff9b91';
+    }
+  });
+});
+
+function drawArrow(x1,y1,x2,y2,color,label){
+  const ang=Math.atan2(y2-y1,x2-x1), head=10;
+  ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x2,y2);ctx.lineTo(x2-head*Math.cos(ang-.45),y2-head*Math.sin(ang-.45));ctx.lineTo(x2-head*Math.cos(ang+.45),y2-head*Math.sin(ang+.45));ctx.closePath();ctx.fill();
+  if(label){ctx.font='bold 15px system-ui';ctx.fillText(label,(x1+x2)/2+8,(y1+y2)/2-8)}
+}
+
+function drawEarth(cx,cy,r){
+  const grad=ctx.createRadialGradient(cx-r*.25,cy-r*.3,r*.1,cx,cy,r);
+  grad.addColorStop(0,'#7bd8ff');grad.addColorStop(.55,'#2879c7');grad.addColorStop(1,'#123c79');
+  ctx.fillStyle=grad;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#69b96b';
+  ctx.beginPath();ctx.ellipse(cx-r*.25,cy-r*.15,r*.25,r*.12,.3,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(cx+r*.18,cy+r*.15,r*.2,r*.1,-.5,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,.25)';ctx.lineWidth=5;ctx.beginPath();ctx.arc(cx,cy,r+5,0,Math.PI*2);ctx.stroke();
+}
+
+function stationState(){
+  const h=Number(altitude.value);
+  const orbitR=185 + Math.min(100,h/50);
+  let ang=-0.35;
+  let radial=orbitR;
+  if(mode==='orbit') ang += t*.42;
+  if(mode==='slow'){ang += t*.32; radial -= Math.min(90,t*12);}
+  if(mode==='fast'){ang += t*.55; radial += Math.min(95,t*10);}
+  if(mode==='held'){radial -= Math.min(110,t*22);}
+  if(mode==='noGravity'){
+    return {x:620+t*70,y:220-t*10,ang:0,orbitR};
+  }
+  return {x:450+Math.cos(ang)*radial,y:355+Math.sin(ang)*radial,ang,orbitR};
+}
+
+function drawStation(s){
+  ctx.save();ctx.translate(s.x,s.y);ctx.rotate(s.ang+Math.PI/2);
+  ctx.fillStyle='#c8d5e1';ctx.fillRect(-45,-22,90,44);
+  ctx.fillStyle='#294f75';ctx.fillRect(-92,-14,45,28);ctx.fillRect(47,-14,45,28);
+  ctx.strokeStyle='#88a7c2';ctx.lineWidth=3;ctx.strokeRect(-45,-22,90,44);
+  ctx.fillStyle='#ffcf5a';ctx.beginPath();ctx.arc(-10,0,8,0,Math.PI*2);ctx.fill();
+  let innerY=0;
+  if(mode==='held') innerY=Math.min(12,t*8);
+  ctx.fillStyle='#ffd166';ctx.beginPath();ctx.arc(18,innerY,5,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+}
+
+function drawScene(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const bg=ctx.createLinearGradient(0,0,0,canvas.height);bg.addColorStop(0,'#071426');bg.addColorStop(1,'#02060d');ctx.fillStyle=bg;ctx.fillRect(0,0,canvas.width,canvas.height);
+  for(let i=0;i<85;i++){
+    const x=(i*97)%canvas.width, y=(i*53)%canvas.height;
+    ctx.fillStyle=`rgba(255,255,255,${.2+(i%5)*.12})`;ctx.fillRect(x,y,1.3,1.3);
+  }
+  drawEarth(450,355,150);
+  const s=stationState();
+
+  if(mode!=='held' && mode!=='noGravity'){
+    ctx.strokeStyle='rgba(126,231,135,.28)';ctx.lineWidth=2;ctx.setLineDash([7,7]);ctx.beginPath();ctx.arc(450,355,s.orbitR,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+  }
+
+  trail.push({x:s.x,y:s.y}); if(trail.length>150)trail.shift();
+  ctx.strokeStyle='rgba(126,231,135,.85)';ctx.lineWidth=3;ctx.beginPath();trail.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();
+
+  drawStation(s);
+  if(mode!=='noGravity'){
+    const dx=450-s.x,dy=355-s.y,len=Math.hypot(dx,dy)||1;
+    drawArrow(s.x,s.y,s.x+dx/len*65,s.y+dy/len*65,'#57b7ff','gravity');
+  } else {
+    drawArrow(s.x-50,s.y+65,s.x+35,s.y+65,'#7ee787','straight-line motion');
+  }
+
+  ctx.fillStyle='#eef7ff';ctx.font='700 19px system-ui';
+  const labels={held:'Station held still',orbit:'Stable orbit',noGravity:'Gravity switched off',slow:'Orbital speed too low',fast:'Orbital speed too high'};
+  ctx.fillText(labels[mode],26,38);
+  ctx.font='15px system-ui';ctx.fillStyle='#a9bfd3';
+  const lines={
+    held:'The station and everything inside fall toward Earth.',
+    orbit:'The station keeps falling while moving sideways fast enough to miss Earth.',
+    noGravity:'Without gravity, the station does not orbit. It travels in a straight line.',
+    slow:'Too little sideways speed causes the orbit to shrink toward Earth.',
+    fast:'Extra sideways speed stretches the path outward.'
+  };
+  ctx.fillText(lines[mode],26,64);
+
+  const h=Number(altitude.value),g=gravityAt(h),pct=g/g0*100;
+  ctx.fillStyle='rgba(13,27,45,.9)';ctx.strokeStyle='rgba(255,255,255,.13)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.roundRect(24,535,310,90,16);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#eef7ff';ctx.font='700 17px system-ui';ctx.fillText(`Altitude: ${h.toLocaleString()} km`,42,564);
+  ctx.fillText(`Gravity: ${g.toFixed(2)} m/s²`,42,590);
+  ctx.fillStyle='#a9bfd3';ctx.font='14px system-ui';ctx.fillText(`${pct.toFixed(1)}% of surface gravity`,42,612);
+}
+
+function animate(now){
+  const dt=Math.min(.04,(now-last)/1000);last=now;t+=dt;
+  drawScene();requestAnimationFrame(animate);
+}
+updateReadout();requestAnimationFrame(animate);
+</script>
+</body>
+</html>

@@ -5,36 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sports Energy Classifier Walkthrough</title>
   <style>
-    /* Rise 360 compatibility: Transparent background[cite: 1] */
+    /* Rise 360 compatibility: transparent background */
     html, body {
       background: transparent;
       margin: 0;
       padding: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      color: #333;
+      color: #23303c;
       display: flex;
       justify-content: center;
     }
 
     .walkthrough {
       width: 100%;
-      max-width: 800px;
+      max-width: 860px;
       display: flex;
       flex-direction: column;
       align-items: center;
       padding: 10px;
+      box-sizing: border-box;
     }
 
-    /* Simulation stage > 60% of height[cite: 1] */
+    /* Simulation stage dominates the block */
     .stage {
       width: 100%;
-      height: 400px;
-      background: #f8f9fa;
-      border-radius: 8px;
-      margin-bottom: 16px;
+      aspect-ratio: 2 / 1;
+      background: #eef2f6;
+      border-radius: 10px;
+      margin-bottom: 14px;
       position: relative;
       overflow: hidden;
-      border: 1px solid #ddd;
+      border: 1px solid #c9d4de;
     }
 
     canvas {
@@ -43,441 +44,1355 @@
       height: 100%;
     }
 
-    /* Fixed-width, rounded inner card with standard hex border[cite: 1] */
+    /* Stage control sits over the simulation, not in the question card */
+    .stage-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 18px;
+      pointer-events: none;
+    }
+
+    .overlay-btn {
+      pointer-events: auto;
+      background: #285f9f;
+      color: #ffffff;
+      border-color: #ffffff;
+      padding: 13px 28px;
+      font-size: 1.05rem;
+      box-shadow: 0 6px 18px rgba(10, 25, 40, 0.38);
+    }
+
+    .overlay-btn:hover { background: #1c4575; }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* Fixed-width, rounded inner card with standard hex border */
     .card {
       width: 100%;
       background: #ffffff;
       border: 5px solid #285f9f;
       border-radius: 8px;
-      padding: 20px;
+      padding: 18px 20px;
       box-sizing: border-box;
       box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
 
-    .setup-text {
-      font-size: 1.1rem;
-      font-weight: 600;
-      margin-bottom: 8px;
-      margin-top: 0;
-    }
-
-    .prompt-text {
-      font-size: 1rem;
-      margin-bottom: 16px;
+    .done-text {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin: 0;
+      text-align: center;
     }
 
     .choices {
-      display: flex;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
       gap: 10px;
-      flex-wrap: wrap;
-      margin-bottom: 16px;
     }
 
+    .choices button { width: 100%; }
+
     button {
-      padding: 10px 16px;
+      padding: 11px 16px;
+      min-height: 44px;
       font-size: 1rem;
+      font-family: inherit;
       border: 2px solid #285f9f;
       background: #ffffff;
       color: #285f9f;
       border-radius: 4px;
       cursor: pointer;
-      font-weight: 600;
-      transition: all 0.2s;
+      font-weight: 700;
+      transition: background-color .15s, color .15s;
     }
 
-    button:hover {
-      background: #eef4fb;
-    }
+    button:hover { background: #eef4fb; }
 
     button:focus-visible {
-      outline: 3px solid #ff9900;
+      outline: 3px solid #b8500a;
       outline-offset: 2px;
     }
 
-    button.primary {
-      background: #285f9f;
-      color: #ffffff;
-    }
+    button.primary { background: #285f9f; color: #ffffff; }
+    button.primary:hover { background: #1c4575; }
 
-    button.primary:hover {
-      background: #1c4575;
-    }
+    button.ghost { border-color: #7d8f9e; color: #3c4c5a; }
+    button.ghost:hover { background: #f1f4f7; }
 
     .feedback-area {
-      min-height: 3rem;
-      padding-top: 10px;
-      border-top: 1px solid #eee;
       display: flex;
       flex-direction: column;
       gap: 10px;
     }
 
-    .feedback-text {
+    .verdict-list {
+      list-style: none;
       margin: 0;
-      font-weight: 500;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
-    
+
+    .verdict {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      font-size: .95rem;
+      line-height: 1.4;
+    }
+
+    .verdict .mark {
+      font-weight: 800;
+      flex: 0 0 auto;
+      min-width: 1.4em;
+    }
+
+    .verdict.hit .mark { color: #1c6b3f; }
+    .verdict.miss .mark { color: #a8341c; }
+
+    .verdict .who { font-weight: 700; }
+
     .controls {
       display: flex;
       gap: 10px;
+      flex-wrap: wrap;
     }
 
-    [hidden] {
-      display: none !important;
+    [hidden] { display: none !important; }
+
+    @media (max-width: 560px) {
+      .walkthrough { padding: 6px; }
+      .card { padding: 14px; border-width: 4px; }
+      .choices { grid-template-columns: 1fr; }
+      .controls { flex-direction: column; }
+      .controls button { width: 100%; }
     }
   </style>
 </head>
 <body>
 
   <main class="walkthrough">
-    <div class="stage" aria-label="Simulation stage showing the current sports scenario" role="img">
-      <canvas id="simCanvas" width="800" height="400"></canvas>
+    <div class="stage">
+      <canvas id="simCanvas" width="900" height="450" role="img"
+              aria-label="Sports energy simulation stage"></canvas>
+      <div class="stage-overlay">
+        <button id="overlayBtn" type="button" class="overlay-btn">Start Questions</button>
+      </div>
     </div>
 
-    <div class="card" aria-live="polite">
-      <p id="setupText" class="setup-text"></p>
-      <p id="promptText" class="prompt-text">What is the primary form of energy at this exact instant?</p>
-      
-      <div id="choicesContainer" class="choices" hidden>
-        <!-- Buttons injected by JS -->
-      </div>
+    <div id="card" class="card">
+      <p id="statusText" class="sr-only" role="status"></p>
+
+      <div id="choicesContainer" class="choices" hidden></div>
+
+      <p id="doneText" class="done-text" hidden>Module complete — all five scenarios classified.</p>
 
       <div id="feedbackContainer" class="feedback-area" hidden>
-        <p id="feedbackText" class="feedback-text"></p>
+        <ul id="verdictList" class="verdict-list"></ul>
         <div class="controls">
-          <button id="retryBtn" hidden>Retry</button>
-          <button id="nextBtn" class="primary" hidden>Next Scenario</button>
+          <button id="replayBtn" class="ghost">Replay With Answers</button>
+          <button id="nextBtn" class="primary">Next Scenario</button>
         </div>
       </div>
-
-      <button id="startBtn" class="primary">Start Simulation</button>
     </div>
+
+    <script>
+    (function () {
+      'use strict';
+
+      // ---------------------------------------------------------------- data
+      const ENERGY = {
+        kinetic: { label: 'Kinetic Energy',          short: 'KINETIC',       color: '#a8341c' },
+        gravity: { label: 'Gravitational Potential', short: 'GRAVITATIONAL', color: '#1f5490' },
+        elastic: { label: 'Elastic Potential',       short: 'ELASTIC',       color: '#63277f' }
+      };
+      const OPTION_KEYS = ['kinetic', 'gravity', 'elastic'];
+
+      const scenarios = [
+        {
+          id: 'archery',
+          title: 'ARCHERY',
+          accent: '#f0932b',
+          description: 'An archer holds a full draw, then looses the arrow at the target.',
+          duration: 5200,
+          moments: [
+            { t: 0.22, answer: 'elastic', focus: { x: 300, y: 232 }, place: 'above',
+              why: 'The bent limbs of the bow are stretched and holding the energy.' },
+            { t: 0.62, answer: 'kinetic', focus: { x: 561, y: 232 }, place: 'above',
+              why: 'The arrow is moving fast across the range.' }
+          ],
+          draw: drawArchery
+        },
+        {
+          id: 'diver',
+          title: 'HIGH DIVING',
+          accent: '#2db7e5',
+          description: 'A diver stands still on the 10-metre platform, then drops to the water.',
+          duration: 5000,
+          moments: [
+            { t: 0.14, answer: 'gravity', focus: { x: 330, y: 90 }, place: 'right',
+              why: 'The diver is motionless but 10 metres above the water.' },
+            { t: 0.80, answer: 'kinetic', focus: { x: 340, y: 280 }, place: 'right',
+              why: 'Most of the height is gone and the diver is falling fast.' }
+          ],
+          draw: drawDiver
+        },
+        {
+          id: 'polevault',
+          title: 'POLE VAULT',
+          accent: '#f5a623',
+          description: 'A vaulter plants the pole, bends it fully, and rises over the bar.',
+          duration: 5600,
+          moments: [
+            { t: 0.32, answer: 'elastic', focus: { x: 312, y: 240 }, place: 'above',
+              why: 'The fibreglass pole is bent to its maximum, like a loaded spring.' },
+            { t: 0.70, answer: 'gravity', focus: { x: 646, y: 96 }, place: 'left',
+              why: 'At the top of the clearance the vaulter is barely moving but very high.' }
+          ],
+          draw: drawPoleVault
+        },
+        {
+          id: 'soccer',
+          title: 'PENALTY KICK',
+          accent: '#3fbf6f',
+          description: 'A struck ball flies into the goal and stretches the net to a stop.',
+          duration: 5000,
+          moments: [
+            { t: 0.35, answer: 'kinetic', focus: { x: 424, y: 241 }, place: 'above',
+              why: 'The ball is in mid-flight with nothing stretched or lifted.' },
+            { t: 0.78, answer: 'elastic', focus: { x: 708, y: 258 }, place: 'left',
+              why: 'The ball has stopped and the stretched net is holding the energy.' }
+          ],
+          draw: drawSoccer
+        },
+        {
+          id: 'trampoline',
+          title: 'TRAMPOLINE',
+          accent: '#8f6fd6',
+          description: 'A gymnast hangs at the top of a bounce, then sinks deep into the bed.',
+          duration: 5400,
+          moments: [
+            { t: 0.08, answer: 'gravity', focus: { x: 452, y: 88 }, place: 'right',
+              why: 'At the top of the bounce the gymnast has stopped rising but is high up.' },
+            { t: 0.55, answer: 'elastic', focus: { x: 452, y: 358 }, place: 'left',
+              why: 'The gymnast is momentarily at rest and the bed is stretched to its deepest.' }
+          ],
+          draw: drawTrampoline
+        }
+      ];
+
+      // --------------------------------------------------------------- state
+      let phase = 'watching';     // watching (loops) → ask → replay → explain
+      let sIdx = 0;
+      let mIdx = 0;
+      let picks = [null, null];
+      let completionSent = false;
+
+      let viewT = 0;              // scene time 0..1 currently rendered
+      let revealed = 0;           // how many moment answers are shown on canvas
+      let focusIndex = -1;        // which moment gets the "look here" ring
+      let phaseStart = 0;
+      let replayPlan = null;
+
+      const HOLD_MS = 1500;
+      const reduceMotion = window.matchMedia
+        && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      // ------------------------------------------------------------------ UI
+      const canvas = document.getElementById('simCanvas');
+      const ctx = canvas.getContext('2d');
+      const card = document.getElementById('card');
+      const statusText = document.getElementById('statusText');
+      const choicesContainer = document.getElementById('choicesContainer');
+      const feedbackContainer = document.getElementById('feedbackContainer');
+      const verdictList = document.getElementById('verdictList');
+      const doneText = document.getElementById('doneText');
+      const overlayBtn = document.getElementById('overlayBtn');
+      const replayBtn = document.getElementById('replayBtn');
+      const nextBtn = document.getElementById('nextBtn');
+
+      function scenario() { return scenarios[sIdx]; }
+
+      function loadScenario(index) {
+        sIdx = index;
+        picks = [null, null];
+        replayPlan = null;
+        nextBtn.textContent = (sIdx === scenarios.length - 1) ? 'Finish Module' : 'Next Scenario';
+        startWatch();
+      }
+
+      // The card only ever holds a question or its answer — every other control
+      // lives on the stage, so the simulation is the whole interface until asked.
+      function render() {
+        const sc = scenario();
+        const asking = phase === 'ask';
+        const explaining = phase === 'explain';
+
+        choicesContainer.hidden = !asking;
+        feedbackContainer.hidden = !explaining;
+        doneText.hidden = true;
+        card.hidden = !(asking || explaining);
+        overlayBtn.hidden = phase !== 'watching';
+
+        if (phase === 'watching') {
+          statusText.textContent = 'Scenario ' + (sIdx + 1) + ' of ' + scenarios.length + '. '
+            + sc.description + ' Choose Start Questions when you are ready.';
+        } else if (phase === 'replay') {
+          statusText.textContent = 'Replaying with the correct answer marked at each moment.';
+        } else if (asking) {
+          buildChoices();
+          statusText.textContent = 'Moment ' + (mIdx + 1) + ' of 2: what form is the energy in right now?';
+        } else {
+          statusText.textContent = 'Both moments revealed.';
+        }
+      }
+
+      function buildChoices() {
+        const shuffled = OPTION_KEYS.slice();
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const tmp = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = tmp;
+        }
+        choicesContainer.innerHTML = '';
+        shuffled.forEach(function (key) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.textContent = ENERGY[key].label;
+          btn.addEventListener('click', function () { choose(key); });
+          choicesContainer.appendChild(btn);
+        });
+      }
+
+      function choose(key) {
+        if (phase !== 'ask') return;
+        picks[mIdx] = key;
+
+        if (mIdx === 0) {
+          mIdx = 1;
+          focusIndex = 1;
+          viewT = scenario().moments[1].t;
+          render();
+          const first = choicesContainer.querySelector('button');
+          if (first) first.focus();
+        } else {
+          startReplay();
+        }
+      }
+
+      // Loops until the learner asks for the questions.
+      function startWatch() {
+        phase = 'watching';
+        mIdx = 0;
+        revealed = 0;
+        focusIndex = -1;
+        viewT = 0;
+        phaseStart = performance.now();
+        render();
+      }
+
+      function beginQuestions() {
+        phase = 'ask';
+        mIdx = 0;
+        focusIndex = 0;
+        viewT = scenario().moments[0].t;
+        render();
+        const first = choicesContainer.querySelector('button');
+        if (first) first.focus();
+      }
+
+      function startReplay() {
+        const sc = scenario();
+        const a = sc.moments[0].t;
+        const b = sc.moments[1].t;
+        const d = reduceMotion ? sc.duration * 0.45 : sc.duration;
+        replayPlan = [
+          { kind: 'run',  from: 0, to: a, dur: Math.max(240, a * d) },
+          { kind: 'hold', at: a,          dur: HOLD_MS },
+          { kind: 'run',  from: a, to: b, dur: Math.max(240, (b - a) * d) },
+          { kind: 'hold', at: b,          dur: HOLD_MS },
+          { kind: 'run',  from: b, to: 1, dur: Math.max(240, (1 - b) * d) }
+        ];
+        phase = 'replay';
+        revealed = 0;
+        focusIndex = -1;
+        viewT = 0;
+        phaseStart = performance.now();
+        render();
+      }
+
+      function finishReplay() {
+        revealed = 2;
+        viewT = 1;
+        phase = 'explain';
+        showVerdicts();
+        render();
+        replayBtn.focus();
+      }
+
+      function showVerdicts() {
+        const sc = scenario();
+        verdictList.innerHTML = '';
+        sc.moments.forEach(function (m, i) {
+          const hit = picks[i] === m.answer;
+          const li = document.createElement('li');
+          li.className = 'verdict ' + (hit ? 'hit' : 'miss');
+
+          const mark = document.createElement('span');
+          mark.className = 'mark';
+          mark.textContent = hit ? '✓' : '✗';
+
+          const body = document.createElement('span');
+          const who = document.createElement('span');
+          who.className = 'who';
+          who.textContent = 'Moment ' + (i + 1) + ' — ' + ENERGY[m.answer].label + '. ';
+          body.appendChild(who);
+          body.appendChild(document.createTextNode(
+            m.why + (hit ? '' : ' You chose ' + ENERGY[picks[i]].label + '.')
+          ));
+
+          li.appendChild(mark);
+          li.appendChild(body);
+          verdictList.appendChild(li);
+        });
+      }
+
+      overlayBtn.addEventListener('click', function () {
+        if (phase === 'watching') beginQuestions();
+      });
+
+      replayBtn.addEventListener('click', startReplay);
+
+      nextBtn.addEventListener('click', function () {
+        if (sIdx < scenarios.length - 1) {
+          loadScenario(sIdx + 1);
+        } else {
+          if (!completionSent) {
+            completionSent = true;
+            try { window.parent.postMessage({ type: 'complete' }, '*'); } catch (e) {}
+          }
+          card.hidden = false;
+          feedbackContainer.hidden = true;
+          choicesContainer.hidden = true;
+          doneText.hidden = false;
+          overlayBtn.hidden = true;
+          statusText.textContent = 'Module complete — all five scenarios classified.';
+        }
+      });
+
+      // ------------------------------------------------------------ timeline
+      function advance(now) {
+        const sc = scenario();
+
+        if (phase === 'watching') {
+          // Loops with a short beat at the end of each pass so the reset reads clearly.
+          const d = reduceMotion ? sc.duration * 0.45 : sc.duration;
+          const cycle = (now - phaseStart) % (d + 600);
+          viewT = Math.min(cycle / d, 1);
+          return;
+        }
+
+        if (phase === 'replay') {
+          let elapsed = now - phaseStart;
+          let done = 0;
+          for (let i = 0; i < replayPlan.length; i++) {
+            const seg = replayPlan[i];
+            if (elapsed < seg.dur) {
+              if (seg.kind === 'run') {
+                viewT = seg.from + (seg.to - seg.from) * (elapsed / seg.dur);
+              } else {
+                viewT = seg.at;
+              }
+              revealed = countRevealed(sc, viewT);
+              focusIndex = seg.kind === 'hold' ? (seg.at === sc.moments[0].t ? 0 : 1) : -1;
+              return;
+            }
+            elapsed -= seg.dur;
+            done++;
+          }
+          if (done >= replayPlan.length) finishReplay();
+        }
+      }
+
+      function countRevealed(sc, t) {
+        let n = 0;
+        for (let i = 0; i < sc.moments.length; i++) {
+          if (t >= sc.moments[i].t - 1e-6) n++;
+        }
+        return n;
+      }
+
+      let clock = 0;
+      function loop(now) {
+        clock = now;
+        advance(now);
+        drawFrame();
+        requestAnimationFrame(loop);
+      }
+
+      // ------------------------------------------------------- canvas basics
+      const W = 900, H = 450;
+
+      function prepareCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        const ratio = Math.min(window.devicePixelRatio || 1, 2);
+        const dw = Math.max(1, Math.round((rect.width || W) * ratio));
+        const dh = Math.max(1, Math.round((rect.height || H) * ratio));
+        if (canvas.width !== dw || canvas.height !== dh) {
+          canvas.width = dw;
+          canvas.height = dh;
+        }
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+      }
+
+      function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+      function seg(t, a, b) { return clamp((t - a) / (b - a), 0, 1); }
+      function easeOut(u) { return 1 - Math.pow(1 - u, 2); }
+      function easeInOut(u) { return u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2; }
+
+      function rrPath(x, y, w, h, r) {
+        const rad = Math.min(r, w / 2, h / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + rad, y);
+        ctx.lineTo(x + w - rad, y);
+        ctx.arcTo(x + w, y, x + w, y + rad, rad);
+        ctx.lineTo(x + w, y + h - rad);
+        ctx.arcTo(x + w, y + h, x + w - rad, y + h, rad);
+        ctx.lineTo(x + rad, y + h);
+        ctx.arcTo(x, y + h, x, y + h - rad, rad);
+        ctx.lineTo(x, y + rad);
+        ctx.arcTo(x, y, x + rad, y, rad);
+        ctx.closePath();
+      }
+
+      function box(x, y, w, h, r, fill, stroke, lw) {
+        rrPath(x, y, w, h, r);
+        if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+        if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 2; ctx.stroke(); }
+      }
+
+      function line(x1, y1, x2, y2, color, w) {
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = w || 3;
+        ctx.stroke();
+      }
+
+      function circle(x, y, r, fill, stroke, lw) {
+        ctx.beginPath();
+        ctx.arc(x, y, Math.max(0.1, r), 0, Math.PI * 2);
+        if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+        if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 2; ctx.stroke(); }
+      }
+
+      function text(str, x, y, font, color, align) {
+        ctx.font = font;
+        ctx.fillStyle = color;
+        ctx.textAlign = align || 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(str, x, y);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+      }
+
+      function skyGradient(topColor, midColor, horizon) {
+        const g = ctx.createLinearGradient(0, 0, 0, horizon);
+        g.addColorStop(0, topColor);
+        g.addColorStop(1, midColor);
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, W, horizon);
+      }
+
+      function sun(x, y, r, color) {
+        const g = ctx.createRadialGradient(x, y, r * 0.2, x, y, r * 2.4);
+        g.addColorStop(0, color);
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, y, r * 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      function cloud(x, y, s) {
+        ctx.fillStyle = 'rgba(255,255,255,0.78)';
+        [[0, 0, 26], [24, -8, 20], [46, 2, 17], [-22, 4, 18]].forEach(function (c) {
+          circle(x + c[0] * s, y + c[1] * s, c[2] * s, 'rgba(255,255,255,0.78)');
+        });
+      }
+
+      function groundShadow(x, y, rx, ry, alpha) {
+        ctx.save();
+        ctx.globalAlpha = alpha === undefined ? 0.22 : alpha;
+        ctx.beginPath();
+        ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fillStyle = '#14202b';
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Two-segment limb with a visible joint.
+      function limb(ax, ay, bx, by, cx, cy, color, w) {
+        line(ax, ay, bx, by, color, w);
+        line(bx, by, cx, cy, color, w * 0.88);
+        circle(bx, by, w * 0.44, color);
+      }
+
+      function head(x, y, r, skin, hair) {
+        circle(x, y, r, skin, '#1d2b36', 2);
+        if (hair) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(x, y, r, Math.PI * 1.05, Math.PI * 2.05);
+          ctx.lineWidth = r * 0.55;
+          ctx.strokeStyle = hair;
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      // ---------------------------------------------------------- chrome/HUD
+      function drawHeader(title, accent, tag) {
+        ctx.save();
+        box(20, 16, 260, 46, 12, 'rgba(16,34,50,0.86)');
+        circle(46, 39, 9, accent);
+        text(title, 66, 40, '700 19px system-ui, sans-serif', '#ffffff');
+
+        if (tag) {
+          ctx.font = '800 13px system-ui, sans-serif';
+          const tw = ctx.measureText(tag).width + 28;
+          box(W - tw - 20, 18, tw, 40, 20, 'rgba(255,255,255,0.94)', 'rgba(16,34,50,0.35)', 2);
+          text(tag, W - 20 - tw / 2, 39, '800 13px system-ui, sans-serif', '#17324d', 'center');
+        }
+        ctx.restore();
+      }
+
+      function drawFocusRing(x, y) {
+        const pulse = reduceMotion ? 0.5 : (Math.sin(clock / 260) + 1) / 2;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(24,50,77,0.85)';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([9, 7]);
+        ctx.beginPath();
+        ctx.arc(x, y, 44 + pulse * 8, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(x, y, 44 + pulse * 8, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Sits opposite the frozen moment so it never covers the thing being asked about.
+      function drawPausedBanner(momentNumber, focusY) {
+        const label = 'PAUSED — MOMENT ' + momentNumber + ' OF 2';
+        ctx.font = '800 15px system-ui, sans-serif';
+        const w = ctx.measureText(label).width + 40;
+        const y = focusY > 330 ? 74 : H - 56;
+        box((W - w) / 2, y, w, 38, 19, '#ffffff', '#285f9f', 3);
+        text(label, W / 2, y + 20, '800 15px system-ui, sans-serif', '#285f9f', 'center');
+      }
+
+      function drawCallout(moment, index) {
+        const x = moment.focus.x, y = moment.focus.y;
+        const e = ENERGY[moment.answer];
+        const label = 'MOMENT ' + (index + 1) + ': ' + e.short;
+        ctx.font = '800 14px system-ui, sans-serif';
+        const w = ctx.measureText(label).width + 34;
+        const h = 36;
+        const place = moment.place || 'above';
+        const gap = 46;
+
+        let bx, by, cx, cy;
+        if (place === 'left') {
+          bx = x - gap - w; by = y - h / 2; cx = bx + w; cy = y;
+        } else if (place === 'right') {
+          bx = x + gap; by = y - h / 2; cx = bx; cy = y;
+        } else if (place === 'below') {
+          bx = x - w / 2; by = y + gap; cx = x; cy = by;
+        } else {
+          bx = x - w / 2; by = y - gap - h; cx = x; cy = by + h;
+        }
+        bx = clamp(bx, 14, W - w - 14);
+        by = clamp(by, 70, H - h - 14);
+        if (place === 'above' || place === 'below') cx = clamp(x, bx + 16, bx + w - 16);
+
+        line(cx, cy, x, y, e.color, 3);
+        circle(x, y, 8, 'rgba(255,255,255,0.92)', e.color, 3);
+
+        box(bx, by, w, h, 8, '#ffffff', e.color, 3);
+        circle(bx + 17, by + h / 2, 6, e.color);
+        text(label, bx + 29, by + h / 2 + 1, '800 14px system-ui, sans-serif', e.color);
+      }
+
+      function drawLedger(sc, count) {
+        if (count <= 0) return;
+        const rows = sc.moments.slice(0, count);
+        const w = 392, h = 26 + rows.length * 26;
+        const x = W - w - 18, y = H - h - 14;
+        box(x, y, w, h, 10, 'rgba(16,34,50,0.9)');
+        text('ENERGY AT EACH MOMENT', x + 14, y + 17,
+             '800 11px system-ui, sans-serif', 'rgba(255,255,255,0.72)');
+        rows.forEach(function (m, i) {
+          const ry = y + 38 + i * 26;
+          const e = ENERGY[m.answer];
+          circle(x + 18, ry, 6, e.color, '#ffffff', 1.5);
+          text('Moment ' + (i + 1) + ':', x + 32, ry, '700 13px system-ui, sans-serif', 'rgba(255,255,255,0.85)');
+          text(e.label, x + 106, ry, '800 13px system-ui, sans-serif', '#ffffff');
+        });
+      }
+
+      function stateTag(sc) {
+        if (phase === 'watching') return 'WATCH';
+        if (phase === 'ask') return '';        // the paused banner already says it
+        if (phase === 'replay') return 'ANSWER REPLAY';
+        return 'REVIEWED';
+      }
+
+      function drawFrame() {
+        prepareCanvas();
+        const sc = scenario();
+        ctx.save();
+        sc.draw(viewT);
+        ctx.restore();
+
+        drawHeader(sc.title, sc.accent, stateTag(sc));
+
+        if (phase === 'replay' || phase === 'explain') {
+          for (let i = 0; i < revealed; i++) {
+            drawCallout(sc.moments[i], i);
+          }
+          drawLedger(sc, revealed);
+        }
+
+        if (phase === 'ask') {
+          const f = sc.moments[mIdx].focus;
+          drawFocusRing(f.x, f.y);
+          drawPausedBanner(mIdx + 1, f.y);
+        }
+
+        canvas.setAttribute('aria-label', describeScene(sc));
+      }
+
+      function describeScene(sc) {
+        if (phase === 'ask') {
+          return sc.title + ' frozen at moment ' + (mIdx + 1) + ' of 2. ' + sc.description;
+        }
+        if (phase === 'replay' || phase === 'explain') {
+          return sc.title + ' replay. Moment 1 is ' + ENERGY[sc.moments[0].answer].label
+               + '; moment 2 is ' + ENERGY[sc.moments[1].answer].label + '.';
+        }
+        return sc.title + '. ' + sc.description;
+      }
+
+      // ------------------------------------------------------------- scene 1
+      function drawArchery(t) {
+        const HZ = 300;      // horizon
+        const AY = 232;      // arrow / sight line
+
+        skyGradient('#9fd8f5', '#e9f7ff', HZ);
+        sun(748, 76, 26, 'rgba(255,225,150,0.85)');
+        cloud(150, 96, 0.9);
+        cloud(520, 66, 0.68);
+
+        // rolling hills
+        ctx.fillStyle = '#8bbf7c';
+        ctx.beginPath();
+        ctx.moveTo(0, HZ);
+        ctx.quadraticCurveTo(180, HZ - 62, 380, HZ - 12);
+        ctx.quadraticCurveTo(600, HZ + 24, 900, HZ - 26);
+        ctx.lineTo(900, HZ);
+        ctx.lineTo(0, HZ);
+        ctx.closePath();
+        ctx.fill();
+
+        // mown range
+        const gg = ctx.createLinearGradient(0, HZ, 0, H);
+        gg.addColorStop(0, '#75b45c');
+        gg.addColorStop(1, '#4e8c3f');
+        ctx.fillStyle = gg;
+        ctx.fillRect(0, HZ, W, H - HZ);
+        ctx.save();
+        ctx.globalAlpha = 0.12;
+        for (let i = 0; i < 8; i++) {
+          ctx.fillStyle = i % 2 ? '#ffffff' : '#123a12';
+          ctx.fillRect(0, HZ + 4 + i * 18, W, 9);
+        }
+        ctx.restore();
+
+        // target on its stand
+        groundShadow(772, 382, 78, 13, 0.24);
+        line(752, 288, 738, 382, '#7a5638', 9);
+        line(792, 288, 806, 382, '#7a5638', 9);
+        circle(772, AY, 60, '#ffffff', '#22323f', 4);
+        circle(772, AY, 48, '#1f5490');
+        circle(772, AY, 36, '#ffffff');
+        circle(772, AY, 23, '#c0392b');
+        circle(772, AY, 11, '#f2c53d', '#8a6b12', 2);
+
+        const holding = t < 0.42;
+        const release = seg(t, 0.42, 0.50);
+        const flight = easeOut(seg(t, 0.46, 0.94));
+        const tremble = holding && !reduceMotion ? Math.sin(t * 210) * 1.3 : 0;
+        const tipX = holding ? 322 : 322 + flight * 430;
+
+        // archer: feet 384, hips 322, shoulders 268, head 244
+        groundShadow(196, 386, 48, 11, 0.22);
+        const bowX = 296 + tremble;
+        const anchorX = holding ? 232 : 232 + release * 60;
+
+        line(194, 266, 190, 324, '#2b3f52', 17);            // torso
+        limb(190, 324, 172, 356, 160, 384, '#22303d', 13);  // back leg
+        limb(190, 324, 214, 356, 228, 384, '#2b3f52', 13);  // front leg
+        head(196, 242, 16, '#c98c5b', '#2f2118');
+
+        // bow arm stays extended; draw arm snaps back past the face after release
+        limb(194, 270, 244, AY + 8, bowX - 4, AY, '#c98c5b', 11);
+        if (holding || release < 1) {
+          limb(194, 270, 218, 254, anchorX, AY - 4, '#c98c5b', 11);
+        } else {
+          limb(194, 270, 168, 262, 142, 250, '#c98c5b', 11);
+        }
+
+        // bow limbs — the riser bows forward, the string is pulled back
+        const bend = holding ? 42 : 42 * (1 - release) + 7;
+        ctx.beginPath();
+        ctx.moveTo(bowX, AY - 96);
+        ctx.quadraticCurveTo(bowX + bend, AY, bowX, AY + 96);
+        ctx.strokeStyle = '#8a5a2b';
+        ctx.lineWidth = 10;
+        ctx.stroke();
+        ctx.strokeStyle = '#c08a4a';
+        ctx.lineWidth = 3.5;
+        ctx.stroke();
+
+        ctx.strokeStyle = '#5c4a33';
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        ctx.moveTo(bowX, AY - 96);
+        ctx.lineTo(anchorX, AY);
+        ctx.lineTo(bowX, AY + 96);
+        ctx.stroke();
+
+        // strain marks on the flexed limbs while the bow is held at full draw
+        if (holding) {
+          ctx.save();
+          for (let i = 0; i < 3; i++) {
+            ctx.strokeStyle = 'rgba(214,120,20,' + (0.55 - i * 0.15) + ')';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(bowX + 10, AY, 54 + i * 14, -0.8, 0.8);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+
+        // arrow, with a speed trail once it is away
+        if (!holding && flight > 0 && flight < 1 && !reduceMotion) {
+          ctx.save();
+          for (let i = 1; i <= 6; i++) {
+            ctx.globalAlpha = 0.4 - i * 0.055;
+            line(tipX - 96 - i * 26, AY, tipX - 62 - i * 26, AY, '#ffffff', 4);
+          }
+          ctx.restore();
+        }
+        line(tipX - 82, AY, tipX, AY, '#5a4432', 4.5);
+        ctx.fillStyle = '#e14b3c';
+        ctx.beginPath();
+        ctx.moveTo(tipX - 82, AY);
+        ctx.lineTo(tipX - 100, AY - 8);
+        ctx.lineTo(tipX - 94, AY);
+        ctx.lineTo(tipX - 100, AY + 8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#3c4a56';
+        ctx.beginPath();
+        ctx.moveTo(tipX + 12, AY);
+        ctx.lineTo(tipX - 4, AY - 7);
+        ctx.lineTo(tipX - 4, AY + 7);
+        ctx.closePath();
+        ctx.fill();
+
+        if (t > 0.9) {
+          ctx.save();
+          const k = seg(t, 0.9, 1);
+          ctx.globalAlpha = 1 - k;
+          circle(744, AY, 10 + k * 34, null, '#ffffff', 4);
+          ctx.restore();
+        }
+      }
+
+      // ------------------------------------------------------------- scene 2
+      function drawDiver(t) {
+        const WATER = 356, DECK = 150;   // water surface, platform surface
+
+        skyGradient('#5fb6e8', '#d9f2ff', WATER);
+        sun(700, 84, 30, 'rgba(255,240,190,0.8)');
+        cloud(560, 96, 0.7);
+
+        // tower
+        box(178, DECK, 56, WATER - DECK, 4, '#7a8a95');
+        box(178, DECK, 18, WATER - DECK, 4, '#94a4ad');
+        for (let y = DECK + 30; y < WATER - 10; y += 44) line(184, y, 228, y, '#c3cfd6', 4);
+        box(168, DECK - 24, 232, 24, 5, '#eef2f5', '#54646f', 3);
+        line(176, DECK - 28, 176, DECK - 76, '#54646f', 5);
+        line(396, DECK - 28, 396, DECK - 76, '#54646f', 5);
+        line(176, DECK - 74, 396, DECK - 74, '#54646f', 5);
+        line(176, DECK - 52, 396, DECK - 52, '#8fa0aa', 3);
+
+        // height marker (geometry only — makes no energy claim)
+        line(490, DECK - 24, 490, WATER, 'rgba(23,50,77,0.5)', 3);
+        line(478, DECK - 24, 502, DECK - 24, 'rgba(23,50,77,0.5)', 3);
+        line(478, WATER, 502, WATER, 'rgba(23,50,77,0.5)', 3);
+        box(452, 176, 76, 40, 20, 'rgba(255,255,255,0.94)', 'rgba(23,50,77,0.5)', 2);
+        text('10 m', 490, 197, '800 17px system-ui, sans-serif', '#17324d', 'center');
+
+        const fall = seg(t, 0.30, 1);
+        const feetY = DECK - 24 + fall * fall * 400;
+        const spin = fall * Math.PI * 1.15;
+        const cx = 330 + fall * 16;
+
+        // speed streaks once the diver is really moving
+        if (fall > 0.25 && !reduceMotion) {
+          ctx.save();
+          for (let i = 1; i <= 5; i++) {
+            ctx.globalAlpha = (0.32 - i * 0.05) * fall;
+            line(cx - 20 + i * 4, feetY - 120 - i * 24, cx - 20 + i * 4, feetY - 84 - i * 24, '#ffffff', 5);
+          }
+          ctx.restore();
+        }
+
+        ctx.save();
+        ctx.translate(cx, feetY - 44);
+        ctx.rotate(spin);
+        line(0, -30, 0, 18, '#d33f5a', 15);
+        head(0, -46, 14, '#c98c5b', '#241a12');
+        if (fall < 0.06) {
+          limb(0, -26, -18, -4, -22, 20, '#c98c5b', 10);
+          limb(0, -26, 18, -4, 22, 20, '#c98c5b', 10);
+          limb(0, 16, -8, 50, -9, 84, '#c98c5b', 12);
+          limb(0, 16, 9, 50, 10, 84, '#c98c5b', 12);
+        } else {
+          limb(0, -26, -24, -14, -14, 10, '#c98c5b', 10);
+          limb(0, -26, 24, -14, 14, 10, '#c98c5b', 10);
+          limb(0, 16, -26, 34, -6, 60, '#c98c5b', 12);
+          limb(0, 16, 26, 34, 6, 60, '#c98c5b', 12);
+        }
+        ctx.restore();
+
+        // pool is painted over the diver, so entry hides the body naturally
+        const wg = ctx.createLinearGradient(0, WATER, 0, H);
+        wg.addColorStop(0, '#1a9fd4');
+        wg.addColorStop(1, '#0b5f8c');
+        ctx.fillStyle = wg;
+        ctx.fillRect(0, WATER, W, H - WATER);
+        ctx.save();
+        ctx.globalAlpha = 0.3;
+        for (let x = -20; x < W + 40; x += 52) {
+          ctx.beginPath();
+          ctx.arc(x + (reduceMotion ? 0 : Math.sin(t * 6 + x) * 5), WATER + 4, 22, 0, Math.PI);
+          ctx.strokeStyle = '#dff5ff';
+          ctx.lineWidth = 4;
+          ctx.stroke();
+        }
+        [396, 424].forEach(function (y) { line(0, y, W, y, '#e8f8ff', 3); });
+        ctx.restore();
+
+        // splash on entry
+        if (t > 0.86) {
+          const k = seg(t, 0.86, 1);
+          ctx.save();
+          ctx.globalAlpha = 1 - k * 0.55;
+          for (let i = 0; i < 16; i++) {
+            const a = Math.PI + (i / 15) * Math.PI;
+            circle(cx + Math.cos(a) * (16 + k * 70), WATER + Math.sin(a) * (14 + k * 52),
+                   6 - k * 3.5, '#e6f8ff');
+          }
+          ctx.restore();
+        }
+      }
+
+      // ------------------------------------------------------------- scene 3
+      function drawPoleVault(t) {
+        const GY = 344;                 // track surface
+        const BOX_X = 396;              // plant box
+        const BAR_Y = 168;
+        const UP_L = 566, UP_R = 726;   // uprights
+
+        skyGradient('#bfe4ff', '#f5fbff', GY);
+        cloud(150, 84, 0.8);
+        cloud(500, 60, 0.58);
+
+        const tg = ctx.createLinearGradient(0, GY, 0, H);
+        tg.addColorStop(0, '#d98f5a');
+        tg.addColorStop(1, '#b06f3d');
+        ctx.fillStyle = tg;
+        ctx.fillRect(0, GY, W, H - GY);
+        line(0, GY + 5, W, GY + 5, 'rgba(255,255,255,0.32)', 4);
+
+        // landing mat, uprights, crossbar
+        box(540, 288, 240, 58, 12, '#4c84c6', '#285f9f', 3);
+        box(544, 288, 232, 14, 8, '#639bd8');
+        line(UP_L, 96, UP_L, GY, '#68798a', 9);
+        line(UP_R, 96, UP_R, GY, '#68798a', 9);
+        line(UP_L, BAR_Y, UP_R, BAR_Y, '#e5473c', 7);
+        line(UP_L, BAR_Y, UP_R, BAR_Y, 'rgba(255,255,255,0.4)', 2);
+
+        ctx.fillStyle = '#33414d';
+        ctx.beginPath();
+        ctx.moveTo(BOX_X - 18, GY);
+        ctx.lineTo(BOX_X + 20, GY);
+        ctx.lineTo(BOX_X + 12, GY + 16);
+        ctx.lineTo(BOX_X - 14, GY + 16);
+        ctx.closePath();
+        ctx.fill();
+
+        const bendU = easeInOut(seg(t, 0.04, 0.32));      // pole loads up
+        const riseU = easeInOut(seg(t, 0.34, 0.70));      // vaulter swings up and over
+        const dropU = seg(t, 0.72, 0.96);                 // fall to the mat
+
+        // vaulter position and body angle
+        let ax, ay, rot, pose;
+        if (t < 0.34) {
+          ax = 372 + bendU * 20;
+          ay = 250 - bendU * 32;
+          rot = -0.35 - bendU * 0.75;
+          pose = 'hang';
+        } else if (t < 0.72) {
+          ax = 392 + riseU * 254;
+          ay = 218 - riseU * 122;
+          rot = -1.1 + riseU * 2.7;
+          pose = riseU < 0.72 ? 'invert' : 'clear';
+        } else {
+          ax = 646 + dropU * 22;
+          ay = 96 + easeOut(dropU) * 188;
+          rot = 1.6;
+          pose = 'land';
+        }
+
+        // pole: heavily bent at the plant, straightening as it unloads
+        const load = t < 0.34 ? bendU : Math.max(0, 1 - seg(t, 0.34, 0.58));
+        if (t < 0.62) {
+          const ctrlX = BOX_X - load * 122 + riseU * 150;
+          const ctrlY = 236 - load * 10;
+          ctx.beginPath();
+          ctx.moveTo(BOX_X, GY);
+          ctx.quadraticCurveTo(ctrlX, ctrlY, ax - 4, ay + 12);
+          ctx.strokeStyle = '#e0952a';
+          ctx.lineWidth = 9;
+          ctx.stroke();
+          ctx.strokeStyle = '#ffe0a3';
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+
+          if (load > 0.5) {
+            ctx.save();
+            for (let i = 0; i < 3; i++) {
+              ctx.strokeStyle = 'rgba(196,124,16,' + (0.62 - i * 0.17) * load + ')';
+              ctx.lineWidth = 3;
+              ctx.beginPath();
+              ctx.arc(BOX_X - load * 84, 232, 30 + i * 15, 2.15, 4.25);
+              ctx.stroke();
+            }
+            ctx.restore();
+          }
+        } else if (t < 0.74) {
+          // released pole swings down and away as the vaulter clears
+          const away = seg(t, 0.62, 0.74);
+          ctx.save();
+          ctx.globalAlpha = 1 - away;
+          ctx.translate(BOX_X - 60, GY - 6 - (1 - away) * 90);
+          ctx.rotate(-1.25 + away * 1.2);
+          line(-130, 0, 130, 0, '#e0952a', 8);
+          ctx.restore();
+        }
+
+        // vaulter
+        ctx.save();
+        ctx.translate(ax, ay);
+        ctx.rotate(rot);
+        line(0, -24, 0, 20, '#1f5490', 14);
+        head(0, -40, 13, '#a9713f', '#241a12');
+        if (pose === 'hang') {
+          limb(0, -20, -14, -46, -4, -70, '#a9713f', 10);   // both arms up to the pole
+          limb(0, -20, 12, -46, 4, -70, '#a9713f', 10);
+          limb(0, 18, -16, 46, -10, 74, '#243746', 12);
+          limb(0, 18, 18, 44, 12, 72, '#243746', 12);
+        } else if (pose === 'invert') {
+          limb(0, -20, -16, -44, -6, -68, '#a9713f', 10);
+          limb(0, -20, 14, -44, 4, -68, '#a9713f', 10);
+          limb(0, 18, -22, 40, -18, 12, '#243746', 12);      // legs tucked over the head
+          limb(0, 18, 22, 38, 18, 10, '#243746', 12);
+        } else if (pose === 'clear') {
+          limb(0, -20, -26, -34, -48, -30, '#a9713f', 10);   // arched over the bar
+          limb(0, -20, 26, -34, 48, -30, '#a9713f', 10);
+          limb(0, 18, -26, 36, -50, 30, '#243746', 12);
+          limb(0, 18, 26, 36, 50, 30, '#243746', 12);
+        } else {
+          limb(0, -20, -22, -30, -44, -22, '#a9713f', 10);   // relaxed on the mat
+          limb(0, -20, 22, -30, 44, -22, '#a9713f', 10);
+          limb(0, 18, -20, 40, -40, 44, '#243746', 12);
+          limb(0, 18, 20, 40, 40, 44, '#243746', 12);
+        }
+        ctx.restore();
+      }
+
+      // ------------------------------------------------------------- scene 4
+      function drawSoccer(t) {
+        skyGradient('#8fd0f2', '#e8f7ff', 300);
+        cloud(190, 66, 0.8);
+        cloud(640, 48, 0.6);
+
+        // pitch
+        const pg = ctx.createLinearGradient(0, 300, 0, H);
+        pg.addColorStop(0, '#4f9e46');
+        pg.addColorStop(1, '#357a30');
+        ctx.fillStyle = pg;
+        ctx.fillRect(0, 300, W, H - 300);
+        ctx.save();
+        ctx.globalAlpha = 0.10;
+        for (let i = 0; i < 6; i++) {
+          ctx.fillStyle = i % 2 ? '#ffffff' : '#0d2f10';
+          ctx.fillRect(0, 302 + i * 25, W, 12);
+        }
+        ctx.restore();
+        line(0, 330, W, 330, 'rgba(255,255,255,0.5)', 4);
+
+        // goal frame
+        const postL = 612, postR = 872, barY = 132, base = 352;
+        // net grid with a bulge where the ball lands
+        const stretch = t < 0.78 ? seg(t, 0.62, 0.78) : 1 - seg(t, 0.78, 1) * 0.75;
+        const bulgeX = 700, bulgeY = 258, bulgeR = 118;
+
+        function netPoint(x, y) {
+          const dx = x - bulgeX, dy = y - bulgeY;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d > bulgeR) return [x, y];
+          const k = (1 - d / bulgeR) * stretch * 46;
+          return [x + k * 0.75, y + k * 0.12];
+        }
+
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,255,0.72)';
+        ctx.lineWidth = 1.4;
+        for (let x = postL; x <= postR; x += 20) {
+          ctx.beginPath();
+          for (let y = barY; y <= base; y += 12) {
+            const p = netPoint(x, y);
+            if (y === barY) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]);
+          }
+          ctx.stroke();
+        }
+        for (let y = barY; y <= base; y += 20) {
+          ctx.beginPath();
+          for (let x = postL; x <= postR; x += 12) {
+            const p = netPoint(x, y);
+            if (x === postL) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        line(postL, barY, postL, base, '#f2f6f8', 9);
+        line(postR, barY, postR, base, '#f2f6f8', 9);
+        line(postL, barY, postR, barY, '#f2f6f8', 9);
+
+        // kicker: swings through, then the leg recovers back under the body
+        const swing = seg(t, 0.02, 0.14) * (1 - seg(t, 0.20, 0.44));
+        groundShadow(196, 356, 42, 9, 0.2);
+        line(186, 250, 186, 300, '#e35d45', 15);
+        head(186, 232, 14, '#8d5524', '#1c130c');
+        limb(186, 256, 152, 274, 134, 252, '#e35d45', 10);
+        limb(186, 256, 214, 276, 236, 256, '#e35d45', 10);
+        limb(186, 298, 174, 328, 170, 356, '#2b3a47', 12);
+        limb(186, 298, 200 + swing * 24, 328 - swing * 26, 208 + swing * 44, 356 - swing * 66, '#2b3a47', 12);
+
+        // ball
+        const flight = seg(t, 0.12, 0.62);
+        let bx, by;
+        if (t < 0.62) {
+          bx = 240 + flight * 400;
+          by = 340 - Math.sin(flight * Math.PI * 0.75) * 112;
+        } else if (t < 0.86) {
+          bx = 640 + stretch * 68;
+          by = 262 - stretch * 4;
+        } else {
+          // rebounds off the net and drops to the goal line
+          const d = seg(t, 0.86, 1);
+          bx = 694 - d * 26;
+          by = 262 + d * d * 82;
+        }
+
+        if (flight > 0.02 && t < 0.72 && !reduceMotion) {
+          ctx.save();
+          for (let i = 1; i <= 7; i++) {
+            const u = Math.max(0, flight - i * 0.055);
+            ctx.globalAlpha = 0.34 - i * 0.04;
+            circle(240 + u * 400, 340 - Math.sin(u * Math.PI * 0.75) * 112, 11 - i * 0.7, '#ffffff');
+          }
+          ctx.restore();
+        }
+
+        circle(bx, by, 14, '#ffffff', '#243746', 2.5);
+        ctx.save();
+        ctx.fillStyle = '#243746';
+        [[0, -6], [-7, 4], [7, 4]].forEach(function (p) {
+          ctx.beginPath();
+          ctx.arc(bx + p[0], by + p[1], 3.4, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.restore();
+
+        // strain marks in the loaded net
+        if (stretch > 0.55) {
+          ctx.save();
+          for (let i = 0; i < 3; i++) {
+            ctx.strokeStyle = 'rgba(63,191,111,' + (0.65 - i * 0.18) * stretch + ')';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(bx + 6, by, 26 + i * 14, -1.1, 1.1);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+      }
+
+      // ------------------------------------------------------------- scene 5
+      function drawTrampoline(t) {
+        skyGradient('#d6def2', '#f7f9ff', 400);
+        // gym hall: high windows and a wall rail
+        ctx.save();
+        ctx.globalAlpha = 0.5;
+        for (let x = 56; x < W - 40; x += 132) {
+          box(x, 96, 72, 84, 5, '#eaf1ff', '#b7c3dd', 3);
+          line(x + 36, 96, x + 36, 180, '#b7c3dd', 2);
+        }
+        ctx.restore();
+        line(0, 214, W, 214, 'rgba(120,136,170,0.35)', 4);
+        ctx.fillStyle = '#9aa6bd';
+        ctx.fillRect(0, 400, W, H - 400);
+        ctx.fillStyle = '#8593ad';
+        ctx.fillRect(0, 400, W, 8);
+
+        const yTop = 152, yBed = 300, yLow = 356;
+        let feetY;
+        if (t < 0.08) feetY = yTop + Math.pow((0.08 - t) / 0.08, 2) * 20;
+        else if (t < 0.38) { const u = (t - 0.08) / 0.30; feetY = yTop + u * u * (yBed - yTop); }
+        else if (t < 0.55) { const u = (t - 0.38) / 0.17; feetY = yBed + Math.sin(u * Math.PI / 2) * (yLow - yBed); }
+        else if (t < 0.72) { const u = (t - 0.55) / 0.17; feetY = yLow - Math.sin(u * Math.PI / 2) * (yLow - yBed); }
+        else { const u = (t - 0.72) / 0.28; feetY = yBed - (2 * u - u * u) * (yBed - yTop); }
+
+        const dip = Math.max(0, feetY - yBed);
+
+        // frame
+        const fx1 = 214, fx2 = 690;
+        line(fx1 + 26, yBed, fx1 + 6, 400, '#4c5a6b', 10);
+        line(fx2 - 26, yBed, fx2 - 6, 400, '#4c5a6b', 10);
+        line(fx1 + 74, yBed, fx1 + 60, 400, '#5c6b7d', 8);
+        line(fx2 - 74, yBed, fx2 - 60, 400, '#5c6b7d', 8);
+
+        // bed (a curve that sags under the gymnast; control point doubles the dip)
+        ctx.beginPath();
+        ctx.moveTo(fx1, yBed);
+        ctx.quadraticCurveTo(452, yBed + dip * 2, fx2, yBed);
+        ctx.strokeStyle = '#1f2b3a';
+        ctx.lineWidth = 12;
+        ctx.stroke();
+        ctx.strokeStyle = '#39506b';
+        ctx.lineWidth = 5;
+        ctx.stroke();
+
+        // springs
+        ctx.save();
+        ctx.strokeStyle = '#98a7b6';
+        ctx.lineWidth = 3;
+        for (let i = 0; i <= 10; i++) {
+          const u = i / 10;
+          const bxp = fx1 + u * (fx2 - fx1);
+          const byp = yBed + (1 - Math.pow(2 * u - 1, 2)) * dip;
+          const ax2 = fx1 - 22 + u * (fx2 - fx1 + 44);
+          ctx.beginPath();
+          ctx.moveTo(ax2, yBed);
+          ctx.lineTo(bxp, byp);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // rails
+        box(fx1 - 30, yBed - 10, 44, 18, 9, '#d1592f');
+        box(fx2 - 14, yBed - 10, 44, 18, 9, '#d1592f');
+
+        // stretch marks when the bed is deeply loaded
+        if (dip > 32) {
+          ctx.save();
+          const s = clamp((dip - 32) / 24, 0, 1);
+          for (let i = 0; i < 3; i++) {
+            ctx.strokeStyle = 'rgba(122,84,196,' + (0.6 - i * 0.17) * s + ')';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(452, yBed + dip, 40 + i * 16, 0.35, Math.PI - 0.35);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+
+        // gymnast rides the sagging bed
+        const bodyFeet = feetY;
+        const airborne = dip <= 0.5;
+        ctx.save();
+        ctx.translate(452, bodyFeet);
+        line(0, -96, 0, -50, '#7b3fbf', 15);
+        head(0, -114, 15, '#c98c5b', '#2a1a10');
+        if (airborne) {
+          limb(0, -92, -30, -104, -44, -128, '#c98c5b', 10);
+          limb(0, -92, 30, -104, 44, -128, '#c98c5b', 10);
+          limb(0, -52, -14, -26, -12, 0, '#243746', 13);
+          limb(0, -52, 14, -26, 12, 0, '#243746', 13);
+        } else {
+          // compressed landing crouch
+          limb(0, -92, -34, -84, -46, -104, '#c98c5b', 10);
+          limb(0, -92, 34, -84, 46, -104, '#c98c5b', 10);
+          limb(0, -52, -28, -30, -14, 0, '#243746', 13);
+          limb(0, -52, 28, -30, 14, 0, '#243746', 13);
+        }
+        ctx.restore();
+
+        // apex marker line (height reference only)
+        ctx.save();
+        ctx.setLineDash([8, 8]);
+        line(186, yTop, 720, yTop, 'rgba(31,43,58,0.3)', 2);
+        ctx.setLineDash([]);
+        ctx.restore();
+        text('top of bounce', 190, yTop - 14, '700 12px system-ui, sans-serif', 'rgba(31,43,58,0.62)');
+      }
+
+      // ---------------------------------------------------------------- boot
+      window.addEventListener('resize', drawFrame);
+      loadScenario(0);
+      requestAnimationFrame(loop);
+    })();
+    </script>
   </main>
 
-  <script>
-    // --- SCENARIO DATA ---
-    const scenarios = [
-      {
-        id: 'archery',
-        description: 'An archer holds the bowstring back at maximum tension.',
-        correctType: 'Stored Elastic',
-        options: ['Stored Elastic', 'Moving Kinetic', 'Rotating Kinetic'],
-        feedbackCorrect: 'Stored Elastic is correct. The flexed limbs of the bow hold energy until release.',
-        feedbackIncorrect: 'Look at the stretched bowstring. Energy is stored in the flexed material.'
-      },
-      {
-        id: 'tennis',
-        description: 'The tennis player strikes a flat serve down the center line.',
-        correctType: 'Moving Kinetic',
-        options: ['Stored Elastic', 'Moving Kinetic', 'Stored Gravitational'],
-        feedbackCorrect: 'Moving Kinetic is correct. The ball is traveling horizontally at high speed.',
-        feedbackIncorrect: 'Notice the blur of the ball. It is actively traveling across the court.'
-      },
-      {
-        id: 'skater',
-        description: 'A figure skater pulls their arms in for a tight, rapid spin.',
-        correctType: 'Rotating Kinetic',
-        options: ['Rotating Kinetic', 'Stored Gravitational', 'Moving Kinetic'],
-        feedbackCorrect: 'Rotating Kinetic is correct. The skater is spinning in place around a central axis.',
-        feedbackIncorrect: 'The skater remains in one spot on the ice but is spinning rapidly.'
-      },
-      {
-        id: 'diver',
-        description: 'A high diver stands perfectly motionless at the edge of a 10-meter platform.',
-        correctType: 'Stored Gravitational',
-        options: ['Moving Kinetic', 'Rotating Kinetic', 'Stored Gravitational'],
-        feedbackCorrect: 'Stored Gravitational is correct. The diver has potential energy due to their height.',
-        feedbackIncorrect: 'The diver is not moving yet, but they are high above the water.'
-      },
-      {
-        id: 'polevault',
-        description: 'The vaulter is at the peak of their plant, with the pole bent to its absolute maximum.',
-        correctType: 'Stored Elastic',
-        options: ['Stored Elastic', 'Rotating Kinetic', 'Stored Gravitational'],
-        feedbackCorrect: 'Stored Elastic is correct. The heavily bent fiberglass pole acts like a giant spring.',
-        feedbackIncorrect: 'Look at the extreme bend in the pole. It is ready to snap back and launch the vaulter.'
-      }
-    ];
-
-    // --- STATE MACHINE ---
-    let currentScenarioIndex = 0;
-    let state = 'setup'; // setup → predict → reveal → explain[cite: 1]
-    let animationPhase = 'static'; // static, frozen, animating
-
-    // --- DOM ELEMENTS ---
-    const canvas = document.getElementById('simCanvas');
-    const ctx = canvas.getContext('2d');
-    const setupText = document.getElementById('setupText');
-    const promptText = document.getElementById('promptText');
-    const choicesContainer = document.getElementById('choicesContainer');
-    const feedbackContainer = document.getElementById('feedbackContainer');
-    const feedbackText = document.getElementById('feedbackText');
-    const startBtn = document.getElementById('startBtn');
-    const retryBtn = document.getElementById('retryBtn');
-    const nextBtn = document.getElementById('nextBtn');
-
-    // --- INITIALIZATION ---
-    function init() {
-      loadScenario(0);
-      
-      startBtn.addEventListener('click', () => {
-        state = 'predict';
-        animationPhase = 'frozen'; // Freeze at decision point[cite: 1]
-        renderUI();
-        drawCanvas();
-      });
-
-      retryBtn.addEventListener('click', () => {
-        state = 'predict';
-        animationPhase = 'frozen';
-        renderUI();
-        drawCanvas();
-      });
-
-      nextBtn.addEventListener('click', () => {
-        if (currentScenarioIndex < scenarios.length - 1) {
-          loadScenario(currentScenarioIndex + 1);
-        } else {
-          // Guarded completion message[cite: 1]
-          if (!window.completionSent) {
-            window.parent.postMessage({ type: 'complete' }, '*');
-            window.completionSent = true;
-          }
-          setupText.textContent = "Module Complete!";
-          promptText.hidden = true;
-          feedbackContainer.hidden = true;
-        }
-      });
-    }
-
-    function loadScenario(index) {
-      currentScenarioIndex = index;
-      state = 'setup';
-      animationPhase = 'static';
-      const sc = scenarios[currentScenarioIndex];
-      
-      setupText.textContent = sc.description; // 1 sentence setup[cite: 1]
-      promptText.hidden = true;
-      
-      // Shuffle options[cite: 1]
-      const shuffledOptions = [...sc.options].sort(() => Math.random() - 0.5);
-      
-      choicesContainer.innerHTML = '';
-      shuffledOptions.forEach(opt => {
-        const btn = document.createElement('button');
-        btn.textContent = opt;
-        btn.dataset.choice = opt;
-        btn.addEventListener('click', () => handleChoice(opt));
-        choicesContainer.appendChild(btn);
-      });
-
-      // Clear previous styles/states[cite: 1]
-      renderUI();
-      drawCanvas();
-    }
-
-    function renderUI() {
-      if (state === 'setup') {
-        startBtn.hidden = false;
-        choicesContainer.hidden = true;
-        feedbackContainer.hidden = true;
-        promptText.hidden = true;
-      } 
-      else if (state === 'predict') {
-        startBtn.hidden = true;
-        promptText.hidden = false;
-        choicesContainer.hidden = false;
-        feedbackContainer.hidden = true;
-        
-        // Reset button styles
-        Array.from(choicesContainer.children).forEach(btn => {
-          btn.style.backgroundColor = '';
-          btn.style.color = '';
-          btn.disabled = false;
-        });
-      } 
-      else if (state === 'explain') {
-        choicesContainer.hidden = true;
-        promptText.hidden = true;
-        feedbackContainer.hidden = false;
-      }
-    }
-
-    function handleChoice(selectedVal) {
-      if (state !== 'predict') return;
-      
-      const sc = scenarios[currentScenarioIndex];
-      const isCorrect = (selectedVal === sc.correctType);
-      
-      state = 'reveal';
-      animationPhase = 'animating';
-      choicesContainer.hidden = true;
-      promptText.hidden = true;
-
-      // Simulate outcome animation duration (evidence draws DURING this)[cite: 1]
-      let frame = 0;
-      function animate() {
-        frame++;
-        drawCanvas(frame);
-        if (frame < 60) {
-          requestAnimationFrame(animate);
-        } else {
-          state = 'explain';
-          showFeedback(isCorrect, sc);
-        }
-      }
-      animate();
-    }
-
-    function showFeedback(isCorrect, sc) {
-      renderUI();
-      if (isCorrect) {
-        feedbackText.textContent = sc.feedbackCorrect;
-        // Explicit success logic: Next shows, Retry hides
-        nextBtn.hidden = false;
-        retryBtn.hidden = true;
-        
-        if (currentScenarioIndex === scenarios.length - 1) {
-          nextBtn.textContent = "Finish Module";
-        }
-      } else {
-        feedbackText.textContent = sc.feedbackIncorrect;
-        // Explicit failure logic: Retry shows, Next hides
-        nextBtn.hidden = true;
-        retryBtn.hidden = false;
-      }
-    }
-
-    // --- CANVAS RENDERING ---
-    function drawCanvas(frame = 0) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const sc = scenarios[currentScenarioIndex];
-      
-      ctx.save();
-      
-      // Placeholder drawing logic for scenarios
-      if (sc.id === 'tennis') {
-        drawTennisCourt(frame);
-      } else if (sc.id === 'polevault') {
-        drawPoleVault(frame);
-      } else {
-        // Generic representation for others to save space
-        ctx.fillStyle = '#285f9f';
-        ctx.font = '24px sans-serif';
-        ctx.fillText(`Scenario: ${sc.id} (Visual Placeholder)`, 250, 200);
-        
-        if (animationPhase === 'frozen') {
-          ctx.fillStyle = 'red';
-          ctx.fillText('MOTION FROZEN: Make a prediction', 220, 250);
-        } else if (animationPhase === 'animating') {
-          ctx.fillStyle = 'green';
-          ctx.fillText(`ANIMATING OUTCOME... (Frame ${frame})`, 250, 250);
-        }
-      }
-      
-      ctx.restore();
-    }
-
-    function drawTennisCourt(frame) {
-      // Horizontally oriented court layout
-      const courtX = 150;
-      const courtY = 100;
-      const courtW = 500;
-      const courtH = 200;
-      
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = '#2e8b57';
-      ctx.strokeRect(courtX, courtY, courtW, courtH); // Outer bounds
-
-      ctx.beginPath();
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 2;
-      
-      // Net (Vertical down the middle)
-      const netX = courtX + courtW / 2;
-      ctx.moveTo(netX, courtY - 10);
-      ctx.lineTo(netX, courtY + courtH + 10);
-      
-      // Service lines (Vertical, parallel to net)
-      const leftServiceX = courtX + 110;
-      const rightServiceX = courtX + courtW - 110;
-      ctx.moveTo(leftServiceX, courtY + 25);
-      ctx.lineTo(leftServiceX, courtY + courtH - 25);
-      ctx.moveTo(rightServiceX, courtY + 25);
-      ctx.lineTo(rightServiceX, courtY + courtH - 25);
-      
-      // Center service line (Horizontal)
-      const centerServiceY = courtY + courtH / 2;
-      ctx.moveTo(leftServiceX, centerServiceY);
-      ctx.lineTo(rightServiceX, centerServiceY);
-      
-      ctx.stroke();
-
-      // Draw Ball based on phase
-      ctx.fillStyle = '#ccff00';
-      let ballX = courtX + 50; // Serve origin
-      if (animationPhase === 'frozen') {
-        // Frozen right as it leaves the racket
-        ballX = courtX + 60;
-      } else if (animationPhase === 'animating') {
-        // Ball travels horizontally across the court
-        ballX = courtX + 60 + (frame * 6);
-      }
-      
-      ctx.beginPath();
-      ctx.arc(ballX, centerServiceY - 40, 6, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-    }
-
-    function drawPoleVault(frame) {
-      // Ground
-      ctx.fillStyle = '#666';
-      ctx.fillRect(100, 300, 600, 10);
-      
-      // Plant box
-      ctx.fillStyle = '#333';
-      ctx.fillRect(400, 300, 30, 10);
-
-      ctx.lineWidth = 4;
-      
-      if (animationPhase === 'static' || animationPhase === 'frozen') {
-        // Maximum bend
-        ctx.beginPath();
-        ctx.strokeStyle = '#ff9900'; // Fiberglass pole
-        ctx.moveTo(415, 305); // Plant point
-        ctx.quadraticCurveTo(300, 200, 380, 100); // Extreme bend
-        ctx.stroke();
-        
-        // Vaulter
-        ctx.fillStyle = '#285f9f';
-        ctx.beginPath();
-        ctx.arc(380, 100, 15, 0, Math.PI * 2); // Head
-        ctx.fill();
-        ctx.fillRect(375, 115, 10, 40); // Body
-
-      } else if (animationPhase === 'animating') {
-        // Pole straightening and vaulter launching
-        const bendControlX = 300 + (frame * 2); // Pole straightens out
-        const vaulterY = 100 - (frame * 2);     // Vaulter goes up
-        const vaulterX = 380 + (frame * 1.5);   // Vaulter moves forward
-        
-        ctx.beginPath();
-        ctx.strokeStyle = '#ff9900';
-        ctx.moveTo(415, 305);
-        ctx.quadraticCurveTo(bendControlX, 200, vaulterX, vaulterY);
-        ctx.stroke();
-
-        ctx.fillStyle = '#285f9f';
-        ctx.beginPath();
-        ctx.arc(vaulterX, vaulterY, 15, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillRect(vaulterX - 5, vaulterY + 15, 10, 40);
-      }
-    }
-
-    // Run
-    init();
-  </script>
 </body>
 </html>

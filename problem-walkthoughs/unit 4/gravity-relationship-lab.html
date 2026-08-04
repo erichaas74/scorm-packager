@@ -87,30 +87,7 @@
 
     canvas { display: block; width: 100%; max-width: 100%; height: clamp(380px, 55vw, 540px); }
 
-    .hud {
-      position: absolute;
-      inset: 14px 14px auto;
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 9px;
-      pointer-events: none;
-    }
-
-    .hud-card {
-      padding: 9px 12px;
-      border: 1px solid rgb(255 255 255 / 80%);
-      border-radius: 14px;
-      background: rgb(255 255 255 / 92%);
-      box-shadow: 0 8px 22px rgb(0 0 0 / 28%);
-      backdrop-filter: blur(8px);
-    }
-
-    .hud-card span { display: block; color: var(--muted); font-size: .74rem; font-weight: 800; text-transform: uppercase; }
-    .hud-card strong { display: block; margin-top: 2px; font-size: clamp(.9rem, 2.4vw, 1.08rem); }
-    .hud-card em { display: block; margin-top: 1px; color: var(--muted); font-size: .74rem; font-style: normal; font-weight: 800; }
-    .hud-card.force strong { color: #b45309; }
-
-    .prompt {
+    .prompt-area {
       position: relative;
       z-index: 2;
       margin: -68px 14px 14px;
@@ -119,6 +96,17 @@
       border-radius: 18px;
       background: rgb(255 255 255 / 97%);
       box-shadow: 0 12px 32px rgb(0 0 0 / 28%);
+    }
+
+    .prompt {
+      position: relative;
+      z-index: 2;
+      margin: 0 14px 14px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #fff;
+      box-shadow: 0 10px 24px rgb(0 0 0 / 20%);
     }
 
     .prompt-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -137,11 +125,23 @@
     h2 { margin: 0; font-size: clamp(1.05rem, 3vw, 1.35rem); }
     .helper { min-height: 1.45em; margin: 6px 0 0; color: var(--muted); line-height: 1.45; }
 
+    .calculation {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-left: 4px solid var(--blue);
+      border-radius: 10px;
+      background: #eef4ff;
+      color: var(--ink);
+      font-weight: 750;
+      line-height: 1.65;
+    }
+
+    .calculation strong { color: #1746a2; }
+
     .choices {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 10px;
-      margin-top: 13px;
     }
 
     .choice {
@@ -213,6 +213,8 @@
       gap: 12px;
     }
 
+    .settings[data-single="true"] { grid-template-columns: minmax(0, 1fr); }
+
     .control {
       padding: 10px 12px;
       border: 1px solid var(--line);
@@ -244,12 +246,7 @@
       body { padding: 0; }
       .walkthrough { min-height: 100vh; border: 0; border-radius: 0; }
       canvas { height: 440px; }
-      .prompt { margin-top: -48px; }
-      .hud { gap: 6px; }
-      .hud-card { padding: 6px 8px; border-radius: 11px; }
-      .hud-card span { font-size: .62rem; }
-      .hud-card strong { font-size: .78rem; }
-      .hud-card em { font-size: .64rem; }
+      .prompt-area { margin-top: -48px; }
       .formula { display: none; }
       .choices,
       .settings { grid-template-columns: 1fr; }
@@ -398,25 +395,7 @@
     <section class="simulation" aria-label="Two masses separated by an adjustable distance">
       <canvas data-canvas width="1000" height="560" role="img" aria-label="Gravity Relationship Lab: Simulation visual"></canvas>
 
-      <div class="hud" aria-live="polite">
-        <div class="hud-card">
-          <span>Masses</span>
-          <strong data-masses>2.0 and 2.0</strong>
-          <em>&times;10&#178;&#8308; kg each</em>
-        </div>
-        <div class="hud-card">
-          <span>Separation</span>
-          <strong data-separation>4.0</strong>
-          <em>&times;10&#8312; m</em>
-        </div>
-        <div class="hud-card force">
-          <span>Force on each</span>
-          <strong data-force>1.67 &times; 10&#178;&#185; N</strong>
-          <em data-multiple>&times;1.00 of the start</em>
-        </div>
-      </div>
-
-      <div class="prompt" aria-live="polite">
+      <div class="prompt-area" aria-live="polite">
         <div class="prompt-top">
           <p class="phase" data-phase>Predict</p>
           <span class="formula">F = G&middot;m&#8321;m&#8322; / r&#178;</span>
@@ -424,11 +403,7 @@
         <h2 data-question>Which change makes the gravitational force greater?</h2>
         <p class="helper" data-helper>Both masses pull on each other with the force shown above.</p>
 
-        <div class="choices" data-choices>
-          <button class="choice" type="button" data-choice="a">Double m&#8321;</button>
-          <button class="choice" type="button" data-choice="b">Halve the distance</button>
-          <button class="choice" type="button" data-choice="tie">Both give the same force</button>
-        </div>
+        <div class="calculation" data-calculation hidden></div>
 
         <div class="compare" data-compare hidden>
           <div class="compare-row" data-row-a hidden>
@@ -454,15 +429,15 @@
         <div class="lab" data-lab hidden>
           <p class="lab-note" data-lab-note>Test it yourself: move the sliders and watch the force.</p>
           <div class="settings">
-            <div class="control">
+            <div class="control" data-control-m1>
               <label for="mass-1">Mass m&#8321; <output data-m1-output>2.0</output></label>
               <input id="mass-1" data-m1 type="range" min="0.5" max="8" step="0.5" value="2" aria-label="Mass 1">
             </div>
-            <div class="control">
+            <div class="control" data-control-m2>
               <label for="mass-2">Mass m&#8322; <output data-m2-output>2.0</output></label>
               <input id="mass-2" data-m2 type="range" min="0.5" max="8" step="0.5" value="2" aria-label="Mass 2">
             </div>
-            <div class="control">
+            <div class="control" data-control-r>
               <label for="separation">Distance r <output data-r-output>4.0</output></label>
               <input id="separation" data-r type="range" min="1" max="8" step="0.5" value="4" aria-label="Separation">
             </div>
@@ -471,6 +446,14 @@
 
         <div class="action-row">
           <button class="main" type="button" data-main hidden>Next round</button>
+        </div>
+      </div>
+
+      <div class="prompt">
+        <div class="choices" data-choices>
+          <button class="choice" type="button" data-choice="a">Double m&#8321;</button>
+          <button class="choice" type="button" data-choice="b">Halve the distance</button>
+          <button class="choice" type="button" data-choice="tie">Both give the same force</button>
         </div>
       </div>
     </section>
@@ -486,15 +469,17 @@
       const phase = root.querySelector('[data-phase]');
       const question = root.querySelector('[data-question]');
       const helper = root.querySelector('[data-helper]');
-      const massesLabel = root.querySelector('[data-masses]');
-      const separationLabel = root.querySelector('[data-separation]');
-      const forceLabel = root.querySelector('[data-force]');
-      const multipleLabel = root.querySelector('[data-multiple]');
+      const calculation = root.querySelector('[data-calculation]');
+      const promptPanel = root.querySelector('.prompt');
       const choicesWrap = root.querySelector('[data-choices]');
       const choiceButtons = Array.from(root.querySelectorAll('[data-choice]'));
       const compare = root.querySelector('[data-compare]');
       const lab = root.querySelector('[data-lab]');
       const labNote = root.querySelector('[data-lab-note]');
+      const settings = root.querySelector('.settings');
+      const m1Control = root.querySelector('[data-control-m1]');
+      const m2Control = root.querySelector('[data-control-m2]');
+      const rControl = root.querySelector('[data-control-r]');
       const m1Input = root.querySelector('[data-m1]');
       const m2Input = root.querySelector('[data-m2]');
       const rInput = root.querySelector('[data-r]');
@@ -526,49 +511,51 @@
       // Masses are in units of 1e24 kg and separations in units of 1e8 m,
       // so F = G m1 m2 / r^2 collapses to this constant times m1*m2/r^2.
       const FORCE_UNIT = 6.674e21;
-      const SCALE = 82;          // canvas pixels per distance unit
+      const SCALE = 96;          // canvas pixels per distance unit
       const CENTER_X = 500;      // the pair stays centered, so a distance change spreads both ways
-      const PLANET_Y = 292;
-      const FORCE_A_Y = 168;
-      const FORCE_B_Y = 440;
-      const RULER_Y = 362;
+      const PLANET_Y = 286;
+      const FORCE_A_Y = 142;
+      const FORCE_B_Y = 472;
+      const RULER_Y = 350;
 
       const rounds = [
         {
           base: { m1: 2, m2: 2, r: 4 },
-          a: { label: 'Double m₁', km1: 2 },
-          b: { label: 'Halve the distance', kr: 0.5 },
-          why: 'Doubling a mass doubles the force, but halving r multiplies it by 4 because the distance is squared underneath.'
+          change: { label: 'Mass m₁ doubles', km1: 2 },
+          effect: 'a',
+          why: 'Doubling one mass doubles the gravitational force because mass is multiplied in the numerator.'
         },
         {
-          base: { m1: 1, m2: 2, r: 4 },
-          a: { label: 'Double both masses', km1: 2, km2: 2 },
-          b: { label: 'Halve the distance', kr: 0.5 },
-          why: 'Two doubled masses give 2 × 2 = 4 on top. Halving r gives 1 / (1/2)² = 4 underneath. Both land on the same force.'
+          base: { m1: 2, m2: 2, r: 4 },
+          change: { label: 'Distance is cut in half', kr: 0.5 },
+          effect: 'a',
+          why: 'Halving the distance makes the force four times greater because distance is squared in the denominator.'
         },
         {
           base: { m1: 2, m2: 1, r: 3 },
-          a: { label: 'Double m₁', km1: 2 },
-          b: { label: 'Double the distance', kr: 2 },
-          why: 'Mass sits on top of the fraction, so the force doubles. Distance is squared underneath, so the force drops to one quarter.'
+          change: { label: 'Distance doubles', kr: 2 },
+          effect: 'b',
+          why: 'Doubling the distance reduces the force to one quarter because the distance is squared.'
         },
         {
           base: { m1: 4, m2: 2, r: 2 },
-          a: { label: 'Halve m₁', km1: 0.5 },
-          b: { label: 'Double the distance', kr: 2 },
-          why: 'Both changes weaken gravity. The halved mass cuts the force to 1/2, while the squared distance cuts it to 1/4.'
+          change: { label: 'Mass m₁ is cut in half', km1: 0.5 },
+          effect: 'b',
+          why: 'Halving one mass cuts the gravitational force in half.'
         },
         {
           base: { m1: 1, m2: 3, r: 4 },
-          a: { label: 'Triple m₁', km1: 3 },
-          b: { label: 'Halve the distance', kr: 0.5 },
-          why: 'Tripling a mass gives 3 times the force. Halving r still gives 4 times, so the squared distance keeps the edge.'
+          change: { label: 'Mass m₁ triples', km1: 3 },
+          effect: 'a',
+          why: 'Tripling one mass makes the gravitational force three times greater.'
         }
       ];
 
       let roundIndex = 0;
       let score = 0;
       let state = 'predict';
+      let sceneUnits = 'round';
+      let showDiagramFeedback = false;
       let scene = { m1: 2, m2: 2, r: 4 };
       let animationFrame = 0;
       let timeline = [];
@@ -597,7 +584,7 @@
       function multiplier(cfg) { return force(cfg) / force(currentRound().base); }
       function maxMultiplier() {
         const round = currentRound();
-        return Math.max(1, multiplier(changed(round.base, round.a)), multiplier(changed(round.base, round.b)));
+        return Math.max(1, multiplier(changed(round.base, round.change)));
       }
 
       const SUPERSCRIPTS = ['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹'];
@@ -611,27 +598,48 @@
       function timesText(value) {
         return '×' + (value < 1 ? value.toFixed(2) : value.toFixed(1));
       }
-      function radiusOf(mass) { return 15 * Math.cbrt(mass); }
+      function radiusOf(mass) { return 32 * Math.cbrt(mass); }
+
+      function diagramMass(label, mass) {
+        const exponent = sceneUnits === 'warmup' ? '\u2076' : '\u00b2\u2074';
+        return label + ' = ' + mass.toFixed(1) + ' \u00d7 10' + exponent + ' kg';
+      }
+
+      function diagramDistance(distance) {
+        return sceneUnits === 'warmup'
+          ? 'r = ' + distance.toFixed(1) + ' m'
+          : 'r = ' + distance.toFixed(1) + ' \u00d7 10\u2078 m';
+      }
+
+      function diagramForce(cfg) {
+        if (sceneUnits === 'warmup') {
+          const m1 = cfg.m1 * 1e6;
+          const m2 = cfg.m2 * 1e6;
+          return (6.674e-11 * m1 * m2 / (cfg.r * cfg.r)).toFixed(2) + ' N';
+        }
+        return formatForce(force(cfg));
+      }
 
       function arrowLength(cfg) {
-        const raw = 220 * multiplier(cfg) / maxMultiplier();
-        return Math.max(14, Math.min(250, raw));
+        if (sceneUnits === 'warmup') return 300;
+        const raw = 290 * multiplier(cfg) / maxMultiplier();
+        return Math.max(90, Math.min(330, raw));
       }
 
       function drawArrow(x1, y1, x2, y2) {
         const angle = Math.atan2(y2 - y1, x2 - x1);
         ctx.strokeStyle = '#fbbf24';
         ctx.fillStyle = '#fbbf24';
-        ctx.lineWidth = 8;
+        ctx.lineWidth = 11;
         ctx.lineCap = 'round';
         ctx.beginPath();
         ctx.moveTo(x1, y1);
-        ctx.lineTo(x2 - 14 * Math.cos(angle), y2 - 14 * Math.sin(angle));
+        ctx.lineTo(x2 - 18 * Math.cos(angle), y2 - 18 * Math.sin(angle));
         ctx.stroke();
         ctx.beginPath();
         ctx.moveTo(x2, y2);
-        ctx.lineTo(x2 - 22 * Math.cos(angle - 0.45), y2 - 22 * Math.sin(angle - 0.45));
-        ctx.lineTo(x2 - 22 * Math.cos(angle + 0.45), y2 - 22 * Math.sin(angle + 0.45));
+        ctx.lineTo(x2 - 29 * Math.cos(angle - 0.45), y2 - 29 * Math.sin(angle - 0.45));
+        ctx.lineTo(x2 - 29 * Math.cos(angle + 0.45), y2 - 29 * Math.sin(angle + 0.45));
         ctx.closePath();
         ctx.fill();
       }
@@ -646,13 +654,15 @@
         ctx.arc(x, PLANET_Y, radius, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = 'rgb(255 255 255 / 45%)';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 3;
         ctx.stroke();
 
-        ctx.fillStyle = '#e8eefc';
-        ctx.font = '900 19px system-ui';
-        ctx.textAlign = 'center';
-        ctx.fillText(label + ' = ' + mass.toFixed(1), x, PLANET_Y - radius - 16 - (labelLift || 0));
+        if (showDiagramFeedback) {
+          ctx.fillStyle = '#e8eefc';
+          ctx.font = '900 23px system-ui';
+          ctx.textAlign = 'center';
+          ctx.fillText(diagramMass(label, mass), x, PLANET_Y - radius - 18 - (labelLift || 0));
+        }
       }
 
       function draw() {
@@ -677,7 +687,7 @@
         ctx.save();
         ctx.setLineDash([6, 8]);
         ctx.strokeStyle = 'rgb(226 232 240 / 35%)';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 3;
         for (const x of [leftX, rightX]) {
           ctx.beginPath();
           ctx.moveTo(x, PLANET_Y);
@@ -687,50 +697,43 @@
         ctx.restore();
 
         ctx.strokeStyle = '#94a3b8';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 5;
         ctx.beginPath();
         ctx.moveTo(leftX, RULER_Y);
         ctx.lineTo(rightX, RULER_Y);
         ctx.stroke();
         for (const x of [leftX, rightX]) {
           ctx.beginPath();
-          ctx.moveTo(x, RULER_Y - 11);
-          ctx.lineTo(x, RULER_Y + 11);
+          ctx.moveTo(x, RULER_Y - 15);
+          ctx.lineTo(x, RULER_Y + 15);
           ctx.stroke();
         }
 
         ctx.fillStyle = '#cbd5e1';
-        ctx.font = '900 18px system-ui';
+        ctx.font = '900 24px system-ui';
         ctx.textAlign = 'center';
-        ctx.fillText('r = ' + cfg.r.toFixed(1), CENTER_X, RULER_Y + 30);
+        ctx.fillText(diagramDistance(cfg.r), CENTER_X, RULER_Y + 38);
 
-        const tight = rightX - leftX < 210;
-        drawPlanet(leftX, cfg.m1, '#93c5fd', '#1d4ed8', 'm₁', tight ? 28 : 0);
+        const tight = rightX - leftX < 250;
+        drawPlanet(leftX, cfg.m1, '#93c5fd', '#1d4ed8', 'm₁', tight ? 34 : 0);
         drawPlanet(rightX, cfg.m2, '#fdba74', '#c2410c', 'm₂', 0);
 
-        const length = arrowLength(cfg);
-        drawArrow(leftX, FORCE_A_Y, leftX + length, FORCE_A_Y);
-        drawArrow(rightX, FORCE_B_Y, rightX - length, FORCE_B_Y);
+        if (showDiagramFeedback) {
+          const length = arrowLength(cfg);
+          drawArrow(leftX, FORCE_A_Y, leftX + length, FORCE_A_Y);
+          drawArrow(rightX, FORCE_B_Y, rightX - length, FORCE_B_Y);
 
-        ctx.fillStyle = '#fde68a';
-        ctx.font = '900 17px system-ui';
-        ctx.textAlign = 'left';
-        ctx.fillText('Pull on m₁', leftX, FORCE_A_Y - 20);
-        ctx.textAlign = 'right';
-        ctx.fillText('Pull on m₂', rightX, FORCE_B_Y - 22);
-      }
-
-      function updateReadouts() {
-        const cfg = scene;
-        massesLabel.textContent = cfg.m1.toFixed(1) + ' and ' + cfg.m2.toFixed(1);
-        separationLabel.textContent = cfg.r.toFixed(1);
-        forceLabel.textContent = formatForce(force(cfg));
-        multipleLabel.textContent = timesText(multiplier(cfg)) + ' of the start';
+          ctx.fillStyle = '#fde68a';
+          ctx.font = '900 21px system-ui';
+          ctx.textAlign = 'left';
+          ctx.fillText('Force on m₁ = ' + diagramForce(cfg), leftX, FORCE_A_Y - 25);
+          ctx.textAlign = 'right';
+          ctx.fillText('Force on m₂ = ' + diagramForce(cfg), rightX, FORCE_B_Y - 27);
+        }
       }
 
       function setScene(cfg) {
         scene = { m1: cfg.m1, m2: cfg.m2, r: cfg.r };
-        updateReadouts();
         draw();
       }
 
@@ -749,22 +752,80 @@
         rInput.disabled = !enabled;
       }
 
-      function loadRound() {
-        const round = currentRound();
-        state = 'predict';
-        roundLabel.textContent = 'Round ' + (roundIndex + 1) + ' of ' + rounds.length;
-        scoreLabel.textContent = 'Score ' + score;
-        phase.textContent = 'Predict';
-        question.textContent = 'Which change makes the gravitational force greater?';
-        helper.textContent = 'Both masses pull on each other with the force shown above.';
+      function configureExplore(change) {
+        const controls = [
+          { element: m1Control, input: m1Input, active: Boolean(change.km1), label: 'mass m₁' },
+          { element: m2Control, input: m2Input, active: Boolean(change.km2), label: 'mass m₂' },
+          { element: rControl, input: rInput, active: Boolean(change.kr), label: 'distance r' }
+        ];
+        const selected = controls.find(control => control.active) || controls[0];
+        for (const control of controls) {
+          control.element.hidden = control !== selected;
+          control.input.disabled = control !== selected;
+        }
+        settings.dataset.single = 'true';
+        return selected.label;
+      }
 
-        choiceButtons[0].textContent = round.a.label;
-        choiceButtons[1].textContent = round.b.label;
-        choiceButtons[2].textContent = 'Both give the same force';
-        for (const button of choiceButtons) {
+      function showAllExploreControls() {
+        m1Control.hidden = false;
+        m2Control.hidden = false;
+        rControl.hidden = false;
+        settings.removeAttribute('data-single');
+        setSlidersEnabled(true);
+      }
+
+      function loadWarmup() {
+        state = 'warmup';
+        sceneUnits = 'warmup';
+        showDiagramFeedback = false;
+        roundLabel.textContent = 'Warm-up before Round 1';
+        scoreLabel.textContent = 'Score ' + score;
+        phase.textContent = 'Calculate';
+        question.textContent = 'What is the gravitational force between these two masses, in newtons?';
+        helper.textContent = 'Use G = 6.674 \u00d7 10\u207b\u00b9\u00b9 N\u00b7m\u00b2/kg\u00b2, m\u2081 = m\u2082 = 2.0 \u00d7 10\u2076 kg, and r = 2.0 m.';
+        calculation.hidden = true;
+        calculation.innerHTML = '';
+
+        const warmupChoices = ['66.74 N', '6.674 N', '667.4 N'];
+        choiceButtons.forEach((button, index) => {
+          button.textContent = warmupChoices[index];
           button.disabled = false;
           delete button.dataset.state;
+        });
+        promptPanel.hidden = false;
+        choicesWrap.hidden = false;
+        compare.hidden = true;
+        lab.hidden = true;
+        setSlidersEnabled(false);
+        mainButton.hidden = true;
+        mainButton.disabled = false;
+        setScene({ m1: 2, m2: 2, r: 2 });
+        syncSliders();
+      }
+
+      function loadRound() {
+        const round = currentRound();
+        cancelAnimationFrame(animationFrame);
+        state = 'preview';
+        sceneUnits = 'round';
+        showDiagramFeedback = false;
+        roundLabel.textContent = 'Round ' + (roundIndex + 1) + ' of ' + rounds.length;
+        scoreLabel.textContent = 'Score ' + score;
+        phase.textContent = 'Observe';
+        question.textContent = 'Starting setup';
+        helper.textContent = 'Watch the diagram change before answering the question.';
+        calculation.hidden = true;
+        calculation.innerHTML = '';
+
+        choiceButtons[0].textContent = 'The force increases';
+        choiceButtons[1].textContent = 'The force decreases';
+        choiceButtons[2].textContent = 'The force stays the same';
+        for (const button of choiceButtons) {
+          button.disabled = true;
+          delete button.dataset.state;
         }
+        promptPanel.hidden = true;
         choicesWrap.hidden = false;
 
         compare.hidden = true;
@@ -776,8 +837,6 @@
         rows.b.pill.hidden = true;
         rows.a.bar.style.width = '0';
         rows.b.bar.style.width = '0';
-        rows.a.label.textContent = 'Change A — ' + round.a.label;
-        rows.b.label.textContent = 'Change B — ' + round.b.label;
 
         lab.hidden = true;
         setSlidersEnabled(false);
@@ -786,6 +845,75 @@
 
         setScene(round.base);
         syncSliders();
+        startPreviewAnimation();
+      }
+
+      function startPreviewAnimation() {
+        const round = currentRound();
+        const changedScene = changed(round.base, round.change);
+        timeline = [
+          { from: round.base, to: round.base, duration: 900, caption: 'Starting setup' },
+          { from: round.base, to: changedScene, duration: 1200, caption: round.change.label },
+          { from: changedScene, to: changedScene, duration: 900, caption: 'Changed setup' },
+          { from: changedScene, to: round.base, duration: 700, caption: 'Resetting the animation' }
+        ];
+        if (reduceMotion) {
+          state = 'predict';
+          setScene(changedScene);
+          phase.textContent = 'Predict';
+          question.textContent = 'After this change, what happens to the gravitational force?';
+          helper.textContent = round.change.label + '. Compare the changed diagram with the starting values.';
+          promptPanel.hidden = false;
+          for (const button of choiceButtons) button.disabled = false;
+          return;
+        }
+        segmentIndex = 0;
+        beginPreviewSegment();
+      }
+
+      function beginPreviewSegment() {
+        if (state !== 'preview' && state !== 'predict') return;
+        const segment = timeline[segmentIndex];
+        segmentStart = 0;
+        if (state === 'preview') {
+          question.textContent = segment.caption;
+          helper.textContent = segmentIndex === 0
+            ? 'This is the original mass and distance setup.'
+            : 'Watch the planets, labels, distance line, and force arrows change.';
+        }
+        animationFrame = requestAnimationFrame(previewStep);
+      }
+
+      function previewStep(time) {
+        if (!segmentStart) segmentStart = time;
+        const segment = timeline[segmentIndex];
+        const progress = Math.min(1, (time - segmentStart) / segment.duration);
+        const eased = progress < 0.5 ? 4 * progress ** 3 : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+        setScene({
+          m1: segment.from.m1 + (segment.to.m1 - segment.from.m1) * eased,
+          m2: segment.from.m2 + (segment.to.m2 - segment.from.m2) * eased,
+          r: segment.from.r + (segment.to.r - segment.from.r) * eased
+        });
+
+        if (progress < 1) {
+          animationFrame = requestAnimationFrame(previewStep);
+          return;
+        }
+
+        segmentIndex += 1;
+        if (segmentIndex >= timeline.length) {
+          if (state === 'preview') {
+            state = 'predict';
+            phase.textContent = 'Predict';
+            question.textContent = 'After this change, what happens to the gravitational force?';
+            helper.textContent = currentRound().change.label + '. The animation will keep looping while you decide.';
+            promptPanel.hidden = false;
+            for (const button of choiceButtons) button.disabled = false;
+          }
+          segmentIndex = 0;
+        }
+        beginPreviewSegment();
       }
 
       function fillRow(key, change) {
@@ -910,15 +1038,62 @@
       }
 
       function choose(value) {
+        if (state === 'warmup') {
+          const correctValue = 'a';
+          state = 'warmup-explain';
+          for (const button of choiceButtons) {
+            button.disabled = true;
+            if (button.dataset.choice === correctValue) button.dataset.state = 'correct';
+            else if (button.dataset.choice === value) button.dataset.state = 'wrong';
+          }
+          phase.textContent = value === correctValue ? 'Correct' : 'Calculation';
+          question.textContent = 'The gravitational force is 66.74 N.';
+          helper.textContent = 'Substitute the values into Newton\'s law of universal gravitation:';
+          calculation.innerHTML =
+            '<strong>F = Gm\u2081m\u2082 / r\u00b2</strong><br>' +
+            '= (6.674 \u00d7 10\u207b\u00b9\u00b9)(2.0 \u00d7 10\u2076)(2.0 \u00d7 10\u2076) / (2.0)\u00b2<br>' +
+            '= 266.96 / 4.0<br>' +
+            '= <strong>66.74 N</strong>';
+          calculation.hidden = false;
+          showDiagramFeedback = true;
+          draw();
+          mainButton.textContent = 'Start Round 1';
+          mainButton.hidden = false;
+          return;
+        }
         if (state !== 'predict') return;
-        state = 'reveal';
+        cancelAnimationFrame(animationFrame);
+        state = 'explain';
+        const round = currentRound();
+        const answer = round.effect;
+        const changedScene = changed(round.base, round.change);
+        const wasCorrect = value === answer;
+        if (wasCorrect) score += 1;
+        scoreLabel.textContent = 'Score ' + score;
+
         for (const button of choiceButtons) {
           button.disabled = true;
-          if (button.dataset.choice === value) button.dataset.state = 'picked';
+          if (button.dataset.choice === answer) button.dataset.state = 'correct';
+          else if (button.dataset.choice === value) button.dataset.state = 'wrong';
         }
-        phase.textContent = 'Reveal';
-        helper.textContent = 'Watch each change on its own, then compare the two forces.';
-        startTimeline();
+
+        phase.textContent = wasCorrect ? 'Correct' : 'Not quite';
+        question.textContent = answer === 'a'
+          ? 'The gravitational force increases to ' + timesText(multiplier(changedScene)) + ' the starting force.'
+          : answer === 'b'
+            ? 'The gravitational force decreases to ' + timesText(multiplier(changedScene)) + ' the starting force.'
+            : 'The gravitational force stays the same.';
+        helper.textContent = round.why;
+
+        compare.hidden = true;
+        lab.hidden = false;
+        const exploreLabel = configureExplore(round.change);
+        labNote.textContent = 'Explore: adjust only ' + exploreLabel + ' and watch the diagram update live.';
+        showDiagramFeedback = true;
+        setScene(changedScene);
+        syncSliders();
+        mainButton.hidden = false;
+        mainButton.textContent = roundIndex === rounds.length - 1 ? 'See final score' : 'Next round';
       }
 
       function nextRound() {
@@ -938,10 +1113,11 @@
             ? 'Solid work. Keep watching how r² changes the force faster than mass does.'
             : 'Replay and compare the top and bottom of F = G m₁m₂ / r² before each answer.';
         choicesWrap.hidden = true;
+        promptPanel.hidden = true;
         compare.hidden = true;
         lab.hidden = false;
         labNote.textContent = 'Free lab: change both masses and the separation to explore the relationship.';
-        setSlidersEnabled(true);
+        showAllExploreControls();
         mainButton.textContent = 'Play again';
       }
 
@@ -951,16 +1127,16 @@
         score = 0;
         rows.a.pill.textContent = 'Greater';
         rows.b.pill.textContent = 'Greater';
-        loadRound();
+        loadWarmup();
       }
 
-      function readSliders() {
-        if (m1Input.disabled) return;
+      function readSliders(event) {
+        if (event && event.target.disabled) return;
         setScene({ m1: Number(m1Input.value), m2: Number(m2Input.value), r: Number(rInput.value) });
         m1Output.textContent = scene.m1.toFixed(1);
         m2Output.textContent = scene.m2.toFixed(1);
         rOutput.textContent = scene.r.toFixed(1);
-        if (state === 'explain') phase.textContent = 'Lab';
+        if (state === 'explain') phase.textContent = 'Explore';
       }
 
       for (const button of choiceButtons) {
@@ -970,7 +1146,8 @@
       m2Input.addEventListener('input', readSliders);
       rInput.addEventListener('input', readSliders);
       mainButton.addEventListener('click', () => {
-        if (state === 'explain') nextRound();
+        if (state === 'warmup-explain') loadRound();
+        else if (state === 'explain') nextRound();
         else if (state === 'complete') restart();
       });
       root.querySelector('[data-reset]').addEventListener('click', restart);
