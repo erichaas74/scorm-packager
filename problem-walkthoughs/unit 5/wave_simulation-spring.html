@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transverse and Longitudinal Wave Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9; /* slate-100 */
+            color: #0f172a; /* slate-900 */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        #canvas-container {
+            width: 100%;
+            max-width: 900px;
+            aspect-ratio: 16 / 9;
+            background-color: #ffffff;
+            border: 2px solid #cbd5e1;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            overflow: hidden;
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .controls-panel {
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            width: 100%;
+            max-width: 900px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 1rem;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            color: #475569; /* slate-600 */
+        }
+        
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #3b82f6; /* blue-500 */
+            cursor: pointer;
+            margin-top: -6px;
+        }
+        
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #334155; /* slate-700 */
+            border-radius: 2px;
+        }
+
+        .toggle-btn {
+            background-color: #334155;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            flex: 1;
+            text-align: center;
+        }
+
+        .toggle-btn.active {
+            background-color: #3b82f6; /* blue-500 */
+            font-weight: bold;
+        }
+
+        .toggle-btn:hover:not(.active) {
+            background-color: #475569;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container">
+        <canvas id="waveCanvas"></canvas>
+    </div>
+
+    <div class="controls-panel grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+            <h3 class="text-lg font-semibold mb-4 text-slate-800">Wave Type</h3>
+            <div class="flex space-x-2 mb-6">
+                <button id="btn-transverse" class="toggle-btn active">Transverse</button>
+                <button id="btn-longitudinal" class="toggle-btn">Longitudinal</button>
+            </div>
+            
+            <div class="bg-slate-100 p-4 rounded-md">
+                <h4 id="desc-title" class="font-semibold text-blue-600 mb-1">Transverse Wave</h4>
+                <p id="desc-text" class="text-sm text-slate-600">Particles oscillate perpendicular to the direction of wave propagation.</p>
+            </div>
+        </div>
+
+        <div>
+            <h3 class="text-lg font-semibold mb-4 text-slate-800">Properties</h3>
+            
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>Amplitude</span>
+                    <span id="val-amplitude">20</span>
+                </div>
+                <input type="range" id="slider-amplitude" min="10" max="100" value="20">
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>Frequency</span>
+                    <span id="val-frequency">1.5</span>
+                </div>
+                <input type="range" id="slider-frequency" min="0.5" max="5" step="0.1" value="1.5">
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>Wavelength</span>
+                    <span id="val-wavelength">200</span>
+                </div>
+                <input type="range" id="slider-wavelength" min="50" max="300" value="200">
+            </div>
+            
+            <div class="flex items-center mt-4">
+                <input type="checkbox" id="check-highlight" checked class="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 bg-white">
+                <label for="check-highlight" class="text-sm text-slate-600 cursor-pointer">Highlight specific particles</label>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('waveCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+
+        // State variables
+        let waveType = 'transverse'; // 'transverse' or 'longitudinal'
+        let amplitude = 20;
+        let frequency = 1.5;
+        let wavelength = 200;
+        let highlightParticles = true;
+        
+        let time = 0;
+        const particles = [];
+        const numRows = 7;
+        const particlesPerRow = 60;
+        
+        // Coils state
+        const coils = [];
+        const numCoils = 70; // Reduced from 150 to add more space between coils
+        const coilRadiusY = 35; // Slightly larger for better visibility
+        const coilRadiusX = 14; // Increased perspective width to match wider spacing
+
+        // Colors
+        const colorBg = '#ffffff';
+        const colorParticle = '#475569'; // slate-600
+        const colorHighlight = '#ef4444'; // red-500
+        const colorWaveDir = '#ca8a04'; // yellow-600
+
+        function resizeCanvas() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            initParticles();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        function initParticles() {
+            // We are repurposing this to initialize coils instead of a grid of particles
+            coils.length = 0; 
+            
+            const startX = 50;
+            const endX = canvas.width - 50;
+            const spacingX = (endX - startX) / (numCoils - 1);
+            
+            // Base Y is the vertical center for the slinky
+            const baseY = canvas.height / 2;
+
+            for (let i = 0; i < numCoils; i++) {
+                const baseX = startX + i * spacingX;
+                
+                // Highlight a few specific coils to track motion
+                const isHighlight = (i === Math.floor(numCoils * 0.25) || 
+                                     i === Math.floor(numCoils * 0.5) || 
+                                     i === Math.floor(numCoils * 0.75));
+
+                coils.push({
+                    baseX: baseX,
+                    baseY: baseY,
+                    x: baseX,
+                    y: baseY,
+                    isHighlight: isHighlight
+                });
+            }
+        }
+
+        function drawSlinky(ctx) {
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+
+            // 1. Draw all BACK halves of the loops (Connecting bottom of current to top of next)
+            ctx.beginPath();
+            ctx.strokeStyle = '#334155'; // darker slate to simulate depth
+            ctx.lineWidth = 1.5;
+            for (let i = 0; i < coils.length; i++) {
+                const c = coils[i];
+                const nextC = i < coils.length - 1 ? coils[i+1] : c;
+                
+                ctx.moveTo(c.x, c.y + coilRadiusY);
+                // Back of the loop (curves to the left, connecting to next coil)
+                ctx.bezierCurveTo(
+                    c.x - coilRadiusX * 1.2, c.y + coilRadiusY,
+                    nextC.x - coilRadiusX * 1.2, nextC.y - coilRadiusY,
+                    nextC.x, nextC.y - coilRadiusY
+                );
+            }
+            ctx.stroke();
+
+            // 2. Draw all FRONT halves of the loops (Top of current to bottom of current)
+            ctx.beginPath();
+            ctx.strokeStyle = '#64748b'; // lighter slate for the front
+            ctx.lineWidth = 2.5;
+            for (let i = 0; i < coils.length; i++) {
+                const c = coils[i];
+                ctx.moveTo(c.x, c.y - coilRadiusY);
+                // Front of the loop (curves to the right)
+                ctx.bezierCurveTo(
+                    c.x + coilRadiusX * 1.2, c.y - coilRadiusY,
+                    c.x + coilRadiusX * 1.2, c.y + coilRadiusY,
+                    c.x, c.y + coilRadiusY
+                );
+            }
+            ctx.stroke();
+            
+            // 3. Draw Highlights
+            if (highlightParticles) {
+                for (let i = 0; i < coils.length; i++) {
+                    if (coils[i].isHighlight) {
+                        const c = coils[i];
+                        const nextC = i < coils.length - 1 ? coils[i+1] : c;
+                        
+                        // Draw Equilibrium anchor line to prove they stay in relative location
+                        ctx.beginPath();
+                        ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)'; // faint red
+                        ctx.setLineDash([4, 4]);
+                        ctx.moveTo(c.baseX, c.baseY - coilRadiusY * 2.5);
+                        ctx.lineTo(c.baseX, c.baseY + coilRadiusY * 2.5);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+
+                        // Back half highlight
+                        ctx.beginPath();
+                        ctx.strokeStyle = '#991b1b'; // dark red
+                        ctx.lineWidth = 2.5;
+                        ctx.moveTo(c.x, c.y + coilRadiusY);
+                        ctx.bezierCurveTo(
+                            c.x - coilRadiusX * 1.2, c.y + coilRadiusY,
+                            nextC.x - coilRadiusX * 1.2, nextC.y - coilRadiusY,
+                            nextC.x, nextC.y - coilRadiusY
+                        );
+                        ctx.stroke();
+
+                        // Front half highlight
+                        ctx.beginPath();
+                        ctx.strokeStyle = colorHighlight; // bright red
+                        ctx.lineWidth = 3.5;
+                        ctx.moveTo(c.x, c.y - coilRadiusY);
+                        ctx.bezierCurveTo(
+                            c.x + coilRadiusX * 1.2, c.y - coilRadiusY,
+                            c.x + coilRadiusX * 1.2, c.y + coilRadiusY,
+                            c.x, c.y + coilRadiusY
+                        );
+                        ctx.stroke();
+                        
+                        // Center dot marker on the spring itself
+                        ctx.beginPath();
+                        ctx.arc(c.x, c.y, 4, 0, Math.PI * 2);
+                        ctx.fillStyle = '#fca5a5';
+                        ctx.fill();
+                    }
+                }
+            }
+        }
+
+        function animate() {
+            ctx.fillStyle = colorBg;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Update time
+            // Speed of wave = frequency * wavelength
+            time += (frequency * 0.05);
+
+            // Calculate k (wave number)
+            const k = (2 * Math.PI) / wavelength;
+
+            // Update coil positions
+            for (let i = 0; i < coils.length; i++) {
+                const c = coils[i];
+                
+                // The phase of the wave at this coil's base position
+                const phase = k * c.baseX - time;
+                
+                // Taper the ends so the slinky appears firmly held at the edges (nodes)
+                let env = 1.0;
+                const taperLength = 8;
+                if (i < taperLength) env = i / taperLength;
+                else if (i > coils.length - 1 - taperLength) env = (coils.length - 1 - i) / taperLength;
+
+                if (waveType === 'transverse') {
+                    // Transverse: displacement is perpendicular to propagation (y-axis)
+                    c.x = c.baseX;
+                    c.y = c.baseY + (amplitude * env) * Math.sin(phase);
+                } else {
+                    // Longitudinal: displacement is parallel to propagation (x-axis)
+                    c.x = c.baseX + (amplitude * 0.8 * env) * Math.sin(phase);
+                    c.y = c.baseY; // Fixed Y for longitudinal
+                }
+            }
+
+            drawSlinky(ctx);
+            drawOverlays();
+
+            requestAnimationFrame(animate);
+        }
+
+        function drawOverlays() {
+            ctx.save();
+            
+            // Draw Wave Direction Arrow
+            const arrowStartX = canvas.width / 2 - 50;
+            const arrowEndX = canvas.width / 2 + 50;
+            const arrowY = canvas.height - 30;
+            
+            ctx.beginPath();
+            ctx.moveTo(arrowStartX, arrowY);
+            ctx.lineTo(arrowEndX, arrowY);
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Arrow head
+            ctx.beginPath();
+            ctx.moveTo(arrowEndX, arrowY);
+            ctx.lineTo(arrowEndX - 10, arrowY - 5);
+            ctx.lineTo(arrowEndX - 10, arrowY + 5);
+            ctx.fillStyle = '#94a3b8';
+            ctx.fill();
+            
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '14px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Wave Propagation', canvas.width / 2, arrowY - 10);
+
+            // Draw Particle Motion Indicator
+            const indicatorX = 50;
+            const indicatorY = 50;
+            
+            ctx.fillStyle = colorWaveDir;
+            ctx.font = 'bold 16px Inter, sans-serif';
+            ctx.textAlign = 'left';
+            
+            ctx.beginPath();
+            ctx.strokeStyle = colorWaveDir;
+            ctx.lineWidth = 3;
+            
+            if (waveType === 'transverse') {
+                ctx.fillText('Particle Motion', indicatorX + 20, indicatorY + 5);
+                // Vertical double arrow
+                ctx.moveTo(indicatorX, indicatorY - 15);
+                ctx.lineTo(indicatorX, indicatorY + 15);
+                ctx.stroke();
+                
+                // Top head
+                ctx.beginPath();
+                ctx.moveTo(indicatorX, indicatorY - 15);
+                ctx.lineTo(indicatorX - 6, indicatorY - 9);
+                ctx.lineTo(indicatorX + 6, indicatorY - 9);
+                ctx.fillStyle = colorWaveDir;
+                ctx.fill();
+                
+                // Bottom head
+                ctx.beginPath();
+                ctx.moveTo(indicatorX, indicatorY + 15);
+                ctx.lineTo(indicatorX - 6, indicatorY + 9);
+                ctx.lineTo(indicatorX + 6, indicatorY + 9);
+                ctx.fill();
+
+            } else {
+                ctx.fillText('Particle Motion', indicatorX + 30, indicatorY + 5);
+                // Horizontal double arrow
+                ctx.moveTo(indicatorX - 15, indicatorY);
+                ctx.lineTo(indicatorX + 15, indicatorY);
+                ctx.stroke();
+                
+                // Left head
+                ctx.beginPath();
+                ctx.moveTo(indicatorX - 15, indicatorY);
+                ctx.lineTo(indicatorX - 9, indicatorY - 6);
+                ctx.lineTo(indicatorX - 9, indicatorY + 6);
+                ctx.fillStyle = colorWaveDir;
+                ctx.fill();
+                
+                // Right head
+                ctx.beginPath();
+                ctx.moveTo(indicatorX + 15, indicatorY);
+                ctx.lineTo(indicatorX + 9, indicatorY - 6);
+                ctx.lineTo(indicatorX + 9, indicatorY + 6);
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        function setupControls() {
+            const btnTransverse = document.getElementById('btn-transverse');
+            const btnLongitudinal = document.getElementById('btn-longitudinal');
+            const descTitle = document.getElementById('desc-title');
+            const descText = document.getElementById('desc-text');
+
+            btnTransverse.addEventListener('click', () => {
+                waveType = 'transverse';
+                btnTransverse.classList.add('active');
+                btnLongitudinal.classList.remove('active');
+                descTitle.textContent = 'Transverse Wave';
+                descText.textContent = 'Particles oscillate perpendicular to the direction of wave propagation.';
+            });
+
+            btnLongitudinal.addEventListener('click', () => {
+                waveType = 'longitudinal';
+                btnLongitudinal.classList.add('active');
+                btnTransverse.classList.remove('active');
+                descTitle.textContent = 'Longitudinal Wave';
+                descText.textContent = 'Particles oscillate parallel to the direction of wave propagation, creating compressions and rarefactions.';
+            });
+
+            // Sliders
+            const setupSlider = (id, stateVar, displayId) => {
+                const slider = document.getElementById(id);
+                const display = document.getElementById(displayId);
+                slider.addEventListener('input', (e) => {
+                    const val = parseFloat(e.target.value);
+                    display.textContent = val;
+                    // Update the global state variable
+                    if (stateVar === 'amplitude') amplitude = val;
+                    if (stateVar === 'frequency') frequency = val;
+                    if (stateVar === 'wavelength') wavelength = val;
+                });
+            };
+
+            setupSlider('slider-amplitude', 'amplitude', 'val-amplitude');
+            setupSlider('slider-frequency', 'frequency', 'val-frequency');
+            setupSlider('slider-wavelength', 'wavelength', 'val-wavelength');
+
+            // Highlight checkbox
+            document.getElementById('check-highlight').addEventListener('change', (e) => {
+                highlightParticles = e.target.checked;
+            });
+        }
+
+        // Initialize
+        resizeCanvas();
+        setupControls();
+        animate();
+
+    </script>
+</body>
+</html>

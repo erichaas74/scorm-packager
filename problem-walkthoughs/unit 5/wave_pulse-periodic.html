@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transverse and Longitudinal Wave Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9; /* slate-100 */
+            color: #0f172a; /* slate-900 */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        #canvas-container {
+            width: 100%;
+            max-width: 900px;
+            aspect-ratio: 16 / 9;
+            background-color: #ffffff;
+            border: 2px solid #cbd5e1;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            overflow: hidden;
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .controls-panel {
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            width: 100%;
+            max-width: 900px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 1rem;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            color: #475569; /* slate-600 */
+        }
+        
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #3b82f6; /* blue-500 */
+            cursor: pointer;
+            margin-top: -6px;
+        }
+        
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #334155; /* slate-700 */
+            border-radius: 2px;
+        }
+
+        .toggle-btn {
+            background-color: #334155;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            flex: 1;
+            text-align: center;
+        }
+
+        .toggle-btn.active {
+            background-color: #3b82f6; /* blue-500 */
+            font-weight: bold;
+        }
+
+        .toggle-btn:hover:not(.active) {
+            background-color: #475569;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container">
+        <canvas id="waveCanvas"></canvas>
+    </div>
+
+    <div class="controls-panel grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+            <h3 class="text-lg font-semibold mb-4 text-slate-800">Wave Mode</h3>
+            <div class="flex space-x-2 mb-6">
+                <button id="btn-periodic" class="toggle-btn active">Periodic Wave</button>
+                <button id="btn-pulse" class="toggle-btn">Single Pulse</button>
+            </div>
+            
+            <div class="bg-slate-100 p-4 rounded-md">
+                <h4 id="desc-title" class="font-semibold text-blue-600 mb-1">Periodic Wave</h4>
+                <p id="desc-text" class="text-sm text-slate-600">A continuous disturbance creates a repeating pattern (sine wave). Particles oscillate up and down continuously.</p>
+            </div>
+        </div>
+
+        <div>
+            <h3 class="text-lg font-semibold mb-4 text-slate-800">Properties</h3>
+            
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>Amplitude</span>
+                    <span id="val-amplitude">50</span>
+                </div>
+                <input type="range" id="slider-amplitude" min="10" max="100" value="50">
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>Frequency</span>
+                    <span id="val-frequency">2.0</span>
+                </div>
+                <input type="range" id="slider-frequency" min="0.5" max="5" step="0.1" value="2.0">
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>Wavelength</span>
+                    <span id="val-wavelength">150</span>
+                </div>
+                <input type="range" id="slider-wavelength" min="50" max="300" value="150">
+            </div>
+            
+            <div class="flex items-center mt-4">
+                <input type="checkbox" id="check-highlight" checked class="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 bg-white">
+                <label for="check-highlight" class="text-sm text-slate-600 cursor-pointer">Highlight specific particles</label>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('waveCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+
+        // State variables
+        let waveMode = 'periodic'; // 'periodic' or 'pulse'
+        let amplitude = 50;
+        let frequency = 2.0; // Controls overall speed/repetition
+        let wavelength = 150; // Controls width of waves/pulses
+        let highlightParticles = true;
+        
+        let time = 0;
+        
+        // Rope state
+        const segments = [];
+        const numSegments = 200; // More segments for a smooth continuous rope
+
+        // Colors
+        const colorBg = '#ffffff';
+        const colorHighlight = '#ef4444'; // red-500
+        const colorWaveDir = '#ca8a04'; // yellow-600
+        const colorRope = '#d97706'; // amber-600
+
+        function resizeCanvas() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            initRope();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        function initRope() {
+            segments.length = 0; 
+            
+            const startX = 50;
+            const endX = canvas.width - 50;
+            const spacingX = (endX - startX) / (numSegments - 1);
+            
+            const baseY = canvas.height / 2;
+
+            for (let i = 0; i < numSegments; i++) {
+                const baseX = startX + i * spacingX;
+                
+                // Highlight a few specific points on the rope (like beads)
+                const isHighlight = (i === Math.floor(numSegments * 0.25) || 
+                                     i === Math.floor(numSegments * 0.5) || 
+                                     i === Math.floor(numSegments * 0.75));
+
+                segments.push({
+                    baseX: baseX,
+                    baseY: baseY,
+                    x: baseX,
+                    y: baseY,
+                    isHighlight: isHighlight
+                });
+            }
+        }
+
+        function drawRope(ctx) {
+            // 1. Draw Equilibrium anchor line for highlighted points
+            if (highlightParticles) {
+                for (let i = 0; i < segments.length; i++) {
+                    if (segments[i].isHighlight) {
+                        const s = segments[i];
+                        ctx.beginPath();
+                        ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)'; // faint red
+                        ctx.setLineDash([4, 4]);
+                        ctx.moveTo(s.baseX, s.baseY - amplitude * 1.5);
+                        ctx.lineTo(s.baseX, s.baseY + amplitude * 1.5);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                    }
+                }
+            }
+
+            // 2. Draw the thick rope
+            ctx.beginPath();
+            ctx.strokeStyle = colorRope;
+            ctx.lineWidth = 10;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            
+            ctx.moveTo(segments[0].x, segments[0].y);
+            for (let i = 1; i < segments.length; i++) {
+                ctx.lineTo(segments[i].x, segments[i].y);
+            }
+            ctx.stroke();
+
+            // 3. Draw a subtle texture line inside the rope to give it depth
+            ctx.beginPath();
+            ctx.strokeStyle = '#b45309'; // darker amber
+            ctx.lineWidth = 2;
+            ctx.moveTo(segments[0].x, segments[0].y);
+            for (let i = 1; i < segments.length; i++) {
+                ctx.lineTo(segments[i].x, segments[i].y);
+            }
+            ctx.stroke();
+
+            // 4. Draw the highlighted "beads" attached to the rope
+            if (highlightParticles) {
+                for (let i = 0; i < segments.length; i++) {
+                    if (segments[i].isHighlight) {
+                        const s = segments[i];
+                        ctx.beginPath();
+                        ctx.arc(s.x, s.y, 8, 0, Math.PI * 2);
+                        ctx.fillStyle = colorHighlight;
+                        ctx.fill();
+                        ctx.strokeStyle = '#7f1d1d'; // dark red border
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        function animate() {
+            ctx.fillStyle = colorBg;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Update overall wave time
+            time += (frequency * 0.05);
+            const k = (2 * Math.PI) / wavelength;
+            
+            // Calculate properties for the single traveling pulse
+            const pulseSpeed = frequency * 50; 
+            const pulsePeriod = (canvas.width + 600) / pulseSpeed; 
+            const localTime = time % pulsePeriod;
+            const pulseX = -300 + localTime * pulseSpeed;
+            const pulseWidth = wavelength / 3; // Use wavelength slider to control pulse width
+
+            // Update rope segment positions
+            for (let i = 0; i < segments.length; i++) {
+                const s = segments[i];
+                
+                // Taper the ends slightly so the rope appears held down
+                let env = 1.0;
+                const taperLength = 15;
+                if (i < taperLength) env = i / taperLength;
+                else if (i > segments.length - 1 - taperLength) env = (segments.length - 1 - i) / taperLength;
+
+                // Rope wave is strictly transverse; x position never changes
+                s.x = s.baseX;
+
+                if (waveMode === 'periodic') {
+                    // Continuous sine wave
+                    const phase = k * s.baseX - time;
+                    s.y = s.baseY + (amplitude * env) * Math.sin(phase);
+                } else if (waveMode === 'pulse') {
+                    // Single traveling Gaussian pulse
+                    const distance = s.baseX - pulseX;
+                    const bump = Math.exp(-(distance * distance) / (2 * pulseWidth * pulseWidth));
+                    s.y = s.baseY - (amplitude * env * bump); 
+                }
+            }
+
+            drawRope(ctx);
+            drawOverlays();
+
+            requestAnimationFrame(animate);
+        }
+
+        function drawOverlays() {
+            ctx.save();
+            
+            // Draw Wave Propagation Arrow
+            const arrowStartX = canvas.width / 2 - 50;
+            const arrowEndX = canvas.width / 2 + 50;
+            const arrowY = canvas.height - 30;
+            
+            ctx.beginPath();
+            ctx.moveTo(arrowStartX, arrowY);
+            ctx.lineTo(arrowEndX, arrowY);
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Arrow head
+            ctx.beginPath();
+            ctx.moveTo(arrowEndX, arrowY);
+            ctx.lineTo(arrowEndX - 10, arrowY - 5);
+            ctx.lineTo(arrowEndX - 10, arrowY + 5);
+            ctx.fillStyle = '#94a3b8';
+            ctx.fill();
+            
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '14px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Wave Propagation', canvas.width / 2, arrowY - 10);
+
+            // Draw Particle Motion Indicator (Strictly Transverse vertical movement)
+            const indicatorX = 50;
+            const indicatorY = 50;
+            
+            ctx.fillStyle = colorWaveDir;
+            ctx.font = 'bold 16px Inter, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText('Particle Motion', indicatorX + 20, indicatorY + 5);
+            
+            ctx.beginPath();
+            ctx.strokeStyle = colorWaveDir;
+            ctx.lineWidth = 3;
+            
+            // Vertical double arrow
+            ctx.moveTo(indicatorX, indicatorY - 15);
+            ctx.lineTo(indicatorX, indicatorY + 15);
+            ctx.stroke();
+            
+            // Top head
+            ctx.beginPath();
+            ctx.moveTo(indicatorX, indicatorY - 15);
+            ctx.lineTo(indicatorX - 6, indicatorY - 9);
+            ctx.lineTo(indicatorX + 6, indicatorY - 9);
+            ctx.fillStyle = colorWaveDir;
+            ctx.fill();
+            
+            // Bottom head
+            ctx.beginPath();
+            ctx.moveTo(indicatorX, indicatorY + 15);
+            ctx.lineTo(indicatorX - 6, indicatorY + 9);
+            ctx.lineTo(indicatorX + 6, indicatorY + 9);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function setupControls() {
+            const btnPeriodic = document.getElementById('btn-periodic');
+            const btnPulse = document.getElementById('btn-pulse');
+            const descTitle = document.getElementById('desc-title');
+            const descText = document.getElementById('desc-text');
+
+            btnPeriodic.addEventListener('click', () => {
+                waveMode = 'periodic';
+                btnPeriodic.classList.add('active');
+                btnPulse.classList.remove('active');
+                descTitle.textContent = 'Periodic Wave';
+                descText.textContent = 'A continuous disturbance creates a repeating pattern (sine wave). Particles oscillate up and down continuously.';
+            });
+
+            btnPulse.addEventListener('click', () => {
+                waveMode = 'pulse';
+                btnPulse.classList.add('active');
+                btnPeriodic.classList.remove('active');
+                descTitle.textContent = 'Single Pulse';
+                descText.textContent = 'A single disturbance travels along the rope. Each particle moves up and down once as the energy passes.';
+            });
+
+            // Sliders
+            const setupSlider = (id, stateVar, displayId) => {
+                const slider = document.getElementById(id);
+                const display = document.getElementById(displayId);
+                slider.addEventListener('input', (e) => {
+                    const val = parseFloat(e.target.value);
+                    display.textContent = val;
+                    if (stateVar === 'amplitude') amplitude = val;
+                    if (stateVar === 'frequency') frequency = val;
+                    if (stateVar === 'wavelength') wavelength = val;
+                });
+            };
+
+            setupSlider('slider-amplitude', 'amplitude', 'val-amplitude');
+            setupSlider('slider-frequency', 'frequency', 'val-frequency');
+            setupSlider('slider-wavelength', 'wavelength', 'val-wavelength');
+
+            document.getElementById('check-highlight').addEventListener('change', (e) => {
+                highlightParticles = e.target.checked;
+            });
+        }
+
+        // Initialize
+        resizeCanvas();
+        setupControls();
+        animate();
+
+    </script>
+</body>
+</html>

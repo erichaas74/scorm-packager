@@ -3,215 +3,648 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>2D Wave & SHM Simulation</title>
+<title>Wave Vocabulary Animation</title>
 <style>
+  :root {
+    --ink: #172033;
+    --muted: #526176;
+    --blue: #1769e0;
+    --blue-soft: #e8f1ff;
+    --red: #e14b4b;
+    --line: #cbd7e8;
+    --paper: #ffffff;
+  }
+
+  * { box-sizing: border-box; }
+
   body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: #f8f9fa;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
     margin: 0;
+    min-height: 100vh;
     padding: 20px;
+    color: var(--ink);
+    background: #eef4fb;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    display: grid;
+    place-items: center;
   }
+
+  .lesson {
+    width: min(960px, 100%);
+  }
+
+  .visual {
+    overflow: hidden;
+    background: var(--paper);
+    border: 2px solid var(--line);
+    border-radius: 18px;
+    box-shadow: 0 16px 40px rgba(34, 64, 105, 0.12);
+  }
+
   canvas {
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    margin: 20px 0;
+    display: block;
+    width: 100%;
+    aspect-ratio: 15 / 8;
   }
-  .dashboard {
-    display: flex;
-    gap: 30px;
-    font-family: monospace;
-    font-size: 1.2rem;
-    background: #333;
-    color: #fff;
-    padding: 10px 20px;
-    border-radius: 6px;
+
+  .teaching-card {
+    min-height: 116px;
+    margin-top: 14px;
+    padding: 18px 22px;
+    border: 1px solid var(--line);
+    border-left: 7px solid var(--blue);
+    border-radius: 14px;
+    background: var(--paper);
+    box-shadow: 0 8px 24px rgba(34, 64, 105, 0.08);
   }
-  .controls {
+
+  .term-row {
     display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+  }
+
+  .term {
+    margin: 0;
+    color: var(--blue);
+    font-size: clamp(1.2rem, 3vw, 1.65rem);
+    line-height: 1.15;
+  }
+
+  .counter {
+    flex: 0 0 auto;
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .explanation {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: clamp(0.96rem, 2vw, 1.08rem);
+    line-height: 1.55;
+  }
+
+  .progress {
+    height: 5px;
+    margin-top: 12px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #dce6f3;
+  }
+
+  .progress-fill {
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--blue);
+  }
+
+  .reading-controls {
+    display: flex;
     justify-content: center;
-    max-width: 800px;
+    gap: 10px;
+    margin-top: 12px;
   }
-  button {
-    background: #007bff;
-    color: white;
-    border: none;
-    padding: 10px 15px;
-    border-radius: 4px;
+
+  .reading-controls button {
+    min-width: 150px;
+    padding: 11px 18px;
+    color: #ffffff;
+    background: var(--blue);
+    border: 2px solid var(--blue);
+    border-radius: 999px;
+    font: inherit;
+    font-weight: 700;
     cursor: pointer;
-    font-weight: bold;
-    transition: background 0.2s;
   }
-  button:hover { background: #0056b3; }
-  .info-panel {
-    margin-top: 15px;
-    font-size: 1.2rem;
-    font-weight: bold;
-    min-height: 30px;
-    text-align: center;
-    max-width: 800px;
+
+  .reading-controls button:last-child {
+    color: var(--blue);
+    background: #ffffff;
+  }
+
+  .reading-controls button:hover { filter: brightness(0.94); }
+
+  .reading-controls button:focus-visible {
+    outline: 3px solid #f59e0b;
+    outline-offset: 3px;
+  }
+
+  @media (max-width: 600px) {
+    body { padding: 10px; }
+    .teaching-card { min-height: 138px; padding: 15px 16px; }
+    .reading-controls { flex-direction: column; }
+    .reading-controls button { width: 100%; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .progress-fill { display: none; }
   }
 </style>
 </head>
 <body>
+  <main class="lesson" aria-label="Self-running wave vocabulary lesson">
+    <div class="visual">
+      <canvas id="lessonCanvas" width="900" height="480" aria-label="Animated simple harmonic motion and transverse wave vocabulary"></canvas>
+    </div>
 
-  <h1>Periodic Wave & Oscillator Model</h1>
-  
-  <!-- Simple Harmonic Motion Reveal (Tracking variables) -->
-  <div class="dashboard">
-    <span id="dispStr">y: 0.00</span>
-    <span id="velStr">v: 0.00</span>
-    <span id="accStr">a: 0.00</span>
-  </div>
+    <section class="teaching-card" aria-live="polite">
+      <div class="term-row">
+        <h1 class="term" id="term">Simple Harmonic Motion (SHM)</h1>
+        <span class="counter" id="counter">1 of 14</span>
+      </div>
+      <p class="explanation" id="explanation">A repeating back-and-forth motion around an equilibrium position. Watch the source move before it produces a wave.</p>
+      <div class="progress" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
+    </section>
 
-  <canvas id="simCanvas" width="800" height="400"></canvas>
-  
-  <div class="controls">
-    <button id="btnForce">Toggle Restoring Force Vector</button>
-    <button id="btnSpeed">Where is Speed Max?</button>
-    <button id="btnAccel">Where is Acceleration Max?</button>
-  </div>
-  
-  <div id="infoText" class="info-panel">Click a button to explore the physics!</div>
+    <div class="reading-controls" aria-label="Vocabulary playback controls">
+      <button type="button" id="pauseButton" aria-pressed="false">Pause vocabulary</button>
+      <button type="button" id="nextButton">Advance 1 vocabulary</button>
+    </div>
+  </main>
 
 <script>
-  const canvas = document.getElementById('simCanvas');
+  const canvas = document.getElementById('lessonCanvas');
   const ctx = canvas.getContext('2d');
-  const infoText = document.getElementById('infoText');
+  const termEl = document.getElementById('term');
+  const explanationEl = document.getElementById('explanation');
+  const counterEl = document.getElementById('counter');
+  const progressFill = document.getElementById('progressFill');
+  const pauseButton = document.getElementById('pauseButton');
+  const nextButton = document.getElementById('nextButton');
 
-  // Physics constraints
-  let t = 0;
-  const A = 100;        // Amplitude
-  const w = 0.05;       // Angular frequency
-  const eqY = 200;      // Equilibrium Y (Center of canvas)
-  const massX = 150;    // X position of the oscillator
-  const waveSpeed = 2;  // Speed of the wave moving right
+  const scenes = [
+    {
+      term: 'Simple Harmonic Motion (SHM)',
+      explanation: 'A repeating back-and-forth motion around an equilibrium position. Watch the source move before it produces a wave.',
+      kind: 'shm', duration: 6000
+    },
+    {
+      term: 'Periodic Wave',
+      explanation: 'When the vibrating source repeats its motion, it produces a repeating wave pattern that travels through the medium.',
+      kind: 'wave', duration: 5000
+    },
+    {
+      term: 'Equilibrium Position',
+      explanation: 'The equilibrium position is the undisturbed rest position of the medium. Displacement is measured from this center line.',
+      kind: 'equilibrium', duration: 4000
+    },
+    {
+      term: 'Transverse Wave',
+      explanation: 'In a transverse wave, particles move perpendicular to the direction the wave and its energy travel.',
+      kind: 'transverse', duration: 4500
+    },
+    {
+      term: 'Crest',
+      explanation: 'A crest is the highest point of a transverse wave above the equilibrium position.',
+      kind: 'crest', duration: 3500
+    },
+    {
+      term: 'Trough',
+      explanation: 'A trough is the lowest point of a transverse wave below the equilibrium position.',
+      kind: 'trough', duration: 3500
+    },
+    {
+      term: 'Amplitude',
+      explanation: 'Amplitude is the maximum displacement from equilibrium to a crest or trough. Greater amplitude means more energy.',
+      kind: 'amplitude', duration: 4500
+    },
+    {
+      term: 'Wavelength (λ)',
+      explanation: 'Wavelength is the distance between matching points on consecutive cycles, such as crest to crest or trough to trough.',
+      kind: 'wavelength', duration: 4500
+    },
+    {
+      term: 'Period (T)',
+      explanation: 'Period is the time needed for one complete cycle. It is measured in seconds per cycle.',
+      kind: 'period', duration: 4000
+    },
+    {
+      term: 'Frequency (f)',
+      explanation: 'Frequency is the number of complete cycles each second. It is measured in hertz (Hz), and f = 1/T.',
+      kind: 'frequency', duration: 4500
+    },
+    {
+      term: 'Medium and Particle Motion',
+      explanation: 'The medium is the matter the wave moves through. Its particles oscillate locally; they do not travel along with the wave.',
+      kind: 'particles', duration: 5000
+    },
+    {
+      term: 'Wave Direction and Energy Transfer',
+      explanation: 'A wave transfers energy from place to place without carrying the medium with it. Here, energy travels to the right.',
+      kind: 'direction', duration: 4500
+    },
+    {
+      term: 'Wave Speed',
+      explanation: 'Wave speed connects frequency and wavelength: v = fλ. In one medium, changing frequency changes wavelength so speed stays consistent.',
+      kind: 'speed', duration: 5000
+    }
+  ];
 
-  let waveHistory = [];
-  let showForce = false;
-  let showSpeed = false;
-  let showAccel = false;
+  const totalDuration = scenes.reduce((sum, scene) => sum + scene.duration, 0);
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const sourceX = 118;
+  const waveStartX = 190;
+  const equilibriumY = 245;
+  const amplitude = 92;
+  const wavelength = 260;
+  const omega = reducedMotion ? 0 : 0.00225;
+  let lessonElapsed = 0;
+  let previousFrameTime = performance.now();
+  let vocabularyPaused = false;
+  let lastSceneIndex = -1;
 
-  // Interaction Logic (Reveals)
-  document.getElementById('btnForce').onclick = () => { showForce = !showForce; };
-  
-  document.getElementById('btnSpeed').onclick = () => {
-    showSpeed = true;
-    showAccel = false;
-    infoText.innerText = "Speed is greatest at equilibrium (the dashed line)! Notice the green velocity vector is longest when passing the center.";
-    infoText.style.color = "#28a745";
-  };
-  
-  document.getElementById('btnAccel').onclick = () => {
-    showAccel = true;
-    showSpeed = false;
-    infoText.innerText = "Acceleration is greatest at maximum displacement (the peaks/troughs)! The red vector peaks when the mass turns around.";
-    infoText.style.color = "#dc3545";
-  };
+  const sceneStarts = scenes.map((scene, index) =>
+    scenes.slice(0, index).reduce((sum, earlierScene) => sum + earlierScene.duration, 0)
+  );
+
+  pauseButton.addEventListener('click', () => {
+    vocabularyPaused = !vocabularyPaused;
+    pauseButton.textContent = vocabularyPaused ? 'Play vocabulary' : 'Pause vocabulary';
+    pauseButton.setAttribute('aria-pressed', String(vocabularyPaused));
+  });
+
+  nextButton.addEventListener('click', () => {
+    const current = sceneAt(lessonElapsed);
+    const nextIndex = (current.index + 1) % scenes.length;
+    lessonElapsed = sceneStarts[nextIndex];
+  });
+
+  function resizeCanvas() {
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = Math.round(900 * ratio);
+    canvas.height = Math.round(480 * ratio);
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  }
+
+  function dimensions() {
+    const ratio = window.devicePixelRatio || 1;
+    return { width: canvas.width / ratio, height: canvas.height / ratio };
+  }
+
+  function sceneAt(elapsed) {
+    let cursor = 0;
+    for (let i = 0; i < scenes.length; i++) {
+      const end = cursor + scenes[i].duration;
+      if (elapsed < end) {
+        return { scene: scenes[i], index: i, local: elapsed - cursor };
+      }
+      cursor = end;
+    }
+    return { scene: scenes[0], index: 0, local: 0 };
+  }
+
+  function waveY(x, phase) {
+    return equilibriumY + amplitude * Math.sin((Math.PI * 2 * (x - waveStartX) / wavelength) - phase);
+  }
+
+  function matchingX(targetPhase, phase, width, offset = 0) {
+    const base = waveStartX + wavelength * (targetPhase + phase) / (Math.PI * 2) + offset * wavelength;
+    let x = base;
+    while (x < waveStartX + 45) x += wavelength;
+    while (x > width - 45) x -= wavelength;
+    return x;
+  }
+
+  function roundedLabel(text, x, y, color = '#1769e0') {
+    ctx.save();
+    ctx.font = '700 15px Segoe UI, sans-serif';
+    const paddingX = 11;
+    const width = ctx.measureText(text).width + paddingX * 2;
+    const height = 31;
+    const left = Math.max(7, Math.min(x - width / 2, dimensions().width - width - 7));
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(left, y - height / 2, width, height, 9);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, left + width / 2, y);
+    ctx.restore();
+  }
+
+  function line(x1, y1, x2, y2, color = '#1769e0', dashed = false, width = 2) {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    if (dashed) ctx.setLineDash([7, 6]);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function arrow(x1, y1, x2, y2, color = '#1769e0', both = false) {
+    line(x1, y1, x2, y2, color, false, 3);
+    const drawHead = (fromX, fromY, toX, toY) => {
+      const angle = Math.atan2(toY - fromY, toX - fromX);
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(toX, toY);
+      ctx.lineTo(toX - 12 * Math.cos(angle - Math.PI / 6), toY - 12 * Math.sin(angle - Math.PI / 6));
+      ctx.lineTo(toX - 12 * Math.cos(angle + Math.PI / 6), toY - 12 * Math.sin(angle + Math.PI / 6));
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    };
+    drawHead(x1, y1, x2, y2);
+    if (both) drawHead(x2, y2, x1, y1);
+  }
+
+  function drawBackground(width, height) {
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = '#f5f9ff';
+    ctx.fillRect(0, height - 42, width, 42);
+  }
+
+  function drawEquilibrium(width) {
+    line(28, equilibriumY, width - 28, equilibriumY, '#a8b7ca', true, 2);
+  }
 
   function drawSpring(endY) {
+    const anchorY = 18;
+    const springEndY = endY - 20;
+    const coils = 13;
+    const step = (springEndY - anchorY) / (coils + 1);
+
+    ctx.save();
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
     ctx.beginPath();
-    ctx.moveTo(massX, 0);
-    const coils = 12;
-    const coilHeight = endY / coils;
-    for(let i = 1; i <= coils; i++) {
-      let xOffset = (i % 2 === 0) ? 15 : -15;
-      if (i === coils) xOffset = 0;
-      ctx.lineTo(massX + xOffset, i * coilHeight);
+    ctx.moveTo(sourceX - 28, anchorY);
+    ctx.lineTo(sourceX + 28, anchorY);
+    ctx.moveTo(sourceX, anchorY);
+    ctx.lineTo(sourceX, anchorY + step);
+    for (let i = 1; i <= coils; i++) {
+      const x = sourceX + (i % 2 === 0 ? -15 : 15);
+      ctx.lineTo(x, anchorY + step * (i + 0.5));
     }
-    ctx.strokeStyle = '#888';
+    ctx.lineTo(sourceX, springEndY);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawTimer(width, phase) {
+    const x = width - 62;
+    const y = 61;
+    const radius = 34;
+    const turn = ((phase % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    const handAngle = turn - Math.PI / 2;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.94)';
+    ctx.strokeStyle = '#9fb0c5';
     ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
     ctx.stroke();
+
+    for (let i = 0; i < 12; i++) {
+      const angle = i * Math.PI / 6 - Math.PI / 2;
+      const inner = i % 3 === 0 ? radius - 8 : radius - 5;
+      line(
+        x + Math.cos(angle) * inner,
+        y + Math.sin(angle) * inner,
+        x + Math.cos(angle) * (radius - 2),
+        y + Math.sin(angle) * (radius - 2),
+        '#64748b', false, i % 3 === 0 ? 2 : 1
+      );
+    }
+
+    ctx.strokeStyle = '#1769e0';
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(x, y, radius + 6, -Math.PI / 2, handAngle);
+    ctx.stroke();
+
+    arrow(x, y, x + Math.cos(handAngle) * 24, y + Math.sin(handAngle) * 24, '#e14b4b');
+    ctx.fillStyle = '#172033';
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.font = '700 12px Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('TIME', x, y + radius + 20);
+    ctx.restore();
   }
 
-  function drawArrow(fromx, fromy, tox, toy, color) {
-    const headlen = 10;
-    const dx = tox - fromx;
-    const dy = toy - fromy;
-    if (Math.abs(dy) < 1) return; // Hide vector if it's practically zero
-    const angle = Math.atan2(dy, dx);
-    
-    ctx.beginPath();
-    ctx.moveTo(fromx, fromy);
-    ctx.lineTo(tox, toy);
-    ctx.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
-    ctx.moveTo(tox, toy);
-    ctx.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
-    ctx.strokeStyle = color;
+  function drawOscillator(phase, showGuide = true) {
+    const y = equilibriumY + amplitude * Math.sin(-phase);
+    if (showGuide) {
+      line(sourceX, equilibriumY - amplitude - 30, sourceX, equilibriumY + amplitude + 30, '#d3deeb', true, 2);
+      ctx.fillStyle = '#a8b7ca';
+      ctx.beginPath();
+      ctx.arc(sourceX, equilibriumY, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    drawSpring(y);
+    ctx.fillStyle = '#e14b4b';
+    ctx.strokeStyle = '#a52f39';
     ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(sourceX, y, 19, 0, Math.PI * 2);
+    ctx.fill();
     ctx.stroke();
+    return y;
   }
 
-  function update() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Equations of Simple Harmonic Motion
-    const y = A * Math.sin(w * t);
-    const v = A * w * Math.cos(w * t);
-    const a = -A * w * w * Math.sin(w * t);
-    
-    const currentY = eqY + y;
-    
-    // Update live dashboard
-    document.getElementById('dispStr').innerText = `y: ${y.toFixed(1)}`;
-    document.getElementById('velStr').innerText = `v: ${v.toFixed(1)}`;
-    document.getElementById('accStr').innerText = `a: ${a.toFixed(1)}`;
-
-    // Generate periodic source model (Wave production)
-    waveHistory.unshift(currentY);
-    if (waveHistory.length > (canvas.width - massX) / waveSpeed) {
-      waveHistory.pop();
-    }
-    
-    // Draw Equilibrium Line
+  function drawWave(width, phase, reveal = 1) {
+    const endX = waveStartX + (width - waveStartX - 25) * reveal;
+    ctx.save();
     ctx.beginPath();
-    ctx.moveTo(0, eqY);
-    ctx.lineTo(canvas.width, eqY);
-    ctx.strokeStyle = '#ccc';
-    ctx.setLineDash([5, 5]);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    
-    // Draw the continuous Wave
+    ctx.rect(waveStartX - 4, 95, Math.max(0, endX - waveStartX + 8), 300);
+    ctx.clip();
+    ctx.strokeStyle = '#1769e0';
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
     ctx.beginPath();
-    for (let i = 0; i < waveHistory.length; i++) {
-      ctx.lineTo(massX + i * waveSpeed, waveHistory[i]);
+    for (let x = waveStartX; x <= width - 25; x += 3) {
+      const y = waveY(x, phase);
+      if (x === waveStartX) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
     }
-    ctx.strokeStyle = '#007bff';
-    ctx.lineWidth = 3;
     ctx.stroke();
-    
-    // Draw Oscillator Connection (Spring and Mass)
-    drawSpring(currentY - 20);
-    ctx.fillStyle = '#ff6b6b';
-    ctx.fillRect(massX - 25, currentY - 20, 50, 40);
-    
-    // Draw Restoring Force Model Vector (Purple)
-    if (showForce) {
-      // Force points opposite to displacement
-      drawArrow(massX - 40, currentY, massX - 40, currentY - y * 0.6, 'purple');
-    }
-    
-    // Draw Velocity Vector (Green)
-    if (showSpeed) {
-      drawArrow(massX + 40, currentY, massX + 40, currentY + v * 15, '#28a745');
-    }
-    
-    // Draw Acceleration Vector (Red)
-    if (showAccel) {
-      drawArrow(massX + 60, currentY, massX + 60, currentY + a * 200, '#dc3545');
-    }
-    
-    t += 1;
-    requestAnimationFrame(update); // Loop the animation
+    ctx.restore();
   }
 
-  update();
+  function leader(label, pointX, pointY, labelX, labelY, color = '#1769e0') {
+    line(pointX, pointY, labelX, labelY + (labelY < pointY ? 16 : -16), color, false, 2);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(pointX, pointY, 5, 0, Math.PI * 2);
+    ctx.fill();
+    roundedLabel(label, labelX, labelY, color);
+  }
+
+  function bracket(x1, y1, x2, y2, color = '#7c3aed') {
+    line(x1, y1, x2, y2, color, false, 3);
+    if (Math.abs(x2 - x1) > Math.abs(y2 - y1)) {
+      line(x1, y1 - 9, x1, y1 + 9, color, false, 3);
+      line(x2, y2 - 9, x2, y2 + 9, color, false, 3);
+    } else {
+      line(x1 - 9, y1, x1 + 9, y1, color, false, 3);
+      line(x2 - 9, y2, x2 + 9, y2, color, false, 3);
+    }
+  }
+
+  function drawVocabulary(kind, width, phase, oscillatorY) {
+    // Canvas y-values increase downward, so sin = -1 is the visual crest
+    // and sin = 1 is the visual trough.
+    const crestX = matchingX(3 * Math.PI / 2, phase, width);
+    const troughX = matchingX(Math.PI / 2, phase, width);
+    const crestY = waveY(crestX, phase);
+    const troughY = waveY(troughX, phase);
+
+    if (kind === 'shm') {
+      arrow(sourceX + 48, equilibriumY - amplitude, sourceX + 48, equilibriumY + amplitude, '#7c3aed', true);
+      leader('repeating up-and-down motion', sourceX + 18, oscillatorY, 272, 104, '#7c3aed');
+    }
+
+    if (kind === 'wave') {
+      leader('the oscillator becomes the wave source', sourceX + 15, oscillatorY - 12, 310, 90);
+    }
+
+    if (kind === 'equilibrium') {
+      leader('equilibrium / rest position', Math.min(width - 120, 590), equilibriumY, Math.min(width - 170, 555), equilibriumY + 70);
+    }
+
+    if (kind === 'transverse') {
+      arrow(Math.min(width - 135, 640), equilibriumY - 74, Math.min(width - 135, 640), equilibriumY + 74, '#7c3aed', true);
+      roundedLabel('particle motion', Math.min(width - 135, 640), equilibriumY - 108, '#7c3aed');
+      arrow(Math.min(width - 280, 500), 65, Math.min(width - 65, 760), 65, '#1769e0');
+      roundedLabel('wave motion', Math.min(width - 170, 635), 104);
+    }
+
+    if (kind === 'crest') leader('crest', crestX, crestY, crestX, Math.max(46, crestY - 55));
+    if (kind === 'trough') leader('trough', troughX, troughY, troughX, Math.min(430, troughY + 58));
+
+    if (kind === 'amplitude') {
+      // Measure on the exact x-position of a crest. If the label to its left
+      // would leave the canvas, use the nearest visible adjacent trough.
+      let targetX = crestX;
+      let targetY = crestY;
+      let labelX = targetX - 92;
+      const estimatedHalfLabelWidth = 68;
+      if (labelX - estimatedHalfLabelWidth < waveStartX + 8) {
+        targetX = crestX + wavelength / 2;
+        if (targetX > width - 35) targetX = crestX - wavelength / 2;
+        if (targetX < waveStartX + 20) targetX += wavelength;
+        targetY = waveY(targetX, phase);
+        labelX = targetX - 92;
+      }
+      const middleY = (equilibriumY + targetY) / 2;
+      bracket(targetX, equilibriumY, targetX, targetY, '#7c3aed');
+      line(targetX, middleY, labelX, middleY, '#7c3aed', false, 2);
+      roundedLabel('amplitude (A)', labelX, middleY, '#7c3aed');
+    }
+
+    if (kind === 'wavelength') {
+      // Measure trough to trough below the wave. When this pair reaches the
+      // edge, matchingX supplies the next visible pair so the marker redraws.
+      let firstTrough = matchingX(Math.PI / 2, phase, width);
+      if (firstTrough + wavelength > width - 35) firstTrough -= wavelength;
+      const secondTrough = firstTrough + wavelength;
+      const y = Math.min(392, waveY(firstTrough, phase) + 48);
+      bracket(firstTrough, y, secondTrough, y, '#7c3aed');
+      roundedLabel('wavelength (λ)', (firstTrough + secondTrough) / 2, y + 29, '#7c3aed');
+      line(firstTrough, waveY(firstTrough, phase), firstTrough, y - 9, '#7c3aed', true);
+      line(secondTrough, waveY(secondTrough, phase), secondTrough, y - 9, '#7c3aed', true);
+    }
+
+    if (kind === 'period') {
+      roundedLabel('T = seconds ÷ cycle', width / 2, 72, '#7c3aed');
+      ctx.fillStyle = '#7c3aed';
+      ctx.font = '700 24px Segoe UI, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('one cycle passes a point in time T', width / 2, 420);
+      line(width * 0.72, 160, width * 0.72, 340, '#7c3aed', true, 2);
+    }
+
+    if (kind === 'frequency') {
+      roundedLabel('f = cycles ÷ second = 1/T', width / 2, 72, '#7c3aed');
+      ctx.fillStyle = '#7c3aed';
+      ctx.font = '700 23px Segoe UI, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('count how many cycles pass each second', width / 2, 420);
+    }
+
+    if (kind === 'particles') {
+      for (let x = waveStartX + 28; x < width - 25; x += 43) {
+        const y = waveY(x, phase);
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.arc(x, y, 7, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      const particleX = Math.min(width - 120, 625);
+      const particleY = waveY(particleX, phase);
+      arrow(particleX, particleY - 38, particleX, particleY + 38, '#d97706', true);
+      roundedLabel('particles oscillate in place', particleX, 65, '#d97706');
+    }
+
+    if (kind === 'direction') {
+      const arrowStart = Math.max(waveStartX + 30, width * 0.4);
+      const arrowEnd = width - 135;
+      arrow(arrowStart, 82, arrowEnd, 82, '#1769e0');
+      roundedLabel('energy travels right', (arrowStart + arrowEnd) / 2, 122);
+    }
+
+    if (kind === 'speed') {
+      roundedLabel('wave speed: v = fλ', width / 2, 68, '#7c3aed');
+      arrow(Math.max(waveStartX + 30, width * 0.42), 410, width - 60, 410, '#1769e0');
+      roundedLabel('distance traveled each second', width * 0.7, 372);
+    }
+  }
+
+  function render(now) {
+    const frameTime = Math.min(100, now - previousFrameTime);
+    previousFrameTime = now;
+    if (!vocabularyPaused) lessonElapsed = (lessonElapsed + frameTime) % totalDuration;
+    const elapsed = lessonElapsed;
+    const { scene, index, local } = sceneAt(elapsed);
+    const { width, height } = dimensions();
+    const phase = now * omega;
+
+    if (index !== lastSceneIndex) {
+      termEl.textContent = scene.term;
+      explanationEl.textContent = scene.explanation;
+      counterEl.textContent = `${index + 1} of ${scenes.length}`;
+      lastSceneIndex = index;
+    }
+    progressFill.style.width = `${Math.min(100, local / scene.duration * 100)}%`;
+
+    drawBackground(width, height);
+    drawEquilibrium(width);
+    const oscillatorY = drawOscillator(phase);
+    drawTimer(width, phase);
+
+    if (index > 0) {
+      const reveal = index === 1 ? Math.min(1, local / 2200) : 1;
+      line(sourceX + 19, oscillatorY, waveStartX, waveY(waveStartX, phase), '#8eb8f3', false, 3);
+      drawWave(width, phase, reveal);
+    }
+
+    drawVocabulary(scene.kind, width, phase, oscillatorY);
+    requestAnimationFrame(render);
+  }
+
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+  requestAnimationFrame(render);
 </script>
 </body>
 </html>
