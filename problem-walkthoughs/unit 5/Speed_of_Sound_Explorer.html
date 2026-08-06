@@ -1,339 +1,725 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sim 2: Speed of Sound Explorer</title>
-<style>
-  :root {
-    --bg: #0f172a;
-    --card: #1e293b;
-    --accent: #34d399;
-    --text: #e2e8f0;
-    --muted: #94a3b8;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    padding: 16px;
-  }
-  h1 { font-size: 1.4rem; margin-bottom: 4px; color: var(--accent); }
-  .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 16px; }
-  .layout {
-    display: grid;
-    grid-template-columns: 1fr 340px;
-    gap: 16px;
-    max-width: 1200px;
-    margin: 0 auto;
-  }
-  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
-  .canvas-wrap {
-    background: var(--card);
-    border-radius: 12px;
-    padding: 12px;
-  }
-  canvas {
-    width: 100%;
-    height: auto;
-    display: block;
-    border-radius: 8px;
-    background: #0b1220;
-  }
-  .controls {
-    background: var(--card);
-    border-radius: 12px;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-  .control-group label {
-    display: block;
-    font-size: 0.85rem;
-    color: var(--muted);
-    margin-bottom: 6px;
-  }
-  .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
-  button {
-    background: #334155;
-    color: var(--text);
-    border: none;
-    padding: 9px 14px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.85rem;
-    transition: background 0.15s;
-  }
-  button:hover { background: #475569; }
-  button.active {
-    background: var(--accent);
-    color: #0f172a;
-    font-weight: 600;
-  }
-  .info-box {
-    background: #0f172a;
-    border-left: 3px solid var(--accent);
-    padding: 10px 12px;
-    border-radius: 0 8px 8px 0;
-    font-size: 0.85rem;
-    line-height: 1.45;
-  }
-  .speed-display {
-    font-size: 1.6rem;
-    font-weight: 700;
-    color: var(--accent);
-    text-align: center;
-    padding: 8px;
-    background: #0f172a;
-    border-radius: 8px;
-  }
-  .speed-display small { font-size: 0.75rem; color: var(--muted); font-weight: 400; }
-  .prediction {
-    background: #134e4a;
-    border-radius: 8px;
-    padding: 10px;
-    font-size: 0.82rem;
-  }
-  .prediction strong { color: #6ee7b7; }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.8rem;
-  }
-  th, td {
-    padding: 6px 8px;
-    text-align: left;
-    border-bottom: 1px solid #334155;
-  }
-  th { color: var(--muted); font-weight: 500; }
-</style>
-</head>
-<body>
-  <h1>Simulation 2: Speed of Sound Explorer</h1>
-  <p class="subtitle">Unit 5 Lesson 2 · Part 1 · How medium & temperature affect sound speed</p>
-
-  <div class="layout">
-    <div class="canvas-wrap">
-      <canvas id="c" width="800" height="440"></canvas>
-    </div>
-
-    <div class="controls">
-      <div class="control-group">
-        <label>Choose medium</label>
-        <div class="btn-row">
-          <button id="btnGas" class="active">Gas (Air)</button>
-          <button id="btnLiquid">Liquid (Water)</button>
-          <button id="btnSolid">Solid (Steel)</button>
-        </div>
-      </div>
-
-      <div class="control-group">
-        <label>Temperature (affects gas most)</label>
-        <div class="btn-row">
-          <button id="btnCold">Cold (−10 °C)</button>
-          <button id="btnRoom" class="active">Room (20 °C)</button>
-          <button id="btnHot">Hot (40 °C)</button>
-        </div>
-      </div>
-
-      <div class="speed-display">
-        <span id="speedNum">343</span> m/s<br>
-        <small id="speedNote">Air at 20 °C</small>
-      </div>
-
-      <div class="btn-row">
-        <button id="fireBtn" style="background:#059669; flex:1;">Fire Pulse →</button>
-        <button id="resetBtn">Reset</button>
-      </div>
-
-      <div class="info-box" id="info">
-        Sound travels by particles bumping into neighbors. In solids the particles are tightly bound and springy → fastest. Liquids are intermediate. Gases are slowest because molecules are far apart.
-      </div>
-
-      <table>
-        <thead>
-          <tr><th>Medium</th><th>Approx. speed</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>Air (20 °C)</td><td>~343 m/s</td></tr>
-          <tr><td>Water</td><td>~1480 m/s</td></tr>
-          <tr><td>Steel</td><td>~5100 m/s</td></tr>
-        </tbody>
-      </table>
-
-      <div class="prediction">
-        <strong>Misconceptions to test:</strong><br>
-        • Does sound travel faster in denser media?<br>
-        • Will sound reach you sooner on a hot day?<br>
-        • Why is steel faster even though air is “lighter”?
-      </div>
-    </div>
-  </div>
-
-<script>
-const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
-const W = canvas.width, H = canvas.height;
-
-const speeds = {
-  gas:   { cold: 319, room: 343, hot: 355, label: 'Air', color: '#38bdf8' },
-  liquid:{ cold: 1400, room: 1480, hot: 1520, label: 'Water', color: '#22d3ee' },
-  solid: { cold: 5000, room: 5100, hot: 5150, label: 'Steel', color: '#a78bfa' }
-};
-
-let medium = 'gas';
-let temp = 'room';
-let pulseX = 80;
-let firing = false;
-let startTime = 0;
-let arrived = false;
-
-const speedNum = document.getElementById('speedNum');
-const speedNote = document.getElementById('speedNote');
-const info = document.getElementById('info');
-
-function setMedium(m) {
-  medium = m;
-  ['btnGas','btnLiquid','btnSolid'].forEach(id => document.getElementById(id).classList.remove('active'));
-  document.getElementById('btn' + m.charAt(0).toUpperCase() + m.slice(1)).classList.add('active');
-  updateSpeed();
-  resetPulse();
-}
-function setTemp(t) {
-  temp = t;
-  ['btnCold','btnRoom','btnHot'].forEach(id => document.getElementById(id).classList.remove('active'));
-  document.getElementById('btn' + t.charAt(0).toUpperCase() + t.slice(1)).classList.add('active');
-  updateSpeed();
-  resetPulse();
-}
-function updateSpeed() {
-  const s = speeds[medium][temp];
-  speedNum.textContent = s;
-  const tLabel = temp === 'cold' ? '−10 °C' : temp === 'hot' ? '40 °C' : '20 °C';
-  speedNote.textContent = `${speeds[medium].label} at ${tLabel}`;
-
-  if (medium === 'solid') {
-    info.innerHTML = '<b>Solid (steel):</b> Particles are tightly linked by strong elastic forces. Even though density is high, the restoring force is huge → sound races through at ~5100 m/s.';
-  } else if (medium === 'liquid') {
-    info.innerHTML = '<b>Liquid (water):</b> Molecules are closer than in air and interact more strongly, so sound travels about 4× faster than in air (~1480 m/s).';
-  } else {
-    info.innerHTML = '<b>Gas (air):</b> Molecules are far apart. Higher temperature → faster molecular motion → slightly higher sound speed. Cold air slows sound.';
-  }
-}
-
-document.getElementById('btnGas').onclick = () => setMedium('gas');
-document.getElementById('btnLiquid').onclick = () => setMedium('liquid');
-document.getElementById('btnSolid').onclick = () => setMedium('solid');
-document.getElementById('btnCold').onclick = () => setTemp('cold');
-document.getElementById('btnRoom').onclick = () => setTemp('room');
-document.getElementById('btnHot').onclick = () => setTemp('hot');
-
-function resetPulse() {
-  pulseX = 80;
-  firing = false;
-  arrived = false;
-}
-document.getElementById('resetBtn').onclick = resetPulse;
-
-document.getElementById('fireBtn').onclick = () => {
-  if (firing) return;
-  pulseX = 80;
-  firing = true;
-  arrived = false;
-  startTime = performance.now();
-};
-
-const trackY = H / 2;
-const startX = 80;
-const endX = W - 80;
-
-function draw() {
-  ctx.fillStyle = '#0b1220';
-  ctx.fillRect(0, 0, W, H);
-
-  // Track
-  ctx.strokeStyle = '#334155';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(startX, trackY);
-  ctx.lineTo(endX, trackY);
-  ctx.stroke();
-
-  // Start & finish markers
-  ctx.fillStyle = '#64748b';
-  ctx.fillRect(startX - 4, trackY - 25, 8, 50);
-  ctx.fillRect(endX - 4, trackY - 25, 8, 50);
-  ctx.font = '12px sans-serif';
-  ctx.fillText('Source', startX - 20, trackY + 50);
-  ctx.fillText('Detector', endX - 25, trackY + 50);
-
-  // Medium background tint
-  const col = speeds[medium].color;
-  ctx.fillStyle = col + '18';
-  ctx.fillRect(startX, trackY - 60, endX - startX, 120);
-
-  // Particles hint (static)
-  const spacing = medium === 'solid' ? 8 : medium === 'liquid' ? 14 : 22;
-  for (let x = startX + 10; x < endX - 10; x += spacing) {
-    ctx.beginPath();
-    ctx.arc(x, trackY, medium === 'solid' ? 3 : 4, 0, Math.PI * 2);
-    ctx.fillStyle = col + '55';
-    ctx.fill();
-  }
-
-  // Moving pulse
-  if (firing) {
-    const realSpeed = speeds[medium][temp]; // m/s
-    // Map real speed to pixels: we pretend the track is 100 m long
-    const trackLengthM = 100;
-    const pxPerM = (endX - startX) / trackLengthM;
-    const elapsed = (performance.now() - startTime) / 1000; // seconds
-    pulseX = startX + realSpeed * elapsed * pxPerM;
-
-    if (pulseX >= endX) {
-      pulseX = endX;
-      firing = false;
-      arrived = true;
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Speed of Sound Simulation</title>
+  <style>
+    :root {
+      --navy: #17365d;
+      --blue: #2865a8;
+      --blue-dark: #174b86;
+      --sky: #eaf5ff;
+      --surface: #ffffff;
+      --ink: #17263b;
+      --muted: #53677e;
+      --line: #a9c3df;
+      --orange: #d96522;
+      --green: #187447;
+      --green-soft: #e9f8ef;
+      --red: #a83b32;
+      --red-soft: #fff0ed;
     }
 
-    // Draw compression pulse
-    const grd = ctx.createRadialGradient(pulseX, trackY, 0, pulseX, trackY, 30);
-    grd.addColorStop(0, col);
-    grd.addColorStop(1, 'transparent');
-    ctx.fillStyle = grd;
-    ctx.beginPath();
-    ctx.arc(pulseX, trackY, 30, 0, Math.PI * 2);
-    ctx.fill();
+    * { box-sizing: border-box; }
 
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(pulseX, trackY, 6, 0, Math.PI * 2);
-    ctx.fill();
-  }
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: transparent;
+      color: var(--ink);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
 
-  // Arrival message
-  if (arrived) {
-    ctx.fillStyle = varAccent();
-    ctx.font = 'bold 16px sans-serif';
-    ctx.textAlign = 'center';
-    const time = ((endX - startX) / ((endX - startX) / 100) / speeds[medium][temp]).toFixed(3);
-    ctx.fillText(`Arrived! Travel time ≈ ${time} s for 100 m`, W / 2, 40);
-    ctx.textAlign = 'left';
-  }
+    body { padding: 18px; }
+    button { min-height: 44px; font: inherit; }
 
-  // Title of current medium
-  ctx.fillStyle = col;
-  ctx.font = 'bold 15px sans-serif';
-  ctx.fillText(speeds[medium].label + ' medium', 20, 30);
+    .sos-app {
+      width: min(100%, 1050px);
+      margin: 0 auto;
+      overflow: hidden;
+      border: 5px solid var(--blue);
+      border-radius: 24px;
+      background: var(--surface);
+      box-shadow: 0 16px 42px rgba(23, 54, 93, 0.14);
+    }
 
-  requestAnimationFrame(draw);
-}
-function varAccent() { return speeds[medium].color; }
-updateSpeed();
-draw();
-</script>
+    .sos-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(110deg, #ffffff, #e9f5ff);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 9px;
+    }
+
+    .header-modes {
+      display: flex;
+      overflow: hidden;
+      border: 1px solid #7898b9;
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .sos-kicker {
+      margin: 0 0 4px;
+      color: var(--blue);
+      font-size: 0.75rem;
+      font-weight: 850;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--navy);
+      font-size: clamp(1.45rem, 4vw, 2.15rem);
+      line-height: 1.08;
+    }
+
+    .reset-button {
+      flex: 0 0 auto;
+      padding: 8px 15px;
+      border: 1px solid #7898b9;
+      border-radius: 999px;
+      background: #fff;
+      color: var(--blue-dark);
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .sos-body { padding: 18px; }
+
+    .intro {
+      margin: 0 0 14px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .race-panel,
+    .explanation {
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: #fbfdff;
+    }
+
+    .button-row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .mode-button,
+    .replay-button {
+      padding: 9px 14px;
+      border: 1px solid #7898b9;
+      border-radius: 10px;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    .mode-button {
+      min-height: 40px;
+      border: 0;
+      border-radius: 0;
+    }
+
+    .mode-button + .mode-button { border-left: 1px solid #7898b9; }
+
+    .mode-button[aria-pressed="true"] {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .mode-button:hover, .replay-button:hover { background: #e4f1fd; }
+
+    .race-panel {
+      padding: 15px;
+      background: linear-gradient(180deg, #f8fcff, #eef7ff);
+    }
+
+    .race-status {
+      min-height: 25px;
+      margin: 0 0 9px;
+      color: var(--blue-dark);
+      font-size: 0.9rem;
+      font-weight: 800;
+    }
+
+    .tracks { display: grid; gap: 11px; }
+
+    .track-card {
+      display: grid;
+      grid-template-columns: 140px minmax(0, 1fr) 94px;
+      align-items: center;
+      gap: 12px;
+      min-height: 92px;
+      padding: 11px 12px;
+      border: 1px solid #b9cee3;
+      border-radius: 14px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .track-card:hover:not(:disabled) { border-color: var(--blue); background: #f3f9ff; }
+    .track-card:disabled { cursor: default; }
+    .track-card.selected { border: 2px solid var(--orange); background: #fff7f0; }
+
+    .medium-name { color: var(--navy); font-weight: 900; }
+    .medium-detail { margin-top: 3px; color: var(--muted); font-size: 0.76rem; }
+
+    .track {
+      position: relative;
+      height: 68px;
+      overflow: hidden;
+      border: 1px solid #9eb8d1;
+      border-radius: 11px;
+      background: #f7fbff;
+    }
+
+    .particle-field {
+      position: absolute;
+      z-index: 1;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .source,
+    .detector {
+      position: absolute;
+      z-index: 2;
+      top: 10px;
+      width: 7px;
+      height: 46px;
+      border-radius: 4px;
+      background: var(--navy);
+    }
+
+    .source { left: 20px; }
+    .detector { right: 20px; background: var(--orange); }
+
+    .pulse {
+      position: absolute;
+      z-index: 3;
+      top: 15px;
+      left: 22px;
+      width: 24px;
+      height: 24px;
+      opacity: 0;
+      transform: translateX(0);
+    }
+
+    .pulse.mystery {
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      top: 8px;
+      border: 3px solid var(--track-color, var(--blue));
+      border-radius: 7px;
+      background: #fff;
+      color: var(--navy);
+      box-shadow: 0 0 0 5px rgba(40, 101, 168, 0.12);
+      font-size: 1.25rem;
+      font-weight: 950;
+      opacity: 1;
+    }
+
+    .pulse.mystery::after {
+      content: "?";
+      position: static;
+      border-radius: 0;
+      background: transparent;
+    }
+
+    .result {
+      display: grid;
+      place-content: center;
+      width: 78px;
+      aspect-ratio: 1;
+      justify-self: center;
+      padding: 5px;
+      border: 1px solid #a9c3df;
+      border-radius: 10px;
+      background: #f7fbff;
+      color: var(--muted);
+      font-size: 0.76rem;
+      font-weight: 750;
+      text-align: center;
+    }
+
+    .result strong { display: block; color: var(--navy); font-size: 1rem; }
+    .track-card.arrived { border-color: var(--track-color); background: #f7fcff; }
+
+    .result-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+    .replay-button { color: var(--blue-dark); }
+
+    .explanation {
+      margin-top: 12px;
+      padding: 15px 16px;
+      background: var(--green-soft);
+      border-color: #8ec9a7;
+      color: #174d31;
+      line-height: 1.5;
+    }
+
+    .explanation[data-correct="false"] { background: var(--red-soft); border-color: #e0a29b; color: #6d2924; }
+    .explanation h2 { margin: 0 0 5px; font-size: 1rem; }
+    .explanation p { margin: 0; }
+
+    .reason-choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+    .reason-choice {
+      padding: 9px 13px;
+      border: 1px solid #7898b9;
+      border-radius: 10px;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    .reason-choice:hover:not(:disabled) { background: #e4f1fd; }
+    .reason-choice:disabled { cursor: default; opacity: 0.7; }
+    .reason-choice.selected { border: 2px solid currentColor; }
+    [hidden] { display: none !important; }
+    :focus-visible { outline: 3px solid var(--orange); outline-offset: 3px; }
+
+    @media (max-width: 700px) {
+      body { padding: 8px; }
+      .sos-header { align-items: flex-start; flex-direction: column; padding: 15px; }
+      .header-actions { width: 100%; justify-content: space-between; }
+      .sos-body { padding: 12px; }
+      .track-card { grid-template-columns: 1fr; gap: 7px; }
+      .result { text-align: left; }
+      .track { min-height: 68px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="sos-app" id="speed-sound-app">
+    <header class="sos-header">
+      <div>
+        <p class="sos-kicker">Unit 5 · Lesson 2 · Simulation</p>
+        <h1>Which Sound Wave Is Faster?</h1>
+      </div>
+      <div class="header-actions">
+        <div class="header-modes" aria-label="Choose a comparison">
+          <button class="mode-button" type="button" data-mode="substance" aria-pressed="true">Matter type</button>
+          <button class="mode-button" type="button" data-mode="temperature" aria-pressed="false">Temperature</button>
+        </div>
+        <button class="reset-button" id="reset-button" type="button">Reset</button>
+      </div>
+    </header>
+
+    <div class="sos-body">
+      <p class="intro">Compare three sound pulses traveling the same distance. Select a track to make your prediction and launch all three pulses.</p>
+
+      <section class="race-panel" aria-label="Speed of sound race">
+        <p class="race-status" id="race-status" aria-live="polite">Which substance will carry the sound wave fastest? Select a track.</p>
+        <div class="tracks" id="tracks"></div>
+        <div class="result-actions">
+          <button class="replay-button" id="replay-button" type="button" hidden>Replay animation</button>
+        </div>
+      </section>
+
+      <section class="explanation" id="explanation" aria-live="polite" hidden>
+        <h2 id="feedback-heading"></h2>
+        <p id="feedback-text"></p>
+        <div class="reason-choices" id="reason-choices" hidden>
+          <button class="reason-choice" type="button" data-correct="false">Atoms are lighter</button>
+          <button class="reason-choice" type="button" data-correct="true">Atoms are bonded together</button>
+          <button class="reason-choice" type="button" data-correct="false">Atoms have more kinetic energy</button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const comparisons = {
+      substance: {
+        question: 'Which substance will carry the sound wave fastest?',
+        winner: 'steel',
+        explanation: 'Steel is fastest because its particles are strongly connected and the material is very stiff. A vibration is passed from particle to particle much faster than it is in water or air. Density alone does not determine sound speed; elasticity matters too.',
+        tracks: [
+          { id: 'air', name: 'Air', detail: '20 °C · gas', speed: 343, color: '#2d85c7' },
+          { id: 'water', name: 'Water', detail: '20 °C · liquid', speed: 1480, color: '#148fa3' },
+          { id: 'steel', name: 'Steel', detail: '20 °C · solid', speed: 5100, color: '#7357b5' }
+        ]
+      },
+      temperature: {
+        question: 'In which air temperature will the sound wave travel fastest?',
+        winner: 'hot-air',
+        explanation: 'Sound is fastest in the warm air. Warmer gas particles move more quickly and transfer the pressure disturbance to neighboring particles sooner. Over the same distance, the 40 °C pulse reaches its detector first.',
+        tracks: [
+          { id: 'cold-air', name: 'Cold air', detail: '−10 °C', speed: 325, color: '#3b82c4' },
+          { id: 'room-air', name: 'Room air', detail: '20 °C', speed: 343, color: '#178b94' },
+          { id: 'hot-air', name: 'Hot air', detail: '40 °C', speed: 355, color: '#d36a22' }
+        ]
+      }
+    };
+
+    const reasonPrompts = {
+      substance: {
+        question: 'Why do you think solids are faster?',
+        choices: [
+          { text: 'Atoms are lighter', correct: false },
+          { text: 'Atoms are bonded together', correct: true },
+          { text: 'Atoms have more kinetic energy', correct: false }
+        ],
+        explanation: 'Atoms in a solid are bonded together, so vibrations transfer quickly from one atom to the next.',
+        retry: 'That property does not explain why sound travels faster through solids.'
+      },
+      temperature: {
+        question: 'Why does sound travel faster in warmer air?',
+        choices: [
+          { text: 'Hotter atoms move faster', correct: true },
+          { text: 'Hotter atoms become bonded together', correct: false },
+          { text: 'Air atoms become lighter', correct: false }
+        ],
+        explanation: 'Warmer air particles move faster, so they transfer the sound vibration to neighboring particles sooner.',
+        retry: 'That property does not explain why sound travels faster through warmer air.'
+      }
+    };
+
+    const tracks = document.getElementById('tracks');
+    const raceStatus = document.getElementById('race-status');
+    const explanation = document.getElementById('explanation');
+    const feedbackHeading = document.getElementById('feedback-heading');
+    const feedbackText = document.getElementById('feedback-text');
+    const reasonChoices = document.getElementById('reason-choices');
+    const replayButton = document.getElementById('replay-button');
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    let mode = 'substance';
+    let prediction = null;
+    let animationFrame = null;
+    let idleAnimationFrame = null;
+
+    function travelTime(speed) {
+      return (100 / speed).toFixed(3);
+    }
+
+    function resetReasonQuestion() {
+      const prompt = reasonPrompts[mode];
+      reasonChoices.hidden = true;
+      reasonChoices.querySelectorAll('.reason-choice').forEach((button, index) => {
+        const choice = prompt.choices[index];
+        button.textContent = choice.text;
+        button.dataset.correct = String(choice.correct);
+        button.disabled = false;
+        button.classList.remove('selected');
+      });
+    }
+
+    function render() {
+      const comparison = comparisons[mode];
+      tracks.innerHTML = comparison.tracks.map((item) => `
+        <button class="track-card" type="button" data-track="${item.id}" style="--track-color:${item.color}" aria-label="Choose ${item.name} as the fastest sound wave">
+          <div>
+            <div class="medium-name">${item.name}</div>
+            <div class="medium-detail">${item.detail}</div>
+          </div>
+          <div class="track" aria-label="${item.name} sound track">
+            <canvas class="particle-field" aria-hidden="true"></canvas>
+            <span class="source" aria-hidden="true"></span>
+            <span class="pulse" aria-hidden="true"></span>
+            <span class="detector" aria-hidden="true"></span>
+          </div>
+          <div class="result" aria-live="polite"><strong class="speed-result">?</strong><span class="arrival-time">Mystery result</span></div>
+        </button>
+      `).join('');
+
+      tracks.querySelectorAll('.track-card').forEach((track) => {
+        track.addEventListener('click', () => makePrediction(track.dataset.track));
+      });
+
+      startIdleVibration();
+
+      raceStatus.textContent = `${comparison.question} Select a track.`;
+      explanation.hidden = true;
+      resetReasonQuestion();
+      replayButton.hidden = true;
+      prediction = null;
+    }
+
+    function resetAnimation() {
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      if (idleAnimationFrame) cancelAnimationFrame(idleAnimationFrame);
+      animationFrame = null;
+      idleAnimationFrame = null;
+      tracks.querySelectorAll('.pulse').forEach((pulse) => { pulse.style.transform = 'translateX(0)'; });
+      tracks.querySelectorAll('.pulse').forEach((pulse) => pulse.classList.remove('mystery'));
+      tracks.querySelectorAll('.track-card').forEach((card) => card.classList.remove('arrived'));
+      tracks.querySelectorAll('.speed-result').forEach((label) => { label.textContent = '?'; });
+      tracks.querySelectorAll('.arrival-time').forEach((label) => { label.textContent = 'Mystery result'; });
+      resetReasonQuestion();
+      const comparison = comparisons[mode];
+      comparison.tracks.forEach((item) => {
+        const canvas = tracks.querySelector(`[data-track="${item.id}"] .particle-field`);
+        if (canvas) drawLongitudinal(canvas, 0, item.color, false, item.id);
+      });
+    }
+
+    function startIdleVibration() {
+      if (idleAnimationFrame) cancelAnimationFrame(idleAnimationFrame);
+
+      const comparison = comparisons[mode];
+      function animateIdle() {
+        comparison.tracks.forEach((item) => {
+          const canvas = tracks.querySelector(`[data-track="${item.id}"] .particle-field`);
+          if (canvas) drawLongitudinal(canvas, 0, item.color, false, item.id);
+        });
+
+        if (mode === 'substance' && !reducedMotion.matches) {
+          idleAnimationFrame = requestAnimationFrame(animateIdle);
+        } else {
+          idleAnimationFrame = null;
+        }
+      }
+
+      idleAnimationFrame = requestAnimationFrame(animateIdle);
+    }
+
+    function drawLongitudinal(canvas, progress, color, active, materialId = 'air') {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const width = Math.max(1, canvas.clientWidth);
+      const height = Math.max(1, canvas.clientHeight);
+      const pixelWidth = Math.round(width * dpr);
+      const pixelHeight = Math.round(height * dpr);
+      if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+        canvas.width = pixelWidth;
+        canvas.height = pixelHeight;
+      }
+
+      const context = canvas.getContext('2d');
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      context.clearRect(0, 0, width, height);
+
+      const isLiquid = materialId === 'water';
+      const isSolid = materialId === 'steel';
+      const particleColor = color;
+      const bondColor = '#d94f3d';
+      const rows = isSolid ? 7 : isLiquid ? 6 : 5;
+      const columns = isSolid ? 48 : isLiquid ? 45 : 42;
+      const startX = 34;
+      const endX = width - 34;
+      const startY = isSolid ? 8 : 12;
+      const endY = isSolid ? height - 8 : height - 12;
+      const spacingX = (endX - startX) / (columns - 1);
+      const spacingY = (endY - startY) / (rows - 1);
+      const front = startX + progress * Math.max(0, endX - startX - 24);
+      const vibrationTime = performance.now() / 1000;
+      const points = [];
+
+      for (let row = 0; row < rows; row += 1) {
+        points[row] = [];
+        for (let column = 0; column < columns; column += 1) {
+          let baseX = startX + column * spacingX;
+          let baseY = startY + row * spacingY;
+
+          if (isLiquid) {
+            baseX += (row % 2) * spacingX * 0.45;
+            baseY += Math.sin(column * 1.35 + row * 2.1) * 1.3;
+            baseX += Math.sin(vibrationTime * 4.2 + column * 0.72 + row * 0.9) * 0.75;
+            baseY += Math.cos(vibrationTime * 3.7 + column * 0.55 + row * 1.1) * 0.65;
+          } else if (isSolid) {
+            baseX += Math.sin(vibrationTime * 8 + column * 0.7 + row * 0.25) * 0.48;
+            baseY += Math.cos(vibrationTime * 8 + column * 0.7 + row * 0.25) * 0.22;
+          }
+
+          const separation = baseX - front;
+          const envelope = active ? Math.exp(-(separation * separation) / (isSolid ? 1800 : 2500)) : 0;
+          const wave = Math.sin(separation * (isSolid ? 0.32 : 0.24));
+          const displacement = (isSolid ? 3.2 : isLiquid ? 4.5 : 6) * wave * envelope;
+          const verticalFlex = isLiquid ? 1.2 * Math.cos(separation * 0.18 + row) * envelope : 0;
+
+          points[row][column] = {
+            x: baseX + displacement,
+            y: baseY + verticalFlex,
+            column,
+            row
+          };
+        }
+      }
+
+      if (isLiquid || isSolid) {
+        context.save();
+        context.lineWidth = isSolid ? 1.8 : 1.1;
+        context.strokeStyle = bondColor;
+        context.globalAlpha = isSolid ? 0.78 : 0.42;
+
+        for (let row = 0; row < rows; row += 1) {
+          for (let column = 0; column < columns; column += 1) {
+            const point = points[row][column];
+            const neighbors = [];
+            if (column + 1 < columns) neighbors.push(points[row][column + 1]);
+            if (isSolid && row + 1 < rows) neighbors.push(points[row + 1][column]);
+            if (isLiquid && row + 1 < rows && column + (row % 2 === 0 ? 0 : 1) < columns) {
+              neighbors.push(points[row + 1][column + (row % 2 === 0 ? 0 : 1)]);
+            }
+
+            neighbors.forEach((neighbor) => {
+              context.beginPath();
+              context.moveTo(point.x, point.y);
+              if (isLiquid) {
+                const midX = (point.x + neighbor.x) / 2;
+                const midY = (point.y + neighbor.y) / 2 + Math.sin((row + column) * 1.7) * 1.6;
+                context.quadraticCurveTo(midX, midY, neighbor.x, neighbor.y);
+              } else {
+                context.lineTo(neighbor.x, neighbor.y);
+              }
+              context.stroke();
+            });
+          }
+        }
+        context.restore();
+      }
+
+      for (let row = 0; row < rows; row += 1) {
+        for (let column = 0; column < columns; column += 1) {
+          const point = points[row][column];
+          const highlighted = row === Math.floor(rows / 2) && (
+            column === Math.floor(columns * 0.27) ||
+            column === Math.floor(columns * 0.51) ||
+            column === Math.floor(columns * 0.75)
+          );
+
+          context.beginPath();
+          context.arc(point.x, point.y, highlighted ? 3.2 : isSolid ? 2.45 : isLiquid ? 2.35 : 2.2, 0, Math.PI * 2);
+          context.fillStyle = highlighted ? '#d94f3d' : particleColor;
+          context.shadowBlur = highlighted ? 6 : 0;
+          context.shadowColor = highlighted ? '#d94f3d' : 'transparent';
+          context.fill();
+        }
+      }
+      context.shadowBlur = 0;
+    }
+
+    function makePrediction(answer) {
+      prediction = answer;
+      tracks.querySelectorAll('.track-card').forEach((track) => {
+        track.disabled = true;
+        track.classList.toggle('selected', track.dataset.track === answer);
+      });
+      runRace();
+    }
+
+    function runRace() {
+      resetAnimation();
+      explanation.hidden = true;
+      replayButton.hidden = true;
+      raceStatus.textContent = 'Sound pulses launched together…';
+
+      const comparison = comparisons[mode];
+      const slowest = Math.min(...comparison.tracks.map((item) => item.speed));
+      const durations = comparison.tracks.map((item) => {
+        const scaled = 4300 * (slowest / item.speed);
+        const normalDuration = Math.max(500, scaled);
+        return reducedMotion.matches ? 80 : normalDuration * (mode === 'substance' ? 2 : 1);
+      });
+      const start = performance.now();
+
+      function animate(now) {
+        let finished = 0;
+        comparison.tracks.forEach((item, index) => {
+          const card = tracks.querySelector(`[data-track="${item.id}"]`);
+          const track = card.querySelector('.track');
+          const canvas = card.querySelector('.particle-field');
+          const pulse = card.querySelector('.pulse');
+          const distance = Math.max(0, track.clientWidth - 100);
+          const progress = Math.min(1, (now - start) / durations[index]);
+          drawLongitudinal(canvas, progress, item.color, true, item.id);
+          pulse.style.transform = `translateX(${distance * progress}px)`;
+          if (progress === 1) {
+            finished += 1;
+            card.classList.add('arrived');
+            card.querySelector('.speed-result').textContent = `${item.speed} m/s`;
+            card.querySelector('.arrival-time').textContent = `${travelTime(item.speed)} s for 100 m`;
+          }
+        });
+
+        if (finished < comparison.tracks.length) {
+          animationFrame = requestAnimationFrame(animate);
+        } else {
+          animationFrame = null;
+          revealExplanation();
+          startIdleVibration();
+        }
+      }
+
+      animationFrame = requestAnimationFrame(animate);
+    }
+
+    function revealExplanation() {
+      const prompt = reasonPrompts[mode];
+      delete explanation.dataset.correct;
+      feedbackHeading.textContent = prompt.question;
+      feedbackText.textContent = 'Choose the best explanation.';
+      reasonChoices.hidden = false;
+      explanation.hidden = false;
+      replayButton.hidden = false;
+      raceStatus.textContent = 'Race complete. Answer the follow-up question.';
+    }
+
+    reasonChoices.addEventListener('click', (event) => {
+      const button = event.target.closest('.reason-choice');
+      if (!button || button.disabled) return;
+
+      const correct = button.dataset.correct === 'true';
+      reasonChoices.querySelectorAll('.reason-choice').forEach((choice) => choice.classList.remove('selected'));
+      button.classList.add('selected');
+      explanation.dataset.correct = String(correct);
+
+      if (correct) {
+        reasonChoices.querySelectorAll('.reason-choice').forEach((choice) => { choice.disabled = true; });
+        feedbackHeading.textContent = 'Correct.';
+        feedbackText.textContent = reasonPrompts[mode].explanation;
+        window.parent.postMessage({ type: 'complete' }, '*');
+      } else {
+        button.disabled = true;
+        feedbackHeading.textContent = 'Try again.';
+        feedbackText.textContent = reasonPrompts[mode].retry;
+      }
+    });
+
+    document.querySelectorAll('.mode-button').forEach((button) => {
+      button.addEventListener('click', () => {
+        mode = button.dataset.mode;
+        document.querySelectorAll('.mode-button').forEach((item) => {
+          item.setAttribute('aria-pressed', String(item === button));
+        });
+        resetAnimation();
+        render();
+      });
+    });
+
+    replayButton.addEventListener('click', runRace);
+    document.getElementById('reset-button').addEventListener('click', () => {
+      resetAnimation();
+      render();
+    });
+
+    render();
+  </script>
 </body>
 </html>

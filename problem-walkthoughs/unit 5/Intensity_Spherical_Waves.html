@@ -3,14 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sim 3: Intensity, Distance & Spherical Waves</title>
+<title>Simulation: 3D Inverse-Square Law Projection</title>
 <style>
   :root {
-    --bg: #0f172a;
-    --card: #1e293b;
-    --accent: #f472b6;
-    --text: #e2e8f0;
-    --muted: #94a3b8;
+    --bg: #eef4f8;
+    --card: #ffffff;
+    --accent: #c0266d;
+    --accent-hover: #9d174d;
+    --detector: #0891b2;
+    --text: #172033;
+    --muted: #526277;
+    --line: #cbd5e1;
+    --canvas: #e6ebf0;
+    --soft-blue: #e8f7fb;
+    --soft-pink: #fdf0f6;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -18,303 +24,722 @@
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
-    padding: 16px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
-  h1 { font-size: 1.4rem; margin-bottom: 4px; color: var(--accent); }
-  .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 16px; }
+  .header-container {
+    max-width: 1200px;
+    width: 100%;
+    margin-bottom: 10px;
+  }
+  h1 { font-size: 1.45rem; margin-bottom: 2px; color: var(--accent); }
+  .subtitle { color: var(--muted); font-size: 0.9rem; }
   .layout {
     display: grid;
-    grid-template-columns: 1fr 340px;
-    gap: 16px;
+    grid-template-columns: 1fr;
+    gap: 10px;
     max-width: 1200px;
-    margin: 0 auto;
+    width: 100%;
   }
-  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
   .canvas-wrap {
     background: var(--card);
+    border: 1px solid var(--line);
     border-radius: 12px;
-    padding: 12px;
+    padding: 8px;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
   }
   canvas {
     width: 100%;
+    max-width: 1160px;
     height: auto;
     display: block;
     border-radius: 8px;
-    background: #0b1220;
+    background: var(--canvas);
   }
   .controls {
     background: var(--card);
+    border: 1px solid var(--line);
     border-radius: 12px;
-    padding: 16px;
+    padding: 10px;
+    display: grid;
+    grid-template-columns: 1.05fr 1.55fr 0.9fr;
+    grid-template-areas:
+      "readout slider slider"
+      "hint info diagram";
+    gap: 8px;
+    align-items: stretch;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+  }
+  .readout { grid-area: readout; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .control-group {
+    grid-area: slider;
+    background: #f8fafc;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 10px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    justify-content: center;
   }
   .control-group label {
-    display: block;
-    font-size: 0.85rem;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 0.84rem;
     color: var(--muted);
-    margin-bottom: 4px;
-  }
-  input[type="range"] { width: 100%; accent-color: var(--accent); }
-  .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
-  button {
-    background: #334155;
-    color: var(--text);
-    border: none;
-    padding: 9px 14px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.85rem;
-  }
-  button:hover { background: #475569; }
-  button.active {
-    background: var(--accent);
-    color: #0f172a;
+    margin-bottom: 5px;
     font-weight: 600;
   }
-  .info-box {
-    background: #0f172a;
-    border-left: 3px solid var(--accent);
-    padding: 10px 12px;
-    border-radius: 0 8px 8px 0;
-    font-size: 0.85rem;
-    line-height: 1.45;
+  .control-group input[type="range"] {
+    width: 100%;
+    accent-color: var(--detector);
+    height: 5px;
   }
-  .readout {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
+  .slider-scale {
+    position: relative;
+    height: 18px;
+    margin: 2px 7px 0;
+    color: var(--muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+  }
+  .slider-mark {
+    position: absolute;
+    top: 1px;
+    transform: translateX(-50%);
+    text-align: center;
+    white-space: nowrap;
+  }
+  .slider-mark::before {
+    content: '';
+    display: block;
+    width: 1px;
+    height: 5px;
+    margin: 0 auto 1px;
+    background: #64748b;
   }
   .readout-card {
-    background: #0f172a;
+    background: #f8fafc;
     border-radius: 8px;
-    padding: 10px;
+    padding: 7px 8px;
     text-align: center;
+    border: 1px solid var(--line);
+    min-height: 56px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
   .readout-card .val {
-    font-size: 1.4rem;
-    font-weight: 700;
-    color: var(--accent);
+    font-size: 1.25rem;
+    font-weight: 750;
+    color: var(--detector);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.05;
   }
   .readout-card .lbl {
-    font-size: 0.75rem;
+    font-size: 0.68rem;
     color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.45px;
+    margin-top: 3px;
   }
-  .prediction {
-    background: #4a1942;
+  .hint-area {
+    grid-area: hint;
+    background: var(--soft-pink);
+    padding: 8px 10px;
     border-radius: 8px;
-    padding: 10px;
-    font-size: 0.82rem;
+    border: 1px solid #f3bfd5;
+    min-height: 76px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
   }
-  .prediction strong { color: #f9a8d4; }
-  .formula {
-    font-family: 'Courier New', monospace;
-    background: #1e1b4b;
-    padding: 8px;
-    border-radius: 6px;
-    font-size: 0.9rem;
-    text-align: center;
+  .hint-question {
+    color: #6b2148;
+    font-size: 0.8rem;
+    line-height: 1.25;
+    font-weight: 650;
+  }
+  .hint-button {
+    background: var(--accent);
+    color: #ffffff;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 700;
+    width: 100%;
+  }
+  .hint-button:hover { background: var(--accent-hover); }
+  .hint-text {
+    display: none;
+    color: #6b2148;
+    font-size: 0.75rem;
+    line-height: 1.25;
+  }
+  .hint-text.show { display: block; }
+  .info-box {
+    grid-area: info;
+    background: #f8fafc;
+    border-left: 4px solid var(--accent);
+    border-top: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 8px 10px;
+    border-radius: 0 8px 8px 0;
+    font-size: 0.82rem;
+    line-height: 1.35;
+    min-height: 72px;
+    display: flex;
+    align-items: center;
+  }
+  .diagram-container {
+    grid-area: diagram;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    background: var(--canvas);
+    min-height: 96px;
+  }
+  .diagram-container canvas {
+    width: 100%;
+    height: 96px;
+    display: block;
+    background: var(--canvas);
+  }
+  @media (max-width: 900px) {
+    .controls {
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas:
+        "readout slider"
+        "hint info"
+        "diagram diagram";
+    }
+  }
+  @media (max-width: 620px) {
+    body { padding: 8px; }
+    .controls {
+      grid-template-columns: 1fr;
+      grid-template-areas: "readout" "slider" "hint" "info" "diagram";
+    }
+    .diagram-container canvas { height: 120px; }
   }
 </style>
 </head>
 <body>
-  <h1>Simulation 3: Intensity, Distance & Spherical Waves</h1>
-  <p class="subtitle">Unit 5 Lesson 2 · Part 1 · Inverse-square law & expanding wavefronts</p>
+
+  <div class="header-container">
+    <h1>3D Projection: The Inverse-Square Law</h1>
+    <p class="subtitle">Algorithmic visualization of wave energy spreading across 1r, 2r, and 3r distances.</p>
+  </div>
 
   <div class="layout">
     <div class="canvas-wrap">
-      <canvas id="c" width="800" height="480"></canvas>
+      <canvas id="c" width="1160" height="560"></canvas>
     </div>
 
     <div class="controls">
-      <div class="control-group">
-        <label>Detector distance from source</label>
-        <input type="range" id="dist" min="40" max="320" value="120">
-        <span id="distVal">Distance = 1.0× reference</span>
-      </div>
-
-      <div class="control-group">
-        <label>Source power (energy output)</label>
-        <input type="range" id="power" min="20" max="100" value="60">
-      </div>
-
-      <div class="btn-row">
-        <button id="doubleBtn">Double Distance</button>
-        <button id="resetBtn">Reset</button>
-      </div>
-
       <div class="readout">
         <div class="readout-card">
-          <div class="val" id="intVal">1.00</div>
-          <div class="lbl">Relative Intensity</div>
+          <div class="val" id="areaVal" style="color: var(--accent);">1.0 A</div>
+          <div class="lbl">Area (r²)</div>
         </div>
         <div class="readout-card">
-          <div class="val" id="areaVal">1.00</div>
-          <div class="lbl">Relative Surface Area</div>
+          <div class="val" id="intVal">100%</div>
+          <div class="lbl">Intensity (1/r²)</div>
         </div>
       </div>
 
-      <div class="formula">
-        I ∝ 1 / r² &nbsp;&nbsp;→&nbsp;&nbsp; 2× distance = ¼ intensity
+      <div class="control-group">
+        <label>
+          <span>Move Detector Plane ($r$)</span>
+          <span id="distDisplay" style="color: var(--detector); font-weight: bold;">1.0</span>
+        </label>
+        <input type="range" id="dist" min="0.5" max="3.5" value="1" step="0.05">
+        <div class="slider-scale" aria-hidden="true">
+          <span class="slider-mark" style="left:16.67%">1r</span>
+          <span class="slider-mark" style="left:50%">2r</span>
+          <span class="slider-mark" style="left:83.33%">3r</span>
+        </div>
+      </div>
+
+      <div class="hint-area">
+        <div class="hint-question">How does intensity change as the detector moves farther from the source?</div>
+        <button class="hint-button" id="hintBtn" type="button">Show Hint</button>
+        <div class="hint-text" id="hintText">Intensity follows an inverse-square pattern: I ∝ 1/r². Doubling distance gives 1/4 the intensity; tripling it gives 1/9.</div>
       </div>
 
       <div class="info-box" id="info">
-        Sound spreads as expanding spherical shells. The same energy is distributed over a larger and larger surface area (4πr²). Double the distance → area becomes 4× → intensity falls to ¼.
+        Move the detector plane. Notice how a single unit of wave energy at distance 1r is forced to stretch over 4 units of area at 2r, and 9 units at 3r.
       </div>
 
-      <div class="prediction">
-        <strong>Key questions:</strong><br>
-        • If you double your distance from a speaker, is the intensity cut in half?<br>
-        • Why does a spherical wavefront get “weaker” even though energy is conserved?<br>
-        • Does the wave carry matter outward?
+      <div class="diagram-container">
+        <canvas id="waveDiagram" width="640" height="96" aria-label="Sound wave amplitude at the detector"></canvas>
       </div>
     </div>
   </div>
 
 <script>
-const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
-const W = canvas.width, H = canvas.height;
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
 
-const srcX = 80, srcY = H / 2;
-let detectorDist = 120; // pixels from source
-let power = 60;
-let t = 0;
-const waves = []; // expanding rings
+  // UI Elements
+  const distSlider = document.getElementById('dist');
+  const distDisplay = document.getElementById('distDisplay');
+  const intVal = document.getElementById('intVal');
+  const areaVal = document.getElementById('areaVal');
+  const infoBox = document.getElementById('info');
+  const hintBtn = document.getElementById('hintBtn');
+  const hintText = document.getElementById('hintText');
+  const waveDiagram = document.getElementById('waveDiagram');
+  const waveDiagramCtx = waveDiagram.getContext('2d');
+  window.addEventListener('resize', drawWaveDiagram);
 
-const distSlider = document.getElementById('dist');
-const powerSlider = document.getElementById('power');
-const intVal = document.getElementById('intVal');
-const areaVal = document.getElementById('areaVal');
-const distVal = document.getElementById('distVal');
-const info = document.getElementById('info');
+  // State
+  let detectorR = 1.0;
+  let time = 0;
+  const radialPanel = { left: 830, centerX: 990, centerY: 286, unitR: 40, maxR: 3.4 };
+  const radialParticles = [];
+  
+  // 3D Isometric Projection Vectors
+  const source2D = { x: 70, y: 250 };
+  const dir2D = { x: 200, y: -5 };    // Vector extending out along the Z axis (Distance)
+  const up2D = { x: 0, y: -55 };      // Vector defining 'Up' on a plane
+  const right2D = { x: 45, y: 22 };   // Vector defining 'Right' on a plane (Creates tilt)
 
-const refDist = 120; // reference distance for relative calculations
-
-function updateReadouts() {
-  const r = detectorDist / refDist;
-  const intensity = 1 / (r * r);
-  const area = r * r;
-  intVal.textContent = intensity.toFixed(2);
-  areaVal.textContent = area.toFixed(2);
-  distVal.textContent = `Distance = ${r.toFixed(2)}× reference`;
-
-  if (Math.abs(r - 2) < 0.05) {
-    info.innerHTML = '<b style="color:#f9a8d4">Doubled distance!</b> Surface area is now 4× larger, so intensity is exactly ¼. This is the inverse-square law.';
-  } else if (r > 2.5) {
-    info.innerHTML = 'Far from the source the energy is spread over a huge sphere. Intensity drops rapidly — that is why distant sounds are quiet.';
-  } else {
-    info.innerHTML = 'Sound spreads as expanding spherical shells. The same energy is distributed over a larger surface area (4πr²). Double the distance → area ×4 → intensity ×¼.';
+  // Get a projected 2D point for a 3D coordinate on a plane at distance 'r'
+  // u and v range from -1 to 1 (left to right, top to bottom)
+  function getPt(r, u, v) {
+    return {
+      x: source2D.x + r * dir2D.x + u * r * right2D.x + v * r * up2D.x,
+      y: source2D.y + r * dir2D.y + u * r * right2D.y + v * r * up2D.y
+    };
   }
-}
 
-distSlider.oninput = () => {
-  detectorDist = +distSlider.value;
-  updateReadouts();
-};
-powerSlider.oninput = () => {
-  power = +powerSlider.value;
-};
+  function updateState() {
+    detectorR = parseFloat(distSlider.value);
+    distDisplay.textContent = detectorR.toFixed(2) + ' r';
+    
+    let area = detectorR * detectorR;
+    let intensity = 1 / area;
+    
+    areaVal.textContent = area.toFixed(1) + ' A';
+    intVal.textContent = (intensity * 100).toFixed(1) + '%';
 
-document.getElementById('doubleBtn').onclick = () => {
-  detectorDist = Math.min(320, refDist * 2);
-  distSlider.value = detectorDist;
-  updateReadouts();
-};
-document.getElementById('resetBtn').onclick = () => {
-  detectorDist = 120;
-  power = 60;
-  distSlider.value = 120;
-  powerSlider.value = 60;
-  updateReadouts();
-};
-
-// Spawn new wavefronts periodically
-setInterval(() => {
-  waves.push({ r: 0, alpha: 1 });
-}, 600);
-
-function draw() {
-  ctx.fillStyle = '#0b1220';
-  ctx.fillRect(0, 0, W, H);
-
-  // Source
-  ctx.beginPath();
-  ctx.arc(srcX, srcY, 14, 0, Math.PI * 2);
-  ctx.fillStyle = '#f472b6';
-  ctx.fill();
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  ctx.arc(srcX, srcY, 6, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#94a3b8';
-  ctx.font = '12px sans-serif';
-  ctx.fillText('Source', srcX - 18, srcY + 35);
-
-  // Expanding spherical wavefronts (shown as circles in 2-D)
-  for (let i = waves.length - 1; i >= 0; i--) {
-    const w = waves[i];
-    w.r += 1.8;
-    w.alpha = Math.max(0, 1 - w.r / 380);
-    if (w.alpha <= 0) {
-      waves.splice(i, 1);
-      continue;
+    if (Math.abs(detectorR - 1) < 0.05) {
+      infoBox.innerHTML = "At <b>1r</b>, the plane captures 100% of the reference intensity. Area is 1A.";
+    } else if (Math.abs(detectorR - 2) < 0.05) {
+      infoBox.innerHTML = "At <b>2r</b>, the area has expanded to 2² = <b>4 units (4A)</b>. The same energy is spread thinner, dropping intensity to <b>¼ (25%)</b>.";
+    } else if (Math.abs(detectorR - 3) < 0.05) {
+      infoBox.innerHTML = "At <b>3r</b>, the area is 3² = <b>9 units (9A)</b>. Intensity drops to <b>¹/₉ (~11%)</b>.";
+    } else {
+      infoBox.innerHTML = "Move the detector plane. Notice how a single unit of wave energy at distance 1r is forced to stretch over 4 units of area at 2r, and 9 units at 3r.";
     }
-    // Intensity falls with r² → opacity / line width reflects that
-    const intensityFactor = Math.min(1, (40 / Math.max(w.r, 20)) ** 1.2);
+
+    drawWaveDiagram();
+  }
+
+  function resizeWaveDiagramCanvas() {
+    const rect = waveDiagram.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = Math.max(260, Math.round(rect.width));
+    const displayHeight = Math.max(96, Math.round(rect.height));
+    const targetWidth = Math.round(displayWidth * dpr);
+    const targetHeight = Math.round(displayHeight * dpr);
+
+    if (waveDiagram.width !== targetWidth || waveDiagram.height !== targetHeight) {
+      waveDiagram.width = targetWidth;
+      waveDiagram.height = targetHeight;
+    }
+
+    waveDiagramCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { w: displayWidth, h: displayHeight };
+  }
+
+  function drawWaveDiagram() {
+    const { w: diagramWidth, h: diagramHeight } = resizeWaveDiagramCanvas();
+    const padX = 14;
+    const topBand = 18;
+    const bottomBand = 18;
+    const centerY = Math.round(diagramHeight * 0.58);
+    const availableHalfHeight = Math.max(12, (diagramHeight - topBand - bottomBand) * 0.42);
+    const amplitude = Math.max(8, Math.min(availableHalfHeight, availableHalfHeight * 0.95 / Math.max(detectorR, 0.7)));
+    const leftX = padX;
+    const rightX = diagramWidth - padX;
+    const detectorX = Math.max(leftX + 80, rightX - 48);
+    const waveRightX = detectorX - 12;
+    const wavelength = Math.max(42, Math.min(72, (waveRightX - leftX) / 3.6));
+    const titleSize = diagramHeight < 110 ? 10 : 12;
+    const valueSize = diagramHeight < 110 ? 10 : 11;
+
+    waveDiagramCtx.clearRect(0, 0, diagramWidth, diagramHeight);
+
+    waveDiagramCtx.fillStyle = '#e6ebf0';
+    waveDiagramCtx.fillRect(0, 0, diagramWidth, diagramHeight);
+
+    waveDiagramCtx.strokeStyle = '#d8e3ec';
+    waveDiagramCtx.lineWidth = 1;
+    waveDiagramCtx.strokeRect(0.5, 0.5, diagramWidth - 1, diagramHeight - 1);
+
+    waveDiagramCtx.fillStyle = '#172033';
+    waveDiagramCtx.font = `600 ${titleSize}px sans-serif`;
+    waveDiagramCtx.textAlign = 'left';
+    waveDiagramCtx.textBaseline = 'middle';
+    waveDiagramCtx.fillText('Sound wave reaching the detector', leftX, 12);
+
+    waveDiagramCtx.fillStyle = '#0891b2';
+    waveDiagramCtx.font = `700 ${valueSize}px sans-serif`;
+    waveDiagramCtx.textAlign = 'right';
+    waveDiagramCtx.fillText(`r = ${detectorR.toFixed(2)}r   amplitude = ${(1 / detectorR).toFixed(2)}×`, rightX, 12);
+
+    waveDiagramCtx.strokeStyle = '#b8c8d8';
+    waveDiagramCtx.lineWidth = 1.5;
+    waveDiagramCtx.beginPath();
+    waveDiagramCtx.moveTo(leftX, centerY);
+    waveDiagramCtx.lineTo(rightX, centerY);
+    waveDiagramCtx.stroke();
+
+    waveDiagramCtx.strokeStyle = '#cbd5e1';
+    waveDiagramCtx.setLineDash([4, 4]);
+    waveDiagramCtx.beginPath();
+    waveDiagramCtx.moveTo(detectorX, topBand + 6);
+    waveDiagramCtx.lineTo(detectorX, diagramHeight - bottomBand);
+    waveDiagramCtx.stroke();
+    waveDiagramCtx.setLineDash([]);
+
+    waveDiagramCtx.strokeStyle = '#f472b6';
+    waveDiagramCtx.lineWidth = 3;
+    waveDiagramCtx.beginPath();
+    for (let x = leftX; x <= waveRightX; x += 2) {
+      const y = centerY - Math.sin((x - leftX) * Math.PI * 2 / wavelength - time * 3.5) * amplitude;
+      if (x === leftX) waveDiagramCtx.moveTo(x, y);
+      else waveDiagramCtx.lineTo(x, y);
+    }
+    waveDiagramCtx.stroke();
+
+    waveDiagramCtx.strokeStyle = '#0891b2';
+    waveDiagramCtx.lineWidth = 2;
+    waveDiagramCtx.beginPath();
+    waveDiagramCtx.moveTo(detectorX, centerY - amplitude);
+    waveDiagramCtx.lineTo(detectorX, centerY + amplitude);
+    waveDiagramCtx.stroke();
+
+    waveDiagramCtx.beginPath();
+    waveDiagramCtx.moveTo(detectorX - 5, centerY - amplitude);
+    waveDiagramCtx.lineTo(detectorX + 5, centerY - amplitude);
+    waveDiagramCtx.moveTo(detectorX - 5, centerY + amplitude);
+    waveDiagramCtx.lineTo(detectorX + 5, centerY + amplitude);
+    waveDiagramCtx.stroke();
+
+    waveDiagramCtx.fillStyle = '#0891b2';
+    waveDiagramCtx.font = `700 ${valueSize}px sans-serif`;
+    waveDiagramCtx.textAlign = 'center';
+    waveDiagramCtx.fillText('Detector', detectorX, diagramHeight - 9);
+
+    waveDiagramCtx.fillStyle = '#526277';
+    waveDiagramCtx.font = `${Math.max(9, valueSize - 1)}px sans-serif`;
+    waveDiagramCtx.textAlign = 'left';
+    waveDiagramCtx.fillText('equilibrium', leftX + 4, centerY - 7);
+
+    waveDiagramCtx.textAlign = 'right';
+    waveDiagramCtx.fillText('measured amplitude', detectorX - 10, centerY - amplitude - 6);
+  }
+
+  distSlider.addEventListener('input', updateState);
+  hintBtn.addEventListener('click', () => {
+    const isOpen = hintText.classList.toggle('show');
+    hintBtn.textContent = isOpen ? 'Hide Hint' : 'Show Hint';
+  });
+
+  function initRadialParticles() {
+    for (let i = 0; i < 1400; i++) {
+      const radius = Math.sqrt(Math.random()) * radialPanel.unitR * radialPanel.maxR;
+      const angle = Math.random() * Math.PI * 2;
+      radialParticles.push({
+        radius,
+        xDirection: Math.cos(angle),
+        yDirection: Math.sin(angle)
+      });
+    }
+  }
+
+  function drawRadialWaveField() {
+    const { left, centerX, centerY, unitR, maxR } = radialPanel;
+    const angularFrequency = Math.PI * 4;
+    const waveNumber = (Math.PI * 2) / 40;
+
+    ctx.save();
     ctx.beginPath();
-    ctx.arc(srcX, srcY, w.r, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(244, 114, 182, ${w.alpha * intensityFactor * (power / 60)})`;
-    ctx.lineWidth = 2 + intensityFactor * 3;
+    ctx.rect(left, 16, W - left - 16, H - 32);
+    ctx.clip();
+    ctx.fillStyle = '#e6ebf0';
+    ctx.fillRect(left, 16, W - left - 16, H - 32);
+
+    radialParticles.forEach(particle => {
+      const effectiveRadius = Math.max(particle.radius, 18);
+      const amplitude = 9 * unitR / effectiveRadius;
+      const displacement = Math.sin(waveNumber * particle.radius - angularFrequency * time) * amplitude;
+      const currentRadius = particle.radius + displacement;
+      const nextDisplacement = Math.sin(waveNumber * (particle.radius + 2) - angularFrequency * time)
+        * (9 * unitR / Math.max(particle.radius + 2, 18));
+      const compression = displacement - nextDisplacement;
+      const alpha = Math.max(0.12, Math.min(0.8, 1.2 * Math.pow(unitR / effectiveRadius, 2)));
+
+      if (compression > 0.35 * unitR / effectiveRadius) {
+        ctx.fillStyle = `rgba(249, 115, 22, ${alpha})`;
+      } else if (compression < -0.35 * unitR / effectiveRadius) {
+        ctx.fillStyle = `rgba(34, 211, 238, ${alpha})`;
+      } else {
+        ctx.fillStyle = `rgba(100, 116, 139, ${alpha * 0.7})`;
+      }
+
+      ctx.fillRect(
+        centerX + particle.xDirection * currentRadius,
+        centerY + particle.yDirection * currentRadius,
+        1.5,
+        1.5
+      );
+    });
+
+    [1, 2, 3].forEach(referenceRadius => {
+      const pixelRadius = referenceRadius * unitR;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, pixelRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(100, 116, 139, 0.45)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#64748b';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${referenceRadius}r`, centerX, centerY - pixelRadius - 10);
+    });
+
+    const detectorRadius = detectorR * unitR;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, detectorRadius, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(34, 211, 238, 0.06)';
+    ctx.fill();
+    ctx.strokeStyle = '#22d3ee';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 9, 0, Math.PI * 2);
+    ctx.fillStyle = '#f472b6';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+
+    ctx.fillStyle = '#172033';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Spherical Wave', centerX, 44);
+    ctx.restore();
+
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(left - 12, 28);
+    ctx.lineTo(left - 12, H - 28);
     ctx.stroke();
   }
 
-  // Detector
-  const detX = srcX + detectorDist;
-  const detY = srcY;
-  ctx.beginPath();
-  ctx.arc(detX, detY, 12, 0, Math.PI * 2);
-  ctx.fillStyle = '#38bdf8';
-  ctx.fill();
-  ctx.strokeStyle = '#7dd3fc';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  ctx.fillStyle = '#94a3b8';
-  ctx.font = '12px sans-serif';
-  ctx.fillText('Detector', detX - 22, detY + 32);
+  function drawConeLines(maxR) {
+    ctx.strokeStyle = 'rgba(244, 114, 182, 0.5)';
+    ctx.lineWidth = 1;
+    
+    // Draw the 4 corner rays from the source
+    const corners = [ [-1, -1], [1, -1], [1, 1], [-1, 1] ];
+    corners.forEach(c => {
+      let pMax = getPt(maxR, c[0], c[1]);
+      ctx.beginPath();
+      ctx.moveTo(source2D.x, source2D.y);
+      ctx.lineTo(pMax.x, pMax.y);
+      ctx.stroke();
+    });
+  }
 
-  // Distance line
-  ctx.strokeStyle = '#475569';
-  ctx.setLineDash([5, 5]);
-  ctx.beginPath();
-  ctx.moveTo(srcX + 14, srcY);
-  ctx.lineTo(detX - 12, srcY);
-  ctx.stroke();
-  ctx.setLineDash([]);
+  function drawPlane(r, type = 'fixed') {
+    const isDetector = (type === 'detector');
+    
+    // Draw outer boundary polygon
+    ctx.beginPath();
+    let p1 = getPt(r, -1, -1);
+    let p2 = getPt(r, 1, -1);
+    let p3 = getPt(r, 1, 1);
+    let p4 = getPt(r, -1, 1);
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.lineTo(p3.x, p3.y);
+    ctx.lineTo(p4.x, p4.y);
+    ctx.closePath();
 
-  // Intensity bar at detector (visual height = intensity)
-  const r = detectorDist / refDist;
-  const intensity = 1 / (r * r);
-  const barH = Math.min(160, intensity * 80 * (power / 60));
-  ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
-  ctx.fillRect(detX + 25, detY - barH / 2, 18, barH);
-  ctx.strokeStyle = '#38bdf8';
-  ctx.strokeRect(detX + 25, detY - barH / 2, 18, barH);
-  ctx.fillStyle = '#7dd3fc';
-  ctx.font = '11px sans-serif';
-  ctx.fillText('I', detX + 30, detY - barH / 2 - 6);
+    // Styling based on plane type
+    if (isDetector) {
+      // Detector plane (Cyan, changes opacity based on intensity)
+      let intensity = Math.min(1.0, 1 / (r * r));
+      ctx.fillStyle = `rgba(34, 211, 238, ${Math.max(0.15, intensity * 0.8)})`;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#22d3ee';
+      ctx.stroke();
 
-  // Legend
-  ctx.fillStyle = '#64748b';
-  ctx.font = '11px sans-serif';
-  ctx.fillText('Circles = spherical wavefronts (energy spreading over larger area)', 20, H - 20);
+      // Detector Label
+      let lblPt = getPt(r, 0, 1.15);
+      ctx.fillStyle = '#22d3ee';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Detector', lblPt.x, lblPt.y);
 
-  t += 0.05;
-  requestAnimationFrame(draw);
-}
-updateReadouts();
-draw();
+    } else {
+      // Fixed Reference Planes (1r, 2r, 3r)
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#475569';
+      ctx.stroke();
+
+      // Subdivide the grid into r*r cells
+      let cells = Math.round(r);
+      
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+
+      // Vertical grid lines
+      for (let i = 1; i < cells; i++) {
+        let u = -1 + (i / cells) * 2;
+        let top = getPt(r, u, -1);
+        let bot = getPt(r, u, 1);
+        ctx.beginPath(); ctx.moveTo(top.x, top.y); ctx.lineTo(bot.x, bot.y); ctx.stroke();
+      }
+      
+      // Horizontal grid lines
+      for (let i = 1; i < cells; i++) {
+        let v = -1 + (i / cells) * 2;
+        let left = getPt(r, -1, v);
+        let right = getPt(r, 1, v);
+        ctx.beginPath(); ctx.moveTo(left.x, left.y); ctx.lineTo(right.x, right.y); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+
+      // Draw 'A' in each sub-cell to prove area multiplication
+      ctx.fillStyle = '#9f1239'; // Dark red/pink matching diagram
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      for(let i=0; i<cells; i++) {
+        for(let j=0; j<cells; j++) {
+          let cellU = -1 + ((i + 0.5) / cells) * 2;
+          let cellV = -1 + ((j + 0.5) / cells) * 2;
+          let pt = getPt(r, cellU, cellV);
+          ctx.fillText('A', pt.x, pt.y);
+        }
+      }
+      
+      // Distance Label (1r, 2r, 3r)
+      let lblPt = getPt(r, 0, -1.15);
+      ctx.fillStyle = '#172033';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.fillText(`${cells}r`, lblPt.x, lblPt.y);
+    }
+  }
+
+  let wavePulses = [];
+
+  function render() {
+    ctx.fillStyle = '#e6ebf0';
+    ctx.fillRect(0, 0, W, H);
+
+    drawRadialWaveField();
+    
+    // Draw Source Node
+    ctx.beginPath();
+    ctx.arc(source2D.x, source2D.y, 8, 0, Math.PI * 2);
+    ctx.fillStyle = '#f472b6';
+    ctx.fill();
+    ctx.fillStyle = '#172033';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('Source P', source2D.x - 15, source2D.y + 4);
+
+    drawConeLines(3.6);
+
+    // Manage expanding wave pulses
+    if (Math.random() < 0.02) {
+      wavePulses.push({ r: 0 }); // spawn new pulse
+    }
+    
+    // Z-Sorting setup: Collect all planes to draw back-to-front
+    let planesToDraw = [
+      { r: 1, type: 'fixed' },
+      { r: 2, type: 'fixed' },
+      { r: 3, type: 'fixed' },
+      { r: detectorR, type: 'detector' }
+    ];
+    
+    // Add wave pulses to the render list
+    for (let i = wavePulses.length - 1; i >= 0; i--) {
+      let p = wavePulses[i];
+      p.r += 0.015;
+      if (p.r > 3.6) {
+        wavePulses.splice(i, 1);
+      } else {
+        planesToDraw.push({ r: p.r, type: 'pulse' });
+      }
+    }
+
+    // Sort planes by distance (r) so further planes draw in front (isometric overlap)
+    planesToDraw.sort((a, b) => a.r - b.r);
+
+    // Draw sorted planes
+    planesToDraw.forEach(plane => {
+      if (plane.type === 'pulse') {
+        // Draw expanding energy frame
+        ctx.beginPath();
+        let p1 = getPt(plane.r, -1, -1);
+        let p2 = getPt(plane.r, 1, -1);
+        let p3 = getPt(plane.r, 1, 1);
+        let p4 = getPt(plane.r, -1, 1);
+        ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.lineTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y); ctx.closePath();
+        
+        let intensity = Math.min(1.0, 1.5 / Math.max(0.5, plane.r * plane.r));
+        ctx.strokeStyle = `rgba(244, 114, 182, ${intensity})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      } else {
+        drawPlane(plane.r, plane.type);
+      }
+    });
+
+    time += 0.016;
+  drawWaveDiagram();
+    requestAnimationFrame(render);
+  }
+
+  // Initialize
+  initRadialParticles();
+  updateState();
+  render();
+
 </script>
 </body>
 </html>
+
+
