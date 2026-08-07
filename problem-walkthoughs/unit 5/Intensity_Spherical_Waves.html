@@ -69,24 +69,30 @@
     border-radius: 12px;
     padding: 10px;
     display: grid;
-    grid-template-columns: 1.05fr 1.55fr 0.9fr;
+    grid-template-columns: 1.05fr 0.9fr;
     grid-template-areas:
-      "readout slider slider"
-      "hint info diagram";
+      "readout diagram"
+      "hint hint";
     gap: 8px;
     align-items: stretch;
     box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
   }
   .readout { grid-area: readout; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .control-group {
-    grid-area: slider;
-    background: #f8fafc;
-    border: 1px solid var(--line);
+    position: absolute;
+    z-index: 2;
+    left: 18px;
+    right: 18px;
+    bottom: 18px;
+    background: rgba(248, 250, 252, 0.94);
+    border: 1px solid rgba(203, 213, 225, 0.95);
     border-radius: 8px;
     padding: 8px 10px;
     display: flex;
     flex-direction: column;
     justify-content: center;
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.14);
+    backdrop-filter: blur(4px);
   }
   .control-group label {
     display: flex;
@@ -156,7 +162,7 @@
     padding: 8px 10px;
     border-radius: 8px;
     border: 1px solid #f3bfd5;
-    min-height: 76px;
+    min-height: 68px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -187,21 +193,6 @@
     line-height: 1.25;
   }
   .hint-text.show { display: block; }
-  .info-box {
-    grid-area: info;
-    background: #f8fafc;
-    border-left: 4px solid var(--accent);
-    border-top: 1px solid var(--line);
-    border-right: 1px solid var(--line);
-    border-bottom: 1px solid var(--line);
-    padding: 8px 10px;
-    border-radius: 0 8px 8px 0;
-    font-size: 0.82rem;
-    line-height: 1.35;
-    min-height: 72px;
-    display: flex;
-    align-items: center;
-  }
   .diagram-container {
     grid-area: diagram;
     border-radius: 8px;
@@ -220,17 +211,17 @@
     .controls {
       grid-template-columns: 1fr 1fr;
       grid-template-areas:
-        "readout slider"
-        "hint info"
-        "diagram diagram";
+        "readout diagram"
+        "hint hint";
     }
   }
   @media (max-width: 620px) {
     body { padding: 8px; }
     .controls {
       grid-template-columns: 1fr;
-      grid-template-areas: "readout" "slider" "hint" "info" "diagram";
+      grid-template-areas: "readout" "diagram" "hint";
     }
+    .control-group { left: 14px; right: 14px; bottom: 14px; }
     .diagram-container canvas { height: 120px; }
   }
 </style>
@@ -245,6 +236,18 @@
   <div class="layout">
     <div class="canvas-wrap">
       <canvas id="c" width="1160" height="560"></canvas>
+      <div class="control-group">
+        <label>
+          <span>Move Detector Plane ($r$)</span>
+          <span id="distDisplay" style="color: var(--detector); font-weight: bold;">1.0</span>
+        </label>
+        <input type="range" id="dist" min="0.5" max="3.5" value="1" step="0.05">
+        <div class="slider-scale" aria-hidden="true">
+          <span class="slider-mark" style="left:16.67%">1r</span>
+          <span class="slider-mark" style="left:50%">2r</span>
+          <span class="slider-mark" style="left:83.33%">3r</span>
+        </div>
+      </div>
     </div>
 
     <div class="controls">
@@ -259,27 +262,10 @@
         </div>
       </div>
 
-      <div class="control-group">
-        <label>
-          <span>Move Detector Plane ($r$)</span>
-          <span id="distDisplay" style="color: var(--detector); font-weight: bold;">1.0</span>
-        </label>
-        <input type="range" id="dist" min="0.5" max="3.5" value="1" step="0.05">
-        <div class="slider-scale" aria-hidden="true">
-          <span class="slider-mark" style="left:16.67%">1r</span>
-          <span class="slider-mark" style="left:50%">2r</span>
-          <span class="slider-mark" style="left:83.33%">3r</span>
-        </div>
-      </div>
-
       <div class="hint-area">
         <div class="hint-question">How does intensity change as the detector moves farther from the source?</div>
         <button class="hint-button" id="hintBtn" type="button">Show Hint</button>
         <div class="hint-text" id="hintText">Intensity follows an inverse-square pattern: I ∝ 1/r². Doubling distance gives 1/4 the intensity; tripling it gives 1/9.</div>
-      </div>
-
-      <div class="info-box" id="info">
-        Move the detector plane. Notice how a single unit of wave energy at distance 1r is forced to stretch over 4 units of area at 2r, and 9 units at 3r.
       </div>
 
       <div class="diagram-container">
@@ -299,7 +285,6 @@
   const distDisplay = document.getElementById('distDisplay');
   const intVal = document.getElementById('intVal');
   const areaVal = document.getElementById('areaVal');
-  const infoBox = document.getElementById('info');
   const hintBtn = document.getElementById('hintBtn');
   const hintText = document.getElementById('hintText');
   const waveDiagram = document.getElementById('waveDiagram');
@@ -336,16 +321,6 @@
     
     areaVal.textContent = area.toFixed(1) + ' A';
     intVal.textContent = (intensity * 100).toFixed(1) + '%';
-
-    if (Math.abs(detectorR - 1) < 0.05) {
-      infoBox.innerHTML = "At <b>1r</b>, the plane captures 100% of the reference intensity. Area is 1A.";
-    } else if (Math.abs(detectorR - 2) < 0.05) {
-      infoBox.innerHTML = "At <b>2r</b>, the area has expanded to 2² = <b>4 units (4A)</b>. The same energy is spread thinner, dropping intensity to <b>¼ (25%)</b>.";
-    } else if (Math.abs(detectorR - 3) < 0.05) {
-      infoBox.innerHTML = "At <b>3r</b>, the area is 3² = <b>9 units (9A)</b>. Intensity drops to <b>¹/₉ (~11%)</b>.";
-    } else {
-      infoBox.innerHTML = "Move the detector plane. Notice how a single unit of wave energy at distance 1r is forced to stretch over 4 units of area at 2r, and 9 units at 3r.";
-    }
 
     drawWaveDiagram();
   }
@@ -741,5 +716,3 @@
 </script>
 </body>
 </html>
-
-

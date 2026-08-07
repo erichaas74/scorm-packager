@@ -72,6 +72,7 @@
   }
 
   function initialize() {
+    if (_initialized) return true;
     var api = _discoverAPI();
     if (!api) return false;
 
@@ -90,12 +91,14 @@
   function getValue(element) {
     var api = _discoverAPI();
     if (!api) return '';
+    if (!_initialized && !initialize()) return '';
     return api.LMSGetValue(element);
   }
 
   function setValue(element, value) {
     var api = _discoverAPI();
     if (!api) return false;
+    if (!_initialized && !initialize()) return false;
 
     var result = api.LMSSetValue(element, String(value));
     if (!_isTrue(result)) {
@@ -110,7 +113,14 @@
   function commit() {
     var api = _discoverAPI();
     if (!api) return false;
-    return _isTrue(api.LMSCommit(''));
+    if (!_initialized && !initialize()) return false;
+    var result = api.LMSCommit('');
+    if (!_isTrue(result)) {
+      var err = api.LMSGetLastError ? api.LMSGetLastError() : '?';
+      console.error('[SCORM] LMSCommit failed. Error code:', err);
+      return false;
+    }
+    return true;
   }
 
   function finish() {

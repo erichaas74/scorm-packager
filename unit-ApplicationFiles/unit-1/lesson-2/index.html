@@ -673,7 +673,7 @@
       },
       {
         title: 'Pass all 6 levels',
-        body: 'When your route matches both targets, the level is <b>passed</b>. The level menu marks each level: <span class="eq">○</span> not passed, <span class="eq">✓</span> passed. Pass all 6 levels to finish — your score reports to the gradebook automatically.'
+        body: 'When your route matches both targets, the level is <b>passed</b>. The level menu marks each level: <span class="eq">○</span> not passed, <span class="eq">✓</span> passed. Pass all 6 levels to finish and earn the 15-point activity completion score.'
       }
     ];
     var walkStep = 0;
@@ -703,13 +703,14 @@
       walkthroughOverlay.classList.add('hidden');
     }
 
-    // Progress tracking (drives the SCORM completion score)
-    // passed = level indices whose route matched both targets (1 pt each)
+    // Progress tracking (drives the 15-point SCORM completion score)
+    // passed = level indices whose route matched both targets
     var progressState = {
       passed: []
     };
 
-    var POINTS_MAX = 6; // 1 point per level
+    var POINTS_MAX = 15;
+    var completionReportConfirmed = false;
 
     // --- PHASE 1: CONFIGURATION ---
     var CONFIG = {
@@ -2029,7 +2030,9 @@
 
       var allDone = progressState.passed.length === levels.length;
       var title = allDone ? 'All Levels Complete!' : 'Level Complete!';
-      var subtitle = allDone ? 'Your completion has been reported' : 'Next level loading...';
+      var subtitle = allDone
+        ? (completionReportConfirmed ? '15 completion points reported to Buzz' : 'Complete — reconnect in Buzz to report 15 points')
+        : 'Next level loading...';
 
       var boxW = 460;
       var boxH = 130;
@@ -2109,19 +2112,28 @@
 
     // --- SCORM PROGRESS + SUSPEND DATA ---
     function earnedPoints() {
-      return progressState.passed.length;
+      return progressState.passed.length === levels.length ? POINTS_MAX : 0;
     }
 
-    // Completion activity: status is only ever completed/incomplete.
+    // Completion activity: all six levels earn 15/15; partial progress remains 0/15.
     function reportProgress() {
       var complete = progressState.passed.length === levels.length;
-      if (typeof SCORM !== 'undefined') {
-        SCORM.setScore(earnedPoints(), 0, POINTS_MAX);
-        SCORM.setStatus(complete ? 'completed' : 'incomplete');
-        SCORM.commit();
+      completionReportConfirmed = false;
+      if (typeof SCORM !== 'undefined' && (!SCORM.isInitialized || SCORM.isInitialized() || SCORM.initialize())) {
+        var writesAccepted = [
+          SCORM.setValue('cmi.core.score.raw', earnedPoints()),
+          SCORM.setValue('cmi.core.score.min', 0),
+          SCORM.setValue('cmi.core.score.max', POINTS_MAX),
+          SCORM.setValue('cmi.core.lesson_status', complete ? 'completed' : 'incomplete'),
+          SCORM.setValue('cmi.core.lesson_location', complete ? 'complete' : 'activity'),
+          SCORM.setValue('cmi.core.exit', 'suspend'),
+          SCORM.setValue('cmi.comments', complete ? 'City Blocks Challenge completed: 15 / 15' : 'City Blocks Challenge in progress: 0 / 15')
+        ].every(Boolean);
+        completionReportConfirmed = writesAccepted && SCORM.commit();
       }
       saveSuspendData();
       updateScoreReadout();
+      return completionReportConfirmed;
     }
 
     function saveSuspendData() {
@@ -2221,16 +2233,6 @@
       if (e.key.toLowerCase() === 'n') nextLevel();
     });
 
-    // Completion activity: never report passed/failed, only progress so far.
-    window.addEventListener('beforeunload', function() {
-      if (typeof SCORM !== 'undefined') {
-        SCORM.setScore(earnedPoints(), 0, POINTS_MAX);
-        SCORM.setStatus(progressState.passed.length === levels.length ? 'completed' : 'incomplete');
-        SCORM.commit();
-        SCORM.finish();
-      }
-    });
-    
   </script>
 </body>
 </html>

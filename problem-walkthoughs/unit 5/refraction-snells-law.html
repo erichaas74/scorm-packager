@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Refraction: Snell's Law</title>
+  <style>
+    :root {
+      --navy: #153456;
+      --blue: #285f9f;
+      --blue-dark: #174b86;
+      --blue-soft: #e8f2fd;
+      --orange: #e56b24;
+      --ink: #132238;
+      --muted: #52657b;
+      --line: #bfd1e3;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      min-height: 100vh;
+      padding: 20px;
+      background: #eef4fa;
+      color: var(--ink);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    button, input { font: inherit; }
+
+    .simulation {
+      width: min(100%, 980px);
+      margin: 0 auto;
+      overflow: hidden;
+      border: 4px solid var(--blue);
+      border-radius: 22px;
+      background: #fff;
+      box-shadow: 0 18px 45px rgba(21, 52, 86, .14);
+    }
+    .sim-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 18px 22px 16px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(115deg, #fff 0%, #edf6ff 100%);
+    }
+    .kicker { margin: 0 0 3px; color: var(--blue); font-size: .72rem; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { margin: 0; color: var(--navy); font-size: clamp(1.45rem, 4vw, 2rem); line-height: 1.08; }
+    .subtitle { margin: 6px 0 0; color: var(--muted); font-size: .92rem; }
+    .header-actions { display: flex; gap: 8px; }
+    .icon-button {
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid #9db5cc;
+      border-radius: 999px;
+      background: #fff;
+      color: var(--blue-dark);
+      font-weight: 750;
+      cursor: pointer;
+    }
+    .icon-button:hover { background: var(--blue-soft); }
+
+    .sim-body { padding: 18px; }
+    .stage { position: relative; overflow: hidden; border: 1px solid #9fbbd5; border-radius: 16px; background: #f8fbfe; }
+    canvas { display: block; width: 100%; height: auto; aspect-ratio: 960 / 500; }
+    .formula {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      padding: 7px 11px;
+      border: 1px solid rgba(40,95,159,.25);
+      border-radius: 10px;
+      background: rgba(255,255,255,.92);
+      color: var(--navy);
+      font-size: .82rem;
+      font-weight: 850;
+      pointer-events: none;
+    }
+
+    .readouts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin-top: 12px; }
+    .readout { min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: #f8fbfe; }
+    .readout span { display: block; color: var(--muted); font-size: .67rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+    .readout output { display: block; overflow: hidden; margin-top: 2px; color: var(--navy); font-size: .98rem; font-weight: 850; text-overflow: ellipsis; white-space: nowrap; }
+
+    .controls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 14px; padding: 15px; border: 1px solid var(--line); border-radius: 15px; background: #f8fbfe; }
+    .control { min-width: 0; }
+    .control label { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 8px; color: var(--navy); font-size: .84rem; font-weight: 750; }
+    .control output { color: var(--blue); font-variant-numeric: tabular-nums; }
+    input[type="range"] { width: 100%; accent-color: var(--blue); cursor: pointer; }
+    .explanation { grid-column: 1 / -1; margin: 0; padding: 11px 13px; border-left: 4px solid var(--orange); border-radius: 8px; background: #fff4ec; color: #713516; font-size: .9rem; line-height: 1.45; }
+    :focus-visible { outline: 3px solid var(--orange); outline-offset: 3px; }
+
+    @media (max-width: 760px) {
+      body { padding: 10px; }
+      .simulation { border-width: 3px; border-radius: 17px; }
+      .sim-header { align-items: flex-start; padding: 15px; }
+      .subtitle { display: none; }
+      .sim-body { padding: 10px; }
+      .readouts, .controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .explanation { grid-column: 1 / -1; }
+    }
+    @media (max-width: 460px) { .readouts, .controls { grid-template-columns: 1fr; } .explanation { grid-column: auto; } .formula { font-size: .7rem; } }
+  </style>
+</head>
+<body>
+  <main class="simulation">
+    <header class="sim-header">
+      <div>
+        <p class="kicker">Unit 5 · Wave behavior</p>
+        <h1>Refraction: Snell's Law</h1>
+        <p class="subtitle">Change the media and incident angle to see speed, wavelength, and direction respond.</p>
+      </div>
+      <div class="header-actions">
+        <button class="icon-button" id="pauseButton" type="button">Pause</button>
+        <button class="icon-button" id="resetButton" type="button">Reset</button>
+      </div>
+    </header>
+
+    <div class="sim-body">
+      <section class="stage" aria-label="Animated refraction diagram">
+        <canvas id="refractionCanvas" role="img" aria-label="Wavefronts and rays crossing a boundary between two media"></canvas>
+        <div class="formula" aria-hidden="true">n₁ sin θ₁ = n₂ sin θ₂</div>
+      </section>
+
+      <div class="readouts" aria-live="polite">
+        <div class="readout"><span>Refracted angle</span><output id="theta2Value">28.1°</output></div>
+        <div class="readout"><span>Speed ratio v₂/v₁</span><output id="speedRatioValue">0.67</output></div>
+        <div class="readout"><span>Wavelength ratio λ₂/λ₁</span><output id="wavelengthRatioValue">0.67</output></div>
+        <div class="readout"><span>Direction change</span><output id="directionValue">Toward normal</output></div>
+      </div>
+
+      <section class="controls" aria-label="Refraction controls">
+        <div class="control">
+          <label for="incidentAngle">Incident angle <output id="angleValue">45°</output></label>
+          <input id="incidentAngle" type="range" min="0" max="80" value="45">
+        </div>
+        <div class="control">
+          <label for="indexOne">Medium 1: n₁ <output id="n1Value">1.00</output></label>
+          <input id="indexOne" type="range" min="1" max="2.5" step="0.05" value="1">
+        </div>
+        <div class="control">
+          <label for="indexTwo">Medium 2: n₂ <output id="n2Value">1.50</output></label>
+          <input id="indexTwo" type="range" min="1" max="2.5" step="0.05" value="1.5">
+        </div>
+        <div class="control">
+          <label for="waveSpeed">Animation speed <output id="animationValue">1.0×</output></label>
+          <input id="waveSpeed" type="range" min="2" max="16" value="8">
+        </div>
+        <p class="explanation" id="explanation">The wave enters a higher-index medium, slows down, and bends toward the normal. Its frequency stays constant while its wavelength becomes shorter.</p>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+      const canvas = document.getElementById('refractionCanvas');
+      const ctx = canvas.getContext('2d');
+      const inputs = {
+        angle: document.getElementById('incidentAngle'),
+        n1: document.getElementById('indexOne'),
+        n2: document.getElementById('indexTwo'),
+        speed: document.getElementById('waveSpeed')
+      };
+      const out = {
+        angle: document.getElementById('angleValue'), n1: document.getElementById('n1Value'), n2: document.getElementById('n2Value'), animation: document.getElementById('animationValue'),
+        theta2: document.getElementById('theta2Value'), speedRatio: document.getElementById('speedRatioValue'), wavelengthRatio: document.getElementById('wavelengthRatioValue'), direction: document.getElementById('directionValue'), explanation: document.getElementById('explanation')
+      };
+      const pauseButton = document.getElementById('pauseButton');
+      const defaults = { angle: 45, n1: 1, n2: 1.5, speed: 8 };
+      let width = 960;
+      let height = 500;
+      let phase = 0;
+      let lastTime = 0;
+      let paused = false;
+
+      function values() {
+        const angleDeg = +inputs.angle.value;
+        const n1 = +inputs.n1.value;
+        const n2 = +inputs.n2.value;
+        const theta1 = angleDeg * Math.PI / 180;
+        const sinTheta2 = n1 * Math.sin(theta1) / n2;
+        const tir = sinTheta2 > 1;
+        return { angleDeg, n1, n2, theta1, theta2: tir ? null : Math.asin(sinTheta2), tir, speed: +inputs.speed.value };
+      }
+
+      function resize() {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        width = Math.max(320, rect.width);
+        height = width * 500 / 960;
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      function updateText() {
+        const v = values();
+        const ratio = v.n1 / v.n2;
+        out.angle.textContent = `${v.angleDeg}°`;
+        out.n1.textContent = v.n1.toFixed(2);
+        out.n2.textContent = v.n2.toFixed(2);
+        out.animation.textContent = `${(v.speed / 8).toFixed(1)}×`;
+        out.speedRatio.textContent = ratio.toFixed(2);
+        out.wavelengthRatio.textContent = ratio.toFixed(2);
+        if (v.tir) {
+          out.theta2.textContent = 'No transmission';
+          out.direction.textContent = 'Total reflection';
+          out.explanation.textContent = 'The incident angle exceeds the critical angle. No refracted ray forms; the wave undergoes total internal reflection in medium 1.';
+        } else {
+          const theta2Deg = v.theta2 * 180 / Math.PI;
+          out.theta2.textContent = `${theta2Deg.toFixed(1)}°`;
+          const direction = Math.abs(theta2Deg - v.angleDeg) < .15 ? 'No bending' : theta2Deg < v.angleDeg ? 'Toward normal' : 'Away from normal';
+          out.direction.textContent = direction;
+          if (direction === 'No bending') out.explanation.textContent = 'Both media have the same refractive index, so speed and wavelength stay the same and the wave does not bend.';
+          else if (direction === 'Toward normal') out.explanation.textContent = 'The wave enters a higher-index medium, slows down, and bends toward the normal. Its frequency stays constant while its wavelength becomes shorter.';
+          else out.explanation.textContent = 'The wave enters a lower-index medium, speeds up, and bends away from the normal. Its frequency stays constant while its wavelength becomes longer.';
+        }
+      }
+
+      function drawArrow(x1, y1, x2, y2, color) {
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        const head = Math.max(10, width * .014);
+        ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = Math.max(2, width * .003);
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x2 - head * Math.cos(angle - .45), y2 - head * Math.sin(angle - .45)); ctx.lineTo(x2 - head * Math.cos(angle + .45), y2 - head * Math.sin(angle + .45)); ctx.closePath(); ctx.fill();
+      }
+
+      function wavefronts(originX, originY, rayX, rayY, wavelength, offset, topHalf, color) {
+        const normalX = rayY;
+        const normalY = -rayX;
+        const lineLength = width * 1.2;
+        const count = Math.ceil((width + height) / wavelength) + 5;
+        ctx.save();
+        ctx.beginPath(); ctx.rect(0, topHalf ? 0 : height / 2, width, height / 2); ctx.clip();
+        ctx.strokeStyle = color; ctx.lineWidth = Math.max(1.5, width * .0022); ctx.globalAlpha = .72;
+        for (let i = -count; i <= count; i++) {
+          const d = i * wavelength + offset;
+          const cx = originX + rayX * d;
+          const cy = originY + rayY * d;
+          ctx.beginPath(); ctx.moveTo(cx - normalX * lineLength, cy - normalY * lineLength); ctx.lineTo(cx + normalX * lineLength, cy + normalY * lineLength); ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function label(text, x, y, color = '#153456', align = 'left') {
+        ctx.font = `800 ${Math.max(11, width * .016)}px system-ui`;
+        ctx.textAlign = align; ctx.textBaseline = 'middle'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.strokeText(text, x, y); ctx.fillStyle = color; ctx.fillText(text, x, y);
+      }
+
+      function drawAngle(cx, cy, theta, upper, color, symbol) {
+        if (theta < .025) return;
+        const radius = Math.max(28, width * .045);
+        ctx.strokeStyle = color; ctx.lineWidth = 2;
+        ctx.beginPath();
+        if (upper) ctx.arc(cx, cy, radius, -Math.PI / 2 - theta, -Math.PI / 2);
+        else ctx.arc(cx, cy, radius, Math.PI / 2 - theta, Math.PI / 2);
+        ctx.stroke();
+        const sign = upper ? -1 : 1;
+        label(symbol, cx + sign * Math.sin(theta / 2) * (radius + 17), cy + sign * Math.cos(theta / 2) * (radius + 17), color, 'center');
+      }
+
+      function draw() {
+        const v = values();
+        const midY = height / 2;
+        const cx = width / 2;
+        const density1 = (v.n1 - 1) / 1.5;
+        const density2 = (v.n2 - 1) / 1.5;
+        ctx.fillStyle = `hsl(202 78% ${97 - density1 * 12}%)`; ctx.fillRect(0, 0, width, midY);
+        ctx.fillStyle = `hsl(186 58% ${93 - density2 * 18}%)`; ctx.fillRect(0, midY, width, midY);
+
+        ctx.strokeStyle = 'rgba(40,95,159,.07)'; ctx.lineWidth = 1;
+        for (let x = 30; x < width; x += width / 16) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke(); }
+
+        const inRay = { x: Math.sin(v.theta1), y: Math.cos(v.theta1) };
+        const outRay = v.tir ? { x: Math.sin(v.theta1), y: -Math.cos(v.theta1) } : { x: Math.sin(v.theta2), y: Math.cos(v.theta2) };
+        const baseLambda = width * .055;
+        wavefronts(cx, midY, inRay.x, inRay.y, baseLambda / v.n1, phase, true, '#d94b35');
+        wavefronts(cx, midY, outRay.x, outRay.y, baseLambda / (v.tir ? v.n1 : v.n2), phase, v.tir, v.tir ? '#d94b35' : '#147792');
+
+        ctx.strokeStyle = '#285f9f'; ctx.lineWidth = Math.max(2, width * .003); ctx.beginPath(); ctx.moveTo(0, midY); ctx.lineTo(width, midY); ctx.stroke();
+        ctx.setLineDash([8, 7]); ctx.strokeStyle = '#6f8498'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, height); ctx.stroke(); ctx.setLineDash([]);
+
+        const length = Math.min(width, height) * .39;
+        drawArrow(cx - inRay.x * length, midY - inRay.y * length, cx - inRay.x * 8, midY - inRay.y * 8, '#153456');
+        drawArrow(cx + outRay.x * 8, midY + outRay.y * 8, cx + outRay.x * length, midY + outRay.y * length, v.tir ? '#c33a2b' : '#174b86');
+        drawAngle(cx, midY, v.theta1, true, '#153456', 'θ₁');
+        drawAngle(cx, midY, v.tir ? v.theta1 : v.theta2, v.tir, v.tir ? '#c33a2b' : '#174b86', v.tir ? 'θᵣ' : 'θ₂');
+
+        label(`Medium 1  n₁ = ${v.n1.toFixed(2)}`, 16, 26);
+        label(`Medium 2  n₂ = ${v.n2.toFixed(2)}`, 16, height - 25);
+        label('normal', cx + 12, 24, '#52657b');
+        label('incident wave', cx - inRay.x * length * .72 - 8, midY - inRay.y * length * .72 - 17, '#7d2c22', 'center');
+        label(v.tir ? 'reflected wave' : 'refracted wave', cx + outRay.x * length * .72, midY + outRay.y * length * .72 + (v.tir ? -18 : 18), v.tir ? '#a52920' : '#115d73', 'center');
+        if (v.tir) label('TOTAL INTERNAL REFLECTION', width - 18, midY + 25, '#a52920', 'right');
+      }
+
+      function animate(timestamp) {
+        const dt = Math.min(.05, (timestamp - (lastTime || timestamp)) / 1000);
+        lastTime = timestamp;
+        if (!paused) phase += dt * values().speed * width * .015;
+        draw();
+        requestAnimationFrame(animate);
+      }
+
+      Object.values(inputs).forEach(input => input.addEventListener('input', updateText));
+      pauseButton.addEventListener('click', () => { paused = !paused; pauseButton.textContent = paused ? 'Play' : 'Pause'; });
+      document.getElementById('resetButton').addEventListener('click', () => {
+        inputs.angle.value = defaults.angle; inputs.n1.value = defaults.n1; inputs.n2.value = defaults.n2; inputs.speed.value = defaults.speed; phase = 0; paused = false; pauseButton.textContent = 'Pause'; updateText();
+      });
+      window.addEventListener('resize', resize);
+      resize(); updateText(); requestAnimationFrame(animate);
+    })();
+  </script>
+</body>
+</html>

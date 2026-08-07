@@ -791,18 +791,44 @@ const MotionGraphsLab = (function() {
   }
   function syncAssessmentScore() {
     const points = assessmentEarnedPoints();
-    if (typeof SCORM !== 'undefined' && (!SCORM.isInitialized || SCORM.isInitialized())) {
+    if (typeof SCORM === 'undefined') return { submitted: false, standalone: true };
+    if (SCORM.isInitialized && !SCORM.isInitialized() && !SCORM.initialize()) {
+      return { submitted: false, standalone: true };
+    }
+    if (!SCORM.isInitialized || SCORM.isInitialized()) {
       try {
         saveAssessmentLogs();
-        SCORM.setValue('cmi.core.score.raw', points);
-        SCORM.setValue('cmi.core.score.min', 0);
-        SCORM.setValue('cmi.core.score.max', CORE_QUESTION_COUNT);
-        SCORM.setValue('cmi.core.lesson_status', coreAssessmentComplete() ? 'completed' : 'incomplete');
-        SCORM.setValue('cmi.core.lesson_location', coreAssessmentComplete() ? 'complete' : 'assessment');
-        SCORM.setValue('cmi.comments', 'Motion Graphs Lab score: ' + points + ' / ' + CORE_QUESTION_COUNT);
-        SCORM.commit();
-      } catch (e) {}
+        const writesAccepted = [
+          SCORM.setValue('cmi.core.score.raw', points),
+          SCORM.setValue('cmi.core.score.min', 0),
+          SCORM.setValue('cmi.core.score.max', CORE_QUESTION_COUNT),
+          SCORM.setValue('cmi.core.lesson_status', coreAssessmentComplete() ? 'completed' : 'incomplete'),
+          SCORM.setValue('cmi.core.lesson_location', coreAssessmentComplete() ? 'complete' : 'assessment'),
+          SCORM.setValue('cmi.core.exit', 'suspend'),
+          SCORM.setValue('cmi.comments', 'Motion Graphs Lab score: ' + points + ' / ' + CORE_QUESTION_COUNT)
+        ].every(Boolean);
+        const committed = SCORM.commit();
+        return { submitted: writesAccepted && committed, standalone: false };
+      } catch (e) {
+        console.error('[Motion Graphs Lab] Buzz submission failed.', e);
+        return { submitted: false, standalone: false };
+      }
     }
+    return { submitted: false, standalone: true };
+  }
+
+  function submitScoreToBuzz() {
+    const result = syncAssessmentScore();
+    if (!els.submitScoreBtn) return;
+    els.submitScoreBtn.textContent = result.submitted ? 'Submitted to Buzz' : 'Try Submit Again';
+    if (!els.submissionStatus) return;
+    els.submissionStatus.classList.toggle('success', result.submitted);
+    els.submissionStatus.classList.toggle('error', !result.submitted);
+    els.submissionStatus.textContent = result.submitted
+      ? 'Your score was accepted and saved by Buzz.'
+      : result.standalone
+        ? 'Buzz is not connected. Your work is saved on this device; reopen this lab in Buzz to submit.'
+        : 'Buzz did not confirm the submission. Check your connection and try again.';
   }
   function updateAssessmentProgress() {
     const points = assessmentEarnedPoints();
@@ -843,8 +869,7 @@ const MotionGraphsLab = (function() {
     pkgDropped: false,
     pkgStolen: false,
     selectedHouse: null,
-    logs: {},
-    hints: {}
+    logs: {}
   };
 
   let els = {};
@@ -872,6 +897,8 @@ const MotionGraphsLab = (function() {
     els.modePracticeBtn = document.getElementById('mode-practice-btn');
     els.modeAssessBtn = document.getElementById('mode-assessment-btn');
     els.practiceControls = document.getElementById('practice-controls');
+    els.practiceHintBtn = document.getElementById('practice-hint-btn');
+    els.practiceClues = document.getElementById('practice-brief-clues');
     els.assessControls = document.getElementById('assessment-top-controls');
     els.scenarioSelect = document.getElementById('scenarioSelect');
     els.qSelect = document.getElementById('question-select');
@@ -884,6 +911,7 @@ const MotionGraphsLab = (function() {
     els.completionCard = document.getElementById('completion-card');
     els.finalScore = document.getElementById('final-score-display');
     els.submitScoreBtn = document.getElementById('submit-score-buzz');
+    els.submissionStatus = document.getElementById('submission-status');
     
     // Entities
     els.standalonePackage = document.getElementById('standalonePackage');
@@ -916,8 +944,9 @@ const MotionGraphsLab = (function() {
     [els.practiceResetBtn, els.assessResetBtn].filter(Boolean).forEach(btn => btn.addEventListener('click', resetSimulation));
     if (els.prevBtn) els.prevBtn.addEventListener('click', () => { state.assessIdx = Math.max(0, state.assessIdx - 1); els.qSelect.value = state.assessIdx; loadScenario(); });
     if (els.nextBtn) els.nextBtn.addEventListener('click', () => { state.assessIdx = Math.min(state.assessQuestions.length - 1, state.assessIdx + 1); els.qSelect.value = state.assessIdx; loadScenario(); });
-    if (els.submitScoreBtn) els.submitScoreBtn.addEventListener('click', () => { syncAssessmentScore(); els.submitScoreBtn.textContent = 'Score Submitted'; });
+    if (els.submitScoreBtn) els.submitScoreBtn.addEventListener('click', submitScoreToBuzz);
     els.checkBtn.addEventListener('click', submitAssessmentAnswer);
+    if (els.practiceHintBtn) els.practiceHintBtn.addEventListener('click', () => showPracticeHints(els.practiceClues.classList.contains('hidden')));
     window.addEventListener('resize', renderCanvases);
 
     // Initial Setup
@@ -943,6 +972,32 @@ const MotionGraphsLab = (function() {
     els.playBtn = mode === 'practice' ? els.practicePlayBtn : els.assessPlayBtn;
     els.resetBtn = mode === 'practice' ? els.practiceResetBtn : els.assessResetBtn;
     loadScenario();
+  }
+
+  // Fills the practice hint panel with the current case's clues as chips.
+  function renderPracticeHints() {
+    if (!els.practiceClues) return;
+    let clues = (state.mode === 'practice' && state.scenario && state.scenario.clues) || [];
+    els.practiceClues.innerHTML = '';
+    if (!clues.length) {
+      let chip = document.createElement('span');
+      chip.className = 'hint-chip';
+      chip.textContent = 'No hints for this case — read the graph carefully.';
+      els.practiceClues.appendChild(chip);
+      return;
+    }
+    clues.forEach(text => {
+      let chip = document.createElement('span');
+      chip.className = 'hint-chip';
+      chip.textContent = '💡 ' + text;
+      els.practiceClues.appendChild(chip);
+    });
+  }
+
+  function showPracticeHints(show) {
+    if (!els.practiceClues || !els.practiceHintBtn) return;
+    els.practiceClues.classList.toggle('hidden', !show);
+    els.practiceHintBtn.textContent = show ? 'Hide Hints' : 'Show Hints';
   }
 
   function loadScenario() {
@@ -983,6 +1038,9 @@ const MotionGraphsLab = (function() {
       updatePracticeBanner();
       setPlaybackLock(false);
     }
+    // Refill the hints for the new case and collapse them again
+    renderPracticeHints();
+    showPracticeHints(false);
     
     els.playBtn.innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" fill-rule="evenodd"></path></svg> Play';
     updateStage();

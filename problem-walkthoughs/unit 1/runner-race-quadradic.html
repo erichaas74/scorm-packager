@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Race Lab: Predict, Test, Calculate, Challenge</title>
+  <style>
+    :root {
+      --navy: #10233f;
+      --ink: #172033;
+      --muted: #5c687a;
+      --line: #d9e2ee;
+      --blue: #2563eb;
+      --blue-dark: #1d4ed8;
+      --teal: #0f9f8f;
+      --gold: #f59e0b;
+      --green: #16885b;
+      --red: #dc4c4c;
+      --paper: #ffffff;
+      --soft: #f4f7fb;
+      --shadow: 0 22px 60px rgba(20, 38, 68, 0.16);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { background: transparent; max-width: 100%; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      padding: 18px;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    button, input { font: inherit; }
+    button { touch-action: manipulation; }
+
+    .app {
+      width: min(1120px, 100%);
+      margin: 0 auto;
+      overflow: hidden;
+      border: 1px solid rgba(142, 158, 180, 0.55);
+      border-radius: 26px;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .stage { display: none; padding: clamp(22px, 5vw, 44px); animation: stageIn 0.32s ease both; }
+    .stage.active { display: block; }
+    @keyframes stageIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    .stage-heading { display: flex; align-items: start; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
+    .stage-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 9px; flex: 0 0 auto; }
+    .stage-actions [role="status"] { color: var(--muted); font-size: 0.8rem; font-weight: 750; }
+    .stage-kicker { margin: 0 0 6px; color: var(--blue); font-size: 0.75rem; font-weight: 850; letter-spacing: 0.1em; text-transform: uppercase; }
+    h2 { margin: 0; color: var(--navy); font-size: clamp(1.45rem, 3.4vw, 2.25rem); letter-spacing: -0.035em; }
+    .stage-heading p { margin: 8px 0 0; max-width: 690px; color: var(--muted); line-height: 1.6; }
+
+    .runner-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .runner-choice { position: relative; display: block; min-height: 100%; cursor: pointer; }
+    .runner-choice input { position: absolute; opacity: 0; pointer-events: none; }
+    .runner-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+      border: 2px solid var(--line);
+      border-radius: 18px;
+      background: #fff;
+      box-shadow: 0 8px 22px rgba(32, 52, 83, 0.07);
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+    .runner-choice:hover .runner-card { transform: translateY(-3px); }
+    .runner-choice input:focus-visible + .runner-card { outline: 3px solid #60a5fa; outline-offset: 3px; }
+    .runner-choice input:checked + .runner-card { border-color: var(--runner); border-width: 3px; box-shadow: 0 0 0 5px rgba(37,99,235,0.18), 0 15px 30px rgba(32,52,83,0.16); box-shadow: 0 0 0 5px color-mix(in srgb, var(--runner) 22%, transparent), 0 15px 30px rgba(32,52,83,0.16); transform: translateY(-3px); }
+    .choice-check { position: absolute; z-index: 4; top: 9px; right: 9px; padding: 5px 8px; border-radius: 999px; color: #fff; background: var(--runner); font-size: 0.66rem; font-weight: 900; opacity: 0; transform: scale(0.82); transition: opacity 0.16s ease, transform 0.16s ease; }
+    .runner-choice input:checked + .runner-card .choice-check { opacity: 1; transform: scale(1); }
+    .prediction-lane {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 112px;
+      overflow: hidden;
+      background:
+        linear-gradient(90deg, transparent 0 83%, rgba(255,255,255,0.94) 83% 86%, transparent 86%),
+        repeating-linear-gradient(0deg, rgba(255,255,255,0.86) 0 2px, transparent 2px 52px),
+        linear-gradient(160deg, #c95f4f, #9f3d35);
+    }
+    .prediction-lane::before { content: "START"; position: absolute; left: 7px; bottom: 7px; color: rgba(255,255,255,0.82); font-size: 0.55rem; font-weight: 900; letter-spacing: 0.08em; transform: rotate(-90deg); transform-origin: left bottom; }
+    .prediction-lane::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 20%, rgba(255,255,255,0.07) 20% 42%, transparent 42%); pointer-events: none; }
+    .lane-number { position: relative; z-index: 2; display: grid; place-items: center; width: 42px; height: 42px; border: 4px solid #fff; border-radius: 50%; color: #fff; background: var(--runner); box-shadow: 0 4px 0 rgba(20,29,43,0.28), 0 0 0 3px rgba(15,23,42,0.25); font-size: 1.25rem; font-weight: 950; }
+    .prediction-runner { position: relative; z-index: 2; width: 62px; height: 72px; color: var(--runner); filter: drop-shadow(0 5px 2px rgba(15,23,42,0.27)); transform: rotate(4deg); transition: transform 0.2s ease; }
+    .runner-choice:hover .prediction-runner, .runner-choice input:checked + .runner-card .prediction-runner { transform: rotate(4deg) translateX(5px) scale(1.06); }
+    .finish-mini { position: absolute; right: 9%; top: 0; bottom: 0; width: 14px; opacity: 0.9; background: conic-gradient(#172033 25%, #fff 0 50%, #172033 0 75%, #fff 0) 0 0 / 12px 12px; }
+    .runner-info { display: block; flex: 1; padding: 15px 16px 17px; }
+    .runner-top { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .runner-name { font-weight: 900; color: var(--navy); }
+    .runner-style { color: var(--muted); font-size: 0.76rem; }
+    .stats { display: grid; gap: 7px; }
+    .stat { display: flex; justify-content: space-between; gap: 8px; padding-top: 7px; border-top: 1px solid #edf1f6; color: var(--muted); font-size: 0.82rem; }
+    .stat strong { color: var(--ink); }
+
+    .feedback, .math-card, .control-card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--soft);
+    }
+    .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 22px; }
+    .btn {
+      min-height: 44px;
+      padding: 10px 17px;
+      border: 0;
+      border-radius: 12px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+      box-shadow: 0 7px 16px rgba(37,99,235,0.2);
+      font-weight: 850;
+      cursor: pointer;
+      transition: transform 0.16s ease, filter 0.16s ease;
+    }
+    .btn:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.04); }
+    .btn:disabled { cursor: not-allowed; opacity: 0.48; box-shadow: none; }
+    .btn.secondary { color: var(--navy); border: 1px solid var(--line); background: #fff; box-shadow: none; }
+    .btn.teal { background: linear-gradient(135deg, #0f9f8f, #0b766d); }
+
+    .race-frame { overflow: hidden; border: 1px solid #aec0d4; border-radius: 20px; background: #dbeafe; box-shadow: 0 14px 32px rgba(30,58,95,0.13); }
+    .race-frame canvas { display: block; width: 100%; height: auto; min-height: 310px; }
+    .race-caption { display: flex; justify-content: space-between; gap: 12px; padding: 11px 14px; color: #526176; background: #fff; font-size: 0.78rem; font-weight: 700; }
+
+    .feedback { display: none; margin-top: 18px; padding: 18px; }
+    .feedback.show { display: block; animation: stageIn 0.25s ease both; }
+    .feedback.correct { border-color: #9bd7bd; background: #effcf5; }
+    .feedback.try { border-color: #f5d28a; background: #fff9e9; }
+    .feedback h3 { margin: 0 0 6px; color: var(--navy); }
+    .feedback p { margin: 0; color: var(--muted); line-height: 1.55; }
+
+    .math-layout { display: block; width: 100%; }
+    .math-card { padding: 14px 16px; background: #fff; }
+    .math-card h3 { margin: 0 0 7px; color: var(--navy); font-size: 1rem; }
+    .math-card .btn { min-height: 36px; padding: 7px 12px; font-size: 0.82rem; }
+    .formula {
+      overflow-x: auto;
+      margin: 5px 0;
+      padding: 8px 10px;
+      border-left: 5px solid var(--blue);
+      border-radius: 10px;
+      color: #163760;
+      background: #eff6ff;
+      font-family: Cambria, Georgia, serif;
+      font-size: clamp(0.92rem, 2vw, 1.12rem);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .math-note { margin: 4px 0 0; color: var(--muted); font-size: 0.86rem; line-height: 1.4; }
+    .reveal { display: none; margin-top: 14px; padding: 14px; border: 1px solid #b9dccf; border-radius: 12px; background: #f0fdf7; }
+    .reveal.show { display: block; animation: stageIn 0.24s ease both; }
+    .reveal strong { color: #08724d; }
+    .answer-number { display: block; margin-top: 5px; color: #075f43; font-size: 1.5rem; font-weight: 900; }
+    .calc-step { margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--line); }
+    .calc-step h3 { margin-bottom: 5px; }
+    .equation-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 7px 0 9px; }
+    .equation-choice { padding: 9px 11px; border: 2px solid var(--line); border-radius: 10px; background: #fff; }
+    .equation-choice.used { border-color: #8bb8ef; background: #eff6ff; }
+    .equation-choice strong { display: block; margin-bottom: 5px; color: var(--navy); font-family: Cambria, Georgia, serif; font-size: 1.12rem; }
+    .equation-choice span { color: var(--muted); font-size: 0.8rem; }
+    .value-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 6px 0; }
+    .value-chip { padding: 7px; border-radius: 9px; color: #173b66; background: #eef5ff; text-align: center; font-size: 0.86rem; font-weight: 850; }
+    .abc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 6px 0; }
+    .abc-chip { padding: 7px; border: 1px solid #bed4ef; border-radius: 9px; color: #173b66; background: #fff; text-align: center; font-size: 0.92rem; font-weight: 900; }
+    .rearrange-demo { margin: 7px 0; padding: 9px 11px; overflow: hidden; border: 1px solid #bfd5ef; border-radius: 12px; background: linear-gradient(135deg, #f8fbff, #eef6ff); }
+    .rearrange-label { color: var(--muted); font-size: 0.74rem; font-weight: 850; letter-spacing: 0.04em; text-transform: uppercase; }
+    .rearrange-equation { margin: 3px 0; color: #163760; font-family: Cambria, Georgia, serif; font-size: clamp(1rem, 2.5vw, 1.3rem); font-weight: 800; text-align: center; white-space: nowrap; }
+    .source-equation { transform-origin: center; }
+    .standard-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 38px; }
+    .standard-equation { opacity: 0; transform: translateY(8px) scale(0.96); }
+    .standard-template { opacity: 0; color: #5d6d82; font-family: Cambria, Georgia, serif; font-size: 1rem; font-weight: 800; white-space: nowrap; }
+    .moving-term { display: inline-block; padding: 2px 4px; border-radius: 6px; }
+    .coefficient-key { opacity: 0; transform: translateY(6px); }
+    .abc-chip.a-value { border-color: #60a5fa; }
+    .abc-chip.b-value { border-color: #34d399; }
+    .abc-chip.c-value { border-color: #f59e0b; }
+    .math-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 7px; }
+    .rearrange-status { min-height: 1.1em; margin: 4px 0 0; color: #245183; text-align: center; font-size: 0.76rem; font-weight: 800; }
+    .rearrange-demo.animating .source-equation { animation: sourceFade 0.55s ease forwards; }
+    .rearrange-demo.animating .standard-equation { animation: standardReveal 0.7s 0.35s ease forwards; }
+    .rearrange-demo.animating .term-a { animation: moveA 0.75s 0.35s ease both; }
+    .rearrange-demo.animating .term-b { animation: moveB 0.75s 0.35s ease both; }
+    .rearrange-demo.animating .term-c { animation: moveC 0.75s 0.35s ease both; }
+    .rearrange-demo.identified .standard-template { animation: keyReveal 0.35s ease forwards; }
+    .rearrange-demo.identified .coefficient-key { animation: keyReveal 0.4s ease forwards; }
+    .rearrange-demo.identified .abc-chip:nth-child(1) { animation-delay: 0.05s; }
+    .rearrange-demo.identified .abc-chip:nth-child(2) { animation-delay: 0.18s; }
+    .rearrange-demo.identified .abc-chip:nth-child(3) { animation-delay: 0.31s; }
+    .rearrange-demo.identified .term-a { animation: identifyA 0.7s ease both; }
+    .rearrange-demo.identified .term-b { animation: identifyB 0.7s 0.14s ease both; }
+    .rearrange-demo.identified .term-c { animation: identifyC 0.7s 0.28s ease both; }
+    .rearrange-demo.complete .source-equation { opacity: 0.28; transform: scale(0.96); }
+    .rearrange-demo.complete .standard-equation, .rearrange-demo.complete .standard-template, .rearrange-demo.complete .coefficient-key { opacity: 1; transform: none; }
+    .rearrange-demo.complete .term-a { background: #dbeafe; box-shadow: inset 0 -2px #3b82f6; }
+    .rearrange-demo.complete .term-b { background: #d1fae5; box-shadow: inset 0 -2px #10b981; }
+    .rearrange-demo.complete .term-c { background: #fef3c7; box-shadow: inset 0 -2px #f59e0b; }
+    @keyframes sourceFade { to { opacity: 0.28; transform: scale(0.96); } }
+    @keyframes standardReveal { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
+    @keyframes moveA { from { transform: translateX(90px); } to { transform: none; } }
+    @keyframes moveB { from { transform: translateX(-28px); } to { transform: none; } }
+    @keyframes moveC { from { transform: translateX(-110px); } to { transform: none; } }
+    @keyframes keyReveal { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    @keyframes identifyA { 50% { color: #0c4a8f; background: #bfdbfe; transform: scale(1.08); } to { background: #dbeafe; box-shadow: inset 0 -2px #3b82f6; } }
+    @keyframes identifyB { 50% { color: #065f46; background: #a7f3d0; transform: scale(1.08); } to { background: #d1fae5; box-shadow: inset 0 -2px #10b981; } }
+    @keyframes identifyC { 50% { color: #92400e; background: #fde68a; transform: scale(1.08); } to { background: #fef3c7; box-shadow: inset 0 -2px #f59e0b; } }
+    .root-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin: 7px 0; }
+    .root-card { padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: #fff; text-align: center; font-size: 0.9rem; font-weight: 850; }
+    .root-card.valid { border-color: #82c5a5; background: #effcf5; color: #08724d; }
+    .math-equation { margin: 5px 0; padding: 7px 10px; overflow-x: auto; border: 1px solid #bfd5ef; border-radius: 10px; color: #163760; background: #eff6ff; }
+    .math-equation math { margin: 0 auto; font-size: clamp(1.15rem, 3vw, 1.55rem); }
+    .math-canvas { display: block; width: 100%; height: 168px; margin-top: 12px; border-radius: 14px; }
+    .quadratic-solver { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+    .solver-formula { margin: 10px 0 8px; }
+    .solver-input-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+    .solver-field { display: flex; align-items: center; gap: 9px; color: var(--navy); font-size: 0.95rem; font-weight: 900; }
+    .solver-field input { flex: 1; min-width: 0; min-height: 46px; padding: 9px 11px; border: 2px solid #c8d7e8; border-radius: 11px; color: var(--ink); background: #fff; font-size: 1rem; font-weight: 800; }
+    .solver-field input:focus { border-color: #60a5fa; outline: 3px solid rgba(96,165,250,0.2); }
+    .solver-field input[readonly] { border-color: #dde5ee; color: var(--muted); background: #f1f5f9; cursor: default; -moz-appearance: textfield; appearance: textfield; }
+    .solver-field input[readonly]::-webkit-outer-spin-button,
+    .solver-field input[readonly]::-webkit-inner-spin-button { margin: 0; -webkit-appearance: none; appearance: none; }
+    .solver-actions { align-items: center; }
+    .solver-status { min-height: 1.2em; color: var(--muted); font-size: 0.84rem; font-weight: 750; }
+    .solver-result { margin-top: 14px; }
+    .challenge-solver-card { margin-bottom: 16px; }
+    .challenge-layout { display: grid; grid-template-columns: minmax(250px, 0.78fr) minmax(0, 1.35fr); gap: 18px; }
+    .control-card { padding: 20px; background: #fff; }
+    .control-card h3 { margin: 0 0 5px; color: var(--navy); }
+    .control-card > p { margin: 0 0 18px; color: var(--muted); line-height: 1.5; }
+    .slider-row { margin: 18px 0; }
+    .slider-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 7px; font-size: 0.85rem; font-weight: 800; }
+    .slider-value { color: var(--blue); font-size: 1.05rem; }
+    input[type="range"] { width: 100%; accent-color: var(--blue); cursor: pointer; }
+    .estimate { margin-top: 16px; padding: 12px 14px; border-radius: 12px; color: #183b65; background: #eff6ff; font-size: 0.86rem; }
+    .choice-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+    .choice-btn { padding: 10px; border: 1px solid var(--line); border-radius: 10px; color: var(--navy); background: #fff; font-weight: 800; cursor: pointer; }
+    .choice-btn.selected { color: #fff; border-color: var(--teal); background: var(--teal); }
+
+    .challenger-options { display: grid; gap: 11px; margin-top: 16px; }
+    .challenger-option { width: 100%; padding: 14px; border: 2px solid var(--line); border-radius: 14px; color: var(--ink); background: #fff; text-align: left; cursor: pointer; transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease; }
+    .challenger-option:hover { transform: translateY(-2px); border-color: #93b4df; box-shadow: 0 8px 18px rgba(32,52,83,0.1); }
+    .challenger-option.selected { border-color: var(--option-color); box-shadow: 0 0 0 4px color-mix(in srgb, var(--option-color) 20%, transparent); }
+    .option-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; color: var(--navy); font-weight: 900; }
+    .option-number { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; color: #fff; background: var(--option-color); }
+    .option-values { display: flex; flex-wrap: wrap; gap: 7px; color: var(--muted); font-size: 0.8rem; }
+    .option-values span { padding: 5px 8px; border-radius: 999px; background: #f1f5f9; }
+
+    .budget-row { margin: 20px 0 4px; }
+    .budget-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 7px; font-size: 0.85rem; font-weight: 800; }
+    .budget-head span:last-child { color: var(--blue); font-size: 1.05rem; }
+    .budget-head.over span:last-child { color: var(--red); }
+    .budget-bar { height: 12px; overflow: hidden; border-radius: 999px; background: #e6edf6; }
+    .budget-fill { width: 0; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #2563eb, #0f9f8f); transition: width 0.18s ease; }
+    .budget-fill.over { background: linear-gradient(90deg, #f59e0b, #dc4c4c); }
+    .completion { display: none; margin-top: 16px; padding: 16px; border-radius: 15px; background: linear-gradient(135deg, #ecfdf5, #e0f2fe); border: 1px solid #9ad7bf; }
+    .completion.show { display: block; }
+    .completion h3 { margin: 0 0 5px; color: #086647; }
+    .completion p { margin: 0; color: #416459; line-height: 1.5; }
+
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    :focus-visible { outline: 3px solid #60a5fa; outline-offset: 3px; }
+
+    @media (max-width: 820px) {
+      .runner-grid { grid-template-columns: 1fr 1fr; }
+      .challenge-layout { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 560px) {
+      body { padding: 0; }
+      .app { border-inline: 0; border-radius: 0; }
+      .stage { padding: 24px 16px; }
+      .runner-grid { grid-template-columns: 1fr; }
+      .race-frame canvas { min-height: 350px; }
+      .math-canvas { height: 220px; }
+      .stage-heading { display: block; }
+      .stage-actions { justify-content: flex-start; margin-top: 14px; }
+      .equation-grid, .root-grid, .solver-input-grid { grid-template-columns: 1fr; }
+      .standard-row { grid-template-columns: 1fr; gap: 2px; }
+      .standard-template { text-align: center; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="stage active" data-stage="1">
+      <div class="stage-heading">
+        <div>
+          <p class="stage-kicker">Step 1 · Predict and test</p>
+          <h2>Who reaches 100 meters first?</h2>
+          <p>Hover over a runner’s box and click your prediction. The race starts automatically on the same canvas.</p>
+        </div>
+        <div class="stage-actions">
+          <span id="predictionStatus" role="status" aria-live="polite"></span>
+          <button class="btn secondary" id="replayTest" hidden>Replay race</button>
+          <button class="btn" id="toCalculate" disabled>See the mathematics →</button>
+        </div>
+      </div>
+
+      <div class="race-frame">
+        <canvas id="testCanvas" width="1050" height="430" aria-label="Interactive four-runner prediction and race track"></canvas>
+        <div class="race-caption"><span>Click a runner and its values to predict the winner</span><span id="testClock">0.00 s</span></div>
+      </div>
+      <div class="feedback" id="testFeedback" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="stage" data-stage="2">
+      <div class="stage-heading">
+        <div>
+          <p class="stage-kicker">Step 2 · Calculate</p>
+          <h2>Find Nova’s finish time</h2>
+          <p>Build the quadratic model first, then use its coefficients in the quadratic formula solver.</p>
+        </div>
+        <div class="stage-actions"><button class="btn" id="toChallenge" disabled>Compare challengers →</button></div>
+      </div>
+
+      <div class="math-layout">
+        <div class="math-card">
+          <h3>1. Build Nova’s quadratic model</h3>
+
+          <canvas class="math-canvas" id="mathCanvas" width="1000" height="168" aria-label="Nova's runner card beside an animated walkthrough of her quadratic setup"></canvas>
+
+          <div class="quadratic-solver" id="quadraticSolver" hidden>
+            <h3>2. Use the quadratic formula</h3>
+            <div class="math-equation solver-formula" aria-label="quadratic formula">
+              <math display="block">
+                <mi>t</mi><mo>=</mo><mfrac><mrow><mo>−</mo><mi>B</mi><mo>±</mo><msqrt><mrow><msup><mi>B</mi><mn>2</mn></msup><mo>−</mo><mn>4</mn><mi>A</mi><mi>C</mi></mrow></msqrt></mrow><mrow><mn>2</mn><mi>A</mi></mrow></mfrac>
+              </math>
+            </div>
+            <p class="math-note">Enter the coefficients from <strong>At² + Bt + C = 0</strong>.</p>
+
+            <div class="solver-input-grid">
+              <label class="solver-field">A
+                <input id="solverA" type="number" step="0.1" value="0.7" inputmode="decimal" />
+              </label>
+              <label class="solver-field">B
+                <input id="solverB" type="number" step="0.1" value="4.5" inputmode="decimal" />
+              </label>
+              <label class="solver-field">C
+                <input id="solverC" type="number" value="-100" readonly aria-readonly="true" />
+              </label>
+            </div>
+
+            <div class="math-actions solver-actions">
+              <button class="btn" id="solveQuadratic">Solve</button>
+              <span class="solver-status" id="solverStatus" role="status" aria-live="polite"></span>
+            </div>
+
+            <div class="solver-result" id="solverResult" hidden>
+              <div class="root-grid">
+                <div class="root-card valid">t₁ = <span id="positiveRoot">--</span> s<br><small>valid race time</small></div>
+                <div class="root-card">t₂ = <span id="negativeRoot">--</span> s<br><small>negative time is rejected</small></div>
+              </div>
+              <div class="reveal show"><strong>Nova’s finish time is:</strong><span class="answer-number">t = <span id="novaTimeAnswer">--</span> s</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="stage" data-stage="3">
+      <div class="stage-heading">
+        <div>
+          <p class="stage-kicker">Step 3 · Challenge</p>
+          <h2>Which challenger beats 9.16 seconds?</h2>
+          <p>Choose between two fixed runners.</p>
+        </div>
+        <div class="stage-actions">
+          <span id="challengeStatus" role="status" aria-live="polite"></span>
+          <button class="btn" id="toDesign" disabled>Design your own →</button>
+        </div>
+      </div>
+
+      <div class="math-card challenge-solver-card">
+        <h3>Calculate a challenger’s finish time</h3>
+        <p class="math-note">For a 100 m race, write the motion equation in standard form: <strong>At² + Bt + C = 0</strong>. Then enter A, B, and C below.</p>
+        <div class="math-equation solver-formula" aria-label="quadratic formula">
+          <math display="block">
+            <mi>t</mi><mo>=</mo><mfrac><mrow><mo>−</mo><mi>B</mi><mo>±</mo><msqrt><mrow><msup><mi>B</mi><mn>2</mn></msup><mo>−</mo><mn>4</mn><mi>A</mi><mi>C</mi></mrow></msqrt></mrow><mrow><mn>2</mn><mi>A</mi></mrow></mfrac>
+          </math>
+        </div>
+        <div class="solver-input-grid">
+          <label class="solver-field">A
+            <input id="challengeSolverA" type="number" step="0.1" inputmode="decimal" placeholder="A" />
+          </label>
+          <label class="solver-field">B
+            <input id="challengeSolverB" type="number" step="0.1" inputmode="decimal" placeholder="B" />
+          </label>
+          <label class="solver-field">C
+            <input id="challengeSolverC" type="number" value="-100" readonly aria-readonly="true" />
+          </label>
+        </div>
+        <div class="math-actions solver-actions">
+          <button class="btn secondary" id="challengeSolveQuadratic">Solve</button>
+          <span class="solver-status" id="challengeSolverStatus" role="status" aria-live="polite"></span>
+        </div>
+        <div class="solver-result" id="challengeSolverResult" hidden>
+          <div class="root-grid">
+            <div class="root-card valid">t₁ = <span id="challengePositiveRoot">--</span> s<br><small>positive race time</small></div>
+            <div class="root-card">t₂ = <span id="challengeNegativeRoot">--</span> s<br><small>negative time is rejected</small></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="race-frame">
+        <canvas id="challengeCanvas" width="1050" height="360" aria-label="Interactive challenger selection and race against Nova"></canvas>
+        <div class="race-caption"><span id="challengeCaption">Click Stride or Jet to race them against Nova</span><span id="challengeClock">0.00 s</span></div>
+      </div>
+      <div class="feedback" id="challengeFeedback" role="status" aria-live="polite"></div>
+      <div class="completion" id="completionPanel">
+        <h3>Challenge complete!</h3>
+        <p>You used Nova’s 9.16 s benchmark and experimental evidence to identify the runner with the smaller finish time.</p>
+      </div>
+    </section>
+
+    <section class="stage" data-stage="4">
+      <div class="stage-heading">
+        <div>
+          <p class="stage-kicker">Step 4 · Design</p>
+          <h2>Build a runner that beats <span id="designTargetTime">--</span> s</h2>
+          <p>Starting speed and acceleration both cost credits, and your budget will not cover the maximum of both. Spend it where it buys the most distance.</p>
+        </div>
+        <div class="stage-actions">
+          <span id="designStatus" role="status" aria-live="polite"></span>
+          <button class="btn teal" id="runDesign">Race your design</button>
+        </div>
+      </div>
+
+      <div class="math-card challenge-solver-card">
+        <h3>Check your design with the quadratic formula</h3>
+        <p class="math-note">Your slider values give <strong>A = ½a</strong> and <strong>B = v₀</strong>, with <strong>C = −100</strong> for the 100 m race. Enter them below and solve for the finish time.</p>
+        <div class="math-equation solver-formula" aria-label="quadratic formula">
+          <math display="block">
+            <mi>t</mi><mo>=</mo><mfrac><mrow><mo>−</mo><mi>B</mi><mo>±</mo><msqrt><mrow><msup><mi>B</mi><mn>2</mn></msup><mo>−</mo><mn>4</mn><mi>A</mi><mi>C</mi></mrow></msqrt></mrow><mrow><mn>2</mn><mi>A</mi></mrow></mfrac>
+          </math>
+        </div>
+        <div class="solver-input-grid">
+          <label class="solver-field">A
+            <input id="designSolverA" type="number" step="0.05" inputmode="decimal" placeholder="A" />
+          </label>
+          <label class="solver-field">B
+            <input id="designSolverB" type="number" step="0.1" inputmode="decimal" placeholder="B" />
+          </label>
+          <label class="solver-field">C
+            <input id="designSolverC" type="number" value="-100" readonly aria-readonly="true" />
+          </label>
+        </div>
+        <div class="math-actions solver-actions">
+          <button class="btn secondary" id="designSolveQuadratic">Solve</button>
+          <span class="solver-status" id="designSolverStatus" role="status" aria-live="polite"></span>
+        </div>
+        <div class="solver-result" id="designSolverResult" hidden>
+          <div class="root-grid">
+            <div class="root-card valid">t₁ = <span id="designPositiveRoot">--</span> s<br><small>positive race time</small></div>
+            <div class="root-card">t₂ = <span id="designNegativeRoot">--</span> s<br><small>negative time is rejected</small></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="challenge-layout">
+        <div class="control-card">
+          <h3>Your design</h3>
+          <p>Every 1.0 m/s of starting speed costs <strong>1 credit</strong>. Every 1.0 m/s² of acceleration costs <strong>4 credits</strong>.</p>
+
+          <div class="slider-row">
+            <div class="slider-head"><label for="designV0">Starting speed v₀</label><span class="slider-value" id="designV0Value">4.0 m/s</span></div>
+            <input type="range" id="designV0" min="0" max="8" step="0.1" value="4" />
+          </div>
+
+          <div class="slider-row">
+            <div class="slider-head"><label for="designA">Acceleration a</label><span class="slider-value" id="designAValue">1.5 m/s²</span></div>
+            <input type="range" id="designA" min="0.1" max="2.5" step="0.1" value="1.5" />
+          </div>
+
+          <div class="budget-row">
+            <div class="budget-head"><span>Credits spent</span><span id="designCredits">10.0 / 10</span></div>
+            <div class="budget-bar"><div class="budget-fill" id="designBudgetFill"></div></div>
+          </div>
+
+          <div class="estimate" id="designEstimate"></div>
+        </div>
+
+        <div>
+          <div class="race-frame">
+            <canvas id="designCanvas" width="1050" height="360" aria-label="Your designed runner racing the fastest challenger"></canvas>
+            <div class="race-caption"><span id="designCaption">Adjust the sliders, then click your card to race</span><span id="designClock">0.00 s</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="feedback" id="designFeedback" role="status" aria-live="polite"></div>
+      <div class="completion" id="designCompletion">
+        <h3>Design accepted!</h3>
+        <p id="designCompletionText"></p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const DISTANCE = 100;
+    const runners = [
+      { id: 'bolt', name: 'Bolt', style: 'Fast start', color: '#e34b4b', v0: 7.2, a: 0.7 },
+      { id: 'nova', name: 'Nova', style: 'Strong acceleration', color: '#0f9f8f', v0: 4.5, a: 1.4 },
+      { id: 'dash', name: 'Dash', style: 'Quick but steady', color: '#3478d4', v0: 8.4, a: 0.2 },
+      { id: 'pulse', name: 'Pulse', style: 'Late surge', color: '#8b5bd6', v0: 2.5, a: 1.6 }
+    ];
+
+    const challengers = [
+      { id: 'stride', name: 'Stride', style: 'Faster initial velocity', color: '#8b5bd6', v0: 6.4, a: 1.0 },
+      { id: 'jet', name: 'Jet', style: 'Faster acceleration', color: '#f59e0b', v0: 3.8, a: 1.6 }
+    ];
+
+    const state = { stage: 1, unlocked: 1, prediction: null, hoveredRunner: null, selectionLocked: false, selectedChallenger: null, hoveredChallenger: null, challengeLocked: false, raceToken: 0 };
+    let predictionHitAreas = [];
+    let challengeHitAreas = [];
+    const designHitAreas = [];
+    let completionSent = false;
+    let handoffTimer = null;
+    let designHandoffTimer = null;
+
+    function finishTime(runner) {
+      const A = 0.5 * runner.a;
+      const discriminant = runner.v0 * runner.v0 + 4 * A * DISTANCE;
+      return (-runner.v0 + Math.sqrt(discriminant)) / (2 * A);
+    }
+
+    function positionAt(runner, time) { return Math.min(DISTANCE, runner.v0 * time + 0.5 * runner.a * time * time); }
+    const winner = [...runners].sort((a, b) => finishTime(a) - finishTime(b))[0];
+    const nova = runners.find(runner => runner.id === 'nova');
+
+    function notifyCompletion() {
+      if (completionSent) return;
+      completionSent = true;
+      document.documentElement.dataset.riseComplete = 'true';
+      window.parent.postMessage({ type: 'complete' }, '*');
+    }
+
+    function showStage(number) {
+      if (number > state.unlocked) return;
+      state.stage = number;
+      document.querySelectorAll('.stage').forEach(stage => stage.classList.toggle('active', Number(stage.dataset.stage) === number));
+      document.querySelector(`[data-stage="${number}"]`).scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (number === 2) {
+        requestAnimationFrame(() => {
+          renderCurrentMathStep();
+          startMathWalkthrough();
+        });
+      }
+      if (number === 3) drawChallengePreview();
+      if (number === 4) updateDesign();
+    }
+
+    function unlock(number) { state.unlocked = Math.max(state.unlocked, number); showStage(number); }
+
+    function roundedRect(ctx, x, y, width, height, radius) {
+      const r = Math.min(radius, width / 2, height / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + width, y, x + width, y + height, r);
+      ctx.arcTo(x + width, y + height, x, y + height, r);
+      ctx.arcTo(x, y + height, x, y, r);
+      ctx.arcTo(x, y, x + width, y, r);
+      ctx.closePath();
+    }
+
+    function drawStatLine(ctx, x, y, symbol, sub, value, unit, color, size) {
+      const labelSize = Math.max(9, size * 0.72);
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+      let cursor = x;
+      ctx.fillStyle = '#5c687a';
+      ctx.font = `italic 800 ${labelSize}px Cambria, Georgia, serif`;
+      ctx.fillText(symbol, cursor, y);
+      cursor += ctx.measureText(symbol).width;
+      if (sub) {
+        ctx.font = `italic 800 ${Math.max(7, labelSize * 0.68)}px Cambria, Georgia, serif`;
+        ctx.fillText(sub, cursor + 0.5, y + Math.max(2, size * 0.15));
+        cursor += ctx.measureText(sub).width + 1;
+      }
+      ctx.font = `800 ${labelSize}px system-ui`;
+      ctx.fillText('=', cursor + 3, y);
+      cursor += ctx.measureText('=').width + 8;
+      ctx.fillStyle = color;
+      ctx.font = `900 ${size}px system-ui`;
+      ctx.fillText(value, cursor, y);
+      cursor += ctx.measureText(value).width + 4;
+      ctx.fillStyle = '#7c8a9b';
+      ctx.font = `700 ${Math.max(9, size * 0.54)}px system-ui`;
+      ctx.fillText(unit, cursor, y);
+    }
+
+    function drawPlayerCard(ctx, box, runner, options = {}) {
+      const { selected = false, hovered = false, showPill = false } = options;
+      ctx.save();
+      roundedRect(ctx, box.x, box.y, box.width, box.height, 13);
+      ctx.fillStyle = selected ? runner.color : (hovered ? '#ffffff' : 'rgba(255,255,255,0.9)');
+      ctx.globalAlpha = selected ? 0.24 : 1;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = selected || hovered ? runner.color : 'rgba(77,96,119,0.35)';
+      ctx.lineWidth = selected ? 4 : (hovered ? 3 : 1.5);
+      ctx.stroke();
+      ctx.restore();
+      if (showPill) {
+        roundedRect(ctx, box.x + box.width - 68, box.y + 7, 59, 17, 8);
+        ctx.fillStyle = runner.color; ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.font = '900 8px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('✓ SELECTED', box.x + box.width - 38.5, box.y + 15.5);
+      }
+      const pad = 14;
+      const contentH = Math.min(box.height, 96);
+      const contentTop = box.y + (box.height - contentH) / 2;
+      const statSize = Math.max(11, Math.min(19, contentH * 0.23));
+      const nameSize = Math.max(10, statSize * 0.6);
+      const accelY = contentTop + contentH - Math.max(9, contentH * 0.13);
+      const speedY = accelY - (statSize + 4);
+      if (contentH >= 52) {
+        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+        ctx.font = `900 ${nameSize}px system-ui`;
+        ctx.fillStyle = selected ? runner.color : '#6b7889';
+        ctx.fillText(runner.name.toUpperCase(), box.x + pad, contentTop + nameSize + 4);
+      }
+      drawStatLine(ctx, box.x + pad, speedY, 'v', 'i', runner.v0.toFixed(1), 'm/s', runner.color, statSize);
+      drawStatLine(ctx, box.x + pad, accelY, 'a', '', runner.a.toFixed(1), 'm/s²', runner.color, statSize);
+    }
+
+    function drawRunner(ctx, x, y, color, motion, number) {
+      const swing = Math.sin(motion * 11 + number) * 5;
+      const stride = Math.sin(motion * 14 + number) * 7;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(0.13);
+      ctx.fillStyle = 'rgba(15,23,42,0.22)';
+      ctx.beginPath(); ctx.ellipse(0, 25, 16, 4, -0.13, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#253246'; ctx.lineWidth = 7; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(0, 7); ctx.lineTo(-12, 21 - stride); ctx.moveTo(0, 7); ctx.lineTo(13, 21 + stride); ctx.stroke();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3.5;
+      ctx.beginPath(); ctx.moveTo(-12, 21 - stride); ctx.lineTo(-18, 22 - stride); ctx.moveTo(13, 21 + stride); ctx.lineTo(19, 22 + stride); ctx.stroke();
+      ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(-7, -10); ctx.quadraticCurveTo(1, -14, 8, -8); ctx.lineTo(6, 9); ctx.quadraticCurveTo(0, 13, -6, 8); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#d29c76'; ctx.lineWidth = 4.5;
+      ctx.beginPath(); ctx.moveTo(-4, -7); ctx.lineTo(-13, 4 + swing); ctx.moveTo(5, -6); ctx.lineTo(13, 4 - swing); ctx.stroke();
+      ctx.fillStyle = '#d29c76'; ctx.beginPath(); ctx.arc(0, -17, 7.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#253246'; ctx.beginPath(); ctx.arc(-1, -20, 7, Math.PI, Math.PI * 2); ctx.fill();
+      roundedRect(ctx, -5, -5, 10, 9, 2); ctx.fillStyle = '#fff'; ctx.fill();
+      ctx.fillStyle = '#172033'; ctx.font = '800 7px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(number), 0, -0.5);
+      ctx.restore();
+    }
+
+    function sizeCanvas(canvas) {
+      const dpr = window.devicePixelRatio || 1;
+      const cssWidth = Math.max(320, canvas.getBoundingClientRect().width || canvas.width);
+      const short = canvas.id === 'challengeCanvas' || canvas.id === 'designCanvas';
+      const baseHeight = short ? 360 : 430;
+      const cssHeight = baseHeight * Math.min(1, cssWidth / 780);
+      canvas.style.height = `${Math.max(cssHeight, short ? 250 : 330)}px`;
+      const height = canvas.getBoundingClientRect().height;
+      canvas.width = Math.round(cssWidth * dpr);
+      canvas.height = Math.round(height * dpr);
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { ctx, width: cssWidth, height };
+    }
+
+    function drawRace(canvas, raceRunners, time, title, options = {}) {
+      const { ctx, width: w, height: h } = sizeCanvas(canvas);
+      const left = w < 600 ? 90 : 145;
+      const right = w < 600 ? 58 : 86;
+      const top = 56;
+      const bottom = 18;
+      const trackWidth = w - left - right;
+      const laneHeight = (h - top - bottom) / raceRunners.length;
+      const finishX = left + trackWidth;
+
+      const sky = ctx.createLinearGradient(0, 0, 0, h);
+      sky.addColorStop(0, '#bfe1ff'); sky.addColorStop(0.34, '#ecf7ff'); sky.addColorStop(0.35, '#76b65f'); sky.addColorStop(1, '#4d8d4e');
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      [[w * .2, 19], [w * .62, 15], [w * .84, 24]].forEach(([x, y]) => { ctx.beginPath(); ctx.ellipse(x, y, 31, 10, 0, 0, Math.PI * 2); ctx.fill(); });
+
+      ctx.fillStyle = '#173654'; ctx.font = '850 15px system-ui'; ctx.textAlign = 'left'; ctx.fillText(title.toUpperCase(), 14, 34);
+      roundedRect(ctx, w - 126, 10, 112, 30, 15); ctx.fillStyle = 'rgba(16,35,63,0.92)'; ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = '850 14px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(`${time.toFixed(2)} s`, w - 70, 25);
+
+      const trackGradient = ctx.createLinearGradient(0, top, 0, h - bottom);
+      trackGradient.addColorStop(0, '#ca6655'); trackGradient.addColorStop(1, '#a64238');
+      ctx.fillStyle = trackGradient; ctx.fillRect(left - 8, top, trackWidth + 16, h - top - bottom);
+
+      for (let i = 0; i <= raceRunners.length; i++) {
+        const y = top + i * laneHeight;
+        ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(left - 8, y); ctx.lineTo(finishX + 8, y); ctx.stroke();
+      }
+      for (let d = 0; d <= DISTANCE; d += 20) {
+        const x = left + (d / DISTANCE) * trackWidth;
+        ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, h - bottom); ctx.stroke();
+        ctx.fillStyle = '#27445e'; ctx.font = '750 10px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(`${d}m`, x, top - 4);
+      }
+      const check = Math.max(7, laneHeight / 5);
+      for (let y = top, row = 0; y < h - bottom; y += check, row++) {
+        for (let col = 0; col < 2; col++) {
+          ctx.fillStyle = (row + col) % 2 ? '#fff' : '#172033';
+          ctx.fillRect(finishX - check + col * check, y, check, Math.min(check, h - bottom - y));
+        }
+      }
+
+      const challengeMode = options.selectionMode === 'challenge';
+      if (options.selectable) {
+        if (challengeMode) challengeHitAreas = [];
+        else predictionHitAreas = [];
+      }
+      if (options.collect) options.collect.length = 0;
+      raceRunners.forEach((runner, index) => {
+        const laneY = top + laneHeight * index;
+        const centerY = laneY + laneHeight / 2;
+        const distance = positionAt(runner, time);
+        const runnerStart = options.showChoiceBoxes ? left + 28 : left;
+        const x = runnerStart + (distance / DISTANCE) * (finishX - runnerStart);
+
+        if (options.showChoiceBoxes) {
+          const box = { x: 6, y: laneY + 5, width: left + 55, height: laneHeight - 10, runnerId: runner.id };
+          const selectedId = 'highlightId' in options ? options.highlightId : (challengeMode ? state.selectedChallenger : state.prediction);
+          const hoveredId = challengeMode ? state.hoveredChallenger : state.hoveredRunner;
+          const canSelect = options.selectable && (!challengeMode || runner.id !== 'nova');
+          const selected = selectedId === runner.id;
+          const hovered = canSelect && hoveredId === runner.id;
+          drawPlayerCard(ctx, box, runner, { selected, hovered, showPill: selected && options.pills !== false });
+          if (canSelect) {
+            if (challengeMode) challengeHitAreas.push(box);
+            else predictionHitAreas.push(box);
+          }
+          if (options.collect) options.collect.push(box);
+        } else {
+          roundedRect(ctx, 9, centerY - 22, left - 26, 44, 10); ctx.fillStyle = 'rgba(255,255,255,0.94)'; ctx.fill();
+          ctx.fillStyle = runner.color; ctx.fillRect(9, centerY - 14, 5, 28);
+          ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+          ctx.font = '850 12px system-ui'; ctx.fillStyle = '#172033';
+          ctx.fillText(runner.name, 22, centerY - 8);
+          drawStatLine(ctx, 22, centerY + 6, 'v', 'i', runner.v0.toFixed(1), 'm/s', runner.color, 11);
+          drawStatLine(ctx, 22, centerY + 19, 'a', '', runner.a.toFixed(1), 'm/s²', runner.color, 11);
+        }
+        drawRunner(ctx, x, centerY, runner.color, time, index + 1);
+        if (distance >= DISTANCE) {
+          const label = `${finishTime(runner).toFixed(2)}s`;
+          ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+          ctx.font = `900 ${w < 600 ? 11 : 12}px system-ui`;
+          const tagW = ctx.measureText(label).width + 14;
+          const tagH = w < 600 ? 18 : 21;
+          const tagX = Math.min(finishX + check + 5, w - tagW - 3);
+          ctx.save();
+          ctx.shadowColor = 'rgba(15,23,42,0.28)';
+          ctx.shadowBlur = 5;
+          ctx.shadowOffsetY = 1;
+          roundedRect(ctx, tagX, centerY - tagH / 2, tagW, tagH, 7);
+          ctx.fillStyle = 'rgba(255,255,255,0.96)';
+          ctx.fill();
+          ctx.restore();
+          ctx.strokeStyle = runner.color; ctx.lineWidth = 2; ctx.stroke();
+          ctx.fillStyle = runner.color;
+          ctx.fillText(label, tagX + 7, centerY + 0.5);
+        }
+      });
+    }
+
+    function animateRace(canvas, raceRunners, clockElement, onDone, title, options = {}) {
+      const token = ++state.raceToken;
+      const maxTime = Math.max(...raceRunners.map(finishTime)) + 0.25;
+      const duration = Math.max(3200, Math.min(9000, maxTime * 390));
+      const start = performance.now();
+      function frame(now) {
+        if (token !== state.raceToken) return;
+        const progress = Math.min(1, (now - start) / duration);
+        const eased = 1 - Math.pow(1 - progress, 2);
+        const simTime = Math.min(maxTime, eased * maxTime);
+        drawRace(canvas, raceRunners, simTime, title, options);
+        clockElement.textContent = `${simTime.toFixed(2)} s`;
+        if (progress < 1) requestAnimationFrame(frame); else onDone();
+      }
+      requestAnimationFrame(frame);
+    }
+
+    function drawChallengePreview() {
+      const challenger = currentChallenger();
+      drawRace(document.getElementById('challengeCanvas'), [nova, ...challengers], 0, challenger ? `${challenger.name} selected` : 'Choose Stride or Jet', { showChoiceBoxes: true, selectable: !state.challengeLocked, selectionMode: 'challenge' });
+    }
+
+    function currentChallenger() {
+      return challengers.find(runner => runner.id === state.selectedChallenger) || null;
+    }
+
+    const testCanvas = document.getElementById('testCanvas');
+    const replayTestButton = document.getElementById('replayTest');
+
+    function drawPredictionRace() {
+      drawRace(testCanvas, runners, 0, 'Choose a runner, then test', { showChoiceBoxes: true, selectable: !state.selectionLocked });
+    }
+
+    function canvasPoint(event) {
+      const rect = testCanvas.getBoundingClientRect();
+      return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    }
+
+    function runnerAtPoint(point) {
+      return predictionHitAreas.find(area => point.x >= area.x && point.x <= area.x + area.width && point.y >= area.y && point.y <= area.y + area.height);
+    }
+
+    testCanvas.addEventListener('mousemove', event => {
+      if (state.selectionLocked) return;
+      const hit = runnerAtPoint(canvasPoint(event));
+      const hovered = hit ? hit.runnerId : null;
+      testCanvas.style.cursor = hovered ? 'pointer' : 'default';
+      if (hovered !== state.hoveredRunner) {
+        state.hoveredRunner = hovered;
+        drawPredictionRace();
+      }
+    });
+
+    testCanvas.addEventListener('mouseleave', () => {
+      if (state.selectionLocked || state.hoveredRunner === null) return;
+      state.hoveredRunner = null;
+      testCanvas.style.cursor = 'default';
+      drawPredictionRace();
+    });
+
+    testCanvas.addEventListener('click', event => {
+      if (state.selectionLocked) return;
+      const hit = runnerAtPoint(canvasPoint(event));
+      if (!hit) return;
+      state.prediction = hit.runnerId;
+      const picked = runners.find(runner => runner.id === state.prediction);
+      document.getElementById('predictionStatus').textContent = `${picked.name} selected`;
+      drawPredictionRace();
+      state.selectionLocked = true;
+      window.setTimeout(startTestRace, 280);
+    });
+
+    function startTestRace() {
+      if (!state.prediction) return;
+      state.selectionLocked = true;
+      state.hoveredRunner = null;
+      testCanvas.style.cursor = 'default';
+      replayTestButton.disabled = true;
+      document.getElementById('testFeedback').className = 'feedback';
+      animateRace(testCanvas, runners, document.getElementById('testClock'), () => {
+        const correct = state.prediction === winner.id;
+        const picked = runners.find(runner => runner.id === state.prediction);
+        const feedback = document.getElementById('testFeedback');
+        feedback.className = `feedback show ${correct ? 'correct' : 'try'}`;
+        feedback.innerHTML = `<h3>${correct ? 'Prediction confirmed!' : 'Evidence changed the claim.'}</h3><p>${winner.name} wins in <strong>${finishTime(winner).toFixed(2)} s</strong>. ${correct ? `You correctly chose ${picked.name}.` : `You chose ${picked.name}, but ${winner.name}’s larger acceleration overcame the difference in starting speed.`} Next, use the quadratic to verify ${winner.name}’s finish time.</p>`;
+        replayTestButton.hidden = false; replayTestButton.disabled = false;
+        document.getElementById('toCalculate').disabled = false;
+      }, 'Prediction test', { showChoiceBoxes: true });
+    }
+    replayTestButton.addEventListener('click', startTestRace);
+    document.getElementById('toCalculate').addEventListener('click', () => unlock(2));
+
+    const mathCanvas = document.getElementById('mathCanvas');
+    const quadraticSolver = document.getElementById('quadraticSolver');
+
+    const mathWalkthrough = [
+      { equation: 'Δx = v₀t + ½at²', label: 'Start with the displacement equation.' },
+      { equation: '100 = 4.5t + ½(1.4)t²', label: 'Substitute Δx = 100 m, v₀ = 4.5 m/s, and a = 1.4 m/s².' },
+      { equation: '0.7t² + 4.5t − 100 = 0', label: 'Simplify and rearrange into standard form: At² + Bt + C = 0.' }
+    ];
+
+    function drawMathEquation(index, alpha = 1, scale = 1) {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = mathCanvas.getBoundingClientRect();
+      const cssWidth = Math.max(320, rect.width || 900);
+      const cssHeight = Math.max(150, rect.height || 168);
+      mathCanvas.width = Math.round(cssWidth * dpr);
+      mathCanvas.height = Math.round(cssHeight * dpr);
+      const ctx = mathCanvas.getContext('2d');
+      if (!ctx) {
+        mathCanvas.replaceWith(document.createTextNode(mathWalkthrough[index].equation));
+        return;
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, cssWidth, cssHeight);
+
+      const bg = ctx.createLinearGradient(0, 0, cssWidth, cssHeight);
+      bg.addColorStop(0, '#f8fbff');
+      bg.addColorStop(1, '#edf5ff');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, cssWidth, cssHeight);
+
+      ctx.strokeStyle = 'rgba(37,99,235,0.12)';
+      ctx.lineWidth = 1;
+      for (let x = 28; x < cssWidth; x += 44) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cssHeight); ctx.stroke(); }
+      for (let y = 26; y < cssHeight; y += 44) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cssWidth, y); ctx.stroke(); }
+
+      // Nova's runner card, matching the race lanes
+      const stacked = cssWidth < 470;
+      const cardW = stacked ? Math.min(230, cssWidth - 28) : Math.max(150, Math.min(210, cssWidth * 0.28));
+      const cardH = Math.min(102, (stacked ? cssHeight * 0.5 : cssHeight) - 26);
+      const cardX = stacked ? (cssWidth - cardW) / 2 : 14;
+      const cardY = stacked ? 12 : (cssHeight - cardH) / 2;
+      drawPlayerCard(ctx, { x: cardX, y: cardY, width: cardW, height: cardH }, nova, { selected: true });
+
+      // equation panel, to the right of the card (below it when stacked)
+      const eqLeft = stacked ? 14 : cardX + cardW + 18;
+      const eqTop = stacked ? cardY + cardH : 0;
+      const eqWidth = cssWidth - eqLeft - 14;
+      const fontSize = Math.max(15, Math.min(44, eqWidth / 12));
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(eqLeft + eqWidth / 2, eqTop + (cssHeight - eqTop) / 2);
+      ctx.scale(scale, scale);
+      ctx.font = `800 ${fontSize}px Cambria, Georgia, serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#163760';
+      ctx.fillText(mathWalkthrough[index].equation, 0, 0);
+      ctx.restore();
+
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'alphabetic';
+      ctx.font = '750 11px system-ui';
+      ctx.fillStyle = '#8494a7';
+      ctx.fillText(`${currentMathStepIndex + 1} of ${mathWalkthrough.length}`, cssWidth - 12, cssHeight - 10);
+    }
+
+    function transitionMathEquation(fromIndex, toIndex, duration, done) {
+      const start = performance.now();
+      function frame(now) {
+        const p = Math.min(1, (now - start) / duration);
+        const half = p < 0.5 ? p * 2 : (p - 0.5) * 2;
+        if (p < 0.5) drawMathEquation(fromIndex, 1 - half, 1 - 0.025 * half);
+        else drawMathEquation(toIndex, half, 0.975 + 0.025 * half);
+        if (p < 1) requestAnimationFrame(frame); else done();
+      }
+      requestAnimationFrame(frame);
+    }
+
+    let mathWalkthroughRunning = false;
+    let mathWalkthroughComplete = false;
+    let currentMathStepIndex = 0;
+
+    function renderCurrentMathStep() {
+      drawMathEquation(currentMathStepIndex);
+    }
+
+    function startMathWalkthrough() {
+      if (mathWalkthroughRunning || mathWalkthroughComplete) return;
+      mathWalkthroughRunning = true;
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const hold = reducedMotion ? 30 : 1800;
+      const transition = reducedMotion ? 20 : 1040;
+
+      currentMathStepIndex = 0;
+      renderCurrentMathStep();
+      window.setTimeout(() => {
+        transitionMathEquation(0, 1, transition, () => {
+          currentMathStepIndex = 1;
+          renderCurrentMathStep();
+          window.setTimeout(() => {
+            transitionMathEquation(1, 2, transition, () => {
+              currentMathStepIndex = 2;
+              renderCurrentMathStep();
+              mathWalkthroughRunning = false;
+              mathWalkthroughComplete = true;
+              quadraticSolver.hidden = false;
+            });
+          }, hold);
+        });
+      }, hold);
+    }
+
+    document.getElementById('solveQuadratic').addEventListener('click', () => {
+      const A = Number(document.getElementById('solverA').value);
+      const B = Number(document.getElementById('solverB').value);
+      const C = Number(document.getElementById('solverC').value);
+      const status = document.getElementById('solverStatus');
+
+      const solved = solveStandardForm({ a: 'solverA', b: 'solverB', c: 'solverC', status: 'solverStatus', result: 'solverResult', positive: 'positiveRoot', negative: 'negativeRoot' });
+      if (!solved) return;
+
+      document.getElementById('novaTimeAnswer').textContent = solved.roots[0].toFixed(2);
+      status.textContent = `Discriminant = ${solved.discriminant.toFixed(2)}. Two real roots found.`;
+
+      const expectedA = 0.5 * nova.a;
+      const isNovaModel = Math.abs(A - expectedA) < 1e-9 && Math.abs(B - nova.v0) < 1e-9 && Math.abs(C + DISTANCE) < 1e-9;
+      document.getElementById('toChallenge').disabled = !isNovaModel;
+      if (!isNovaModel) {
+        status.textContent += ' Use Nova’s coefficients to unlock the challenge.';
+        return;
+      }
+
+      if (handoffTimer) return;
+      status.textContent += ' Moving to the challenge…';
+      handoffTimer = window.setTimeout(() => {
+        carryNovaIntoChallenge(A, B);
+        if (state.stage === 2) unlock(3);
+      }, 3000);
+    });
+
+    function solveStandardForm(ids) {
+      const A = Number(document.getElementById(ids.a).value);
+      const B = Number(document.getElementById(ids.b).value);
+      const C = Number(document.getElementById(ids.c).value);
+      const status = document.getElementById(ids.status);
+      const result = document.getElementById(ids.result);
+
+      if ([ids.a, ids.b, ids.c].some(id => String(document.getElementById(id).value).trim() === '')) {
+        status.textContent = 'Enter numbers for A, B, and C.';
+        result.hidden = true;
+        return null;
+      }
+
+      if (![A, B, C].every(Number.isFinite) || A === 0) {
+        status.textContent = A === 0 ? 'A must be nonzero for a quadratic.' : 'Enter numbers for A, B, and C.';
+        result.hidden = true;
+        return null;
+      }
+
+      const discriminant = B * B - 4 * A * C;
+      if (discriminant < 0) {
+        status.textContent = 'This quadratic has no real-number solutions.';
+        result.hidden = true;
+        return null;
+      }
+
+      const sqrtD = Math.sqrt(discriminant);
+      const roots = [(-B + sqrtD) / (2 * A), (-B - sqrtD) / (2 * A)].sort((x, y) => y - x);
+      document.getElementById(ids.positive).textContent = roots[0].toFixed(2);
+      document.getElementById(ids.negative).textContent = roots[1].toFixed(2);
+      result.hidden = false;
+      status.textContent = `Discriminant = ${discriminant.toFixed(2)}. Use the positive root as the race time.`;
+      return { A, B, C, discriminant, roots };
+    }
+
+    function carryNovaIntoChallenge(A, B) {
+      const fieldA = document.getElementById('challengeSolverA');
+      const fieldB = document.getElementById('challengeSolverB');
+      if (fieldA.value || fieldB.value) return;
+      fieldA.value = A;
+      fieldB.value = B;
+      runChallengeSolver();
+      document.getElementById('challengeSolverStatus').textContent = `Worked example — Nova’s coefficients give ${finishTime(nova).toFixed(2)} s. Replace A and B with a challenger’s values.`;
+    }
+
+    document.getElementById('toChallenge').addEventListener('click', () => {
+      carryNovaIntoChallenge(Number(document.getElementById('solverA').value), Number(document.getElementById('solverB').value));
+      unlock(3);
+    });
+
+    function runChallengeSolver() {
+      return solveStandardForm({ a: 'challengeSolverA', b: 'challengeSolverB', c: 'challengeSolverC', status: 'challengeSolverStatus', result: 'challengeSolverResult', positive: 'challengePositiveRoot', negative: 'challengeNegativeRoot' });
+    }
+
+    document.getElementById('challengeSolveQuadratic').addEventListener('click', runChallengeSolver);
+
+    document.getElementById('designSolveQuadratic').addEventListener('click', () => {
+      const solved = solveStandardForm({ a: 'designSolverA', b: 'designSolverB', c: 'designSolverC', status: 'designSolverStatus', result: 'designSolverResult', positive: 'designPositiveRoot', negative: 'designNegativeRoot' });
+      if (!solved) return;
+      const runner = designRunner();
+      const matchesDesign = Math.abs(solved.A - 0.5 * runner.a) < 1e-9 && Math.abs(solved.B - runner.v0) < 1e-9;
+      document.getElementById('designSolverStatus').textContent += matchesDesign
+        ? ' These match your slider settings.'
+        : ` Your sliders are set to A = ${(0.5 * runner.a).toFixed(2)}, B = ${runner.v0.toFixed(1)}.`;
+    });
+
+    const challengeCanvas = document.getElementById('challengeCanvas');
+
+    function challengeCanvasPoint(event) {
+      const rect = challengeCanvas.getBoundingClientRect();
+      return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    }
+
+    function challengerAtPoint(point) {
+      return challengeHitAreas.find(area => point.x >= area.x && point.x <= area.x + area.width && point.y >= area.y && point.y <= area.y + area.height);
+    }
+
+    challengeCanvas.addEventListener('mousemove', event => {
+      if (state.challengeLocked) return;
+      const hit = challengerAtPoint(challengeCanvasPoint(event));
+      const hovered = hit ? hit.runnerId : null;
+      challengeCanvas.style.cursor = hovered ? 'pointer' : 'default';
+      if (hovered !== state.hoveredChallenger) {
+        state.hoveredChallenger = hovered;
+        drawChallengePreview();
+      }
+    });
+
+    challengeCanvas.addEventListener('mouseleave', () => {
+      if (state.challengeLocked || state.hoveredChallenger === null) return;
+      state.hoveredChallenger = null;
+      challengeCanvas.style.cursor = 'default';
+      drawChallengePreview();
+    });
+
+    challengeCanvas.addEventListener('click', event => {
+      if (state.challengeLocked) return;
+      const hit = challengerAtPoint(challengeCanvasPoint(event));
+      if (!hit) return;
+      state.selectedChallenger = hit.runnerId;
+      state.hoveredChallenger = null;
+      state.challengeLocked = true;
+      const runner = currentChallenger();
+      challengeCanvas.style.cursor = 'default';
+      document.getElementById('challengeStatus').textContent = `${runner.name} selected`;
+      document.getElementById('challengeCaption').textContent = `${runner.name} is racing Nova`;
+      document.getElementById('challengeClock').textContent = '0.00 s';
+      document.getElementById('challengeFeedback').className = 'feedback';
+      document.getElementById('completionPanel').classList.remove('show');
+      drawChallengePreview();
+      window.setTimeout(startChallengeRace, 280);
+    });
+
+    function startChallengeRace() {
+      const challenger = currentChallenger();
+      if (!challenger) return;
+      state.challengeLocked = true;
+      state.hoveredChallenger = null;
+      challengeCanvas.style.cursor = 'default';
+      const feedback = document.getElementById('challengeFeedback');
+      feedback.className = 'feedback';
+      animateRace(challengeCanvas, [nova, ...challengers], document.getElementById('challengeClock'), () => {
+        const challengerTime = finishTime(challenger);
+        const novaTime = finishTime(nova);
+        const challengerWins = challengerTime < novaTime;
+        feedback.className = `feedback show ${challengerWins ? 'correct' : 'try'}`;
+        feedback.innerHTML = `<h3>${challengerWins ? `${challenger.name} beats Nova!` : 'Nova holds the lead.'}</h3><p>${challenger.name} finished in <strong>${challengerTime.toFixed(2)} s</strong>; Nova finished in <strong>${novaTime.toFixed(2)} s</strong>. ${challengerWins ? `${challengerTime.toFixed(2)} s is less than 9.16 s, so this is the winning option.` : `${challengerTime.toFixed(2)} s is more than 9.16 s.`}</p>`;
+        document.getElementById('challengeCaption').textContent = `${challenger.name} finished in ${challengerTime.toFixed(2)} s`;
+        document.getElementById('toDesign').disabled = false;
+        if (challengerWins) {
+          document.getElementById('completionPanel').classList.add('show');
+          notifyCompletion();
+        }
+        if (!designHandoffTimer) {
+          document.getElementById('challengeStatus').textContent = 'Moving to the design challenge…';
+          designHandoffTimer = window.setTimeout(() => {
+            if (state.stage === 3) unlock(4);
+          }, 4000);
+        }
+      }, 'Three-runner challenge', { showChoiceBoxes: true, selectionMode: 'challenge' });
+    }
+
+    document.getElementById('toDesign').addEventListener('click', () => unlock(4));
+
+    const DESIGN_BUDGET = 10;
+    const COST_V0 = 1;
+    const COST_A = 4;
+    const designCanvas = document.getElementById('designCanvas');
+    const designV0Input = document.getElementById('designV0');
+    const designAInput = document.getElementById('designA');
+    const designButton = document.getElementById('runDesign');
+    const designTarget = nova;
+    const designTargetTime = finishTime(designTarget);
+    let designRacing = false;
+
+    document.getElementById('designTargetTime').textContent = designTargetTime.toFixed(2);
+
+    function designRunner() {
+      return { id: 'design', name: 'Your design', color: '#2563eb', v0: Number(designV0Input.value), a: Number(designAInput.value) };
+    }
+
+    function designCredits() {
+      return Number(designV0Input.value) * COST_V0 + Number(designAInput.value) * COST_A;
+    }
+
+    function drawDesignPreview(time = 0) {
+      drawRace(designCanvas, [designTarget, designRunner()], time, `Your design vs ${designTarget.name}`, { showChoiceBoxes: true, selectable: false, pills: false, highlightId: 'design', collect: designHitAreas });
+    }
+
+    function designCardAtPoint(event) {
+      const rect = designCanvas.getBoundingClientRect();
+      const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      return designHitAreas.find(area => area.runnerId === 'design' && point.x >= area.x && point.x <= area.x + area.width && point.y >= area.y && point.y <= area.y + area.height);
+    }
+
+    designCanvas.addEventListener('mousemove', event => {
+      const clickable = !designRacing && designCredits() <= DESIGN_BUDGET + 1e-9 && designCardAtPoint(event);
+      designCanvas.style.cursor = clickable ? 'pointer' : 'default';
+    });
+
+    designCanvas.addEventListener('mouseleave', () => { designCanvas.style.cursor = 'default'; });
+
+    designCanvas.addEventListener('click', event => {
+      if (designRacing || !designCardAtPoint(event)) return;
+      startDesignRace();
+    });
+
+    function updateDesign() {
+      const runner = designRunner();
+      const credits = designCredits();
+      const over = credits > DESIGN_BUDGET + 1e-9;
+      const projected = finishTime(runner);
+
+      document.getElementById('designV0Value').textContent = `${runner.v0.toFixed(1)} m/s`;
+      document.getElementById('designAValue').textContent = `${runner.a.toFixed(1)} m/s²`;
+      document.getElementById('designCredits').textContent = `${credits.toFixed(1)} / ${DESIGN_BUDGET}`;
+      document.getElementById('designCredits').parentElement.classList.toggle('over', over);
+
+      const fill = document.getElementById('designBudgetFill');
+      fill.style.width = `${Math.min(100, (credits / DESIGN_BUDGET) * 100)}%`;
+      fill.classList.toggle('over', over);
+
+      document.getElementById('designEstimate').innerHTML = over
+        ? `<strong>Over budget by ${(credits - DESIGN_BUDGET).toFixed(1)} credits.</strong> Lower a slider before racing.`
+        : `Projected finish: <strong>${projected.toFixed(2)} s</strong> — ${projected < designTargetTime ? `beats ${designTarget.name} by ${(designTargetTime - projected).toFixed(2)} s` : `still ${(projected - designTargetTime).toFixed(2)} s behind ${designTarget.name}`}.`;
+
+      designButton.disabled = over || designRacing;
+      document.getElementById('designStatus').textContent = over ? 'Over budget' : '';
+      if (!designRacing) drawDesignPreview();
+    }
+
+    designV0Input.addEventListener('input', updateDesign);
+    designAInput.addEventListener('input', updateDesign);
+
+    designButton.addEventListener('click', startDesignRace);
+
+    function startDesignRace() {
+      if (designRacing || designCredits() > DESIGN_BUDGET + 1e-9) return;
+      const runner = designRunner();
+      designRacing = true;
+      designButton.disabled = true;
+      designV0Input.disabled = true;
+      designAInput.disabled = true;
+      const feedback = document.getElementById('designFeedback');
+      feedback.className = 'feedback';
+      document.getElementById('designCompletion').classList.remove('show');
+      document.getElementById('designCaption').textContent = 'Racing…';
+      animateRace(designCanvas, [designTarget, runner], document.getElementById('designClock'), () => {
+        const yourTime = finishTime(runner);
+        const won = yourTime < designTargetTime;
+        feedback.className = `feedback show ${won ? 'correct' : 'try'}`;
+        feedback.innerHTML = `<h3>${won ? 'Your design wins!' : `${designTarget.name} still wins.`}</h3><p>Your runner finished in <strong>${yourTime.toFixed(2)} s</strong> against ${designTarget.name}’s <strong>${designTargetTime.toFixed(2)} s</strong>, using ${designCredits().toFixed(1)} of ${DESIGN_BUDGET} credits. ${won ? 'Acceleration keeps adding speed for the whole race, so credits spent there cover more ground than the same credits spent on starting speed.' : 'Try shifting credits from starting speed into acceleration — over 100 m the ½at² term grows far faster than the v₀t term.'}</p>`;
+        designRacing = false;
+        designV0Input.disabled = false;
+        designAInput.disabled = false;
+        document.getElementById('designCaption').textContent = 'Adjust the sliders, then click your card to race';
+        if (won) {
+          document.getElementById('designCompletionText').textContent = `You beat ${designTarget.name}’s ${designTargetTime.toFixed(2)} s with v₀ = ${runner.v0.toFixed(1)} m/s and a = ${runner.a.toFixed(1)} m/s² on a ${DESIGN_BUDGET}-credit budget.`;
+          document.getElementById('designCompletion').classList.add('show');
+          notifyCompletion();
+        }
+        updateDesign();
+      }, 'Design challenge', { showChoiceBoxes: true, selectable: false, pills: false, highlightId: 'design' });
+    }
+
+    window.addEventListener('resize', () => {
+      if (state.stage === 1 && !state.selectionLocked) drawPredictionRace();
+      if (state.stage === 2 && !mathWalkthroughRunning) renderCurrentMathStep();
+      if (state.stage === 3) drawChallengePreview();
+      if (state.stage === 4 && !designRacing) drawDesignPreview();
+    });
+
+    drawPredictionRace();
+    drawChallengePreview();
+  </script>
+</body>
+</html>

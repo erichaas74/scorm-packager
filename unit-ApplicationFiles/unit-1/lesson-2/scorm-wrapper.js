@@ -84,6 +84,7 @@
   }
 
   function initialize() {
+    if (_initialized) return true;
     var api = _discoverAPI();
     if (!api) return false;
 
@@ -102,12 +103,14 @@
   function getValue(element) {
     var api = _discoverAPI();
     if (!api) return '';
+    if (!_initialized && !initialize()) return '';
     return api.LMSGetValue(element);
   }
 
   function setValue(element, value) {
     var api = _discoverAPI();
     if (!api) return false;
+    if (!_initialized && !initialize()) return false;
 
     var result = api.LMSSetValue(element, String(value));
     if (!_isTrue(result)) {
@@ -122,7 +125,14 @@
   function commit() {
     var api = _discoverAPI();
     if (!api) return false;
-    return _isTrue(api.LMSCommit(''));
+    if (!_initialized && !initialize()) return false;
+    var result = api.LMSCommit('');
+    if (!_isTrue(result)) {
+      var err = api.LMSGetLastError ? api.LMSGetLastError() : '?';
+      console.error('[SCORM] LMSCommit failed. Error code:', err);
+      return false;
+    }
+    return true;
   }
 
   function finish() {
@@ -147,10 +157,12 @@
   function setScore(raw, min, max) {
     min = (min !== undefined) ? min : 0;
     max = (max !== undefined) ? max : 100;
-    setValue('cmi.core.score.raw', raw);
-    setValue('cmi.core.score.min', min);
-    setValue('cmi.core.score.max', max);
-    commit();
+    var accepted = [
+      setValue('cmi.core.score.raw', raw),
+      setValue('cmi.core.score.min', min),
+      setValue('cmi.core.score.max', max)
+    ].every(Boolean);
+    return accepted && commit();
   }
 
   /**
@@ -163,8 +175,11 @@
     if (valid.indexOf(status) === -1) {
       console.warn('[SCORM] setStatus received unexpected value:', status);
     }
-    setValue('cmi.core.lesson_status', status);
-    commit();
+    return setValue('cmi.core.lesson_status', status) && commit();
+  }
+
+  function isInitialized() {
+    return _initialized;
   }
 
   // ── Lifecycle hooks ─────────────────────────────────────────────────────────
@@ -186,7 +201,8 @@
     getValue   : getValue,
     setValue   : setValue,
     setScore   : setScore,
-    setStatus  : setStatus
+    setStatus  : setStatus,
+    isInitialized: isInitialized
   };
 
 }(window));
