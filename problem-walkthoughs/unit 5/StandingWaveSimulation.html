@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Standing Wave Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #0f172a; /* Slate 900 */
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            touch-action: none; /* Prevent zooming on mobile */
+        }
+        
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Custom range slider styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #38bdf8;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 5px rgba(56, 189, 248, 0.5);
+        }
+        
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #334155;
+            border-radius: 2px;
+        }
+
+        /* Checkbox styling */
+        .checkbox-container {
+            display: block;
+            position: relative;
+            padding-left: 28px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            user-select: none;
+            font-size: 0.875rem;
+        }
+
+        .checkbox-container input {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+            height: 0;
+            width: 0;
+        }
+
+        .checkmark {
+            position: absolute;
+            top: 2px;
+            left: 0;
+            height: 18px;
+            width: 18px;
+            background-color: #334155;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .checkbox-container:hover input ~ .checkmark {
+            background-color: #475569;
+        }
+
+        .checkbox-container input:checked ~ .checkmark {
+            background-color: #38bdf8;
+        }
+
+        .checkmark:after {
+            content: "";
+            position: absolute;
+            display: none;
+        }
+
+        .checkbox-container input:checked ~ .checkmark:after {
+            display: block;
+        }
+
+        .checkbox-container .checkmark:after {
+            left: 6px;
+            top: 2px;
+            width: 5px;
+            height: 10px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="waveCanvas"></canvas>
+
+    <!-- Floating UI Control Panel -->
+    <div class="fixed top-4 right-4 w-80 sm:w-96 bg-slate-800/90 text-slate-200 rounded-xl p-5 shadow-2xl border border-slate-700 backdrop-blur-md z-10 overflow-y-auto max-h-[90vh]">
+        
+        <div class="flex justify-between items-center mb-6 border-b border-slate-600 pb-3">
+            <h1 class="text-xl font-bold tracking-tight text-white">Wave Superposition</h1>
+            <button id="playPauseBtn" class="bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold py-1.5 px-3 rounded-md transition-colors border border-slate-500">
+                Pause
+            </button>
+        </div>
+
+        <!-- Sliders -->
+        <div class="space-y-5 mb-6">
+            <div>
+                <div class="flex justify-between mb-1">
+                    <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Amplitude (A)</label>
+                    <span id="ampValue" class="text-xs font-mono text-slate-300">50</span>
+                </div>
+                <input type="range" id="amplitude" min="10" max="150" value="75">
+            </div>
+
+            <div>
+                <div class="flex justify-between mb-1">
+                    <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Wavelength (λ)</label>
+                    <span id="waveValue" class="text-xs font-mono text-slate-300">300</span>
+                </div>
+                <input type="range" id="wavelength" min="100" max="800" value="300">
+            </div>
+
+            <div>
+                <div class="flex justify-between mb-1">
+                    <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Frequency (f)</label>
+                    <span id="freqValue" class="text-xs font-mono text-slate-300">1.0 Hz</span>
+                </div>
+                <input type="range" id="frequency" min="0.1" max="3" step="0.1" value="1.0">
+            </div>
+        </div>
+
+        <!-- Visibility Toggles -->
+        <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Visibility</h2>
+            
+            <label class="checkbox-container">
+                <span class="text-cyan-400 font-medium">Wave 1 (Right traveling)</span>
+                <input type="checkbox" id="showRight" checked>
+                <span class="checkmark"></span>
+            </label>
+            
+            <label class="checkbox-container">
+                <span class="text-pink-400 font-medium">Wave 2 (Left traveling)</span>
+                <input type="checkbox" id="showLeft" checked>
+                <span class="checkmark"></span>
+            </label>
+            
+            <label class="checkbox-container mt-3">
+                <span class="text-yellow-400 font-bold">Resultant Standing Wave</span>
+                <input type="checkbox" id="showSum" checked>
+                <span class="checkmark"></span>
+            </label>
+
+            <div class="h-px w-full bg-slate-700 my-3"></div>
+
+            <label class="checkbox-container">
+                <span class="text-slate-300">Show Envelope</span>
+                <input type="checkbox" id="showEnvelope" checked>
+                <span class="checkmark"></span>
+            </label>
+            
+            <label class="checkbox-container">
+                <span class="text-slate-300">Show Nodes (Points of zero displacement)</span>
+                <input type="checkbox" id="showNodes" checked>
+                <span class="checkmark"></span>
+            </label>
+        </div>
+        
+        <div class="mt-4 text-[10px] text-slate-500 text-center">
+            y<sub>sum</sub> = 2A sin(kx) cos(ωt)
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('waveCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // State variables
+        let width, height;
+        let time = 0;
+        let lastTimestamp = 0;
+        let isPlaying = true;
+
+        // Physics parameters
+        let amplitude = parseInt(document.getElementById('amplitude').value);
+        let wavelength = parseInt(document.getElementById('wavelength').value);
+        let frequency = parseFloat(document.getElementById('frequency').value);
+
+        // Visibility states
+        let showRight = document.getElementById('showRight').checked;
+        let showLeft = document.getElementById('showLeft').checked;
+        let showSum = document.getElementById('showSum').checked;
+        let showEnvelope = document.getElementById('showEnvelope').checked;
+        let showNodes = document.getElementById('showNodes').checked;
+
+        // Resize handler
+        function resizeCanvas() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // DOM Elements for values
+        const ampValue = document.getElementById('ampValue');
+        const waveValue = document.getElementById('waveValue');
+        const freqValue = document.getElementById('freqValue');
+
+        // Event Listeners for Sliders
+        document.getElementById('amplitude').addEventListener('input', (e) => {
+            amplitude = parseInt(e.target.value);
+            ampValue.textContent = amplitude;
+        });
+
+        document.getElementById('wavelength').addEventListener('input', (e) => {
+            wavelength = parseInt(e.target.value);
+            waveValue.textContent = wavelength;
+        });
+
+        document.getElementById('frequency').addEventListener('input', (e) => {
+            frequency = parseFloat(e.target.value);
+            freqValue.textContent = frequency.toFixed(1) + ' Hz';
+        });
+
+        // Event Listeners for Checkboxes
+        document.getElementById('showRight').addEventListener('change', (e) => showRight = e.target.checked);
+        document.getElementById('showLeft').addEventListener('change', (e) => showLeft = e.target.checked);
+        document.getElementById('showSum').addEventListener('change', (e) => showSum = e.target.checked);
+        document.getElementById('showEnvelope').addEventListener('change', (e) => showEnvelope = e.target.checked);
+        document.getElementById('showNodes').addEventListener('change', (e) => showNodes = e.target.checked);
+
+        // Play/Pause button
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        playPauseBtn.addEventListener('click', () => {
+            isPlaying = !isPlaying;
+            playPauseBtn.textContent = isPlaying ? 'Pause' : 'Play';
+            if (isPlaying) {
+                lastTimestamp = performance.now();
+                requestAnimationFrame(render);
+            }
+        });
+
+        function drawCenterLine() {
+            ctx.beginPath();
+            ctx.strokeStyle = '#334155'; // Slate 700
+            ctx.lineWidth = 1;
+            ctx.moveTo(0, height / 2);
+            ctx.lineTo(width, height / 2);
+            ctx.stroke();
+        }
+
+        function drawWave(t, color, direction, lineWidth = 2) {
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.setLineDash([]);
+            
+            // k = angular wavenumber = 2π / λ
+            const k = (2 * Math.PI) / wavelength;
+            // w = angular frequency = 2πf
+            const w = 2 * Math.PI * frequency;
+
+            for (let x = 0; x < width; x++) {
+                // Direction modifier: -1 for right-traveling (kx - wt), +1 for left-traveling (kx + wt)
+                const dir = direction === 'right' ? -1 : 1;
+                
+                // Wave equation: y = A * sin(kx ± wt)
+                const y = amplitude * Math.sin(k * x + dir * w * t);
+                
+                if (x === 0) {
+                    ctx.moveTo(x, height / 2 - y);
+                } else {
+                    ctx.lineTo(x, height / 2 - y);
+                }
+            }
+            ctx.stroke();
+        }
+
+        function drawStandingWave(t, color) {
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 4;
+            ctx.setLineDash([]);
+            
+            const k = (2 * Math.PI) / wavelength;
+            const w = 2 * Math.PI * frequency;
+
+            for (let x = 0; x < width; x++) {
+                // Standing wave equation: y_sum = 2A * sin(kx) * cos(wt)
+                const y = 2 * amplitude * Math.sin(k * x) * Math.cos(w * t);
+                
+                if (x === 0) {
+                    ctx.moveTo(x, height / 2 - y);
+                } else {
+                    ctx.lineTo(x, height / 2 - y);
+                }
+            }
+            ctx.stroke();
+        }
+
+        function drawEnvelope() {
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([5, 5]); // Dashed line
+            
+            const k = (2 * Math.PI) / wavelength;
+
+            // Top envelope: +2A sin(kx)
+            for (let x = 0; x < width; x++) {
+                const y = 2 * amplitude * Math.abs(Math.sin(k * x));
+                if (x === 0) ctx.moveTo(x, height / 2 - y);
+                else ctx.lineTo(x, height / 2 - y);
+            }
+            ctx.stroke();
+
+            // Bottom envelope: -2A sin(kx)
+            ctx.beginPath();
+            for (let x = 0; x < width; x++) {
+                const y = -2 * amplitude * Math.abs(Math.sin(k * x));
+                if (x === 0) ctx.moveTo(x, height / 2 - y);
+                else ctx.lineTo(x, height / 2 - y);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset dash
+        }
+
+        function renderNodes() {
+            ctx.fillStyle = '#ef4444'; // Red 500
+            
+            // Nodes occur every half wavelength starting from 0 (where sin(kx) = 0)
+            const nodeSpacing = wavelength / 2;
+            
+            for (let x = 0; x < width; x += nodeSpacing) {
+                ctx.beginPath();
+                ctx.arc(x, height / 2, 5, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // Optional: add a subtle glow to nodes
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#ef4444';
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        function render(timestamp) {
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            const deltaTime = (timestamp - lastTimestamp) / 1000; // Convert to seconds
+            lastTimestamp = timestamp;
+
+            if (isPlaying) {
+                time += deltaTime;
+            }
+
+            // Clear canvas
+            ctx.clearRect(0, 0, width, height);
+
+            drawCenterLine();
+
+            if (showEnvelope) {
+                drawEnvelope();
+            }
+
+            if (showRight) {
+                // Cyan wave traveling right
+                drawWave(time, 'rgba(34, 211, 238, 0.6)', 'right'); 
+            }
+
+            if (showLeft) {
+                // Pink wave traveling left
+                drawWave(time, 'rgba(244, 114, 182, 0.6)', 'left'); 
+            }
+
+            if (showSum) {
+                // Yellow solid standing wave
+                drawStandingWave(time, '#facc15'); 
+            }
+
+            if (showNodes) {
+                renderNodes();
+            }
+
+            if (isPlaying) {
+                requestAnimationFrame(render);
+            }
+        }
+
+        // Start animation
+        requestAnimationFrame(render);
+    </script>
+</body>
+</html>

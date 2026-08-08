@@ -31,6 +31,9 @@
 
     .app {
       display: block;
+      width: 100%;
+      max-width: 1156px;
+      margin: 0 auto;
       min-height: 100vh;
       padding: 18px;
     }
@@ -510,6 +513,7 @@
     }
 
     .buzz-evidence {
+      width: calc(100% - 36px);
       max-width: 1120px;
       margin: 16px auto;
       padding: 18px;
@@ -539,6 +543,7 @@
     .evidence-actions { display: flex; flex-wrap: wrap; gap: 8px; }
     .evidence-actions button { background: #2563a9; color: #fff; }
     .buzz-questions {
+      width: calc(100% - 36px);
       max-width: 1120px;
       margin: 20px auto;
     }
@@ -757,7 +762,6 @@
     <div class="evidence-readout" id="evidenceReadout"></div>
     <div class="evidence-actions">
       <button id="downloadEvidenceBtn" type="button">Download Evidence Image</button>
-      <button id="copyEvidenceBtn" type="button">Copy Values for Buzz</button>
     </div>
   </section>
 
@@ -883,7 +887,6 @@
     var scoreReadout = document.getElementById('scoreReadout');
     var evidenceReadout = document.getElementById('evidenceReadout');
     var downloadEvidenceBtn = document.getElementById('downloadEvidenceBtn');
-    var copyEvidenceBtn = document.getElementById('copyEvidenceBtn');
     var WALK_STEPS = [
       {
         title: 'Read the mission',
@@ -1340,12 +1343,6 @@
       link.download = 'city-blocks-challenge-evidence.png';
       link.href = reportCanvas.toDataURL('image/png');
       link.click();
-    }
-
-    function copyEvidence() {
-      if (navigator.clipboard) navigator.clipboard.writeText(evidenceText().join('\n'));
-      statusText.textContent = 'Evidence values copied for Buzz.';
-      statusText.className = 'status good';
     }
 
     function updateUI() {
@@ -2443,20 +2440,33 @@
       loadLevel(firstUnpassedLevel());
     }
 
-    // scorm-wrapper.js initializes the LMS connection on this same event
-    // (its listener registers first), so suspend data is readable here.
-    window.addEventListener('load', function() {
+    function initializeActivity() {
       loadSuspendData();
       if (typeof SCORM !== 'undefined' && progressState.passed.length < levels.length) {
         SCORM.setStatus('incomplete');
         SCORM.commit();
       }
-      document.fonts.ready.then(boot);
-    });
+      boot();
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(function() {
+          isCityCached = false;
+          draw();
+        });
+      }
+    }
+
+    // Buzz may inject this template after the window load event has fired.
+    if (document.readyState === 'complete') initializeActivity();
+    else window.addEventListener('load', initializeActivity);
 
     beginBtn.addEventListener('click', function() {
       startOverlay.classList.add('hidden');
       mainContent.classList.remove('hidden');
+      boot();
+      requestAnimationFrame(function() {
+        isCityCached = false;
+        draw();
+      });
     });
 
     showWalkthroughBtn.addEventListener('click', openWalkthrough);
@@ -2478,7 +2488,6 @@
     });
 
     downloadEvidenceBtn.addEventListener('click', downloadEvidence);
-    copyEvidenceBtn.addEventListener('click', copyEvidence);
 
     var dpadBtns = document.querySelectorAll('[data-dir]');
     for (var i = 0; i < dpadBtns.length; i++) {

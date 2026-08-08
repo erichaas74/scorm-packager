@@ -192,10 +192,35 @@
     .wsc-hint-change::before { content: "⇄"; }
     .wsc-hint-watch::before { content: "👁"; }
 
+    .wsc-legend {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 5px 18px;
+      margin: 13px 0 0;
+      color: var(--muted);
+      font-size: 0.76rem;
+      font-weight: 800;
+    }
+
+    .wsc-legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .wsc-legend-item::before {
+      content: "";
+      width: 24px;
+    }
+
+    .wsc-legend-old::before { border-top: 4px dashed #7fa0c2; }
+    .wsc-legend-new::before { border-top: 3px solid var(--orange); }
+
     .wsc-matrix {
       display: grid;
       gap: 9px;
-      margin-top: 12px;
+      margin-top: 9px;
     }
 
     .wsc-matrix-row {
@@ -222,6 +247,14 @@
     }
 
     .wsc-opt {
+      --thumb-old: #7fa0c2;
+      --thumb-new: var(--orange);
+      --thumb-axis: #c3d4e6;
+      --thumb-ink: var(--muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
       min-height: 42px;
       padding: 8px 6px;
       border: 1px solid #6c87a3;
@@ -234,9 +267,65 @@
       cursor: pointer;
     }
 
+    /* Each choice previews the before wave (blue, dashed) against the after wave (orange). */
+    .wsc-thumb {
+      width: 100%;
+      max-width: 148px;
+      height: auto;
+      pointer-events: none;
+    }
+
+    .wsc-thumb .t-wave {
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .wsc-thumb .t-old { stroke: var(--thumb-old); }
+    .wsc-thumb .t-new { stroke: var(--thumb-new); }
+    .wsc-thumb .t-ink { stroke: var(--thumb-ink); }
+    .wsc-thumb .t-wave.t-old { stroke-width: 4.5; stroke-dasharray: 7 5; }
+    .wsc-thumb .t-wave.t-new { stroke-width: 2.6; }
+
+    .wsc-thumb .t-dim {
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+    }
+
+    .wsc-thumb .t-axis {
+      fill: none;
+      stroke: var(--thumb-axis);
+      stroke-width: 1.5;
+      stroke-dasharray: 4 4;
+    }
+
+    .wsc-thumb .t-guide {
+      fill: none;
+      stroke: var(--thumb-axis);
+      stroke-width: 1.5;
+      stroke-dasharray: 3 4;
+    }
+
+    .wsc-thumb .t-dot-old { fill: var(--thumb-old); }
+    .wsc-thumb .t-dot-new { fill: var(--thumb-new); }
+
+    .wsc-thumb .t-label {
+      fill: var(--thumb-ink);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+
+    .wsc-thumb .t-label-new { fill: var(--thumb-new); font-size: 12px; }
+
     .wsc-opt:hover { border-color: var(--blue); background: var(--blue-soft); }
 
     .wsc-opt[aria-checked="true"] {
+      --thumb-old: rgba(255, 255, 255, 0.62);
+      --thumb-new: #ffd7b8;
+      --thumb-axis: rgba(255, 255, 255, 0.4);
+      --thumb-ink: rgba(255, 255, 255, 0.85);
       border-color: var(--blue-dark);
       background: var(--blue);
       color: #fff;
@@ -247,22 +336,33 @@
     .wsc-opt:disabled:not(.is-correct):not(.is-wrong):not([aria-checked="true"]) { opacity: 0.45; }
 
     .wsc-opt.is-correct {
+      --thumb-old: #86ab8f;
+      --thumb-ink: #2f6b45;
       border-color: #166534;
       background: var(--success-soft);
       color: #14532d;
     }
 
     .wsc-opt[aria-checked="true"].is-correct {
+      --thumb-old: rgba(255, 255, 255, 0.62);
+      --thumb-new: #ffd7b8;
+      --thumb-axis: rgba(255, 255, 255, 0.4);
+      --thumb-ink: rgba(255, 255, 255, 0.85);
       background: #166534;
       color: #fff;
     }
 
     .wsc-opt.is-wrong {
+      --thumb-old: #cba0a0;
+      --thumb-new: #b91c1c;
+      --thumb-axis: #e8cccc;
+      --thumb-ink: #9c4242;
       border-color: #b91c1c;
       background: #fef2f2;
       color: #7f1d1d;
-      text-decoration: line-through;
     }
+
+    .wsc-opt.is-wrong .wsc-opt-text { text-decoration: line-through; }
 
     .wsc-feedback {
       margin: 11px 0 0;
@@ -461,37 +561,42 @@
           <p class="wsc-hint-line wsc-hint-watch" id="hint-watch">Compare the two hands on the stage above.</p>
         </div>
 
+        <p class="wsc-legend">
+          <span class="wsc-legend-item wsc-legend-old">Wave before the change</span>
+          <span class="wsc-legend-item wsc-legend-new">Pick the wave you expect after</span>
+        </p>
+
         <div class="wsc-matrix" id="matrix">
           <div class="wsc-matrix-row" data-key="amp">
             <span class="wsc-matrix-label" id="label-amp">Amplitude</span>
             <div class="wsc-matrix-options" role="radiogroup" aria-labelledby="label-amp">
-              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="up">Increases</button>
-              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="down">Decreases</button>
-              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="same">Stays the same</button>
+              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="up"><svg class="wsc-thumb" viewBox="0 0 104 54" role="img" aria-label="Orange wave is taller than the blue one" focusable="false"><path class="t-axis" d="M7 27H97"/><path class="t-wave t-old" d="M7 27 L8.5 25.5 L10 24.2 L11.5 22.9 L13 21.8 L14.5 20.9 L16 20.3 L17.5 20 L19 20 L20.5 20.3 L22 20.9 L23.5 21.8 L25 22.9 L26.5 24.2 L28 25.5 L29.5 27 L31 28.5 L32.5 29.8 L34 31.1 L35.5 32.2 L37 33.1 L38.5 33.7 L40 34 L41.5 34 L43 33.7 L44.5 33.1 L46 32.2 L47.5 31.1 L49 29.8 L50.5 28.5 L52 27 L53.5 25.5 L55 24.2 L56.5 22.9 L58 21.8 L59.5 20.9 L61 20.3 L62.5 20 L64 20 L65.5 20.3 L67 20.9 L68.5 21.8 L70 22.9 L71.5 24.2 L73 25.5 L74.5 27 L76 28.5 L77.5 29.8 L79 31.1 L80.5 32.2 L82 33.1 L83.5 33.7 L85 34 L86.5 34 L88 33.7 L89.5 33.1 L91 32.2 L92.5 31.1 L94 29.8 L95.5 28.5 L97 27"/><path class="t-wave t-new" d="M7 27 L8.5 23.9 L10 20.9 L11.5 18.2 L13 15.9 L14.5 14 L16 12.7 L17.5 12.1 L19 12.1 L20.5 12.7 L22 14 L23.5 15.9 L25 18.2 L26.5 20.9 L28 23.9 L29.5 27 L31 30.1 L32.5 33.1 L34 35.8 L35.5 38.1 L37 40 L38.5 41.3 L40 41.9 L41.5 41.9 L43 41.3 L44.5 40 L46 38.1 L47.5 35.8 L49 33.1 L50.5 30.1 L52 27 L53.5 23.9 L55 20.9 L56.5 18.2 L58 15.9 L59.5 14 L61 12.7 L62.5 12.1 L64 12.1 L65.5 12.7 L67 14 L68.5 15.9 L70 18.2 L71.5 20.9 L73 23.9 L74.5 27 L76 30.1 L77.5 33.1 L79 35.8 L80.5 38.1 L82 40 L83.5 41.3 L85 41.9 L86.5 41.9 L88 41.3 L89.5 40 L91 38.1 L92.5 35.8 L94 33.1 L95.5 30.1 L97 27"/></svg><span class="wsc-opt-text">Increases</span></button>
+              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="down"><svg class="wsc-thumb" viewBox="0 0 104 54" role="img" aria-label="Orange wave is shorter than the blue one" focusable="false"><path class="t-axis" d="M7 27H97"/><path class="t-wave t-old" d="M7 27 L8.5 25.5 L10 24.2 L11.5 22.9 L13 21.8 L14.5 20.9 L16 20.3 L17.5 20 L19 20 L20.5 20.3 L22 20.9 L23.5 21.8 L25 22.9 L26.5 24.2 L28 25.5 L29.5 27 L31 28.5 L32.5 29.8 L34 31.1 L35.5 32.2 L37 33.1 L38.5 33.7 L40 34 L41.5 34 L43 33.7 L44.5 33.1 L46 32.2 L47.5 31.1 L49 29.8 L50.5 28.5 L52 27 L53.5 25.5 L55 24.2 L56.5 22.9 L58 21.8 L59.5 20.9 L61 20.3 L62.5 20 L64 20 L65.5 20.3 L67 20.9 L68.5 21.8 L70 22.9 L71.5 24.2 L73 25.5 L74.5 27 L76 28.5 L77.5 29.8 L79 31.1 L80.5 32.2 L82 33.1 L83.5 33.7 L85 34 L86.5 34 L88 33.7 L89.5 33.1 L91 32.2 L92.5 31.1 L94 29.8 L95.5 28.5 L97 27"/><path class="t-wave t-new" d="M7 27 L8.5 26.3 L10 25.6 L11.5 24.9 L13 24.4 L14.5 24 L16 23.7 L17.5 23.5 L19 23.5 L20.5 23.7 L22 24 L23.5 24.4 L25 24.9 L26.5 25.6 L28 26.3 L29.5 27 L31 27.7 L32.5 28.4 L34 29.1 L35.5 29.6 L37 30 L38.5 30.3 L40 30.5 L41.5 30.5 L43 30.3 L44.5 30 L46 29.6 L47.5 29.1 L49 28.4 L50.5 27.7 L52 27 L53.5 26.3 L55 25.6 L56.5 24.9 L58 24.4 L59.5 24 L61 23.7 L62.5 23.5 L64 23.5 L65.5 23.7 L67 24 L68.5 24.4 L70 24.9 L71.5 25.6 L73 26.3 L74.5 27 L76 27.7 L77.5 28.4 L79 29.1 L80.5 29.6 L82 30 L83.5 30.3 L85 30.5 L86.5 30.5 L88 30.3 L89.5 30 L91 29.6 L92.5 29.1 L94 28.4 L95.5 27.7 L97 27"/></svg><span class="wsc-opt-text">Decreases</span></button>
+              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="same"><svg class="wsc-thumb" viewBox="0 0 104 54" role="img" aria-label="Orange wave traces the same height as the blue one" focusable="false"><path class="t-axis" d="M7 27H97"/><path class="t-wave t-old" d="M7 27 L8.5 25.5 L10 24.2 L11.5 22.9 L13 21.8 L14.5 20.9 L16 20.3 L17.5 20 L19 20 L20.5 20.3 L22 20.9 L23.5 21.8 L25 22.9 L26.5 24.2 L28 25.5 L29.5 27 L31 28.5 L32.5 29.8 L34 31.1 L35.5 32.2 L37 33.1 L38.5 33.7 L40 34 L41.5 34 L43 33.7 L44.5 33.1 L46 32.2 L47.5 31.1 L49 29.8 L50.5 28.5 L52 27 L53.5 25.5 L55 24.2 L56.5 22.9 L58 21.8 L59.5 20.9 L61 20.3 L62.5 20 L64 20 L65.5 20.3 L67 20.9 L68.5 21.8 L70 22.9 L71.5 24.2 L73 25.5 L74.5 27 L76 28.5 L77.5 29.8 L79 31.1 L80.5 32.2 L82 33.1 L83.5 33.7 L85 34 L86.5 34 L88 33.7 L89.5 33.1 L91 32.2 L92.5 31.1 L94 29.8 L95.5 28.5 L97 27"/><path class="t-wave t-new" d="M7 27 L8.5 25.5 L10 24.2 L11.5 22.9 L13 21.8 L14.5 20.9 L16 20.3 L17.5 20 L19 20 L20.5 20.3 L22 20.9 L23.5 21.8 L25 22.9 L26.5 24.2 L28 25.5 L29.5 27 L31 28.5 L32.5 29.8 L34 31.1 L35.5 32.2 L37 33.1 L38.5 33.7 L40 34 L41.5 34 L43 33.7 L44.5 33.1 L46 32.2 L47.5 31.1 L49 29.8 L50.5 28.5 L52 27 L53.5 25.5 L55 24.2 L56.5 22.9 L58 21.8 L59.5 20.9 L61 20.3 L62.5 20 L64 20 L65.5 20.3 L67 20.9 L68.5 21.8 L70 22.9 L71.5 24.2 L73 25.5 L74.5 27 L76 28.5 L77.5 29.8 L79 31.1 L80.5 32.2 L82 33.1 L83.5 33.7 L85 34 L86.5 34 L88 33.7 L89.5 33.1 L91 32.2 L92.5 31.1 L94 29.8 L95.5 28.5 L97 27"/></svg><span class="wsc-opt-text">Stays the same</span></button>
             </div>
           </div>
           <div class="wsc-matrix-row" data-key="f">
             <span class="wsc-matrix-label" id="label-f">Frequency</span>
             <div class="wsc-matrix-options" role="radiogroup" aria-labelledby="label-f">
-              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="up">Increases</button>
-              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="down">Decreases</button>
-              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="same">Stays the same</button>
+              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="up"><svg class="wsc-thumb" viewBox="0 0 104 54" role="img" aria-label="Orange wave fits more cycles into one second" focusable="false"><path class="t-axis" d="M7 19H97"/><path class="t-wave t-old" d="M7 19 L8.5 17.5 L10 16.2 L11.5 14.9 L13 13.8 L14.5 12.9 L16 12.3 L17.5 12 L19 12 L20.5 12.3 L22 12.9 L23.5 13.8 L25 14.9 L26.5 16.2 L28 17.5 L29.5 19 L31 20.5 L32.5 21.8 L34 23.1 L35.5 24.2 L37 25.1 L38.5 25.7 L40 26 L41.5 26 L43 25.7 L44.5 25.1 L46 24.2 L47.5 23.1 L49 21.8 L50.5 20.5 L52 19 L53.5 17.5 L55 16.2 L56.5 14.9 L58 13.8 L59.5 12.9 L61 12.3 L62.5 12 L64 12 L65.5 12.3 L67 12.9 L68.5 13.8 L70 14.9 L71.5 16.2 L73 17.5 L74.5 19 L76 20.5 L77.5 21.8 L79 23.1 L80.5 24.2 L82 25.1 L83.5 25.7 L85 26 L86.5 26 L88 25.7 L89.5 25.1 L91 24.2 L92.5 23.1 L94 21.8 L95.5 20.5 L97 19"/><path class="t-wave t-new" d="M7 19 L8.5 16.2 L10 13.8 L11.5 12.3 L13 12 L14.5 12.9 L16 14.9 L17.5 17.5 L19 20.5 L20.5 23.1 L22 25.1 L23.5 26 L25 25.7 L26.5 24.2 L28 21.8 L29.5 19 L31 16.2 L32.5 13.8 L34 12.3 L35.5 12 L37 12.9 L38.5 14.9 L40 17.5 L41.5 20.5 L43 23.1 L44.5 25.1 L46 26 L47.5 25.7 L49 24.2 L50.5 21.8 L52 19 L53.5 16.2 L55 13.8 L56.5 12.3 L58 12 L59.5 12.9 L61 14.9 L62.5 17.5 L64 20.5 L65.5 23.1 L67 25.1 L68.5 26 L70 25.7 L71.5 24.2 L73 21.8 L74.5 19 L76 16.2 L77.5 13.8 L79 12.3 L80.5 12 L82 12.9 L83.5 14.9 L85 17.5 L86.5 20.5 L88 23.1 L89.5 25.1 L91 26 L92.5 25.7 L94 24.2 L95.5 21.8 L97 19"/><path class="t-dim t-ink" d="M7 36V44M7 40H97M97 36V44"/><text class="t-label" x="52" y="52" text-anchor="middle">1 second</text></svg><span class="wsc-opt-text">Increases</span></button>
+              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="down"><svg class="wsc-thumb" viewBox="0 0 104 54" role="img" aria-label="Orange wave fits fewer cycles into one second" focusable="false"><path class="t-axis" d="M7 19H97"/><path class="t-wave t-old" d="M7 19 L8.5 17.5 L10 16.2 L11.5 14.9 L13 13.8 L14.5 12.9 L16 12.3 L17.5 12 L19 12 L20.5 12.3 L22 12.9 L23.5 13.8 L25 14.9 L26.5 16.2 L28 17.5 L29.5 19 L31 20.5 L32.5 21.8 L34 23.1 L35.5 24.2 L37 25.1 L38.5 25.7 L40 26 L41.5 26 L43 25.7 L44.5 25.1 L46 24.2 L47.5 23.1 L49 21.8 L50.5 20.5 L52 19 L53.5 17.5 L55 16.2 L56.5 14.9 L58 13.8 L59.5 12.9 L61 12.3 L62.5 12 L64 12 L65.5 12.3 L67 12.9 L68.5 13.8 L70 14.9 L71.5 16.2 L73 17.5 L74.5 19 L76 20.5 L77.5 21.8 L79 23.1 L80.5 24.2 L82 25.1 L83.5 25.7 L85 26 L86.5 26 L88 25.7 L89.5 25.1 L91 24.2 L92.5 23.1 L94 21.8 L95.5 20.5 L97 19"/><path class="t-wave t-new" d="M7 19 L8.5 18.3 L10 17.5 L11.5 16.8 L13 16.2 L14.5 15.5 L16 14.9 L17.5 14.3 L19 13.8 L20.5 13.3 L22 12.9 L23.5 12.6 L25 12.3 L26.5 12.2 L28 12 L29.5 12 L31 12 L32.5 12.2 L34 12.3 L35.5 12.6 L37 12.9 L38.5 13.3 L40 13.8 L41.5 14.3 L43 14.9 L44.5 15.5 L46 16.2 L47.5 16.8 L49 17.5 L50.5 18.3 L52 19 L53.5 19.7 L55 20.5 L56.5 21.2 L58 21.8 L59.5 22.5 L61 23.1 L62.5 23.7 L64 24.2 L65.5 24.7 L67 25.1 L68.5 25.4 L70 25.7 L71.5 25.8 L73 26 L74.5 26 L76 26 L77.5 25.8 L79 25.7 L80.5 25.4 L82 25.1 L83.5 24.7 L85 24.2 L86.5 23.7 L88 23.1 L89.5 22.5 L91 21.8 L92.5 21.2 L94 20.5 L95.5 19.7 L97 19"/><path class="t-dim t-ink" d="M7 36V44M7 40H97M97 36V44"/><text class="t-label" x="52" y="52" text-anchor="middle">1 second</text></svg><span class="wsc-opt-text">Decreases</span></button>
+              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="same"><svg class="wsc-thumb" viewBox="0 0 104 54" role="img" aria-label="Orange wave fits the same number of cycles into one second" focusable="false"><path class="t-axis" d="M7 19H97"/><path class="t-wave t-old" d="M7 19 L8.5 17.5 L10 16.2 L11.5 14.9 L13 13.8 L14.5 12.9 L16 12.3 L17.5 12 L19 12 L20.5 12.3 L22 12.9 L23.5 13.8 L25 14.9 L26.5 16.2 L28 17.5 L29.5 19 L31 20.5 L32.5 21.8 L34 23.1 L35.5 24.2 L37 25.1 L38.5 25.7 L40 26 L41.5 26 L43 25.7 L44.5 25.1 L46 24.2 L47.5 23.1 L49 21.8 L50.5 20.5 L52 19 L53.5 17.5 L55 16.2 L56.5 14.9 L58 13.8 L59.5 12.9 L61 12.3 L62.5 12 L64 12 L65.5 12.3 L67 12.9 L68.5 13.8 L70 14.9 L71.5 16.2 L73 17.5 L74.5 19 L76 20.5 L77.5 21.8 L79 23.1 L80.5 24.2 L82 25.1 L83.5 25.7 L85 26 L86.5 26 L88 25.7 L89.5 25.1 L91 24.2 L92.5 23.1 L94 21.8 L95.5 20.5 L97 19"/><path class="t-wave t-new" d="M7 19 L8.5 17.5 L10 16.2 L11.5 14.9 L13 13.8 L14.5 12.9 L16 12.3 L17.5 12 L19 12 L20.5 12.3 L22 12.9 L23.5 13.8 L25 14.9 L26.5 16.2 L28 17.5 L29.5 19 L31 20.5 L32.5 21.8 L34 23.1 L35.5 24.2 L37 25.1 L38.5 25.7 L40 26 L41.5 26 L43 25.7 L44.5 25.1 L46 24.2 L47.5 23.1 L49 21.8 L50.5 20.5 L52 19 L53.5 17.5 L55 16.2 L56.5 14.9 L58 13.8 L59.5 12.9 L61 12.3 L62.5 12 L64 12 L65.5 12.3 L67 12.9 L68.5 13.8 L70 14.9 L71.5 16.2 L73 17.5 L74.5 19 L76 20.5 L77.5 21.8 L79 23.1 L80.5 24.2 L82 25.1 L83.5 25.7 L85 26 L86.5 26 L88 25.7 L89.5 25.1 L91 24.2 L92.5 23.1 L94 21.8 L95.5 20.5 L97 19"/><path class="t-dim t-ink" d="M7 36V44M7 40H97M97 36V44"/><text class="t-label" x="52" y="52" text-anchor="middle">1 second</text></svg><span class="wsc-opt-text">Stays the same</span></button>
             </div>
           </div>
           <div class="wsc-matrix-row" data-key="l">
             <span class="wsc-matrix-label" id="label-l">Wavelength</span>
             <div class="wsc-matrix-options" role="radiogroup" aria-labelledby="label-l">
-              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="up">Increases</button>
-              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="down">Decreases</button>
-              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="same">Stays the same</button>
+              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="up"><svg class="wsc-thumb" viewBox="0 0 104 54" role="img" aria-label="Orange wave is stretched out longer than the blue one" focusable="false"><path class="t-axis" d="M7 19H97"/><path class="t-wave t-old" d="M7 19 L8.5 17.5 L10 16.2 L11.5 14.9 L13 13.8 L14.5 12.9 L16 12.3 L17.5 12 L19 12 L20.5 12.3 L22 12.9 L23.5 13.8 L25 14.9 L26.5 16.2 L28 17.5 L29.5 19 L31 20.5 L32.5 21.8 L34 23.1 L35.5 24.2 L37 25.1 L38.5 25.7 L40 26 L41.5 26 L43 25.7 L44.5 25.1 L46 24.2 L47.5 23.1 L49 21.8 L50.5 20.5 L52 19 L53.5 17.5 L55 16.2 L56.5 14.9 L58 13.8 L59.5 12.9 L61 12.3 L62.5 12 L64 12 L65.5 12.3 L67 12.9 L68.5 13.8 L70 14.9 L71.5 16.2 L73 17.5 L74.5 19 L76 20.5 L77.5 21.8 L79 23.1 L80.5 24.2 L82 25.1 L83.5 25.7 L85 26 L86.5 26 L88 25.7 L89.5 25.1 L91 24.2 L92.5 23.1 L94 21.8 L95.5 20.5 L97 19"/><path class="t-wave t-new" d="M7 19 L8.5 18 L10 17.1 L11.5 16.2 L13 15.3 L14.5 14.5 L16 13.8 L17.5 13.2 L19 12.7 L20.5 12.4 L22 12.1 L23.5 12 L25 12 L26.5 12.2 L28 12.5 L29.5 12.9 L31 13.4 L32.5 14.1 L34 14.8 L35.5 15.6 L37 16.5 L38.5 17.4 L40 18.4 L41.5 19.3 L43 20.3 L44.5 21.2 L46 22.1 L47.5 23 L49 23.7 L50.5 24.4 L52 25 L53.5 25.4 L55 25.7 L56.5 25.9 L58 26 L59.5 25.9 L61 25.7 L62.5 25.4 L64 25 L65.5 24.4 L67 23.7 L68.5 23 L70 22.1 L71.5 21.2 L73 20.3 L74.5 19.3 L76 18.4 L77.5 17.4 L79 16.5 L80.5 15.6 L82 14.8 L83.5 14.1 L85 13.4 L86.5 12.9 L88 12.5 L89.5 12.2 L91 12 L92.5 12 L94 12.1 L95.5 12.4 L97 12.7"/><path class="t-dim t-old" d="M7 33V41M7 37H52M52 33V41"/><path class="t-dim t-new" d="M7 44V52M7 48H75M75 44V52"/><text class="t-label t-label-new" x="80" y="51">&#955;</text></svg><span class="wsc-opt-text">Increases</span></button>
+              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="down"><svg class="wsc-thumb" viewBox="0 0 104 54" role="img" aria-label="Orange wave is squeezed shorter than the blue one" focusable="false"><path class="t-axis" d="M7 19H97"/><path class="t-wave t-old" d="M7 19 L8.5 17.5 L10 16.2 L11.5 14.9 L13 13.8 L14.5 12.9 L16 12.3 L17.5 12 L19 12 L20.5 12.3 L22 12.9 L23.5 13.8 L25 14.9 L26.5 16.2 L28 17.5 L29.5 19 L31 20.5 L32.5 21.8 L34 23.1 L35.5 24.2 L37 25.1 L38.5 25.7 L40 26 L41.5 26 L43 25.7 L44.5 25.1 L46 24.2 L47.5 23.1 L49 21.8 L50.5 20.5 L52 19 L53.5 17.5 L55 16.2 L56.5 14.9 L58 13.8 L59.5 12.9 L61 12.3 L62.5 12 L64 12 L65.5 12.3 L67 12.9 L68.5 13.8 L70 14.9 L71.5 16.2 L73 17.5 L74.5 19 L76 20.5 L77.5 21.8 L79 23.1 L80.5 24.2 L82 25.1 L83.5 25.7 L85 26 L86.5 26 L88 25.7 L89.5 25.1 L91 24.2 L92.5 23.1 L94 21.8 L95.5 20.5 L97 19"/><path class="t-wave t-new" d="M7 19 L8.5 16.6 L10 14.5 L11.5 12.9 L13 12.1 L14.5 12.1 L16 12.9 L17.5 14.5 L19 16.6 L20.5 19 L22 21.4 L23.5 23.5 L25 25.1 L26.5 25.9 L28 25.9 L29.5 25.1 L31 23.5 L32.5 21.4 L34 19 L35.5 16.6 L37 14.5 L38.5 12.9 L40 12.1 L41.5 12.1 L43 12.9 L44.5 14.5 L46 16.6 L47.5 19 L49 21.4 L50.5 23.5 L52 25.1 L53.5 25.9 L55 25.9 L56.5 25.1 L58 23.5 L59.5 21.4 L61 19 L62.5 16.6 L64 14.5 L65.5 12.9 L67 12.1 L68.5 12.1 L70 12.9 L71.5 14.5 L73 16.6 L74.5 19 L76 21.4 L77.5 23.5 L79 25.1 L80.5 25.9 L82 25.9 L83.5 25.1 L85 23.5 L86.5 21.4 L88 19 L89.5 16.6 L91 14.5 L92.5 12.9 L94 12.1 L95.5 12.1 L97 12.9"/><path class="t-dim t-old" d="M7 33V41M7 37H52M52 33V41"/><path class="t-dim t-new" d="M7 44V52M7 48H34M34 44V52"/><text class="t-label t-label-new" x="39" y="51">&#955;</text></svg><span class="wsc-opt-text">Decreases</span></button>
+              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="same"><svg class="wsc-thumb" viewBox="0 0 104 54" role="img" aria-label="Orange wave has the same crest spacing as the blue one" focusable="false"><path class="t-axis" d="M7 19H97"/><path class="t-wave t-old" d="M7 19 L8.5 17.5 L10 16.2 L11.5 14.9 L13 13.8 L14.5 12.9 L16 12.3 L17.5 12 L19 12 L20.5 12.3 L22 12.9 L23.5 13.8 L25 14.9 L26.5 16.2 L28 17.5 L29.5 19 L31 20.5 L32.5 21.8 L34 23.1 L35.5 24.2 L37 25.1 L38.5 25.7 L40 26 L41.5 26 L43 25.7 L44.5 25.1 L46 24.2 L47.5 23.1 L49 21.8 L50.5 20.5 L52 19 L53.5 17.5 L55 16.2 L56.5 14.9 L58 13.8 L59.5 12.9 L61 12.3 L62.5 12 L64 12 L65.5 12.3 L67 12.9 L68.5 13.8 L70 14.9 L71.5 16.2 L73 17.5 L74.5 19 L76 20.5 L77.5 21.8 L79 23.1 L80.5 24.2 L82 25.1 L83.5 25.7 L85 26 L86.5 26 L88 25.7 L89.5 25.1 L91 24.2 L92.5 23.1 L94 21.8 L95.5 20.5 L97 19"/><path class="t-wave t-new" d="M7 19 L8.5 17.5 L10 16.2 L11.5 14.9 L13 13.8 L14.5 12.9 L16 12.3 L17.5 12 L19 12 L20.5 12.3 L22 12.9 L23.5 13.8 L25 14.9 L26.5 16.2 L28 17.5 L29.5 19 L31 20.5 L32.5 21.8 L34 23.1 L35.5 24.2 L37 25.1 L38.5 25.7 L40 26 L41.5 26 L43 25.7 L44.5 25.1 L46 24.2 L47.5 23.1 L49 21.8 L50.5 20.5 L52 19 L53.5 17.5 L55 16.2 L56.5 14.9 L58 13.8 L59.5 12.9 L61 12.3 L62.5 12 L64 12 L65.5 12.3 L67 12.9 L68.5 13.8 L70 14.9 L71.5 16.2 L73 17.5 L74.5 19 L76 20.5 L77.5 21.8 L79 23.1 L80.5 24.2 L82 25.1 L83.5 25.7 L85 26 L86.5 26 L88 25.7 L89.5 25.1 L91 24.2 L92.5 23.1 L94 21.8 L95.5 20.5 L97 19"/><path class="t-dim t-old" d="M7 33V41M7 37H52M52 33V41"/><path class="t-dim t-new" d="M7 44V52M7 48H52M52 44V52"/><text class="t-label t-label-new" x="57" y="51">&#955;</text></svg><span class="wsc-opt-text">Stays the same</span></button>
             </div>
           </div>
           <div class="wsc-matrix-row" data-key="v">
             <span class="wsc-matrix-label" id="label-v">Wave speed</span>
             <div class="wsc-matrix-options" role="radiogroup" aria-labelledby="label-v">
-              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="up">Increases</button>
-              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="down">Decreases</button>
-              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="same">Stays the same</button>
+              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="up"><svg class="wsc-thumb" viewBox="0 0 104 54" role="img" aria-label="Orange leading edge travels farther in the same time" focusable="false"><path class="t-axis" d="M7 14H97M7 34H97"/><path class="t-guide" d="M60 5V43"/><path class="t-wave t-old" d="M7 14 L8.5 12.1 L10 10.5 L11.5 9.1 L13 8.3 L14.5 8 L16 8.3 L17.5 9.1 L19 10.5 L20.5 12.1 L22 14 L23.5 15.9 L25 17.5 L26.5 18.9 L28 19.7 L29.5 20 L31 19.7 L32.5 18.9 L34 17.5 L35.5 15.9 L37 14 L38.5 12.1 L40 10.5 L41.5 9.1 L43 8.3 L44.5 8 L46 8.3 L47.5 9.1 L49 10.5 L50.5 12.1 L52 14 L53.5 15.9 L55 17.5 L56.5 18.9 L58 19.7 L59.5 20 L60 20"/><circle class="t-dot t-dot-old" cx="60" cy="14" r="3.4"/><path class="t-wave t-new" d="M7 34 L8.5 32.1 L10 30.5 L11.5 29.1 L13 28.3 L14.5 28 L16 28.3 L17.5 29.1 L19 30.5 L20.5 32.1 L22 34 L23.5 35.9 L25 37.5 L26.5 38.9 L28 39.7 L29.5 40 L31 39.7 L32.5 38.9 L34 37.5 L35.5 35.9 L37 34 L38.5 32.1 L40 30.5 L41.5 29.1 L43 28.3 L44.5 28 L46 28.3 L47.5 29.1 L49 30.5 L50.5 32.1 L52 34 L53.5 35.9 L55 37.5 L56.5 38.9 L58 39.7 L59.5 40 L61 39.7 L62.5 38.9 L64 37.5 L65.5 35.9 L67 34 L68.5 32.1 L70 30.5 L71.5 29.1 L73 28.3 L74.5 28 L76 28.3 L77.5 29.1 L79 30.5 L80.5 32.1 L82 34 L83.5 35.9 L85 37.5 L86.5 38.9 L88 39.7 L89.5 40 L91 39.7 L92 39.2"/><circle class="t-dot t-dot-new" cx="92" cy="34" r="3.4"/><text class="t-label" x="52" y="52" text-anchor="middle">same time</text></svg><span class="wsc-opt-text">Increases</span></button>
+              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="down"><svg class="wsc-thumb" viewBox="0 0 104 54" role="img" aria-label="Orange leading edge travels less far in the same time" focusable="false"><path class="t-axis" d="M7 14H97M7 34H97"/><path class="t-guide" d="M60 5V43"/><path class="t-wave t-old" d="M7 14 L8.5 12.1 L10 10.5 L11.5 9.1 L13 8.3 L14.5 8 L16 8.3 L17.5 9.1 L19 10.5 L20.5 12.1 L22 14 L23.5 15.9 L25 17.5 L26.5 18.9 L28 19.7 L29.5 20 L31 19.7 L32.5 18.9 L34 17.5 L35.5 15.9 L37 14 L38.5 12.1 L40 10.5 L41.5 9.1 L43 8.3 L44.5 8 L46 8.3 L47.5 9.1 L49 10.5 L50.5 12.1 L52 14 L53.5 15.9 L55 17.5 L56.5 18.9 L58 19.7 L59.5 20 L60 20"/><circle class="t-dot t-dot-old" cx="60" cy="14" r="3.4"/><path class="t-wave t-new" d="M7 34 L8.5 32.1 L10 30.5 L11.5 29.1 L13 28.3 L14.5 28 L16 28.3 L17.5 29.1 L19 30.5 L20.5 32.1 L22 34 L23.5 35.9 L25 37.5 L26.5 38.9 L28 39.7 L29.5 40 L31 39.7 L32.5 38.9 L34 37.5"/><circle class="t-dot t-dot-new" cx="34" cy="34" r="3.4"/><text class="t-label" x="52" y="52" text-anchor="middle">same time</text></svg><span class="wsc-opt-text">Decreases</span></button>
+              <button class="wsc-opt" type="button" role="radio" aria-checked="false" data-value="same"><svg class="wsc-thumb" viewBox="0 0 104 54" role="img" aria-label="Orange leading edge travels just as far in the same time" focusable="false"><path class="t-axis" d="M7 14H97M7 34H97"/><path class="t-guide" d="M60 5V43"/><path class="t-wave t-old" d="M7 14 L8.5 12.1 L10 10.5 L11.5 9.1 L13 8.3 L14.5 8 L16 8.3 L17.5 9.1 L19 10.5 L20.5 12.1 L22 14 L23.5 15.9 L25 17.5 L26.5 18.9 L28 19.7 L29.5 20 L31 19.7 L32.5 18.9 L34 17.5 L35.5 15.9 L37 14 L38.5 12.1 L40 10.5 L41.5 9.1 L43 8.3 L44.5 8 L46 8.3 L47.5 9.1 L49 10.5 L50.5 12.1 L52 14 L53.5 15.9 L55 17.5 L56.5 18.9 L58 19.7 L59.5 20 L60 20"/><circle class="t-dot t-dot-old" cx="60" cy="14" r="3.4"/><path class="t-wave t-new" d="M7 34 L8.5 32.1 L10 30.5 L11.5 29.1 L13 28.3 L14.5 28 L16 28.3 L17.5 29.1 L19 30.5 L20.5 32.1 L22 34 L23.5 35.9 L25 37.5 L26.5 38.9 L28 39.7 L29.5 40 L31 39.7 L32.5 38.9 L34 37.5 L35.5 35.9 L37 34 L38.5 32.1 L40 30.5 L41.5 29.1 L43 28.3 L44.5 28 L46 28.3 L47.5 29.1 L49 30.5 L50.5 32.1 L52 34 L53.5 35.9 L55 37.5 L56.5 38.9 L58 39.7 L59.5 40 L60 40"/><circle class="t-dot t-dot-new" cx="60" cy="34" r="3.4"/><text class="t-label" x="52" y="52" text-anchor="middle">same time</text></svg><span class="wsc-opt-text">Stays the same</span></button>
             </div>
           </div>
         </div>

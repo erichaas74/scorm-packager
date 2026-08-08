@@ -225,17 +225,89 @@
     .diagram-container canvas { height: 120px; }
   }
 </style>
+
+  <style data-rise-unit-5>
+    html,
+    body {
+      background: transparent;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 0;
+      min-width: 0;
+      padding: 12px;
+    }
+
+    .rise-walkthrough {
+      width: min(100%, 1200px);
+      max-width: 1200px;
+      margin-inline: auto;
+      border: 5px solid #285f9f;
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    .rise-walkthrough.rise-shell {
+      padding: clamp(12px, 2vw, 24px);
+      background: #fff;
+    }
+
+    .rise-walkthrough canvas,
+    .rise-walkthrough svg {
+      max-width: 100%;
+    }
+
+    .rise-walkthrough button,
+    .rise-walkthrough input,
+    .rise-walkthrough select {
+      min-height: 32px;
+    }
+
+    .rise-walkthrough button:focus-visible,
+    .rise-walkthrough input:focus-visible,
+    .rise-walkthrough select:focus-visible {
+      outline: 3px solid #f59e0b;
+      outline-offset: 3px;
+    }
+
+    .rise-walkthrough > #canvas-container,
+    .rise-walkthrough > .controls-panel {
+      margin-inline: auto;
+    }
+
+    @media (max-width: 520px) {
+      body { padding: 4px; }
+      .rise-walkthrough { border-width: 5px; border-radius: 12px; }
+      .rise-walkthrough.rise-shell { padding: 10px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .rise-walkthrough *,
+      .rise-walkthrough *::before,
+      .rise-walkthrough *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
 </head>
 <body>
-
-  <div class="header-container">
+<main class="rise-walkthrough rise-shell" aria-label="Simulation: 3D Inverse-Square Law Projection">
+<div class="header-container">
     <h1>3D Projection: The Inverse-Square Law</h1>
     <p class="subtitle">Algorithmic visualization of wave energy spreading across 1r, 2r, and 3r distances.</p>
   </div>
 
   <div class="layout">
     <div class="canvas-wrap">
-      <canvas id="c" width="1160" height="560"></canvas>
+      <canvas role="img" aria-label="Interactive visualization for Simulation: 3D Inverse-Square Law Projection" id="c" width="1160" height="560"></canvas>
       <div class="control-group">
         <label>
           <span>Move Detector Plane ($r$)</span>
@@ -296,7 +368,7 @@
   let time = 0;
   const radialPanel = { left: 830, centerX: 990, centerY: 286, unitR: 40, maxR: 3.4 };
   const radialParticles = [];
-  
+
   // 3D Isometric Projection Vectors
   const source2D = { x: 70, y: 250 };
   const dir2D = { x: 200, y: -5 };    // Vector extending out along the Z axis (Distance)
@@ -315,10 +387,10 @@
   function updateState() {
     detectorR = parseFloat(distSlider.value);
     distDisplay.textContent = detectorR.toFixed(2) + ' r';
-    
+
     let area = detectorR * detectorR;
     let intensity = 1 / area;
-    
+
     areaVal.textContent = area.toFixed(1) + ' A';
     intVal.textContent = (intensity * 100).toFixed(1) + '%';
 
@@ -537,7 +609,7 @@
   function drawConeLines(maxR) {
     ctx.strokeStyle = 'rgba(244, 114, 182, 0.5)';
     ctx.lineWidth = 1;
-    
+
     // Draw the 4 corner rays from the source
     const corners = [ [-1, -1], [1, -1], [1, 1], [-1, 1] ];
     corners.forEach(c => {
@@ -551,7 +623,7 @@
 
   function drawPlane(r, type = 'fixed') {
     const isDetector = (type === 'detector');
-    
+
     // Draw outer boundary polygon
     ctx.beginPath();
     let p1 = getPt(r, -1, -1);
@@ -591,7 +663,7 @@
 
       // Subdivide the grid into r*r cells
       let cells = Math.round(r);
-      
+
       ctx.strokeStyle = '#94a3b8';
       ctx.lineWidth = 1;
       ctx.setLineDash([4, 4]);
@@ -603,7 +675,7 @@
         let bot = getPt(r, u, 1);
         ctx.beginPath(); ctx.moveTo(top.x, top.y); ctx.lineTo(bot.x, bot.y); ctx.stroke();
       }
-      
+
       // Horizontal grid lines
       for (let i = 1; i < cells; i++) {
         let v = -1 + (i / cells) * 2;
@@ -618,7 +690,7 @@
       ctx.font = 'bold 12px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      
+
       for(let i=0; i<cells; i++) {
         for(let j=0; j<cells; j++) {
           let cellU = -1 + ((i + 0.5) / cells) * 2;
@@ -627,7 +699,7 @@
           ctx.fillText('A', pt.x, pt.y);
         }
       }
-      
+
       // Distance Label (1r, 2r, 3r)
       let lblPt = getPt(r, 0, -1.15);
       ctx.fillStyle = '#172033';
@@ -643,7 +715,7 @@
     ctx.fillRect(0, 0, W, H);
 
     drawRadialWaveField();
-    
+
     // Draw Source Node
     ctx.beginPath();
     ctx.arc(source2D.x, source2D.y, 8, 0, Math.PI * 2);
@@ -660,7 +732,7 @@
     if (Math.random() < 0.02) {
       wavePulses.push({ r: 0 }); // spawn new pulse
     }
-    
+
     // Z-Sorting setup: Collect all planes to draw back-to-front
     let planesToDraw = [
       { r: 1, type: 'fixed' },
@@ -668,7 +740,7 @@
       { r: 3, type: 'fixed' },
       { r: detectorR, type: 'detector' }
     ];
-    
+
     // Add wave pulses to the render list
     for (let i = wavePulses.length - 1; i >= 0; i--) {
       let p = wavePulses[i];
@@ -693,7 +765,7 @@
         let p3 = getPt(plane.r, 1, 1);
         let p4 = getPt(plane.r, -1, 1);
         ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.lineTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y); ctx.closePath();
-        
+
         let intensity = Math.min(1.0, 1.5 / Math.max(0.5, plane.r * plane.r));
         ctx.strokeStyle = `rgba(244, 114, 182, ${intensity})`;
         ctx.lineWidth = 2;
@@ -714,5 +786,30 @@
   render();
 
 </script>
+
+  <script data-rise-completion>
+    (() => {
+      let riseCompletionSent = false;
+      const sendRiseCompletion = () => {
+        if (riseCompletionSent) return;
+        riseCompletionSent = true;
+        window.parent.postMessage({ type: 'complete' }, '*');
+      };
+
+      const riseRoot = document.querySelector('.rise-walkthrough');
+      if (!riseRoot) return;
+
+      // Explorer completion: the learner changes one meaningful setting or starts a model.
+      riseRoot.addEventListener('change', sendRiseCompletion);
+      riseRoot.addEventListener('click', (event) => {
+        const button = event.target.closest('button');
+        if (!button) return;
+        const label = (button.id + ' ' + button.textContent).toLowerCase();
+        if (/reset|replay|pause/.test(label)) return;
+        sendRiseCompletion();
+      });
+    })();
+  </script>
+</main>
 </body>
 </html>

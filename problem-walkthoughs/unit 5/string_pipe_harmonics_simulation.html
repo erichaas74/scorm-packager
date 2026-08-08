@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Harmonics Explorer</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#eef3f7;color:#183047}
+  .app{max-width:1100px;margin:24px auto;padding:0 16px}
+  .panel{background:#fff;border:1px solid #d8e1e8;border-radius:18px;box-shadow:0 12px 28px rgba(28,55,80,.10);overflow:hidden}
+  header{padding:20px 24px 14px;border-bottom:1px solid #e4ebf0}
+  h1{margin:0 0 5px;font-size:27px}
+  header p{margin:0;color:#5d7182}
+  .controls{display:grid;grid-template-columns:1.2fr 1.25fr 1fr 1fr auto;gap:12px;align-items:end;padding:16px 22px;background:#f8fafc;border-bottom:1px solid #e4ebf0}
+  label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;color:#526779}
+  select,input[type=range],button{width:100%}
+  select{height:40px;border:1px solid #c9d5df;border-radius:10px;padding:0 10px;background:white;font-size:15px}
+  input[type=range]{accent-color:#28609f}
+  button{border:0;background:#28609f;color:white;height:40px;padding:0 18px;border-radius:10px;font-weight:700;cursor:pointer}
+  .readout{padding:12px 22px 0;display:flex;gap:10px;flex-wrap:wrap}
+  .pill{background:#edf4fb;border:1px solid #d3e2f1;border-radius:999px;padding:8px 12px;font-size:14px}
+  .canvasWrap{padding:12px 22px 6px}
+  canvas{width:100%;height:420px;display:block;background:#f5f7f9;border:1px solid #dce4ea;border-radius:14px}
+  .info{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:12px 22px 22px}
+  .card{padding:14px;border:1px solid #dde6ed;border-radius:12px;background:#fbfcfd}
+  .card strong{display:block;margin-bottom:5px}
+  .formula{font-size:18px;font-family:Georgia,serif}
+  .hidden{display:none}
+  @media(max-width:850px){.controls{grid-template-columns:1fr 1fr}.info{grid-template-columns:1fr}canvas{height:350px}}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="panel">
+<header>
+  <h1>Harmonics Explorer</h1>
+  <p>Compare standing-wave patterns on strings and in air columns.</p>
+</header>
+
+<div class="controls">
+  <div>
+    <label for="system">System</label>
+    <select id="system">
+      <option value="string">String — fixed at both ends</option>
+      <option value="pipe">Pipe / air column</option>
+    </select>
+  </div>
+
+  <div id="pipeTypeWrap" class="hidden">
+    <label for="pipeType">Pipe type</label>
+    <select id="pipeType">
+      <option value="openopen">Open–Open</option>
+      <option value="openclosed">Open–Closed</option>
+    </select>
+  </div>
+
+  <div>
+    <label for="harmonic">Mode</label>
+    <select id="harmonic"></select>
+  </div>
+
+  <div>
+    <label>Amplitude</label>
+    <input id="amp" type="range" min="20" max="85" step="1" value="58">
+  </div>
+
+  <div><button id="toggle">Pause</button></div>
+</div>
+
+<div class="readout">
+  <div class="pill" id="modeText"></div>
+  <div class="pill" id="nodesText"></div>
+  <div class="pill" id="waveText"></div>
+  <div class="pill" id="freqText"></div>
+</div>
+
+<div class="canvasWrap"><canvas id="c"></canvas></div>
+
+<div class="info">
+  <div class="card" id="card1"></div>
+  <div class="card" id="card2"></div>
+  <div class="card" id="card3"></div>
+</div>
+</div>
+</div>
+
+<script>
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+const systemSel=document.getElementById('system');
+const pipeType=document.getElementById('pipeType');
+const pipeTypeWrap=document.getElementById('pipeTypeWrap');
+const harmonic=document.getElementById('harmonic');
+const amp=document.getElementById('amp');
+const toggle=document.getElementById('toggle');
+let running=true,t=0,last=performance.now();
+
+function resize(){
+  const r=canvas.getBoundingClientRect(),dpr=devicePixelRatio||1;
+  canvas.width=Math.round(r.width*dpr);canvas.height=Math.round(r.height*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+addEventListener('resize',resize);resize();
+
+function fillModes(){
+  harmonic.innerHTML='';
+  const sys=systemSel.value;
+  if(sys==='string'||pipeType.value==='openopen'){
+    for(let n=1;n<=6;n++){
+      let opt=document.createElement('option');
+      opt.value=n; opt.textContent=n===1?'1st — Fundamental':`${n}th Harmonic`;
+      if(n===2) opt.textContent='2nd Harmonic';
+      if(n===3) opt.textContent='3rd Harmonic';
+      harmonic.appendChild(opt);
+    }
+  } else {
+    [1,3,5,7,9,11].forEach((n,i)=>{
+      let opt=document.createElement('option');
+      opt.value=n;
+      opt.textContent=i===0?'1st — Fundamental':`${n}th Harmonic`;
+      harmonic.appendChild(opt);
+    });
+  }
+  updateText();
+}
+
+function updateText(){
+  const sys=systemSel.value;
+  const n=+harmonic.value||1;
+  pipeTypeWrap.classList.toggle('hidden',sys!=='pipe');
+
+  if(sys==='string'){
+    document.getElementById('modeText').textContent=`String: n = ${n}`;
+    document.getElementById('nodesText').textContent=`${n+1} displacement nodes`;
+    document.getElementById('waveText').textContent=`λ = 2L / ${n}`;
+    document.getElementById('freqText').textContent=`fₙ = ${n}f₁`;
+    document.getElementById('card1').innerHTML='<strong>Boundary condition</strong>Both ends are fixed, so both ends are displacement nodes.';
+    document.getElementById('card2').innerHTML='<strong>Length rule</strong><span class="formula">L = nλ/2</span><br>Every integer harmonic is allowed.';
+    document.getElementById('card3').innerHTML='<strong>Frequency rule</strong><span class="formula">fₙ = nf₁</span><br>Higher harmonics are integer multiples of the fundamental.';
+  } else if(pipeType.value==='openopen'){
+    document.getElementById('modeText').textContent=`Open–Open pipe: n = ${n}`;
+    document.getElementById('nodesText').textContent='Displacement antinodes at both ends';
+    document.getElementById('waveText').textContent=`λ = 2L / ${n}`;
+    document.getElementById('freqText').textContent=`fₙ = ${n}f₁`;
+    document.getElementById('card1').innerHTML='<strong>Boundary condition</strong>Open ends are displacement antinodes for the air.';
+    document.getElementById('card2').innerHTML='<strong>Length rule</strong><span class="formula">L = nλ/2</span><br>Open–open pipes allow all integer harmonics.';
+    document.getElementById('card3').innerHTML='<strong>Frequency rule</strong><span class="formula">fₙ = nf₁</span><br>The pattern matches the harmonic sequence of a fixed string.';
+  } else {
+    document.getElementById('modeText').textContent=`Open–Closed pipe: n = ${n}`;
+    document.getElementById('nodesText').textContent='Node at closed end • antinode at open end';
+    document.getElementById('waveText').textContent=`λ = 4L / ${n}`;
+    document.getElementById('freqText').textContent=`f = ${n}f₁`;
+    document.getElementById('card1').innerHTML='<strong>Boundary condition</strong>The closed end is a displacement node; the open end is a displacement antinode.';
+    document.getElementById('card2').innerHTML='<strong>Length rule</strong><span class="formula">L = nλ/4</span><br>For an open–closed pipe, n = 1, 3, 5, 7... only.';
+    document.getElementById('card3').innerHTML='<strong>Frequency rule</strong><span class="formula">f = nf₁</span><br>Only odd harmonics are present.';
+  }
+}
+
+systemSel.onchange=()=>{pipeTypeWrap.classList.toggle('hidden',systemSel.value!=='pipe');fillModes();}
+pipeType.onchange=fillModes;
+harmonic.onchange=updateText;
+toggle.onclick=()=>{running=!running;toggle.textContent=running?'Pause':'Play';};
+fillModes();
+
+function drawString(left,right,mid,A,n){
+  const len=right-left, temporal=Math.cos(t*n);
+
+  ctx.strokeStyle='#6d7d89';ctx.lineWidth=5;
+  ctx.beginPath();ctx.moveTo(left,mid-110);ctx.lineTo(left,mid+110);
+  ctx.moveTo(right,mid-110);ctx.lineTo(right,mid+110);ctx.stroke();
+
+  ctx.strokeStyle='#b9c6cf';ctx.lineWidth=1.5;ctx.setLineDash([6,6]);
+  ctx.beginPath();ctx.moveTo(left,mid);ctx.lineTo(right,mid);ctx.stroke();ctx.setLineDash([]);
+
+  ctx.strokeStyle='rgba(40,96,159,.22)';ctx.lineWidth=2;
+  for(const sign of [-1,1]){
+    ctx.beginPath();
+    for(let i=0;i<=500;i++){
+      let u=i/500,x=left+len*u,y=mid+sign*A*Math.abs(Math.sin(n*Math.PI*u));
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    }
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle='#28609f';ctx.lineWidth=4;ctx.beginPath();
+  for(let i=0;i<=600;i++){
+    let u=i/600,x=left+len*u,y=mid-A*Math.sin(n*Math.PI*u)*temporal;
+    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+  }
+  ctx.stroke();
+
+  for(let k=0;k<=n;k++){
+    let x=left+len*k/n;
+    ctx.fillStyle='#d64045';ctx.beginPath();ctx.arc(x,mid,6,0,Math.PI*2);ctx.fill();
+    label('node',x,mid+24,'#8d3033');
+  }
+  for(let k=0;k<n;k++){
+    let x=left+len*(k+.5)/n;
+    ctx.fillStyle='#168c63';ctx.beginPath();ctx.arc(x,mid,4.5,0,Math.PI*2);ctx.fill();
+    label('antinode',x,mid-90,'#176a50');
+  }
+}
+
+function pipeShape(left,right,mid){
+  ctx.strokeStyle='#667987';ctx.lineWidth=5;
+  ctx.beginPath();ctx.moveTo(left,mid-100);ctx.lineTo(right,mid-100);
+  ctx.moveTo(left,mid+100);ctx.lineTo(right,mid+100);ctx.stroke();
+}
+
+function drawPipe(left,right,mid,A,n,type){
+  const len=right-left, temporal=Math.cos(t*n);
+  pipeShape(left,right,mid);
+
+  if(type==='openclosed'){
+    // closed cap on left, open on right
+    ctx.strokeStyle='#667987';ctx.lineWidth=8;
+    ctx.beginPath();ctx.moveTo(left,mid-100);ctx.lineTo(left,mid+100);ctx.stroke();
+    label('closed',left,mid+128,'#465e70');
+    label('open',right,mid+128,'#465e70');
+
+    ctx.strokeStyle='#28609f';ctx.lineWidth=4;ctx.beginPath();
+    for(let i=0;i<=600;i++){
+      let u=i/600,x=left+len*u;
+      let y=mid-A*Math.sin(n*Math.PI*u/2)*temporal;
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    }
+    ctx.stroke();
+
+    // node/antinodes alternate every quarter-wave segment
+    const pieces=n;
+    for(let k=0;k<=pieces;k++){
+      let u=k/pieces,x=left+len*u;
+      const isNode=(k%2===0);
+      ctx.fillStyle=isNode?'#d64045':'#168c63';
+      ctx.beginPath();ctx.arc(x,mid,5.5,0,Math.PI*2);ctx.fill();
+      label(isNode?'node':'antinode',x,isNode?mid+24:mid-90,isNode?'#8d3033':'#176a50');
+    }
+  } else {
+    label('open',left,mid+128,'#465e70');label('open',right,mid+128,'#465e70');
+    ctx.strokeStyle='#28609f';ctx.lineWidth=4;ctx.beginPath();
+    for(let i=0;i<=600;i++){
+      let u=i/600,x=left+len*u;
+      let y=mid-A*Math.cos(n*Math.PI*u)*temporal;
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    }
+    ctx.stroke();
+
+    for(let k=0;k<=2*n;k++){
+      let u=k/(2*n),x=left+len*u;
+      const isAntinode=(k%2===0);
+      ctx.fillStyle=isAntinode?'#168c63':'#d64045';
+      ctx.beginPath();ctx.arc(x,mid,5.5,0,Math.PI*2);ctx.fill();
+      label(isAntinode?'antinode':'node',x,isAntinode?mid-90:mid+24,isAntinode?'#176a50':'#8d3033');
+    }
+  }
+
+  ctx.strokeStyle='#b9c6cf';ctx.lineWidth=1.3;ctx.setLineDash([6,6]);
+  ctx.beginPath();ctx.moveTo(left,mid);ctx.lineTo(right,mid);ctx.stroke();ctx.setLineDash([]);
+}
+
+function label(txt,x,y,color){
+  ctx.fillStyle=color;ctx.font='12px Arial';ctx.textAlign='center';ctx.fillText(txt,x,y);ctx.textAlign='left';
+}
+
+function draw(){
+  const W=canvas.clientWidth,H=canvas.clientHeight;
+  ctx.clearRect(0,0,W,H);
+  const left=75,right=W-55,mid=H/2,A=+amp.value,n=+harmonic.value;
+  ctx.fillStyle='#40596c';ctx.font='14px Arial';
+
+  if(systemSel.value==='string'){
+    ctx.fillText('Standing wave on a string',left,28);
+    drawString(left,right,mid,A,n);
+  } else {
+    const type=pipeType.value;
+    ctx.fillText(type==='openopen'?'Standing wave in an open–open pipe':'Standing wave in an open–closed pipe',left,28);
+    drawPipe(left,right,mid,A,n,type);
+  }
+
+  // length marker
+  const ly=H-38;
+  ctx.strokeStyle='#243b4c';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(left,ly);ctx.lineTo(right,ly);
+  ctx.moveTo(left,ly-5);ctx.lineTo(left,ly+5);
+  ctx.moveTo(right,ly-5);ctx.lineTo(right,ly+5);ctx.stroke();
+  ctx.fillStyle='#243b4c';ctx.textAlign='center';ctx.font='15px Arial';ctx.fillText('Length L',W/2,ly+22);ctx.textAlign='left';
+}
+
+function frame(now){
+  const dt=Math.min(.04,(now-last)/1000);last=now;
+  if(running)t+=dt*2.6;
+  draw();requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

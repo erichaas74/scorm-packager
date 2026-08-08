@@ -169,9 +169,81 @@
             line-height: 1.5;
         }
     </style>
+
+  <style data-rise-unit-5>
+    html,
+    body {
+      background: transparent;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 0;
+      min-width: 0;
+      padding: 12px;
+    }
+
+    .rise-walkthrough {
+      width: min(100%, 1200px);
+      max-width: 1200px;
+      margin-inline: auto;
+      border: 5px solid #285f9f;
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    .rise-walkthrough.rise-shell {
+      padding: clamp(12px, 2vw, 24px);
+      background: #fff;
+    }
+
+    .rise-walkthrough canvas,
+    .rise-walkthrough svg {
+      max-width: 100%;
+    }
+
+    .rise-walkthrough button,
+    .rise-walkthrough input,
+    .rise-walkthrough select {
+      min-height: 32px;
+    }
+
+    .rise-walkthrough button:focus-visible,
+    .rise-walkthrough input:focus-visible,
+    .rise-walkthrough select:focus-visible {
+      outline: 3px solid #f59e0b;
+      outline-offset: 3px;
+    }
+
+    .rise-walkthrough > #canvas-container,
+    .rise-walkthrough > .controls-panel {
+      margin-inline: auto;
+    }
+
+    @media (max-width: 520px) {
+      body { padding: 4px; }
+      .rise-walkthrough { border-width: 5px; border-radius: 12px; }
+      .rise-walkthrough.rise-shell { padding: 10px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .rise-walkthrough *,
+      .rise-walkthrough *::before,
+      .rise-walkthrough *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
 </head>
 <body>
-
+<main class="rise-walkthrough rise-shell" aria-label="Simulation 1: Anatomy of Sound">
 <div class="container">
     <div class="header">
         <h1>Simulation 1: Anatomy of Sound</h1>
@@ -180,13 +252,13 @@
 
     <div class="main-stage">
         <div class="view-toggles">
-            <button class="active" onclick="setView('waveform')" id="btn-waveform">Waveform Canvas</button>
-            <button onclick="setView('decibel')" id="btn-decibel">Decibel Visualizer</button>
-            <button onclick="setView('cochlea')" id="btn-cochlea">Cochlea (Inner Ear)</button>
+            <button type="button" class="active" onclick="setView('waveform')" id="btn-waveform">Waveform Canvas</button>
+            <button type="button" onclick="setView('decibel')" id="btn-decibel">Decibel Visualizer</button>
+            <button type="button" onclick="setView('cochlea')" id="btn-cochlea">Cochlea (Inner Ear)</button>
         </div>
 
         <div class="canvas-container">
-            <canvas id="simCanvas"></canvas>
+            <canvas role="img" aria-label="Interactive visualization for Simulation 1: Anatomy of Sound" id="simCanvas"></canvas>
             <div id="hearingFeedback" class="hearing-feedback can-hear">Subject can hear this sound.</div>
         </div>
     </div>
@@ -198,7 +270,7 @@
                 <span id="freqDisplay">440 Hz</span>
             </label>
             <!-- Range 0-100 mapped logarithmically to 20Hz - 110,000Hz in JS -->
-            <input type="range" id="freqSlider" min="0" max="100" value="44.2"> 
+            <input type="range" id="freqSlider" min="0" max="100" value="44.2">
         </div>
 
         <div class="control-group">
@@ -250,11 +322,11 @@
     // State Variables
     let currentView = 'waveform';
     let time = 0;
-    
+
     // Limits
     const minFreq = 20;
     const maxFreq = 110000;
-    
+
     const subjectLimits = {
         young: { min: 20, max: 20000 },
         older: { min: 20, max: 14000 },
@@ -348,8 +420,8 @@
     function drawWaveform(freq, amp) {
         // Map dB (20-120) to visual height (10px - height/2)
         const visualAmp = (amp / 120) * (height / 2.5);
-        
-        // Map frequency to visual wave cycles. 
+
+        // Map frequency to visual wave cycles.
         // 20Hz -> 1 cycle, 100kHz -> extremely packed.
         // We use log10 to keep it visually comprehensible.
         const logRatio = (Math.log10(freq) - Math.log10(20)) / (Math.log10(110000) - Math.log10(20));
@@ -358,7 +430,7 @@
         ctx.beginPath();
         ctx.strokeStyle = "#38bdf8";
         ctx.lineWidth = 3;
-        
+
         // Draw axis
         ctx.moveTo(0, height/2);
         ctx.lineTo(width, height/2);
@@ -384,19 +456,19 @@
         // Calculate intensity based on dB: I = 10^(dB/10)
         // We scale it down significantly so we don't crash the browser.
         // 20dB -> baseline (10 particles). 120dB -> max visual particles (3000)
-        // We use a visual scaling trick: 10^(amp/10) is true physics, 
+        // We use a visual scaling trick: 10^(amp/10) is true physics,
         // but for rendering 20 to 120 dB we map to an array size.
-        
+
         const minDB = 20;
         const maxDB = 120;
-        
+
         // Visual exponent curve to simulate logarithmic density jump without actually rendering 1 trillion particles
         const normalizedAmp = (amp - minDB) / (maxDB - minDB);
         let activeParticles = Math.floor(10 + Math.pow(normalizedAmp, 2) * 2990);
         if (activeParticles > 3000) activeParticles = 3000;
 
         ctx.fillStyle = "#22c55e";
-        
+
         // Intensity text overlay
         ctx.font = "20px Arial";
         ctx.fillStyle = "rgba(255,255,255,0.7)";
@@ -408,7 +480,7 @@
 
         for (let i = 0; i < activeParticles; i++) {
             let p = particles[i];
-            
+
             // Jitter movement based on amplitude
             p.x += p.vx * jitter;
             p.y += p.vy * jitter;
@@ -430,7 +502,7 @@
         const cx = width / 2;
         const cy = height / 2 + 30;
         const maxRadius = Math.min(width, height) / 2.5;
-        
+
         // Draw Spiral (Unrolled Cochlea conceptually)
         ctx.beginPath();
         ctx.strokeStyle = "#475569";
@@ -448,7 +520,7 @@
             const x = cx + Math.cos(angle) * r;
             const y = cy + Math.sin(angle) * r;
             spiralCoords.push({x, y});
-            
+
             if(i===0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
         }
@@ -459,7 +531,7 @@
         // Low Freq (Apex) -> Inner part (t=1)
         // Human range conceptually. Let's map 20 - 20000 Hz along the spiral.
         // Frequencies above 20000Hz (Bat) will stay at the very entrance (t=0).
-        
+
         let tHighlight = 0;
         if(freq >= 20000) {
             tHighlight = 0; // Very base
@@ -501,5 +573,30 @@
     draw();
 
 </script>
+
+  <script data-rise-completion>
+    (() => {
+      let riseCompletionSent = false;
+      const sendRiseCompletion = () => {
+        if (riseCompletionSent) return;
+        riseCompletionSent = true;
+        window.parent.postMessage({ type: 'complete' }, '*');
+      };
+
+      const riseRoot = document.querySelector('.rise-walkthrough');
+      if (!riseRoot) return;
+
+      // Explorer completion: the learner changes one meaningful setting or starts a model.
+      riseRoot.addEventListener('change', sendRiseCompletion);
+      riseRoot.addEventListener('click', (event) => {
+        const button = event.target.closest('button');
+        if (!button) return;
+        const label = (button.id + ' ' + button.textContent).toLowerCase();
+        if (/reset|replay|pause/.test(label)) return;
+        sendRiseCompletion();
+      });
+    })();
+  </script>
+</main>
 </body>
 </html>

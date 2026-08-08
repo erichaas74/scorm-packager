@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Design the Perfect Instrument</title>
+<style>
+
+:root{
+  --blue:#285f9f;
+  --blue-dark:#17436f;
+  --ink:#172033;
+  --muted:#5c6678;
+  --line:#cfd8e6;
+  --soft:#eef5fb;
+  --panel:#ffffff;
+  --good:#17643b;
+  --warn:#8a4b08;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:transparent;font-family:Arial,Helvetica,sans-serif;color:var(--ink)}
+body{padding:10px}
+button,input{font:inherit}
+button{min-height:44px;min-width:44px;border-radius:10px;border:2px solid var(--blue);background:#fff;color:var(--blue-dark);font-weight:700;padding:10px 14px;cursor:pointer}
+button:hover{background:#f2f7fc}
+button:focus-visible,input:focus-visible{outline:4px solid #f2b705;outline-offset:3px}
+button[disabled]{opacity:.55;cursor:not-allowed}
+.rph-app{max-width:980px;margin:0 auto;border:5px solid var(--blue);border-radius:22px;background:#fff;overflow:hidden}
+.rph-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);background:#f8fbfe}
+.rph-title{margin:0;font-size:1.05rem;color:var(--blue-dark)}
+.rph-stage{padding:14px;background:linear-gradient(180deg,#f9fcff,#eef5fb)}
+.rph-scene{width:min(100%,900px);margin:0 auto;border:1px solid var(--line);border-radius:18px;background:#fff;overflow:hidden}
+.rph-card{padding:16px;border-top:1px solid var(--line);background:#fff}
+.rph-prompt{margin:0 0 12px;font-weight:700;font-size:1.05rem}
+.rph-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.rph-feedback{min-height:24px;margin:12px 0 0;padding:10px 12px;border-radius:10px;background:#f5f7fa;color:var(--ink)}
+.rph-controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.rph-progress{font-size:.9rem;color:var(--muted);font-weight:700}
+.rph-hidden{display:none!important}
+.rph-status{position:absolute;left:-9999px}
+
+/* control rail */
+.dpi-rail{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 18px;align-items:end;padding:14px 16px;border-top:1px solid var(--line);background:#fff}
+.dpi-ctl{display:grid;grid-template-columns:1fr auto;gap:2px 8px}
+.dpi-ctl label{font-size:.82rem;font-weight:700;color:var(--muted);letter-spacing:.02em;text-transform:uppercase}
+.dpi-ctl output{font-size:.95rem;font-weight:700;color:var(--blue-dark);font-variant-numeric:tabular-nums}
+.dpi-ctl input{grid-column:1/3;width:100%;margin:0;accent-color:var(--blue)}
+.dpi-ctl.off{opacity:.38}
+.dpi-ctl.off input{cursor:not-allowed}
+.dpi-foot{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:0 16px 14px}
+.dpi-note{font-size:.92rem;font-weight:700;color:var(--muted);min-height:22px}
+.dpi-note.ok{color:var(--good)}
+.dpi-note.no{color:var(--warn)}
+.dpi-scoreline{margin:0;font-weight:700;color:var(--blue-dark)}
+svg{width:100%;height:auto;display:block}
+
+/* scene paint */
+.s-wood{fill:#b9762f}.s-wood2{fill:#a35f22}.s-edge{fill:none;stroke:#5d3410;stroke-width:3}
+.s-metal{fill:#c9d3de;stroke:#6b7c90;stroke-width:2}
+.dpi-line{stroke:#93a2b5;stroke-width:1.5}
+.dpi-env{fill:none;stroke:#285f9f;stroke-width:2;stroke-dasharray:5 5;opacity:.45}
+.dpi-wave{fill:none;stroke:#17436f;stroke-width:3.5;stroke-linecap:round}
+.dpi-node{fill:#17436f}
+.dpi-anti{fill:none;stroke:#c2410c;stroke-width:2.5}
+.dpi-lbl{font:700 11px Arial;fill:#5c6678}
+.dpi-chip{font:700 13px Arial;fill:#17436f}
+.dpi-bad{stroke:#b91c1c;stroke-width:4;stroke-linecap:round}
+.dpi-tick{stroke:#93a2b5;stroke-width:2}
+.dpi-tickmaj{stroke:#5c6678;stroke-width:3}
+.dpi-needle{stroke:#b91c1c;stroke-width:4;stroke-linecap:round}
+.dpi-needle.ok{stroke:#17643b}
+.dpi-big{font:700 26px Arial;fill:#17436f}
+.dpi-sub{font:700 14px Arial;fill:#5c6678}
+
+@media(max-width:700px){
+  .rph-choices{grid-template-columns:1fr}
+  .dpi-rail{grid-template-columns:1fr}
+  .rph-top{align-items:flex-start}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}
+}
+
+</style>
+</head>
+<body>
+<main class="rph-app">
+
+<header class="rph-top">
+  <h1 class="rph-title" id="chTitle">Tune the string to A3</h1>
+  <div class="rph-progress" id="progress">1 / 6</div>
+  <button id="resetBtn" type="button">Reset</button>
+</header>
+
+<section class="rph-stage" aria-label="Instrument builder">
+  <div class="rph-scene">
+    <svg viewBox="0 0 900 360" role="img" aria-labelledby="sceneTitle sceneDesc">
+      <title id="sceneTitle">Instrument resonator</title>
+      <desc id="sceneDesc">A vibrating string or an air column showing its standing-wave pattern with nodes and antinodes.</desc>
+      <defs>
+        <linearGradient id="gPipe" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#e8eef6"/><stop offset=".45" stop-color="#b9c6d6"/><stop offset="1" stop-color="#8d9db1"/>
+        </linearGradient>
+        <linearGradient id="gBody" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#d08b3f"/><stop offset="1" stop-color="#9c5c1e"/>
+        </linearGradient>
+        <radialGradient id="gHole" cx=".5" cy=".5" r=".5">
+          <stop offset="0" stop-color="#241408"/><stop offset="1" stop-color="#4a2a12"/>
+        </radialGradient>
+      </defs>
+      <rect width="900" height="360" fill="#ffffff"/>
+
+      <!-- ================= STRING SCENE ================= -->
+      <g id="sceneString">
+        <!-- neck -->
+        <rect x="86" y="116" width="478" height="32" rx="4" fill="#5a3b22"/>
+        <rect x="86" y="116" width="478" height="7" fill="#6d4a2c" opacity=".7"/>
+        <!-- body -->
+        <path d="M560 132 C560 96,588 74,628 74 C664 74,686 92,706 102
+                 C726 92,748 64,784 64 C824 64,850 96,850 132
+                 C850 168,824 200,784 200 C748 200,726 172,706 162
+                 C686 172,664 190,628 190 C588 190,560 168,560 132 Z"
+              fill="url(#gBody)" stroke="#5d3410" stroke-width="3"/>
+        <circle cx="770" cy="132" r="38" fill="none" stroke="#6b3d15" stroke-width="3"/>
+        <circle cx="770" cy="132" r="34" fill="none" stroke="#e8c79a" stroke-width="2"/>
+        <circle cx="770" cy="132" r="30" fill="url(#gHole)"/>
+        <rect x="810" y="108" width="16" height="48" rx="4" fill="#6b3d15"/>
+        <rect x="819" y="102" width="6" height="60" rx="3" fill="#e8e2d6"/>
+        <!-- headstock -->
+        <path d="M18 92 H88 V172 H18 C10 172,10 92,18 92 Z" fill="#4a2f19" stroke="#2f1c0d" stroke-width="2"/>
+        <rect x="84" y="106" width="8" height="52" rx="3" fill="#e8e2d6"/>
+        <circle cx="44" cy="104" r="5.5" class="s-metal"/>
+        <circle cx="44" cy="160" r="5.5" class="s-metal"/>
+        <g id="pegSpin">
+          <circle cx="44" cy="132" r="13" fill="#dfe7f0" stroke="#5c6678" stroke-width="2"/>
+          <rect x="41" y="114" width="6" height="18" rx="3" fill="#5c6678"/>
+        </g>
+        <!-- string -->
+        <line x1="88" y1="132" x2="822" y2="132" stroke="#9aa6b4" stroke-width="2.5"/>
+        <path id="sEnvA" class="dpi-env"/>
+        <path id="sEnvB" class="dpi-env"/>
+        <path id="sWave" class="dpi-wave"/>
+        <g id="sMarks"></g>
+        <g id="sCapo">
+          <rect x="0" y="102" width="12" height="60" rx="5" fill="#2f3a48"/>
+          <circle cx="6" cy="132" r="7" fill="#7d8b9c"/>
+        </g>
+        <text id="sInfo" class="dpi-chip" x="24" y="36">string</text>
+      </g>
+
+      <!-- ================= PIPE SCENE ================= -->
+      <g id="scenePipe">
+        <path id="mouth" d="M96 94 L140 104 L140 160 L96 170 Z" fill="url(#gPipe)" stroke="#6b7c90" stroke-width="2"/>
+        <rect id="pipeBody" x="140" y="90" width="400" height="84" rx="6" fill="url(#gPipe)" stroke="#6b7c90" stroke-width="2.5"/>
+        <rect id="pipeBore" x="146" y="102" width="388" height="60" fill="#f7fafd"/>
+        <rect id="pipeCap" x="540" y="86" width="16" height="92" rx="4" fill="#415063" stroke="#2f3a48" stroke-width="2"/>
+        <g id="pParticles"></g>
+        <path id="pEnvA" class="dpi-env"/>
+        <path id="pEnvB" class="dpi-env"/>
+        <path id="pWave" class="dpi-wave"/>
+        <g id="pMarks"></g>
+        <g id="capBad" class="rph-hidden">
+          <line class="dpi-bad" x1="0" y1="0" x2="0" y2="0" id="badA"/>
+          <line class="dpi-bad" x1="0" y1="0" x2="0" y2="0" id="badB"/>
+        </g>
+        <text id="pInfo" class="dpi-chip" x="24" y="36">air column</text>
+        <text id="pTemp" class="dpi-chip" x="876" y="36" text-anchor="end">20 °C · 343 m/s</text>
+      </g>
+
+      <!-- ================= TUNER ================= -->
+      <g id="tuner" transform="translate(0,214)">
+        <line x1="40" y1="0" x2="860" y2="0" class="dpi-line" opacity=".5"/>
+        <path id="tArc" d="" fill="none" stroke="#dbe3ec" stroke-width="14" stroke-linecap="round"/>
+        <path id="tZone" d="" fill="none" stroke="#8fd3ad" stroke-width="14" stroke-linecap="round"/>
+        <g id="tTicks"></g>
+        <line id="tNeedle" class="dpi-needle" x1="450" y1="120" x2="450" y2="42"/>
+        <circle cx="450" cy="120" r="7" fill="#17436f"/>
+        <text class="dpi-sub" x="352" y="132" text-anchor="middle">&#9837;</text>
+        <text class="dpi-sub" x="548" y="132" text-anchor="middle">&#9839;</text>
+        <text id="tTarget" class="dpi-big" x="52" y="98">A3</text>
+        <text id="tTargetHz" class="dpi-sub" x="52" y="122">220.0 Hz target</text>
+        <text id="tNow" class="dpi-big" x="848" y="98" text-anchor="end">—</text>
+        <text id="tCents" class="dpi-sub" x="848" y="122" text-anchor="end">—</text>
+      </g>
+    </svg>
+  </div>
+</section>
+
+<div class="dpi-rail">
+  <div class="dpi-ctl" id="ctlL">
+    <label for="sL">Length</label><output id="oL">0.80 m</output>
+    <input id="sL" type="range" min="0.30" max="1.00" step="0.01" value="0.80">
+  </div>
+  <div class="dpi-ctl" id="ctlT">
+    <label for="sT">Tension</label><output id="oT">60 N</output>
+    <input id="sT" type="range" min="20" max="200" step="1" value="60">
+  </div>
+  <div class="dpi-ctl" id="ctlN">
+    <label for="sN">Harmonic</label><output id="oN">1</output>
+    <input id="sN" type="range" min="1" max="5" step="1" value="1">
+  </div>
+</div>
+
+<div class="dpi-foot">
+  <button id="nofitBtn" class="rph-hidden" type="button">No mode fits</button>
+  <p class="dpi-note" id="note"></p>
+</div>
+
+<section class="rph-card rph-hidden" id="card" aria-live="polite">
+  <p class="rph-prompt" id="prompt"></p>
+  <div class="rph-choices" id="choices"></div>
+  <p class="rph-feedback rph-hidden" id="feedback"></p>
+  <div class="rph-controls">
+    <button id="nextBtn" class="rph-hidden" type="button">Next</button>
+  </div>
+</section>
+<p class="rph-status" id="status" role="status" aria-live="polite"></p>
+
+<script>
+(() => {
+"use strict";
+
+const MU = 0.001;                 // string linear density, kg/m
+const NS = "http://www.w3.org/2000/svg";
+const $  = s => document.querySelector(s);
+
+const CH = [
+ {title:"Tune the string to A3", mode:"string", target:220, note:"A3", tol:15,
+  init:{L:0.80,T:60,n:1,temp:20}, enable:["L","T"],
+  q:"Which change alone raises the pitch?",
+  c:["Shorten the string","Loosen the string","Use a heavier string"], a:0,
+  f:"Shorter length raises the fundamental. Loosening or adding mass lowers it."},
+
+ {title:"Same string → A4", mode:"string", target:440, note:"A4", tol:30,
+  init:null, enable:["n"],
+  q:"At this note the middle of the string is",
+  c:["a node","an antinode","the loudest point"], a:0,
+  f:"The second harmonic puts a node at the midpoint, so two half-loops fit the same string."},
+
+ {title:"Open pipe → E4", mode:"pipe", closed:false, target:330, note:"E4", tol:15,
+  init:{L:0.90,T:60,n:1,temp:20}, enable:["L","n"],
+  q:"With both ends open, the ends are",
+  c:["antinodes","nodes","one of each"], a:0,
+  f:"Air at an open end is free to move, so each open end is a displacement antinode."},
+
+ {title:"Stopped pipe → A3", mode:"pipe", closed:true, target:220, note:"A3", tol:15,
+  init:{L:0.90,T:60,n:1,temp:20}, enable:["L","n"],
+  q:"The closed end is",
+  c:["a node","an antinode","unaffected"], a:0,
+  f:"Air cannot move through the cap, so the closed end is forced to be a displacement node."},
+
+ {title:"Same stopped pipe → A4", mode:"pipe", closed:true, target:440, note:"A4", tol:15,
+  init:null, enable:["n"], impossible:true,
+  q:"A stopped pipe can sound only",
+  c:["odd harmonics","even harmonics","every harmonic"], a:0,
+  f:"A node at one end and an antinode at the other allows only odd multiples of the fundamental."},
+
+ {title:"Room warms to 35 °C", mode:"pipe", closed:false, target:330, note:"E4", tol:15,
+  init:{L:0.52,T:60,n:1,temp:35}, enable:["L"],
+  q:"The pitch drifted sharp because",
+  c:["sound travels faster in warm air","the pipe grew longer","warm air needs less energy"], a:0,
+  f:"Warm air raises the wave speed. With length fixed the frequency rises, so the pipe must be lengthened."}
+];
+
+const RANGE = {string:{min:0.30,max:1.00}, pipe:{min:0.20,max:1.20}};
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const P = {L:0.80, T:60, n:1, temp:20};
+let idx = 0, phase = "tune", correct = 0, sent = false, raf = null;
+
+const el = {
+  title:$("#chTitle"), progress:$("#progress"), note:$("#note"), status:$("#status"),
+  card:$("#card"), prompt:$("#prompt"), choices:$("#choices"), feedback:$("#feedback"),
+  next:$("#nextBtn"), nofit:$("#nofitBtn"),
+  sL:$("#sL"), sT:$("#sT"), sN:$("#sN"), oL:$("#oL"), oT:$("#oT"), oN:$("#oN"),
+  ctlL:$("#ctlL"), ctlT:$("#ctlT"), ctlN:$("#ctlN"),
+  gString:$("#sceneString"), gPipe:$("#scenePipe")
+};
+
+/* ---------------- physics ---------------- */
+
+const soundSpeed = () => 331 + 0.6 * P.temp;
+
+function frequency(){
+  const ch = CH[idx];
+  if (ch.mode === "string") return P.n / (2*P.L) * Math.sqrt(P.T / MU);
+  const v = soundSpeed();
+  if (ch.closed) return (P.n % 2 === 0) ? null : P.n * v / (4*P.L);
+  return P.n * v / (2*P.L);
+}
+
+const centsOff = f => (f == null ? null : 1200 * Math.log2(f / CH[idx].target));
+
+// normalized displacement, xn in 0..1
+function shape(xn){
+  const ch = CH[idx], n = P.n;
+  if (ch.mode === "string") return Math.sin(n * Math.PI * xn);
+  if (ch.closed)            return Math.cos(n * Math.PI * xn / 2);
+  return Math.cos(n * Math.PI * xn);
+}
+
+function marks(){
+  const ch = CH[idx], n = P.n, nodes = [], anti = [];
+  if (ch.mode === "string"){
+    for (let k = 0; k <= n; k++) nodes.push(k/n);
+    for (let k = 1; k <= n; k++) anti.push((2*k-1)/(2*n));
+  } else if (ch.closed){
+    for (let k = 0; (2*k+1)/n <= 1.0001; k++) nodes.push((2*k+1)/n);
+    for (let k = 0; (2*k)/n   <= 1.0001; k++) anti.push((2*k)/n);
+  } else {
+    for (let k = 1; k <= n; k++) nodes.push((2*k-1)/(2*n));
+    for (let k = 0; k <= n; k++) anti.push(k/n);
+  }
+  return {nodes, anti};
+}
+
+const fits = () => !(CH[idx].mode === "pipe" && CH[idx].closed && P.n % 2 === 0);
+
+/* ---------------- scene drawing ---------------- */
+
+const BRIDGE = 822, YC = 132, AMP = 30, PIPE_X = 140;
+const stringGeom = () => { const span = 640 * P.L; return {x0: BRIDGE - span, span}; };
+const pipeGeom   = () => { const len = 700 * (P.L / 1.20); return {x0: PIPE_X, len}; };
+
+function curve(x0, w, amp, k){
+  let d = "";
+  for (let s = 0; s <= 96; s++){
+    const xn = s/96, x = x0 + w*xn, y = YC - amp * shape(xn) * k;
+    d += (s ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
+  }
+  return d;
+}
+
+function circle(cx, cy, r, cls){
+  const c = document.createElementNS(NS, "circle");
+  c.setAttribute("cx", cx); c.setAttribute("cy", cy); c.setAttribute("r", r);
+  c.setAttribute("class", cls);
+  return c;
+}
+function label(x, y, txt){
+  const t = document.createElementNS(NS, "text");
+  t.setAttribute("x", x); t.setAttribute("y", y);
+  t.setAttribute("class", "dpi-lbl"); t.setAttribute("text-anchor", "middle");
+  t.textContent = txt;
+  return t;
+}
+
+function drawMarks(host, x0, w, amp){
+  host.innerHTML = "";
+  const m = marks();
+  m.nodes.forEach(xn => {
+    const x = x0 + w*xn;
+    host.appendChild(circle(x, YC, 4.5, "dpi-node"));
+    host.appendChild(label(x, YC + 24, "N"));
+  });
+  m.anti.forEach(xn => {
+    const x = x0 + w*xn, y = YC - amp * Math.sign(shape(xn) || 1) * 1;
+    host.appendChild(circle(x, y, 6, "dpi-anti"));
+    host.appendChild(label(x, y + (y < YC ? -12 : 22), "A"));
+  });
+}
+
+function buildParticles(count){
+  const host = $("#pParticles");
+  host.innerHTML = "";
+  const rows = [YC-24, YC-8, YC+8, YC+24];
+  const pool = [];
+  rows.forEach(y => {
+    for (let k = 0; k < count; k++){
+      const c = circle(0, y, 2.6, "");
+      c.setAttribute("fill", "#4a6a92");
+      c.setAttribute("opacity", ".8");
+      host.appendChild(c);
+      pool.push({el:c, k:k});
+    }
+  });
+  return pool;
+}
+
+let particlePool = [], particleCount = 0;
+
+function layout(){
+  const ch = CH[idx], isString = ch.mode === "string";
+  el.gString.classList.toggle("rph-hidden", !isString);
+  el.gPipe.classList.toggle("rph-hidden", isString);
+
+  if (isString){
+    const g = stringGeom();
+    $("#sCapo").setAttribute("transform", "translate(" + (g.x0 - 6) + ",0)");
+    const deg = (P.T - 20) / 180 * 300;
+    $("#pegSpin").setAttribute("transform", "rotate(" + deg.toFixed(1) + " 44 132)");
+    $("#sInfo").textContent = P.L.toFixed(2) + " m  ·  " + P.T + " N  ·  n = " + P.n;
+    drawMarks($("#sMarks"), g.x0, g.span, AMP);
+    $("#sEnvA").setAttribute("d", curve(g.x0, g.span, AMP,  1));
+    $("#sEnvB").setAttribute("d", curve(g.x0, g.span, AMP, -1));
+  } else {
+    const g = pipeGeom(), x1 = g.x0 + g.len;
+    $("#pipeBody").setAttribute("width", g.len);
+    $("#pipeBore").setAttribute("width", Math.max(g.len - 12, 4));
+    $("#pipeCap").setAttribute("x", x1 - 2);
+    $("#pipeCap").classList.toggle("rph-hidden", !ch.closed);
+    $("#pInfo").textContent = P.L.toFixed(2) + " m  ·  " + (ch.closed ? "stopped" : "open") + "  ·  n = " + P.n;
+    $("#pTemp").textContent = P.temp + " °C  ·  " + Math.round(soundSpeed()) + " m/s";
+
+    const bad = !fits();
+    $("#capBad").classList.toggle("rph-hidden", !bad);
+    if (bad){
+      $("#badA").setAttribute("x1", x1-14); $("#badA").setAttribute("y1", YC-22);
+      $("#badA").setAttribute("x2", x1+14); $("#badA").setAttribute("y2", YC+22);
+      $("#badB").setAttribute("x1", x1+14); $("#badB").setAttribute("y1", YC-22);
+      $("#badB").setAttribute("x2", x1-14); $("#badB").setAttribute("y2", YC+22);
+    }
+    drawMarks($("#pMarks"), g.x0, g.len, AMP);
+    $("#pEnvA").setAttribute("d", curve(g.x0, g.len, AMP,  1));
+    $("#pEnvB").setAttribute("d", curve(g.x0, g.len, AMP, -1));
+
+    const want = Math.max(6, Math.min(44, Math.floor((g.len - 16) / 13)));
+    if (want !== particleCount){ particleCount = want; particlePool = buildParticles(want); }
+  }
+}
+
+function animate(now){
+  const ch = CH[idx];
+  const k = REDUCED ? 1 : Math.cos(now / 1000 * 2 * Math.PI * 1.25);
+
+  if (ch.mode === "string"){
+    const g = stringGeom();
+    $("#sWave").setAttribute("d", curve(g.x0, g.span, AMP, k));
+  } else {
+    const g = pipeGeom(), step = (g.len - 16) / Math.max(particleCount - 1, 1);
+    $("#pWave").setAttribute("d", curve(g.x0, g.len, AMP, k));
+    particlePool.forEach(p => {
+      const x = g.x0 + 8 + p.k * step, xn = (x - g.x0) / g.len;
+      p.el.setAttribute("cx", (x + 15 * shape(xn) * k).toFixed(1));
+    });
+  }
+  raf = requestAnimationFrame(animate);
+}
+
+/* ---------------- tuner ---------------- */
+
+const PIV = {x:450, y:120};
+const pt = (deg, r) => {
+  const a = deg * Math.PI / 180;
+  return [PIV.x + r * Math.sin(a), PIV.y - r * Math.cos(a)];
+};
+const arc = (a1, a2, r) => {
+  const p1 = pt(a1, r), p2 = pt(a2, r);
+  return "M" + p1[0].toFixed(1) + " " + p1[1].toFixed(1) +
+         "A" + r + " " + r + " 0 0 1 " + p2[0].toFixed(1) + " " + p2[1].toFixed(1);
+};
+
+function buildTuner(){
+  $("#tArc").setAttribute("d", arc(-70, 70, 92));
+  const host = $("#tTicks");
+  host.innerHTML = "";
+  for (let c = -50; c <= 50; c += 10){
+    const deg = c / 50 * 70, maj = (c % 50 === 0);
+    const p1 = pt(deg, maj ? 74 : 80), p2 = pt(deg, 100);
+    const l = document.createElementNS(NS, "line");
+    l.setAttribute("x1", p1[0].toFixed(1)); l.setAttribute("y1", p1[1].toFixed(1));
+    l.setAttribute("x2", p2[0].toFixed(1)); l.setAttribute("y2", p2[1].toFixed(1));
+    l.setAttribute("class", maj ? "dpi-tickmaj" : "dpi-tick");
+    host.appendChild(l);
+  }
+}
+
+function renderTuner(){
+  const ch = CH[idx], f = frequency(), c = centsOff(f);
+  const zone = ch.tol / 50 * 70;
+  $("#tZone").setAttribute("d", arc(-zone, zone, 92));
+  $("#tTarget").textContent = ch.note;
+  $("#tTargetHz").textContent = ch.target.toFixed(1) + " Hz target";
+
+  const needle = $("#tNeedle");
+  if (f == null){
+    $("#tNow").textContent = "—";
+    $("#tCents").textContent = "no resonance";
+    needle.classList.remove("ok");
+    needle.setAttribute("x1", PIV.x); needle.setAttribute("y1", PIV.y);
+    needle.setAttribute("x2", PIV.x); needle.setAttribute("y2", PIV.y);
+    return;
+  }
+  const clamped = Math.max(-50, Math.min(50, c));
+  const tip = pt(clamped / 50 * 70, 86);
+  needle.setAttribute("x1", PIV.x); needle.setAttribute("y1", PIV.y);
+  needle.setAttribute("x2", tip[0].toFixed(1)); needle.setAttribute("y2", tip[1].toFixed(1));
+  needle.classList.toggle("ok", Math.abs(c) <= ch.tol);
+  $("#tNow").textContent = f.toFixed(1) + " Hz";
+  $("#tCents").textContent = (c >= 0 ? "+" : "−") + Math.abs(Math.round(c)) + " ¢";
+}
+
+/* ---------------- controls ---------------- */
+
+function syncControls(){
+  const ch = CH[idx], on = ch.enable, locked = phase !== "tune";
+  const r = RANGE[ch.mode];
+  el.sL.min = r.min; el.sL.max = r.max;
+  el.sL.value = P.L; el.sT.value = P.T; el.sN.value = P.n;
+  el.oL.textContent = P.L.toFixed(2) + " m";
+  el.oT.textContent = P.T + " N";
+  el.oN.textContent = P.n;
+
+  const allowed = on.map(s => s.toLowerCase());
+  [["L",el.ctlL,el.sL],["T",el.ctlT,el.sT],["N",el.ctlN,el.sN]].forEach(([key, box, input]) => {
+    const live = allowed.includes(key.toLowerCase()) && !locked;
+    input.disabled = !live;
+    box.classList.toggle("off", !live);
+  });
+  el.ctlT.classList.toggle("rph-hidden", ch.mode !== "string");
+  el.nofit.classList.toggle("rph-hidden", !(ch.mode === "pipe" && phase === "tune"));
+}
+
+function check(){
+  if (phase !== "tune") return;
+  const ch = CH[idx], f = frequency(), c = centsOff(f);
+  if (!ch.impossible && f != null && Math.abs(c) <= ch.tol) lockIn("Matched.");
+}
+
+function lockIn(msg){
+  phase = "ask";
+  el.note.textContent = msg;
+  el.note.className = "dpi-note ok";
+  el.status.textContent = msg + " " + CH[idx].q;
+  syncControls();
+  askQuestion();
+}
+
+function askQuestion(){
+  const ch = CH[idx];
+  el.card.classList.remove("rph-hidden");
+  el.prompt.textContent = ch.q;
+  el.feedback.classList.add("rph-hidden");
+  el.next.classList.add("rph-hidden");
+  el.choices.innerHTML = "";
+  ch.c.map((text, i2) => ({text, i2, r: Math.random()}))
+      .sort((x, y) => x.r - y.r)
+      .forEach(o => {
+        const b = document.createElement("button");
+        b.type = "button"; b.textContent = o.text;
+        b.onclick = () => answer(o.i2);
+        el.choices.appendChild(b);
+      });
+}
+
+function answer(pick){
+  if (phase !== "ask") return;
+  phase = "answered";
+  const ch = CH[idx];
+  if (pick === ch.a) correct++;
+  el.choices.querySelectorAll("button").forEach(b => b.disabled = true);
+  el.feedback.textContent = ch.f;
+  el.feedback.classList.remove("rph-hidden");
+  el.status.textContent = ch.f;
+  el.next.textContent = (idx === CH.length - 1) ? "Finish" : "Next";
+  el.next.classList.remove("rph-hidden");
+}
+
+function load(i2){
+  idx = i2;
+  phase = "tune";
+  const ch = CH[idx];
+  if (ch.init) Object.assign(P, ch.init);
+  const r = RANGE[ch.mode];
+  P.L = Math.max(r.min, Math.min(r.max, P.L));
+  if (!ch.enable.includes("n") && !ch.init) P.n = 1;
+
+  el.title.textContent = ch.title;
+  el.progress.textContent = (idx + 1) + " / " + CH.length;
+  el.card.classList.add("rph-hidden");
+  el.note.textContent = "";
+  el.note.className = "dpi-note";
+  particleCount = 0;
+  syncControls();
+  layout();
+  renderTuner();
+}
+
+function finish(){
+  phase = "done";
+  el.card.classList.remove("rph-hidden");
+  el.prompt.textContent = "Complete · " + correct + " / " + CH.length + " correct";
+  el.choices.innerHTML = "";
+  el.feedback.classList.add("rph-hidden");
+  el.next.classList.add("rph-hidden");
+  el.status.textContent = "Activity complete.";
+  if (!sent){ sent = true; window.parent.postMessage({type:"complete"}, "*"); }
+}
+
+/* ---------------- wiring ---------------- */
+
+function onInput(){
+  P.L = parseFloat(el.sL.value);
+  P.T = parseInt(el.sT.value, 10);
+  P.n = parseInt(el.sN.value, 10);
+  el.note.textContent = "";
+  el.note.className = "dpi-note";
+  syncControls();
+  layout();
+  renderTuner();
+  check();
+}
+
+[el.sL, el.sT, el.sN].forEach(s => s.addEventListener("input", onInput));
+
+el.nofit.onclick = () => {
+  if (phase !== "tune") return;
+  if (CH[idx].impossible){
+    lockIn("Correct — no harmonic of this pipe reaches the target.");
+  } else {
+    el.note.textContent = "A mode does fit — keep looking.";
+    el.note.className = "dpi-note no";
+    el.status.textContent = "A mode does fit.";
+  }
+};
+
+el.next.onclick = () => {
+  if (idx === CH.length - 1) finish();
+  else load(idx + 1);
+};
+
+$("#resetBtn").onclick = () => { correct = 0; sent = false; load(0); };
+
+buildTuner();
+load(0);
+if (REDUCED) { animate(0); cancelAnimationFrame(raf); }
+else raf = requestAnimationFrame(animate);
+
+})();
+</script>
+</main>
+</body>
+</html>

@@ -158,7 +158,7 @@
             height: 12px;
             border-radius: 2px;
         }
-        
+
         .info-panel {
             grid-column: 1 / -1;
             background: #334155;
@@ -170,9 +170,81 @@
             margin-top: 10px;
         }
     </style>
+
+  <style data-rise-unit-5>
+    html,
+    body {
+      background: transparent;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 0;
+      min-width: 0;
+      padding: 12px;
+    }
+
+    .rise-walkthrough {
+      width: min(100%, 1200px);
+      max-width: 1200px;
+      margin-inline: auto;
+      border: 5px solid #285f9f;
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    .rise-walkthrough.rise-shell {
+      padding: clamp(12px, 2vw, 24px);
+      background: #fff;
+    }
+
+    .rise-walkthrough canvas,
+    .rise-walkthrough svg {
+      max-width: 100%;
+    }
+
+    .rise-walkthrough button,
+    .rise-walkthrough input,
+    .rise-walkthrough select {
+      min-height: 32px;
+    }
+
+    .rise-walkthrough button:focus-visible,
+    .rise-walkthrough input:focus-visible,
+    .rise-walkthrough select:focus-visible {
+      outline: 3px solid #f59e0b;
+      outline-offset: 3px;
+    }
+
+    .rise-walkthrough > #canvas-container,
+    .rise-walkthrough > .controls-panel {
+      margin-inline: auto;
+    }
+
+    @media (max-width: 520px) {
+      body { padding: 4px; }
+      .rise-walkthrough { border-width: 5px; border-radius: 12px; }
+      .rise-walkthrough.rise-shell { padding: 10px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .rise-walkthrough *,
+      .rise-walkthrough *::before,
+      .rise-walkthrough *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
 </head>
 <body>
-
+<main class="rise-walkthrough rise-shell" aria-label="Simulation 2: Virtual Wave Lab">
 <div class="container">
     <div class="header">
         <h1>Simulation 2: The Virtual Wave Lab</h1>
@@ -180,7 +252,7 @@
     </div>
 
     <div class="canvas-container">
-        <canvas id="simCanvas"></canvas>
+        <canvas role="img" aria-label="Interactive visualization for Simulation 2: Virtual Wave Lab" id="simCanvas"></canvas>
         <div id="statusBadge" class="status-badge">No Resonance</div>
     </div>
 
@@ -202,15 +274,15 @@
 
         <div class="toggles">
             <label class="toggle-row">
-                <input type="checkbox" id="toggleIncRef"> 
+                <input type="checkbox" id="toggleIncRef">
                 Show Incident & Reflected Waves
             </label>
             <label class="toggle-row">
-                <input type="checkbox" id="toggleNodes"> 
+                <input type="checkbox" id="toggleNodes">
                 Highlight Nodes (N) & Antinodes (A)
             </label>
             <label class="toggle-row">
-                <input type="checkbox" id="toggleParticles" checked> 
+                <input type="checkbox" id="toggleParticles" checked>
                 Enable Particle Tracker
             </label>
         </div>
@@ -230,7 +302,7 @@
 <script>
     const canvas = document.getElementById('simCanvas');
     const ctx = canvas.getContext('2d');
-    
+
     // UI Elements
     const apparatusSelect = document.getElementById('apparatusSelect');
     const freqSlider = document.getElementById('freqSlider');
@@ -239,10 +311,10 @@
     const toggleNodes = document.getElementById('toggleNodes');
     const toggleParticles = document.getElementById('toggleParticles');
     const statusBadge = document.getElementById('statusBadge');
-    
+
     let width = canvas.width = canvas.parentElement.clientWidth;
     let height = canvas.height = canvas.parentElement.clientHeight;
-    
+
     window.addEventListener('resize', () => {
         width = canvas.width = canvas.parentElement.clientWidth;
         height = canvas.height = canvas.parentElement.clientHeight;
@@ -250,18 +322,18 @@
 
     let time = 0;
     const padding = 100; // Left/right padding for the apparatus
-    
+
     // Fundamental settings
     const f1 = 20; // Fundamental frequency unit
-    
+
     function draw() {
         time += 0.05;
         ctx.clearRect(0, 0, width, height);
-        
+
         const apparatus = apparatusSelect.value;
         const driveFreq = parseFloat(freqSlider.value);
         freqDisplay.innerText = driveFreq.toFixed(1) + ' Hz';
-        
+
         // Determine allowed harmonics based on apparatus
         let allowedHarmonics = [];
         if (apparatus === 'string' || apparatus === 'open-open') {
@@ -269,22 +341,22 @@
         } else if (apparatus === 'open-closed') {
             allowedHarmonics = [20, 60, 100]; // n = 1, 3, 5
         }
-        
+
         // Check for resonance (how close is driveFreq to an allowed harmonic)
-        let nearest = allowedHarmonics.reduce((prev, curr) => 
+        let nearest = allowedHarmonics.reduce((prev, curr) =>
             Math.abs(curr - driveFreq) < Math.abs(prev - driveFreq) ? curr : prev
         );
-        
+
         const detune = Math.abs(driveFreq - nearest);
         const resonanceTolerance = 3;
         let isResonating = detune <= resonanceTolerance;
         let harmonicNumber = nearest / f1;
-        
+
         // Amplitude calculation
         let maxAmp = height / 3;
         let baseAmp = 10; // small chaotic amplitude when not resonating
         let A = baseAmp;
-        
+
         if (isResonating) {
             // Sharply peak amplitude as detune approaches 0
             A = baseAmp + (maxAmp - baseAmp) * (1 - (detune / resonanceTolerance)**2);
@@ -295,7 +367,7 @@
             statusBadge.className = 'status-badge';
             // When not resonating, we'll draw a messy traveling wave
         }
-        
+
         const L = width - padding * 2;
         const startX = padding;
         const endX = width - padding;
@@ -338,11 +410,11 @@
         if (apparatus === 'string' || apparatus === 'open-open') {
             k = (harmonicNumber * Math.PI) / L;
         } else {
-            k = (harmonicNumber * Math.PI) / (2 * L); 
+            k = (harmonicNumber * Math.PI) / (2 * L);
         }
 
         // Angular frequency
-        let omega = 0.2 * harmonicNumber; 
+        let omega = 0.2 * harmonicNumber;
         if (!isResonating) {
             // Chaotic wave behavior
             k = (driveFreq / 10) * Math.PI / L;
@@ -359,14 +431,14 @@
         ctx.beginPath();
         ctx.strokeStyle = "#38bdf8";
         ctx.lineWidth = 3;
-        
+
         let particlePositions = [];
 
         for (let x = 0; x <= L; x += 2) {
             let y = getResultantY(x, L, A, k, omega, apparatus, isResonating, driveFreq);
             let screenX = startX + x;
             let screenY = midY - y;
-            
+
             if (x === 0) ctx.moveTo(screenX, screenY);
             else ctx.lineTo(screenX, screenY);
 
@@ -452,7 +524,7 @@
     function drawNodesAntinodes(startX, midY, L, n, apparatus) {
         ctx.font = "bold 14px Arial";
         ctx.textAlign = "center";
-        
+
         let nodes = [];
         let antinodes = [];
 
@@ -468,7 +540,7 @@
             for(let m=0; m<n; m++) nodes.push((m + 0.5) * (L/n));
         } else if (apparatus === 'open-closed') {
             // n is odd (1, 3, 5)
-            let lambda_fourths = n; 
+            let lambda_fourths = n;
             let segment = L / lambda_fourths;
             for(let m=0; m<=lambda_fourths; m++) {
                 if (m % 2 === 0) nodes.push(m * segment); // 0, 2, 4 are nodes
@@ -507,5 +579,30 @@
     // Start Simulation
     draw();
 </script>
+
+  <script data-rise-completion>
+    (() => {
+      let riseCompletionSent = false;
+      const sendRiseCompletion = () => {
+        if (riseCompletionSent) return;
+        riseCompletionSent = true;
+        window.parent.postMessage({ type: 'complete' }, '*');
+      };
+
+      const riseRoot = document.querySelector('.rise-walkthrough');
+      if (!riseRoot) return;
+
+      // Explorer completion: the learner changes one meaningful setting or starts a model.
+      riseRoot.addEventListener('change', sendRiseCompletion);
+      riseRoot.addEventListener('click', (event) => {
+        const button = event.target.closest('button');
+        if (!button) return;
+        const label = (button.id + ' ' + button.textContent).toLowerCase();
+        if (/reset|replay|pause/.test(label)) return;
+        sendRiseCompletion();
+      });
+    })();
+  </script>
+</main>
 </body>
 </html>

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
     <title>Cosmic Decoder</title>
     <style>
@@ -10,21 +11,94 @@
         input[type="range"] { width: 300px; }
         .val-display { font-weight: bold; color: #00ffcc; font-size: 1.2em; }
     </style>
+
+  <style data-rise-unit-5>
+    html,
+    body {
+      background: transparent;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 0;
+      min-width: 0;
+      padding: 12px;
+    }
+
+    .rise-walkthrough {
+      width: min(100%, 1200px);
+      max-width: 1200px;
+      margin-inline: auto;
+      border: 5px solid #285f9f;
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    .rise-walkthrough.rise-shell {
+      padding: clamp(12px, 2vw, 24px);
+      background: #fff;
+    }
+
+    .rise-walkthrough canvas,
+    .rise-walkthrough svg {
+      max-width: 100%;
+    }
+
+    .rise-walkthrough button,
+    .rise-walkthrough input,
+    .rise-walkthrough select {
+      min-height: 32px;
+    }
+
+    .rise-walkthrough button:focus-visible,
+    .rise-walkthrough input:focus-visible,
+    .rise-walkthrough select:focus-visible {
+      outline: 3px solid #f59e0b;
+      outline-offset: 3px;
+    }
+
+    .rise-walkthrough > #canvas-container,
+    .rise-walkthrough > .controls-panel {
+      margin-inline: auto;
+    }
+
+    @media (max-width: 520px) {
+      body { padding: 4px; }
+      .rise-walkthrough { border-width: 5px; border-radius: 12px; }
+      .rise-walkthrough.rise-shell { padding: 10px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .rise-walkthrough *,
+      .rise-walkthrough *::before,
+      .rise-walkthrough *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
 </head>
 <body>
-    <h2>Stellar Spectra & Doppler Shift</h2>
+<main class="rise-walkthrough rise-shell" aria-label="Cosmic Decoder">
+<h1>Stellar Spectra & Doppler Shift</h1>
     <div class="controls">
         <label>Star Velocity relative to Earth:</label><br><br>
         <input type="range" id="velocity" min="-50" max="50" value="0"><br><br>
         Speed: <span class="val-display" id="velVal">0</span> % of c<br>
         <span id="shiftType" style="color:#aaa;">(Stationary)</span>
     </div>
-    
+
     <div>
         <h3>Observed Star Spectrum</h3>
-        <canvas id="spectrumCanvas" width="600" height="100"></canvas>
+        <canvas role="img" aria-label="Interactive visualization for Cosmic Decoder" id="spectrumCanvas" width="600" height="100"></canvas>
         <h3>Reference Spectrum (Lab)</h3>
-        <canvas id="refCanvas" width="600" height="50"></canvas>
+        <canvas role="img" aria-label="Interactive visualization for Cosmic Decoder" id="refCanvas" width="600" height="50"></canvas>
     </div>
 
     <script>
@@ -37,7 +111,7 @@
         const shiftType = document.getElementById('shiftType');
 
         // Known hydrogen absorption line positions (mocked relative to canvas width)
-        const baseLines = [100, 200, 350, 480]; 
+        const baseLines = [100, 200, 350, 480];
 
         function drawSpectrum(context, height, shift) {
             // Draw continuous rainbow background
@@ -59,7 +133,7 @@
         function update() {
             let v = parseInt(slider.value);
             velVal.innerText = v;
-            
+
             if(v > 0) {
                 shiftType.innerText = "Redshifted (Moving Away)";
                 shiftType.style.color = "#ff6666";
@@ -72,15 +146,40 @@
             }
 
             // Shift factor based on velocity
-            let shiftAmount = v * 1.5; 
+            let shiftAmount = v * 1.5;
             drawSpectrum(ctx, canvas.height, shiftAmount);
         }
 
         // Draw static reference spectrum once
         drawSpectrum(refCtx, refCanvas.height, 0);
-        
+
         slider.addEventListener('input', update);
         update();
     </script>
+
+  <script data-rise-completion>
+    (() => {
+      let riseCompletionSent = false;
+      const sendRiseCompletion = () => {
+        if (riseCompletionSent) return;
+        riseCompletionSent = true;
+        window.parent.postMessage({ type: 'complete' }, '*');
+      };
+
+      const riseRoot = document.querySelector('.rise-walkthrough');
+      if (!riseRoot) return;
+
+      // Explorer completion: the learner changes one meaningful setting or starts a model.
+      riseRoot.addEventListener('change', sendRiseCompletion);
+      riseRoot.addEventListener('click', (event) => {
+        const button = event.target.closest('button');
+        if (!button) return;
+        const label = (button.id + ' ' + button.textContent).toLowerCase();
+        if (/reset|replay|pause/.test(label)) return;
+        sendRiseCompletion();
+      });
+    })();
+  </script>
+</main>
 </body>
 </html>

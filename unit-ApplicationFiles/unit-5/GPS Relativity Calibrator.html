@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
     <title>GPS Relativity Calibrator</title>
     <style>
@@ -13,10 +14,83 @@
         label { margin: 0 15px; font-size: 1.1em; cursor: pointer; }
         input[type="checkbox"] { transform: scale(1.5); margin-right: 8px; }
     </style>
+
+  <style data-rise-unit-5>
+    html,
+    body {
+      background: transparent;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 0;
+      min-width: 0;
+      padding: 12px;
+    }
+
+    .rise-walkthrough {
+      width: min(100%, 1200px);
+      max-width: 1200px;
+      margin-inline: auto;
+      border: 5px solid #285f9f;
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    .rise-walkthrough.rise-shell {
+      padding: clamp(12px, 2vw, 24px);
+      background: #fff;
+    }
+
+    .rise-walkthrough canvas,
+    .rise-walkthrough svg {
+      max-width: 100%;
+    }
+
+    .rise-walkthrough button,
+    .rise-walkthrough input,
+    .rise-walkthrough select {
+      min-height: 32px;
+    }
+
+    .rise-walkthrough button:focus-visible,
+    .rise-walkthrough input:focus-visible,
+    .rise-walkthrough select:focus-visible {
+      outline: 3px solid #f59e0b;
+      outline-offset: 3px;
+    }
+
+    .rise-walkthrough > #canvas-container,
+    .rise-walkthrough > .controls-panel {
+      margin-inline: auto;
+    }
+
+    @media (max-width: 520px) {
+      body { padding: 4px; }
+      .rise-walkthrough { border-width: 5px; border-radius: 12px; }
+      .rise-walkthrough.rise-shell { padding: 10px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .rise-walkthrough *,
+      .rise-walkthrough *::before,
+      .rise-walkthrough *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
 </head>
 <body>
-    <h2 style="text-align:center;">GPS Relativity Calibrator</h2>
-    
+<main class="rise-walkthrough rise-shell" aria-label="GPS Relativity Calibrator">
+<h1 style="text-align:center;">GPS Relativity Calibrator</h1>
+
     <div class="controls">
         <label><input type="checkbox" id="srToggle"> Enable Special Relativity (Velocity)</label>
         <label><input type="checkbox" id="grToggle"> Enable General Relativity (Gravity)</label>
@@ -28,13 +102,13 @@
             <div class="clock" id="earthTime">0.00000 s</div>
             <div>Reference Frame</div>
         </div>
-        
+
         <div class="card">
             <h3>GPS Satellite</h3>
             <div class="clock" id="satTime">0.00000 s</div>
             <div>Orbiting at 14,000 km/h</div>
         </div>
-        
+
         <div class="card">
             <h3>System Status</h3>
             <div style="margin: 15px 0;">Time Drift:</div>
@@ -46,7 +120,7 @@
     <script>
         let earthTime = 0; // simulated seconds
         let satTime = 0;
-        
+
         // Exaggerated rates per tick for visual demonstration
         const tickRate = 0.05; // Base seconds per frame
         const srEffect = -0.00007; // Slows down
@@ -57,7 +131,7 @@
             const grOn = document.getElementById('grToggle').checked;
 
             earthTime += tickRate;
-            
+
             let satTick = tickRate;
             if (srOn) satTick += srEffect;
             if (grOn) satTick += grEffect;
@@ -86,8 +160,33 @@
 
             requestAnimationFrame(updateClocks);
         }
-        
+
         updateClocks();
     </script>
+
+  <script data-rise-completion>
+    (() => {
+      let riseCompletionSent = false;
+      const sendRiseCompletion = () => {
+        if (riseCompletionSent) return;
+        riseCompletionSent = true;
+        window.parent.postMessage({ type: 'complete' }, '*');
+      };
+
+      const riseRoot = document.querySelector('.rise-walkthrough');
+      if (!riseRoot) return;
+
+      // Explorer completion: the learner changes one meaningful setting or starts a model.
+      riseRoot.addEventListener('change', sendRiseCompletion);
+      riseRoot.addEventListener('click', (event) => {
+        const button = event.target.closest('button');
+        if (!button) return;
+        const label = (button.id + ' ' + button.textContent).toLowerCase();
+        if (/reset|replay|pause/.test(label)) return;
+        sendRiseCompletion();
+      });
+    })();
+  </script>
+</main>
 </body>
 </html>

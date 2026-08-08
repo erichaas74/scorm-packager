@@ -57,11 +57,83 @@
     max-width: 800px;
   }
 </style>
+
+  <style data-rise-unit-5>
+    html,
+    body {
+      background: transparent;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 0;
+      min-width: 0;
+      padding: 12px;
+    }
+
+    .rise-walkthrough {
+      width: min(100%, 1200px);
+      max-width: 1200px;
+      margin-inline: auto;
+      border: 5px solid #285f9f;
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    .rise-walkthrough.rise-shell {
+      padding: clamp(12px, 2vw, 24px);
+      background: #fff;
+    }
+
+    .rise-walkthrough canvas,
+    .rise-walkthrough svg {
+      max-width: 100%;
+    }
+
+    .rise-walkthrough button,
+    .rise-walkthrough input,
+    .rise-walkthrough select {
+      min-height: 32px;
+    }
+
+    .rise-walkthrough button:focus-visible,
+    .rise-walkthrough input:focus-visible,
+    .rise-walkthrough select:focus-visible {
+      outline: 3px solid #f59e0b;
+      outline-offset: 3px;
+    }
+
+    .rise-walkthrough > #canvas-container,
+    .rise-walkthrough > .controls-panel {
+      margin-inline: auto;
+    }
+
+    @media (max-width: 520px) {
+      body { padding: 4px; }
+      .rise-walkthrough { border-width: 5px; border-radius: 12px; }
+      .rise-walkthrough.rise-shell { padding: 10px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .rise-walkthrough *,
+      .rise-walkthrough *::before,
+      .rise-walkthrough *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
 </head>
 <body>
+<main class="rise-walkthrough rise-shell" aria-label="2D Wave & SHM Simulation">
+<h1>Periodic Wave & Oscillator Model</h1>
 
-  <h1>Periodic Wave & Oscillator Model</h1>
-  
   <!-- Simple Harmonic Motion Reveal (Tracking variables) -->
   <div class="dashboard">
     <span id="dispStr">y: 0.00</span>
@@ -69,14 +141,14 @@
     <span id="accStr">a: 0.00</span>
   </div>
 
-  <canvas id="simCanvas" width="800" height="400"></canvas>
-  
+  <canvas role="img" aria-label="Interactive visualization for 2D Wave & SHM Simulation" id="simCanvas" width="800" height="400"></canvas>
+
   <div class="controls">
-    <button id="btnForce">Toggle Restoring Force Vector</button>
-    <button id="btnSpeed">Where is Speed Max?</button>
-    <button id="btnAccel">Where is Acceleration Max?</button>
+    <button type="button" id="btnForce">Toggle Restoring Force Vector</button>
+    <button type="button" id="btnSpeed">Where is Speed Max?</button>
+    <button type="button" id="btnAccel">Where is Acceleration Max?</button>
   </div>
-  
+
   <div id="infoText" class="info-panel">Click a button to explore the physics!</div>
 
 <script>
@@ -99,14 +171,14 @@
 
   // Interaction Logic (Reveals)
   document.getElementById('btnForce').onclick = () => { showForce = !showForce; };
-  
+
   document.getElementById('btnSpeed').onclick = () => {
     showSpeed = true;
     showAccel = false;
     infoText.innerText = "Speed is greatest at equilibrium (the dashed line)! Notice the green velocity vector is longest when passing the center.";
     infoText.style.color = "#28a745";
   };
-  
+
   document.getElementById('btnAccel').onclick = () => {
     showAccel = true;
     showSpeed = false;
@@ -135,7 +207,7 @@
     const dy = toy - fromy;
     if (Math.abs(dy) < 1) return; // Hide vector if it's practically zero
     const angle = Math.atan2(dy, dx);
-    
+
     ctx.beginPath();
     ctx.moveTo(fromx, fromy);
     ctx.lineTo(tox, toy);
@@ -149,14 +221,14 @@
 
   function update() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+
     // Equations of Simple Harmonic Motion
     const y = A * Math.sin(w * t);
     const v = A * w * Math.cos(w * t);
     const a = -A * w * w * Math.sin(w * t);
-    
+
     const currentY = eqY + y;
-    
+
     // Update live dashboard
     document.getElementById('dispStr').innerText = `y: ${y.toFixed(1)}`;
     document.getElementById('velStr').innerText = `v: ${v.toFixed(1)}`;
@@ -167,7 +239,7 @@
     if (waveHistory.length > (canvas.width - massX) / waveSpeed) {
       waveHistory.pop();
     }
-    
+
     // Draw Equilibrium Line
     ctx.beginPath();
     ctx.moveTo(0, eqY);
@@ -176,7 +248,7 @@
     ctx.setLineDash([5, 5]);
     ctx.stroke();
     ctx.setLineDash([]);
-    
+
     // Draw the continuous Wave
     ctx.beginPath();
     for (let i = 0; i < waveHistory.length; i++) {
@@ -185,33 +257,58 @@
     ctx.strokeStyle = '#007bff';
     ctx.lineWidth = 3;
     ctx.stroke();
-    
+
     // Draw Oscillator Connection (Spring and Mass)
     drawSpring(currentY - 20);
     ctx.fillStyle = '#ff6b6b';
     ctx.fillRect(massX - 25, currentY - 20, 50, 40);
-    
+
     // Draw Restoring Force Model Vector (Purple)
     if (showForce) {
       // Force points opposite to displacement
       drawArrow(massX - 40, currentY, massX - 40, currentY - y * 0.6, 'purple');
     }
-    
+
     // Draw Velocity Vector (Green)
     if (showSpeed) {
       drawArrow(massX + 40, currentY, massX + 40, currentY + v * 15, '#28a745');
     }
-    
+
     // Draw Acceleration Vector (Red)
     if (showAccel) {
       drawArrow(massX + 60, currentY, massX + 60, currentY + a * 200, '#dc3545');
     }
-    
+
     t += 1;
     requestAnimationFrame(update); // Loop the animation
   }
 
   update();
 </script>
+
+  <script data-rise-completion>
+    (() => {
+      let riseCompletionSent = false;
+      const sendRiseCompletion = () => {
+        if (riseCompletionSent) return;
+        riseCompletionSent = true;
+        window.parent.postMessage({ type: 'complete' }, '*');
+      };
+
+      const riseRoot = document.querySelector('.rise-walkthrough');
+      if (!riseRoot) return;
+
+      // Explorer completion: the learner changes one meaningful setting or starts a model.
+      riseRoot.addEventListener('change', sendRiseCompletion);
+      riseRoot.addEventListener('click', (event) => {
+        const button = event.target.closest('button');
+        if (!button) return;
+        const label = (button.id + ' ' + button.textContent).toLowerCase();
+        if (/reset|replay|pause/.test(label)) return;
+        sendRiseCompletion();
+      });
+    })();
+  </script>
+</main>
 </body>
 </html>

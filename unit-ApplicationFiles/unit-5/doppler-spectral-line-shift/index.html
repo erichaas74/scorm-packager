@@ -3,9 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Doppler and Spectral-Line Shift</title>
+<title>Spectral Shift Investigation</title>
 <style>
-
 :root{
   --blue:#285f9f;
   --blue-dark:#17436f;
@@ -13,134 +12,521 @@
   --muted:#5c6678;
   --line:#cfd8e6;
   --soft:#eef5fb;
-  --panel:#ffffff;
+  --panel:#fff;
   --good:#17643b;
+  --good-soft:#e9f7ef;
   --warn:#8a4b08;
+  --warn-soft:#fff5e8;
+  --overlay:#00a6b8;
 }
+
 *{box-sizing:border-box}
 html,body{margin:0;background:transparent;font-family:Arial,Helvetica,sans-serif;color:var(--ink)}
 body{padding:10px}
 button,input{font:inherit}
-button{min-height:44px;min-width:44px;border-radius:10px;border:2px solid var(--blue);background:#fff;color:var(--blue-dark);font-weight:700;padding:10px 14px;cursor:pointer}
+button{min-height:44px;border-radius:10px;border:2px solid var(--blue);background:#fff;color:var(--blue-dark);font-weight:700;padding:9px 13px;cursor:pointer}
 button:hover{background:#f2f7fc}
 button:focus-visible,input:focus-visible{outline:4px solid #f2b705;outline-offset:3px}
 button[disabled]{opacity:.55;cursor:not-allowed}
-.rph-app{max-width:980px;margin:0 auto;border:5px solid var(--blue);border-radius:22px;background:#fff;overflow:hidden}
-.rph-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);background:#f8fbfe}
-.rph-title{margin:0;font-size:1.05rem;color:var(--blue-dark)}
-.rph-stage{min-height:440px;padding:18px;background:linear-gradient(180deg,#f9fcff,#eef5fb);display:grid;place-items:center}
-.rph-scene{width:min(100%,860px);min-height:330px;border:1px solid var(--line);border-radius:18px;background:white;position:relative;overflow:hidden}
-.rph-card{padding:16px;border-top:1px solid var(--line);background:#fff}
-.rph-prompt{margin:0 0 12px;font-weight:700;font-size:1.05rem}
-.rph-setup{margin:0 0 12px;color:var(--muted)}
-.rph-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-.rph-feedback{min-height:48px;margin:12px 0 0;padding:10px 12px;border-radius:10px;background:#f5f7fa;color:var(--ink)}
-.rph-controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
-.rph-progress{font-size:.9rem;color:var(--muted);font-weight:700}
-.rph-hidden{display:none!important}
-.rph-status{position:absolute;left:-9999px}
-.rph-legend{display:flex;flex-wrap:wrap;gap:10px;padding:10px 12px;font-size:.86rem;color:var(--muted)}
-.rph-chip{display:inline-flex;align-items:center;gap:6px}
-.rph-dot{width:12px;height:12px;border-radius:50%;display:inline-block;border:1px solid #455}
-svg{width:100%;height:auto;display:block}
-@media(max-width:700px){
-  .rph-stage{min-height:360px;padding:10px}
-  .rph-scene{min-height:300px}
-  .rph-choices{grid-template-columns:1fr}
-  .rph-top{align-items:flex-start}
+
+.ssi-app{max-width:1040px;margin:0 auto;border:5px solid var(--blue);border-radius:22px;background:#fff;overflow:hidden}
+.ssi-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);background:#f8fbfe}
+.ssi-title{margin:0;font-size:1.08rem;color:var(--blue-dark)}
+.ssi-progress{font-size:.88rem;color:var(--muted);font-weight:700;text-align:center}
+
+.ssi-stage{padding:16px;background:linear-gradient(180deg,#f9fcff,#eef5fb)}
+.ssi-investigation{max-width:920px;margin:0 auto}
+.ssi-step-label{margin:0 0 8px;color:var(--blue-dark);font-size:.78rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.ssi-directions{margin:0 0 12px;color:var(--muted);font-size:.92rem}
+
+.ssi-reference-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.ssi-reference{display:block;width:100%;min-width:0;padding:9px;border:2px solid var(--line);border-radius:12px;background:#fff;text-align:left;color:var(--ink)}
+.ssi-reference:hover{border-color:#86a9ce;background:#f8fbfe}
+.ssi-reference[aria-pressed="true"]{border-color:var(--blue);background:#eaf3fc;box-shadow:0 0 0 3px rgb(40 95 159 / 15%)}
+.ssi-reference-name{display:block;margin-bottom:5px;color:var(--blue-dark);font-size:.85rem;font-weight:800}
+.ssi-reference svg{display:block;width:100%;height:auto;border-radius:6px}
+
+.ssi-observation{margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.ssi-observation-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.ssi-observation-head h2{margin:0;font-size:1rem;color:var(--blue-dark)}
+.ssi-legend{display:flex;flex-wrap:wrap;gap:12px;color:var(--muted);font-size:.76rem;font-weight:700}
+.ssi-key{display:inline-flex;align-items:center;gap:5px}
+.ssi-swatch{width:18px;height:4px;background:#172033;border-radius:2px}
+.ssi-swatch.overlay{height:0;background:transparent;border-top:3px dashed var(--overlay)}
+.ssi-spectrum{display:block;width:100%;height:auto;border-radius:9px;background:#101827}
+.ssi-measurement{min-height:34px;margin-top:8px;padding:7px 10px;border-radius:8px;background:#f4f7fa;color:var(--muted);font-size:.82rem;font-weight:700}
+.ssi-measurement.revealed{background:var(--good-soft);color:var(--good)}
+
+.ssi-motion{display:none;margin-top:12px;padding:10px;border-radius:12px;background:#0c1730;color:#fff}
+.ssi-motion.visible{display:block}
+.ssi-motion svg{display:block;width:100%;height:auto}
+
+.ssi-card{padding:16px;border-top:1px solid var(--line);background:#fff}
+.ssi-question{margin:0 0 10px;font-weight:700;font-size:1.02rem}
+.ssi-choice-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.ssi-choice-grid button{width:100%}
+.ssi-feedback{min-height:46px;margin:11px 0 0;padding:9px 11px;border-radius:9px;background:#f5f7fa;color:var(--ink)}
+.ssi-feedback.good{background:var(--good-soft);color:var(--good)}
+.ssi-feedback.warn{background:var(--warn-soft);color:var(--warn)}
+
+.ssi-align{display:none;margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#f8fbfe}
+.ssi-align.visible{display:block}
+.ssi-align-label{display:flex;justify-content:space-between;gap:12px;margin-bottom:6px;font-size:.88rem;font-weight:800;color:var(--blue-dark)}
+.ssi-align-scale{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:.72rem;font-weight:700}
+.ssi-align input[type="range"]{width:100%;min-height:34px;accent-color:var(--overlay)}
+.ssi-align-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:8px}
+.ssi-controls{display:flex;flex-wrap:wrap;gap:9px;margin-top:11px}
+.ssi-hidden{display:none!important}
+.ssi-status{position:absolute;left:-9999px}
+
+@media(max-width:720px){
+  .ssi-reference-grid,.ssi-choice-grid{grid-template-columns:1fr}
+  .ssi-top{align-items:flex-start;flex-wrap:wrap}
+  .ssi-progress{order:3;width:100%;text-align:left}
+  .ssi-stage{padding:10px}
 }
+
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
 }
-
-
-.dp-space{fill:#0c1730}.dp-star{fill:#fff;opacity:.85}.dp-source{fill:#f4c542;stroke:#8b6c00;stroke-width:3}
-.dp-observer{fill:#d8e4ef;stroke:#52657a;stroke-width:3}.dp-line{stroke-width:4}.dp-text{font:700 16px Arial;fill:#fff}
-.dp-small{font:14px Arial;fill:#dce7f2}.dp-spectrum{fill:#fff;stroke:#8aa0ba;stroke-width:2}.dp-abs{stroke:#1c2d45;stroke-width:5}
-.dp-arrow{stroke:#fff;stroke-width:4;marker-end:url(#arrow)}
-
 </style>
 </head>
 <body>
-<main class="rph-app">
+<main class="ssi-app">
+  <header class="ssi-top">
+    <h1 class="ssi-title">Spectral Shift Investigation</h1>
+    <div class="ssi-progress" id="progress">Case 1 of 3 &middot; Match the fingerprint</div>
+    <button id="resetBtn" type="button">Reset</button>
+  </header>
 
-<header class="rph-top">
- <h1 class="rph-title">Doppler and Spectral-Line Shift</h1>
- <div class="rph-progress" id="progress">Scenario 1 of 3</div>
- <button id="resetBtn" type="button">Reset</button>
-</header>
-<section class="rph-stage" aria-label="Light Doppler shift simulation">
- <div class="rph-scene">
-  <svg viewBox="0 0 860 330" role="img" aria-labelledby="dpTitle dpDesc">
-   <title id="dpTitle">Moving light source and observed spectrum</title>
-   <desc id="dpDesc">A source moves toward, away from, or sideways relative to an observer. Spectral lines shift only after the prediction.</desc>
-   <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#fff"/></marker>
-   <linearGradient id="spec" x1="0" x2="1"><stop offset="0" stop-color="#6b3fc7"/><stop offset=".2" stop-color="#2f63de"/><stop offset=".4" stop-color="#27a85b"/><stop offset=".58" stop-color="#e3d645"/><stop offset=".78" stop-color="#ed8a33"/><stop offset="1" stop-color="#d7443e"/></linearGradient></defs>
-   <rect class="dp-space" width="860" height="330"/>
-   <g id="stars"></g>
-   <circle class="dp-source" id="source" cx="230" cy="125" r="34"/>
-   <text class="dp-text" x="196" y="182">source</text>
-   <ellipse class="dp-observer" cx="690" cy="125" rx="54" ry="34"/>
-   <circle cx="690" cy="125" r="12" fill="#172033"/>
-   <text class="dp-text" x="654" y="182">observer</text>
-   <line id="motionArrow" class="dp-arrow" x1="270" y1="80" x2="360" y2="80"/>
-   <text id="motionLabel" class="dp-small" x="275" y="58"></text>
-   <rect class="dp-spectrum" x="190" y="235" width="500" height="48" rx="8" fill="url(#spec)"/>
-   <g id="lines">
-    <line class="dp-abs" x1="330" y1="235" x2="330" y2="283"/>
-    <line class="dp-abs" x1="430" y1="235" x2="430" y2="283"/>
-    <line class="dp-abs" x1="560" y1="235" x2="560" y2="283"/>
-   </g>
-   <text class="dp-small" x="190" y="312">observed absorption spectrum</text>
-  </svg>
- </div>
-</section>
-<section class="rph-card" aria-live="polite">
- <p class="rph-setup" id="setup"></p><p class="rph-prompt" id="prompt"></p>
- <div class="rph-choices" id="choices"></div><p class="rph-feedback" id="feedback"></p>
- <div class="rph-controls"><button id="mainBtn" type="button">Start</button><button id="replayBtn" class="rph-hidden" type="button">Replay reveal</button></div>
-</section>
-<p class="rph-status" id="status" role="status" aria-live="polite"></p>
+  <section class="ssi-stage" aria-label="Absorption spectrum investigation">
+    <div class="ssi-investigation">
+      <p class="ssi-step-label" id="stepLabel">Step 1 &middot; Identify the source</p>
+      <p class="ssi-directions" id="directions">Match the spacing pattern, even when every line has moved.</p>
+
+      <div class="ssi-reference-grid" id="referenceGrid" aria-label="Reference absorption spectra"></div>
+
+      <section class="ssi-observation" aria-labelledby="observationTitle">
+        <div class="ssi-observation-head">
+          <h2 id="observationTitle">Observed spectrum from Object A</h2>
+          <div class="ssi-legend">
+            <span class="ssi-key"><span class="ssi-swatch"></span>Observed absorption lines</span>
+            <span class="ssi-key ssi-hidden" id="overlayLegend"><span class="ssi-swatch overlay"></span>Movable reference markers</span>
+          </div>
+        </div>
+        <svg class="ssi-spectrum" id="observedSpectrum" viewBox="0 0 760 130" role="img" aria-label="Observed visible spectrum crossed by dark absorption lines"></svg>
+        <div class="ssi-measurement" id="measurement">Line identity and shift are not yet determined.</div>
+
+        <div class="ssi-motion" id="motionPanel" aria-live="polite">
+          <svg viewBox="0 0 760 118" role="img" aria-labelledby="motionTitle motionDesc">
+            <title id="motionTitle">Object motion relative to Earth</title>
+            <desc id="motionDesc">The final motion diagram appears after the evidence questions are complete.</desc>
+            <defs>
+              <marker id="motionArrowHead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L9,3 z" fill="#fff"/>
+              </marker>
+            </defs>
+            <g id="motionDrawing"></g>
+          </svg>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <section class="ssi-card" aria-live="polite">
+    <p class="ssi-question" id="question">Which reference has the same absorption-line fingerprint?</p>
+
+    <div class="ssi-align" id="alignPanel">
+      <label class="ssi-align-label" for="shiftSlider">
+        <span>Move the selected reference markers</span>
+        <output id="shiftOutput" for="shiftSlider">Centered</output>
+      </label>
+      <div class="ssi-align-scale" aria-hidden="true"><span>Shorter wavelength</span><span>No movement</span><span>Longer wavelength</span></div>
+      <input id="shiftSlider" type="range" min="-0.060" max="0.060" step="0.001" value="0" aria-describedby="alignHelp">
+      <p class="ssi-directions" id="alignHelp">Place every dashed marker over a dark observed line.</p>
+      <div class="ssi-align-actions"><button id="checkAlignmentBtn" type="button">Check alignment</button></div>
+    </div>
+
+    <div class="ssi-choice-grid" id="choices"></div>
+    <p class="ssi-feedback" id="feedback">Use relative spacing first; ignore the pattern's overall position.</p>
+    <div class="ssi-controls">
+      <button id="nextBtn" class="ssi-hidden" type="button">Next case</button>
+    </div>
+  </section>
+
+  <p class="ssi-status" id="status" role="status" aria-live="polite"></p>
 
 <script>
-
 (() => {
- const scenarios=[
-  {setup:'The source moves toward the observer.',q:'How will the spectral lines shift?',c:['Toward blue','Toward red','No shift'],a:0,f:'The lines shift toward blue. Approaching motion increases observed frequency while light speed remains unchanged.',dir:'toward',shift:-45},
-  {setup:'The source moves away from the observer.',q:'How will the spectral lines shift?',c:['Toward blue','Toward red','No shift'],a:1,f:'The lines shift toward red. Receding motion decreases observed frequency while light speed remains unchanged.',dir:'away',shift:45},
-  {setup:'The source moves sideways at the closest point.',q:'What first-order shift is expected?',c:['Strong blue shift','Strong red shift','Little or no shift'],a:2,f:'Little or no first-order shift appears at that instant. The motion is mostly perpendicular to the line of sight.',dir:'side',shift:0}
- ];
- let i=0,state='setup',completionSent=false,raf=null;
- const $=s=>document.querySelector(s),source=$('#source'),arrow=$('#motionArrow'),motionLabel=$('#motionLabel'),lines=$('#lines'),
- choices=$('#choices'),feedback=$('#feedback'),setup=$('#setup'),prompt=$('#prompt'),main=$('#mainBtn'),replay=$('#replayBtn'),progress=$('#progress'),status=$('#status');
- for(let k=0;k<34;k++){let c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('class','dp-star');c.setAttribute('cx',Math.random()*860);c.setAttribute('cy',Math.random()*215);c.setAttribute('r',Math.random()*1.8+0.6);$('#stars').appendChild(c)}
- function shuffle(a){return a.map((v,idx)=>({v,idx,r:Math.random()})).sort((x,y)=>x.r-y.r)}
- function resetLines(){lines.setAttribute('transform','translate(0,0)');source.setAttribute('cx',230)}
- function prep(){
-  const d=scenarios[i].dir;
-  if(d==='toward'){arrow.setAttribute('x1',270);arrow.setAttribute('y1',80);arrow.setAttribute('x2',360);arrow.setAttribute('y2',80);motionLabel.textContent='toward observer'}
-  if(d==='away'){arrow.setAttribute('x1',220);arrow.setAttribute('y1',80);arrow.setAttribute('x2',130);arrow.setAttribute('y2',80);motionLabel.textContent='away from observer'}
-  if(d==='side'){arrow.setAttribute('x1',230);arrow.setAttribute('y1',82);arrow.setAttribute('x2',230);arrow.setAttribute('y2',25);motionLabel.textContent='sideways'}
- }
- function render(){
-  const s=scenarios[i];progress.textContent=`Scenario ${i+1} of ${scenarios.length}`;prep();setup.textContent=s.setup;prompt.textContent=state==='predict'?s.q:'';feedback.textContent=state==='explain'?s.f:'';
-  choices.innerHTML='';if(state==='predict')shuffle(s.c).forEach(o=>{let b=document.createElement('button');b.type='button';b.textContent=o.v;b.onclick=()=>choose(o.idx);choices.appendChild(b)});
-  main.textContent=state==='setup'?'Start':state==='explain'?(i===scenarios.length-1?'Finish':'Next scenario'):state==='complete'?'Completed':'Revealing…';
-  main.disabled=['predict','reveal','complete'].includes(state);replay.classList.toggle('rph-hidden',state!=='explain');
-  if(state==='complete'){setup.textContent='Walkthrough complete.';prompt.textContent='';feedback.textContent='Relative motion changes observed wavelength and frequency, not the vacuum speed of light.'}
- }
- function choose(){if(state!=='predict')return;state='reveal';render();play(()=>{state='explain';status.textContent=scenarios[i].f;render()})}
- function play(done){
-  resetLines();const s=scenarios[i],reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,steps=reduced?1:42;let n=0;
-  function frame(){n++;let t=n/steps;lines.setAttribute('transform',`translate(${s.shift*t},0)`);if(s.dir==='toward')source.setAttribute('cx',230+35*t);if(s.dir==='away')source.setAttribute('cx',230-35*t);if(s.dir==='side')source.setAttribute('cy',125-35*t);if(n<steps)raf=requestAnimationFrame(frame);else done()}frame()
- }
- main.onclick=()=>{if(state==='setup'){state='predict';render()}else if(state==='explain'){if(i<scenarios.length-1){i++;state='setup';resetLines();source.setAttribute('cy',125);render()}else{state='complete';render();completeOnce()}}};
- replay.onclick=()=>{state='reveal';render();play(()=>{state='explain';render()})};
- $('#resetBtn').onclick=()=>{if(raf)cancelAnimationFrame(raf);i=0;state='setup';resetLines();source.setAttribute('cy',125);render()};
- function completeOnce(){if(completionSent)return;completionSent=true;window.parent.postMessage({type:'complete'},'*')}
- render();
-})();
+  const NS = 'http://www.w3.org/2000/svg';
+  const wavelengthMin = 390;
+  const wavelengthMax = 700;
+  const references = [
+    { id: 'hydrogen', label: 'Hydrogen', lines: [410.2, 434.0, 486.1, 656.3] },
+    { id: 'helium', label: 'Helium', lines: [447.1, 501.6, 587.6, 667.8] },
+    { id: 'calcium', label: 'Calcium', lines: [393.4, 396.8, 422.7, 616.2, 643.9] }
+  ];
+  const cases = [
+    { object: 'Object A', element: 'hydrogen', z: 0.045, shift: 'redshift', motion: 'receding' },
+    { object: 'Object B', element: 'calcium', z: -0.025, shift: 'blueshift', motion: 'approaching' },
+    { object: 'Object C', element: 'helium', z: 0, shift: 'no shift', motion: 'no radial motion' }
+  ];
 
+  let caseIndex = 0;
+  let phase = 'match';
+  let selectedReference = null;
+  let alignedZ = 0;
+  let completionSent = false;
+
+  const byId = id => document.getElementById(id);
+  const referenceGrid = byId('referenceGrid');
+  const observedSpectrum = byId('observedSpectrum');
+  const overlayLegend = byId('overlayLegend');
+  const observationTitle = byId('observationTitle');
+  const measurement = byId('measurement');
+  const motionPanel = byId('motionPanel');
+  const motionDrawing = byId('motionDrawing');
+  const motionDesc = byId('motionDesc');
+  const progress = byId('progress');
+  const stepLabel = byId('stepLabel');
+  const directions = byId('directions');
+  const question = byId('question');
+  const choices = byId('choices');
+  const feedback = byId('feedback');
+  const alignPanel = byId('alignPanel');
+  const shiftSlider = byId('shiftSlider');
+  const shiftOutput = byId('shiftOutput');
+  const checkAlignmentBtn = byId('checkAlignmentBtn');
+  const nextBtn = byId('nextBtn');
+  const status = byId('status');
+
+  function xFor(wavelength, left = 54, width = 652) {
+    return left + ((wavelength - wavelengthMin) / (wavelengthMax - wavelengthMin)) * width;
+  }
+
+  function svgNode(name, attributes = {}) {
+    const node = document.createElementNS(NS, name);
+    Object.entries(attributes).forEach(([key, value]) => node.setAttribute(key, value));
+    return node;
+  }
+
+  function spectrumGradient(svg, id) {
+    const defs = svgNode('defs');
+    const gradient = svgNode('linearGradient', { id, x1: '0', x2: '1' });
+    [
+      ['0%', '#6236b8'], ['16%', '#315ed0'], ['34%', '#1f9bbb'],
+      ['49%', '#35a853'], ['64%', '#e2d53e'], ['80%', '#ed8a32'], ['100%', '#d43e39']
+    ].forEach(([offset, color]) => gradient.appendChild(svgNode('stop', { offset, 'stop-color': color })));
+    defs.appendChild(gradient);
+    svg.appendChild(defs);
+  }
+
+  function drawSpectrum(svg, lines, options = {}) {
+    const compact = Boolean(options.compact);
+    const gradientId = `gradient-${options.id}`;
+    const left = compact ? 12 : 54;
+    const width = compact ? 696 : 652;
+    const y = compact ? 10 : 14;
+    const height = compact ? 36 : 58;
+    svg.replaceChildren();
+    spectrumGradient(svg, gradientId);
+    svg.appendChild(svgNode('rect', { x: left, y, width, height, rx: 5, fill: `url(#${gradientId})` }));
+
+    lines.forEach(wavelength => {
+      svg.appendChild(svgNode('line', {
+        x1: xFor(wavelength, left, width), y1: y, x2: xFor(wavelength, left, width), y2: y + height,
+        stroke: '#152033', 'stroke-width': compact ? 4 : 5
+      }));
+    });
+
+    if (!compact) {
+      [400, 500, 600, 700].forEach(value => {
+        const x = xFor(value, left, width);
+        svg.appendChild(svgNode('line', { x1: x, y1: y + height + 2, x2: x, y2: y + height + 8, stroke: '#d6deea', 'stroke-width': 1 }));
+        const text = svgNode('text', { x, y: y + height + 24, 'text-anchor': 'middle', fill: '#dce7f2', 'font-size': 12, 'font-family': 'Arial' });
+        text.textContent = value;
+        svg.appendChild(text);
+      });
+      const unit = svgNode('text', { x: 730, y: y + height + 24, 'text-anchor': 'end', fill: '#dce7f2', 'font-size': 12, 'font-family': 'Arial' });
+      unit.textContent = 'wavelength (nm)';
+      svg.appendChild(unit);
+      const blue = svgNode('text', { x: left, y: 124, fill: '#dce7f2', 'font-size': 11, 'font-family': 'Arial' });
+      blue.textContent = 'shorter / blue';
+      svg.appendChild(blue);
+      const red = svgNode('text', { x: left + width, y: 124, 'text-anchor': 'end', fill: '#dce7f2', 'font-size': 11, 'font-family': 'Arial' });
+      red.textContent = 'longer / red';
+      svg.appendChild(red);
+    }
+  }
+
+  function drawOverlay(reference, zValue) {
+    observedSpectrum.querySelectorAll('[data-overlay]').forEach(node => node.remove());
+    if (!reference) return;
+    reference.lines.forEach(wavelength => {
+      const shifted = wavelength * (1 + zValue);
+      const x = xFor(shifted);
+      observedSpectrum.appendChild(svgNode('line', {
+        x1: x, y1: 9, x2: x, y2: 78, stroke: '#00a6b8', 'stroke-width': 3,
+        'stroke-dasharray': '6 4', 'data-overlay': 'true'
+      }));
+      observedSpectrum.appendChild(svgNode('path', {
+        d: `M${x - 5} 8 L${x + 5} 8 L${x} 14 Z`, fill: '#00a6b8', 'data-overlay': 'true'
+      }));
+    });
+  }
+
+  function renderReferenceCards() {
+    referenceGrid.innerHTML = '';
+    references.forEach(reference => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'ssi-reference';
+      button.dataset.reference = reference.id;
+      button.setAttribute('aria-pressed', String(selectedReference?.id === reference.id));
+      button.disabled = phase !== 'match';
+
+      const name = document.createElement('span');
+      name.className = 'ssi-reference-name';
+      name.textContent = `${reference.label} reference`;
+      const svg = svgNode('svg', { viewBox: '0 0 720 58', role: 'img', 'aria-label': `${reference.label} reference absorption-line pattern` });
+      drawSpectrum(svg, reference.lines, { compact: true, id: `reference-${reference.id}` });
+      button.append(name, svg);
+      button.addEventListener('click', () => chooseReference(reference));
+      referenceGrid.appendChild(button);
+    });
+  }
+
+  function currentCase() {
+    return cases[caseIndex];
+  }
+
+  function currentReference() {
+    return references.find(reference => reference.id === currentCase().element);
+  }
+
+  function observedLines() {
+    const item = currentCase();
+    return currentReference().lines.map(wavelength => wavelength * (1 + item.z));
+  }
+
+  function setFeedback(message, tone = '') {
+    feedback.textContent = message;
+    feedback.className = `ssi-feedback${tone ? ` ${tone}` : ''}`;
+    status.textContent = message;
+  }
+
+  function setChoices(options, correctValue, onCorrect) {
+    choices.innerHTML = '';
+    options.forEach(option => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = option.label;
+      button.addEventListener('click', () => {
+        if (option.value === correctValue) {
+          onCorrect();
+        } else {
+          setFeedback(option.feedback, 'warn');
+        }
+      });
+      choices.appendChild(button);
+    });
+  }
+
+  function chooseReference(reference) {
+    if (phase !== 'match') return;
+    if (reference.id !== currentCase().element) {
+      setFeedback('That spacing pattern does not match. Compare the gaps between neighboring lines.', 'warn');
+      return;
+    }
+    selectedReference = reference;
+    phase = 'align';
+    alignedZ = 0;
+    shiftSlider.value = '0';
+    shiftOutput.textContent = 'Centered';
+    setFeedback('Fingerprint matched. Now move its dashed markers onto the observed lines.', 'good');
+    render();
+  }
+
+  function checkAlignment() {
+    if (phase !== 'align') return;
+    const error = Math.abs(alignedZ - currentCase().z);
+    if (error > 0.004) {
+      setFeedback('The patterns are not aligned yet. Compare both the first and last markers.', 'warn');
+      return;
+    }
+    alignedZ = currentCase().z;
+    shiftSlider.value = String(alignedZ);
+    shiftSlider.disabled = true;
+    checkAlignmentBtn.disabled = true;
+    phase = 'classify';
+    setFeedback('The line patterns align. Compare their positions with the original reference.', 'good');
+    render();
+  }
+
+  function classifyShift() {
+    phase = 'motion';
+    const item = currentCase();
+    const sign = item.z > 0 ? '+' : '';
+    const direction = item.shift === 'redshift' ? 'longer wavelengths' : item.shift === 'blueshift' ? 'shorter wavelengths' : 'the same wavelengths';
+    measurement.textContent = `${selectedReference.label} matched | z = ${sign}${item.z.toFixed(3)} | Lines moved to ${direction}`;
+    measurement.classList.add('revealed');
+    setFeedback('Shift identified. Use that evidence to infer the object\'s radial motion.', 'good');
+    render();
+  }
+
+  function revealMotion() {
+    phase = 'result';
+    drawMotion();
+    motionPanel.classList.add('visible');
+    const item = currentCase();
+    const explanation = item.motion === 'receding'
+      ? 'Redshift shows that the object is receding from Earth.'
+      : item.motion === 'approaching'
+        ? 'Blueshift shows that the object is approaching Earth.'
+        : 'No shift shows no measurable motion along the line of sight.';
+    setFeedback(explanation, 'good');
+    render();
+  }
+
+  function drawMotion() {
+    motionDrawing.replaceChildren();
+    const item = currentCase();
+    const earthX = 650;
+    const objectX = 160;
+    motionDrawing.appendChild(svgNode('circle', { cx: objectX, cy: 57, r: 28, fill: '#f4c542', stroke: '#8b6c00', 'stroke-width': 3 }));
+    motionDrawing.appendChild(svgNode('circle', { cx: earthX, cy: 57, r: 30, fill: '#4c91d8', stroke: '#cce6ff', 'stroke-width': 3 }));
+
+    const objectLabel = svgNode('text', { x: objectX, y: 104, 'text-anchor': 'middle', fill: '#fff', 'font-size': 15, 'font-family': 'Arial', 'font-weight': '700' });
+    objectLabel.textContent = currentCase().object;
+    motionDrawing.appendChild(objectLabel);
+    const earthLabel = svgNode('text', { x: earthX, y: 104, 'text-anchor': 'middle', fill: '#fff', 'font-size': 15, 'font-family': 'Arial', 'font-weight': '700' });
+    earthLabel.textContent = 'Earth';
+    motionDrawing.appendChild(earthLabel);
+
+    let x1 = 210, x2 = 110, y1 = 57, y2 = 57;
+    if (item.motion === 'approaching') { x1 = 210; x2 = 310; }
+    if (item.motion === 'no radial motion') { x1 = 160; x2 = 160; y1 = 42; y2 = 10; }
+    motionDrawing.appendChild(svgNode('line', { x1, y1, x2, y2, stroke: '#fff', 'stroke-width': 4, 'marker-end': 'url(#motionArrowHead)' }));
+
+    const motionLabel = svgNode('text', { x: 385, y: 34, 'text-anchor': 'middle', fill: '#dce7f2', 'font-size': 15, 'font-family': 'Arial', 'font-weight': '700' });
+    motionLabel.textContent = item.motion === 'receding' ? 'moving away from Earth' : item.motion === 'approaching' ? 'moving toward Earth' : 'moving across the line of sight';
+    motionDrawing.appendChild(motionLabel);
+    motionDesc.textContent = `${currentCase().object} is ${motionLabel.textContent}.`;
+  }
+
+  function render() {
+    const item = currentCase();
+    observationTitle.textContent = `Observed spectrum from ${item.object}`;
+    drawSpectrum(observedSpectrum, observedLines(), { id: `observed-${caseIndex}` });
+    if (phase !== 'match' && selectedReference) drawOverlay(selectedReference, alignedZ);
+    observedSpectrum.setAttribute('aria-label', phase === 'match'
+      ? 'Observed visible spectrum crossed by dark absorption lines. Match its spacing to a reference.'
+      : 'Observed dark absorption lines compared with dashed movable reference markers.');
+
+    renderReferenceCards();
+    overlayLegend.classList.toggle('ssi-hidden', phase === 'match');
+    alignPanel.classList.toggle('visible', phase === 'align');
+    shiftSlider.disabled = phase !== 'align';
+    checkAlignmentBtn.disabled = phase !== 'align';
+    choices.innerHTML = '';
+    nextBtn.classList.add('ssi-hidden');
+
+    const phaseLabels = {
+      match: ['Match the fingerprint', 'Step 1 · Identify the source', 'Match the spacing pattern, even when every line has moved.'],
+      align: ['Align the lines', 'Step 2 · Measure the displacement', 'Move the dashed reference markers onto the observed absorption lines.'],
+      classify: ['Name the shift', 'Step 3 · Interpret the displacement', 'Decide which end of the spectrum the observed lines moved toward.'],
+      motion: ['Infer the motion', 'Step 4 · Use Doppler evidence', 'Use the measured spectral shift to determine relative motion.'],
+      result: ['Evidence complete', 'Result · Connect spectrum to motion', 'Review the matched fingerprint, measured shift, and motion.']
+    };
+    const [progressPhase, step, direction] = phaseLabels[phase];
+    progress.textContent = `Case ${caseIndex + 1} of ${cases.length} · ${progressPhase}`;
+    stepLabel.textContent = step;
+    directions.textContent = direction;
+
+    if (phase === 'match') {
+      question.textContent = 'Which reference has the same absorption-line fingerprint?';
+    } else if (phase === 'align') {
+      question.textContent = 'How far must the reference pattern move to overlap the observation?';
+    } else if (phase === 'classify') {
+      question.textContent = 'What type of spectral shift does the alignment show?';
+      setChoices([
+        { label: 'Redshift', value: 'redshift', feedback: 'Recheck whether the observed lines moved toward longer wavelengths.' },
+        { label: 'Blueshift', value: 'blueshift', feedback: 'Recheck whether the observed lines moved toward shorter wavelengths.' },
+        { label: 'No shift', value: 'no shift', feedback: 'Recheck whether the observed and reference lines occupy the same wavelengths.' }
+      ], item.shift, classifyShift);
+    } else if (phase === 'motion') {
+      question.textContent = `What is ${item.object}'s motion relative to Earth?`;
+      setChoices([
+        { label: 'Approaching Earth', value: 'approaching', feedback: 'That motion would produce a blueshift. Use the measured shift as evidence.' },
+        { label: 'Receding from Earth', value: 'receding', feedback: 'That motion would produce a redshift. Use the measured shift as evidence.' },
+        { label: 'No radial motion', value: 'no radial motion', feedback: 'That requires little or no wavelength shift. Use the measured shift as evidence.' }
+      ], item.motion, revealMotion);
+    } else if (phase === 'result') {
+      question.textContent = 'The evidence chain is complete for this object.';
+      nextBtn.textContent = caseIndex === cases.length - 1 ? 'Finish investigation' : 'Next case';
+      nextBtn.classList.remove('ssi-hidden');
+    }
+  }
+
+  function startNextCase() {
+    if (phase !== 'result') return;
+    if (caseIndex === cases.length - 1) {
+      question.textContent = 'Investigation complete.';
+      directions.textContent = 'Absorption patterns identify material; their displacement reveals radial motion.';
+      feedback.textContent = 'You matched spectral fingerprints, measured wavelength shifts, and inferred motion for all three objects.';
+      feedback.className = 'ssi-feedback good';
+      nextBtn.classList.add('ssi-hidden');
+      progress.textContent = '3 of 3 cases complete';
+      completeOnce();
+      return;
+    }
+    caseIndex += 1;
+    phase = 'match';
+    selectedReference = null;
+    alignedZ = 0;
+    shiftSlider.value = '0';
+    shiftOutput.textContent = 'Centered';
+    shiftSlider.disabled = false;
+    checkAlignmentBtn.disabled = false;
+    measurement.textContent = 'Line identity and shift are not yet determined.';
+    measurement.classList.remove('revealed');
+    motionPanel.classList.remove('visible');
+    setFeedback('Use relative spacing first; ignore the pattern\'s overall position.');
+    render();
+  }
+
+  shiftSlider.addEventListener('input', event => {
+    alignedZ = Number(event.target.value);
+    const percent = Math.round(Math.abs(alignedZ) * 1000) / 10;
+    shiftOutput.textContent = alignedZ === 0 ? 'Centered' : `${percent.toFixed(1)}% ${alignedZ < 0 ? 'shorter' : 'longer'}`;
+    drawSpectrum(observedSpectrum, observedLines(), { id: `observed-${caseIndex}` });
+    drawOverlay(selectedReference, alignedZ);
+  });
+
+  checkAlignmentBtn.addEventListener('click', checkAlignment);
+  nextBtn.addEventListener('click', startNextCase);
+  byId('resetBtn').addEventListener('click', () => {
+    caseIndex = 0;
+    phase = 'match';
+    selectedReference = null;
+    alignedZ = 0;
+    shiftSlider.value = '0';
+    shiftOutput.textContent = 'Centered';
+    measurement.textContent = 'Line identity and shift are not yet determined.';
+    measurement.classList.remove('revealed');
+    motionPanel.classList.remove('visible');
+    setFeedback('Use relative spacing first; ignore the pattern\'s overall position.');
+    render();
+  });
+
+  function completeOnce() {
+    if (completionSent) return;
+    completionSent = true;
+    window.parent.postMessage({ type: 'complete' }, '*');
+  }
+
+  render();
+})();
 </script>
 </main>
 </body>
