@@ -4,248 +4,1015 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Resistance Factors Explorer</title>
+  <script src="../vendor/tailwindcss-3.4.17.js"></script>
   <style>
-    html, body { background: transparent; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; }
-    .app { max-width: 720px; margin: 0 auto; padding: 8px; box-sizing: border-box; }
-    .card { border: 5px solid #285f9f; border-radius: 12px; background: #f8fafc; overflow: hidden; display: flex; flex-direction: column; }
-    .header { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #e2e8f0; border-bottom: 1px solid #cbd5e1; }
-    .header h1 { margin: 0; font-size: 1rem; font-weight: 600; color: #1e293b; }
-    .stage { position: relative; width: 100%; aspect-ratio: 16/9; background: #0f172a; overflow: hidden; }
-    canvas { display: block; width: 100%; height: 100%; }
-    .prompt-area { padding: 12px; background: #fff; border-top: 1px solid #e2e8f0; min-height: 140px; display: flex; flex-direction: column; gap: 8px; }
-    .prompt { margin: 0; font-size: 0.95rem; color: #1e293b; line-height: 1.4; }
-    .choices { display: flex; flex-wrap: wrap; gap: 8px; }
-    .choices button { flex: 1 1 120px; padding: 10px 12px; font-size: 0.9rem; font-weight: 600; border: 2px solid #285f9f; border-radius: 8px; background: #fff; color: #1e293b; cursor: pointer; min-height: 44px; }
-    .choices button:hover, .choices button:focus { background: #dbeafe; outline: 2px solid #285f9f; outline-offset: 2px; }
-    .feedback { margin: 0; font-size: 0.9rem; color: #0f172a; min-height: 1.4em; }
-    .main-btn { align-self: flex-start; padding: 10px 20px; font-size: 0.95rem; font-weight: 600; border: none; border-radius: 8px; background: #285f9f; color: #fff; cursor: pointer; min-height: 44px; }
-    .main-btn:hover, .main-btn:focus { background: #1e4a7a; outline: 2px solid #1e4a7a; outline-offset: 2px; }
-    .hidden { display: none !important; }
-    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
-    .controls label { font-size: 0.8rem; color: #334155; display: flex; flex-direction: column; gap: 2px; }
-    .controls input[type="range"] { width: 100%; }
-    .controls select { font-size: 0.85rem; padding: 4px; }
-    .readout { font-family: ui-monospace, monospace; background: #e2e8f0; padding: 6px 10px; border-radius: 6px; font-size: 0.9rem; grid-column: 1 / -1; }
+    html, body { background: transparent; }
+
+    body {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #0f172a;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 10px 25px -12px rgba(15, 23, 42, 0.25);
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(8px);
+      border: 1px solid #cbd5e1;
+      transition: all 0.2s ease;
+    }
+
+    .glass-card.active {
+      background: #dbeafe;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+    }
+
+    .glass-card:hover:not(.active) {
+      background: #ffffff;
+      border-color: #94a3b8;
+    }
+
+    /* Custom Range Sliders */
+    input[type=range]:not(.vertical-slider) {
+      -webkit-appearance: none;
+      width: 100%;
+      background: transparent;
+    }
+    input[type=range]:not(.vertical-slider)::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 16px;
+      width: 16px;
+      border-radius: 50%;
+      background: #2563eb;
+      border: 2px solid #ffffff;
+      cursor: pointer;
+      margin-top: -7px;
+      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.4);
+    }
+    input[type=range]:not(.vertical-slider)::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 4px;
+      cursor: pointer;
+      background: #cbd5e1;
+      border-radius: 2px;
+    }
+    input[type=range]:focus {
+      outline: none;
+    }
+
+    /* Thermometer Styles */
+    .thermometer-bg {
+      width: 20px;
+      height: 120px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 2px solid #94a3b8;
+      border-radius: 10px;
+      position: relative;
+      box-shadow: inset 0 0 6px rgba(15, 23, 42, 0.15);
+      margin: 0 auto;
+    }
+    .thermometer-fill {
+      width: 12px;
+      background: linear-gradient(to top, #dc2626, #f87171);
+      border-radius: 6px;
+      position: absolute;
+      bottom: 2px;
+      left: 2px;
+      transition: height 0.3s ease;
+      min-height: 10px;
+    }
+    .thermometer-bulb {
+      width: 36px;
+      height: 36px;
+      background: radial-gradient(circle at 30% 30%, #f87171, #ef4444, #991b1b);
+      border-radius: 50%;
+      position: absolute;
+      bottom: -24px;
+      left: -10px;
+      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.25);
+      z-index: 2;
+    }
+    .vertical-slider {
+      -webkit-appearance: slider-vertical;
+      appearance: slider-vertical;
+      width: 44px;
+      height: 160px;
+      position: absolute;
+      bottom: -24px;
+      left: -12px;
+      opacity: 0;
+      cursor: pointer;
+      z-index: 10;
+    }
+
+    /* Answer choices */
+    .choice-btn {
+      background: #ffffff;
+      border: 2px solid #cbd5e1;
+      color: #1e293b;
+      transition: all 0.15s ease;
+    }
+    .choice-btn:not(:disabled):hover {
+      border-color: #2563eb;
+      background: #eff6ff;
+      transform: translateY(-1px);
+    }
+    .choice-btn:disabled {
+      cursor: default;
+    }
+    .choice-btn.is-correct {
+      background: #ecfdf5;
+      border-color: #059669;
+      color: #065f46;
+    }
+    .choice-btn.is-wrong {
+      background: #fef2f2;
+      border-color: #e11d48;
+      color: #9f1239;
+    }
+    .choice-btn.is-dim {
+      opacity: 0.55;
+    }
+
+    /* Injected by JS — kept as plain CSS so nothing depends on Tailwind's runtime JIT */
+    .feedback-box {
+      border-radius: 0.75rem;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      padding: 1rem;
+      line-height: 1.6;
+      color: #334155;
+      margin-top: 0.75rem;
+      margin-bottom: 0;
+    }
+    .feedback-box.good { border-color: #6ee7b7; background: #ecfdf5; }
+    .feedback-box.warn { border-color: #fcd34d; background: #fffbeb; }
+    .feedback-lead { font-weight: 700; }
+    .feedback-box.good .feedback-lead { color: #047857; }
+    .feedback-box.warn .feedback-lead { color: #b45309; }
+
+    .rule-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      border-radius: 0.75rem;
+      border: 2px solid #e2e8f0;
+      background: #ffffff;
+      opacity: 0.5;
+      transition: opacity 0.3s ease, border-color 0.3s ease, background 0.3s ease;
+    }
+    .rule-row.active {
+      opacity: 1;
+      border-color: #3b82f6;
+      background: #eff6ff;
+    }
+    .rule-badge {
+      flex-shrink: 0;
+      width: 2.75rem;
+      padding: 0.25rem 0;
+      text-align: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #ffffff;
+      border-radius: 0.5rem;
+    }
+    .rule-text {
+      font-size: 0.875rem;
+      line-height: 1.35;
+      color: #334155;
+    }
   </style>
 </head>
-<body>
-  <main class="app">
-    <section class="card">
-      <div class="header">
-        <h1>Resistance Factors Explorer</h1>
-        <button class="main-btn" data-reset style="padding:6px 12px;font-size:0.85rem;background:#64748b;">Reset</button>
-      </div>
-      <div class="stage" aria-label="Wire whose properties can be changed">
-        <canvas id="c" width="640" height="360" role="img" aria-label="Wire with adjustable length, area, material"></canvas>
-      </div>
-      <div class="prompt-area" aria-live="polite">
-        <p class="prompt" data-prompt>Resistance depends on material, length, area, and temperature.</p>
-        <div class="choices" data-choices hidden>
-          <button data-choice="up">Resistance rises</button>
-          <button data-choice="down">Resistance falls</button>
-          <button data-choice="same">No change</button>
+<body class="p-4 md:p-8">
+
+  <main class="w-full max-w-5xl mx-auto flex flex-col gap-0">
+
+    <!-- Header -->
+    <div class="grid gap-2 bg-white p-3 rounded-t-2xl border border-slate-300 shadow-sm md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center md:gap-4">
+      <h1 class="text-lg md:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-emerald-600">
+        Resistance Factors Explorer
+      </h1>
+
+      <div class="min-w-0 text-center">
+        <div class="flex items-center justify-center gap-3 mb-1">
+          <span id="q-counter" class="text-xs font-bold uppercase tracking-widest text-blue-600">Question 1 of 5</span>
+          <div id="q-progress" class="flex gap-1.5"></div>
         </div>
-        <div class="controls" data-controls hidden>
-          <label>Material
-            <select id="mat">
-              <option value="1.7">Copper (low ρ)</option>
-              <option value="2.8">Aluminum</option>
-              <option value="10">Nichrome (high ρ)</option>
-            </select>
-          </label>
-          <label>Length (m)
-            <input type="range" id="len" min="0.5" max="4" value="1" step="0.5">
-          </label>
-          <label>Area (mm²)
-            <input type="range" id="area" min="0.5" max="4" value="1" step="0.5">
-          </label>
-          <label>Temp factor
-            <input type="range" id="temp" min="0.8" max="1.4" value="1" step="0.1">
-          </label>
-          <span class="readout" data-readout>R = ? Ω</span>
-        </div>
-        <p class="feedback" data-feedback></p>
-        <button class="main-btn" data-main>Start</button>
+        <p id="prompt-text" class="text-sm md:text-base font-semibold text-slate-900 leading-snug"></p>
       </div>
+
+      <div class="flex items-center justify-center gap-2 md:justify-end">
+        <button id="btn-reset" class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-colors">
+          Reset
+        </button>
+        <button id="btn-main" class="hidden px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors shadow-sm">
+          Next Question
+        </button>
+      </div>
+    </div>
+
+    <!-- Canvas & Interactive Overlay Container -->
+    <div class="relative w-full aspect-[40/27] md:aspect-[160/81] overflow-hidden border-x border-slate-300 shadow-sm bg-slate-50">
+
+      <!-- 3D/Animation Canvas -->
+      <canvas id="sim-canvas" class="absolute inset-0 w-full h-full block"></canvas>
+
+      <div class="absolute top-4 left-4 right-4 md:right-auto flex gap-2 md:gap-4 z-10 flex-wrap">
+        <button class="mat-card active glass-card px-4 py-3 rounded-xl flex flex-col items-start text-left" data-mat="1.7" data-color="copper">
+          <span class="text-xs font-bold text-orange-700 uppercase tracking-wider">Copper</span>
+          <span class="text-[10px] text-slate-500">Low ρ (1.7)</span>
+        </button>
+        <button class="mat-card glass-card px-4 py-3 rounded-xl flex flex-col items-start text-left" data-mat="2.8" data-color="aluminum">
+          <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Aluminum</span>
+          <span class="text-[10px] text-slate-500">Med ρ (2.8)</span>
+        </button>
+        <button class="mat-card glass-card px-4 py-3 rounded-xl flex flex-col items-start text-left" data-mat="10" data-color="nichrome">
+          <span class="text-xs font-bold text-purple-700 uppercase tracking-wider">Nichrome</span>
+          <span class="text-[10px] text-slate-500">High ρ (10.0)</span>
+        </button>
+      </div>
+
+      <div class="absolute top-4 right-4 z-10 glass-panel px-6 py-3 rounded-xl">
+        <div class="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1 text-right">Total Resistance</div>
+        <div class="text-3xl font-bold text-amber-600 font-mono tracking-tight text-right" id="readout-val">
+          R = 1.70 Ω
+        </div>
+      </div>
+
+      <div class="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 z-10 flex flex-col items-center">
+        <div class="text-xs font-bold text-orange-700 uppercase tracking-wider mb-2 bg-white/90 border border-slate-300 px-2 py-1 rounded">Temp (T)</div>
+        <div class="relative mt-2">
+          <div class="thermometer-bg">
+            <div class="thermometer-fill" id="thermometer-fill" style="height: 20%;"></div>
+          </div>
+          <div class="thermometer-bulb"></div>
+          <input type="range" id="slider-temp" min="1" max="5" value="1" step="0.1" class="vertical-slider" orient="vertical">
+        </div>
+        <div class="text-orange-700 font-mono mt-10 bg-white px-3 py-1 rounded-lg border border-orange-300 shadow-sm text-sm" id="val-temp">20 °C</div>
+      </div>
+
+      <div class="absolute right-2 md:right-8 top-1/2 -translate-y-1/2 z-10 glass-panel p-4 rounded-2xl flex flex-col items-center gap-3 w-32 md:w-40 border-t-4 border-t-blue-500">
+        <div class="text-xs font-bold text-blue-700 uppercase tracking-wider text-center">Cross-Area (A)</div>
+        <input type="range" id="slider-area" min="0.5" max="3" value="1" step="0.1" class="w-full">
+        <div class="text-blue-700 font-mono text-center bg-white px-2 py-1 rounded w-full border border-blue-300" id="val-area">1.0 mm²</div>
+      </div>
+
+      <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 glass-panel p-4 rounded-2xl flex flex-col items-center gap-3 w-48 md:w-64 border-t-4 border-t-emerald-500">
+        <div class="text-xs font-bold text-emerald-700 uppercase tracking-wider text-center">Length (L)</div>
+        <input type="range" id="slider-len" min="0.5" max="3" value="1" step="0.1" class="w-full">
+        <div class="text-emerald-700 font-mono text-center bg-white px-2 py-1 rounded w-full border border-emerald-300" id="val-len">1.0 m</div>
+      </div>
+
+    </div>
+
+    <!-- Question Panel -->
+    <section class="bg-white rounded-b-2xl p-4 border border-t-0 border-slate-300 shadow-sm">
+
+      <div id="choices-area" class="grid gap-3 sm:grid-cols-3"></div>
+
+      <div id="feedback-text" class="hidden rounded-xl border p-4 leading-relaxed mb-4"></div>
+
+      <!-- Summary: auto-cycling demo of one factor at a time -->
+      <div id="summary-panel" class="hidden">
+        <p id="demo-caption" class="text-center text-sm font-semibold text-slate-600 mb-3"></p>
+
+        <div class="flex flex-col md:flex-row gap-4 mb-4">
+          <div class="md:w-1/2 rounded-xl border border-slate-300 bg-white p-2">
+            <canvas id="summary-canvas" class="w-full block h-[220px]"></canvas>
+          </div>
+          <div class="md:w-1/2 flex flex-col gap-2" id="rule-list"></div>
+        </div>
+
+        <div class="text-center text-xl font-bold text-slate-900 font-mono border-t border-slate-200 pt-4">R = ρL / A</div>
+      </div>
+
+      <button id="btn-demo" class="hidden mx-auto mt-4 px-5 py-3 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-xl border-2 border-slate-300 transition-colors">
+        Pause demo
+      </button>
     </section>
+
   </main>
+
   <script>
-    (function() {
-      const canvas = document.getElementById('c');
-      const ctx = canvas.getContext('2d');
-      const promptEl = document.querySelector('[data-prompt]');
-      const choicesEl = document.querySelector('[data-choices]');
-      const feedbackEl = document.querySelector('[data-feedback]');
-      const mainBtn = document.querySelector('[data-main]');
-      const resetBtn = document.querySelector('[data-reset]');
-      const controlsEl = document.querySelector('[data-controls]');
-      const readoutEl = document.querySelector('[data-readout]');
-      const matEl = document.getElementById('mat');
-      const lenEl = document.getElementById('len');
-      const areaEl = document.getElementById('area');
-      const tempEl = document.getElementById('temp');
+    const canvas = document.getElementById('sim-canvas');
+    const ctx = canvas.getContext('2d');
 
-      let state = 'setup';
-      let prediction = null;
-      let rho = 1.7, L = 1, A = 1, T = 1;
-      let showR = false;
-      let completed = false;
-      let scenario = 0; // 0 length, 1 area
+    // UI Elements
+    const thermFill = document.getElementById('thermometer-fill');
 
-      function calcR() {
-        // simplified: R proportional to rho * L / A * T
-        return (rho * L / A * T).toFixed(2);
+    // Question Panel
+    const qCounter = document.getElementById('q-counter');
+    const qProgress = document.getElementById('q-progress');
+    const promptText = document.getElementById('prompt-text');
+    const choicesArea = document.getElementById('choices-area');
+    const feedbackText = document.getElementById('feedback-text');
+    const btnMain = document.getElementById('btn-main');
+    const btnReset = document.getElementById('btn-reset');
+
+    // Summary demo
+    const summaryPanel = document.getElementById('summary-panel');
+    const demoCaption = document.getElementById('demo-caption');
+    const ruleList = document.getElementById('rule-list');
+    const btnDemo = document.getElementById('btn-demo');
+    const sumCanvas = document.getElementById('summary-canvas');
+    const sumCtx = sumCanvas.getContext('2d');
+
+    // Inputs
+    const matCards = document.querySelectorAll('.mat-card');
+    const sliderLen = document.getElementById('slider-len');
+    const sliderArea = document.getElementById('slider-area');
+    const sliderTemp = document.getElementById('slider-temp');
+
+    // Value Displays
+    const valLen = document.getElementById('val-len');
+    const valArea = document.getElementById('val-area');
+    const valTemp = document.getElementById('val-temp');
+    const readoutVal = document.getElementById('readout-val');
+
+    // Physics/Simulation State
+    let rho = 1.7; // 1.7 (Cu), 2.8 (Al), 10 (Ni)
+    let materialColor = 'copper';
+    let lengthVal = 1;
+    let areaVal = 1;
+    let tempVal = 1; // 1 to 5 multiplier (represents 20C to 200C conceptually)
+    let resistance = 1.7;
+
+    // Particles for visual flow (current)
+    let particles = [];
+    const NUM_PARTICLES = 150;
+
+    // The three standard responses reused by every factor question
+    const TREND_OPTIONS = [
+      { v: 'up',   t: 'Resistance increases ↑' },
+      { v: 'down', t: 'Resistance decreases ↓' },
+      { v: 'same', t: 'No change —' }
+    ];
+
+    const QUESTIONS = [
+      {
+        q: 'Increasing the LENGTH of the wire does what to its resistance?',
+        options: TREND_OPTIONS,
+        answer: 'up',
+        why: 'In <b>R = ρL/A</b>, resistance is <b>directly proportional</b> to length. Triple the length and you triple R — the electrons have to push past three times as many vibrating atoms on the way through.'
+      },
+      {
+        q: 'Increasing the CROSS-SECTIONAL AREA (a thicker wire) does what to its resistance?',
+        options: TREND_OPTIONS,
+        answer: 'down',
+        why: 'In <b>R = ρL/A</b>, resistance is <b>inversely proportional</b> to area. Double the area and you halve R — a thicker wire gives the charge more lanes to travel in at once.'
+      },
+      {
+        q: 'Raising the TEMPERATURE of a metal wire does what to its resistance?',
+        options: TREND_OPTIONS,
+        answer: 'up',
+        why: 'Heating a metal makes its atoms vibrate harder, so electrons collide with them more often. For metals, resistance <b>rises</b> as temperature rises.'
+      },
+      {
+        q: 'Switching from copper (ρ = 1.7) to nichrome (ρ = 10.0) does what to its resistance?',
+        options: TREND_OPTIONS,
+        answer: 'up',
+        why: 'Resistivity <b>ρ</b> is the material\'s own opposition to current. A bigger ρ in <b>R = ρL/A</b> means a bigger R at identical size — which is exactly why heating elements are wound from nichrome and wiring is made of copper.'
+      },
+      {
+        q: 'Which of these wires would have the LOWEST resistance?',
+        options: [
+          { v: 'thin',  t: 'A long, thin nichrome wire' },
+          { v: 'thick', t: 'A short, thick copper wire' },
+          { v: 'equal', t: 'Both would be the same' }
+        ],
+        answer: 'thick',
+        why: 'All three factors point the same way here: <b>R = ρL/A</b> is smallest with a low ρ (copper), a small L (short), and a large A (thick).'
+      }
+    ];
+
+    // Quiz State
+    let qIndex = 0;
+    let selected = null;   // value chosen for the current question
+    let answered = false;  // has the current question been locked in?
+    let score = 0;
+    let completionSent = false;
+
+    /* ---------- Summary demo: sweeps one factor at a time, on a loop ---------- */
+
+    const MATERIAL_RHO = [1.7, 2.8, 10];
+    const MATERIAL_NAMES = ['Copper', 'Aluminum', 'Nichrome'];
+    const SWEEP_MS = 3600;  // time spent dragging the factor across its range
+    const HOLD_MS = 900;    // pause on the finished curve before the next factor
+
+    function computeR(rhoV, L, A, T) {
+      return (rhoV * L / A) * (1 + (T - 1) * 0.2);
+    }
+    function matIndex(v) { return Math.min(2, Math.floor(v * 3)); }
+
+    // Every phase drives the real controls, so the wire animates alongside the graph.
+    const DEMO_PHASES = [
+      {
+        badge: 'L ↑',
+        rule: 'Longer wire → more collisions → <b>R ↑</b>',
+        caption: 'Stretching the wire — length climbs, and R climbs with it',
+        axis: 'Length L (m)',
+        color: '#059669',
+        from: 0.5, to: 3,
+        apply: v => { sliderLen.value = v.toFixed(2); },
+        rOf: v => computeR(1.7, v, 1, 1),
+        readout: v => 'L = ' + v.toFixed(1) + ' m'
+      },
+      {
+        badge: 'A ↑',
+        rule: 'Thicker wire → more room to flow → <b>R ↓</b>',
+        caption: 'Fattening the wire — area climbs, and R drops away',
+        axis: 'Cross-area A (mm²)',
+        color: '#2563eb',
+        from: 0.5, to: 3,
+        apply: v => { sliderArea.value = v.toFixed(2); },
+        rOf: v => computeR(1.7, 1, v, 1),
+        readout: v => 'A = ' + v.toFixed(1) + ' mm²'
+      },
+      {
+        badge: 'T ↑',
+        rule: 'Hotter wire → atoms vibrate harder → <b>R ↑</b>',
+        caption: 'Heating the wire — atoms jostle harder, and R creeps up',
+        axis: 'Temperature (°C)',
+        color: '#dc2626',
+        from: 1, to: 5,
+        apply: v => { sliderTemp.value = v.toFixed(2); },
+        xOf: v => 20 + (v - 1) * 45,
+        rOf: v => computeR(1.7, 1, 1, v),
+        readout: v => 'T = ' + Math.round(20 + (v - 1) * 45) + ' °C'
+      },
+      {
+        badge: 'ρ ↑',
+        rule: 'Higher-ρ material (copper → nichrome) → <b>R ↑</b>',
+        caption: 'Swapping the metal — resistivity ρ rises, and R rises in step',
+        axis: 'Resistivity ρ',
+        color: '#7c3aed',
+        from: 0, to: 1,
+        discrete: true,
+        apply: v => selectMaterial(matIndex(v)),
+        xOf: v => MATERIAL_RHO[matIndex(v)],
+        rOf: v => computeR(MATERIAL_RHO[matIndex(v)], 1, 1, 1),
+        readout: v => MATERIAL_NAMES[matIndex(v)] + '   ρ = ' + MATERIAL_RHO[matIndex(v)]
+      }
+    ];
+
+    let demo = null; // { index, phaseStart, playing, trace, lastU, xMax, yMax, readout }
+
+    function selectMaterial(i) {
+      matCards.forEach(c => c.classList.remove('active'));
+      matCards[i].classList.add('active');
+      rho = parseFloat(matCards[i].dataset.mat);
+      materialColor = matCards[i].dataset.color;
+    }
+
+    // Park every control at its reference setting so only the swept factor varies.
+    function resetBaseline() {
+      sliderLen.value = 1;
+      sliderArea.value = 1;
+      sliderTemp.value = 1;
+      selectMaterial(0);
+    }
+
+    function buildRuleList() {
+      ruleList.innerHTML = '';
+      DEMO_PHASES.forEach(ph => {
+        const row = document.createElement('div');
+        row.className = 'rule-row';
+        row.innerHTML = `
+          <span class="rule-badge" style="background:${ph.color}">${ph.badge}</span>
+          <span class="rule-text">${ph.rule}</span>`;
+        ruleList.appendChild(row);
+      });
+    }
+
+    function startPhase(i, now) {
+      const ph = DEMO_PHASES[i];
+      demo.index = i;
+      demo.phaseStart = now;
+      demo.trace = [];
+      demo.lastU = -1;
+
+      // Axis bounds from the whole sweep, both anchored at zero so proportionality shows.
+      let xMax = 0, yMax = 0;
+      for (let k = 0; k <= 40; k++) {
+        const u = k / 40;
+        const v = ph.from + (ph.to - ph.from) * u;
+        xMax = Math.max(xMax, ph.xOf ? ph.xOf(v) : v);
+        yMax = Math.max(yMax, ph.rOf(v));
+      }
+      demo.xMax = xMax * 1.08;
+      demo.yMax = yMax * 1.15;
+
+      demoCaption.textContent = `Showing ${i + 1} of ${DEMO_PHASES.length} — ${ph.caption}`;
+      [...ruleList.children].forEach((row, k) => row.classList.toggle('active', k === i));
+    }
+
+    function applyPhase(u) {
+      const ph = DEMO_PHASES[demo.index];
+      const v = ph.from + (ph.to - ph.from) * u;
+
+      resetBaseline();
+      ph.apply(v);
+      updatePhysics();
+
+      demo.readout = ph.readout(v);
+      if (u > demo.lastU) {
+        demo.trace.push({ x: ph.xOf ? ph.xOf(v) : v, y: resistance });
+        demo.lastU = u;
+      }
+    }
+
+    function stepDemo(now) {
+      if (!demo || !demo.playing) return;
+      const elapsed = now - demo.phaseStart;
+      applyPhase(Math.min(1, elapsed / SWEEP_MS));
+      if (elapsed >= SWEEP_MS + HOLD_MS) {
+        startPhase((demo.index + 1) % DEMO_PHASES.length, now);
+      }
+    }
+
+    // The demo sweeps continuously, so it needs a finer step than the one students drag with.
+    function setSliderStep(step) {
+      sliderLen.step = step;
+      sliderArea.step = step;
+      sliderTemp.step = step;
+    }
+
+    function pauseDemo() {
+      if (!demo || !demo.playing) return;
+      demo.playing = false;
+      setSliderStep('0.1');
+      btnDemo.textContent = 'Play demo';
+    }
+
+    function playDemo() {
+      if (!demo) return;
+      demo.playing = true;
+      setSliderStep('0.01');
+      btnDemo.textContent = 'Pause demo';
+      startPhase(demo.index, performance.now());
+    }
+
+    function sizeSummaryCanvas() {
+      const rect = sumCanvas.getBoundingClientRect();
+      sumCanvas.width = rect.width;
+      sumCanvas.height = rect.height;
+    }
+
+    function drawSummaryGraph() {
+      const W = sumCanvas.width, H = sumCanvas.height;
+      if (!W || !H) return;
+      const ph = DEMO_PHASES[demo.index];
+      const g = sumCtx;
+
+      g.fillStyle = '#ffffff';
+      g.fillRect(0, 0, W, H);
+
+      const x0 = 52, x1 = W - 16, y0 = H - 32, y1 = 34;
+      const sx = v => x0 + (v / demo.xMax) * (x1 - x0);
+      const sy = v => y0 - (v / demo.yMax) * (y0 - y1);
+
+      // Gridlines
+      g.strokeStyle = '#e2e8f0';
+      g.lineWidth = 1;
+      for (let k = 1; k <= 4; k++) {
+        const yy = y0 - (k / 4) * (y0 - y1);
+        g.beginPath(); g.moveTo(x0, yy); g.lineTo(x1, yy); g.stroke();
       }
 
-      function draw() {
-        const W = canvas.width, H = canvas.height;
-        ctx.clearRect(0, 0, W, H);
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(0, 0, W, H);
+      // Axes
+      g.strokeStyle = '#94a3b8';
+      g.lineWidth = 1.5;
+      g.beginPath(); g.moveTo(x0, y1); g.lineTo(x0, y0); g.lineTo(x1, y0); g.stroke();
 
-        // wire visual
-        const wireLen = 120 + L * 80;
-        const wireThick = 8 + A * 10;
-        const x0 = (W - wireLen) / 2;
-        const y0 = H / 2;
+      // Axis labels
+      g.fillStyle = '#64748b';
+      g.font = '11px Inter, sans-serif';
+      g.textAlign = 'center';
+      g.fillText(ph.axis, (x0 + x1) / 2, H - 8);
+      g.save();
+      g.translate(14, (y0 + y1) / 2);
+      g.rotate(-Math.PI / 2);
+      g.fillText('Resistance R (Ω)', 0, 0);
+      g.restore();
+      g.textAlign = 'right';
+      g.fillText(demo.yMax.toFixed(1), x0 - 6, y1 + 4);
+      g.fillText('0', x0 - 6, y0 + 4);
+      g.fillText(demo.xMax.toFixed(demo.xMax < 10 ? 1 : 0), x1, y0 + 14);
+      g.textAlign = 'left';
+      g.fillText('0', x0, y0 + 14);
 
-        // color by material
-        const colors = { '1.7': '#f97316', '2.8': '#a3a3a3', '10': '#a855f7' };
-        ctx.fillStyle = colors[String(rho)] || '#f97316';
+      // The trace drawn so far
+      if (ph.discrete) {
+        const seen = [];
+        demo.trace.forEach(p => {
+          if (seen.indexOf(p.x) !== -1) return;
+          seen.push(p.x);
+          g.strokeStyle = ph.color;
+          g.globalAlpha = 0.25;
+          g.lineWidth = 10;
+          g.beginPath(); g.moveTo(sx(p.x), y0); g.lineTo(sx(p.x), sy(p.y)); g.stroke();
+          g.globalAlpha = 1;
+          g.fillStyle = ph.color;
+          g.beginPath(); g.arc(sx(p.x), sy(p.y), 4, 0, Math.PI * 2); g.fill();
+        });
+      } else if (demo.trace.length > 1) {
+        g.strokeStyle = ph.color;
+        g.lineWidth = 2.5;
+        g.beginPath();
+        demo.trace.forEach((p, i) => {
+          const X = sx(p.x), Y = sy(p.y);
+          if (i) g.lineTo(X, Y); else g.moveTo(X, Y);
+        });
+        g.stroke();
+      }
+
+      // Marker on the live value
+      const last = demo.trace[demo.trace.length - 1];
+      if (last) {
+        g.fillStyle = ph.color;
+        g.beginPath(); g.arc(sx(last.x), sy(last.y), 5, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = '#ffffff';
+        g.lineWidth = 2;
+        g.stroke();
+      }
+
+      // Live value readouts
+      g.font = 'bold 12px Inter, sans-serif';
+      g.textAlign = 'left';
+      g.fillStyle = ph.color;
+      g.fillText(demo.readout || '', x0, 18);
+      g.textAlign = 'right';
+      g.fillStyle = '#b45309';
+      g.fillText('R = ' + resistance.toFixed(2) + ' Ω', x1, 18);
+
+      if (!demo.playing) {
+        g.fillStyle = 'rgba(15, 23, 42, 0.78)';
+        g.fillRect(x0 + 12, (y0 + y1) / 2 - 15, x1 - x0 - 24, 30);
+        g.fillStyle = '#ffffff';
+        g.font = 'bold 12px Inter, sans-serif';
+        g.textAlign = 'center';
+        g.fillText('Paused — the controls are yours', (x0 + x1) / 2, (y0 + y1) / 2 + 4);
+      }
+    }
+
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      initParticles();
+      if (demo) sizeSummaryCanvas();
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    function initParticles() {
+      particles = [];
+      for(let i=0; i<NUM_PARTICLES; i++) {
+        particles.push({
+          progress: Math.random(), // 0 to 1 along the wire
+          yOffset: (Math.random() - 0.5), // -0.5 to 0.5 relative to thickness
+          speedMultiplier: 0.8 + Math.random() * 0.4
+        });
+      }
+    }
+
+    function updatePhysics() {
+      lengthVal = parseFloat(sliderLen.value);
+      areaVal = parseFloat(sliderArea.value);
+      tempVal = parseFloat(sliderTemp.value);
+
+      // Calculate R: (Rho * L / A) * TempFactor
+      // The temp slider goes 1 to 5. We'll use a small alpha to increase resistance.
+      const tempFactor = 1 + ((tempVal - 1) * 0.2);
+      resistance = (rho * lengthVal / areaVal) * tempFactor;
+
+      // Update UI Text
+      valLen.textContent = lengthVal.toFixed(1) + ' m';
+      valArea.textContent = areaVal.toFixed(1) + ' mm²';
+      valTemp.textContent = Math.round(20 + (tempVal-1)*45) + ' °C'; // Fake temp scale mapping
+      readoutVal.textContent = 'R = ' + resistance.toFixed(2) + ' Ω';
+
+      // Update Thermometer Graphic
+      const tempPct = ((tempVal - 1) / 4) * 100;
+      thermFill.style.height = `max(10px, ${tempPct * 0.95}%)`;
+    }
+
+    function draw(now) {
+      stepDemo(now || performance.now());
+
+      const W = canvas.width;
+      const H = canvas.height;
+
+      // Clear with light grid background
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 0, W, H);
+
+      // Draw grid
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 1;
+      const gridSize = 40;
+      for(let x = 0; x < W; x += gridSize) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+      for(let y = 0; y < H; y += gridSize) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+      // Calculate wire dimensions on screen
+      const maxWireW = W * 0.45; // Max visual width, reduced to fit UI
+      const maxWireH = H * 0.25; // Max visual thickness
+
+      // Map logical values to visual pixels
+      const visW = (maxWireW * 0.3) + (maxWireW * 0.7 * (lengthVal / 3)); // map 0.5-3 to pixels
+      const visH = (maxWireH * 0.2) + (maxWireH * 0.8 * (areaVal / 3)); // map 0.5-3 to pixels
+
+      const cx = W / 2;
+      const cy = H / 2 - 20; // Shift up slightly to leave room for length dimension
+      const leftX = cx - visW / 2;
+      const rightX = cx + visW / 2;
+      const topY = cy - visH / 2;
+
+      // Colors based on material
+      let colorStops = [];
+      if(materialColor === 'copper') {
+        colorStops = ['#7c2d12', '#ea580c', '#fdba74', '#ea580c', '#7c2d12'];
+      } else if (materialColor === 'aluminum') {
+        colorStops = ['#475569', '#94a3b8', '#e2e8f0', '#94a3b8', '#475569'];
+      } else { // nichrome
+        colorStops = ['#312e81', '#4f46e5', '#a5b4fc', '#4f46e5', '#312e81'];
+      }
+
+      // Draw Heat Glow (if temperature is high)
+      if (tempVal > 1) {
+        ctx.shadowBlur = (tempVal - 1) * 20;
+        ctx.shadowColor = 'rgba(220, 38, 38, 0.85)'; // Red glow
+      } else {
+        ctx.shadowBlur = 0;
+      }
+
+      // 3D Cylinder Body
+      const gradient = ctx.createLinearGradient(0, topY, 0, topY + visH);
+      colorStops.forEach((color, i) => gradient.addColorStop(i / (colorStops.length - 1), color));
+
+      const capRX = Math.max(5, visH * 0.18); // horizontal radius of the end ellipses
+
+      // Far End Cap (drawn behind the body so only its outer curve shows)
+      ctx.fillStyle = colorStops[0]; // Darker shade
+      ctx.beginPath();
+      ctx.ellipse(leftX, cy, capRX, visH / 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = gradient;
+      ctx.fillRect(leftX, topY, visW, visH);
+      ctx.shadowBlur = 0; // reset shadow for ends
+
+      // Near End Cap (cross-sectional face)
+      ctx.fillStyle = colorStops[2]; // Lighter shade
+      ctx.beginPath();
+      ctx.ellipse(rightX, cy, capRX, visH / 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Highlight Right End Cap (Cross-sectional Area)
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#2563eb'; // Blue tint to match Area label
+      ctx.stroke();
+
+      // Area / Radius callout on Right
+      ctx.beginPath();
+      ctx.moveTo(rightX, cy);
+      ctx.lineTo(rightX, cy - visH/2);
+      ctx.strokeStyle = '#2563eb';
+      ctx.stroke();
+
+      // Center dot
+      ctx.beginPath();
+      ctx.arc(rightX, cy, 3, 0, Math.PI*2);
+      ctx.fillStyle = '#2563eb';
+      ctx.fill();
+
+      // Radius Text
+      ctx.fillStyle = '#2563eb';
+      ctx.font = "bold 14px Inter, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText("r", rightX + 8, cy - visH/4);
+
+      // Area Text
+      ctx.font = "12px Inter, sans-serif";
+      ctx.fillText("Area = πr²", rightX + 8, cy - visH/2 - 5);
+
+      // Length Dimension Line on Bottom
+      const lineY = cy + visH/2 + 35;
+      ctx.strokeStyle = '#059669'; // Emerald tint to match Length label
+      ctx.fillStyle = '#059669';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(leftX, lineY);
+      ctx.lineTo(rightX, lineY);
+      ctx.stroke();
+
+      // Left arrow for length
+      ctx.beginPath();
+      ctx.moveTo(leftX + 8, lineY - 5);
+      ctx.lineTo(leftX, lineY);
+      ctx.lineTo(leftX + 8, lineY + 5);
+      ctx.fill();
+
+      // Right arrow for length
+      ctx.beginPath();
+      ctx.moveTo(rightX - 8, lineY - 5);
+      ctx.lineTo(rightX, lineY);
+      ctx.lineTo(rightX - 8, lineY + 5);
+      ctx.fill();
+
+      // Draw Particles (Current Flow)
+      // Speed is inversely proportional to resistance.
+      const baseSpeed = 0.01;
+      const speed = baseSpeed / Math.max(0.5, resistance * 0.3);
+
+      // Determine how many particles to draw based on Area (thicker = more particles visible)
+      const visibleParticles = Math.floor(NUM_PARTICLES * (areaVal / 3));
+
+      // Pale core + dark rim so electrons stay legible on every material colour
+      ctx.lineWidth = 1;
+      for(let i=0; i<visibleParticles; i++) {
+        let p = particles[i];
+        p.progress += speed * p.speedMultiplier;
+        if(p.progress > 1) p.progress = 0; // Wrap around
+
+        const px = leftX + p.progress * visW;
+        // Keep particles inside the ellipse curve visually
+        const py = cy + (p.yOffset * visH * 0.8);
+
+        // Add tiny tail for motion blur effect
+        const pSize = Math.max(1, 3 - (tempVal * 0.3)); // smaller at high temp = restricted flow
+        ctx.fillStyle = 'rgba(30, 58, 138, 0.3)';
         ctx.beginPath();
-        ctx.roundRect(x0, y0 - wireThick / 2, wireLen, wireThick, 4);
+        ctx.arc(px - pSize*2, py, pSize*0.8, 0, Math.PI*2);
         ctx.fill();
 
-        // ends
-        ctx.fillStyle = '#64748b';
-        ctx.fillRect(x0 - 20, y0 - 16, 20, 32);
-        ctx.fillRect(x0 + wireLen, y0 - 16, 20, 32);
+        ctx.fillStyle = '#dbeafe';
+        ctx.strokeStyle = '#1e3a8a';
+        ctx.beginPath();
+        ctx.arc(px, py, pSize, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
 
-        // labels
-        ctx.fillStyle = '#e2e8f0';
-        ctx.font = '13px system-ui';
-        ctx.textAlign = 'center';
-        ctx.fillText('L = ' + L + ' m', W / 2, y0 - wireThick / 2 - 16);
-        ctx.fillText('A ≈ ' + A + ' mm²', W / 2, y0 + wireThick / 2 + 22);
+      if (demo) drawSummaryGraph();
 
-        if (showR) {
-          ctx.fillStyle = '#fbbf24';
-          ctx.font = 'bold 18px system-ui';
-          ctx.fillText('R = ρL / A ≈ ' + calcR() + ' Ω', W / 2, H - 24);
+      requestAnimationFrame(draw);
+    }
+
+    function renderProgress() {
+      qProgress.innerHTML = '';
+      QUESTIONS.forEach((_, i) => {
+        const dot = document.createElement('span');
+        let tone = 'bg-slate-200 border-slate-300'; // not reached yet
+        if (i < qIndex) tone = 'bg-blue-500 border-blue-500';
+        else if (i === qIndex && qIndex < QUESTIONS.length) tone = 'bg-white border-blue-500';
+        dot.className = `w-3 h-3 rounded-full border-2 ${tone}`;
+        qProgress.appendChild(dot);
+      });
+    }
+
+    function renderQuestion() {
+      const item = QUESTIONS[qIndex];
+
+      qCounter.textContent = `Question ${qIndex + 1} of ${QUESTIONS.length}`;
+      promptText.textContent = item.q;
+
+      demo = null;
+      setSliderStep('0.1');
+      summaryPanel.classList.add('hidden');
+      btnDemo.classList.add('hidden');
+
+      choicesArea.classList.remove('hidden');
+      choicesArea.innerHTML = '';
+      item.options.forEach(o => {
+        const b = document.createElement('button');
+        b.className = 'choice-btn px-4 py-3 rounded-xl font-medium text-center';
+        b.textContent = o.t;
+        if (answered) {
+          b.disabled = true;
+          if (o.v === item.answer) b.classList.add('is-correct');
+          else if (o.v === selected) b.classList.add('is-wrong');
+          else b.classList.add('is-dim');
+        } else {
+          b.onclick = () => {
+            selected = o.v;
+            answered = true;
+            if (selected === item.answer) score++;
+            renderUI();
+          };
         }
-
-        // formula reminder
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = '12px system-ui';
-        ctx.textAlign = 'left';
-        ctx.fillText('R = ρ L / A   (higher T → higher R for metals)', 20, 28);
-      }
-
-      function updateReadout() {
-        if (showR) readoutEl.textContent = 'R ≈ ' + calcR() + ' Ω';
-        else readoutEl.textContent = 'R = ? Ω';
-      }
-
-      function render() {
-        choicesEl.classList.add('hidden');
-        controlsEl.classList.add('hidden');
-        mainBtn.classList.remove('hidden');
-        feedbackEl.textContent = '';
-        showR = false;
-
-        if (state === 'setup') {
-          promptEl.textContent = 'Resistance depends on material, length, area, and temperature.';
-          mainBtn.textContent = 'Start';
-          rho = 1.7; L = 1; A = 1; T = 1;
-          matEl.value = '1.7'; lenEl.value = 1; areaEl.value = 1; tempEl.value = 1;
-          draw();
-        } else if (state === 'predict') {
-          // first predict about length
-          promptEl.textContent = 'If you make the wire longer (same material & thickness), what happens to R?';
-          choicesEl.classList.remove('hidden');
-          choicesEl.innerHTML = '';
-          const opts = [
-            { v: 'up', t: 'Resistance rises' },
-            { v: 'down', t: 'Resistance falls' },
-            { v: 'same', t: 'No change' }
-          ];
-          for (let i = opts.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [opts[i], opts[j]] = [opts[j], opts[i]];
-          }
-          opts.forEach(o => {
-            const b = document.createElement('button');
-            b.dataset.choice = o.v;
-            b.textContent = o.t;
-            b.addEventListener('click', () => choose(o.v));
-            choicesEl.appendChild(b);
-          });
-          mainBtn.classList.add('hidden');
-          draw();
-        } else if (state === 'adjust') {
-          promptEl.textContent = 'Change each factor. Watch R.';
-          controlsEl.classList.remove('hidden');
-          showR = true;
-          updateReadout();
-          mainBtn.textContent = 'Finish';
-          draw();
-        } else if (state === 'explain') {
-          feedbackEl.textContent = 'Longer or thinner wire, higher resistivity, or higher temperature all raise R. Wider wire lowers R.';
-          mainBtn.textContent = 'Replay';
-          showR = true;
-          updateReadout();
-          draw();
-          if (!completed) {
-            completed = true;
-            try { window.parent.postMessage({ type: 'complete' }, '*'); } catch (e) {}
-          }
-        }
-      }
-
-      function choose(v) {
-        if (state !== 'predict') return;
-        prediction = v;
-        state = 'adjust';
-        render();
-      }
-
-      function onControl() {
-        rho = +matEl.value;
-        L = +lenEl.value;
-        A = +areaEl.value;
-        T = +tempEl.value;
-        updateReadout();
-        draw();
-      }
-      matEl.addEventListener('change', onControl);
-      lenEl.addEventListener('input', onControl);
-      areaEl.addEventListener('input', onControl);
-      tempEl.addEventListener('input', onControl);
-
-      mainBtn.addEventListener('click', () => {
-        if (state === 'setup') {
-          state = 'predict';
-          render();
-        } else if (state === 'adjust') {
-          state = 'explain';
-          render();
-        } else if (state === 'explain') {
-          state = 'setup';
-          prediction = null;
-          completed = false;
-          render();
-        }
+        choicesArea.appendChild(b);
       });
 
-      resetBtn.addEventListener('click', () => {
-        state = 'setup';
-        prediction = null;
-        completed = false;
-        render();
-      });
+      if (answered) {
+        const correct = selected === item.answer;
+        const label = item.options.find(o => o.v === item.answer).t;
+        feedbackText.className = 'feedback-box ' + (correct ? 'good' : 'warn');
+        feedbackText.innerHTML = `<span class="feedback-lead">${correct
+          ? 'Correct.'
+          : `Not quite — the answer is "${label}".`}</span> ` + item.why;
+        btnMain.classList.remove('hidden');
+        btnMain.textContent = qIndex === QUESTIONS.length - 1 ? 'See Summary' : 'Next Question';
+      } else {
+        feedbackText.classList.add('hidden');
+        btnMain.classList.add('hidden');
+      }
+    }
 
-      render();
-    })();
+    function renderSummary() {
+      qCounter.textContent = 'Summary';
+      promptText.textContent = `You answered ${score} of ${QUESTIONS.length} correctly.`;
+      choicesArea.classList.add('hidden');
+      choicesArea.innerHTML = '';
+      feedbackText.classList.add('hidden');
+
+      summaryPanel.classList.remove('hidden');
+      buildRuleList();
+      sizeSummaryCanvas();
+
+      demo = { index: 0, phaseStart: 0, playing: true, trace: [], lastU: -1, xMax: 1, yMax: 1, readout: '' };
+      playDemo();
+
+      btnDemo.classList.remove('hidden');
+      btnMain.classList.remove('hidden');
+      btnMain.textContent = 'Start Over';
+
+      if (!completionSent) {
+        completionSent = true;
+        try { window.parent.postMessage({ type: 'complete' }, '*'); } catch (error) {}
+      }
+    }
+
+    function renderUI() {
+      renderProgress();
+      if (qIndex < QUESTIONS.length) renderQuestion();
+      else renderSummary();
+    }
+
+    function resetAll() {
+      qIndex = 0;
+      selected = null;
+      answered = false;
+      score = 0;
+      completionSent = false;
+
+      demo = null;
+      resetBaseline();
+      updatePhysics();
+      renderUI();
+    }
+
+    // Touching any control hands the wire back to the student and stops the demo.
+    matCards.forEach((card, i) => {
+      card.addEventListener('click', () => {
+        pauseDemo();
+        selectMaterial(i);
+        updatePhysics();
+      });
+    });
+
+    [sliderLen, sliderArea, sliderTemp].forEach(slider => {
+      slider.addEventListener('input', () => {
+        pauseDemo();
+        updatePhysics();
+      });
+    });
+
+    btnDemo.addEventListener('click', () => {
+      if (demo && demo.playing) pauseDemo(); else playDemo();
+    });
+
+    btnMain.addEventListener('click', () => {
+      if (qIndex < QUESTIONS.length) {
+        qIndex++;
+        selected = null;
+        answered = false;
+        renderUI();
+      } else {
+        resetAll();
+      }
+    });
+
+    btnReset.addEventListener('click', resetAll);
+
+    // Boot up — the playground is live from the first question onward
+    resizeCanvas();
+    updatePhysics();
+    renderUI();
+    requestAnimationFrame(draw);
+
   </script>
 </body>
 </html>
