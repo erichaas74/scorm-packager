@@ -33,6 +33,9 @@ button[disabled]{opacity:.55;cursor:not-allowed}
 .rph-card{padding:16px;border-top:1px solid var(--line);background:#fff}
 .rph-prompt{margin:0 0 12px;font-weight:700;font-size:1.05rem}
 .rph-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.rph-choices.pics button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 8px}
+.rph-choices.pics .pic-wave{width:100%;max-width:250px}
+.rph-choices.pics .pic-cap{font-size:1rem;font-weight:700;color:var(--blue-dark)}
 .rph-feedback{min-height:24px;margin:12px 0 0;padding:10px 12px;border-radius:10px;background:#f5f7fa;color:var(--ink)}
 .rph-controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
 .rph-progress{font-size:.9rem;color:var(--muted);font-weight:700}
@@ -47,7 +50,11 @@ button[disabled]{opacity:.55;cursor:not-allowed}
 .dpi-ctl input{grid-column:1/3;width:100%;margin:0;accent-color:var(--blue)}
 .dpi-ctl.off{opacity:.38}
 .dpi-ctl.off input{cursor:not-allowed}
-.dpi-foot{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:0 16px 14px}
+.dpi-foot{padding:0 16px 14px}
+.dpi-viz{border:1px solid var(--line);border-radius:14px;background:#fbfdff;padding:6px 10px;margin-bottom:10px}
+.dpi-actionrow{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.dpi-play{display:flex;flex-wrap:wrap;gap:10px}
+.dpi-play button.done{border-color:var(--good);color:var(--good);background:#f1f9f4}
 .dpi-note{font-size:.92rem;font-weight:700;color:var(--muted);min-height:22px}
 .dpi-note.ok{color:var(--good)}
 .dpi-note.no{color:var(--warn)}
@@ -71,6 +78,32 @@ svg{width:100%;height:auto;display:block}
 .dpi-needle.ok{stroke:#17643b}
 .dpi-big{font:700 26px Arial;fill:#17436f}
 .dpi-sub{font:700 14px Arial;fill:#5c6678}
+.dpi-grab{cursor:ew-resize;touch-action:none}
+.dpi-grab.off{cursor:default}
+.dpi-grab.off #capoGrip{opacity:.2}
+.dpi-grab.drag #capoGrip{opacity:.35}
+/* decoration must never steal the pointer from the capo */
+#sDim,#sMarks,#sWave,#sEnvA,#sEnvB,#sInfo{pointer-events:none}
+.dpi-dim{stroke:#c2410c;stroke-width:2}
+.dpi-dimtxt{font:700 12px Arial;fill:#c2410c}
+.dpi-eq{font:700 13px Arial;fill:#17436f}
+.dpi-eq2{font:700 12px Arial;fill:#5c6678}
+
+/* foot diagram */
+.vz-ref{fill:none;stroke:#8fa2ba;stroke-width:3;stroke-dasharray:7 6}
+.vz-ins{fill:none;stroke:#17436f;stroke-width:4.5;stroke-linecap:round}
+.vz-band{fill:#dbeafe;opacity:.75}
+.vz-hw{fill:#5f6b7d}
+.vz-brk{stroke:#5c6678;stroke-width:2}
+.vz-brko{stroke:#c2410c;stroke-width:2}
+.vz-num{font:700 15px Arial;fill:#17436f}
+.vz-numo{font:700 15px Arial;fill:#c2410c}
+.vz-sym{font:700 17px Arial;fill:#5c6678}
+.vz-frac{font:700 46px Arial;fill:#17436f}
+.vz-q{font:700 36px Arial;fill:#c2410c}
+.vz-arrow{stroke:#17643b;stroke-width:7;stroke-linecap:round}
+.vz-head{fill:#17643b}
+.vz-big{font:700 24px Arial;fill:#17436f}
 
 @media(max-width:700px){
   .rph-choices{grid-template-columns:1fr}
@@ -141,11 +174,28 @@ svg{width:100%;height:auto;display:block}
         <path id="sEnvB" class="dpi-env"/>
         <path id="sWave" class="dpi-wave"/>
         <g id="sMarks"></g>
-        <g id="sCapo">
-          <rect x="0" y="102" width="12" height="60" rx="5" fill="#2f3a48"/>
+        <!-- draggable capo: the wide invisible rect is the grab target -->
+        <g id="sCapo" class="dpi-grab">
+          <rect id="capoHit" x="-30" y="44" width="72" height="176" fill="transparent"/>
+          <g id="capoGrip">
+            <path d="M-18 84 l11 -7 v14 z" fill="#2f3a48"/>
+            <path d="M30 84 l-11 -7 v14 z" fill="#2f3a48"/>
+            <line x1="-5" y1="84" x2="17" y2="84" stroke="#2f3a48" stroke-width="2.5"/>
+          </g>
+          <rect x="0" y="98" width="12" height="68" rx="5" fill="#2f3a48"/>
           <circle cx="6" cy="132" r="7" fill="#7d8b9c"/>
+          <line x1="3" y1="110" x2="9" y2="110" stroke="#7d8b9c" stroke-width="2"/>
+          <line x1="3" y1="154" x2="9" y2="154" stroke="#7d8b9c" stroke-width="2"/>
         </g>
-        <text id="sInfo" class="dpi-chip" x="24" y="36">string</text>
+        <!-- wavelength dimension under the vibrating span -->
+        <g id="sDim">
+          <rect id="sDimBg" x="0" y="168" width="0" height="30" rx="7" fill="#ffffff" opacity=".9"/>
+          <line id="sDimBar" class="dpi-dim" x1="0" y1="186" x2="0" y2="186"/>
+          <line id="sDimT1" class="dpi-dim" x1="0" y1="178" x2="0" y2="194"/>
+          <line id="sDimT2" class="dpi-dim" x1="0" y1="178" x2="0" y2="194"/>
+          <text id="sDimTxt" class="dpi-dimtxt" x="0" y="182" text-anchor="middle">&#955;/2</text>
+        </g>
+        <text id="sInfo" class="dpi-eq" x="24" y="30">string</text>
       </g>
 
       <!-- ================= PIPE SCENE ================= -->
@@ -166,6 +216,9 @@ svg{width:100%;height:auto;display:block}
         <text id="pInfo" class="dpi-chip" x="24" y="36">air column</text>
         <text id="pTemp" class="dpi-chip" x="876" y="36" text-anchor="end">20 °C · 343 m/s</text>
       </g>
+
+      <!-- ============ THREE-STRING COMPARISON ============ -->
+      <g id="sceneTrio"></g>
 
       <!-- ================= TUNER ================= -->
       <g id="tuner" transform="translate(0,214)">
@@ -202,8 +255,23 @@ svg{width:100%;height:auto;display:block}
 </div>
 
 <div class="dpi-foot">
-  <button id="nofitBtn" class="rph-hidden" type="button">No mode fits</button>
-  <p class="dpi-note" id="note"></p>
+  <div class="dpi-viz">
+    <svg viewBox="0 0 900 240" role="img" aria-labelledby="vizT vizD">
+      <title id="vizT">Wave fit diagram</title>
+      <desc id="vizD">One full wavelength drawn above the resonator, to the same scale, so the fraction that fits inside can be read off directly.</desc>
+      <g id="vizBody"></g>
+    </svg>
+  </div>
+  <div class="dpi-actionrow">
+    <button id="nofitBtn" class="rph-hidden" type="button">No mode fits</button>
+    <div class="dpi-play rph-hidden" id="trioPlay">
+      <button type="button" data-i="0">&#9654; String 1</button>
+      <button type="button" data-i="1">&#9654; String 2</button>
+      <button type="button" data-i="2">&#9654; String 3</button>
+      <button id="contBtn" type="button" disabled>Continue</button>
+    </div>
+    <p class="dpi-note" id="note"></p>
+  </div>
 </div>
 
 <section class="rph-card rph-hidden" id="card" aria-live="polite">
@@ -225,65 +293,237 @@ const NS = "http://www.w3.org/2000/svg";
 const $  = s => document.querySelector(s);
 
 const CH = [
- {title:"Tune the string to A3", mode:"string", target:220, note:"A3", tol:15,
-  init:{L:0.80,T:60,n:1,temp:20}, enable:["L","T"],
+ {title:"Fret the string to middle C", mode:"string", target:261.63, note:"C4", tol:20,
+  init:{L:0.80,T:60,n:1,temp:20}, enable:["L"],
+  pre:[
+   {q:"Both ends of this string are clamped — the capo at one end, the bridge at the other. Each end must be",
+    c:["a node","an antinode","either one, depending on pitch"], a:0,
+    f:"A clamped end cannot move at all, so the standing wave is forced to have zero displacement there: both ends are nodes."},
+   {q:"For the 1st harmonic (fundamental), how much of a wavelength fits between those two ends?",
+    c:["one half wavelength","one full wavelength","one quarter wavelength"], a:0,
+    f:"Node → antinode → node is half a wavelength. So L = λ/2, λ = 2L, and f₁ = v / 2L."},
+   {q:"The wave runs along this string at 245 m/s. Which wavelength sounds middle C, 261.6 Hz?",
+    c:["λ 0.47 m","λ 0.94 m","λ 1.88 m"], lam:[0.47, 0.94, 1.88], a:1,
+    f:"λ = v/f = 245 / 261.6 = 0.94 m. The string holds half of that, so the capo belongs at about 0.47 m."}
+  ],
   q:"Which change alone raises the pitch?",
   c:["Shorten the string","Loosen the string","Use a heavier string"], a:0,
-  f:"Shorter length raises the fundamental. Loosening or adding mass lowers it."},
+  f:"Shorter length shortens λ. With v fixed, f = v/λ rises. Loosening or adding mass lowers v instead, which lowers the pitch."},
 
- {title:"Same string → A4", mode:"string", target:440, note:"A4", tol:30,
+ {title:"Same string → C5", mode:"string", target:523.25, note:"C5", tol:30,
   init:null, enable:["n"],
+  pre:[
+   {q:"The ends are still clamped and you may not change length or tension. To reach a note one octave higher you must",
+    c:["fit two half-wavelengths on the same string","make the string twice as long","halve the tension"], a:0,
+    f:"Same string, same ends — the only thing left to change is which mode is driven. The 2nd harmonic fits two half-loops."},
+   {q:"In that 2nd harmonic, how much of a wavelength fits on the string?",
+    c:["one full wavelength","one half wavelength","two full wavelengths"], a:0,
+    f:"Two half-loops make one full wavelength, so λ = L, half the λ of the fundamental. With v unchanged, f₂ = v/L = 2f₁ — exactly an octave up."}
+  ],
   q:"At this note the middle of the string is",
   c:["a node","an antinode","the loudest point"], a:0,
   f:"The second harmonic puts a node at the midpoint, so two half-loops fit the same string."},
 
+ {title:"Three strings, one wavelength", mode:"compare", tol:0,
+  init:null, enable:[], pre:[],
+  q:"All three strings are the same length and vibrating in their 1st harmonic, so all three carry the same wavelength, λ = 1.60 m. Why do they sound at different pitches?",
+  c:["Each string carries the wave at a different speed, and f = v / λ",
+     "Each string is vibrating in a different harmonic",
+     "The thicker strings vibrate with a longer wavelength"], a:0,
+  f:"λ is set by the length and the harmonic, and those are identical here. What differs is the wave speed v = √(T/μ): 400, 283 and 200 m/s. Since f = v/λ, the heavier the string the slower its wave and the lower its pitch.",
+  post:[
+   {q:"String 3 carries four times the mass per metre of String 1 at the same tension. Its wave speed is",
+    c:["half as fast","one quarter as fast","four times as fast"], a:0,
+    f:"v = √(T/μ), so quadrupling μ halves v — 400 m/s drops to 200 m/s, and the pitch falls by exactly one octave."},
+   {q:"To raise String 3 to String 1's pitch without changing its length, you would",
+    c:["tighten it until its wave speed reaches 400 m/s","stretch it to twice the length","drive it at a different wavelength"], a:0,
+    f:"Length and harmonic pin λ at 1.60 m, so the only way to raise f is to raise v. Doubling v needs four times the tension: 320 N instead of 80 N."}
+  ]},
+
  {title:"Open pipe → E4", mode:"pipe", closed:false, target:330, note:"E4", tol:15,
   init:{L:0.90,T:60,n:1,temp:20}, enable:["L","n"],
+  pre:[
+   {q:"Both ends of this pipe are open. At each open end the air is free to move, so each end is",
+    c:["a displacement antinode","a displacement node","an antinode at one end and a node at the other"], a:0,
+    f:"Free air at an open end swings back and forth with maximum displacement — both ends are antinodes."},
+   {q:"For the fundamental of an open pipe, the length of the tube holds",
+    c:["one half wavelength","one quarter wavelength","one full wavelength"], a:0,
+    f:"Antinode → node → antinode is half a wavelength. L = λ/2, so f₁ = v / 2L."}
+  ],
   q:"With both ends open, the ends are",
   c:["antinodes","nodes","one of each"], a:0,
   f:"Air at an open end is free to move, so each open end is a displacement antinode."},
 
  {title:"Stopped pipe → A3", mode:"pipe", closed:true, target:220, note:"A3", tol:15,
   init:{L:0.90,T:60,n:1,temp:20}, enable:["L","n"],
+  pre:[
+   {q:"This pipe is capped at one end and open at the other. The two ends are",
+    c:["a node at the cap and an antinode at the opening","antinodes at both ends","nodes at both ends"], a:0,
+    f:"Air cannot move through the cap (node), but it moves freely at the open end (antinode)."},
+   {q:"For the fundamental of a stopped pipe, the length of the tube holds",
+    c:["one quarter wavelength","one half wavelength","three quarters of a wavelength"], a:0,
+    f:"A node to the nearest antinode is a quarter wavelength. L = λ/4, so f₁ = v / 4L — an octave below an open pipe of the same length."}
+  ],
   q:"The closed end is",
   c:["a node","an antinode","unaffected"], a:0,
   f:"Air cannot move through the cap, so the closed end is forced to be a displacement node."},
 
  {title:"Same stopped pipe → A4", mode:"pipe", closed:true, target:440, note:"A4", tol:15,
   init:null, enable:["n"], impossible:true,
+  pre:[
+   {q:"The pipe is unchanged: node at the cap, antinode at the opening. Which fits are allowed?",
+    c:["L = λ/4, 3λ/4, 5λ/4 …","L = λ/4, 2λ/4, 3λ/4 …","L = λ/2, λ, 3λ/2 …"], a:0,
+    f:"Every extra fit must add one more half-loop while keeping the node/antinode ends, so only odd quarter-wavelengths work."},
+   {q:"If this pipe's fundamental is A3 at 220 Hz, its very next available mode sounds at about",
+    c:["660 Hz (3f₁)","440 Hz (2f₁)","330 Hz (1.5f₁)"], a:0,
+    f:"Only odd multiples exist, so the pipe jumps straight from 220 Hz to 660 Hz — 440 Hz is skipped."}
+  ],
   q:"A stopped pipe can sound only",
   c:["odd harmonics","even harmonics","every harmonic"], a:0,
   f:"A node at one end and an antinode at the other allows only odd multiples of the fundamental."},
 
  {title:"Room warms to 35 °C", mode:"pipe", closed:false, target:330, note:"E4", tol:15,
   init:{L:0.52,T:60,n:1,temp:35}, enable:["L"],
+  pre:[
+   {q:"The room warmed up, but both ends are still open. The endpoint pattern",
+    c:["is unchanged — antinodes at both ends","flips to nodes at both ends","depends on the air temperature"], a:0,
+    f:"Boundary conditions come from the geometry, not the temperature. Open ends stay antinodes and L = λ/2 still holds."},
+   {q:"Warm air raises the speed of sound. Since f = v / 2L, holding the pitch at E4 now requires",
+    c:["a longer pipe","a shorter pipe","the same length as before"], a:0,
+    f:"A larger v with the same L would push f sharp, so L must grow to bring the frequency back down to 330 Hz."}
+  ],
   q:"The pitch drifted sharp because",
   c:["sound travels faster in warm air","the pipe grew longer","warm air needs less energy"], a:0,
   f:"Warm air raises the wave speed. With length fixed the frequency rises, so the pipe must be lengthened."}
 ];
 
-const RANGE = {string:{min:0.30,max:1.00}, pipe:{min:0.20,max:1.20}};
+const TOTALQ = CH.reduce((s, c) => s + c.pre.length + 1 + (c.post ? c.post.length : 0), 0);
+
+const RANGE = {
+  string:{min:0.30,max:1.00,step:0.002},
+  pipe:{min:0.20,max:1.20,step:0.01},
+  compare:{min:0.30,max:1.00,step:0.01}
+};
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const P = {L:0.80, T:60, n:1, temp:20};
-let idx = 0, phase = "tune", correct = 0, sent = false, raf = null;
+let idx = 0, preIdx = 0, phase = "pre", correct = 0, sent = false, raf = null;
+let qList = [], qPos = 0;
 
 const el = {
   title:$("#chTitle"), progress:$("#progress"), note:$("#note"), status:$("#status"),
   card:$("#card"), prompt:$("#prompt"), choices:$("#choices"), feedback:$("#feedback"),
   next:$("#nextBtn"), nofit:$("#nofitBtn"),
   sL:$("#sL"), sT:$("#sT"), sN:$("#sN"), oL:$("#oL"), oT:$("#oT"), oN:$("#oN"),
-  ctlL:$("#ctlL"), ctlT:$("#ctlT"), ctlN:$("#ctlN"),
-  gString:$("#sceneString"), gPipe:$("#scenePipe")
+  ctlL:$("#ctlL"), ctlT:$("#ctlT"), ctlN:$("#ctlN"), rail:$(".dpi-rail"),
+  gString:$("#sceneString"), gPipe:$("#scenePipe"), gTrio:$("#sceneTrio"),
+  tuner:$("#tuner"), trioPlay:$("#trioPlay"), cont:$("#contBtn")
 };
+
+/* ---------------- three-string comparison ---------------- */
+
+const TRIO_L = 0.80;                       // every string the same length
+const TRIO = [                             // mu in g/m, T in N
+  {label:"String 1", mu:0.5, T:80, w:2.2},
+  {label:"String 2", mu:1.0, T:80, w:3.4},
+  {label:"String 3", mu:2.0, T:80, w:4.8}
+];
+const TRIO_Y = [88, 178, 268];
+const TRIO_X0 = 268, TRIO_W = 466;
+const trioV = s => Math.sqrt(s.T / (s.mu / 1000));
+const trioF = s => trioV(s) / (2 * TRIO_L);
+let trioWaves = [], trioBuilt = false, trioHeard = new Set();
+
+function svgEl(tag, attrs){
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+function buildTrio(){
+  const g = el.gTrio;
+  g.innerHTML = "";
+  trioWaves = [];
+
+  const cap = svgEl("text", {x:450, y:28, class:"dpi-chip", "text-anchor":"middle"});
+  cap.textContent = "0.80 m  ·  n 1  ·  λ 1.60 m  —  the same on all three";
+  g.appendChild(cap);
+
+  TRIO.forEach((s, i) => {
+    const y = TRIO_Y[i], x1 = TRIO_X0 + TRIO_W, v = trioV(s), f = trioF(s);
+
+    g.appendChild(svgEl("line", {x1:TRIO_X0, y1:y, x2:x1, y2:y, stroke:"#9aa6b4", "stroke-width":s.w}));
+    // fixed ends
+    [TRIO_X0, x1].forEach(x => {
+      g.appendChild(svgEl("rect", {x:x-5, y:y-18, width:10, height:36, rx:3, fill:"#2f3a48"}));
+      g.appendChild(circle(x, y, 4.5, "dpi-node"));
+      g.appendChild(label(x, y + 30, "N"));
+    });
+    g.appendChild(circle((TRIO_X0 + x1)/2, y - 30, 6, "dpi-anti"));
+    g.appendChild(label((TRIO_X0 + x1)/2, y - 44, "A"));
+
+    // the identical envelope: one half-wavelength, same on all three
+    const env = (k) => {
+      let d = "";
+      for (let t = 0; t <= 64; t++){
+        const xn = t/64;
+        d += (t ? "L" : "M") + (TRIO_X0 + TRIO_W*xn).toFixed(1) + " " +
+             (y - 30 * Math.sin(Math.PI*xn) * k).toFixed(1);
+      }
+      return d;
+    };
+    g.appendChild(svgEl("path", {d:env(1),  class:"dpi-env"}));
+    g.appendChild(svgEl("path", {d:env(-1), class:"dpi-env"}));
+    const wave = svgEl("path", {class:"dpi-wave", style:"stroke-width:" + (s.w + 1) + "px"});
+    g.appendChild(wave);
+    trioWaves.push({wave, env, f});
+
+    const name = svgEl("text", {x:20, y:y - 12, class:"dpi-eq"});
+    name.textContent = s.label;
+    const props = svgEl("text", {x:20, y:y + 8, class:"dpi-eq2"});
+    props.textContent = s.mu.toFixed(1) + " g/m  ·  " + s.T + " N";
+    // thickness of the swatch stands in for the mass per metre
+    const swatch = svgEl("rect", {x:20, y:y + 18, width:120, height:s.w * 2.6, rx:2, fill:"#9aa6b4"});
+    [name, props, swatch].forEach(t => g.appendChild(t));
+
+    const hz = svgEl("text", {x:880, y:y + 6, class:"dpi-big", "text-anchor":"end"});
+    hz.textContent = f.toFixed(1) + " Hz";
+    g.appendChild(hz);
+  });
+  trioBuilt = true;
+}
+
+/* ---------------- audio ---------------- */
+
+let actx = null;
+function tone(freq, ms){
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return false;
+    actx = actx || new AC();
+    if (actx.state === "suspended") actx.resume();
+    const t = actx.currentTime, dur = ms/1000;
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = "triangle";
+    o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(actx.destination);
+    o.start(t); o.stop(t + dur + 0.05);
+    return true;
+  } catch (e){ return false; }
+}
 
 /* ---------------- physics ---------------- */
 
 const soundSpeed = () => 331 + 0.6 * P.temp;
+const waveSpeed  = () => Math.sqrt(P.T / MU);   // on the string
 
 function frequency(){
   const ch = CH[idx];
-  if (ch.mode === "string") return P.n / (2*P.L) * Math.sqrt(P.T / MU);
+  if (ch.mode === "compare") return null;
+  if (ch.mode === "string") return P.n / (2*P.L) * waveSpeed();
   const v = soundSpeed();
   if (ch.closed) return (P.n % 2 === 0) ? null : P.n * v / (4*P.L);
   return P.n * v / (2*P.L);
@@ -379,18 +619,50 @@ function buildParticles(count){
 
 let particlePool = [], particleCount = 0;
 
+// the standing-wave pattern stays hidden while the student predicts it
+const REVEALS = ["#sEnvA","#sEnvB","#sWave","#sMarks","#sDim",
+                 "#pEnvA","#pEnvB","#pWave","#pMarks","#pParticles"];
+function setRevealed(on){
+  REVEALS.forEach(s => $(s).classList.toggle("rph-hidden", !on));
+}
+
+function drawStringDim(g){
+  // one loop is half a wavelength; show a full λ once two loops exist
+  const loop = g.span / P.n, full = P.n >= 2;
+  const w = full ? loop * 2 : loop;
+  const x0 = g.x0, x1 = x0 + w;
+  const lam = 2 * P.L / P.n;
+  $("#sDimBg").setAttribute("x", x0 - 6);
+  $("#sDimBg").setAttribute("width", w + 12);
+  $("#sDimBar").setAttribute("x1", x0); $("#sDimBar").setAttribute("x2", x1);
+  $("#sDimT1").setAttribute("x1", x0);  $("#sDimT1").setAttribute("x2", x0);
+  $("#sDimT2").setAttribute("x1", x1);  $("#sDimT2").setAttribute("x2", x1);
+  $("#sDimTxt").setAttribute("x", (x0 + x1) / 2);
+  $("#sDimTxt").textContent = (full ? "λ = " + lam.toFixed(2) : "λ/2 = " + (lam/2).toFixed(2)) + " m";
+}
+
 function layout(){
-  const ch = CH[idx], isString = ch.mode === "string";
+  const ch = CH[idx], isString = ch.mode === "string", isTrio = ch.mode === "compare";
   el.gString.classList.toggle("rph-hidden", !isString);
-  el.gPipe.classList.toggle("rph-hidden", isString);
+  el.gPipe.classList.toggle("rph-hidden", isString || isTrio);
+  el.gTrio.classList.toggle("rph-hidden", !isTrio);
+  el.tuner.classList.toggle("rph-hidden", isTrio);
+
+  if (isTrio){
+    if (!trioBuilt) buildTrio();
+    renderViz();
+    return;
+  }
 
   if (isString){
     const g = stringGeom();
     $("#sCapo").setAttribute("transform", "translate(" + (g.x0 - 6) + ",0)");
     const deg = (P.T - 20) / 180 * 300;
     $("#pegSpin").setAttribute("transform", "rotate(" + deg.toFixed(1) + " 44 132)");
-    $("#sInfo").textContent = P.L.toFixed(2) + " m  ·  " + P.T + " N  ·  n = " + P.n;
+    $("#sInfo").textContent = P.L.toFixed(3) + " m   ·   " + P.T + " N   ·   " +
+                              (MU*1000).toFixed(1) + " g/m   ·   n " + P.n;
     drawMarks($("#sMarks"), g.x0, g.span, AMP);
+    drawStringDim(g);
     $("#sEnvA").setAttribute("d", curve(g.x0, g.span, AMP,  1));
     $("#sEnvB").setAttribute("d", curve(g.x0, g.span, AMP, -1));
   } else {
@@ -399,10 +671,10 @@ function layout(){
     $("#pipeBore").setAttribute("width", Math.max(g.len - 12, 4));
     $("#pipeCap").setAttribute("x", x1 - 2);
     $("#pipeCap").classList.toggle("rph-hidden", !ch.closed);
-    $("#pInfo").textContent = P.L.toFixed(2) + " m  ·  " + (ch.closed ? "stopped" : "open") + "  ·  n = " + P.n;
-    $("#pTemp").textContent = P.temp + " °C  ·  " + Math.round(soundSpeed()) + " m/s";
+    $("#pInfo").textContent = P.L.toFixed(2) + " m   ·   n " + P.n;
+    $("#pTemp").textContent = P.temp + " °C   ·   " + Math.round(soundSpeed()) + " m/s";
 
-    const bad = !fits();
+    const bad = !fits() && !predicting();
     $("#capBad").classList.toggle("rph-hidden", !bad);
     if (bad){
       $("#badA").setAttribute("x1", x1-14); $("#badA").setAttribute("y1", YC-22);
@@ -417,13 +689,20 @@ function layout(){
     const want = Math.max(6, Math.min(44, Math.floor((g.len - 16) / 13)));
     if (want !== particleCount){ particleCount = want; particlePool = buildParticles(want); }
   }
+  renderViz();
 }
 
 function animate(now){
   const ch = CH[idx];
   const k = REDUCED ? 1 : Math.cos(now / 1000 * 2 * Math.PI * 1.25);
 
-  if (ch.mode === "string"){
+  if (ch.mode === "compare"){
+    // identical shape on all three; only the rate differs, scaled 100:1 to stay visible
+    trioWaves.forEach(t => {
+      const kk = REDUCED ? 1 : Math.cos(now / 1000 * 2 * Math.PI * (t.f / 100));
+      t.wave.setAttribute("d", t.env(kk));
+    });
+  } else if (ch.mode === "string"){
     const g = stringGeom();
     $("#sWave").setAttribute("d", curve(g.x0, g.span, AMP, k));
   } else {
@@ -435,6 +714,141 @@ function animate(now){
     });
   }
   raf = requestAnimationFrame(animate);
+}
+
+/* ---------------- foot diagram ----------------
+   Row 1 is one full wavelength. Row 2 is the resonator, drawn to the same
+   scale, so the fraction that fits is something you read off the picture. */
+
+const VZ = {x0:150, max:620, yRef:50, yIns:148, yBrkRef:88, yBrkIns:186, yV:216, amp:24};
+
+function vzTxt(g, x, y, cls, txt, anchor){
+  const t = svgEl("text", {x:x, y:y, class:cls});
+  if (anchor) t.setAttribute("text-anchor", anchor);
+  t.textContent = txt;
+  g.appendChild(t);
+  return t;
+}
+
+function vzCurve(x0, w, y, amp, fn){
+  let d = "";
+  for (let s = 0; s <= 96; s++){
+    const t = s/96;
+    d += (s ? "L" : "M") + (x0 + w*t).toFixed(1) + " " + (y - amp*fn(t)).toFixed(1);
+  }
+  return d;
+}
+
+function vzBracket(g, x1, x2, y, txt, cls, tcls){
+  g.appendChild(svgEl("line", {x1:x1, y1:y, x2:x2, y2:y, class:cls}));
+  g.appendChild(svgEl("line", {x1:x1, y1:y-7, x2:x1, y2:y+7, class:cls}));
+  g.appendChild(svgEl("line", {x1:x2, y1:y-7, x2:x2, y2:y+7, class:cls}));
+  vzTxt(g, (x1+x2)/2, y-9, tcls, txt, "middle");
+}
+
+// a fixed end (node) vs a free end (antinode), drawn not named
+function vzEnd(g, x, y, isNode){
+  if (isNode){
+    g.appendChild(svgEl("rect", {x:x-4, y:y-24, width:8, height:48, rx:2, class:"vz-hw"}));
+    g.appendChild(circle(x, y, 5.5, "dpi-node"));
+  } else {
+    g.appendChild(circle(x, y, 8, "dpi-anti"));
+    g.appendChild(svgEl("line", {x1:x, y1:y-26, x2:x, y2:y+26, stroke:"#c2410c", "stroke-width":2}));
+    g.appendChild(svgEl("path", {d:"M"+x+" "+(y-32)+"l-6 9h12z", fill:"#c2410c"}));
+    g.appendChild(svgEl("path", {d:"M"+x+" "+(y+32)+"l-6 -9h12z", fill:"#c2410c"}));
+  }
+}
+
+function vzArrow(g, x0, y, len, txt){
+  const x1 = x0 + Math.max(len, 8);
+  g.appendChild(svgEl("line", {x1:x0, y1:y, x2:x1-8, y2:y, class:"vz-arrow"}));
+  g.appendChild(svgEl("path", {d:"M"+(x1+8)+" "+y+"l-16 -10v20z", class:"vz-head"}));
+  if (txt) vzTxt(g, x1 + 18, y + 6, "vz-num", txt);
+}
+
+const FRAC = {0:"", 0.25:"¼", 0.5:"½", 0.75:"¾"};
+function fracGlyph(f){
+  const whole = Math.floor(f + 1e-9), rem = Math.round((f - whole) * 4) / 4;
+  return (whole ? whole : "") + (FRAC[rem] || "") || "0";
+}
+
+// while predicting: the bare resonator with the answers left as question marks
+function vizAsk(g){
+  const ch = CH[idx], x0 = VZ.x0, x1 = x0 + VZ.max, y = VZ.yIns;
+  if (ch.mode === "string"){
+    g.appendChild(svgEl("line", {x1:x0, y1:y, x2:x1, y2:y, stroke:"#9aa6b4", "stroke-width":3}));
+    [x0, x1].forEach(x => g.appendChild(svgEl("rect", {x:x-5, y:y-24, width:10, height:48, rx:2, class:"vz-hw"})));
+  } else {
+    [-26, 26].forEach(dy =>
+      g.appendChild(svgEl("line", {x1:x0, y1:y+dy, x2:x1, y2:y+dy, stroke:"#8d9db1", "stroke-width":4})));
+    if (ch.closed) g.appendChild(svgEl("rect", {x:x1-4, y:y-30, width:10, height:60, rx:2, class:"vz-hw"}));
+  }
+  vzTxt(g, x0, y - 48, "vz-q", "?", "middle");
+  vzTxt(g, x1, y - 48, "vz-q", "?", "middle");
+  vzBracket(g, x0, x1, VZ.yBrkIns, "?", "vz-brko", "vz-q");
+}
+
+function vizFit(g){
+  const ch = CH[idx], n = P.n;
+  const frac = (ch.mode === "string" || !ch.closed) ? n/2 : n/4;   // lengths per wavelength
+  const W  = VZ.max / Math.max(1, frac);      // pixels for one whole wavelength
+  const IW = W * frac;                        // pixels for the resonator
+  const x0 = VZ.x0;
+  const lam = (ch.mode === "pipe" && ch.closed) ? 4*P.L/n : 2*P.L/n;
+  const v = ch.mode === "string" ? waveSpeed() : soundSpeed();
+
+  // the shared span, shaded across both rows
+  g.appendChild(svgEl("rect", {x:x0, y:18, width:Math.min(W, IW), height:178, class:"vz-band"}));
+
+  // row 1 — one full wavelength
+  g.appendChild(svgEl("path", {class:"vz-ref", d:vzCurve(x0, W, VZ.yRef, VZ.amp, t => Math.sin(2*Math.PI*t))}));
+  vzBracket(g, x0, x0 + W, VZ.yBrkRef, "λ  " + lam.toFixed(2) + " m", "vz-brk", "vz-num");
+
+  // row 2 — the resonator, same scale
+  g.appendChild(svgEl("path", {class:"vz-ins", d:vzCurve(x0, IW, VZ.yIns, VZ.amp, shape)}));
+  g.appendChild(svgEl("path", {class:"vz-ins", style:"opacity:.28",
+                               d:vzCurve(x0, IW, VZ.yIns, VZ.amp, t => -shape(t))}));
+  vzEnd(g, x0,      VZ.yIns, Math.abs(shape(0)) < 0.02);
+  vzEnd(g, x0 + IW, VZ.yIns, Math.abs(shape(1)) < 0.02);
+  vzBracket(g, x0, x0 + IW, VZ.yBrkIns, "L  " + P.L.toFixed(2) + " m", "vz-brko", "vz-numo");
+
+  // a mode that violates its own boundary lands the wrong end on the cap
+  if (!fits()){
+    const xe = x0 + IW, ye = VZ.yIns;
+    g.appendChild(svgEl("line", {x1:xe-17, y1:ye-17, x2:xe+17, y2:ye+17, class:"dpi-bad"}));
+    g.appendChild(svgEl("line", {x1:xe+17, y1:ye-17, x2:xe-17, y2:ye+17, class:"dpi-bad"}));
+  }
+
+  // how many wavelengths that came to
+  vzTxt(g, 78, 130, "vz-frac", fracGlyph(frac) + "λ", "middle");
+
+  // wave speed as a length, not a formula
+  vzTxt(g, 128, VZ.yV + 6, "vz-sym", "v", "end");
+  vzArrow(g, x0, VZ.yV, VZ.max * Math.min(1, v/500), Math.round(v) + " m/s");
+}
+
+function vizTrio(g){
+  const ys = [58, 128, 198], vmax = 400;
+  vzTxt(g, 170, 26, "vz-sym", "λ", "middle");
+  vzTxt(g, 500, 26, "vz-sym", "v", "middle");
+  vzTxt(g, 840, 26, "vz-sym", "f", "middle");
+  TRIO.forEach((s, i) => {
+    const y = ys[i], v = trioV(s), f = trioF(s);
+    // identical wavelength on every row
+    g.appendChild(svgEl("path", {class:"vz-ins", style:"stroke-width:" + (s.w + 1) + "px",
+                                 d:vzCurve(40, 260, y, 22, t => Math.sin(2*Math.PI*t))}));
+    vzBracket(g, 40, 300, y + 34, "1.60 m", "vz-brk", "vz-num");
+    vzArrow(g, 360, y, 280 * (v/vmax), Math.round(v) + " m/s");
+    vzTxt(g, 880, y + 8, "vz-big", f.toFixed(1) + " Hz", "end");
+  });
+}
+
+function renderViz(){
+  const g = $("#vizBody");
+  g.innerHTML = "";
+  if (CH[idx].mode === "compare") vizTrio(g);
+  else if (predicting()) vizAsk(g);
+  else vizFit(g);
 }
 
 /* ---------------- tuner ---------------- */
@@ -466,7 +880,9 @@ function buildTuner(){
 }
 
 function renderTuner(){
-  const ch = CH[idx], f = frequency(), c = centsOff(f);
+  const ch = CH[idx];
+  if (ch.mode === "compare") return;
+  const f = frequency(), c = centsOff(f);
   const zone = ch.tol / 50 * 70;
   $("#tZone").setAttribute("d", arc(-zone, zone, 92));
   $("#tTarget").textContent = ch.note;
@@ -492,12 +908,14 @@ function renderTuner(){
 
 /* ---------------- controls ---------------- */
 
+const predicting = () => phase === "pre" || phase === "preAnswered";
+
 function syncControls(){
   const ch = CH[idx], on = ch.enable, locked = phase !== "tune";
   const r = RANGE[ch.mode];
-  el.sL.min = r.min; el.sL.max = r.max;
+  el.sL.min = r.min; el.sL.max = r.max; el.sL.step = r.step;
   el.sL.value = P.L; el.sT.value = P.T; el.sN.value = P.n;
-  el.oL.textContent = P.L.toFixed(2) + " m";
+  el.oL.textContent = (ch.mode === "string" ? P.L.toFixed(3) : P.L.toFixed(2)) + " m";
   el.oT.textContent = P.T + " N";
   el.oN.textContent = P.n;
 
@@ -508,57 +926,141 @@ function syncControls(){
     box.classList.toggle("off", !live);
   });
   el.ctlT.classList.toggle("rph-hidden", ch.mode !== "string");
+  el.rail.classList.toggle("rph-hidden", ch.mode === "compare");
   el.nofit.classList.toggle("rph-hidden", !(ch.mode === "pipe" && phase === "tune"));
+  el.trioPlay.classList.toggle("rph-hidden", !(ch.mode === "compare" && phase === "tune"));
+  capo.classList.toggle("off", !capoLive());
 }
 
 function check(){
-  if (phase !== "tune") return;
+  if (phase !== "tune" || CH[idx].mode === "compare") return;
   const ch = CH[idx], f = frequency(), c = centsOff(f);
   if (!ch.impossible && f != null && Math.abs(c) <= ch.tol) lockIn("Matched.");
 }
 
 function lockIn(msg){
   phase = "ask";
+  const ch = CH[idx];
+  qList = [ch].concat(ch.post || []);
+  qPos = 0;
   el.note.textContent = msg;
   el.note.className = "dpi-note ok";
-  el.status.textContent = msg + " " + CH[idx].q;
+  el.status.textContent = msg + " " + ch.q;
   syncControls();
-  askQuestion();
+  showQ(qList[0]);
 }
 
-function askQuestion(){
-  const ch = CH[idx];
+// the question being displayed: a prediction question, or one from the post-build queue
+const currentQ = () => predicting() ? CH[idx].pre[preIdx] : qList[qPos];
+
+// a choice drawn to scale: the whole wavelength dashed, the half the string holds solid
+function waveCard(lam){
+  const S = 130, W = lam * S, half = W / 2, y = 40, A = 20, x = 8;
+  let full = "", loop = "";
+  for (let s = 0; s <= 72; s++){
+    const t = s/72;
+    full += (s ? "L" : "M") + (x + W*t).toFixed(1) + " " + (y - A*Math.sin(2*Math.PI*t)).toFixed(1);
+  }
+  for (let s = 0; s <= 48; s++){
+    const t = s/48;
+    loop += (s ? "L" : "M") + (x + half*t).toFixed(1) + " " + (y - A*Math.sin(Math.PI*t)).toFixed(1);
+  }
+  const xe = x + half;
+  return '<svg viewBox="0 0 264 84" class="pic-wave" aria-hidden="true">' +
+    '<path class="vz-ref" d="' + full + '"/>' +
+    '<path class="vz-ins" d="' + loop + '"/>' +
+    '<rect class="vz-hw" x="' + (x-4) + '" y="22" width="8" height="36" rx="2"/>' +
+    '<rect class="vz-hw" x="' + (xe-4) + '" y="22" width="8" height="36" rx="2"/>' +
+    '<line class="vz-brko" x1="' + x + '" y1="70" x2="' + xe + '" y2="70"/>' +
+    '<line class="vz-brko" x1="' + x + '" y1="64" x2="' + x + '" y2="76"/>' +
+    '<line class="vz-brko" x1="' + xe + '" y1="64" x2="' + xe + '" y2="76"/>' +
+  '</svg>';
+}
+
+function showQ(q){
   el.card.classList.remove("rph-hidden");
-  el.prompt.textContent = ch.q;
+  el.prompt.textContent = q.q;
   el.feedback.classList.add("rph-hidden");
   el.next.classList.add("rph-hidden");
   el.choices.innerHTML = "";
-  ch.c.map((text, i2) => ({text, i2, r: Math.random()}))
+  el.choices.classList.toggle("pics", !!q.lam);
+  q.c.map((text, i2) => ({text, i2, r: Math.random()}))
       .sort((x, y) => x.r - y.r)
       .forEach(o => {
         const b = document.createElement("button");
-        b.type = "button"; b.textContent = o.text;
+        b.type = "button";
+        if (q.lam){
+          b.innerHTML = waveCard(q.lam[o.i2]);
+          const cap = document.createElement("span");
+          cap.className = "pic-cap";
+          cap.textContent = o.text;
+          b.appendChild(cap);
+        } else {
+          b.textContent = o.text;
+        }
         b.onclick = () => answer(o.i2);
         el.choices.appendChild(b);
       });
 }
 
-function answer(pick){
-  if (phase !== "ask") return;
-  phase = "answered";
+function askPre(){
   const ch = CH[idx];
-  if (pick === ch.a) correct++;
+  if (!ch.pre.length){ startTune(); return; }
+  phase = "pre";
+  el.note.textContent = "Predict first: " + (preIdx + 1) + " of " + ch.pre.length +
+                        " — the controls unlock once the boundary conditions are settled.";
+  el.note.className = "dpi-note";
+  el.status.textContent = ch.pre[preIdx].q;
+  syncControls();
+  showQ(ch.pre[preIdx]);
+}
+
+function startTune(){
+  phase = "tune";
+  const ch = CH[idx];
+  el.card.classList.add("rph-hidden");
+  if (ch.mode === "compare"){
+    trioHeard = new Set();
+    el.cont.disabled = true;
+    el.trioPlay.querySelectorAll("button[data-i]").forEach(b => b.classList.remove("done"));
+    el.note.textContent = "Play all three strings and listen to the pitches, then continue.";
+  } else {
+    const names = {L:"length", T:"tension", N:"harmonic"};
+    const which = ch.enable.map(k => names[k.toUpperCase()]).join(" and ");
+    const grab = (ch.mode === "string" && ch.enable.includes("L"))
+      ? " Slide the capo along the neck, or use the length slider."
+      : "";
+    el.note.textContent = "Now build it — adjust " + which + " until the tuner reads " + ch.note +
+                          (ch.enable.includes("n") ? "." : " on the 1st harmonic.") + grab;
+  }
+  el.note.className = "dpi-note";
+  el.status.textContent = el.note.textContent;
+  setRevealed(true);
+  syncControls();
+  layout();
+  renderTuner();
+}
+
+function answer(pick){
+  if (phase !== "pre" && phase !== "ask") return;
+  const q = currentQ();
+  const wasPre = phase === "pre";
+  phase = wasPre ? "preAnswered" : "answered";
+  if (pick === q.a) correct++;
   el.choices.querySelectorAll("button").forEach(b => b.disabled = true);
-  el.feedback.textContent = ch.f;
+  el.feedback.textContent = q.f;
   el.feedback.classList.remove("rph-hidden");
-  el.status.textContent = ch.f;
-  el.next.textContent = (idx === CH.length - 1) ? "Finish" : "Next";
+  el.status.textContent = q.f;
+  el.next.textContent = wasPre
+    ? (preIdx < CH[idx].pre.length - 1 ? "Next" : (CH[idx].mode === "compare" ? "Listen" : "Build it"))
+    : (qPos < qList.length - 1 ? "Next" : (idx === CH.length - 1 ? "Finish" : "Next"));
   el.next.classList.remove("rph-hidden");
 }
 
 function load(i2){
   idx = i2;
-  phase = "tune";
+  preIdx = 0;
+  phase = "pre";
   const ch = CH[idx];
   if (ch.init) Object.assign(P, ch.init);
   const r = RANGE[ch.mode];
@@ -567,19 +1069,20 @@ function load(i2){
 
   el.title.textContent = ch.title;
   el.progress.textContent = (idx + 1) + " / " + CH.length;
-  el.card.classList.add("rph-hidden");
   el.note.textContent = "";
   el.note.className = "dpi-note";
   particleCount = 0;
+  setRevealed(false);
   syncControls();
   layout();
   renderTuner();
+  askPre();
 }
 
 function finish(){
   phase = "done";
   el.card.classList.remove("rph-hidden");
-  el.prompt.textContent = "Complete · " + correct + " / " + CH.length + " correct";
+  el.prompt.textContent = "Complete · " + correct + " / " + TOTALQ + " correct";
   el.choices.innerHTML = "";
   el.feedback.classList.add("rph-hidden");
   el.next.classList.add("rph-hidden");
@@ -603,6 +1106,55 @@ function onInput(){
 
 [el.sL, el.sT, el.sN].forEach(s => s.addEventListener("input", onInput));
 
+/* ---------------- drag the capo ---------------- */
+
+const svgRoot = $(".rph-scene svg");
+const capo = $("#sCapo");
+let dragging = false, grabDx = 0;
+
+const svgX = clientX => {
+  const r = svgRoot.getBoundingClientRect();
+  return (clientX - r.left) * (900 / r.width);
+};
+const capoLive = () =>
+  CH[idx].mode === "string" && phase === "tune" && CH[idx].enable.includes("L");
+
+function moveCapo(clientX){
+  if (!capoLive()) return;
+  const r = RANGE.string;
+  let L = (BRIDGE - (svgX(clientX) - grabDx)) / 640;
+  L = Math.max(r.min, Math.min(r.max, L));
+  L = Math.round((r.min + Math.round((L - r.min) / r.step) * r.step) * 1000) / 1000;
+  if (L === P.L) return;
+  P.L = L;
+  el.sL.value = L;
+  el.note.textContent = "";
+  el.note.className = "dpi-note";
+  syncControls();
+  layout();
+  renderTuner();
+  check();
+}
+
+function endDrag(e){
+  if (!dragging) return;
+  dragging = false;
+  capo.classList.remove("drag");
+  try { capo.releasePointerCapture(e.pointerId); } catch (err) {}
+}
+
+capo.addEventListener("pointerdown", e => {
+  if (!capoLive()) return;
+  e.preventDefault();
+  dragging = true;
+  capo.classList.add("drag");
+  grabDx = svgX(e.clientX) - (BRIDGE - 640 * P.L);   // grab anywhere in the box, no jump
+  try { capo.setPointerCapture(e.pointerId); } catch (err) {}
+});
+capo.addEventListener("pointermove", e => { if (dragging) moveCapo(e.clientX); });
+capo.addEventListener("pointerup", endDrag);
+capo.addEventListener("pointercancel", endDrag);
+
 el.nofit.onclick = () => {
   if (phase !== "tune") return;
   if (CH[idx].impossible){
@@ -615,8 +1167,35 @@ el.nofit.onclick = () => {
 };
 
 el.next.onclick = () => {
+  if (phase === "preAnswered"){
+    if (preIdx < CH[idx].pre.length - 1){ preIdx++; askPre(); }
+    else startTune();
+    return;
+  }
+  if (qPos < qList.length - 1){          // more follow-up questions on this challenge
+    qPos++;
+    phase = "ask";
+    showQ(qList[qPos]);
+    return;
+  }
   if (idx === CH.length - 1) finish();
   else load(idx + 1);
+};
+
+el.trioPlay.querySelectorAll("button[data-i]").forEach(b => {
+  b.onclick = () => {
+    const i2 = parseInt(b.dataset.i, 10), s = TRIO[i2], f = trioF(s);
+    tone(f, 1400);
+    b.classList.add("done");
+    trioHeard.add(i2);
+    el.status.textContent = s.label + " sounds at " + f.toFixed(1) + " hertz.";
+    if (trioHeard.size === TRIO.length) el.cont.disabled = false;
+  };
+});
+
+el.cont.onclick = () => {
+  if (phase === "tune" && CH[idx].mode === "compare")
+    lockIn("Same wavelength on all three — but three different pitches.");
 };
 
 $("#resetBtn").onclick = () => { correct = 0; sent = false; load(0); };

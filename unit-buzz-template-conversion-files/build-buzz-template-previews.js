@@ -3,31 +3,31 @@ const path = require('path');
 
 const lessons = [
   {
-    dir: 'unit-1/lesson-2',
+    dir: 'unit-ApplicationFiles/unit-1/lesson-2',
     template: 'u1l2-city-blocks-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
     output: 'u1l2-city-blocks-buzz-assessment-template-preview.html'
   },
   {
-    dir: 'unit-1/lesson-3',
+    dir: 'unit-ApplicationFiles/unit-1/lesson-3',
     template: 'u1l3-galileo-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
     output: 'u1l3-galileo-buzz-assessment-template-preview.html'
   },
   {
-    dir: 'unit-1/lesson-4',
+    dir: 'unit-ApplicationFiles/unit-1/lesson-4',
     template: 'u1l4-reaction-time-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
     output: 'u1l4-reaction-time-buzz-assessment-template-preview.html'
   },
   {
-    dir: 'unit-1/lesson-5',
+    dir: 'unit-ApplicationFiles/unit-1/lesson-5',
     template: 'u1l5-skydiver-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
     output: 'u1l5-skydiver-buzz-assessment-template-preview.html'
   },
   {
-    dir: 'unit-1/lesson-honors',
+    dir: 'unit-ApplicationFiles/unit-1/lesson-honors',
     template: 'u1h-rocket-launch-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
     output: 'u1h-rocket-launch-buzz-assessment-template-preview.html'
@@ -115,6 +115,18 @@ const lessons = [
     template: 'u4l3-loop-sim-lab-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
     output: 'u4l3-loop-sim-lab-buzz-assessment-template-preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-6',
+    template: 'dynamic_electric_field_lab.html',
+    questions: 'dynamic_electric_field_buzz_questions.txt',
+    output: 'dynamic_electric_field_lab_preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-6',
+    template: 'electromagnet_lab.html',
+    questions: 'electromagnet_buzz_questions.txt',
+    output: 'electromagnet_lab_preview.html'
   }
 ];
 
@@ -425,7 +437,16 @@ function buildPreview(lesson) {
   };
 }
 
-const results = lessons.map(buildPreview);
+const requestedLessons = process.argv.slice(2);
+const selectedLessons = requestedLessons.length
+  ? lessons.filter((lesson) => requestedLessons.includes(lesson.dir) || requestedLessons.includes(lesson.template))
+  : lessons;
+
+if (!selectedLessons.length) {
+  throw new Error(`No preview targets matched: ${requestedLessons.join(', ')}`);
+}
+
+const results = selectedLessons.map(buildPreview);
 for (const result of results) {
   const status = result.slots === result.questions ? 'ok' : 'check';
   console.log(`${status}: ${result.output} (${result.slots} slots, ${result.questions} questions)`);

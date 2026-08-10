@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unit 6 Lesson 1 — Coulomb's Law Investigation</title>
+<style>
+:root{
+  --bg:#f4f7fb; --panel:#ffffff; --ink:#162033; --muted:#667085;
+  --line:#dbe3ef; --accent:#28609F; --soft:#eaf2fb;
+  --pos:#c84b4b; --neg:#3567b7; --good:#237a4b;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink)}
+main{max-width:1180px;margin:0 auto;padding:20px}
+h1{margin:0 0 6px;font-size:30px}
+h2{font-size:20px;margin:0 0 12px}
+h3{font-size:16px;margin:0 0 8px}
+p{line-height:1.5}
+.sub{color:var(--muted);margin:0 0 18px}
+.grid{display:grid;grid-template-columns:1.35fr .9fr;gap:16px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
+.simwrap{position:relative;background:#eef2f6;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+canvas{width:100%;height:380px;display:block}
+.controls{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+label{font-size:13px;font-weight:700;color:#344054;display:block}
+input[type=range]{width:100%}
+.readout{font-size:13px;color:var(--muted);margin-top:4px}
+.metricRow{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.metric{background:var(--soft);border-radius:12px;padding:10px}
+.metric b{display:block;font-size:18px;margin-top:3px}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+button{border:0;border-radius:10px;padding:10px 13px;font-weight:700;cursor:pointer;background:var(--accent);color:white}
+button.secondary{background:#e9eef5;color:#1f2a3d}
+button.danger{background:#8b3c3c}
+button:disabled{opacity:.45;cursor:not-allowed}
+.phase{display:inline-block;padding:5px 9px;border-radius:999px;background:var(--soft);color:var(--accent);font-size:12px;font-weight:700;margin-bottom:8px}
+.instructions{background:#fbfcfe;border-left:4px solid var(--accent);padding:10px 12px;border-radius:8px;margin-bottom:12px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:center}
+th{background:#f7f9fc}
+.tablewrap{max-height:280px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.answer{width:100%;min-height:70px;border:1px solid var(--line);border-radius:10px;padding:9px;margin-top:6px;font:inherit}
+.q{margin:12px 0}
+.hidden{display:none!important}
+.eq{font-family:Georgia,serif;font-size:23px;text-align:center;background:#f7f9fc;border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0}
+.graph{width:100%;height:250px;background:white;border:1px solid var(--line);border-radius:12px}
+.small{font-size:12px;color:var(--muted)}
+.check{color:var(--good);font-weight:700}
+@media(max-width:850px){.grid{grid-template-columns:1fr}.controls,.metricRow{grid-template-columns:1fr}canvas{height:320px}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Coulomb's Law Investigation</h1>
+  <p class="sub">Discover how electric force changes with charge and distance before using the formal equation.</p>
+
+  <div class="grid">
+    <section class="panel">
+      <span class="phase" id="phaseBadge">Investigation 1: Charge</span>
+      <div class="instructions" id="instructions">
+        Keep <b>q₂</b> and distance constant. Change <b>q₁</b>, record at least 5 trials, and look for a pattern.
+      </div>
+
+      <div class="simwrap">
+        <canvas id="sim" width="760" height="380"></canvas>
+      </div>
+
+      <div class="controls">
+        <div>
+          <label for="q1">Charge q₁</label>
+          <input id="q1" type="range" min="-8" max="8" step="1" value="2">
+          <div class="readout"><span id="q1v">+2</span> μC</div>
+        </div>
+        <div>
+          <label for="q2">Charge q₂</label>
+          <input id="q2" type="range" min="-8" max="8" step="1" value="3">
+          <div class="readout"><span id="q2v">+3</span> μC</div>
+        </div>
+        <div>
+          <label for="r">Separation distance</label>
+          <input id="r" type="range" min="0.20" max="2.00" step="0.10" value="0.80">
+          <div class="readout"><span id="rv">0.80</span> m</div>
+        </div>
+      </div>
+
+      <div class="metricRow">
+        <div class="metric">Force magnitude<b id="force">0 N</b></div>
+        <div class="metric">Interaction<b id="interaction">Repulsion</b></div>
+        <div class="metric">Direction<b id="direction">Away</b></div>
+      </div>
+
+      <div class="btnrow">
+        <button id="record">Record Trial</button>
+        <button class="secondary" id="next">Next Investigation</button>
+        <button class="secondary hidden" id="revealEq">Reveal Coulomb's Law</button>
+        <button class="danger" id="clear">Clear Data</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Student Data</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>#</th><th>q₁ μC</th><th>q₂ μC</th><th>r m</th><th>Force N</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <h3 style="margin-top:14px">Investigation 1 Graph: Force vs. Charge</h3>
+      <canvas class="graph" id="graph" width="420" height="250"></canvas>
+      <div class="small">Force vs. q₁ magnitude while q₂ and distance stay constant.</div>
+
+      <div id="distanceGraphWrap" class="hidden">
+        <h3 style="margin-top:18px">Investigation 2 Graph: Force vs. Distance</h3>
+        <canvas class="graph" id="distanceGraph" width="420" height="250"></canvas>
+        <div class="small">Equal charges: q₁ = q₂. Only separation distance changes.</div>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel" style="margin-top:16px">
+    <h2>Questions</h2>
+    <div class="q"><b>1.</b> When one charge doubles while the other variables stay constant, what happens to the electric force?
+      <textarea class="answer"></textarea></div>
+    <div class="q"><b>2.</b> When both charges double, what do you predict will happen to the force? Explain using your data.
+      <textarea class="answer"></textarea></div>
+    <div class="q"><b>3.</b> When distance doubles, what happens to the electric force?
+      <textarea class="answer"></textarea></div>
+    <div class="q"><b>4.</b> What mathematical relationship best describes force versus distance?
+      <textarea class="answer"></textarea></div>
+    <div class="q"><b>5.</b> Which variable has the stronger effect on force: charge or distance? Support your answer with data.
+      <textarea class="answer"></textarea></div>
+    <div class="q"><b>6.</b> Write a rule that predicts how electric force changes when charge or distance changes.
+      <textarea class="answer"></textarea></div>
+
+    <div id="equationArea" class="hidden">
+      <h2>Coulomb's Law Check</h2>
+      <div class="eq">F = k |q₁q₂| / r²</div>
+      <p>Now use the equation to verify one of your recorded trials. Use <b>k = 8.99 × 10⁹ N·m²/C²</b>.</p>
+      <div class="q"><b>7.</b> Show your calculation and compare it with the simulation value.
+        <textarea class="answer"></textarea></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const k=8.99e9;
+const q1=document.getElementById('q1'), q2=document.getElementById('q2'), r=document.getElementById('r');
+const q1v=document.getElementById('q1v'), q2v=document.getElementById('q2v'), rv=document.getElementById('rv');
+const forceOut=document.getElementById('force'), interaction=document.getElementById('interaction'), direction=document.getElementById('direction');
+const sim=document.getElementById('sim'), ctx=sim.getContext('2d');
+const graph=document.getElementById('graph'), gctx=graph.getContext('2d');
+const distanceGraph=document.getElementById('distanceGraph'), dgctx=distanceGraph.getContext('2d');
+const rows=document.getElementById('rows');
+const phaseBadge=document.getElementById('phaseBadge'), instructions=document.getElementById('instructions');
+let phase=1, data=[];
+
+function fmtCharge(x){return (x>0?'+':'')+x}
+function vals(){
+  const a=+q1.value,b=+q2.value,d=+r.value;
+  const F=(a===0||b===0)?0:k*Math.abs(a*1e-6*b*1e-6)/(d*d);
+  return {a,b,d,F};
+}
+function updateLock(){
+  if(phase===1){
+    q1.disabled=false; q2.disabled=true; r.disabled=true;
+  } else if(phase===2){
+    q1.disabled=false; q2.disabled=true; r.disabled=false;
+    q2.value=q1.value;
+  } else {
+    q1.disabled=false; q2.disabled=false; r.disabled=false;
+  }
+}
+function update(){
+  if(phase===2) q2.value=q1.value;
+  const v=vals();
+  q1v.textContent=fmtCharge(v.a); q2v.textContent=fmtCharge(v.b); rv.textContent=v.d.toFixed(2);
+  forceOut.textContent=v.F<0.01?v.F.toExponential(2)+' N':v.F.toFixed(2)+' N';
+  if(v.a===0||v.b===0){interaction.textContent='No force';direction.textContent='None'}
+  else if(v.a*v.b>0){interaction.textContent='Repulsion';direction.textContent='Away'}
+  else {interaction.textContent='Attraction';direction.textContent='Toward'}
+  drawSim(v); drawGraph(); drawDistanceGraph();
+}
+function chargeColor(q){return q>=0?'#c84b4b':'#3567b7'}
+function drawArrow(x1,y1,x2,y2,color){
+  const ang=Math.atan2(y2-y1,x2-x1), head=10;
+  ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=4;
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-head*Math.cos(ang-Math.PI/6),y2-head*Math.sin(ang-Math.PI/6));
+  ctx.lineTo(x2-head*Math.cos(ang+Math.PI/6),y2-head*Math.sin(ang+Math.PI/6));
+  ctx.closePath();ctx.fill();
+}
+function drawSim(v){
+  ctx.clearRect(0,0,sim.width,sim.height);
+  ctx.fillStyle='#eef2f6';ctx.fillRect(0,0,sim.width,sim.height);
+  const center=sim.width/2, scale=240;
+  const x1=center-v.d*scale/2, x2=center+v.d*scale/2, y=185;
+  ctx.strokeStyle='#aab6c5';ctx.lineWidth=2;ctx.setLineDash([6,6]);
+  ctx.beginPath();ctx.moveTo(x1,y+70);ctx.lineTo(x2,y+70);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#5b6676';ctx.font='14px Arial';ctx.textAlign='center';ctx.fillText(v.d.toFixed(2)+' m',(x1+x2)/2,y+94);
+  [[x1,v.a,'q₁'],[x2,v.b,'q₂']].forEach(([x,q,label])=>{
+    ctx.fillStyle=chargeColor(q);ctx.beginPath();ctx.arc(x,y,38,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='white';ctx.font='bold 22px Arial';ctx.fillText(q>0?'+':q<0?'−':'0',x,y+7);
+    ctx.fillStyle='#263246';ctx.font='bold 15px Arial';ctx.fillText(label+' = '+fmtCharge(q)+' μC',x,y+60);
+  });
+  if(v.F>0){
+    let len=Math.min(110,35+Math.log10(v.F+1)*18);
+    if(v.a*v.b>0){drawArrow(x1-45,y,x1-45-len,y,'#7c3f3f');drawArrow(x2+45,y,x2+45+len,y,'#7c3f3f')}
+    else {drawArrow(x1+45,y,x1+45+len,y,'#3d5f8d');drawArrow(x2-45,y,x2-45-len,y,'#3d5f8d')}
+  }
+  ctx.textAlign='left';ctx.fillStyle='#667085';ctx.font='13px Arial';
+  ctx.fillText('Arrow length represents relative force strength.',18,28);
+}
+function record(){
+  const v=vals();
+  data.push({...v,phase});
+  renderRows(); drawGraph();
+}
+function renderRows(){
+  rows.innerHTML='';
+  data.forEach((d,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${i+1}</td><td>${fmtCharge(d.a)}</td><td>${fmtCharge(d.b)}</td><td>${d.d.toFixed(2)}</td><td>${d.F.toFixed(3)}</td>`;
+    rows.appendChild(tr);
+  });
+}
+function drawGraph(){
+  gctx.clearRect(0,0,graph.width,graph.height);
+  gctx.fillStyle='#fff';gctx.fillRect(0,0,graph.width,graph.height);
+  gctx.strokeStyle='#94a3b8';gctx.lineWidth=1;
+  gctx.beginPath();gctx.moveTo(45,15);gctx.lineTo(45,215);gctx.lineTo(405,215);gctx.stroke();
+  const pts=data.filter(d=>d.phase===1);
+  if(!pts.length)return;
+  const xs=pts.map(d=>Math.abs(d.a));
+  const ys=pts.map(d=>d.F);
+  const xmax=Math.max(...xs,1), ymax=Math.max(...ys,1);
+  gctx.fillStyle='#28609F';
+  pts.forEach((d,i)=>{
+    const x=45+(xs[i]/xmax)*340, y=215-(ys[i]/ymax)*185;
+    gctx.beginPath();gctx.arc(x,y,5,0,Math.PI*2);gctx.fill();
+  });
+  gctx.fillStyle='#667085';gctx.font='12px Arial';
+  gctx.fillText('0',28,230);gctx.fillText(ymax.toFixed(1)+' N',4,20);
+  gctx.fillText('Charge |q₁| (μC)',300,242);
+  gctx.save();gctx.translate(13,145);gctx.rotate(-Math.PI/2);gctx.fillText('Force (N)',0,0);gctx.restore();
+}
+
+function drawDistanceGraph(){
+  dgctx.clearRect(0,0,distanceGraph.width,distanceGraph.height);
+  dgctx.fillStyle='#fff';dgctx.fillRect(0,0,distanceGraph.width,distanceGraph.height);
+  dgctx.strokeStyle='#94a3b8';dgctx.lineWidth=1;
+  dgctx.beginPath();dgctx.moveTo(45,15);dgctx.lineTo(45,215);dgctx.lineTo(405,215);dgctx.stroke();
+  const pts=data.filter(d=>d.phase===2).sort((a,b)=>a.d-b.d);
+  if(!pts.length)return;
+  const xmax=Math.max(...pts.map(d=>d.d),1);
+  const ymax=Math.max(...pts.map(d=>d.F),1);
+  dgctx.strokeStyle='#28609F';dgctx.lineWidth=2;
+  dgctx.beginPath();
+  pts.forEach((d,i)=>{
+    const x=45+(d.d/xmax)*340, y=215-(d.F/ymax)*185;
+    if(i===0) dgctx.moveTo(x,y); else dgctx.lineTo(x,y);
+  });
+  dgctx.stroke();
+  dgctx.fillStyle='#28609F';
+  pts.forEach(d=>{
+    const x=45+(d.d/xmax)*340, y=215-(d.F/ymax)*185;
+    dgctx.beginPath();dgctx.arc(x,y,5,0,Math.PI*2);dgctx.fill();
+  });
+  dgctx.fillStyle='#667085';dgctx.font='12px Arial';
+  dgctx.fillText('0',28,230);dgctx.fillText(ymax.toFixed(1)+' N',4,20);
+  dgctx.fillText('Distance r (m)',318,242);
+  dgctx.save();dgctx.translate(13,145);dgctx.rotate(-Math.PI/2);dgctx.fillText('Force (N)',0,0);dgctx.restore();
+}
+function nextPhase(){
+  if(phase===1){
+    phase=2; data=[];
+    q1.value=4;q2.value=4;r.value=.4;
+    phaseBadge.textContent='Investigation 2: Equal Charges and Distance';
+    instructions.innerHTML='Set <b>q₁ = q₂</b>. The charges must remain equal. Change the <b>separation distance</b>, record at least 5 trials, and use the separate Force vs. Distance graph to determine the pattern.';
+    document.getElementById('distanceGraphWrap').classList.remove('hidden');
+  }else if(phase===2){
+    phase=3; data=[];
+    phaseBadge.textContent='Investigation 3: Prediction & Check';
+    instructions.innerHTML='Now change any variable. Make predictions before moving sliders. Test at least 3 combinations, including one where both charges change.';
+    document.getElementById('next').classList.add('hidden');
+    document.getElementById('revealEq').classList.remove('hidden');
+  }
+  updateLock();renderRows();update();
+}
+[q1,q2,r].forEach(el=>el.addEventListener('input',update));
+document.getElementById('record').addEventListener('click',record);
+document.getElementById('next').addEventListener('click',nextPhase);
+document.getElementById('clear').addEventListener('click',()=>{data=[];renderRows();drawGraph();drawDistanceGraph()});
+document.getElementById('revealEq').addEventListener('click',()=>{
+  document.getElementById('equationArea').classList.remove('hidden');
+  document.getElementById('revealEq').disabled=true;
+});
+updateLock();update();
+</script>
+</body>
+</html>

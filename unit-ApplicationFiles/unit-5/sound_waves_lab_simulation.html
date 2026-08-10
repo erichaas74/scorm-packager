@@ -1,0 +1,2166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unit 5 Application: Resonance Tube Lab</title>
+<style>
+:root {
+  color-scheme: light;
+  --navy: #0d2338;
+  --navy-2: #153b58;
+  --ink: #17283b;
+  --muted: #5f6f80;
+  --line: #cedbe4;
+  --paper: #ffffff;
+  --canvas: #091927;
+  --soft: #edf6fa;
+  --blue: #1174ad;
+  --blue-dark: #07547f;
+  --cyan: #25c7df;
+  --yellow: #ffd65a;
+  --green: #158358;
+  --green-soft: #e4f7ee;
+  --orange: #bd6500;
+  --red: #a63737;
+  --focus: #f5c400;
+  --shadow: 0 16px 38px rgb(13 35 56 / 12%);
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  min-width: 300px;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 8% 2%, #dff6fa 0, transparent 28rem),
+    radial-gradient(circle at 96% 22%, #e2ebfa 0, transparent 28rem),
+    #eaf1f5;
+  font: 16px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+button, input { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .48; }
+button:focus-visible, input:focus-visible, [role="tab"]:focus-visible, canvas:focus-visible {
+  outline: 4px solid var(--focus);
+  outline-offset: 3px;
+}
+[hidden] { display: none !important; }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.app-shell {
+  width: min(1320px, 100%);
+  min-height: 100vh;
+  margin: 0 auto;
+  overflow: hidden;
+  background: #f8fbfc;
+  box-shadow: 0 0 48px rgb(13 35 56 / 15%);
+}
+.hero {
+  position: relative;
+  overflow: hidden;
+  padding: 22px clamp(18px, 4vw, 42px);
+  color: #fff;
+  background: linear-gradient(118deg, var(--navy), var(--navy-2));
+}
+.hero::after {
+  position: absolute;
+  right: -76px;
+  bottom: -122px;
+  width: 390px;
+  height: 270px;
+  border: 2px solid rgb(87 220 239 / 18%);
+  border-radius: 50%;
+  box-shadow: 0 0 0 28px rgb(87 220 239 / 7%), 0 0 0 58px rgb(87 220 239 / 4%);
+  content: "";
+}
+.hero-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 350px);
+  gap: 28px;
+  align-items: center;
+}
+.eyebrow {
+  margin: 0 0 4px;
+  color: #89e5f2;
+  font-size: .76rem;
+  font-weight: 900;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+h1 {
+  max-width: 800px;
+  margin: 0;
+  font-size: clamp(1.9rem, 5vw, 3.2rem);
+  letter-spacing: -.045em;
+  line-height: 1.02;
+}
+.hero-copy {
+  max-width: 780px;
+  margin: 10px 0 0;
+  color: #dbe8f0;
+  font-size: clamp(.92rem, 2vw, 1.05rem);
+}
+.progress-card {
+  padding: 15px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 16px;
+  background: rgb(0 0 0 / 17%);
+  backdrop-filter: blur(8px);
+}
+.progress-line, .save-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+.progress-line { font-size: .84rem; font-weight: 850; }
+.progress-line strong { color: #84ecbc; font-size: 1.05rem; }
+.progress-track {
+  height: 11px;
+  margin: 9px 0 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 18%);
+}
+.progress-fill {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #39d892, #79edb9);
+  transition: width .25s ease;
+}
+.save-line { color: #cbdce7; font-size: .74rem; }
+.lab-condition {
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: #fff;
+  background: rgb(255 255 255 / 12%);
+  font-weight: 800;
+}
+
+.lab-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 9px clamp(12px, 3vw, 28px) 0;
+  border-bottom: 1px solid var(--line);
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 5px 14px rgb(13 35 56 / 6%);
+}
+.lab-tab {
+  min-height: 48px;
+  padding: 8px 16px 10px;
+  white-space: nowrap;
+  color: #5b6a79;
+  border: 0;
+  border-bottom: 4px solid transparent;
+  border-radius: 10px 10px 0 0;
+  background: transparent;
+  font-weight: 850;
+}
+.lab-tab[aria-selected="true"] {
+  color: var(--blue-dark);
+  border-bottom-color: var(--blue);
+  background: #eaf4fa;
+}
+.tab-count {
+  display: inline-block;
+  min-width: 34px;
+  margin-left: 5px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  color: var(--blue-dark);
+  background: #d5eaf5;
+  font-size: .72rem;
+}
+
+.lab-main { padding: clamp(14px, 3vw, 28px); }
+.panel { animation: panel-in .22s ease-out; }
+@keyframes panel-in { from { opacity: .25; transform: translateY(5px); } }
+.section-intro {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+.section-intro h2 { margin: 0; font-size: clamp(1.35rem, 3vw, 1.8rem); letter-spacing: -.025em; }
+.section-intro p { max-width: 760px; margin: 4px 0 0; color: var(--muted); }
+.model-tag {
+  flex: 0 0 auto;
+  padding: 7px 11px;
+  border: 1px solid #bcd9e7;
+  border-radius: 999px;
+  color: var(--blue-dark);
+  background: #eaf7fb;
+  font-size: .78rem;
+  font-weight: 850;
+}
+
+.procedure-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.procedure-step {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+}
+.procedure-step span {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--blue-dark);
+  font-weight: 900;
+}
+.procedure-step strong { display: block; font-size: .9rem; }
+.procedure-step p { margin: 2px 0 0; color: var(--muted); font-size: .8rem; line-height: 1.4; }
+
+.card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  min-height: 56px;
+  padding: 11px 15px;
+  border-bottom: 1px solid var(--line);
+  background: #f0f7fa;
+}
+.card-head h3 { margin: 0; font-size: 1rem; }
+.readout {
+  color: var(--blue-dark);
+  font-size: .82rem;
+  font-weight: 850;
+  text-align: right;
+}
+.apparatus-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(330px, .8fr);
+  gap: 16px;
+  align-items: start;
+}
+.canvas-stage { position: relative; background: var(--canvas); }
+canvas { display: block; width: 100%; height: auto; }
+#apparatusCanvas { touch-action: none; cursor: grab; }
+#apparatusCanvas.dragging { cursor: grabbing; }
+#apparatusCanvas.hammer-hover { cursor: pointer; }
+.drag-hint {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  max-width: 230px;
+  padding: 7px 10px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 10px;
+  color: #e8f5fa;
+  background: rgb(4 17 28 / 78%);
+  font-size: .75rem;
+  font-weight: 750;
+  pointer-events: none;
+}
+.control-card { padding: 16px; }
+.control-card h3 { margin: 0 0 9px; font-size: .9rem; }
+.fork-rack {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.fork-button {
+  position: relative;
+  min-height: 82px;
+  padding: 10px;
+  text-align: left;
+  color: var(--ink);
+  border: 2px solid #c8d6df;
+  border-radius: 13px;
+  background: #fff;
+}
+.fork-button:hover { border-color: #78b6d4; background: #f1f9fc; }
+.fork-button[aria-checked="true"] {
+  color: #fff;
+  border-color: var(--blue-dark);
+  background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+  box-shadow: 0 7px 18px rgb(17 116 173 / 22%);
+}
+.fork-label { display: block; color: inherit; font-size: .72rem; font-weight: 800; opacity: .76; }
+.fork-frequency { display: block; margin-top: 2px; font-size: 1.15rem; font-weight: 950; letter-spacing: -.02em; }
+.fork-state { display: block; margin-top: 2px; color: inherit; font-size: .7rem; font-weight: 800; opacity: .82; }
+.control-group { padding: 14px 0; border-top: 1px solid var(--line); }
+.control-group:first-of-type { margin-top: 14px; }
+.control-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+  font-size: .88rem;
+  font-weight: 850;
+}
+.control-label output { color: var(--blue-dark); font-size: 1rem; }
+input[type="range"] { width: 100%; min-height: 34px; accent-color: var(--blue); }
+.nudge-row, .action-row { display: flex; flex-wrap: wrap; gap: 7px; }
+.nudge-row button, .secondary-button, .audio-button, .record-button, .check-button, .jump-button, .reset-button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 2px solid var(--blue);
+  border-radius: 11px;
+  color: var(--blue-dark);
+  background: #fff;
+  font-weight: 850;
+}
+.nudge-row button { flex: 1 1 64px; padding: 7px; font-size: .78rem; }
+.nudge-row button:hover, .secondary-button:hover, .jump-button:hover { background: #eaf5fa; }
+.audio-button { color: #fff; background: var(--blue); }
+.audio-button:hover { background: var(--blue-dark); }
+.record-button { flex: 1 1 180px; color: #fff; border-color: var(--green); background: var(--green); }
+.record-button:not(:disabled):hover { background: #0b6d47; }
+.audio-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 13px;
+  align-items: center;
+  margin-top: 9px;
+}
+.checkbox-label { display: inline-flex; gap: 7px; align-items: center; color: var(--muted); font-size: .78rem; font-weight: 750; }
+.checkbox-label input { width: 20px; height: 20px; accent-color: var(--blue); }
+.intensity-block {
+  padding: 12px;
+  border-radius: 14px;
+  background: #f0f6f8;
+}
+.intensity-top { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.intensity-top strong { font-size: .84rem; }
+.intensity-number { color: var(--blue-dark); font-size: 1.25rem; font-weight: 950; }
+.intensity-track {
+  height: 18px;
+  margin: 8px 0;
+  overflow: hidden;
+  border: 1px solid #9caeb8;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #cbd6dc 0 34%, #f2bf4e 65%, #3ed392 100%);
+}
+.intensity-fill {
+  width: 4%;
+  height: 100%;
+  border-right: 4px solid #fff;
+  background: rgb(10 39 59 / 70%);
+  box-shadow: 2px 0 0 var(--navy);
+  transition: width .08s linear;
+}
+.intensity-details { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.mini-stat { padding: 7px; border-radius: 9px; background: #fff; text-align: center; }
+.mini-stat small { display: block; color: var(--muted); font-size: .67rem; }
+.mini-stat strong { display: block; font-size: .82rem; }
+.resonance-message {
+  min-height: 50px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-left: 5px solid #93a6b2;
+  border-radius: 8px;
+  color: #455666;
+  background: #f1f5f7;
+  font-size: .8rem;
+  font-weight: 800;
+}
+.resonance-message.near { border-left-color: #e3a219; color: #744900; background: #fff6df; }
+.resonance-message.peak { border-left-color: var(--green); color: #08633e; background: var(--green-soft); }
+.status-line { min-height: 24px; margin: 8px 0 0; color: var(--muted); font-size: .79rem; font-weight: 750; }
+
+.graph-card { margin-top: 16px; }
+.graph-layout { display: grid; grid-template-columns: minmax(0, 1fr) 245px; }
+.graph-canvas-wrap { min-width: 0; padding: 10px; background: var(--canvas); }
+.graph-side { padding: 14px; }
+.graph-side h4 { margin: 0 0 8px; font-size: .9rem; }
+.graph-side p { margin: 0 0 11px; color: var(--muted); font-size: .8rem; }
+.graph-key { display: grid; gap: 8px; margin-bottom: 12px; }
+.key-row { display: grid; grid-template-columns: 12px 1fr; gap: 8px; align-items: center; color: var(--muted); font-size: .76rem; }
+.key-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--cyan); }
+.key-dot.current { background: var(--yellow); }
+.key-dot.recorded { background: #55df9e; }
+
+.measurement-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 16px;
+}
+.measurement-card {
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #fff;
+}
+.measurement-card.recorded { border-color: #85cfac; background: #effaf5; }
+.measurement-card small { display: block; color: var(--muted); font-size: .7rem; font-weight: 800; }
+.measurement-card strong { display: block; margin-top: 2px; font-size: 1rem; }
+.measurement-card span { display: block; margin-top: 4px; color: var(--muted); font-size: .72rem; line-height: 1.45; }
+
+.formula-banner {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  margin: 14px 0 16px;
+  border: 1px solid #a9cfdf;
+  border-radius: 15px;
+  background: #a9cfdf;
+}
+.formula-step { padding: 13px; background: #ecf8fb; }
+.formula-step small { display: block; color: var(--muted); font-size: .73rem; font-weight: 800; }
+.formula-step strong { display: block; margin-top: 2px; color: var(--blue-dark); font-size: 1.08rem; }
+.table-card { overflow: visible; }
+.table-wrap { overflow-x: auto; border-radius: 18px 18px 0 0; }
+.data-table { width: 100%; min-width: 1040px; border-collapse: collapse; font-size: .84rem; }
+.data-table th, .data-table td { padding: 10px 8px; border: 1px solid var(--line); text-align: center; }
+.data-table thead th { color: #17364c; background: #e9f3f7; }
+.data-table tbody th { background: #f7fafb; font-size: .92rem; }
+.data-table input {
+  width: 105px;
+  min-height: 42px;
+  padding: 7px;
+  border: 2px solid #a9bbc7;
+  border-radius: 9px;
+  text-align: center;
+}
+.data-table input.is-correct { border-color: var(--green); background: #effaf5; }
+.data-table input.is-wrong { border-color: var(--red); background: #fff1f1; }
+.row-status {
+  display: inline-block;
+  min-width: 76px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: #596b78;
+  background: #e9eef1;
+  font-size: .7rem;
+  font-weight: 900;
+}
+.row-status.ready { color: var(--blue-dark); background: #dff1f8; }
+.row-status.correct { color: #08633e; background: #dff6eb; }
+.row-status.revise { color: #8a2d2d; background: #fbe3e3; }
+.table-actions { padding: 14px; border-top: 1px solid var(--line); }
+.check-button { color: #fff; background: var(--blue); }
+.check-button:hover { background: var(--blue-dark); }
+.feedback { min-height: 24px; margin: 8px 0 0; color: var(--muted); font-size: .82rem; font-weight: 800; }
+.feedback.good { color: var(--green); }
+.feedback.bad { color: var(--red); }
+
+.final-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, .9fr);
+  gap: 18px;
+  margin-top: 16px;
+  padding: 18px;
+}
+.final-card h3 { margin: 0 0 5px; }
+.final-card p { margin: 0; color: var(--muted); font-size: .86rem; }
+.final-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.field label { display: block; margin-bottom: 4px; font-size: .78rem; font-weight: 850; }
+.input-unit { position: relative; }
+.input-unit input {
+  width: 100%;
+  min-height: 46px;
+  padding: 8px 50px 8px 10px;
+  border: 2px solid #a9bbc7;
+  border-radius: 10px;
+}
+.input-unit span { position: absolute; right: 10px; top: 12px; color: var(--muted); font-size: .76rem; font-weight: 800; }
+.input-unit input.is-correct { border-color: var(--green); background: #effaf5; }
+.input-unit input.is-wrong { border-color: var(--red); background: #fff1f1; }
+.final-actions { grid-column: 1 / -1; }
+
+.results-hero {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  align-items: center;
+  padding: 19px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+.result-icon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: #8094a1;
+  font-size: 1.7rem;
+  font-weight: 950;
+}
+.results-hero.complete { border-color: #77cba4; background: linear-gradient(120deg, #fff, #eaf9f2); }
+.results-hero.complete .result-icon { background: var(--green); }
+.results-hero h2 { margin: 0; }
+.results-hero p { margin: 4px 0 0; color: var(--muted); }
+.results-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 11px; margin-top: 15px; }
+.result-stat { padding: 16px; border: 1px solid var(--line); border-radius: 15px; background: #fff; text-align: center; }
+.result-stat small { display: block; color: var(--muted); font-size: .75rem; font-weight: 800; }
+.result-stat strong { display: block; margin-top: 4px; color: var(--blue-dark); font-size: 1.55rem; }
+.results-table { margin-top: 15px; }
+.concept-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; margin-top: 15px; }
+.concept-card { padding: 15px; border: 1px solid var(--line); border-radius: 15px; background: #fff; }
+.concept-card h3 { margin: 0 0 5px; font-size: .94rem; }
+.concept-card p { margin: 0; color: var(--muted); font-size: .82rem; }
+
+.app-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 17px clamp(14px, 3vw, 28px) 24px;
+  color: var(--muted);
+  font-size: .76rem;
+}
+.app-footer p { max-width: 780px; margin: 0; }
+.reset-button { flex: 0 0 auto; color: #8e3030; border-color: #b96969; }
+.reset-button:hover { background: #fff1f1; }
+
+@media (max-width: 980px) {
+  .hero-grid { grid-template-columns: 1fr; }
+  .progress-card { max-width: 520px; }
+  .apparatus-grid { grid-template-columns: 1fr; }
+  .control-card { order: -1; }
+  .graph-layout { grid-template-columns: 1fr; }
+  .graph-side { border-top: 1px solid var(--line); }
+  .measurement-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .hero { padding: 18px 15px; }
+  .hero-grid { gap: 16px; }
+  .lab-main { padding: 12px; }
+  .procedure-grid, .formula-banner, .results-grid, .concept-grid { grid-template-columns: 1fr; }
+  .section-intro { display: block; }
+  .model-tag { display: inline-block; margin-top: 9px; }
+  .final-card { grid-template-columns: 1fr; padding: 14px; }
+  .final-fields { grid-template-columns: 1fr; }
+  .app-footer { align-items: flex-start; flex-direction: column; }
+}
+@media (max-width: 430px) {
+  .lab-tab { padding-inline: 11px; }
+  .control-card { padding: 12px; }
+  .fork-rack, .measurement-strip { grid-template-columns: 1fr 1fr; }
+  .fork-button { min-height: 78px; }
+  .action-row > * { width: 100%; }
+  .drag-hint { max-width: 190px; font-size: .68rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <header class="hero">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Unit 5 Application · Sound Waves</p>
+        <h1>Resonance Tube Lab</h1>
+        <p class="hero-copy">Use four tuning forks to locate the 1st, 3rd, and 5th resonances, measure the air column, and calculate the speed of sound in room-temperature air.</p>
+      </div>
+      <aside class="progress-card" aria-label="Lab progress">
+        <div class="progress-line"><span id="progressLabel">Trials 0/12 · Calculations 0/12</span><strong id="progressPercent">0%</strong></div>
+        <div class="progress-track" id="progressBar" role="progressbar" aria-label="Application completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="save-line"><span id="saveState">Saved on this device</span><span class="lab-condition">20 °C air</span></div>
+      </aside>
+    </div>
+  </header>
+
+  <nav class="lab-tabs" role="tablist" aria-label="Lab sections">
+    <button class="lab-tab" id="experimentTab" type="button" role="tab" aria-selected="true" aria-controls="experimentPanel" tabindex="0" data-panel="experiment">1. Experiment <span class="tab-count" id="trialTabCount">0/12</span></button>
+    <button class="lab-tab" id="calculateTab" type="button" role="tab" aria-selected="false" aria-controls="calculatePanel" tabindex="-1" data-panel="calculate">2. Calculate <span class="tab-count" id="calcTabCount">0/12</span></button>
+    <button class="lab-tab" id="resultsTab" type="button" role="tab" aria-selected="false" aria-controls="resultsPanel" tabindex="-1" data-panel="results">3. Results</button>
+  </nav>
+
+  <main class="lab-main">
+    <section class="panel" id="experimentPanel" role="tabpanel" aria-labelledby="experimentTab" data-panel-content="experiment">
+      <div class="section-intro">
+        <div><h2>Find each resonance peak</h2><p>The pipe is open at the top and closed by water at the bottom. Raise or lower it until the sound becomes loudest, then record the air-column length.</p></div>
+        <span class="model-tag">Closed pipe: L = nλ/4 · n = 1, 3, 5</span>
+      </div>
+
+      <div class="procedure-grid" aria-label="Lab procedure">
+        <div class="procedure-step"><span>1</span><div><strong>Choose and strike a fork</strong><p>Start with any unrecorded frequency. Sound is optional; every cue is also visual.</p></div></div>
+        <div class="procedure-step"><span>2</span><div><strong>Lift the tube slowly</strong><p>Drag the tube or use the slider. Watch for three narrow intensity spikes.</p></div></div>
+        <div class="procedure-step"><span>3</span><div><strong>Record all three peaks</strong><p>Find the 1st, 3rd, and 5th harmonic for each fork—12 measurements total.</p></div></div>
+      </div>
+
+      <div class="apparatus-grid">
+        <section class="card apparatus-card" aria-labelledby="apparatusHeading">
+          <div class="card-head"><h3 id="apparatusHeading">Water-column resonance apparatus</h3><span class="readout" id="apparatusReadout">256 Hz · L = 20.0 cm</span></div>
+          <div class="canvas-stage">
+            <canvas id="apparatusCanvas" width="900" height="620" role="slider" tabindex="0" aria-label="Resonance tube apparatus. Arrow keys move the tube; Enter or Space strikes the tuning fork." aria-keyshortcuts="Enter Space" aria-orientation="vertical" aria-valuemin="2" aria-valuemax="175" aria-valuenow="20" aria-valuetext="20.0 centimeters" aria-describedby="apparatusSummary">Interactive resonance tube apparatus.</canvas>
+            <div class="drag-hint">Drag the tube up or down · click the hammer to strike</div>
+          </div>
+          <p class="sr-only" id="apparatusSummary">The 256 hertz tuning fork is above an air column 20.0 centimeters long. Intensity is low.</p>
+        </section>
+
+        <aside class="card control-card" aria-label="Experiment controls">
+          <h3 id="forkHeading">Tuning-fork rack</h3>
+          <div class="fork-rack" role="radiogroup" aria-labelledby="forkHeading">
+            <button class="fork-button" type="button" role="radio" aria-checked="true" data-frequency="256"><span class="fork-label">Fork A</span><span class="fork-frequency">256 Hz</span><span class="fork-state">0/3 recorded</span></button>
+            <button class="fork-button" type="button" role="radio" aria-checked="false" data-frequency="512"><span class="fork-label">Fork B</span><span class="fork-frequency">512 Hz</span><span class="fork-state">0/3 recorded</span></button>
+            <button class="fork-button" type="button" role="radio" aria-checked="false" data-frequency="1024"><span class="fork-label">Fork C</span><span class="fork-frequency">1024 Hz</span><span class="fork-state">0/3 recorded</span></button>
+            <button class="fork-button" type="button" role="radio" aria-checked="false" data-frequency="2048"><span class="fork-label">Fork D</span><span class="fork-frequency">2048 Hz</span><span class="fork-state">0/3 recorded</span></button>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label" for="airLength"><span>Air-column length, L</span><output id="lengthOutput" for="airLength">20.0 cm</output></label>
+            <input id="airLength" type="range" min="2" max="175" value="20" step="0.1" aria-valuetext="20.0 centimeters">
+            <div class="nudge-row" aria-label="Air-column length adjustments">
+              <button type="button" data-nudge="-10">−10 cm</button>
+              <button type="button" data-nudge="-1">−1 cm</button>
+              <button type="button" data-nudge="-0.1">−1 mm</button>
+              <button type="button" data-nudge="0.1">+1 mm</button>
+              <button type="button" data-nudge="1">+1 cm</button>
+              <button type="button" data-nudge="10">+10 cm</button>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <div class="intensity-block">
+              <div class="intensity-top"><strong>Relative sound intensity</strong><span class="intensity-number" id="intensityNumber">4%</span></div>
+              <div class="intensity-track" id="intensityMeter" role="meter" aria-label="Relative sound intensity" aria-valuemin="0" aria-valuemax="100" aria-valuenow="4"><div class="intensity-fill" id="intensityFill"></div></div>
+              <div class="intensity-details">
+                <div class="mini-stat"><small>Sound level</small><strong id="soundLevel">quiet</strong></div>
+                <div class="mini-stat"><small>Simulated meter</small><strong id="decibelReadout">40 dB</strong></div>
+              </div>
+              <div class="resonance-message" id="resonanceMessage">Scan the pipe length. The meter will rise near resonance.</div>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <div class="action-row">
+              <button class="audio-button" id="strikeFork" type="button">Strike / replay tone</button>
+              <button class="record-button" id="recordMeasurement" type="button" disabled>Record measurement</button>
+            </div>
+            <div class="audio-options"><label class="checkbox-label"><input id="continuousTone" type="checkbox"> Keep tone sounding</label><span class="status-line" id="toneStatus" role="status" aria-live="polite">Audio is off. Click the hammer to strike.</span></div>
+            <p class="status-line" id="recordStatus" role="status" aria-live="polite">Move the tube toward the resonance peak to record.</p>
+          </div>
+        </aside>
+      </div>
+
+      <section class="card graph-card" aria-labelledby="graphHeading">
+        <div class="card-head"><h3 id="graphHeading">Intensity scan</h3><span class="readout" id="graphReadout">256 Hz · move the tube to reveal the trace</span></div>
+        <div class="graph-layout">
+          <div class="graph-canvas-wrap"><canvas id="intensityCanvas" width="900" height="330" role="img" aria-describedby="graphSummary">Graph of sound intensity versus air-column length.</canvas></div>
+          <aside class="graph-side">
+            <h4>Build the spike as you scan</h4>
+            <p>The horizontal axis is air-column length. Record all three narrow peaks: the 1st, 3rd, and 5th harmonics.</p>
+            <div class="graph-key" aria-hidden="true">
+              <div class="key-row"><span class="key-dot"></span><span>Lengths you have scanned</span></div>
+              <div class="key-row"><span class="key-dot current"></span><span>Your current position</span></div>
+              <div class="key-row"><span class="key-dot recorded"></span><span>Recorded measurement</span></div>
+            </div>
+            <button class="secondary-button" id="clearTrace" type="button">Clear this trace</button>
+            <p class="sr-only" id="graphSummary">Only the current length has been sampled. Relative intensity is 4 percent.</p>
+          </aside>
+        </div>
+      </section>
+
+      <div class="measurement-strip" id="measurementStrip" aria-label="Recorded measurements"></div>
+    </section>
+
+    <section class="panel" id="calculatePanel" role="tabpanel" aria-labelledby="calculateTab" data-panel-content="calculate" hidden>
+      <div class="section-intro">
+        <div><h2>Calculate the speed of sound</h2><p>Use all 12 measured resonance lengths. Enter your work in the table, check each trial, and then find the average.</p></div>
+        <span class="model-tag">Reference value: 343 m/s</span>
+      </div>
+
+      <div class="formula-banner" aria-label="Calculation steps">
+        <div class="formula-step"><small>1 · Convert length</small><strong>L(m) = L(cm) ÷ 100</strong></div>
+        <div class="formula-step"><small>2 · Find wavelength</small><strong>λ = 4L ÷ n</strong></div>
+        <div class="formula-step"><small>3 · Find wave speed</small><strong>v = fλ</strong></div>
+      </div>
+
+      <section class="card table-card" aria-labelledby="dataHeading">
+        <div class="card-head"><h3 id="dataHeading">Multi-harmonic data table</h3><span class="readout" id="tableReadout">0 of 12 trials recorded</span></div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th scope="col">Fork frequency<br>f (Hz)</th><th scope="col">Harmonic<br>n</th><th scope="col">Measured length<br>L (cm)</th><th scope="col">Convert length<br>L (m)</th><th scope="col">Wavelength<br>λ = 4L/n (m)</th><th scope="col">Speed<br>v = fλ (m/s)</th><th scope="col">Check</th></tr></thead>
+            <tbody id="calculationRows"></tbody>
+          </table>
+        </div>
+        <div class="table-actions"><button class="check-button" id="checkCalculations" type="button">Check calculations</button><p class="feedback" id="calculationFeedback" role="status" aria-live="polite">Record a resonance length, then enter your calculations.</p></div>
+      </section>
+
+      <section class="card final-card" aria-labelledby="finalHeading">
+        <div><h3 id="finalHeading">Final result</h3><p>Average your 12 calculated speeds. Then compare the average with the accepted room-temperature value using percent difference.</p><p style="margin-top:8px"><strong>Percent difference = |average − 343| ÷ 343 × 100%</strong></p></div>
+        <div class="final-fields">
+          <div class="field"><label for="averageSpeed">Average speed of sound</label><div class="input-unit"><input id="averageSpeed" type="number" step="0.1" inputmode="decimal" disabled><span>m/s</span></div></div>
+          <div class="field"><label for="percentDifference">Percent difference</label><div class="input-unit"><input id="percentDifference" type="number" step="0.1" min="0" inputmode="decimal" disabled><span>%</span></div></div>
+        </div>
+        <div class="final-actions"><button class="check-button" id="checkFinal" type="button" disabled>Check final result</button><p class="feedback" id="finalFeedback" role="status" aria-live="polite">Complete all 12 row calculations to unlock the final result.</p></div>
+      </section>
+      <p style="margin:12px 4px 0;color:var(--muted);font-size:.76rem">Model note: This classroom simulation treats the pipe opening as the displacement antinode and ignores the small open-end correction used in precision laboratory work.</p>
+    </section>
+
+    <section class="panel" id="resultsPanel" role="tabpanel" aria-labelledby="resultsTab" data-panel-content="results" hidden>
+      <div class="results-hero" id="resultsHero">
+        <div class="result-icon" id="resultIcon" aria-hidden="true">3</div>
+        <div><h2 id="resultsHeading">Finish your investigation</h2><p id="resultsMessage">Collect 12 resonance lengths and complete the calculation table to reveal your final result.</p></div>
+      </div>
+      <div class="results-grid" id="resultsGrid"></div>
+      <div class="results-table" id="resultsTable"></div>
+      <div class="concept-grid">
+        <article class="concept-card"><h3>Frequency and resonant length</h3><p>Lower frequencies have longer wavelengths. For one fork, the 3rd and 5th resonance lengths are three and five times the 1st.</p></article>
+        <article class="concept-card"><h3>What resonance changes</h3><p>Resonance makes the sound more intense and louder. The tuning fork sets the frequency, so its pitch does not change as the pipe moves.</p></article>
+      </div>
+      <div style="margin-top:15px"><button class="jump-button" id="resultsJump" type="button">Return to experiment</button></div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p>Measure from the water surface to the open rim of the pipe. Your work is stored only in this browser and remains available after a refresh.</p>
+    <button class="reset-button" id="resetLab" type="button">Reset lab data</button>
+  </footer>
+  <p class="sr-only" id="liveStatus" role="status" aria-live="polite"></p>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const SPEED_OF_SOUND = 343;
+  const STORE_KEY = 'unit5-resonance-tube-lab-v4-multiharmonic';
+  const MIN_LENGTH_CM = 2;
+  const MAX_LENGTH_CM = 175;
+  const RECORD_THRESHOLD = 0.90;
+  const HARMONICS = [1, 3, 5];
+  const FORKS = [
+    { frequency: 256, name: 'Fork A' },
+    { frequency: 512, name: 'Fork B' },
+    { frequency: 1024, name: 'Fork C' },
+    { frequency: 2048, name: 'Fork D' }
+  ];
+  const TRIALS = FORKS.flatMap(fork => HARMONICS.map(harmonic => ({
+    frequency: fork.frequency,
+    name: fork.name,
+    harmonic,
+    key: `${fork.frequency}-${harmonic}`
+  }))); 
+  const TRIAL_COUNT = TRIALS.length;
+  const TRIAL_BY_KEY = Object.fromEntries(TRIALS.map(trial => [trial.key, trial]));
+  const PROGRESS_STEP_COUNT = TRIAL_COUNT * 2 + 1;
+  const SCAN_STEP = 0.1;
+  const SCAN_SIZE = Math.round((MAX_LENGTH_CM - MIN_LENGTH_CM) / SCAN_STEP) + 1;
+  const STRIKE_DURATION_MS = 7500;
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = selector => document.querySelector(selector);
+  const $$ = selector => [...document.querySelectorAll(selector)];
+
+  function blankCalculation() {
+    return { lengthM: '', wavelength: '', speed: '', checked: false };
+  }
+
+  function trialKey(frequency, harmonic) {
+    return `${frequency}-${harmonic}`;
+  }
+
+  function harmonicLabel(harmonic) {
+    return harmonic === 1 ? '1st' : harmonic === 3 ? '3rd' : `${harmonic}th`;
+  }
+
+  function defaultState() {
+    const calculations = {};
+    TRIALS.forEach(({ key }) => { calculations[key] = blankCalculation(); });
+    return {
+      selectedFrequency: FORKS[0].frequency,
+      currentLengthCm: 20,
+      measurements: {},
+      calculations,
+      final: { average: '', percent: '', checked: false },
+      completedAt: ''
+    };
+  }
+
+  let storageOkay = true;
+  let state = loadState();
+  let selectedFrequency = state.selectedFrequency;
+  let currentLengthCm = state.currentLengthCm;
+  let activePanel = 'experiment';
+  let phase = 0;
+  let draggingTube = false;
+  let tubePointerId = null;
+  let tubeDragOffset = 0;
+  let hammerHovered = false;
+  let hammerPressed = false;
+  let hammerPointerId = null;
+  let hammerStrikeStartedAt = 0;
+  let completionSent = false;
+  let continuousTone = false;
+  let strikeEndsAt = 0;
+  let strikeTimer = null;
+  let audio = null;
+  let traceData = createTraceData();
+  let lastTraceLength = {};
+
+  function createTraceData() {
+    const data = {};
+    FORKS.forEach(({ frequency }) => { data[frequency] = Array(SCAN_SIZE).fill(null); });
+    return data;
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function roundLength(value) {
+    return Math.round(clamp(Number(value), MIN_LENGTH_CM, MAX_LENGTH_CM) * 10) / 10;
+  }
+
+  function parseEntry(value) {
+    if (value === null || value === undefined || String(value).trim() === '') return NaN;
+    return Number(value);
+  }
+
+  function loadState() {
+    const base = defaultState();
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return base;
+      const parsed = JSON.parse(raw);
+      const validFrequencies = FORKS.map(fork => fork.frequency);
+      const selected = validFrequencies.includes(Number(parsed.selectedFrequency)) ? Number(parsed.selectedFrequency) : base.selectedFrequency;
+      const length = Number.isFinite(Number(parsed.currentLengthCm)) ? roundLength(parsed.currentLengthCm) : base.currentLengthCm;
+      const measurements = {};
+      const calculations = {};
+      TRIALS.forEach(({ key }) => {
+        const measured = Number(parsed.measurements?.[key]);
+        if (Number.isFinite(measured) && measured >= MIN_LENGTH_CM && measured <= MAX_LENGTH_CM) measurements[key] = roundLength(measured);
+        const savedCalc = parsed.calculations?.[key] || {};
+        calculations[key] = {
+          lengthM: String(savedCalc.lengthM ?? ''),
+          wavelength: String(savedCalc.wavelength ?? ''),
+          speed: String(savedCalc.speed ?? ''),
+          checked: Boolean(savedCalc.checked)
+        };
+      });
+      return {
+        selectedFrequency: selected,
+        currentLengthCm: length,
+        measurements,
+        calculations,
+        final: {
+          average: String(parsed.final?.average ?? ''),
+          percent: String(parsed.final?.percent ?? ''),
+          checked: Boolean(parsed.final?.checked)
+        },
+        completedAt: typeof parsed.completedAt === 'string' ? parsed.completedAt : ''
+      };
+    } catch (error) {
+      storageOkay = false;
+      return base;
+    }
+  }
+
+  function saveState() {
+    state.selectedFrequency = selectedFrequency;
+    state.currentLengthCm = currentLengthCm;
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(state));
+      storageOkay = true;
+      $('#saveState').textContent = 'Saved on this device';
+    } catch (error) {
+      storageOkay = false;
+      $('#saveState').textContent = 'Saving unavailable';
+    }
+  }
+
+  function resonanceAt(lengthCm, frequency = selectedFrequency) {
+    const peaks = HARMONICS.map(harmonic => {
+      const targetCm = harmonic * SPEED_OF_SOUND / (4 * frequency) * 100;
+      const gamma = clamp(targetCm / 80, 0.22, 1.25);
+      const delta = lengthCm - targetCm;
+      const response = 1 / (1 + Math.pow(delta / gamma, 2));
+      return { harmonic, targetCm, gamma, delta, response };
+    });
+    const nearest = peaks.reduce((best, peak) => peak.response > best.response ? peak : best);
+    return { ...nearest, peaks, intensity: Math.round(4 + 96 * nearest.response) };
+  }
+
+  function soundDescription(response, harmonic = 1) {
+    if (response >= .90) return { label: `${harmonicLabel(harmonic)} harmonic peak`, className: 'peak', message: `${harmonicLabel(harmonic)} harmonic resonance! The sound is loudest here. Record this length.` };
+    if (response >= .55) return { label: 'very loud', className: 'near', message: 'Very close. Fine-tune by 1 mm to find the maximum.' };
+    if (response >= .18) return { label: 'getting louder', className: 'near', message: 'The intensity is rising. Keep moving toward the spike.' };
+    return { label: 'quiet', className: '', message: 'Scan the pipe length. The meter will rise near resonance.' };
+  }
+
+  function toneVisualStrength(now = performance.now()) {
+    if (continuousTone && strikeEndsAt === Infinity) return 1;
+    if (!Number.isFinite(strikeEndsAt) || strikeEndsAt <= now) return 0;
+    return clamp((strikeEndsAt - now) / STRIKE_DURATION_MS, 0, 1);
+  }
+
+  function toneIsActive() {
+    return toneVisualStrength() > 0;
+  }
+
+  function audioVolumeLabel(response) {
+    if (response >= .90) return 'maximum volume at resonance';
+    if (response >= .55) return 'very loud';
+    if (response >= .18) return 'getting louder';
+    return 'quiet';
+  }
+
+  function updateActiveToneStatus(response = resonanceAt(currentLengthCm).response) {
+    if (!toneIsActive() || !audio || audio.context.state !== 'running') return;
+    const mode = continuousTone ? 'Continuous' : 'Playing';
+    const message = `${mode} ${selectedFrequency} Hz tone · ${audioVolumeLabel(response)}.`;
+    if ($('#toneStatus').textContent !== message) $('#toneStatus').textContent = message;
+  }
+
+  function pointInBox(point, box) {
+    return point.x >= box.x && point.x <= box.x + box.width && point.y >= box.y && point.y <= box.y + box.height;
+  }
+
+  function sampleTrace(frequency, fromLength, toLength) {
+    const start = Number.isFinite(fromLength) ? fromLength : toLength;
+    const distance = Math.abs(toLength - start);
+    const steps = Math.max(1, Math.ceil(distance / 0.05));
+    for (let step = 0; step <= steps; step += 1) {
+      const length = start + (toLength - start) * (step / steps);
+      const index = clamp(Math.round((length - MIN_LENGTH_CM) / SCAN_STEP), 0, SCAN_SIZE - 1);
+      const intensity = resonanceAt(MIN_LENGTH_CM + index * SCAN_STEP, frequency).intensity;
+      traceData[frequency][index] = Math.max(traceData[frequency][index] ?? 0, intensity);
+    }
+    lastTraceLength[frequency] = toLength;
+  }
+
+  function setLength(value, shouldSave = true) {
+    const previous = currentLengthCm;
+    currentLengthCm = roundLength(value);
+    sampleTrace(selectedFrequency, lastTraceLength[selectedFrequency] ?? previous, currentLengthCm);
+    $('#airLength').value = String(currentLengthCm);
+    $('#airLength').setAttribute('aria-valuetext', `${currentLengthCm.toFixed(1)} centimeters`);
+    $('#apparatusCanvas').setAttribute('aria-valuenow', String(currentLengthCm));
+    $('#apparatusCanvas').setAttribute('aria-valuetext', `${currentLengthCm.toFixed(1)} centimeters`);
+    $('#lengthOutput').textContent = `${currentLengthCm.toFixed(1)} cm`;
+    updateExperimentReadouts();
+    drawApparatus();
+    drawIntensityGraph();
+    if (shouldSave) saveState();
+  }
+
+  function selectFork(frequency) {
+    if (!FORKS.some(fork => fork.frequency === frequency)) return;
+    selectedFrequency = frequency;
+    state.selectedFrequency = frequency;
+    sampleTrace(frequency, currentLengthCm, currentLengthCm);
+    if (audio) {
+      if (!continuousTone) muteEnvelope();
+      audio.oscillator.frequency.setTargetAtTime(frequency, audio.context.currentTime, .025);
+      if (continuousTone) $('#toneStatus').textContent = `Continuous ${frequency} Hz tone · ${audioVolumeLabel(resonanceAt(currentLengthCm, frequency).response)}.`;
+    }
+    renderForkRack();
+    updateExperimentReadouts();
+    drawApparatus();
+    drawIntensityGraph();
+    saveState();
+    $('#liveStatus').textContent = `Selected the ${frequency} hertz tuning fork.`;
+  }
+
+  function updateApparatusSummary(info, description) {
+    const forkMotion = toneIsActive() ? 'vibrating' : 'still';
+    const recorded = HARMONICS.filter(harmonic => state.measurements[trialKey(selectedFrequency, harmonic)] !== undefined).map(harmonicLabel);
+    $('#apparatusSummary').textContent = `The ${selectedFrequency} hertz tuning fork is ${forkMotion} above an air column ${currentLengthCm.toFixed(1)} centimeters long. The nearest resonance is the ${harmonicLabel(info.harmonic)} harmonic. The tube ruler starts at zero at the open rim and increases downward to the water surface. Relative intensity is ${info.intensity} percent, described as ${description.label}. Recorded harmonics for this fork: ${recorded.length ? recorded.join(', ') : 'none'}. Click the drawn hammer, or focus the Strike and replay tone button, to sound the fork.`;
+  }
+
+  function updateExperimentReadouts() {
+    const info = resonanceAt(currentLengthCm);
+    const description = soundDescription(info.response, info.harmonic);
+    const db = Math.round(38 + 48 * info.response);
+    $('#apparatusReadout').textContent = `${selectedFrequency} Hz · L = ${currentLengthCm.toFixed(1)} cm · nearest n = ${info.harmonic}`;
+    $('#intensityNumber').textContent = `${info.intensity}%`;
+    $('#intensityFill').style.width = `${info.intensity}%`;
+    $('#intensityMeter').setAttribute('aria-valuenow', String(info.intensity));
+    $('#soundLevel').textContent = description.label;
+    $('#decibelReadout').textContent = `${db} dB`;
+    $('#resonanceMessage').textContent = description.message;
+    $('#resonanceMessage').className = `resonance-message ${description.className}`.trim();
+    $('#recordMeasurement').disabled = info.response < RECORD_THRESHOLD;
+    const key = trialKey(selectedFrequency, info.harmonic);
+    $('#recordMeasurement').textContent = `${state.measurements[key] !== undefined ? 'Update' : 'Record'} ${harmonicLabel(info.harmonic)} harmonic`;
+    $('#graphReadout').textContent = `${selectedFrequency} Hz · nearest ${harmonicLabel(info.harmonic)} harmonic · intensity ${info.intensity}% at ${currentLengthCm.toFixed(1)} cm`;
+    updateApparatusSummary(info, description);
+    updateAudioResponse(info.response);
+    updateActiveToneStatus(info.response);
+  }
+
+  function renderForkRack() {
+    $$('.fork-button').forEach(button => {
+      const frequency = Number(button.dataset.frequency);
+      const selected = frequency === selectedFrequency;
+      const recorded = HARMONICS.filter(harmonic => state.measurements[trialKey(frequency, harmonic)] !== undefined).length;
+      button.setAttribute('aria-checked', String(selected));
+      button.tabIndex = selected ? 0 : -1;
+      button.querySelector('.fork-state').textContent = `${recorded}/${HARMONICS.length} resonances recorded`;
+    });
+  }
+
+  function renderMeasurementStrip() {
+    $('#measurementStrip').innerHTML = FORKS.map(({ frequency, name }) => {
+      const values = HARMONICS.map(harmonic => state.measurements[trialKey(frequency, harmonic)]);
+      const recorded = values.filter(value => value !== undefined).length;
+      const summary = HARMONICS.map((harmonic, index) => `${harmonicLabel(harmonic)}: ${values[index] !== undefined ? `${values[index].toFixed(1)} cm` : '—'}`).join(' · ');
+      return `<div class="measurement-card ${recorded === HARMONICS.length ? 'recorded' : ''}"><small>${name} · ${frequency} Hz</small><strong>${recorded}/${HARMONICS.length} peaks</strong><span>${summary}</span></div>`;
+    }).join('');
+  }
+
+  function recordMeasurement() {
+    const info = resonanceAt(currentLengthCm);
+    if (info.response < RECORD_THRESHOLD) {
+      $('#recordStatus').textContent = 'The sound is not at its peak yet. Fine-tune the pipe before recording.';
+      return;
+    }
+    const measured = roundLength(currentLengthCm);
+    const key = trialKey(selectedFrequency, info.harmonic);
+    const previous = state.measurements[key];
+    state.measurements[key] = measured;
+    if (previous !== measured) {
+      state.calculations[key] = blankCalculation();
+      invalidateFinal();
+    }
+    saveState();
+    renderAllData();
+    updateExperimentReadouts();
+    drawIntensityGraph();
+    $('#recordStatus').textContent = `Recorded ${measured.toFixed(1)} cm for the ${selectedFrequency} Hz ${harmonicLabel(info.harmonic)} harmonic.`;
+    $('#liveStatus').textContent = $('#recordStatus').textContent;
+
+    const next = TRIALS.find(trial => trial.frequency === selectedFrequency && state.measurements[trial.key] === undefined)
+      || TRIALS.find(trial => state.measurements[trial.key] === undefined);
+    if (next) {
+      if (next.frequency !== selectedFrequency) setTimeout(() => selectFork(next.frequency), 450);
+    } else {
+      $('#recordStatus').textContent += ' All 12 trials are ready for calculation.';
+    }
+  }
+
+  function getCalculationResult(key) {
+    const trial = TRIAL_BY_KEY[key];
+    const measured = state.measurements[key];
+    const calc = state.calculations[key] || blankCalculation();
+    if (measured === undefined) return { correct: false, fieldOk: { lengthM: false, wavelength: false, speed: false } };
+    const expectedLength = measured / 100;
+    const expectedWavelength = 4 * expectedLength / trial.harmonic;
+    const expectedSpeed = trial.frequency * expectedWavelength;
+    const enteredLength = parseEntry(calc.lengthM);
+    const enteredWavelength = parseEntry(calc.wavelength);
+    const enteredSpeed = parseEntry(calc.speed);
+    const fieldOk = {
+      lengthM: Number.isFinite(enteredLength) && Math.abs(enteredLength - expectedLength) <= .0012,
+      wavelength: Number.isFinite(enteredWavelength) && Math.abs(enteredWavelength - expectedWavelength) <= .006,
+      speed: Number.isFinite(enteredSpeed) && Math.abs(enteredSpeed - expectedSpeed) <= 2
+    };
+    return { expectedLength, expectedWavelength, expectedSpeed, fieldOk, correct: fieldOk.lengthM && fieldOk.wavelength && fieldOk.speed };
+  }
+
+  function calculationCorrectCount() {
+    return TRIALS.filter(({ key }) => state.calculations[key]?.checked && getCalculationResult(key).correct).length;
+  }
+
+  function measurementCount() {
+    return TRIALS.filter(({ key }) => state.measurements[key] !== undefined).length;
+  }
+
+  function expectedFinal() {
+    if (measurementCount() !== TRIAL_COUNT || calculationCorrectCount() !== TRIAL_COUNT) return null;
+    const speeds = TRIALS.map(({ key }) => parseEntry(state.calculations[key].speed));
+    if (speeds.some(speed => !Number.isFinite(speed))) return null;
+    const average = speeds.reduce((sum, speed) => sum + speed, 0) / speeds.length;
+    const percent = Math.abs(average - SPEED_OF_SOUND) / SPEED_OF_SOUND * 100;
+    return { speeds, average, percent };
+  }
+
+  function getFinalResult() {
+    const expected = expectedFinal();
+    if (!expected) return { correct: false, averageOk: false, percentOk: false };
+    const enteredAverage = parseEntry(state.final.average);
+    const enteredPercent = parseEntry(state.final.percent);
+    const averageOk = Number.isFinite(enteredAverage) && Math.abs(enteredAverage - expected.average) <= 1.2;
+    const percentOk = Number.isFinite(enteredPercent) && Math.abs(enteredPercent - expected.percent) <= .2;
+    return { ...expected, averageOk, percentOk, correct: averageOk && percentOk };
+  }
+
+  function invalidateFinal() {
+    state.final.checked = false;
+    state.completedAt = '';
+  }
+
+  function inputClass(calc, field, result) {
+    if (!calc.checked) return '';
+    return result.fieldOk[field] ? 'is-correct' : 'is-wrong';
+  }
+
+  function escapeAttribute(value) {
+    return String(value).replace(/[&"<>]/g, character => ({ '&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;' }[character]));
+  }
+
+  function renderCalculationTable() {
+    $('#calculationRows').innerHTML = TRIALS.map(({ frequency, harmonic, key }) => {
+      const measured = state.measurements[key];
+      const calc = state.calculations[key] || blankCalculation();
+      const result = getCalculationResult(key);
+      let status = '<span class="row-status">Collect first</span>';
+      if (measured !== undefined && !calc.checked) status = '<span class="row-status ready">Ready</span>';
+      if (measured !== undefined && calc.checked && result.correct) status = '<span class="row-status correct">✓ Correct</span>';
+      if (measured !== undefined && calc.checked && !result.correct) status = '<span class="row-status revise">Revise</span>';
+      const disabled = measured === undefined ? 'disabled' : '';
+      const trialLabel = `${frequency} hertz ${harmonicLabel(harmonic)} harmonic`;
+      return `<tr><th scope="row">${frequency} Hz</th><td><strong>n = ${harmonic}</strong><br><small>${harmonicLabel(harmonic)}</small></td><td>${measured !== undefined ? measured.toFixed(1) : '—'}</td><td><input class="${inputClass(calc, 'lengthM', result)}" type="number" step="0.001" inputmode="decimal" value="${escapeAttribute(calc.lengthM)}" aria-label="${trialLabel} length converted to meters" data-calc-key="${key}" data-calc-field="lengthM" ${disabled}></td><td><input class="${inputClass(calc, 'wavelength', result)}" type="number" step="0.001" inputmode="decimal" value="${escapeAttribute(calc.wavelength)}" aria-label="${trialLabel} calculated wavelength in meters" data-calc-key="${key}" data-calc-field="wavelength" ${disabled}></td><td><input class="${inputClass(calc, 'speed', result)}" type="number" step="0.1" inputmode="decimal" value="${escapeAttribute(calc.speed)}" aria-label="${trialLabel} calculated speed in meters per second" data-calc-key="${key}" data-calc-field="speed" ${disabled}></td><td>${status}</td></tr>`;
+    }).join('');
+
+    $$('[data-calc-key]').forEach(input => input.addEventListener('input', event => {
+      const key = event.target.dataset.calcKey;
+      const field = event.target.dataset.calcField;
+      state.calculations[key][field] = event.target.value;
+      state.calculations[key].checked = false;
+      invalidateFinal();
+      event.target.classList.remove('is-correct', 'is-wrong');
+      const status = event.target.closest('tr').querySelector('.row-status');
+      status.className = 'row-status ready';
+      status.textContent = 'Ready';
+      saveState();
+      updateProgress();
+      updateFinalControls();
+      renderResults();
+    }));
+  }
+
+  function checkCalculations() {
+    const recorded = measurementCount();
+    TRIALS.forEach(({ key }) => {
+      if (state.measurements[key] !== undefined) state.calculations[key].checked = true;
+    });
+    saveState();
+    renderCalculationTable();
+    updateProgress();
+    updateFinalControls();
+    renderResults();
+    const correct = calculationCorrectCount();
+    const feedback = $('#calculationFeedback');
+    if (recorded === 0) {
+      feedback.textContent = 'No trials are recorded yet. Return to the experiment and find a resonance peak.';
+      feedback.className = 'feedback bad';
+    } else if (correct === TRIAL_COUNT) {
+      feedback.textContent = 'All 12 rows are correct. Now average the 12 speed values.';
+      feedback.className = 'feedback good';
+    } else {
+      feedback.textContent = `${correct} of ${TRIAL_COUNT} rows are correct. Recheck centimeters-to-meters, λ = 4L/n, and v = fλ.`;
+      feedback.className = 'feedback bad';
+    }
+  }
+
+  function updateFinalControls() {
+    const unlocked = calculationCorrectCount() === TRIAL_COUNT;
+    const averageInput = $('#averageSpeed');
+    const percentInput = $('#percentDifference');
+    const button = $('#checkFinal');
+    averageInput.disabled = !unlocked;
+    percentInput.disabled = !unlocked;
+    button.disabled = !unlocked;
+    averageInput.value = state.final.average;
+    percentInput.value = state.final.percent;
+    averageInput.className = '';
+    percentInput.className = '';
+    if (state.final.checked && unlocked) {
+      const result = getFinalResult();
+      averageInput.className = result.averageOk ? 'is-correct' : 'is-wrong';
+      percentInput.className = result.percentOk ? 'is-correct' : 'is-wrong';
+    }
+    if (!unlocked) {
+      $('#finalFeedback').textContent = 'Complete all 12 row calculations to unlock the final result.';
+      $('#finalFeedback').className = 'feedback';
+    }
+  }
+
+  function sendCompletion() {
+    if (completionSent) return;
+    completionSent = true;
+    try { window.parent.postMessage({ type: 'complete' }, '*'); } catch (error) { /* Parent messaging is optional. */ }
+  }
+
+  function checkFinal() {
+    if (calculationCorrectCount() !== TRIAL_COUNT) return;
+    state.final.checked = true;
+    const result = getFinalResult();
+    if (result.correct) {
+      state.completedAt = new Date().toISOString();
+      $('#finalFeedback').textContent = 'Correct. Your 12 resonance trials give a speed close to the accepted value for air.';
+      $('#finalFeedback').className = 'feedback good';
+      sendCompletion();
+    } else {
+      state.completedAt = '';
+      $('#finalFeedback').textContent = 'Not quite. Average the 12 speed entries, then use the absolute percent-difference formula.';
+      $('#finalFeedback').className = 'feedback bad';
+    }
+    saveState();
+    updateFinalControls();
+    updateProgress();
+    renderResults();
+    if (result.correct) {
+      showPanel('results');
+      $('#liveStatus').textContent = 'Lab complete. Your final speed-of-sound result is correct.';
+    }
+  }
+
+  function updateProgress() {
+    const trials = measurementCount();
+    const calculations = calculationCorrectCount();
+    const finalCorrect = state.final.checked && getFinalResult().correct ? 1 : 0;
+    const percent = Math.round((trials + calculations + finalCorrect) / PROGRESS_STEP_COUNT * 100);
+    $('#progressLabel').textContent = `Trials ${trials}/${TRIAL_COUNT} · Calculations ${calculations}/${TRIAL_COUNT}`;
+    $('#progressPercent').textContent = `${percent}%`;
+    $('#progressFill').style.width = `${percent}%`;
+    $('#progressBar').setAttribute('aria-valuenow', String(percent));
+    $('#trialTabCount').textContent = `${trials}/${TRIAL_COUNT}`;
+    $('#calcTabCount').textContent = `${calculations}/${TRIAL_COUNT}`;
+    $('#tableReadout').textContent = `${trials} of ${TRIAL_COUNT} trials recorded`;
+  }
+
+  function renderResults() {
+    const result = getFinalResult();
+    const complete = Boolean(state.completedAt) && state.final.checked && result.correct;
+    $('#resultsHero').classList.toggle('complete', complete);
+    $('#resultIcon').textContent = complete ? '✓' : '3';
+    $('#resultsHeading').textContent = complete ? 'Investigation complete' : 'Finish your investigation';
+    $('#resultsMessage').textContent = complete
+      ? `You used 12 resonance measurements across four frequencies to determine the speed of sound in air${storageOkay ? '. Your result is saved on this device.' : '.'}`
+      : 'Collect 12 resonance lengths and complete the calculation table to reveal your final result.';
+    $('#resultsJump').textContent = complete ? 'Review experiment' : (measurementCount() < TRIAL_COUNT ? 'Return to experiment' : 'Go to calculations');
+    $('#resultsJump').dataset.target = complete || measurementCount() < TRIAL_COUNT ? 'experiment' : 'calculate';
+
+    if (!complete) {
+      $('#resultsGrid').innerHTML = `
+        <div class="result-stat"><small>Resonance trials</small><strong>${measurementCount()}/${TRIAL_COUNT}</strong></div>
+        <div class="result-stat"><small>Correct calculations</small><strong>${calculationCorrectCount()}/${TRIAL_COUNT}</strong></div>
+        <div class="result-stat"><small>Final result</small><strong>—</strong></div>`;
+      $('#resultsTable').innerHTML = '';
+      return;
+    }
+
+    $('#resultsGrid').innerHTML = `
+      <div class="result-stat"><small>Your average speed</small><strong>${result.average.toFixed(1)} m/s</strong></div>
+      <div class="result-stat"><small>Accepted value at 20 °C</small><strong>${SPEED_OF_SOUND} m/s</strong></div>
+      <div class="result-stat"><small>Percent difference</small><strong>${result.percent.toFixed(2)}%</strong></div>`;
+      $('#resultsTable').innerHTML = `<section class="card"><div class="card-head"><h3>Completed data set</h3><span class="readout">12 odd-harmonic trials</span></div><div class="table-wrap"><table class="data-table"><thead><tr><th scope="col">Frequency</th><th scope="col">Harmonic</th><th scope="col">Measured L</th><th scope="col">Wavelength</th><th scope="col">Speed</th></tr></thead><tbody>${TRIALS.map(({ frequency, harmonic, key }, index) => `<tr><th scope="row">${frequency} Hz</th><td>n = ${harmonic} · ${harmonicLabel(harmonic)}</td><td>${state.measurements[key].toFixed(1)} cm</td><td>${parseEntry(state.calculations[key].wavelength).toFixed(3)} m</td><td>${result.speeds[index].toFixed(1)} m/s</td></tr>`).join('')}</tbody></table></div></section>`;
+  }
+
+  function renderAllData() {
+    renderForkRack();
+    renderMeasurementStrip();
+    renderCalculationTable();
+    updateFinalControls();
+    updateProgress();
+    renderResults();
+  }
+
+  function clearCanvasInteraction() {
+    const canvas = $('#apparatusCanvas');
+    [hammerPointerId, tubePointerId].forEach(pointerId => {
+      if (pointerId !== null && canvas.hasPointerCapture(pointerId)) {
+        try { canvas.releasePointerCapture(pointerId); } catch (error) { /* Capture may already be gone. */ }
+      }
+    });
+    draggingTube = false;
+    tubePointerId = null;
+    hammerPressed = false;
+    hammerHovered = false;
+    hammerPointerId = null;
+    canvas.classList.remove('dragging', 'hammer-hover');
+  }
+
+  function showPanel(name, moveFocus = false) {
+    activePanel = name;
+    $$('.lab-tab').forEach(tab => {
+      const selected = tab.dataset.panel === name;
+      tab.setAttribute('aria-selected', String(selected));
+      tab.tabIndex = selected ? 0 : -1;
+      if (selected && moveFocus) tab.focus();
+    });
+    $$('[data-panel-content]').forEach(panel => { panel.hidden = panel.dataset.panelContent !== name; });
+    if (name !== 'experiment') {
+      clearCanvasInteraction();
+      continuousTone = false;
+      $('#continuousTone').checked = false;
+      muteEnvelope();
+    }
+    if (name === 'experiment') {
+      drawApparatus();
+      drawIntensityGraph();
+    }
+    window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+  }
+
+  async function ensureAudio() {
+    if (audio?.context.state === 'closed') audio = null;
+    if (audio) {
+      try {
+        if (audio.context.state !== 'running') await audio.context.resume();
+        return true;
+      } catch (error) {
+        $('#toneStatus').textContent = 'Audio could not resume; use the visual meter.';
+        return false;
+      }
+    }
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      $('#toneStatus').textContent = 'Audio is unavailable; use the visual meter.';
+      return false;
+    }
+    try {
+      const context = new AudioContextClass();
+      const oscillator = context.createOscillator();
+      const envelope = context.createGain();
+      const resonanceGain = context.createGain();
+      const master = context.createGain();
+      oscillator.type = 'sine';
+      oscillator.frequency.value = selectedFrequency;
+      envelope.gain.value = 0;
+      resonanceGain.gain.value = .075;
+      master.gain.value = .09;
+      oscillator.connect(envelope);
+      envelope.connect(resonanceGain);
+      resonanceGain.connect(master);
+      master.connect(context.destination);
+      oscillator.start();
+      audio = { context, oscillator, envelope, resonanceGain, master };
+      if (context.state !== 'running') await context.resume();
+      return true;
+    } catch (error) {
+      $('#toneStatus').textContent = 'Audio could not start; use the visual meter.';
+      return false;
+    }
+  }
+
+  function holdAudioParam(param, now) {
+    if (typeof param.cancelAndHoldAtTime === 'function') {
+      param.cancelAndHoldAtTime(now);
+    } else {
+      const currentValue = param.value;
+      param.cancelScheduledValues(now);
+      param.setValueAtTime(currentValue, now);
+    }
+  }
+
+  function smoothAudioGain(param, target, seconds = .04) {
+    if (!audio) return;
+    const now = audio.context.currentTime;
+    holdAudioParam(param, now);
+    param.linearRampToValueAtTime(target, now + seconds);
+  }
+
+  function updateAudioResponse(response) {
+    if (!audio || audio.context.state === 'closed') return;
+    const resonanceAmplitude = .075 + .925 * Math.sqrt(response);
+    smoothAudioGain(audio.resonanceGain.gain, resonanceAmplitude, .035);
+  }
+
+  function muteEnvelope(message = 'Audio is off. Click the hammer to strike.') {
+    if (strikeTimer !== null) {
+      window.clearTimeout(strikeTimer);
+      strikeTimer = null;
+    }
+    strikeEndsAt = 0;
+    hammerStrikeStartedAt = 0;
+    if (audio && audio.context.state !== 'closed') smoothAudioGain(audio.envelope.gain, 0, .025);
+    $('#toneStatus').textContent = message;
+    updateExperimentReadouts();
+    drawApparatus();
+  }
+
+  function scheduleStrikeFade(plannedEnd) {
+    if (strikeTimer !== null) window.clearTimeout(strikeTimer);
+    strikeTimer = window.setTimeout(() => {
+      if (!continuousTone && strikeEndsAt === plannedEnd) {
+        strikeEndsAt = 0;
+        hammerStrikeStartedAt = 0;
+        $('#toneStatus').textContent = 'Tone faded. Click the hammer to strike again.';
+        updateExperimentReadouts();
+        drawApparatus();
+      }
+      strikeTimer = null;
+    }, Math.max(0, plannedEnd - performance.now() + 40));
+  }
+
+  async function strikeFork() {
+    const visualStart = performance.now();
+    hammerStrikeStartedAt = visualStart;
+    strikeEndsAt = continuousTone ? Infinity : visualStart + STRIKE_DURATION_MS;
+    if (!continuousTone) scheduleStrikeFade(strikeEndsAt);
+    const visualInfo = resonanceAt(currentLengthCm);
+    updateApparatusSummary(visualInfo, soundDescription(visualInfo.response, visualInfo.harmonic));
+    drawApparatus();
+
+    if (!await ensureAudio()) {
+      if (continuousTone) {
+        continuousTone = false;
+        $('#continuousTone').checked = false;
+        strikeEndsAt = visualStart + STRIKE_DURATION_MS;
+        scheduleStrikeFade(strikeEndsAt);
+      }
+      updateApparatusSummary(visualInfo, soundDescription(visualInfo.response, visualInfo.harmonic));
+      drawApparatus();
+      return false;
+    }
+    const now = audio.context.currentTime;
+    audio.oscillator.frequency.setTargetAtTime(selectedFrequency, now, .02);
+    holdAudioParam(audio.envelope.gain, now);
+    if (continuousTone) {
+      audio.envelope.gain.linearRampToValueAtTime(.42, now + .025);
+      strikeEndsAt = Infinity;
+    } else {
+      audio.envelope.gain.linearRampToValueAtTime(.42, now + .025);
+      audio.envelope.gain.exponentialRampToValueAtTime(.08, now + 6.5);
+      audio.envelope.gain.linearRampToValueAtTime(0, now + 7.5);
+    }
+    updateAudioResponse(resonanceAt(currentLengthCm).response);
+    updateExperimentReadouts();
+    drawApparatus();
+    return true;
+  }
+
+  function drawRoundedRect(context, x, y, width, height, radius) {
+    const r = Math.min(radius, width / 2, height / 2);
+    context.beginPath();
+    context.moveTo(x + r, y);
+    context.arcTo(x + width, y, x + width, y + height, r);
+    context.arcTo(x + width, y + height, x, y + height, r);
+    context.arcTo(x, y + height, x, y, r);
+    context.arcTo(x, y, x + width, y, r);
+    context.closePath();
+  }
+
+  function getApparatusGeometry(canvas = $('#apparatusCanvas')) {
+    const waterY = 500;
+    const pxPerCm = 2.25;
+    const tubeX = 420;
+    const tubeWidth = 88;
+    const tubeTop = waterY - currentLengthCm * pxPerCm;
+    const tubeBottom = tubeTop + 185 * pxPerCm;
+    const tubeVisibleBottom = Math.min(tubeBottom, 580);
+    const forkCenter = tubeX + tubeWidth / 2;
+    const forkTop = tubeTop - 80;
+    const hammerBox = { x: 45, y: 420, width: 165, height: 140 };
+    return {
+      waterY,
+      pxPerCm,
+      tubeX,
+      tubeWidth,
+      tubeTop,
+      tubeBottom,
+      tubeVisibleBottom,
+      forkCenter,
+      forkTop,
+      hammerBox,
+      hammerHitBox: { x: hammerBox.x - 10, y: hammerBox.y - 10, width: hammerBox.width + 20, height: hammerBox.height + 20 },
+      tubeHitBox: { x: tubeX - 55, y: Math.max(3, tubeTop - 92), width: tubeWidth + 110, height: tubeVisibleBottom - Math.max(3, tubeTop - 92) }
+    };
+  }
+
+  function drawHammerButton(context, geometry, sounding) {
+    const { hammerBox } = geometry;
+    const now = performance.now();
+    const swingElapsed = hammerStrikeStartedAt ? now - hammerStrikeStartedAt : Infinity;
+    const swing = !reduceMotion && swingElapsed >= 0 && swingElapsed < 440 ? Math.sin(swingElapsed / 440 * Math.PI) * .72 : 0;
+    const pressedOffset = hammerPressed ? 3 : 0;
+    context.save();
+    context.translate(0, pressedOffset);
+    drawRoundedRect(context, hammerBox.x, hammerBox.y, hammerBox.width, hammerBox.height, 18);
+    context.fillStyle = hammerPressed ? '#235b70' : hammerHovered ? '#1b5068' : '#12394f';
+    context.fill();
+    context.strokeStyle = sounding ? '#66efb0' : hammerHovered ? '#ffe06f' : '#d5e8f1';
+    context.lineWidth = hammerHovered || hammerPressed ? 5 : 3;
+    context.stroke();
+
+    context.save();
+    context.translate(hammerBox.x + 79, hammerBox.y + 54);
+    context.rotate(-.45 + swing);
+    context.strokeStyle = '#b97a43';
+    context.lineWidth = 13;
+    context.lineCap = 'round';
+    context.beginPath();
+    context.moveTo(-32, 35);
+    context.lineTo(22, -24);
+    context.stroke();
+    const headGradient = context.createLinearGradient(4, -45, 62, -15);
+    headGradient.addColorStop(0, '#eef4f7');
+    headGradient.addColorStop(.45, '#9eb0ba');
+    headGradient.addColorStop(1, '#5e737f');
+    context.fillStyle = headGradient;
+    drawRoundedRect(context, 4, -43, 62, 30, 7);
+    context.fill();
+    context.strokeStyle = '#eef6fa';
+    context.lineWidth = 3;
+    context.stroke();
+    context.restore();
+
+    context.fillStyle = sounding ? '#75f0b7' : '#ffffff';
+    context.font = '900 16px system-ui, sans-serif';
+    context.textAlign = 'center';
+    context.fillText(sounding ? 'STRIKE AGAIN' : 'STRIKE FORK', hammerBox.x + hammerBox.width / 2, hammerBox.y + 113);
+    context.fillStyle = '#c5dce7';
+    context.font = '750 11px system-ui, sans-serif';
+    context.fillText('click the hammer', hammerBox.x + hammerBox.width / 2, hammerBox.y + 130);
+    context.restore();
+  }
+
+  function drawApparatus() {
+    const canvas = $('#apparatusCanvas');
+    const context = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    const displayScale = clamp(canvas.width / Math.max(canvas.clientWidth || canvas.width, 1), 1, 3.5);
+    const geometry = getApparatusGeometry(canvas);
+    const { waterY, pxPerCm, tubeX, tubeWidth, tubeTop, tubeBottom, tubeVisibleBottom, forkCenter, forkTop } = geometry;
+    const info = resonanceAt(currentLengthCm);
+    const description = soundDescription(info.response, info.harmonic);
+    const visualStrength = toneVisualStrength();
+    const sounding = visualStrength > 0;
+    context.clearRect(0, 0, width, height);
+
+    const background = context.createLinearGradient(0, 0, 0, height);
+    background.addColorStop(0, '#17344b');
+    background.addColorStop(.68, '#0a1b2a');
+    background.addColorStop(1, '#07131e');
+    context.fillStyle = background;
+    context.fillRect(0, 0, width, height);
+
+    context.fillStyle = '#d6c4a6';
+    context.fillRect(42, 582, 816, 26);
+    context.fillStyle = '#806d58';
+    context.fillRect(42, 608, 816, 12);
+
+    const cylinderX = 280;
+    const cylinderTop = 82;
+    const cylinderWidth = 360;
+    const cylinderBottom = 580;
+    context.fillStyle = 'rgb(225 247 255 / 7%)';
+    context.fillRect(cylinderX, cylinderTop, cylinderWidth, cylinderBottom - cylinderTop);
+
+    const tubeGradient = context.createLinearGradient(tubeX, 0, tubeX + tubeWidth, 0);
+    tubeGradient.addColorStop(0, '#8499a7');
+    tubeGradient.addColorStop(.14, '#dce7ed');
+    tubeGradient.addColorStop(.48, '#617987');
+    tubeGradient.addColorStop(.82, '#dae5eb');
+    tubeGradient.addColorStop(1, '#738a98');
+    context.fillStyle = tubeGradient;
+    context.fillRect(tubeX, tubeTop, tubeWidth, tubeVisibleBottom - tubeTop);
+    context.fillStyle = '#122939';
+    context.fillRect(tubeX + 13, tubeTop + 8, tubeWidth - 26, Math.max(1, tubeVisibleBottom - tubeTop - 11));
+    context.fillStyle = `rgb(51 188 222 / ${.16 + info.response * .22})`;
+    context.fillRect(tubeX + 14, tubeTop + 9, tubeWidth - 28, Math.max(1, waterY - tubeTop - 9));
+
+    const waterGradient = context.createLinearGradient(0, waterY, 0, cylinderBottom);
+    waterGradient.addColorStop(0, 'rgb(82 199 236 / 73%)');
+    waterGradient.addColorStop(1, 'rgb(17 102 158 / 88%)');
+    context.fillStyle = waterGradient;
+    context.fillRect(cylinderX + 5, waterY, cylinderWidth - 10, cylinderBottom - waterY);
+    context.fillStyle = 'rgb(104 208 239 / 72%)';
+    context.fillRect(tubeX + 14, waterY, tubeWidth - 28, Math.max(0, tubeVisibleBottom - waterY));
+    context.strokeStyle = '#a7e9fb';
+    context.lineWidth = 3;
+    context.beginPath();
+    context.moveTo(cylinderX + 5, waterY);
+    context.lineTo(cylinderX + cylinderWidth - 5, waterY);
+    context.stroke();
+
+    context.strokeStyle = '#b7d4e1';
+    context.lineWidth = 4;
+    context.strokeRect(cylinderX, cylinderTop, cylinderWidth, cylinderBottom - cylinderTop);
+    context.strokeStyle = 'rgb(255 255 255 / 30%)';
+    context.lineWidth = 2;
+    context.beginPath();
+    context.moveTo(cylinderX + 20, cylinderTop + 16);
+    context.lineTo(cylinderX + 20, cylinderBottom - 16);
+    context.stroke();
+
+    if (tubeBottom > cylinderBottom) {
+      context.strokeStyle = '#d9e5eb';
+      context.lineWidth = 4;
+      context.beginPath();
+      context.moveTo(tubeX + 13, cylinderBottom - 18);
+      context.lineTo(tubeX + 31, cylinderBottom - 7);
+      context.moveTo(tubeX + 38, cylinderBottom - 18);
+      context.lineTo(tubeX + 56, cylinderBottom - 7);
+      context.stroke();
+    }
+
+    context.fillStyle = '#081723';
+    context.beginPath();
+    context.ellipse(tubeX + tubeWidth / 2, tubeTop, tubeWidth / 2, 13, 0, 0, Math.PI * 2);
+    context.fill();
+    context.strokeStyle = '#d9e5eb';
+    context.lineWidth = 4;
+    context.stroke();
+
+    const forkBaseY = tubeTop - 12;
+    const elapsedSeconds = hammerStrikeStartedAt ? Math.max(0, performance.now() - hammerStrikeStartedAt) / 1000 : 0;
+    const vibrationDecay = continuousTone ? .78 : Math.exp(-elapsedSeconds / 3.6);
+    const visualRate = 8 + (selectedFrequency - FORKS[0].frequency) / FORKS[0].frequency * 3;
+    const tineOffset = sounding && !reduceMotion ? 4.5 * vibrationDecay * Math.sin(performance.now() / 1000 * Math.PI * 2 * visualRate) : 0;
+    const leftTipX = forkCenter - 32 - tineOffset;
+    const rightTipX = forkCenter + 32 + tineOffset;
+    context.strokeStyle = '#d8e2e7';
+    context.lineWidth = 10;
+    context.lineCap = 'round';
+    context.beginPath();
+    context.moveTo(forkCenter, forkBaseY);
+    context.lineTo(forkCenter, forkTop + 48);
+    context.stroke();
+    context.beginPath();
+    context.moveTo(forkCenter, forkTop + 48);
+    context.quadraticCurveTo(forkCenter - 31 - tineOffset * .3, forkTop + 43, leftTipX, forkTop + 17);
+    context.lineTo(leftTipX, forkTop);
+    context.moveTo(forkCenter, forkTop + 48);
+    context.quadraticCurveTo(forkCenter + 31 + tineOffset * .3, forkTop + 43, rightTipX, forkTop + 17);
+    context.lineTo(rightTipX, forkTop);
+    context.stroke();
+    context.strokeStyle = '#8398a4';
+    context.lineWidth = 3;
+    context.beginPath();
+    context.moveTo(leftTipX, forkTop);
+    context.lineTo(leftTipX, forkTop + 20);
+    context.moveTo(rightTipX, forkTop);
+    context.lineTo(rightTipX, forkTop + 20);
+    context.stroke();
+
+    if (sounding) {
+      context.fillStyle = '#75f0b7';
+      context.font = '900 12px system-ui, sans-serif';
+      context.textAlign = 'center';
+      context.fillText(reduceMotion ? 'SOUNDING' : 'VIBRATING', forkCenter, Math.max(14, forkTop - 13));
+      if (!reduceMotion) {
+        context.strokeStyle = 'rgb(105 231 244 / 32%)';
+        context.lineWidth = 2;
+        context.beginPath();
+        context.moveTo(leftTipX - 8, forkTop - 2);
+        context.lineTo(leftTipX - 8, forkTop + 22);
+        context.moveTo(rightTipX + 8, forkTop - 2);
+        context.lineTo(rightTipX + 8, forkTop + 22);
+        context.stroke();
+      }
+    }
+
+    if (sounding && info.response > .07) {
+      const airHeight = Math.max(8, waterY - tubeTop - 9);
+      const standingAmplitude = (5 + 24 * info.response) * (reduceMotion ? 1 : (.82 + .18 * Math.sin(phase * 2.8)));
+      context.beginPath();
+      for (let y = tubeTop + 9; y <= waterY; y += 3) {
+        const position = (waterY - y) / airHeight;
+        const x = forkCenter + standingAmplitude * Math.sin(info.harmonic * position * Math.PI / 2) * (reduceMotion ? 1 : Math.sin(phase * 3.2));
+        if (y === tubeTop + 9) context.moveTo(x, y); else context.lineTo(x, y);
+      }
+      context.strokeStyle = `rgb(255 218 80 / ${.32 + info.response * .68})`;
+      context.lineWidth = 5;
+      context.stroke();
+    }
+
+    if (sounding && info.response > .12 && !reduceMotion) {
+      context.strokeStyle = `rgb(78 218 240 / ${.20 + .42 * info.response})`;
+      context.lineWidth = 3;
+      for (let ring = 0; ring < 3; ring += 1) {
+        const radius = 42 + ring * 29 + (reduceMotion ? 0 : (phase * 18) % 22);
+        context.beginPath();
+        context.arc(forkCenter, forkTop + 25, radius, Math.PI * 1.08, Math.PI * 1.92);
+        context.stroke();
+      }
+    }
+
+    const rulerX = tubeX + 7;
+    const rulerBottom = Math.min(tubeTop + 180 * pxPerCm, tubeVisibleBottom);
+    context.save();
+    context.shadowColor = 'rgb(255 255 255 / 80%)';
+    context.shadowBlur = 2 * displayScale;
+    context.strokeStyle = '#000000';
+    context.lineWidth = 2 * displayScale;
+    context.beginPath();
+    context.moveTo(rulerX, tubeTop);
+    context.lineTo(rulerX, rulerBottom);
+    context.stroke();
+    for (let cm = 0; cm <= 180; cm += 1) {
+      const y = tubeTop + cm * pxPerCm;
+      if (y > rulerBottom + .1) break;
+      const major = cm % 20 === 0;
+      const medium = cm % 5 === 0;
+      context.strokeStyle = '#000000';
+      context.lineWidth = major ? 2.2 * displayScale : displayScale;
+      context.beginPath();
+      context.moveTo(rulerX, y);
+      context.lineTo(rulerX + (major ? 26 : medium ? 18 : 10), y);
+      context.stroke();
+      if (major) {
+        context.fillStyle = '#000000';
+        context.font = `900 ${Math.round(12 * displayScale)}px system-ui, sans-serif`;
+        context.textAlign = 'left';
+        context.fillText(String(cm), rulerX + 30, y + 4);
+      }
+    }
+    context.strokeStyle = '#000000';
+    context.lineWidth = 3 * displayScale;
+    context.beginPath();
+    context.moveTo(rulerX - 3, waterY);
+    context.lineTo(tubeX + tubeWidth - 5, waterY);
+    context.stroke();
+    context.restore();
+
+    const bracketX = tubeX + tubeWidth + 45;
+    context.strokeStyle = '#ffe06f';
+    context.lineWidth = 3;
+    context.beginPath();
+    context.moveTo(bracketX, tubeTop);
+    context.lineTo(bracketX, waterY);
+    context.moveTo(bracketX - 8, tubeTop + 10);
+    context.lineTo(bracketX, tubeTop);
+    context.lineTo(bracketX + 8, tubeTop + 10);
+    context.moveTo(bracketX - 8, waterY - 10);
+    context.lineTo(bracketX, waterY);
+    context.lineTo(bracketX + 8, waterY - 10);
+    context.stroke();
+    context.fillStyle = '#ffe06f';
+    context.font = '800 16px system-ui, sans-serif';
+    context.textAlign = 'left';
+    context.fillText(`L = ${currentLengthCm.toFixed(1)} cm`, bracketX + 13, (tubeTop + waterY) / 2 + 5);
+
+    context.fillStyle = '#d9e9f1';
+    context.font = '750 15px system-ui, sans-serif';
+    context.textAlign = 'left';
+    context.fillText(`${selectedFrequency} Hz tuning fork`, 650, 60);
+    context.fillText('open end · antinode', 650, 88);
+    context.fillText('fixed water level', 650, waterY + 6);
+    context.fillText('closed end · node', 650, waterY + 34);
+    context.fillStyle = description.className === 'peak' ? '#70efaf' : '#c7d9e3';
+    context.font = '900 19px system-ui, sans-serif';
+    context.fillText(description.label.toUpperCase(), 650, 135);
+
+    if (draggingTube) {
+      context.strokeStyle = '#ffe06f';
+      context.lineWidth = 4;
+      context.setLineDash([8, 7]);
+      context.strokeRect(tubeX - 12, Math.max(5, tubeTop - 112), tubeWidth + 24, Math.min(height - Math.max(5, tubeTop - 112) - 8, tubeBottom - tubeTop + 120));
+      context.setLineDash([]);
+    }
+    drawHammerButton(context, geometry, sounding);
+  }
+
+  function graphRange(frequency) {
+    const highestHarmonic = Math.max(...HARMONICS);
+    const furthestTarget = resonanceAt(MIN_LENGTH_CM, frequency).peaks.find(peak => peak.harmonic === highestHarmonic).targetCm;
+    const max = clamp(Math.ceil((furthestTarget * 1.04 + 2) / 5) * 5, 25, MAX_LENGTH_CM);
+    return { min: MIN_LENGTH_CM, max };
+  }
+
+  function drawIntensityGraph() {
+    const canvas = $('#intensityCanvas');
+    const context = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    const margin = { left: 68, right: 24, top: 25, bottom: 55 };
+    const plotWidth = width - margin.left - margin.right;
+    const plotHeight = height - margin.top - margin.bottom;
+    const view = graphRange(selectedFrequency);
+    const xFor = length => margin.left + (length - view.min) / (view.max - view.min) * plotWidth;
+    const yFor = intensity => margin.top + (100 - intensity) / 100 * plotHeight;
+    const values = traceData[selectedFrequency];
+    const currentInfo = resonanceAt(currentLengthCm);
+    context.clearRect(0, 0, width, height);
+    context.fillStyle = '#091927';
+    context.fillRect(0, 0, width, height);
+
+    context.font = '700 12px system-ui, sans-serif';
+    context.textAlign = 'right';
+    for (let intensity = 0; intensity <= 100; intensity += 25) {
+      const y = yFor(intensity);
+      context.strokeStyle = 'rgb(255 255 255 / 12%)';
+      context.lineWidth = 1;
+      context.beginPath();
+      context.moveTo(margin.left, y);
+      context.lineTo(width - margin.right, y);
+      context.stroke();
+      context.fillStyle = '#afc3cf';
+      context.fillText(`${intensity}%`, margin.left - 10, y + 4);
+    }
+
+    const span = view.max - view.min;
+    const tickStep = [1, 2, 5, 10, 20, 25, 50].find(step => step >= span / 7) || 50;
+    const ticks = new Set([view.min, view.max]);
+    for (let length = Math.ceil(view.min / tickStep) * tickStep; length <= view.max; length += tickStep) ticks.add(length);
+    context.textAlign = 'center';
+    [...ticks].sort((a, b) => a - b).forEach(length => {
+      const x = xFor(length);
+      context.strokeStyle = 'rgb(255 255 255 / 9%)';
+      context.beginPath();
+      context.moveTo(x, margin.top);
+      context.lineTo(x, height - margin.bottom);
+      context.stroke();
+      context.fillStyle = '#afc3cf';
+      context.fillText(`${length}`, x, height - margin.bottom + 22);
+    });
+    context.fillStyle = '#d8e8f0';
+    context.font = '800 13px system-ui, sans-serif';
+    context.fillText(`Air-column length, L (cm) · ${view.min}–${view.max} cm fork view`, margin.left + plotWidth / 2, height - 11);
+    context.save();
+    context.translate(17, margin.top + plotHeight / 2);
+    context.rotate(-Math.PI / 2);
+    context.fillText('Relative intensity', 0, 0);
+    context.restore();
+
+    context.lineJoin = 'round';
+    context.lineCap = 'round';
+    let segmentOpen = false;
+    context.beginPath();
+    values.forEach((value, index) => {
+      const length = MIN_LENGTH_CM + index * SCAN_STEP;
+      if (length > view.max || value === null) {
+        if (segmentOpen) {
+          context.strokeStyle = '#25c7df';
+          context.lineWidth = 5;
+          context.stroke();
+          context.beginPath();
+          segmentOpen = false;
+        }
+        return;
+      }
+      const x = xFor(length);
+      const y = yFor(value);
+      if (!segmentOpen) { context.moveTo(x, y); segmentOpen = true; } else context.lineTo(x, y);
+    });
+    if (segmentOpen) {
+      context.strokeStyle = '#25c7df';
+      context.lineWidth = 5;
+      context.stroke();
+    }
+
+    HARMONICS.forEach(harmonic => {
+      const measured = state.measurements[trialKey(selectedFrequency, harmonic)];
+      if (measured === undefined) return;
+      const x = xFor(measured);
+      context.strokeStyle = '#55df9e';
+      context.lineWidth = 3;
+      context.setLineDash([7, 6]);
+      context.beginPath();
+      context.moveTo(x, margin.top);
+      context.lineTo(x, height - margin.bottom);
+      context.stroke();
+      context.setLineDash([]);
+      context.fillStyle = '#7af0b8';
+      context.font = '800 12px system-ui, sans-serif';
+      context.textAlign = 'center';
+      context.fillText(`${harmonicLabel(harmonic)} · ${measured.toFixed(1)} cm`, x, margin.top + 14);
+    });
+
+    if (currentLengthCm <= view.max) {
+      const currentX = xFor(currentLengthCm);
+      const currentY = yFor(currentInfo.intensity);
+      context.strokeStyle = 'rgb(255 222 105 / 45%)';
+      context.lineWidth = 2;
+      context.beginPath();
+      context.moveTo(currentX, margin.top);
+      context.lineTo(currentX, height - margin.bottom);
+      context.stroke();
+      context.fillStyle = '#ffe06f';
+      context.beginPath();
+      context.arc(currentX, currentY, 8, 0, Math.PI * 2);
+      context.fill();
+      context.strokeStyle = '#07131e';
+      context.lineWidth = 3;
+      context.stroke();
+    } else {
+      context.fillStyle = '#ffe06f';
+      context.font = '800 12px system-ui, sans-serif';
+      context.textAlign = 'right';
+      context.fillText(`Current L = ${currentLengthCm.toFixed(1)} cm is beyond this fork's peak view →`, width - margin.right, margin.top + 14);
+    }
+
+    let sampled = 0;
+    let maxValue = -1;
+    let maxIndex = 0;
+    values.forEach((value, index) => {
+      const length = MIN_LENGTH_CM + index * SCAN_STEP;
+      if (value !== null && length <= view.max) {
+        sampled += 1;
+        if (value > maxValue) { maxValue = value; maxIndex = index; }
+      }
+    });
+    const recordedText = HARMONICS.map(harmonic => {
+      const measured = state.measurements[trialKey(selectedFrequency, harmonic)];
+      return `${harmonicLabel(harmonic)} ${measured === undefined ? 'not recorded' : `${measured.toFixed(1)} centimeters`}`;
+    }).join(', ');
+    const maxText = sampled > 1 ? ` The strongest scanned value in this view is ${maxValue} percent at ${(MIN_LENGTH_CM + maxIndex * SCAN_STEP).toFixed(1)} centimeters.` : '';
+    const outsideText = currentLengthCm > view.max ? ` The current length is outside the ${view.min} to ${view.max} centimeter fork view.` : '';
+    $('#graphSummary').textContent = `${sampled} pipe positions have been sampled for the ${selectedFrequency} hertz fork. Current intensity is ${currentInfo.intensity} percent at ${currentLengthCm.toFixed(1)} centimeters, nearest the ${harmonicLabel(currentInfo.harmonic)} harmonic.${outsideText}${maxText} Recorded peaks: ${recordedText}.`;
+  }
+
+  function canvasPosition(event) {
+    const canvas = $('#apparatusCanvas');
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - rect.left) * canvas.width / rect.width,
+      y: (event.clientY - rect.top) * canvas.height / rect.height
+    };
+  }
+
+  function resetLab() {
+    if (!window.confirm('Clear all 12 resonance measurements and every calculation for this lab?')) return;
+    clearCanvasInteraction();
+    muteEnvelope();
+    try { localStorage.removeItem(STORE_KEY); } catch (error) { storageOkay = false; }
+    state = defaultState();
+    selectedFrequency = state.selectedFrequency;
+    currentLengthCm = state.currentLengthCm;
+    traceData = createTraceData();
+    lastTraceLength = {};
+    completionSent = false;
+    continuousTone = false;
+    $('#continuousTone').checked = false;
+    $('#recordStatus').textContent = 'Lab data cleared. Choose a fork and begin a new scan.';
+    $('#calculationFeedback').textContent = 'Record a resonance length, then enter your calculations.';
+    $('#calculationFeedback').className = 'feedback';
+    $('#finalFeedback').textContent = 'Complete all 12 row calculations to unlock the final result.';
+    $('#finalFeedback').className = 'feedback';
+    setLength(currentLengthCm, false);
+    renderAllData();
+    saveState();
+    showPanel('experiment');
+    $('#liveStatus').textContent = 'All lab data has been reset.';
+  }
+
+  $$('.lab-tab').forEach(tab => {
+    tab.addEventListener('click', () => showPanel(tab.dataset.panel));
+    tab.addEventListener('keydown', event => {
+      const tabs = $$('.lab-tab');
+      const index = tabs.indexOf(event.currentTarget);
+      let nextIndex = index;
+      if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabs.length;
+      if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabs.length) % tabs.length;
+      if (event.key === 'Home') nextIndex = 0;
+      if (event.key === 'End') nextIndex = tabs.length - 1;
+      if (nextIndex !== index) {
+        event.preventDefault();
+        showPanel(tabs[nextIndex].dataset.panel, true);
+      }
+    });
+  });
+
+  $$('.fork-button').forEach(button => {
+    button.addEventListener('click', () => selectFork(Number(button.dataset.frequency)));
+    button.addEventListener('keydown', event => {
+      if (!['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const buttons = $$('.fork-button');
+      const index = buttons.indexOf(event.currentTarget);
+      let nextIndex = index;
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') nextIndex = (index + 1) % buttons.length;
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') nextIndex = (index - 1 + buttons.length) % buttons.length;
+      if (event.key === 'Home') nextIndex = 0;
+      if (event.key === 'End') nextIndex = buttons.length - 1;
+      buttons[nextIndex].focus();
+      selectFork(Number(buttons[nextIndex].dataset.frequency));
+    });
+  });
+  $('#airLength').addEventListener('input', event => setLength(event.target.value));
+  $$('[data-nudge]').forEach(button => button.addEventListener('click', () => setLength(currentLengthCm + Number(button.dataset.nudge))));
+  $('#recordMeasurement').addEventListener('click', recordMeasurement);
+  $('#strikeFork').addEventListener('click', strikeFork);
+  $('#continuousTone').addEventListener('change', async event => {
+    continuousTone = event.target.checked;
+    if (continuousTone) await strikeFork(); else muteEnvelope();
+  });
+  $('#clearTrace').addEventListener('click', () => {
+    traceData[selectedFrequency] = Array(SCAN_SIZE).fill(null);
+    lastTraceLength[selectedFrequency] = currentLengthCm;
+    sampleTrace(selectedFrequency, currentLengthCm, currentLengthCm);
+    drawIntensityGraph();
+    $('#liveStatus').textContent = `Cleared the ${selectedFrequency} hertz intensity trace.`;
+  });
+  $('#checkCalculations').addEventListener('click', checkCalculations);
+  $('#averageSpeed').addEventListener('input', event => {
+    state.final.average = event.target.value;
+    invalidateFinal();
+    event.target.classList.remove('is-correct', 'is-wrong');
+    $('#finalFeedback').textContent = 'Ready to check your revised final result.';
+    $('#finalFeedback').className = 'feedback';
+    saveState();
+    updateProgress();
+    renderResults();
+  });
+  $('#percentDifference').addEventListener('input', event => {
+    state.final.percent = event.target.value;
+    invalidateFinal();
+    event.target.classList.remove('is-correct', 'is-wrong');
+    $('#finalFeedback').textContent = 'Ready to check your revised final result.';
+    $('#finalFeedback').className = 'feedback';
+    saveState();
+    updateProgress();
+    renderResults();
+  });
+  $('#checkFinal').addEventListener('click', checkFinal);
+  $('#resultsJump').addEventListener('click', event => showPanel(event.currentTarget.dataset.target || 'experiment'));
+  $('#resetLab').addEventListener('click', resetLab);
+
+  const apparatusCanvas = $('#apparatusCanvas');
+  apparatusCanvas.addEventListener('pointerdown', event => {
+    if (!event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    const point = canvasPosition(event);
+    const geometry = getApparatusGeometry(apparatusCanvas);
+    if (pointInBox(point, geometry.hammerHitBox)) {
+      event.preventDefault();
+      hammerPressed = true;
+      hammerHovered = true;
+      hammerPointerId = event.pointerId;
+      apparatusCanvas.classList.add('hammer-hover');
+      apparatusCanvas.setPointerCapture(event.pointerId);
+      drawApparatus();
+      return;
+    }
+    if (!pointInBox(point, geometry.tubeHitBox)) return;
+    draggingTube = true;
+    tubePointerId = event.pointerId;
+    tubeDragOffset = point.y - geometry.tubeTop;
+    apparatusCanvas.classList.add('dragging');
+    apparatusCanvas.setPointerCapture(event.pointerId);
+    drawApparatus();
+  });
+  apparatusCanvas.addEventListener('pointermove', event => {
+    const point = canvasPosition(event);
+    if (hammerPressed) {
+      if (event.pointerId !== hammerPointerId) return;
+      const overHammer = pointInBox(point, getApparatusGeometry(apparatusCanvas).hammerHitBox);
+      if (hammerHovered !== overHammer) {
+        hammerHovered = overHammer;
+        apparatusCanvas.classList.toggle('hammer-hover', overHammer);
+        drawApparatus();
+      }
+      return;
+    }
+    if (draggingTube) {
+      if (event.pointerId !== tubePointerId) return;
+      const geometry = getApparatusGeometry(apparatusCanvas);
+      setLength((geometry.waterY - (point.y - tubeDragOffset)) / geometry.pxPerCm);
+      return;
+    }
+    const overHammer = pointInBox(point, getApparatusGeometry(apparatusCanvas).hammerHitBox);
+    if (hammerHovered !== overHammer) {
+      hammerHovered = overHammer;
+      apparatusCanvas.classList.toggle('hammer-hover', overHammer);
+      drawApparatus();
+    }
+  });
+  const endDrag = event => {
+    if (!draggingTube || event.pointerId !== tubePointerId) return;
+    draggingTube = false;
+    tubePointerId = null;
+    apparatusCanvas.classList.remove('dragging');
+    if (apparatusCanvas.hasPointerCapture(event.pointerId)) apparatusCanvas.releasePointerCapture(event.pointerId);
+    drawApparatus();
+  };
+  apparatusCanvas.addEventListener('pointerup', event => {
+    if (hammerPressed && event.pointerId === hammerPointerId) {
+      const activate = pointInBox(canvasPosition(event), getApparatusGeometry(apparatusCanvas).hammerHitBox);
+      hammerPressed = false;
+      hammerPointerId = null;
+      hammerHovered = activate && event.pointerType === 'mouse';
+      apparatusCanvas.classList.toggle('hammer-hover', hammerHovered);
+      if (apparatusCanvas.hasPointerCapture(event.pointerId)) apparatusCanvas.releasePointerCapture(event.pointerId);
+      if (activate) void strikeFork(); else drawApparatus();
+      return;
+    }
+    endDrag(event);
+  });
+  apparatusCanvas.addEventListener('pointercancel', event => {
+    if (hammerPressed && event.pointerId === hammerPointerId) {
+      hammerPressed = false;
+      hammerHovered = false;
+      hammerPointerId = null;
+      apparatusCanvas.classList.remove('hammer-hover');
+      if (apparatusCanvas.hasPointerCapture(event.pointerId)) apparatusCanvas.releasePointerCapture(event.pointerId);
+      drawApparatus();
+      return;
+    }
+    endDrag(event);
+  });
+  apparatusCanvas.addEventListener('pointerleave', () => {
+    if (hammerPressed || draggingTube || !hammerHovered) return;
+    hammerHovered = false;
+    apparatusCanvas.classList.remove('hammer-hover');
+    drawApparatus();
+  });
+  apparatusCanvas.addEventListener('keydown', event => {
+    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); void strikeFork(); }
+    if (event.key === 'ArrowUp' || event.key === 'ArrowRight') { event.preventDefault(); setLength(currentLengthCm + .1); }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowLeft') { event.preventDefault(); setLength(currentLengthCm - .1); }
+    if (event.key === 'PageUp') { event.preventDefault(); setLength(currentLengthCm + 1); }
+    if (event.key === 'PageDown') { event.preventDefault(); setLength(currentLengthCm - 1); }
+    if (event.key === 'Home') { event.preventDefault(); setLength(MIN_LENGTH_CM); }
+    if (event.key === 'End') { event.preventDefault(); setLength(MAX_LENGTH_CM); }
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      clearCanvasInteraction();
+      continuousTone = false;
+      $('#continuousTone').checked = false;
+      muteEnvelope();
+      if (audio?.context.state === 'running') audio.context.suspend();
+    }
+  });
+  window.addEventListener('pagehide', () => muteEnvelope());
+
+  function animate() {
+    phase += .025;
+    if (activePanel === 'experiment') drawApparatus();
+    if (!reduceMotion) window.requestAnimationFrame(animate);
+  }
+
+  if (state.completedAt && !(calculationCorrectCount() === TRIAL_COUNT && state.final.checked && getFinalResult().correct)) state.completedAt = '';
+  if (!storageOkay) $('#saveState').textContent = 'Saved work could not be loaded';
+  sampleTrace(selectedFrequency, currentLengthCm, currentLengthCm);
+  $('#airLength').value = String(currentLengthCm);
+  $('#lengthOutput').textContent = `${currentLengthCm.toFixed(1)} cm`;
+  $('#airLength').setAttribute('aria-valuetext', `${currentLengthCm.toFixed(1)} centimeters`);
+  renderAllData();
+  updateExperimentReadouts();
+  drawApparatus();
+  drawIntensityGraph();
+  if (state.completedAt) window.setTimeout(sendCompletion, 0);
+  if (!reduceMotion) window.requestAnimationFrame(animate);
+})();
+</script>
+</body>
+</html>

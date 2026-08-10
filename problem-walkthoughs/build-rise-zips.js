@@ -71,7 +71,7 @@ function prepareIndex(sourceFile) {
   if (!/html\s*,\s*body\s*\{[^}]*background:\s*transparent/is.test(html)) {
     throw new Error(`${path.relative(root, sourceFile)} is missing the transparent iframe background rule.`);
   }
-  if (!html.includes("window.parent.postMessage({ type: 'complete' }, '*');")) {
+  if (!/window\.parent\.postMessage\s*\(\s*\{\s*type\s*:\s*['"]complete['"]\s*\}\s*,\s*['"]\*['"]\s*\)/.test(html)) {
     throw new Error(`${path.relative(root, sourceFile)} is missing the Rise completion message.`);
   }
 

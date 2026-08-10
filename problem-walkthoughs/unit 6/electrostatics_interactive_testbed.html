@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Electrostatics and Polarization Walkthrough</title>
+  <style>
+    :root {
+      --ep-blue: #285f9f;
+      --ep-blue-dark: #17446f;
+      --ep-blue-soft: #eaf3fb;
+      --ep-ink: #10243b;
+      --ep-muted: #536579;
+      --ep-orange: #bd4b00;
+      --ep-orange-soft: #fff0e6;
+      --ep-electron: #1769aa;
+      --ep-proton: #bd263b;
+      --ep-line: #bdd0e0;
+      --ep-panel: #ffffff;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body { background: transparent; }
+
+    body {
+      margin: 0;
+      padding: 12px;
+      color: var(--ep-ink);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    button { font: inherit; }
+
+    .ep-app {
+      width: min(980px, 100%);
+      margin: 0 auto;
+      overflow: hidden;
+      border: 5px solid var(--ep-blue);
+      border-radius: 24px;
+      background: var(--ep-panel);
+      box-shadow: 0 18px 45px rgba(16, 36, 59, 0.13);
+    }
+
+    .ep-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid var(--ep-line);
+    }
+
+    .ep-kicker {
+      margin: 0 0 4px;
+      color: var(--ep-blue-dark);
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.25rem, 3vw, 1.85rem);
+      line-height: 1.12;
+    }
+
+    .ep-reset {
+      min-width: 74px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 2px solid var(--ep-blue);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--ep-blue-dark);
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .ep-main { padding: 14px; }
+
+    .ep-progress {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .ep-progress-label {
+      color: var(--ep-muted);
+      font-size: 0.84rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .ep-progress-track {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    .ep-progress-step {
+      height: 8px;
+      border-radius: 999px;
+      background: #dbe7f0;
+    }
+
+    .ep-progress-step[data-state="current"] { background: var(--ep-orange); }
+    .ep-progress-step[data-state="done"] { background: var(--ep-blue); }
+
+    .ep-experience {
+      overflow: hidden;
+      border: 2px solid var(--ep-line);
+      border-radius: 18px;
+      background: linear-gradient(180deg, #f7fbff 0%, #eef6fc 100%);
+    }
+
+    .ep-stage {
+      display: grid;
+      min-height: 310px;
+      place-items: center;
+      padding: 4px 10px 0;
+      border-bottom: 1px solid var(--ep-line);
+      user-select: none;
+    }
+
+    .ep-stage svg {
+      display: block;
+      width: 100%;
+      max-height: 330px;
+    }
+
+    .ep-draggable {
+      cursor: grab;
+      touch-action: none;
+    }
+
+    .ep-draggable[data-dragging="true"] { cursor: grabbing; }
+
+    .ep-draggable[data-enabled="true"] .ep-drag-ring {
+      stroke: var(--ep-orange);
+      stroke-dasharray: 10 7;
+      stroke-width: 4;
+    }
+
+    .ep-panel {
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.94);
+    }
+
+    .ep-situation {
+      margin: 0 0 6px;
+      color: var(--ep-muted);
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .ep-question {
+      margin: 0 0 12px;
+      font-size: clamp(1.03rem, 2.2vw, 1.22rem);
+      font-weight: 850;
+      line-height: 1.3;
+    }
+
+    .ep-choices {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px;
+    }
+
+    .ep-choice,
+    .ep-action {
+      min-height: 46px;
+      border-radius: 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .ep-choice {
+      padding: 9px 12px;
+      border: 2px solid var(--ep-line);
+      background: #fff;
+      color: var(--ep-ink);
+      text-align: left;
+    }
+
+    .ep-choice:hover:not(:disabled) {
+      border-color: var(--ep-blue);
+      background: var(--ep-blue-soft);
+    }
+
+    .ep-choice[data-selected="true"] {
+      border-color: var(--ep-orange);
+      background: var(--ep-orange-soft);
+    }
+
+    .ep-choice:disabled { cursor: default; opacity: 0.72; }
+    .ep-choice[data-selected="true"]:disabled { opacity: 1; }
+
+    .ep-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .ep-action {
+      flex: 0 0 auto;
+      min-width: 150px;
+      padding: 10px 18px;
+      border: 2px solid var(--ep-blue-dark);
+      background: var(--ep-blue);
+      color: #fff;
+    }
+
+    .ep-action:hover:not(:disabled) { background: var(--ep-blue-dark); }
+    .ep-action:disabled { cursor: wait; opacity: 0.68; }
+
+    .ep-feedback {
+      min-height: 2.7em;
+      margin: 0;
+      color: var(--ep-ink);
+      line-height: 1.4;
+    }
+
+    .ep-feedback:empty { min-height: 0; }
+
+    .ep-rub-progress {
+      display: grid;
+      grid-template-columns: auto minmax(120px, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      margin: 0 0 12px;
+      color: var(--ep-muted);
+      font-size: 0.8rem;
+      font-weight: 800;
+    }
+
+    .ep-rub-progress[hidden] { display: none; }
+
+    .ep-rub-progress progress {
+      width: 100%;
+      height: 14px;
+      accent-color: var(--ep-orange);
+    }
+
+    .ep-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 10px 2px 0;
+      color: var(--ep-muted);
+      font-size: 0.79rem;
+      font-weight: 750;
+    }
+
+    .ep-key { display: inline-flex; align-items: center; gap: 5px; }
+    .ep-dot { width: 14px; height: 14px; border-radius: 50%; color: #fff; font-size: 10px; line-height: 14px; text-align: center; }
+    .ep-dot--electron { background: var(--ep-electron); }
+    .ep-dot--proton { background: var(--ep-proton); }
+
+    :focus-visible {
+      outline: 3px solid #e56b24;
+      outline-offset: 3px;
+    }
+
+    @media (max-width: 600px) {
+      body { padding: 6px; }
+      .ep-app { border-radius: 18px; }
+      .ep-header { padding: 13px; }
+      .ep-main { padding: 9px; }
+      .ep-stage { min-height: 230px; padding-inline: 2px; }
+      .ep-panel { padding: 11px; }
+      .ep-actions { align-items: stretch; flex-direction: column; }
+      .ep-action { width: 100%; }
+    }
+
+    @media (max-width: 410px) {
+      .ep-choices { grid-template-columns: 1fr; }
+      .ep-progress { grid-template-columns: 1fr; gap: 5px; }
+      .ep-stage { min-height: 205px; }
+      .ep-reset { min-width: 62px; padding-inline: 10px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="ep-app">
+    <header class="ep-header">
+      <div>
+        <p class="ep-kicker">Unit 6 &middot; Electric charge</p>
+        <h1>Electrostatics &amp; Polarization</h1>
+      </div>
+      <button class="ep-reset" id="ep-reset" type="button">Reset</button>
+    </header>
+
+    <div class="ep-main">
+      <div class="ep-progress" aria-label="Walkthrough progress">
+        <span class="ep-progress-label" id="ep-progress-label">Case 1 of 4</span>
+        <div class="ep-progress-track" aria-hidden="true">
+          <i class="ep-progress-step" data-state="current"></i>
+          <i class="ep-progress-step"></i>
+          <i class="ep-progress-step"></i>
+          <i class="ep-progress-step"></i>
+        </div>
+      </div>
+
+      <section class="ep-experience" aria-labelledby="ep-question">
+        <div class="ep-stage" id="ep-stage"></div>
+        <div class="ep-panel" aria-live="polite">
+          <p class="ep-situation" id="ep-situation"></p>
+          <p class="ep-question" id="ep-question"></p>
+          <div class="ep-rub-progress" id="ep-rub-progress" hidden>
+            <span>Rubbing</span>
+            <progress id="ep-rub-meter" value="0" max="4">0 of 4</progress>
+            <output id="ep-rub-status" for="ep-rub-meter">0 of 4 electrons</output>
+          </div>
+          <div class="ep-choices" id="ep-choices"></div>
+          <div class="ep-actions">
+            <button class="ep-action" id="ep-action" type="button" hidden></button>
+            <p class="ep-feedback" id="ep-feedback" role="status"></p>
+          </div>
+        </div>
+      </section>
+
+      <div class="ep-legend" aria-label="Charge symbol key">
+        <span class="ep-key"><span class="ep-dot ep-dot--electron">&minus;</span> electron</span>
+        <span class="ep-key"><span class="ep-dot ep-dot--proton">+</span> proton</span>
+      </div>
+    </div>
+
+    <script>
+      (() => {
+        const $ = (selector) => document.querySelector(selector);
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const scenarios = [
+          {
+            title: 'Charging a balloon',
+            situation: 'A neutral rubber balloon is rubbed with neutral wool.',
+            question: 'Which charge movement occurs?',
+            action: 'Rub automatically',
+            dragInstruction: 'Drag the balloon back and forth across the wool.',
+            correct: 'wool-to-balloon',
+            choices: [
+              ['wool-to-balloon', 'Electrons to balloon'],
+              ['balloon-to-wool', 'Electrons to wool'],
+              ['protons-to-balloon', 'Protons to balloon'],
+              ['no-transfer', 'Nothing moves']
+            ],
+            feedback: 'Electrons move from the wool to the balloon, leaving the balloon negative. Protons remain bound inside atomic nuclei.',
+            before: 'A neutral green balloon is separated from a neutral wool swatch.',
+            after: 'Electrons have moved from the wool to the balloon, making the balloon negative and the wool positive.',
+            scene: 'balloon'
+          },
+          {
+            title: 'Charging a glass rod',
+            situation: 'A neutral glass rod is rubbed with neutral silk.',
+            question: 'Which movement leaves the glass positive?',
+            action: 'Rub automatically',
+            dragInstruction: 'Drag the glass rod back and forth across the silk.',
+            correct: 'glass-to-silk',
+            choices: [
+              ['glass-to-silk', 'Electrons to silk'],
+              ['silk-to-glass', 'Electrons to glass'],
+              ['protons-to-silk', 'Protons to silk'],
+              ['both-directions', 'Both directions equally']
+            ],
+            feedback: 'Electrons move from the glass to the silk, leaving the glass positive. Protons move with the rod but do not transfer.',
+            before: 'A neutral glass rod is separated from a neutral silk cloth.',
+            after: 'Electrons have moved from the glass to the silk, making the glass positive and the silk negative.',
+            scene: 'glass'
+          },
+          {
+            title: 'Induction in metal',
+            situation: 'A negative balloon approaches a neutral metal block without touching it.',
+            question: 'Where will the metal\'s mobile electrons shift?',
+            action: 'Move balloon closer',
+            correct: 'far-side',
+            choices: [
+              ['far-side', 'Toward the far side'],
+              ['near-side', 'Toward the balloon'],
+              ['leave-metal', 'Out of the metal'],
+              ['stay-even', 'They remain even']
+            ],
+            feedback: 'The metal\'s electrons shift to the far side, leaving the near side positive. The closer opposite charges attract strongly enough for the balloon to stick.',
+            before: 'A negative balloon is near a neutral metal block whose positive and negative charges overlap evenly.',
+            after: 'Mobile electrons have shifted to the far side of the metal, and the negative balloon is stuck to the induced positive surface.',
+            scene: 'metal'
+          },
+          {
+            title: 'Polarization in a wall',
+            situation: 'A negative balloon approaches a neutral insulating wall.',
+            question: 'How can the neutral wall attract it?',
+            action: 'Move balloon closer',
+            correct: 'polarize',
+            choices: [
+              ['polarize', 'Its molecules polarize'],
+              ['flow', 'Electrons flow through it'],
+              ['negative', 'The wall turns negative'],
+              ['protons-leave', 'Protons leave the wall']
+            ],
+            feedback: 'Bound electrons shift slightly within each wall molecule, exposing the nearer positive side. The unequal distances create enough attraction for the balloon to stick.',
+            before: 'A negative balloon is near a neutral wall whose molecular positive and negative centers overlap.',
+            after: 'Each wall molecule is polarized with its positive side closer, and the negative balloon is stuck to the wall.',
+            scene: 'wall'
+          }
+        ];
+
+        const state = {
+          index: 0,
+          phase: 'predict',
+          prediction: null,
+          animationFrame: 0,
+          animationToken: 0,
+          dragging: false,
+          pointerId: null,
+          dragX: 0,
+          dragY: 0,
+          lastPoint: null,
+          rubDistance: 0,
+          rubTransfers: 0,
+          particlesInFlight: 0,
+          rubCompletion: null,
+          completionSent: false,
+          orders: scenarios.map((scenario) => shuffled(scenario.choices))
+        };
+
+        function shuffled(items) {
+          return items
+            .map((item) => ({ item, rank: Math.random() }))
+            .sort((a, b) => a.rank - b.rank)
+            .map(({ item }) => item);
+        }
+
+        function chargeGlyphs(x, y, count, type, spacing = 31) {
+          let markup = '';
+          for (let i = 0; i < count; i += 1) {
+            const cx = x + (i % 3) * spacing;
+            const cy = y + Math.floor(i / 3) * spacing;
+            const fill = type === 'minus' ? '#1769aa' : '#bd263b';
+            const symbol = type === 'minus' ? '&minus;' : '+';
+            markup += `<g><circle cx="${cx}" cy="${cy}" r="12" fill="${fill}" stroke="#fff" stroke-width="2"/><text x="${cx}" y="${cy + 1}" fill="#fff" text-anchor="middle" dominant-baseline="middle" font-size="17" font-weight="800">${symbol}</text></g>`;
+          }
+          return markup;
+        }
+
+        function particlePairs(points, donor = false) {
+          return points.map(([x, y], index) => `
+            <g class="ep-particle-pair">
+              <circle cx="${x - 6}" cy="${y}" r="10" fill="#bd263b" stroke="#fff" stroke-width="2"/>
+              <text x="${x - 6}" y="${y + 1}" fill="#fff" text-anchor="middle" dominant-baseline="middle" font-size="14" font-weight="900">+</text>
+              <g class="ep-bound-electron${donor ? ' ep-donor-electron' : ''}" data-electron-index="${index}">
+                <circle cx="${x + 6}" cy="${y}" r="9" fill="#1769aa" stroke="#fff" stroke-width="2"/>
+                <text x="${x + 6}" y="${y + 1}" fill="#fff" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="900">&minus;</text>
+              </g>
+            </g>
+          `).join('');
+        }
+
+        function baseSvg(title, description, content) {
+          return `<svg viewBox="0 0 900 320" role="img" aria-labelledby="ep-scene-title ep-scene-desc">
+            <title id="ep-scene-title">${title}</title>
+            <desc id="ep-scene-desc">${description}</desc>
+            <defs>
+              <linearGradient id="ep-metal-gradient" x1="0" x2="1"><stop offset="0" stop-color="#6e8499"/><stop offset=".45" stop-color="#e8f0f6"/><stop offset="1" stop-color="#7690a8"/></linearGradient>
+              <marker id="ep-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#bd4b00"/></marker>
+            </defs>
+            <rect x="4" y="4" width="892" height="312" rx="20" fill="#f8fbfe"/>
+            <text x="26" y="34" fill="#17446f" font-size="21" font-weight="800">${title}</text>
+            ${content}
+          </svg>`;
+        }
+
+        function transferScene(kind, description) {
+          const balloon = kind === 'balloon';
+          const leftLabel = balloon ? 'Balloon' : 'Glass rod';
+          const rightLabel = balloon ? 'Wool' : 'Silk';
+          const leftShape = balloon
+            ? `<ellipse class="ep-drag-ring" cx="224" cy="160" rx="74" ry="91" fill="none"/><ellipse cx="224" cy="160" rx="62" ry="78" fill="#48a868" stroke="#1f6a3c" stroke-width="4"/><path d="M214 236L234 236L242 254L206 254Z" fill="#48a868"/><path d="M224 254Q242 275 222 294" fill="none" stroke="#6d7c89" stroke-width="3"/>`
+            : `<rect class="ep-drag-ring" x="106" y="128" width="238" height="66" rx="25" fill="none"/><rect x="120" y="144" width="210" height="34" rx="17" fill="#c9f0f4" stroke="#087d91" stroke-width="4"/><path d="M145 152H304" stroke="#fff" stroke-width="7" stroke-linecap="round" opacity=".8"/>`;
+          const rightShape = balloon
+            ? `<path d="M584 89H706L735 130L711 161V259H579V161L555 130Z" fill="#c45151" stroke="#7b2727" stroke-width="4"/><path d="M610 91V259M680 91V259" stroke="#e98b8b" stroke-width="4" opacity=".65"/>`
+            : `<path d="M562 107Q646 76 735 118L718 245Q642 270 568 235Z" fill="#8e55bd" stroke="#603087" stroke-width="4"/><path d="M580 137Q646 111 716 141M576 183Q646 158 721 187M573 224Q646 203 718 226" fill="none" stroke="#cda9e9" stroke-width="6"/>`;
+          const leftParticles = balloon
+            ? particlePairs([[202,130],[239,143],[204,181],[239,198]], false)
+            : particlePairs([[151,161],[201,161],[251,161],[301,161]], true);
+          const rightParticles = balloon
+            ? particlePairs([[610,130],[678,130],[610,199],[678,199]], true)
+            : particlePairs([[608,143],[681,143],[608,215],[681,215]], false);
+          return baseSvg(scenarios[state.index].title, description, `
+            <g id="ep-fixed-material">${rightShape}${rightParticles}<rect x="580" y="267" width="130" height="34" rx="17" fill="#fff" stroke="#bdd0e0" stroke-width="2"/><text x="645" y="290" text-anchor="middle" fill="#10243b" font-size="20" font-weight="800">${rightLabel}</text><text class="ep-neutral-label" x="645" y="65" text-anchor="middle" fill="#536579" font-size="17" font-weight="750">neutral</text></g>
+            <g class="ep-draggable" id="ep-draggable" data-enabled="false" data-dragging="false"><rect x="96" y="55" width="270" height="246" fill="transparent" pointer-events="all"/>${leftShape}${leftParticles}<rect x="155" y="267" width="138" height="34" rx="17" fill="#fff" stroke="#bdd0e0" stroke-width="2"/><text x="224" y="290" text-anchor="middle" fill="#10243b" font-size="20" font-weight="800">${leftLabel}</text><text class="ep-neutral-label" x="224" y="65" text-anchor="middle" fill="#536579" font-size="17" font-weight="750">neutral</text></g>
+          `);
+        }
+
+        function metalScene(description) {
+          const pairs = [[526,112],[602,112],[678,112],[754,112],[526,166],[602,166],[678,166],[754,166],[526,220],[602,220],[678,220],[754,220]];
+          const pairMarkup = pairs.map(([x, y], index) => `
+            <g><circle cx="${x}" cy="${y}" r="12" fill="#bd263b"/><text x="${x}" y="${y + 1}" fill="#fff" text-anchor="middle" dominant-baseline="middle" font-size="17" font-weight="800">+</text></g>
+            <g class="ep-metal-electron" data-base-x="${x}" data-base-y="${y}" data-row="${Math.floor(index / 4)}"><circle cx="${x}" cy="${y}" r="9" fill="#1769aa"/><text x="${x}" y="${y + 1}" fill="#fff" text-anchor="middle" dominant-baseline="middle" font-size="14" font-weight="800">&minus;</text></g>
+          `).join('');
+          return baseSvg(scenarios[state.index].title, description, `
+            <g id="ep-attractor"><ellipse cx="188" cy="166" rx="66" ry="82" fill="#48a868" stroke="#1f6a3c" stroke-width="4"/>${chargeGlyphs(151, 131, 6, 'minus', 36)}<text x="188" y="277" text-anchor="middle" fill="#10243b" font-size="20" font-weight="800">negative balloon</text></g>
+            <rect x="480" y="76" width="326" height="184" rx="16" fill="url(#ep-metal-gradient)" stroke="#405a71" stroke-width="4"/>
+            ${pairMarkup}
+            <text x="643" y="291" text-anchor="middle" fill="#10243b" font-size="20" font-weight="800">neutral metal</text>
+          `);
+        }
+
+        function wallScene(description) {
+          const molecules = [[538,112],[644,112],[750,112],[538,184],[644,184],[750,184]];
+          const moleculeMarkup = molecules.map(([x, y]) => `
+            <g class="ep-molecule">
+              <ellipse cx="${x}" cy="${y}" rx="38" ry="25" fill="#e8eff6" stroke="#8198ad" stroke-width="2"/>
+              <g class="ep-wall-positive"><circle cx="${x}" cy="${y}" r="13" fill="#bd263b"/><text x="${x}" y="${y + 1}" fill="#fff" text-anchor="middle" dominant-baseline="middle" font-size="18" font-weight="800">+</text></g>
+              <g class="ep-wall-electron" data-base-x="${x}" data-base-y="${y}"><circle cx="${x}" cy="${y}" r="10" fill="#1769aa"/><text x="${x}" y="${y + 1}" fill="#fff" text-anchor="middle" dominant-baseline="middle" font-size="15" font-weight="800">&minus;</text></g>
+            </g>
+          `).join('');
+          return baseSvg(scenarios[state.index].title, description, `
+            <g id="ep-attractor"><ellipse cx="188" cy="166" rx="66" ry="82" fill="#48a868" stroke="#1f6a3c" stroke-width="4"/>${chargeGlyphs(151, 131, 6, 'minus', 36)}<text x="188" y="277" text-anchor="middle" fill="#10243b" font-size="20" font-weight="800">negative balloon</text></g>
+            <rect x="474" y="66" width="338" height="200" rx="12" fill="#f3d99c" stroke="#9b6915" stroke-width="4"/>
+            ${moleculeMarkup}
+            <text x="643" y="295" text-anchor="middle" fill="#10243b" font-size="20" font-weight="800">neutral insulating wall</text>
+          `);
+        }
+
+        function drawScene() {
+          const scenario = scenarios[state.index];
+          if (scenario.scene === 'balloon' || scenario.scene === 'glass') {
+            $('#ep-stage').innerHTML = transferScene(scenario.scene, scenario.before);
+          } else if (scenario.scene === 'metal') {
+            $('#ep-stage').innerHTML = metalScene(scenario.before);
+          } else {
+            $('#ep-stage').innerHTML = wallScene(scenario.before);
+          }
+        }
+
+        function setSceneDescription(text) {
+          const description = $('#ep-scene-desc');
+          if (description) description.textContent = text;
+        }
+
+        function svgElement(name, attributes = {}) {
+          const element = document.createElementNS(svgNS, name);
+          Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, value));
+          return element;
+        }
+
+        function addChargeBadge(svg, x, symbol, label, color) {
+          const group = svgElement('g');
+          const circle = svgElement('circle', { cx: x, cy: 61, r: 23, fill: color, stroke: '#fff', 'stroke-width': 3 });
+          const sign = svgElement('text', { x, y: 63, fill: '#fff', 'text-anchor': 'middle', 'dominant-baseline': 'middle', 'font-size': 29, 'font-weight': 900 });
+          const text = svgElement('text', { x, y: 93, fill: '#10243b', 'text-anchor': 'middle', 'font-size': 16, 'font-weight': 800 });
+          sign.textContent = symbol;
+          text.textContent = label;
+          group.append(circle, sign, text);
+          svg.appendChild(group);
+        }
+
+        function animate(duration, update, finish) {
+          const token = ++state.animationToken;
+          const total = reducedMotion ? 0 : duration;
+          const start = performance.now();
+          const frame = (now) => {
+            if (token !== state.animationToken) return;
+            const progress = total === 0 ? 1 : Math.min(1, (now - start) / total);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            update(eased);
+            if (progress < 1) state.animationFrame = requestAnimationFrame(frame);
+            else finish();
+          };
+          state.animationFrame = requestAnimationFrame(frame);
+        }
+
+        function isTransferScene() {
+          const scene = scenarios[state.index].scene;
+          return scene === 'balloon' || scene === 'glass';
+        }
+
+        function updateDragTransform() {
+          const draggable = $('#ep-draggable');
+          if (draggable) draggable.setAttribute('transform', `translate(${state.dragX} ${state.dragY})`);
+        }
+
+        function updateRubProgress() {
+          $('#ep-rub-meter').value = state.rubTransfers;
+          $('#ep-rub-status').textContent = `${state.rubTransfers} of 4 electrons`;
+        }
+
+        function appendTransferredElectron(index) {
+          const balloon = scenarios[state.index].scene === 'balloon';
+          const recipient = balloon ? $('#ep-draggable') : $('#ep-fixed-material');
+          const positions = balloon
+            ? [[185,116],[258,120],[186,214],[258,210]]
+            : [[638,165],[674,173],[635,232],[674,230]];
+          const [x, y] = positions[index];
+          const group = svgElement('g', { class: 'ep-transferred-electron' });
+          const circle = svgElement('circle', { cx: x, cy: y, r: 11, fill: '#1769aa', stroke: '#fff', 'stroke-width': 2 });
+          const sign = svgElement('text', { x, y: y + 1, fill: '#fff', 'text-anchor': 'middle', 'dominant-baseline': 'middle', 'font-size': 15, 'font-weight': 900 });
+          sign.textContent = '−';
+          group.append(circle, sign);
+          recipient.appendChild(group);
+        }
+
+        function completeRubbing() {
+          if (state.rubTransfers < 4 || state.particlesInFlight > 0 || state.phase === 'explain') return;
+          state.dragging = false;
+          const draggable = $('#ep-draggable');
+          if (draggable) draggable.dataset.dragging = 'false';
+          const startX = state.dragX;
+          const startY = state.dragY;
+          animate(460, (progress) => {
+            state.dragX = startX * (1 - progress);
+            state.dragY = startY * (1 - progress);
+            updateDragTransform();
+          }, () => {
+            state.dragX = 0;
+            state.dragY = 0;
+            updateDragTransform();
+            document.querySelectorAll('.ep-neutral-label').forEach((label) => label.remove());
+            const svg = $('#ep-stage svg');
+            const balloon = scenarios[state.index].scene === 'balloon';
+            if (balloon) {
+              addChargeBadge(svg, 224, '−', 'net negative', '#1769aa');
+              addChargeBadge(svg, 645, '+', 'net positive', '#bd263b');
+            } else {
+              addChargeBadge(svg, 224, '+', 'net positive', '#bd263b');
+              addChargeBadge(svg, 645, '−', 'net negative', '#1769aa');
+            }
+            setSceneDescription(scenarios[state.index].after);
+            const done = state.rubCompletion;
+            state.rubCompletion = null;
+            if (done) done();
+          });
+        }
+
+        function launchTransferredElectron(index) {
+          const scenario = scenarios[state.index];
+          const svg = $('#ep-stage svg');
+          const donor = [...svg.querySelectorAll('.ep-donor-electron')][index];
+          if (!donor) return;
+          donor.style.opacity = '0';
+          const donorCircle = donor.querySelector('circle');
+          let startX = Number(donorCircle.getAttribute('cx'));
+          let startY = Number(donorCircle.getAttribute('cy'));
+          if (scenario.scene === 'glass') {
+            startX += state.dragX;
+            startY += state.dragY;
+          }
+          const mover = svgElement('g', { 'aria-hidden': 'true' });
+          const circle = svgElement('circle', { cx: startX, cy: startY, r: 13, fill: '#1769aa', stroke: '#fff', 'stroke-width': 3 });
+          const sign = svgElement('text', { x: startX, y: startY + 1, fill: '#fff', 'text-anchor': 'middle', 'dominant-baseline': 'middle', 'font-size': 17, 'font-weight': 900 });
+          sign.textContent = '−';
+          mover.append(circle, sign);
+          svg.appendChild(mover);
+          state.particlesInFlight += 1;
+          const token = state.animationToken;
+          const duration = reducedMotion ? 0 : 430;
+          const start = performance.now();
+          const frame = (now) => {
+            if (token !== state.animationToken || !mover.isConnected) return;
+            const progress = duration === 0 ? 1 : Math.min(1, (now - start) / duration);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            const arc = Math.sin(progress * Math.PI) * -32;
+            const endX = scenario.scene === 'balloon' ? 224 + state.dragX : 645;
+            const endY = scenario.scene === 'balloon' ? 160 + state.dragY : 180;
+            mover.setAttribute('transform', `translate(${(endX - startX) * eased} ${(endY - startY) * eased + arc})`);
+            if (progress < 1) {
+              requestAnimationFrame(frame);
+            } else {
+              mover.remove();
+              appendTransferredElectron(index);
+              state.particlesInFlight -= 1;
+              completeRubbing();
+            }
+          };
+          requestAnimationFrame(frame);
+        }
+
+        function transferOneElectron() {
+          if (state.rubTransfers >= 4) return;
+          const index = state.rubTransfers;
+          state.rubTransfers += 1;
+          updateRubProgress();
+          launchTransferredElectron(index);
+          if (state.rubTransfers === 4) {
+            state.phase = 'reveal';
+            state.dragging = false;
+            $('#ep-draggable').dataset.enabled = 'false';
+            $('#ep-draggable').dataset.dragging = 'false';
+            $('#ep-action').disabled = true;
+            $('#ep-question').textContent = 'Watch the transferred electrons settle.';
+          }
+        }
+
+        function registerRubbing(distance) {
+          state.rubDistance += distance;
+          while (state.rubDistance >= 42 && state.rubTransfers < 4) {
+            state.rubDistance -= 42;
+            transferOneElectron();
+          }
+        }
+
+        function overlapsRubbingMaterial() {
+          const balloon = scenarios[state.index].scene === 'balloon';
+          const centerX = 224 + state.dragX;
+          const centerY = 160 + state.dragY;
+          const halfWidth = balloon ? 66 : 105;
+          const halfHeight = balloon ? 80 : 22;
+          const target = balloon
+            ? { left: 555, right: 735, top: 89, bottom: 259 }
+            : { left: 562, right: 735, top: 88, bottom: 270 };
+          return centerX + halfWidth > target.left && centerX - halfWidth < target.right && centerY + halfHeight > target.top && centerY - halfHeight < target.bottom;
+        }
+
+        function pointerInSvg(event) {
+          const svg = $('#ep-stage svg');
+          const point = svg.createSVGPoint();
+          point.x = event.clientX;
+          point.y = event.clientY;
+          return point.matrixTransform(svg.getScreenCTM().inverse());
+        }
+
+        function startDragging(event) {
+          if (!isTransferScene() || state.phase !== 'ready' || !event.target.closest('#ep-draggable')) return;
+          state.dragging = true;
+          state.pointerId = event.pointerId;
+          state.lastPoint = pointerInSvg(event);
+          $('#ep-draggable').dataset.dragging = 'true';
+          $('#ep-choices').hidden = true;
+          $('#ep-stage').setPointerCapture?.(event.pointerId);
+          event.preventDefault();
+        }
+
+        function continueDragging(event) {
+          if (!state.dragging || event.pointerId !== state.pointerId || state.phase !== 'ready') return;
+          const point = pointerInSvg(event);
+          const dx = point.x - state.lastPoint.x;
+          const dy = point.y - state.lastPoint.y;
+          const oldX = state.dragX;
+          const oldY = state.dragY;
+          state.dragX = Math.max(-35, Math.min(410, state.dragX + dx));
+          state.dragY = Math.max(-58, Math.min(58, state.dragY + dy));
+          state.lastPoint = point;
+          updateDragTransform();
+          if (overlapsRubbingMaterial()) registerRubbing(Math.hypot(state.dragX - oldX, state.dragY - oldY));
+          event.preventDefault();
+        }
+
+        function stopDragging(event) {
+          if (event.pointerId !== state.pointerId) return;
+          state.dragging = false;
+          state.pointerId = null;
+          state.lastPoint = null;
+          const draggable = $('#ep-draggable');
+          if (draggable) draggable.dataset.dragging = 'false';
+        }
+
+        function playTransfer(done) {
+          state.rubCompletion = done;
+          const draggable = $('#ep-draggable');
+          draggable.dataset.enabled = 'false';
+          const milestones = [0.36, 0.51, 0.66, 0.81];
+          animate(1900, (progress) => {
+            if (progress < 0.24) {
+              const approach = progress / 0.24;
+              state.dragX = 330 * (1 - Math.pow(1 - approach, 3));
+              state.dragY = 0;
+            } else {
+              const rubPhase = (progress - 0.24) / 0.76;
+              state.dragX = 330 + Math.sin(rubPhase * Math.PI * 8) * 42;
+              state.dragY = Math.sin(rubPhase * Math.PI * 4) * 18;
+            }
+            updateDragTransform();
+            milestones.forEach((milestone, index) => {
+              if (progress >= milestone && state.rubTransfers === index) transferOneElectron();
+            });
+          }, () => completeRubbing());
+        }
+
+        function addAttractionEvidence(svg, nearLabel, farLabel) {
+          const arrow = svgElement('line', { x1: 346, y1: 221, x2: 397, y2: 221, stroke: '#bd4b00', 'stroke-width': 8, 'stroke-linecap': 'round', 'marker-end': 'url(#ep-arrow)' });
+          const arrowLabel = svgElement('text', { x: 372, y: 200, fill: '#8c3800', 'text-anchor': 'middle', 'font-size': 18, 'font-weight': 900 });
+          const stuckLabel = svgElement('text', { x: 410, y: 61, fill: '#8c3800', 'text-anchor': 'middle', 'font-size': 17, 'font-weight': 900 });
+          const near = svgElement('text', { x: 503, y: 52, fill: '#a41f34', 'text-anchor': 'middle', 'font-size': 17, 'font-weight': 850 });
+          const far = svgElement('text', { x: 766, y: 52, fill: '#145b91', 'text-anchor': 'middle', 'font-size': 17, 'font-weight': 850 });
+          arrowLabel.textContent = 'attraction';
+          stuckLabel.textContent = 'stuck';
+          near.textContent = nearLabel;
+          far.textContent = farLabel;
+          svg.append(arrow, arrowLabel, stuckLabel, near, far);
+        }
+
+        function playMetal(done) {
+          const scenario = scenarios[state.index];
+          const svg = $('#ep-stage svg');
+          const electrons = [...svg.querySelectorAll('.ep-metal-electron')];
+          const balloon = $('#ep-attractor');
+          animate(1100, (progress) => {
+            balloon.setAttribute('transform', `translate(${226 * progress} 0)`);
+            electrons.forEach((electron, index) => {
+              const x = Number(electron.dataset.baseX);
+              const y = Number(electron.dataset.baseY);
+              const column = index % 4;
+              const shift = 26 + column * 8;
+              electron.setAttribute('transform', `translate(${shift * progress} ${Math.sin(progress * Math.PI + index) * 3})`);
+              electron.querySelector('circle').setAttribute('cx', x);
+              electron.querySelector('text').setAttribute('x', x);
+              electron.querySelector('circle').setAttribute('cy', y);
+              electron.querySelector('text').setAttribute('y', y + 1);
+            });
+          }, () => {
+            addAttractionEvidence(svg, 'positive side', 'electron-rich side');
+            setSceneDescription(scenario.after);
+            done();
+          });
+        }
+
+        function playWall(done) {
+          const scenario = scenarios[state.index];
+          const svg = $('#ep-stage svg');
+          const electrons = [...svg.querySelectorAll('.ep-wall-electron')];
+          const balloon = $('#ep-attractor');
+          animate(1100, (progress) => {
+            balloon.setAttribute('transform', `translate(${220 * progress} 0)`);
+            electrons.forEach((electron) => electron.setAttribute('transform', `translate(${25 * progress} 0)`));
+          }, () => {
+            addAttractionEvidence(svg, 'positive sides', 'negative sides');
+            setSceneDescription(scenario.after);
+            done();
+          });
+        }
+
+        function playScene(done) {
+          const scene = scenarios[state.index].scene;
+          if (scene === 'balloon' || scene === 'glass') playTransfer(done);
+          else if (scene === 'metal') playMetal(done);
+          else playWall(done);
+        }
+
+        function updateProgress(complete = false) {
+          $('#ep-progress-label').textContent = complete ? 'All 4 cases complete' : `Case ${state.index + 1} of ${scenarios.length}`;
+          document.querySelectorAll('.ep-progress-step').forEach((step, index) => {
+            step.dataset.state = complete || index < state.index ? 'done' : index === state.index ? 'current' : '';
+          });
+        }
+
+        function renderChoices() {
+          const container = $('#ep-choices');
+          container.innerHTML = '';
+          state.orders[state.index].forEach(([value, label]) => {
+            const button = document.createElement('button');
+            button.className = 'ep-choice';
+            button.type = 'button';
+            button.dataset.value = value;
+            button.dataset.selected = 'false';
+            button.setAttribute('aria-pressed', 'false');
+            button.textContent = label;
+            container.appendChild(button);
+          });
+        }
+
+        function showExplanation() {
+          state.phase = 'explain';
+          const scenario = scenarios[state.index];
+          $('#ep-question').textContent = 'Evidence revealed';
+          $('#ep-feedback').textContent = scenario.feedback;
+          const action = $('#ep-action');
+          action.hidden = false;
+          action.disabled = false;
+          action.textContent = state.index === scenarios.length - 1 ? 'Finish walkthrough' : 'Next case';
+          action.focus();
+        }
+
+        function setupScenario() {
+          cancelAnimationFrame(state.animationFrame);
+          state.animationToken += 1;
+          state.phase = 'predict';
+          state.prediction = null;
+          state.dragging = false;
+          state.pointerId = null;
+          state.dragX = 0;
+          state.dragY = 0;
+          state.lastPoint = null;
+          state.rubDistance = 0;
+          state.rubTransfers = 0;
+          state.particlesInFlight = 0;
+          state.rubCompletion = null;
+          const scenario = scenarios[state.index];
+          updateProgress();
+          drawScene();
+          $('#ep-situation').textContent = scenario.situation;
+          $('#ep-question').textContent = scenario.question;
+          $('#ep-feedback').textContent = '';
+          $('#ep-rub-progress').hidden = true;
+          updateRubProgress();
+          renderChoices();
+          const action = $('#ep-action');
+          action.hidden = true;
+          action.disabled = false;
+        }
+
+        function choose(value, button) {
+          if (state.phase !== 'predict') return;
+          state.phase = 'ready';
+          state.prediction = value;
+          document.querySelectorAll('.ep-choice').forEach((choice) => {
+            const selected = choice === button;
+            choice.disabled = true;
+            choice.dataset.selected = String(selected);
+            choice.setAttribute('aria-pressed', String(selected));
+          });
+          const scenario = scenarios[state.index];
+          if (isTransferScene()) {
+            $('#ep-question').textContent = scenario.dragInstruction;
+            $('#ep-rub-progress').hidden = false;
+            $('#ep-draggable').dataset.enabled = 'true';
+            state.rubCompletion = showExplanation;
+          } else {
+            $('#ep-question').textContent = 'Prediction locked. Test it against the evidence.';
+          }
+          const action = $('#ep-action');
+          action.textContent = scenario.action;
+          action.hidden = false;
+          action.focus();
+        }
+
+        function reveal() {
+          if (state.phase !== 'ready') return;
+          state.phase = 'reveal';
+          $('#ep-choices').hidden = true;
+          $('#ep-question').textContent = 'Watch the charge distribution change.';
+          $('#ep-feedback').textContent = '';
+          const action = $('#ep-action');
+          action.disabled = true;
+          if (isTransferScene()) $('#ep-draggable').dataset.enabled = 'false';
+          playScene(showExplanation);
+        }
+
+        function finish() {
+          if (state.phase !== 'explain') return;
+          if (state.index < scenarios.length - 1) {
+            state.index += 1;
+            $('#ep-choices').hidden = false;
+            setupScenario();
+            $('#ep-choices .ep-choice')?.focus();
+            return;
+          }
+          state.phase = 'complete';
+          updateProgress(true);
+          $('#ep-situation').textContent = 'Walkthrough complete';
+          $('#ep-question').textContent = 'Charge transfer and polarization are different particle responses.';
+          $('#ep-feedback').textContent = 'Electrons transfer between rubbed materials, flow within conductors, and shift only slightly inside insulating molecules.';
+          $('#ep-rub-progress').hidden = true;
+          $('#ep-choices').hidden = true;
+          $('#ep-action').hidden = true;
+          if (!state.completionSent) {
+            state.completionSent = true;
+            window.parent.postMessage({ type: 'complete' }, '*');
+          }
+        }
+
+        function reset() {
+          cancelAnimationFrame(state.animationFrame);
+          state.animationToken += 1;
+          state.index = 0;
+          $('#ep-choices').hidden = false;
+          setupScenario();
+          $('#ep-choices .ep-choice')?.focus();
+        }
+
+        $('#ep-choices').addEventListener('click', (event) => {
+          const button = event.target.closest('.ep-choice');
+          if (button) choose(button.dataset.value, button);
+        });
+        $('#ep-action').addEventListener('click', () => {
+          if (state.phase === 'ready') reveal();
+          else finish();
+        });
+        $('#ep-reset').addEventListener('click', reset);
+        $('#ep-stage').addEventListener('pointerdown', startDragging);
+        $('#ep-stage').addEventListener('pointermove', continueDragging);
+        $('#ep-stage').addEventListener('pointerup', stopDragging);
+        $('#ep-stage').addEventListener('pointercancel', stopDragging);
+
+        setupScenario();
+      })();
+    </script>
+  </main>
+</body>
+</html>

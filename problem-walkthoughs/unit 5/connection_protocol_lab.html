@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wireless Connections Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center p-4 sm:p-8">
+
+    <div id="app-container" class="w-full max-w-4xl bg-slate-800 rounded-2xl shadow-2xl p-6 sm:p-8 border border-slate-700">
+        
+        <!-- Header -->
+        <div class="flex justify-between items-center border-b border-slate-600 pb-4 mb-6">
+            <h2 class="text-2xl font-bold text-blue-400">Connection Protocol Lab</h2>
+            <div class="text-lg font-semibold bg-slate-900 px-4 py-2 rounded-lg border border-slate-700">
+                Score: <span id="score" class="text-green-400">0</span> / 4
+            </div>
+        </div>
+
+        <!-- Scenario Display -->
+        <div id="scenario-box" class="bg-slate-700 p-6 rounded-xl text-lg sm:text-xl font-medium text-center min-h-[100px] flex items-center justify-center mb-8 shadow-inner">
+            Loading scenario...
+        </div>
+
+        <!-- Connection Choices -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8" id="btn-group">
+            <button onclick="checkAnswer('Bluetooth')" class="tech-btn bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-4 rounded-lg transition transform hover:-translate-y-1 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
+                Bluetooth
+            </button>
+            <button onclick="checkAnswer('Wi-Fi')" class="tech-btn bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-lg transition transform hover:-translate-y-1 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
+                Wi-Fi
+            </button>
+            <button onclick="checkAnswer('Cellular')" class="tech-btn bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-4 rounded-lg transition transform hover:-translate-y-1 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
+                Cellular
+            </button>
+            <button onclick="checkAnswer('Satellite')" class="tech-btn bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 px-4 rounded-lg transition transform hover:-translate-y-1 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
+                Satellite
+            </button>
+        </div>
+
+        <!-- Canvas Container -->
+        <div id="canvas-container" class="w-full h-64 sm:h-80 bg-slate-950 rounded-xl overflow-hidden mb-8 border border-slate-700 relative shadow-inner">
+            <canvas id="simCanvas" class="absolute top-0 left-0 w-full h-full"></canvas>
+        </div>
+
+        <!-- Feedback Panel -->
+        <div id="feedback-panel" class="hidden bg-slate-700 p-6 rounded-xl border-l-4 border-blue-500 shadow-lg">
+            <h3 id="feedback-title" class="text-xl font-bold mb-2">Result</h3>
+            <p id="feedback-text" class="text-slate-300 mb-6"></p>
+            
+            <div id="metrics-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-800 p-4 rounded-lg mb-6 text-sm sm:text-base border border-slate-600">
+                <!-- Populated via JS -->
+            </div>
+            
+            <button id="next-btn" onclick="nextScenario()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-lg transition">
+                Next Scenario
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+        
+        let animationId;
+        let time = 0;
+        let currentScenarioIndex = 0;
+        let score = 0;
+        let currentState = 'idle'; // 'idle' or 'animating'
+        let currentTech = '';
+
+        const scenarios = [
+            {
+                text: "Situation 1: You are listening to music on earbuds 1 meter away from your phone.",
+                bestFit: "Bluetooth",
+                devices: ['📱', '🎧'],
+                metrics: {
+                    range: "Short (< 10m)",
+                    power: "Very Low (Saves battery)",
+                    infrastructure: "None (Direct Device-to-Device)",
+                    delay: "Very Low"
+                },
+                explanation: "Bluetooth is perfect here. It uses minimal power, which is great for tiny earbud batteries, and talks directly device-to-device."
+            },
+            {
+                text: "Situation 2: Working on a laptop in your living room, loading a webpage.",
+                bestFit: "Wi-Fi",
+                devices: ['💻', '📶'],
+                metrics: {
+                    range: "Medium (~50m)",
+                    power: "Medium",
+                    infrastructure: "Local Router needed",
+                    delay: "Low"
+                },
+                explanation: "Wi-Fi handles heavy data (like web browsing) well over the span of a house, bouncing from your device to a local router."
+            },
+            {
+                text: "Situation 3: Streaming a podcast on your phone while driving 65 mph on a highway.",
+                bestFit: "Cellular",
+                devices: ['🚗', '🗼'],
+                metrics: {
+                    range: "Long (Miles between towers)",
+                    power: "High",
+                    infrastructure: "Massive (Cell Towers & Network)",
+                    delay: "Low to Medium"
+                },
+                explanation: "Cellular networks are designed to hand off your signal from one giant tower to the next as you move at high speeds."
+            },
+            {
+                text: "Situation 4: A research ship mapping the ocean floor in the middle of the Pacific.",
+                bestFit: "Satellite",
+                devices: ['🚢', '🛰️', '📡'],
+                metrics: {
+                    range: "Global",
+                    power: "Very High",
+                    infrastructure: "Space-based (Satellites & Ground Stations)",
+                    delay: "High (Signal travels to space and back)"
+                },
+                explanation: "In the middle of the ocean, there are no routers or cell towers. The signal must shoot up to space, then back down to a ground station on land."
+            }
+        ];
+
+        function resizeCanvas() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            if (currentState === 'idle') {
+                drawIdleState();
+            }
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function init() {
+            resizeCanvas();
+            loadScenario();
+        }
+
+        function loadScenario() {
+            if(currentScenarioIndex >= scenarios.length) {
+                document.getElementById('scenario-box').innerHTML = `<span class="text-green-400 font-bold text-2xl">Lab Complete! Final Score: ${score}/4</span>`;
+                document.getElementById('btn-group').style.display = 'none';
+                document.getElementById('feedback-panel').style.display = 'none';
+                currentState = 'idle';
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawEndState();
+                return;
+            }
+            
+            const scenario = scenarios[currentScenarioIndex];
+            document.getElementById('scenario-box').innerText = scenario.text;
+            document.getElementById('feedback-panel').classList.add('hidden');
+            
+            const btns = document.querySelectorAll('.tech-btn');
+            btns.forEach(btn => btn.disabled = false);
+
+            currentState = 'idle';
+            drawIdleState();
+        }
+
+        function drawIdleState() {
+            cancelAnimationFrame(animationId);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#64748b'; // Tailwind slate-500
+            ctx.font = '600 18px Inter';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText("Awaiting connection protocol prediction...", canvas.width/2, canvas.height/2);
+        }
+
+        function drawEndState() {
+            ctx.fillStyle = '#4ade80'; 
+            ctx.font = '600 24px Inter';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText("Simulation Concluded", canvas.width/2, canvas.height/2);
+        }
+
+        function checkAnswer(selectedTech) {
+            const btns = document.querySelectorAll('.tech-btn');
+            btns.forEach(btn => btn.disabled = true);
+
+            const scenario = scenarios[currentScenarioIndex];
+            const isCorrect = selectedTech === scenario.bestFit;
+
+            if(isCorrect) {
+                score++;
+                document.getElementById('score').innerText = score;
+            }
+
+            currentState = 'animating';
+            currentTech = selectedTech;
+            time = 0;
+            cancelAnimationFrame(animationId);
+            animateSignal();
+
+            const panel = document.getElementById('feedback-panel');
+            const title = document.getElementById('feedback-title');
+            const text = document.getElementById('feedback-text');
+            const metricsGrid = document.getElementById('metrics-grid');
+
+            panel.classList.remove('hidden');
+            
+            if(isCorrect) {
+                title.innerText = `✅ Correct! ${selectedTech} is the best fit.`;
+                title.className = "text-xl font-bold mb-2 text-green-400";
+                panel.className = "bg-slate-700 p-6 rounded-xl border-l-4 border-green-500 shadow-lg mt-4";
+            } else {
+                title.innerText = `❌ Suboptimal. You chose ${selectedTech}, but ${scenario.bestFit} is better.`;
+                title.className = "text-xl font-bold mb-2 text-red-400";
+                panel.className = "bg-slate-700 p-6 rounded-xl border-l-4 border-red-500 shadow-lg mt-4";
+            }
+
+            text.innerText = scenario.explanation;
+
+            metricsGrid.innerHTML = `
+                <div class="flex flex-col"><span class="text-blue-300 font-semibold text-xs uppercase tracking-wider">Range</span> <span class="text-slate-100 font-medium">${scenario.metrics.range}</span></div>
+                <div class="flex flex-col"><span class="text-blue-300 font-semibold text-xs uppercase tracking-wider">Power</span> <span class="text-slate-100 font-medium">${scenario.metrics.power}</span></div>
+                <div class="flex flex-col"><span class="text-blue-300 font-semibold text-xs uppercase tracking-wider">Infrastructure</span> <span class="text-slate-100 font-medium">${scenario.metrics.infrastructure}</span></div>
+                <div class="flex flex-col"><span class="text-blue-300 font-semibold text-xs uppercase tracking-wider">Delay</span> <span class="text-slate-100 font-medium">${scenario.metrics.delay}</span></div>
+            `;
+        }
+
+        function animateSignal() {
+            if (currentState !== 'animating') return;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            time += 0.05;
+            
+            ctx.font = 'clamp(40px, 8vw, 60px) Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const w = canvas.width;
+            const h = canvas.height;
+            const midY = h / 2;
+
+            if (currentTech === 'Bluetooth') {
+                const pos1 = [w * 0.25, midY];
+                const pos2 = [w * 0.75, midY];
+                drawWave(pos1[0]+30, pos1[1], pos2[0]-30, pos2[1], '#818cf8', 2); // Indigo-400
+                ctx.fillText('📱', pos1[0], pos1[1]);
+                ctx.fillText('🎧', pos2[0], pos2[1]);
+                drawLabels(['Device', 'Device'], [[pos1[0], pos1[1]+50], [pos2[0], pos2[1]+50]]);
+            } 
+            else if (currentTech === 'Wi-Fi') {
+                const pos1 = [w * 0.25, midY];
+                const pos2 = [w * 0.75, midY];
+                drawWave(pos1[0]+30, pos1[1], pos2[0]-30, pos2[1], '#34d399', 3); // Emerald-400
+                ctx.fillText('💻', pos1[0], pos1[1]);
+                ctx.fillText('📶', pos2[0], pos2[1]);
+                drawLabels(['Device', 'Local Router'], [[pos1[0], pos1[1]+50], [pos2[0], pos2[1]+50]]);
+            }
+            else if (currentTech === 'Cellular') {
+                const pos1 = [w * 0.2, midY + h*0.1];
+                const pos2 = [w * 0.5, midY - h*0.1];
+                const pos3 = [w * 0.8, midY + h*0.1];
+                drawWave(pos1[0]+30, pos1[1]-10, pos2[0]-20, pos2[1]+10, '#c084fc', 4); // Purple-400
+                drawWave(pos2[0]+20, pos2[1]+10, pos3[0]-30, pos3[1]-10, '#c084fc', 4);
+                ctx.fillText('🚗', pos1[0], pos1[1]);
+                ctx.fillText('🗼', pos2[0], pos2[1]);
+                ctx.fillText('☁️', pos3[0], pos3[1]);
+                drawLabels(['Phone', 'Cell Tower', 'Core Network'], [[pos1[0], pos1[1]+50], [pos2[0], pos2[1]+50], [pos3[0], pos3[1]+50]]);
+            }
+            else if (currentTech === 'Satellite') {
+                const pos1 = [w * 0.2, midY + h*0.2];
+                const pos2 = [w * 0.5, h * 0.2];
+                const pos3 = [w * 0.8, midY + h*0.2];
+                drawBeam(pos1[0]+20, pos1[1]-20, pos2[0]-20, pos2[1]+20, '#fbbf24'); // Amber-400
+                drawBeam(pos2[0]+20, pos2[1]+20, pos3[0]-20, pos3[1]-20, '#fbbf24');
+                ctx.fillText('🚢', pos1[0], pos1[1]);
+                ctx.fillText('🛰️', pos2[0], pos2[1]);
+                ctx.fillText('📡', pos3[0], pos3[1]);
+                drawLabels(['Device', 'Satellite', 'Ground Station'], [[pos1[0], pos1[1]+50], [pos2[0], pos2[1]+50], [pos3[0], pos3[1]+50]]);
+            }
+
+            animationId = requestAnimationFrame(animateSignal);
+        }
+
+        function drawWave(x1, y1, x2, y2, color, speedMult) {
+            const dist = Math.hypot(x2 - x1, y2 - y1);
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+            
+            ctx.save();
+            ctx.translate(x1, y1);
+            ctx.rotate(angle);
+            
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            
+            for (let i = 0; i < dist; i += 2) {
+                const yOffset = Math.sin((i * 0.05) - (time * speedMult)) * 12;
+                if (i === 0) ctx.moveTo(i, yOffset);
+                else ctx.lineTo(i, yOffset);
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawBeam(x1, y1, x2, y2, color) {
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            const dashOffset = -time * 30;
+            ctx.setLineDash([15, 15]);
+            ctx.lineDashOffset = dashOffset;
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+            ctx.setLineDash([]); 
+        }
+
+        function drawLabels(texts, positions) {
+            ctx.fillStyle = '#94a3b8'; // Tailwind slate-400
+            ctx.font = '500 14px Inter';
+            for(let i=0; i<texts.length; i++) {
+                ctx.fillText(texts[i], positions[i][0], positions[i][1]);
+            }
+        }
+
+        function nextScenario() {
+            currentScenarioIndex++;
+            loadScenario();
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

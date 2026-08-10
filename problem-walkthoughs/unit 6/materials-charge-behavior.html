@@ -20,7 +20,7 @@
     }
 
     .walkthrough {
-      max-width: 760px;
+      max-width: 880px;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
@@ -51,12 +51,133 @@
     /* Simulation Stage */
     .stage {
       width: 100%;
-      height: 280px;
-      background: #f8fafc;
+      aspect-ratio: 43 / 21;
+      background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
       border: 1px solid #e2e8f0;
-      border-radius: 8px;
+      border-radius: 10px;
       position: relative;
       overflow: hidden;
+    }
+
+    #sim-svg {
+      display: block;
+    }
+
+    #sim-svg text {
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    /* ============================================================
+       Stage animation system.
+       Every element's BASE attributes describe its FINAL state, so
+       reduced-motion users (who jump animations to the end) still
+       see a correct diagram.
+       ============================================================ */
+
+    @keyframes jiggle {
+      0%, 100% { transform: translate(0, 0); }
+      25%      { transform: translate(1.6px, -1.4px); }
+      50%      { transform: translate(-1.2px, 1.2px); }
+      75%      { transform: translate(1px, 1.6px); }
+    }
+    .jiggle { animation: jiggle 1.6s ease-in-out infinite; }
+
+    /* Move in from a starting offset (--fx/--fy) to the drawn position */
+    @keyframes migrate {
+      from { transform: translate(var(--fx, 0px), var(--fy, 0px)); }
+      to   { transform: translate(0, 0); }
+    }
+    .migrate { animation: migrate 1.2s cubic-bezier(.22, .85, .28, 1) both; }
+
+    /* Move away from the drawn position by (--dx/--dy) and stay there */
+    @keyframes shiftTo {
+      from { transform: translate(0, 0); }
+      to   { transform: translate(var(--dx, 0px), var(--dy, 0px)); }
+    }
+    .shift { animation: shiftTo .9s cubic-bezier(.3, .9, .3, 1) both; }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .fade-in { animation: fadeIn .7s ease both; }
+
+    @keyframes vanish { from { opacity: 1; } to { opacity: 0; } }
+    .vanish { animation: vanish .6s ease both; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: .5; transform: scale(1); }
+      50%      { opacity: 1;  transform: scale(1.14); }
+    }
+    .pulse {
+      animation: pulse 1.8s ease-in-out infinite;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    @keyframes flow { to { stroke-dashoffset: -36; } }
+    .flow { stroke-dasharray: 10 8; animation: flow 1s linear infinite; }
+
+    /* Strains outward, then snaps back — repulsion with nowhere to go */
+    @keyframes tug {
+      0%, 62%, 100% { transform: translate(0, 0); }
+      32%           { transform: translate(var(--tx, 0px), var(--ty, 0px)); }
+    }
+    .tug { animation: tug 2.2s ease-in-out infinite; }
+
+    @keyframes drift {
+      0%, 100% { transform: translateX(0); }
+      50%      { transform: translateX(15px); }
+    }
+    .drift { animation: drift 3.4s ease-in-out infinite; }
+
+    /* Electron running out along the L-shaped ground wire */
+    @keyframes drain {
+      0%   { transform: translate(0, 0);           opacity: 0; }
+      10%  { opacity: 1; }
+      48%  { transform: translate(158px, 0);       opacity: 1; }
+      90%  { transform: translate(158px, 108px);   opacity: 1; }
+      100% { transform: translate(158px, 108px);   opacity: 0; }
+    }
+    .drain { animation: drain 1.5s linear both; }
+
+    @keyframes rodLeave {
+      0%, 55% { transform: translateX(0);      opacity: 1; }
+      100%    { transform: translateX(-340px); opacity: 0; }
+    }
+    .rod-leave { animation: rodLeave 1.5s ease-in both; }
+
+    @keyframes capFlash {
+      0%   { opacity: 0; }
+      10%  { opacity: 1; }
+      86%  { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    .cap { opacity: 0; animation: capFlash 1.4s ease both; }
+
+    @keyframes glowPulse { 0%, 100% { opacity: .22; } 50% { opacity: .7; } }
+    .glow { animation: glowPulse 2.2s ease-in-out infinite; }
+
+    @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+    .breathe {
+      animation: breathe 2.6s ease-in-out infinite;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    @keyframes creep { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-7px); } }
+    .creep { animation: creep 2.4s ease-in-out infinite; }
+
+    @keyframes arrowPulse {
+      0%, 100% { transform: translateX(0);    opacity: .8; }
+      50%      { transform: translateX(-9px); opacity: 1; }
+    }
+    .arrow-pulse { animation: arrowPulse 1.4s ease-in-out infinite; }
+
+    @media (prefers-reduced-motion: reduce) {
+      /* Snap every animation to its end state instead of removing it */
+      #sim-svg * {
+        animation-duration: 1ms !important;
+        animation-delay: 0ms !important;
+        animation-iteration-count: 1 !important;
+      }
     }
 
     /* Standardized Learner Card */
@@ -140,12 +261,71 @@
     </div>
 
     <!-- The physical situation the learner watches -->
-    <div class="stage" aria-label="Charge Simulation Stage" role="img">
-      <svg id="sim-svg" width="100%" height="100%" viewBox="0 0 760 280">
+    <div class="stage" id="stage" aria-label="Charge simulation stage" role="img">
+      <svg id="sim-svg" width="100%" height="100%" viewBox="0 0 860 420">
         <defs>
-          <marker id="arrow-blue" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="#3b82f6" />
+          <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb" />
           </marker>
+          <marker id="arrow-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626" />
+          </marker>
+          <marker id="arrow-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#b45309" />
+          </marker>
+          <marker id="arrow-slate" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569" />
+          </marker>
+
+          <linearGradient id="copperGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stop-color="#fdba74" />
+            <stop offset="35%"  stop-color="#f97316" />
+            <stop offset="65%"  stop-color="#ea580c" />
+            <stop offset="100%" stop-color="#c2410c" />
+          </linearGradient>
+          <linearGradient id="glassGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stop-color="#f0f9ff" />
+            <stop offset="45%"  stop-color="#cbd5e1" />
+            <stop offset="100%" stop-color="#94a3b8" />
+          </linearGradient>
+          <linearGradient id="metalGrad" x1="0.2" y1="0" x2="0.8" y2="1">
+            <stop offset="0%"   stop-color="#f8fafc" />
+            <stop offset="40%"  stop-color="#cbd5e1" />
+            <stop offset="100%" stop-color="#94a3b8" />
+          </linearGradient>
+          <!-- Charge sign sets the colour everywhere: negative = blue, positive = red -->
+          <linearGradient id="rodNegGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stop-color="#60a5fa" />
+            <stop offset="100%" stop-color="#1d4ed8" />
+          </linearGradient>
+          <linearGradient id="rodPosGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stop-color="#f87171" />
+            <stop offset="100%" stop-color="#b91c1c" />
+          </linearGradient>
+          <linearGradient id="woodGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%"   stop-color="#d97706" />
+            <stop offset="50%"  stop-color="#b45309" />
+            <stop offset="100%" stop-color="#92400e" />
+          </linearGradient>
+
+          <radialGradient id="eGrad" cx="0.35" cy="0.3" r="0.8">
+            <stop offset="0%"   stop-color="#93c5fd" />
+            <stop offset="55%"  stop-color="#3b82f6" />
+            <stop offset="100%" stop-color="#1d4ed8" />
+          </radialGradient>
+          <radialGradient id="pGrad" cx="0.35" cy="0.3" r="0.8">
+            <stop offset="0%"   stop-color="#fca5a5" />
+            <stop offset="55%"  stop-color="#ef4444" />
+            <stop offset="100%" stop-color="#b91c1c" />
+          </radialGradient>
+          <radialGradient id="tipGlow" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0%"   stop-color="#f87171" stop-opacity="0.85" />
+            <stop offset="100%" stop-color="#f87171" stop-opacity="0" />
+          </radialGradient>
+          <radialGradient id="posGlow" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0%"   stop-color="#ef4444" stop-opacity="0.55" />
+            <stop offset="100%" stop-color="#ef4444" stop-opacity="0" />
+          </radialGradient>
         </defs>
         <g id="svg-content"></g>
       </svg>
@@ -165,7 +345,62 @@
     </div>
 
     <script>
-      /** 
+      /* ---------- SVG drawing helpers ---------- */
+
+      // Wraps content in a <g> carrying an animation class / inline custom props
+      function anim(cls, style, inner) {
+        return `<g class="${cls}"${style ? ` style="${style}"` : ''}>${inner}</g>`;
+      }
+
+      // A single electron: shaded sphere with a white minus bar
+      function eMinus(cx, cy, o) {
+        o = o || {};
+        const r = o.r || 13;
+        const t = Math.max(3, r * 0.26);
+        return `<g${o.cls ? ` class="${o.cls}"` : ''}${o.style ? ` style="${o.style}"` : ''}>
+          <circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#eGrad)" stroke="${o.stroke || '#1e3a8a'}" stroke-width="${o.sw || 1.5}"/>
+          <rect x="${cx - r * 0.5}" y="${cy - t / 2}" width="${r}" height="${t}" rx="${t / 2}" fill="#ffffff"/>
+        </g>`;
+      }
+
+      // A single positive charge / ion core
+      function ePlus(cx, cy, o) {
+        o = o || {};
+        const r = o.r || 13;
+        const t = Math.max(3, r * 0.26);
+        const l = r;
+        return `<g${o.cls ? ` class="${o.cls}"` : ''}${o.style ? ` style="${o.style}"` : ''}>
+          <circle cx="${cx}" cy="${cy}" r="${r}" fill="${o.fill || 'url(#pGrad)'}" stroke="${o.stroke || '#7f1d1d'}" stroke-width="${o.sw || 1.5}"/>
+          <rect x="${cx - l / 2}" y="${cy - t / 2}" width="${l}" height="${t}" rx="${t / 2}" fill="#ffffff"/>
+          <rect x="${cx - t / 2}" y="${cy - l / 2}" width="${t}" height="${l}" rx="${t / 2}" fill="#ffffff"/>
+        </g>`;
+      }
+
+      function label(x, y, txt, o) {
+        o = o || {};
+        return `<text x="${x}" y="${y}" text-anchor="${o.anchor || 'middle'}" font-size="${o.size || 14}"
+          font-weight="${o.weight || 700}" fill="${o.fill || '#475569'}"
+          ${o.cls ? `class="${o.cls}"` : ''} ${o.style ? `style="${o.style}"` : ''}>${txt}</text>`;
+      }
+
+      // Pulsing question mark used in every prediction state
+      function qMark(x, y, size, fill) {
+        return `<text x="${x}" y="${y}" text-anchor="middle" font-size="${size}" font-weight="700"
+          fill="${fill || '#94a3b8'}" class="pulse">?</text>`;
+      }
+
+      // Bottom-of-stage caption
+      function caption(txt, o) {
+        o = o || {};
+        return label(430, o.y || 400, txt, {
+          size: o.size || 15,
+          fill: o.fill || '#334155',
+          cls: o.cls,
+          style: o.style
+        });
+      }
+
+      /**
        * Type 2 Scenario Array
        */
       const scenarios = [
@@ -181,44 +416,117 @@
           ],
           feedback: "Electrons spread across the copper but remain clustered on the glass. Conductors allow free charge movement, while insulators hold charges exactly where they are placed.",
           getSVG: (reveal) => {
+            // Copper rod 70..390 (centre 230), glass rod 470..790 (centre 630), both y 180..256
+            const ionCores = Array.from({ length: 8 }, (_, i) => {
+              const x = 95 + i * 40;
+              return ePlus(x, 200, { r: 8, fill: '#fdba74', stroke: '#9a3412' }) +
+                     ePlus(x, 238, { r: 8, fill: '#fdba74', stroke: '#9a3412' });
+            }).join('');
+
+            // Free electron "sea" sliding between the ion cores
+            const seaDots = Array.from({ length: 12 }, (_, i) => {
+              const x = 88 + i * 27;
+              const y = i % 2 ? 212 : 226;
+              return `<circle cx="${x}" cy="${y}" r="4" fill="#1d4ed8" opacity="0.4"
+                class="drift" style="animation-delay:${(i * 0.23).toFixed(2)}s"/>`;
+            }).join('');
+
+            // Glass: every electron locked into orbit around its own atom
+            const glassAtoms = Array.from({ length: 6 }, (_, i) => {
+              const x = 500 + i * 54;
+              return `<g>
+                <circle cx="${x}" cy="218" r="16" fill="#ffffff" opacity="0.9"/>
+                <circle cx="${x}" cy="218" r="16" fill="none" stroke="#0284c7" stroke-width="2" stroke-dasharray="4 3"/>
+                <circle cx="${x}" cy="218" r="6" fill="#f87171" stroke="#b91c1c" stroke-width="1"/>
+                <circle cx="${x - 16}" cy="218" r="5" fill="#1d4ed8"/>
+                <circle cx="${x + 16}" cy="218" r="5" fill="#1d4ed8"/>
+              </g>`;
+            }).join('');
+
             const base = `
-              <rect x="150" y="100" width="160" height="40" rx="4" fill="#fb923c" />
-              <text x="230" y="80" text-anchor="middle" font-weight="bold" fill="#c2410c">Copper (Conductor)</text>
-              
-              <rect x="450" y="100" width="160" height="40" rx="4" fill="#94a3b8" opacity="0.6"/>
-              <text x="530" y="80" text-anchor="middle" font-weight="bold" fill="#475569">Glass (Insulator)</text>
+              <rect x="40" y="56" width="380" height="308" rx="14" fill="#fff7ed" stroke="#fdba74" stroke-width="2"/>
+              <rect x="440" y="56" width="380" height="308" rx="14" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/>
+
+              ${label(230, 88, 'COPPER &#8212; Conductor', { size: 17, fill: '#c2410c' })}
+              ${label(230, 110, 'metal ions fixed, electrons free to roam', { size: 12, fill: '#9a3412', weight: 500 })}
+              ${label(630, 88, 'GLASS &#8212; Insulator', { size: 17, fill: '#475569' })}
+              ${label(630, 110, 'every electron bound to its own atom', { size: 12, fill: '#64748b', weight: 500 })}
+
+              <rect x="70" y="180" width="320" height="76" rx="10" fill="url(#copperGrad)" stroke="#b45309" stroke-width="2"/>
+              <rect x="78" y="187" width="304" height="12" rx="6" fill="#ffffff" opacity="0.28"/>
+              ${ionCores}
+              ${seaDots}
+
+              <rect x="470" y="180" width="320" height="76" rx="10" fill="url(#glassGrad)" stroke="#94a3b8" stroke-width="2"/>
+              <rect x="478" y="187" width="304" height="12" rx="6" fill="#ffffff" opacity="0.6"/>
+              ${glassAtoms}
             `;
+
             if (!reveal) {
+              // Identical excess-electron cluster dropped on the centre of each rod
+              const cluster = (dx) => [
+                [204, 205], [232, 196], [258, 207], [216, 234], [246, 235]
+              ].map(([x, y], i) =>
+                eMinus(x + dx, y, { cls: 'jiggle', style: `animation-delay:${(i * 0.19).toFixed(2)}s` })
+              ).join('');
+
               return base + `
-                <!-- Initial cluster on Copper -->
-                <circle cx="230" cy="120" r="8" fill="#3b82f6"/><text x="230" y="123" fill="#fff" font-size="10" text-anchor="middle">-</text>
-                <circle cx="215" cy="120" r="8" fill="#3b82f6"/><text x="215" y="123" fill="#fff" font-size="10" text-anchor="middle">-</text>
-                <circle cx="245" cy="120" r="8" fill="#3b82f6"/><text x="245" y="123" fill="#fff" font-size="10" text-anchor="middle">-</text>
-                
-                <!-- Initial cluster on Glass -->
-                <circle cx="530" cy="120" r="8" fill="#3b82f6"/><text x="530" y="123" fill="#fff" font-size="10" text-anchor="middle">-</text>
-                <circle cx="515" cy="120" r="8" fill="#3b82f6"/><text x="515" y="123" fill="#fff" font-size="10" text-anchor="middle">-</text>
-                <circle cx="545" cy="120" r="8" fill="#3b82f6"/><text x="545" y="123" fill="#fff" font-size="10" text-anchor="middle">-</text>
-                
-                <text x="380" y="200" text-anchor="middle" font-size="36" font-weight="bold" fill="#94a3b8">?</text>
-              `;
-            } else {
-              return base + `
-                <!-- Spread on Copper -->
-                <circle cx="165" cy="120" r="8" fill="#3b82f6"/><text x="165" y="123" fill="#fff" font-size="10" text-anchor="middle">-</text>
-                <circle cx="230" cy="120" r="8" fill="#3b82f6"/><text x="230" y="123" fill="#fff" font-size="10" text-anchor="middle">-</text>
-                <circle cx="295" cy="120" r="8" fill="#3b82f6"/><text x="295" y="123" fill="#fff" font-size="10" text-anchor="middle">-</text>
-                <path d="M 180 120 L 210 120" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow-blue)"/>
-                <path d="M 280 120 L 250 120" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow-blue)"/>
-                <text x="230" y="165" text-anchor="middle" font-size="14" fill="#3b82f6" font-weight="bold">Repel & Spread</text>
-                
-                <!-- Clustered on Glass -->
-                <circle cx="530" cy="120" r="8" fill="#3b82f6"/><text x="530" y="123" fill="#fff" font-size="10" text-anchor="middle">-</text>
-                <circle cx="515" cy="120" r="8" fill="#3b82f6"/><text x="515" y="123" fill="#fff" font-size="10" text-anchor="middle">-</text>
-                <circle cx="545" cy="120" r="8" fill="#3b82f6"/><text x="545" y="123" fill="#fff" font-size="10" text-anchor="middle">-</text>
-                <text x="530" y="165" text-anchor="middle" font-size="14" fill="#475569" font-weight="bold">Stuck in place</text>
+                ${cluster(0)}
+                ${cluster(400)}
+                ${label(230, 300, 'Wait&#8230; then what?', { size: 14, fill: '#9a3412' })}
+                ${label(630, 300, 'Wait&#8230; then what?', { size: 14, fill: '#64748b' })}
+                ${qMark(230, 350, 48, '#c2410c')}
+                ${qMark(630, 350, 48, '#64748b')}
+                ${caption('Five excess electrons are dropped on the centre of each rod.', { fill: '#475569' })}
               `;
             }
+
+            // Copper: the five electrons slide apart to the far ends
+            const spread = [
+              [95, 218, 109, -13], [163, 218, 69, -22], [230, 218, 28, -11],
+              [297, 218, -81, 16], [365, 218, -119, 17]
+            ].map(([x, y, fx, fy], i) =>
+              anim('migrate', `--fx:${fx}px; --fy:${fy}px; animation-delay:${(i * 0.06).toFixed(2)}s`,
+                anim('jiggle', `animation-delay:${(1.3 + i * 0.17).toFixed(2)}s`, eMinus(x, y)))
+            ).join('');
+
+            // Glass: the same five strain outward, then snap back
+            const stuck = [
+              [204, 205, -7, -3], [232, 196, 0, -8], [258, 207, 7, -3],
+              [216, 234, -5, 7], [246, 235, 6, 7]
+            ].map(([x, y, tx, ty], i) =>
+              anim('tug', `--tx:${tx}px; --ty:${ty}px; animation-delay:${(i * 0.13).toFixed(2)}s`,
+                eMinus(x + 400, y))
+            ).join('');
+
+            return base + `
+              ${spread}
+              <g class="fade-in" style="animation-delay:1.1s">
+                <path d="M 210 290 L 100 290" stroke="#2563eb" stroke-width="3" fill="none"
+                  marker-end="url(#arrow-blue)" class="flow"/>
+                <path d="M 250 290 L 360 290" stroke="#2563eb" stroke-width="3" fill="none"
+                  marker-end="url(#arrow-blue)" class="flow"/>
+                ${label(230, 322, 'Mutual repulsion &#8594; charge spreads', { size: 14, fill: '#1d4ed8' })}
+                ${label(230, 342, 'over the entire surface', { size: 14, fill: '#1d4ed8' })}
+              </g>
+
+              ${stuck}
+              <g class="fade-in" style="animation-delay:1.1s">
+                <ellipse cx="630" cy="216" rx="62" ry="42" fill="none" stroke="#dc2626"
+                  stroke-width="2.5" stroke-dasharray="7 6"/>
+                <path d="M 604 290 L 572 290" stroke="#dc2626" stroke-width="3" fill="none"
+                  marker-end="url(#arrow-red)"/>
+                <path d="M 656 290 L 688 290" stroke="#dc2626" stroke-width="3" fill="none"
+                  marker-end="url(#arrow-red)"/>
+                <path d="M 544 278 L 560 302 M 560 278 L 544 302" stroke="#dc2626" stroke-width="3.5" stroke-linecap="round"/>
+                <path d="M 700 278 L 716 302 M 716 278 L 700 302" stroke="#dc2626" stroke-width="3.5" stroke-linecap="round"/>
+                ${label(630, 322, 'They still repel &#8212; but there is', { size: 14, fill: '#b91c1c' })}
+                ${label(630, 342, 'no free path, so they stay put', { size: 14, fill: '#b91c1c' })}
+              </g>
+
+              ${caption('Same charge, same repulsion &#8212; only the material decides whether it can move.',
+                { fill: '#334155', cls: 'fade-in', style: 'animation-delay:1.6s' })}
+            `;
           }
         },
         {
@@ -233,28 +541,114 @@
           ],
           feedback: "The sphere becomes positive. The rod repelled electrons down the ground wire; when the wire was cut, the sphere was left with a deficit of electrons.",
           getSVG: (reveal) => {
-            const base = `
-              <circle cx="380" cy="140" r="50" fill="#cbd5e1" stroke="#94a3b8" stroke-width="2"/>
+            // Sphere centred at (430, 210), r = 80
+            const sphere = `
+              <circle cx="430" cy="210" r="80" fill="url(#metalGrad)" stroke="#94a3b8" stroke-width="3"/>
+              <ellipse cx="405" cy="180" rx="34" ry="22" fill="#ffffff" opacity="0.5"/>
+              <path d="M 366 264 A 80 80 0 0 0 486 250" fill="none" stroke="#ffffff" stroke-width="6" opacity="0.35"/>
+              <path d="M 430 290 L 430 312 M 402 316 L 458 316" stroke="#cbd5e1" stroke-width="5"/>
+              ${label(430, 340, 'insulating stand', { size: 12, fill: '#94a3b8', weight: 500 })}
             `;
+
+            const rodBars = [88, 126, 164, 202, 240]
+              .map((x) => `<rect x="${x - 10}" y="207" width="20" height="5" rx="2.5" fill="#ffffff"/>`)
+              .join('');
+
+            const rod = `
+              <rect x="55" y="186" width="210" height="48" rx="12" fill="url(#rodNegGrad)" stroke="#1e3a8a" stroke-width="2"/>
+              <rect x="63" y="192" width="194" height="9" rx="4.5" fill="#ffffff" opacity="0.3"/>
+              ${rodBars}
+              ${label(160, 170, 'Charged rod (negative)', { size: 14, fill: '#1d4ed8' })}
+            `;
+
+            const ground = `
+              <path d="M 510 210 L 640 210 L 640 316" stroke="#475569" stroke-width="6" fill="none" stroke-linecap="round"/>
+              <path d="M 610 322 L 670 322 M 620 334 L 660 334 M 630 346 L 650 346"
+                stroke="#475569" stroke-width="6" stroke-linecap="round"/>
+              ${label(640, 372, 'ground', { size: 13, fill: '#475569' })}
+            `;
+
             if (!reveal) {
-              return base + `
-                <!-- Rod -->
-                <rect x="180" y="130" width="100" height="20" rx="4" fill="#ef4444" />
-                <text x="230" y="145" text-anchor="middle" fill="#fff" font-weight="bold">------</text>
-                <!-- Ground Wire -->
-                <path d="M 430 140 L 500 140 L 500 180" stroke="#475569" stroke-width="3" fill="none"/>
-                <path d="M 480 180 L 520 180 M 490 188 L 510 188 M 495 196 L 505 196" stroke="#475569" stroke-width="3"/>
-                <text x="380" y="80" text-anchor="middle" font-size="36" font-weight="bold" fill="#94a3b8">?</text>
-              `;
-            } else {
-              return base + `
-                <text x="380" y="120" text-anchor="middle" font-size="24" fill="#ef4444" font-weight="bold">+</text>
-                <text x="360" y="150" text-anchor="middle" font-size="24" fill="#ef4444" font-weight="bold">+</text>
-                <text x="400" y="150" text-anchor="middle" font-size="24" fill="#ef4444" font-weight="bold">+</text>
-                <text x="380" y="175" text-anchor="middle" font-size="24" fill="#ef4444" font-weight="bold">+</text>
-                <text x="380" y="220" text-anchor="middle" font-size="14" fill="#ef4444" font-weight="bold">Electrons escaped; Net Positive</text>
+              // Neutral sphere: equal numbers of + and - mixed evenly
+              const pairs = [
+                [392, 172], [378, 205], [392, 240], [420, 160], [420, 255],
+                [462, 172], [478, 205], [462, 240], [430, 210]
+              ];
+              const neutral = pairs.map(([x, y], i) =>
+                eMinus(x, y, { r: 11, cls: 'jiggle', style: `animation-delay:${(i * 0.14).toFixed(2)}s` }) +
+                ePlus(x + 16, y + 14, { r: 11 })
+              ).join('');
+
+              return `
+                ${sphere}
+                ${neutral}
+                ${rod}
+                ${ground}
+                ${qMark(430, 92, 52, '#94a3b8')}
+                ${caption('Rod held near &#8594; sphere briefly grounded &#8594; ground removed &#8594; rod removed.',
+                  { fill: '#475569' })}
               `;
             }
+
+            // ---- Reveal: a four-stage animated sequence ----
+
+            // Stage 1 (0.0s): electrons driven to the far side of the sphere
+            const pushed = [
+              [463, 170, -65, 5], [477, 188, -47, -23], [482, 210, -72, -5],
+              [477, 232, -82, 8], [463, 250, -33, 5]
+            ].map(([x, y, fx, fy], i) =>
+              // outer group fades the electron out as it leaves down the wire
+              anim('vanish', `animation-delay:${(1.45 + i * 0.11).toFixed(2)}s`,
+                anim('migrate', `--fx:${fx}px; --fy:${fy}px; animation-delay:${(i * 0.07).toFixed(2)}s`,
+                  eMinus(x, y, { r: 11 })))
+            ).join('');
+
+            // The positives stay behind, then redistribute evenly at the end
+            const positives = [
+              [430, 154, -10, 6], [483, 193, -91, -21], [463, 255, -43, 0],
+              [397, 255, -5, -15], [377, 193, 1, 12]
+            ].map(([x, y, fx, fy], i) =>
+              anim('migrate', `--fx:${fx}px; --fy:${fy}px; animation-delay:${(4.2 + i * 0.07).toFixed(2)}s`,
+                ePlus(x, y, { r: 11 }))
+            ).join('');
+
+            // Stage 2 (1.2s): three electrons run out along the ground wire
+            const draining = [0, 1, 2].map((i) =>
+              anim('drain', `animation-delay:${(1.2 + i * 0.34).toFixed(2)}s`, eMinus(492, 210, { r: 11 }))
+            ).join('');
+
+            return `
+              ${sphere}
+              ${pushed}
+              ${positives}
+
+              <!-- Rod pushes, then slides away at 3.5 s -->
+              <g class="rod-leave" style="animation-delay:3.5s">
+                ${rod}
+                <path d="M 285 190 L 340 190" stroke="#1d4ed8" stroke-width="3" fill="none"
+                  marker-end="url(#arrow-blue)" class="flow"/>
+                <path d="M 285 230 L 340 230" stroke="#1d4ed8" stroke-width="3" fill="none"
+                  marker-end="url(#arrow-blue)" class="flow"/>
+              </g>
+
+              <!-- Ground wire carries electrons away, then is removed at 2.9 s -->
+              <g class="vanish" style="animation-delay:2.9s">
+                ${ground}
+                ${draining}
+              </g>
+
+              <!-- Final state -->
+              <g class="fade-in" style="animation-delay:4.6s">
+                <circle cx="430" cy="210" r="115" fill="url(#posGlow)" class="glow"/>
+                ${label(430, 92, 'NET CHARGE: POSITIVE', { size: 20, fill: '#b91c1c' })}
+                ${label(430, 116, 'the sphere kept a deficit of electrons', { size: 13, fill: '#b91c1c', weight: 500 })}
+              </g>
+
+              ${caption('1 &#183; Rod repels electrons to the far side', { cls: 'cap', style: 'animation-duration:1.3s; animation-delay:0s', fill: '#1d4ed8' })}
+              ${caption('2 &#183; Grounded &#8212; electrons escape to Earth', { cls: 'cap', style: 'animation-duration:1.6s; animation-delay:1.3s', fill: '#1d4ed8' })}
+              ${caption('3 &#183; Ground wire removed &#8212; escape route cut', { cls: 'cap', style: 'animation-duration:0.7s; animation-delay:2.9s', fill: '#475569' })}
+              ${caption('4 &#183; Rod removed &#8212; sphere is left positive', { cls: 'fade-in', style: 'animation-delay:3.6s', fill: '#b91c1c' })}
+            `;
           }
         },
         {
@@ -269,30 +663,108 @@
           ],
           feedback: "Yes, it experiences an attractive force. The wood's molecules polarize, pulling their electron clouds slightly toward the positive rod without leaving their atoms.",
           getSVG: (reveal) => {
-            const base = `
-              <rect x="200" y="120" width="100" height="20" rx="4" fill="#3b82f6" />
-              <text x="250" y="136" text-anchor="middle" fill="#fff" font-weight="bold">++++++</text>
-              
-              <rect x="360" y="80" width="120" height="100" rx="2" fill="#d97706" />
+            const cols = [430, 505, 580];   // block spans x 380..630
+            const rows = [126, 182, 238, 296];
+            const pull = { 430: -13, 505: -10, 580: -7 };  // nearer the rod = stronger shift
+
+            const rodBars = [88, 124, 160, 196, 228]
+              .map((x) => `<g>
+                <rect x="${x - 10}" y="208" width="20" height="5" rx="2.5" fill="#ffffff"/>
+                <rect x="${x - 2.5}" y="200.5" width="5" height="20" rx="2.5" fill="#ffffff"/>
+              </g>`).join('');
+
+            const grain = [130, 178, 226, 274, 316].map((y, i) =>
+              `<path d="M 384 ${y} C 445 ${y - 7}, 505 ${y + 8}, 626 ${y - 3}"
+                fill="none" stroke="#78350f" stroke-width="2" opacity="0.22"/>`
+            ).join('');
+
+            const rod = `
+              <rect x="55" y="188" width="195" height="46" rx="12" fill="url(#rodPosGrad)" stroke="#7f1d1d" stroke-width="2"/>
+              <rect x="63" y="194" width="179" height="9" rx="4.5" fill="#ffffff" opacity="0.3"/>
+              ${rodBars}
+              ${label(152, 172, 'Charged rod (positive)', { size: 14, fill: '#b91c1c' })}
             `;
+
+            const block = `
+              <rect x="380" y="90" width="250" height="240" rx="8" fill="url(#woodGrad)" stroke="#78350f" stroke-width="3"/>
+              ${grain}
+              ${label(505, 358, 'Neutral wood &#8212; an insulator', { size: 14, fill: '#92400e' })}
+            `;
+
+            // A molecule = fixed nucleus + mobile electron cloud that can stretch but never leave
+            const molecule = (cx, cy, i, polarized) => {
+              const dx = pull[cx];
+              const cloudFace = `<circle cx="${cx}" cy="${cy}" r="15" fill="#93c5fd" fill-opacity="0.92"
+                     stroke="#2563eb" stroke-width="1.5"/>`;
+              const cloud = polarized
+                ? `<g class="shift" style="--dx:${dx}px; animation-delay:${(i * 0.07).toFixed(2)}s">${cloudFace}</g>`
+                : `<g class="breathe" style="animation-delay:${(i * 0.15).toFixed(2)}s">${cloudFace}</g>`;
+              // The nucleus never moves; only the cloud slides, exposing bare positive on the far side
+              return `<g>
+                <circle cx="${cx}" cy="${cy}" r="19" fill="#fde68a" stroke="#b45309" stroke-width="1.5" opacity="0.95"/>
+                ${cloud}
+                <circle cx="${cx}" cy="${cy}" r="4.5" fill="#dc2626"/>
+              </g>`;
+            };
+
+            const grid = (polarized) => rows.map((y, r) =>
+              cols.map((x, c) => molecule(x, y, r * 3 + c, polarized)).join('')
+            ).join('');
+
             if (!reveal) {
-              return base + `<text x="420" y="135" text-anchor="middle" font-size="36" font-weight="bold" fill="#fcd34d">?</text>`;
-            } else {
-              return base + `
-                <!-- Polarized Molecules -->
-                <ellipse cx="390" cy="100" rx="15" ry="8" fill="#fef3c7" stroke="#b45309" stroke-width="1"/>
-                <text x="382" y="104" font-size="12" fill="#ef4444" font-weight="bold">-</text><text x="398" y="104" font-size="12" fill="#3b82f6" font-weight="bold">+</text>
-                
-                <ellipse cx="390" cy="130" rx="15" ry="8" fill="#fef3c7" stroke="#b45309" stroke-width="1"/>
-                <text x="382" y="134" font-size="12" fill="#ef4444" font-weight="bold">-</text><text x="398" y="134" font-size="12" fill="#3b82f6" font-weight="bold">+</text>
-                
-                <ellipse cx="390" cy="160" rx="15" ry="8" fill="#fef3c7" stroke="#b45309" stroke-width="1"/>
-                <text x="382" y="164" font-size="12" fill="#ef4444" font-weight="bold">-</text><text x="398" y="164" font-size="12" fill="#3b82f6" font-weight="bold">+</text>
-                
-                <path d="M 350 130 L 320 130" stroke="#ef4444" stroke-width="3" marker-end="url(#arrow-red)"/>
-                <text x="420" y="210" text-anchor="middle" font-size="14" fill="#b45309" font-weight="bold">Attraction due to surface polarization</text>
+              return `
+                ${rod}
+                ${block}
+                ${grid(false)}
+                ${qMark(315, 222, 56, '#fbbf24')}
+                ${caption('Nothing touches. Each wood molecule is neutral, its electron cloud centred.',
+                  { fill: '#475569' })}
               `;
             }
+
+            // Surface layers left behind once every cloud has shifted
+            const faceCharge = rows.map((y, i) => `
+              <g class="fade-in" style="animation-delay:${(1.2 + i * 0.09).toFixed(2)}s">
+                <rect x="${361}" y="${y - 2}" width="16" height="5" rx="2.5" fill="#1d4ed8"/>
+                <rect x="${634}" y="${y - 2}" width="16" height="5" rx="2.5" fill="#dc2626"/>
+                <rect x="${639.5}" y="${y - 7.5}" width="5" height="16" rx="2.5" fill="#dc2626"/>
+              </g>`).join('');
+
+            const fieldLines = [
+              'M 258 196 C 300 176, 340 168, 372 164',
+              'M 262 211 C 305 211, 340 211, 372 211',
+              'M 258 226 C 300 246, 340 254, 372 258'
+            ].map((d, i) => `<path d="${d}" fill="none" stroke="#f87171" stroke-width="3"
+              marker-end="url(#arrow-red)" class="flow" style="animation-delay:${(i * 0.2).toFixed(2)}s"/>`).join('');
+
+            return `
+              ${rod}
+              <g class="fade-in" style="animation-delay:0.9s">${fieldLines}</g>
+
+              <g class="creep" style="animation-delay:1.8s">
+                ${block}
+                ${grid(true)}
+                ${faceCharge}
+              </g>
+
+              <g class="fade-in" style="animation-delay:1.6s">
+                <!-- Neutral colour: this is a force on the block, not a charge in motion -->
+                <path d="M 356 302 L 292 302" stroke="#334155" stroke-width="6" fill="none"
+                  marker-end="url(#arrow-slate)" class="arrow-pulse"/>
+                ${label(322, 330, 'net force', { size: 14, fill: '#334155' })}
+              </g>
+
+              <g class="fade-in" style="animation-delay:1.4s">
+                ${label(505, 62, 'near face: NEGATIVE', { size: 13, fill: '#1d4ed8' })}
+                <path d="M 430 68 L 386 92" stroke="#1d4ed8" stroke-width="2" fill="none" opacity="0.6"/>
+                ${label(700, 190, 'far face:', { size: 13, fill: '#b91c1c' })}
+                ${label(700, 208, 'POSITIVE', { size: 13, fill: '#b91c1c' })}
+                <path d="M 668 200 L 640 205" stroke="#b91c1c" stroke-width="2" fill="none" opacity="0.6"/>
+              </g>
+
+              ${caption('Clouds stretch but never leave their atoms &#8212; polarization, not charge transfer.',
+                { fill: '#334155', cls: 'fade-in', style: 'animation-delay:2s' })}
+            `;
           }
         },
         {
@@ -307,32 +779,82 @@
           ],
           feedback: "Charges concentrate at the sharp, pointed end. Repulsive forces push mobile charges into regions of tight curvature, causing a dense electric field.",
           getSVG: (reveal) => {
-            const base = `
-              <path d="M 220 140 Q 300 60 450 80 Q 520 140 450 200 Q 300 220 220 140 Z" fill="#cbd5e1" stroke="#94a3b8" stroke-width="2"/>
-            `;
-            if (!reveal) {
-              return base + `<text x="360" y="150" text-anchor="middle" font-size="36" font-weight="bold" fill="#94a3b8">?</text>`;
-            } else {
-              return base + `
-                <!-- Sparse on round side -->
-                <text x="440" y="95" font-size="20" fill="#3b82f6" font-weight="bold">-</text>
-                <text x="475" y="145" font-size="20" fill="#3b82f6" font-weight="bold">-</text>
-                <text x="440" y="195" font-size="20" fill="#3b82f6" font-weight="bold">-</text>
-                <text x="380" y="90" font-size="20" fill="#3b82f6" font-weight="bold">-</text>
-                <text x="380" y="200" font-size="20" fill="#3b82f6" font-weight="bold">-</text>
-                
-                <!-- Dense on point -->
-                <text x="240" y="130" font-size="20" fill="#ef4444" font-weight="bold">-</text>
-                <text x="240" y="145" font-size="20" fill="#ef4444" font-weight="bold">-</text>
-                <text x="240" y="160" font-size="20" fill="#ef4444" font-weight="bold">-</text>
-                <text x="260" y="125" font-size="20" fill="#ef4444" font-weight="bold">-</text>
-                <text x="260" y="165" font-size="20" fill="#ef4444" font-weight="bold">-</text>
-                <text x="275" y="115" font-size="20" fill="#ef4444" font-weight="bold">-</text>
-                <text x="275" y="175" font-size="20" fill="#ef4444" font-weight="bold">-</text>
+            const outline = 'M 140 210 C 260 110, 420 80, 560 100 C 680 120, 730 160, 730 210 ' +
+                            'C 730 260, 680 300, 560 320 C 420 340, 260 310, 140 210 Z';
 
-                <text x="260" y="235" text-anchor="middle" font-size="14" fill="#ef4444" font-weight="bold">High Charge Density</text>
+            const base = `
+              <path d="${outline}" fill="url(#metalGrad)" stroke="#94a3b8" stroke-width="3"/>
+              <path d="M 200 178 C 300 138, 430 120, 560 130" fill="none" stroke="#ffffff"
+                stroke-width="8" opacity="0.45" stroke-linecap="round"/>
+
+              <!-- Curvature guides: tight circle at the tip, broad one at the round end -->
+              <circle cx="178" cy="210" r="34" fill="none" stroke="#dc2626" stroke-width="2" stroke-dasharray="6 6" opacity="0.75"/>
+              <path d="M 178 210 L 202 186" stroke="#dc2626" stroke-width="1.5" opacity="0.75"/>
+              ${label(196, 132, 'small radius', { size: 12, fill: '#b91c1c' })}
+              ${label(196, 148, '(tight curve)', { size: 12, fill: '#b91c1c', weight: 500 })}
+
+              <circle cx="620" cy="210" r="108" fill="none" stroke="#2563eb" stroke-width="2" stroke-dasharray="6 6" opacity="0.6"/>
+              <path d="M 620 210 L 696 286" stroke="#2563eb" stroke-width="1.5" opacity="0.6"/>
+              ${label(660, 366, 'large radius (gentle curve)', { size: 12, fill: '#1d4ed8' })}
+
+              ${label(430, 56, 'Tear-drop metal conductor &#8212; one connected surface', { size: 15, fill: '#475569' })}
+            `;
+
+            // Charge starts spread evenly around the outline
+            const start = [
+              [180, 205], [240, 160], [320, 128], [400, 112], [480, 104], [560, 102], [640, 120],
+              [710, 180], [715, 240], [640, 300], [560, 318], [470, 330], [370, 322], [265, 275]
+            ];
+
+            if (!reveal) {
+              return base + `
+                ${start.map(([x, y], i) =>
+                  eMinus(x, y, { r: 12, cls: 'jiggle', style: `animation-delay:${(i * 0.11).toFixed(2)}s` })
+                ).join('')}
+                ${qMark(430, 232, 60, '#64748b')}
+                ${caption('Excess electrons are added and left free to arrange themselves.', { fill: '#475569' })}
               `;
             }
+
+            // Final layout: nine crowded at the tip, five stretched thin over the round end
+            const finish = [
+              [176, 210, 4, -5, 1], [200, 186, 40, -26, 1], [200, 234, 65, 41, 1],
+              [226, 166, 94, -38, 1], [226, 254, 144, 68, 1], [252, 152, 148, -40, 1],
+              [252, 268, 218, 62, 1], [276, 144, 204, -40, 1], [276, 276, 284, 42, 1],
+              [380, 116, 180, -14, 0], [380, 304, 260, -4, 0],
+              [520, 104, 120, 16, 0], [560, 318, 155, -78, 0], [700, 210, 10, -30, 0]
+            ].map(([x, y, fx, fy, hot], i) =>
+              anim('migrate', `--fx:${fx}px; --fy:${fy}px; animation-delay:${(i * 0.05).toFixed(2)}s`,
+                anim('jiggle', `animation-delay:${(1.4 + i * 0.09).toFixed(2)}s`,
+                  eMinus(x, y, { r: 12, stroke: hot ? '#dc2626' : '#1e3a8a', sw: hot ? 3 : 1.5 })))
+            ).join('');
+
+            // Field escaping the tip: dense fan on the left, two lonely strands on the right
+            const tipField = [
+              'M 150 178 L 78 130', 'M 140 196 L 56 172', 'M 136 210 L 44 210',
+              'M 140 224 L 56 248', 'M 150 242 L 78 290'
+            ].map((d, i) => `<path d="${d}" fill="none" stroke="#dc2626" stroke-width="3.5"
+              marker-end="url(#arrow-red)" class="flow" style="animation-delay:${(i * 0.14).toFixed(2)}s"/>`).join('');
+
+            const endField = ['M 734 186 L 790 172', 'M 734 234 L 790 248']
+              .map((d, i) => `<path d="${d}" fill="none" stroke="#2563eb" stroke-width="2.5"
+                marker-end="url(#arrow-blue)" class="flow" style="animation-delay:${(i * 0.3).toFixed(2)}s"/>`).join('');
+
+            return base + `
+              <ellipse cx="182" cy="210" rx="70" ry="86" fill="url(#tipGlow)" class="glow"
+                style="animation-delay:1.3s"/>
+              ${finish}
+              <g class="fade-in" style="animation-delay:1.3s">
+                ${tipField}
+                ${endField}
+                ${label(250, 352, 'HIGH charge density', { size: 15, fill: '#b91c1c' })}
+                ${label(250, 372, 'strong field escapes here', { size: 12, fill: '#b91c1c', weight: 500 })}
+                ${label(700, 128, 'LOW density', { size: 15, fill: '#1d4ed8' })}
+                ${label(700, 146, 'weak field', { size: 12, fill: '#1d4ed8', weight: 500 })}
+              </g>
+              ${caption('Repulsion drives mobile charge into the tightest curvature &#8212; the sharp tip.',
+                { y: 404, fill: '#334155', cls: 'fade-in', style: 'animation-delay:1.8s' })}
+            `;
           }
         }
       ];
@@ -363,8 +885,9 @@
         document.getElementById('setup-text').innerHTML = scen.setup;
         document.getElementById('prompt-text').innerHTML = scen.promptText;
         
-        // Render SVG for Prediction state
+        // Render SVG for Prediction state (replacing the nodes restarts every animation)
         document.getElementById('svg-content').innerHTML = scen.getSVG(false);
+        document.getElementById('stage').setAttribute('aria-label', `${scen.title}. ${scen.setup}`);
 
         // Manage Card Visibility Blocks
         const choicesDiv = document.getElementById('choices');
@@ -395,6 +918,7 @@
 
         // 2. Reveal visual evidence synchronized with the choice
         document.getElementById('svg-content').innerHTML = scen.getSVG(true);
+        document.getElementById('stage').setAttribute('aria-label', `${scen.title}. ${scen.feedback}`);
 
         // 3. Show succinct feedback block
         const fbPanel = document.getElementById('feedback-panel');

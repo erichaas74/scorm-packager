@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Critical Angle Explorer</title>
+<style>
+:root{
+  --bg:#eef2f6;
+  --panel:#ffffff;
+  --ink:#172033;
+  --muted:#64748b;
+  --line:#cbd5e1;
+  --blue:#2563eb;
+  --purple:#7c3aed;
+  --orange:#ea580c;
+  --green:#0f766e;
+  --danger:#b91c1c;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:var(--bg);
+  color:var(--ink);
+}
+header{
+  background:#111827;
+  color:#fff;
+  padding:16px 22px;
+}
+header h1{margin:0;font-size:24px}
+header p{margin:5px 0 0;color:#d1d5db}
+main{max-width:1200px;margin:auto;padding:18px}
+.panel{
+  background:var(--panel);
+  border:1px solid #d8dee8;
+  border-radius:14px;
+  padding:16px;
+  box-shadow:0 2px 8px rgba(0,0,0,.04);
+  margin-bottom:15px;
+}
+h2{margin:0 0 10px;font-size:20px}
+.material-tray{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:10px;
+}
+.material-card{
+  border:2px solid #dbe3ec;
+  background:#f8fafc;
+  border-radius:10px;
+  padding:11px;
+  cursor:grab;
+  user-select:none;
+  transition:.15s ease;
+}
+.material-card:hover{border-color:#94a3b8;transform:translateY(-1px)}
+.material-card:active{cursor:grabbing}
+.material-card strong{display:block;font-size:16px;margin-bottom:4px}
+.material-card span{font-size:13px;color:var(--muted)}
+.material-card.explored{border-color:#bfdbfe;background:#eff6ff}
+.sim-wrap{
+  position:relative;
+  width:100%;
+  border:2px dashed #a8b4c3;
+  border-radius:12px;
+  overflow:hidden;
+  background:#f8fafc;
+  min-height:520px;
+}
+.sim-wrap.drag-over{border-color:var(--blue);box-shadow:0 0 0 4px rgba(37,99,235,.10)}
+canvas{display:block;width:100%;height:auto;background:#f8fafc}
+.drop-message{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:30px;
+  font-weight:700;
+  color:#64748b;
+  background:rgba(248,250,252,.88);
+  pointer-events:none;
+}
+.drop-message.hidden{display:none}
+.small{font-size:13px;color:var(--muted)}
+.controls{margin-top:14px}
+.slider-row{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:12px;
+  align-items:center;
+}
+input[type=range]{width:100%}
+.angle-readout{
+  min-width:78px;
+  text-align:center;
+  font-weight:800;
+  background:#eef2ff;
+  border:1px solid #c7d2fe;
+  border-radius:8px;
+  padding:7px 9px;
+}
+.marker-line{
+  display:flex;
+  justify-content:space-between;
+  font-size:12px;
+  color:var(--muted);
+  margin-top:4px;
+}
+.note{
+  margin-top:10px;
+  padding:10px 12px;
+  border-left:4px solid var(--blue);
+  background:#eff6ff;
+  border-radius:7px;
+  font-size:14px;
+}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:13px;color:#475569}
+.legend span::before{content:"";display:inline-block;width:18px;height:4px;border-radius:3px;margin-right:6px;vertical-align:middle;background:currentColor}
+.legend .incident{color:#111827}.legend .refracted{color:#7c3aed}.legend .reflected{color:#ea580c}
+.investigation{
+  margin-top:14px;
+  display:grid;
+  gap:10px;
+}
+.prompt-card{
+  border:1px solid #dce3ea;
+  border-radius:10px;
+  padding:12px;
+  background:#f8fafc;
+}
+.prompt-card label{display:block;font-weight:700;margin-bottom:6px}
+.prompt-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+input[type=number], textarea{
+  width:100%;
+  padding:8px;
+  border:1px solid var(--line);
+  border-radius:7px;
+  background:white;
+  font:inherit;
+}
+input.short-answer{max-width:180px}
+button{
+  border:0;
+  border-radius:7px;
+  padding:9px 14px;
+  font-weight:700;
+  cursor:pointer;
+  background:var(--blue);
+  color:white;
+}
+button.light{background:#e2e8f0;color:#111827}
+.highlight-note{color:#1d4ed8;font-weight:700}
+</style>
+</head>
+<body>
+<header>
+  <h1>Critical Angle Explorer</h1>
+  <p>Drag a material into the simulation, then increase the incident angle and watch Snell's law reach its limit.</p>
+</header>
+
+<main>
+  <section class="panel">
+    <h2>1. Choose a material</h2>
+    <div class="material-tray" id="materialTray"></div>
+    <div class="small" style="margin-top:8px">Drag a material card into the simulation. You can also click a card. The refractive index is revealed after you explore that material.</div>
+  </section>
+
+  <section class="panel">
+    <div id="simWrap" class="sim-wrap">
+      <canvas id="canvas" width="1100" height="560"></canvas>
+      <div id="dropMessage" class="drop-message">Drop a material here to begin</div>
+    </div>
+    <div class="legend">
+      <span class="incident">Incident ray</span>
+      <span class="refracted">Refracted ray</span>
+      <span class="reflected">Reflected ray</span>
+    </div>
+    <div class="controls">
+      <label for="angleSlider"><strong>Incident angle</strong> — measured from the normal</label>
+      <div class="slider-row">
+        <input id="angleSlider" type="range" min="0" max="80" value="20" step="0.1" disabled>
+        <div class="angle-readout" id="angleOut">20.0°</div>
+      </div>
+      <div class="marker-line"><span>0°</span><span id="criticalMarker">Critical angle: —</span><span>80°</span></div>
+    </div>
+
+    <div class="note">
+      Watch the Snell's-law value for <strong>sin θ₂</strong>. At the critical angle it reaches 1, so θ₂ = 90°. Above the critical angle the calculation asks for sin⁻¹ of a number greater than 1, which has no real angle. The refracted ray is therefore undefined and total internal reflection occurs.
+    </div>
+
+    <div class="investigation">
+      <div class="prompt-card">
+        <label>1. Drag the incident ray or move the slider until the refracted ray travels along the boundary. Then record the critical angle.</label>
+        <div class="prompt-row">
+          <input id="recordedCritical" class="short-answer" type="number" step="0.1" placeholder="Critical angle">
+          <span>degrees</span>
+          <button id="recordCurrent" type="button">Record current angle</button>
+          <button id="showActual" class="light" type="button">Show actual critical angle</button>
+          <span id="actualCriticalText" class="small"></span>
+        </div>
+      </div>
+
+      <div class="prompt-card">
+        <label for="afterCritical">2. What happens after the critical angle when the angle of incidence is increased?</label>
+        <textarea id="afterCritical" rows="3" placeholder="Describe what happens to the refracted and reflected rays."></textarea>
+      </div>
+
+      <div class="prompt-card">
+        <label for="reflectedAngleRule">3. After the critical angle, what determines the reflected angle?</label>
+        <textarea id="reflectedAngleRule" rows="3" placeholder="State the rule for the reflected angle."></textarea>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+const materials = [
+  {id:'water', name:'Water', n:1.33, fill:'#cfeeff', explored:false},
+  {id:'acrylic', name:'Acrylic', n:1.49, fill:'#dbeafe', explored:false},
+  {id:'crown', name:'Crown Glass', n:1.52, fill:'#d9e7ff', explored:false},
+  {id:'flint', name:'Flint Glass', n:1.66, fill:'#ddd6fe', explored:false},
+  {id:'diamond', name:'Diamond', n:2.42, fill:'#e9d5ff', explored:false}
+];
+
+const tray = document.getElementById('materialTray');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const simWrap = document.getElementById('simWrap');
+const dropMessage = document.getElementById('dropMessage');
+const slider = document.getElementById('angleSlider');
+const angleOut = document.getElementById('angleOut');
+const criticalMarker = document.getElementById('criticalMarker');
+const recordedCritical = document.getElementById('recordedCritical');
+const recordCurrentBtn = document.getElementById('recordCurrent');
+const showActualBtn = document.getElementById('showActual');
+const actualCriticalText = document.getElementById('actualCriticalText');
+
+let selected = null;
+let draggingAngle = false;
+let lastGeometry = null;
+const cardMap = new Map();
+
+function renderCard(m){
+  const card = cardMap.get(m.id);
+  if(!card) return;
+  card.classList.toggle('explored', m.explored);
+  card.innerHTML = `<strong>${m.name}</strong><span>${m.explored ? `n = ${m.n.toFixed(2)}` : 'Drag to explore'}</span>`;
+}
+
+materials.forEach(m=>{
+  const card=document.createElement('div');
+  card.className='material-card';
+  card.draggable=true;
+  card.dataset.id=m.id;
+  card.addEventListener('dragstart',e=>e.dataTransfer.setData('text/plain',m.id));
+  card.addEventListener('click',()=>selectMaterial(m.id));
+  tray.appendChild(card);
+  cardMap.set(m.id, card);
+  renderCard(m);
+});
+
+simWrap.addEventListener('dragover',e=>{e.preventDefault();simWrap.classList.add('drag-over')});
+simWrap.addEventListener('dragleave',()=>simWrap.classList.remove('drag-over'));
+simWrap.addEventListener('drop',e=>{
+  e.preventDefault();
+  simWrap.classList.remove('drag-over');
+  selectMaterial(e.dataTransfer.getData('text/plain'));
+});
+
+function deg(rad){return rad*180/Math.PI}
+function rad(deg){return deg*Math.PI/180}
+
+function clamp(value,min,max){return Math.max(min,Math.min(max,value))}
+
+function canvasPoint(evt){
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x:(evt.clientX-rect.left)*(canvas.width/rect.width),
+    y:(evt.clientY-rect.top)*(canvas.height/rect.height)
+  };
+}
+
+function pointToSegmentDistance(px,py,x1,y1,x2,y2){
+  const dx=x2-x1, dy=y2-y1;
+  const lenSq=dx*dx+dy*dy;
+  if(lenSq===0) return Math.hypot(px-x1,py-y1);
+  let t=((px-x1)*dx+(py-y1)*dy)/lenSq;
+  t=clamp(t,0,1);
+  const cx=x1+t*dx, cy=y1+t*dy;
+  return Math.hypot(px-cx,py-cy);
+}
+
+function setAngleFromCanvas(x,y){
+  if(!selected || !lastGeometry) return;
+  const {hitX,boundaryY}=lastGeometry;
+  const dx=Math.abs(hitX-x);
+  const dy=Math.max(0,y-boundaryY);
+  const angle=clamp(deg(Math.atan2(dx,Math.max(1e-6,dy))),Number(slider.min),Number(slider.max));
+  slider.value=angle.toFixed(1);
+  update();
+}
+
+function selectMaterial(id){
+  selected=materials.find(m=>m.id===id);
+  if(!selected) return;
+  selected.explored = true;
+  renderCard(selected);
+  slider.disabled=false;
+  slider.value='20';
+  dropMessage.classList.add('hidden');
+  update();
+}
+
+function arrowHead(x1,y1,x2,y2,color,size=11){
+  const a=Math.atan2(y2-y1,x2-x1);
+  ctx.fillStyle=color;
+  ctx.beginPath();
+  ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-size*Math.cos(a-.45),y2-size*Math.sin(a-.45));
+  ctx.lineTo(x2-size*Math.cos(a+.45),y2-size*Math.sin(a+.45));
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawAngleArc(cx,cy,radius,start,end,color,label,labelX,labelY){
+  ctx.strokeStyle=color;
+  ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.arc(cx,cy,radius,start,end);
+  ctx.stroke();
+  ctx.fillStyle=color;
+  ctx.font='bold 15px Arial';
+  ctx.fillText(label,labelX,labelY);
+}
+
+function drawInfoBox(x,y,w,h,title,lines,accent='#334155'){
+  ctx.fillStyle='rgba(255,255,255,0.95)';
+  ctx.strokeStyle='#d1d9e6';
+  ctx.lineWidth=1.5;
+  ctx.beginPath();
+  ctx.roundRect(x,y,w,h,10);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle=accent;
+  ctx.font='bold 16px Arial';
+  ctx.fillText(title,x+12,y+24);
+
+  ctx.fillStyle='#334155';
+  ctx.font='14px Arial';
+  lines.forEach((line,i)=>ctx.fillText(line,x+12,y+50+i*22));
+}
+
+function draw(){
+  const W=canvas.width,H=canvas.height;
+  const boundaryY=215;
+  const hitX=520;
+  ctx.clearRect(0,0,W,H);
+
+  // Air
+  ctx.fillStyle='#f8fbff';
+  ctx.fillRect(0,0,W,boundaryY);
+  // Material
+  ctx.fillStyle=selected ? selected.fill : '#e2e8f0';
+  ctx.fillRect(0,boundaryY,W,H-boundaryY);
+
+  ctx.strokeStyle='#334155';
+  ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(0,boundaryY);ctx.lineTo(W,boundaryY);ctx.stroke();
+
+  ctx.fillStyle='#0f172a';
+  ctx.font='bold 17px Arial';
+  ctx.fillText('Air   n = 1.00',24,34);
+
+  if(!selected){
+    lastGeometry = null;
+    ctx.fillStyle='#64748b';
+    ctx.font='bold 22px Arial';
+    ctx.fillText('Drag a material into the simulation',360,335);
+    return;
+  }
+
+  const n1=selected.n, n2=1.00;
+  const theta1=Number(slider.value);
+  const thetaC=deg(Math.asin(n2/n1));
+  const criticalTolerance=0.06;
+  const highlightTolerance=0.5;
+  const diffFromCritical=Math.abs(theta1-thetaC);
+  const atCritical=diffFromCritical<=criticalTolerance;
+  const nearCritical=diffFromCritical<=highlightTolerance;
+  const rawS=(n1/n2)*Math.sin(rad(theta1));
+
+  // Material label with critical angle displayed ON the material.
+  ctx.fillStyle='#0f172a';
+  ctx.font='bold 18px Arial';
+  ctx.fillText(`${selected.name}   n = ${n1.toFixed(2)}`,24,H-58);
+  ctx.font='bold 17px Arial';
+  ctx.fillStyle='#1d4ed8';
+  ctx.fillText(`Critical angle θc = ${thetaC.toFixed(1)}°`,24,H-30);
+
+  if(nearCritical){
+    ctx.save();
+    ctx.strokeStyle='rgba(29,78,216,0.85)';
+    ctx.lineWidth=10;
+    ctx.shadowColor='rgba(59,130,246,0.45)';
+    ctx.shadowBlur=18;
+    ctx.beginPath();
+    ctx.moveTo(0,boundaryY);
+    ctx.lineTo(W,boundaryY);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.fillStyle='rgba(29,78,216,0.12)';
+    ctx.fillRect(0,boundaryY-16,W,32);
+  }
+
+  // Normal
+  ctx.setLineDash([8,7]);
+  ctx.strokeStyle='#64748b';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(hitX,40);ctx.lineTo(hitX,H-40);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#64748b';ctx.font='13px Arial';ctx.fillText('normal',hitX+7,58);
+
+  const a1=rad(theta1);
+  const L=205;
+  const sx=hitX-L*Math.sin(a1), sy=boundaryY+L*Math.cos(a1);
+  lastGeometry = {hitX,boundaryY,sx,sy};
+  ctx.strokeStyle='#111827';ctx.lineWidth=5;
+  ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(hitX,boundaryY);ctx.stroke();
+  arrowHead(sx,sy,hitX,boundaryY,'#111827');
+
+  ctx.fillStyle='#ffffff';
+  ctx.strokeStyle='#111827';
+  ctx.lineWidth=3;
+  ctx.beginPath();
+  ctx.arc(sx,sy,11,0,Math.PI*2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle='#334155';
+  ctx.font='13px Arial';
+  ctx.fillText('drag ray',sx-24,sy+30);
+
+  // Incident angle arc
+  drawAngleArc(hitX,boundaryY,58,Math.PI/2,Math.PI/2+a1,'#2563eb','θ₁',hitX-52,boundaryY+69);
+
+  // Reflected ray shown at all angles, stronger above critical.
+  const rx=hitX+L*Math.sin(a1), ry=boundaryY+L*Math.cos(a1);
+  const tir=theta1>thetaC+criticalTolerance;
+  ctx.strokeStyle=tir?'#ea580c':'rgba(234,88,12,.35)';
+  ctx.lineWidth=tir?6:3;
+  ctx.beginPath();ctx.moveTo(hitX,boundaryY);ctx.lineTo(rx,ry);ctx.stroke();
+  arrowHead(hitX,boundaryY,rx,ry,tir?'#ea580c':'rgba(234,88,12,.55)',tir?12:9);
+  ctx.fillStyle=tir?'#ea580c':'rgba(234,88,12,.75)';
+  ctx.font='bold 15px Arial';
+  ctx.fillText('θr = θi', rx-10, ry+24);
+
+  let statusTitle = 'Refraction';
+  let statusLines = [];
+  let snellLines = [
+    'n₁ sin θ₁ = n₂ sin θ₂',
+    `${n1.toFixed(2)} sin(${theta1.toFixed(1)}°) = 1.00 sin θ₂`
+  ];
+
+  if(theta1 < thetaC-criticalTolerance){
+    const theta2=Math.asin(Math.min(1,rawS));
+    const theta2Deg=deg(theta2);
+    const outLen=245;
+    const ex=hitX+outLen*Math.sin(theta2), ey=boundaryY-outLen*Math.cos(theta2);
+    ctx.strokeStyle='#7c3aed';ctx.lineWidth=5;
+    ctx.beginPath();ctx.moveTo(hitX,boundaryY);ctx.lineTo(ex,ey);ctx.stroke();
+    arrowHead(hitX,boundaryY,ex,ey,'#7c3aed');
+    drawAngleArc(hitX,boundaryY,74,-Math.PI/2+theta2,-Math.PI/2,'#7c3aed','θ₂',hitX+54,boundaryY-60);
+
+    snellLines.push(`sin θ₂ = ${rawS.toFixed(3)}`);
+    snellLines.push(`θ₂ = sin⁻¹(${rawS.toFixed(3)}) = ${theta2Deg.toFixed(1)}°`);
+    statusLines = [
+      'Below θc, some light refracts and some light reflects.',
+      'This is partial reflection, so the reflected ray is weaker.'
+    ];
+  } else if(atCritical){
+    const ex=W-52;
+    ctx.strokeStyle='#7c3aed';ctx.lineWidth=6;
+    ctx.beginPath();ctx.moveTo(hitX,boundaryY);ctx.lineTo(ex,boundaryY);ctx.stroke();
+    arrowHead(hitX,boundaryY,ex,boundaryY,'#7c3aed',12);
+    ctx.fillStyle='#7c3aed';ctx.font='bold 15px Arial';ctx.fillText('θ₂ = 90°',hitX+55,boundaryY-12);
+
+    statusTitle = 'Critical angle reached';
+    snellLines.push('sin θ₂ = 1.000');
+    snellLines.push('θ₂ = sin⁻¹(1.000) = 90.0°');
+    statusLines = [
+      'The refracted ray travels along the boundary.',
+      'Record this angle as the critical angle.'
+    ];
+  } else {
+    ctx.fillStyle='#b91c1c';
+    ctx.font='bold 16px Arial';
+    ctx.fillText('No refracted ray',hitX+35,boundaryY-28);
+    ctx.font='14px Arial';
+    ctx.fillText('θ₂ is undefined',hitX+35,boundaryY-8);
+
+    statusTitle = 'Total internal reflection';
+    snellLines.push(`sin θ₂ = ${rawS.toFixed(3)} > 1`);
+    snellLines.push(`θ₂ = sin⁻¹(${rawS.toFixed(3)}) = undefined`);
+    statusLines = [
+      'There is no refracted ray above the critical angle.',
+      'The reflected angle is set by θr = θi.'
+    ];
+  }
+
+  drawInfoBox(24,54,350,118,'Live Snell\'s Law',snellLines,'#6d28d9');
+  if(nearCritical){
+    drawInfoBox(430,186,240,58, atCritical ? 'Critical angle found' : 'Near critical angle', [atCritical ? `θc ≈ ${thetaC.toFixed(1)}°` : `Adjust a little more toward ${thetaC.toFixed(1)}°`], '#1d4ed8');
+  }
+  drawInfoBox(395,54,300,118,'Student task',[
+    '1. Drag the ray or move the slider.',
+    '2. Find when the refracted ray runs',
+    '   along the boundary. It will highlight.',
+    '3. Record that critical angle below.'
+  ],'#1d4ed8');
+  drawInfoBox(W-340,54,316,96,statusTitle,statusLines, tir ? '#c2410c' : atCritical ? '#1d4ed8' : '#6d28d9');
+}
+
+function update(){
+  if(!selected){draw();return}
+  const theta1=Number(slider.value);
+  const thetaC=deg(Math.asin(1.00/selected.n));
+
+  angleOut.textContent=theta1.toFixed(1)+'°';
+  const nearCritical = Math.abs(theta1-thetaC) <= 0.5;
+  criticalMarker.textContent = nearCritical ? `Critical angle: ${thetaC.toFixed(1)}°  ← highlighted` : `Critical angle: ${thetaC.toFixed(1)}°`;
+  draw();
+}
+
+
+canvas.addEventListener('pointerdown',evt=>{
+  if(!selected || !lastGeometry) return;
+  const pt = canvasPoint(evt);
+  const {sx,sy,hitX,boundaryY} = lastGeometry;
+  const nearKnob = Math.hypot(pt.x-sx,pt.y-sy) <= 22;
+  const nearRay = pointToSegmentDistance(pt.x,pt.y,sx,sy,hitX,boundaryY) <= 16;
+  const inMaterial = pt.y >= boundaryY-10;
+  if(nearKnob || nearRay || inMaterial){
+    draggingAngle = true;
+    canvas.setPointerCapture(evt.pointerId);
+    setAngleFromCanvas(pt.x,pt.y);
+  }
+});
+
+canvas.addEventListener('pointermove',evt=>{
+  if(!selected || !lastGeometry) return;
+  const pt = canvasPoint(evt);
+  const {sx,sy,hitX,boundaryY} = lastGeometry;
+  const hoverKnob = Math.hypot(pt.x-sx,pt.y-sy) <= 22;
+  const hoverRay = pointToSegmentDistance(pt.x,pt.y,sx,sy,hitX,boundaryY) <= 16;
+  canvas.style.cursor = (draggingAngle || hoverKnob || hoverRay) ? 'grab' : 'default';
+  if(draggingAngle) setAngleFromCanvas(pt.x,pt.y);
+});
+
+function stopCanvasDrag(evt){
+  draggingAngle = false;
+  canvas.style.cursor = 'default';
+  try{ canvas.releasePointerCapture(evt.pointerId); }catch(err){}
+}
+
+canvas.addEventListener('pointerup',stopCanvasDrag);
+canvas.addEventListener('pointercancel',stopCanvasDrag);
+canvas.addEventListener('pointerleave',evt=>{ if(draggingAngle) stopCanvasDrag(evt); else canvas.style.cursor='default'; });
+
+
+recordCurrentBtn.addEventListener('click',()=>{
+  if(!selected) return;
+  recordedCritical.value = Number(slider.value).toFixed(1);
+});
+
+showActualBtn.addEventListener('click',()=>{
+  if(!selected){
+    actualCriticalText.textContent = 'Choose a material first.';
+    return;
+  }
+  const thetaC = deg(Math.asin(1.00/selected.n));
+  actualCriticalText.textContent = `Actual critical angle: ${thetaC.toFixed(1)}°`;
+});
+
+slider.addEventListener('input',update);
+draw();
+</script>
+</body>
+</html>
+
+
