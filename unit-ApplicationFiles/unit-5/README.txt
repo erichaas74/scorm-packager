@@ -8,11 +8,22 @@ Each carries its simulation, an evidence panel with a gated PNG export, ordered
 grades itself; Buzz owns every score.
 
 FILE SET PER APPLICATION
-  <slug>_buzz_questions.txt      pure Buzz text, paste-whole into the Text editor
-  <slug>_buzz_setup.html         teacher setup, answer key, preview checklist
-  <slug>-format-suggestions.txt  conversion notes, deviations, remaining publish checks
-  <template>.html                the assessment template (sim + slots + guard)
-  <template>_preview.html        GENERATED - never hand-edit
+  <slug>_buzz_questions.txt                pure Buzz text, paste-whole into the Text editor
+  <slug>_buzz_setup.html                   teacher setup, answer key, preview checklist
+  <slug>-format-suggestions.txt            conversion notes, deviations, publish checks
+  <slug>-busybee-rubric-metadata.json      authoritative rubric copy for the essays
+  <template>.html                          the assessment template (sim + slots + guard)
+  <template>_preview.html                  GENERATED - never hand-edit
+
+ESSAY GRADING
+  All 13 essays across the six labs are BusyBee-graded (style B). Each carries Meta-unit,
+  Meta-lesson, Meta-skill, Meta-grading: busybee, and Meta-evidence tags, an @[Always] line,
+  and a Full/Partial/No credit rubric.
+
+  The per-lab busybee-rubric-metadata.json is generated from the questions file, so the two
+  cannot drift. It adds common misconceptions, revision-oriented feedback, and human-review
+  triggers that Buzz question text cannot express. If Buzz ignores custom Meta- metadata in
+  your domain, that JSON is the copy of record - load it into BusyBee directly.
 
 THE SIX APPLICATIONS
 
@@ -32,7 +43,7 @@ THE SIX APPLICATIONS
     template  light-color-and-vision-lab/index.html
     slug      light_color_vision
 
-  Spectral Shift Investigation            Lesson 3    8 questions / 14 points
+  Spectral Shift Investigation            Lesson 5    8 questions / 14 points
     template  doppler-spectral-line-shift/index.html
     slug      doppler_spectral_shift
 

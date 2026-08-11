@@ -228,9 +228,9 @@ three-row case table that persists each measured Δλ; add evidence PNG; add slo
 
 **Buzz blueprint — 8 questions / 14 points**
 
-| # | Type | Pts | Content |
-| --- | --- | --- | --- |
-| 1 | UP | 2 | Evidence PNG of all three aligned cases |
+| # | Type | Pts | Content | Key / note |
+| --- | --- | --- | --- | --- |
+| 1 | UP | 2 | Evidence PNG of all three aligned cases | — |
 | 2–4 | F, Number | 1 each | Measured Δλ for Case A / B / C | compute from the sim λ₀ list; Case C needs an explicit zero range |
 | 5 | MC | 1 | Classify Case A vs Case B | redshift → receding; blueshift → approaching |
 | 6 | F, Number | 2 | Recession speed of Object A from z = Δλ/λ₀ and v = zc | `3.4e7..3.8e7` m/s |
@@ -395,6 +395,16 @@ Then per lab, in Buzz preview as a student:
    fully deterministic (white light → exactly 28%; matched monochromatic → 100%), so it
    supports two auto-graded numerics rather than one. Confirmed by driving the sim in a
    headless browser: the readout reports `28% transmitted`.
+
+5. **Essay grading** — **Resolved: all 13 essays converted to BusyBee (style B).** Each gained
+   `Meta-unit`, `Meta-lesson`, `Meta-skill`, `Meta-grading: busybee`, and `Meta-evidence` tags,
+   an `@[Always]` line, and a Full/Partial/No credit rubric with 3-space continuation lines.
+   Each lab also has a `<slug>-busybee-rubric-metadata.json`, **generated from the questions
+   file** so the two cannot drift; it adds per-question common misconceptions, revision-oriented
+   feedback, and human-review triggers.
+6. **Lesson mapping** — **Resolved: Spectral Shift moved to Lesson 5**, matching how the
+   walkthroughs index labels "spectral evidence" (Cosmic Decoder). Thin Lens stays at Lesson 3
+   by explicit decision, even though the refraction walkthroughs are labeled Lesson 1 Part 3.
 
 ---
 
