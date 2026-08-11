@@ -13,6 +13,19 @@ All six Unit 6 application labs now use the same measurable grading structure:
 
 ## Deep-dive findings and changes
 
+All application-specific sources and Buzz artifacts now live inside six lesson folders.
+The Unit 6 root contains only the launcher, shared instructions, current builder and validator,
+and this audit. The two manually created Lesson 2 and Lesson 4 folders were verified as exact
+moves before their path consumers were updated.
+
+Application Rise ZIPs, Rise-only directions, SCORM manifests and wrappers, two obsolete ZIP
+builders, and redundant packaged `index.html` copies were removed. Applications remain native
+Buzz templates and previews; ZIP packaging is reserved for problem walkthroughs.
+
+The Unit 6 builder generates six `_buzz_setup.txt` guides. Each begins with an engaging student
+mission, learning goals, and completion instructions before teacher Buzz setup and preview checks.
+Legacy setup HTML files are removed automatically.
+
 | Lesson | Main issue found | Measurable evidence retained | Buzz assessment change |
 | --- | --- | --- | --- |
 | 1 - Millikan Oil Drop | The SCORM version required six internal written responses and reported a completion percentage instead of a native assessment score. | Six balance voltages, relative `q/e`, and estimated charge values. | Added 10 native questions: force balance, calculations, inverse reasoning, three-row analysis, and a quantization CER. |
@@ -45,8 +58,10 @@ Run these commands after any model, question, or template change:
 
 ```text
 node unit-ApplicationFiles/unit-6/build-unit6-buzz-assessments.js
-node unit-buzz-template-conversion-files/build-buzz-template-previews.js
+node unit-buzz-template-conversion-files/build-buzz-template-previews.js unit-ApplicationFiles/unit-6
 node unit-ApplicationFiles/unit-6/validate-unit6-buzz-assessments.js
 ```
 
-The validator checks question counts, the 10 + 5 score split, final BusyBee metadata, question slots, self-contained templates, JavaScript compilation, fixed physics values, and launcher links.
+The validator checks question counts, the 10 + 5 score split, final BusyBee metadata, question slots,
+self-contained templates, JavaScript compilation, generated TXT setup structure, fixed physics values,
+launcher links, and the absence of application ZIP/SCORM artifacts.

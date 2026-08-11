@@ -4,13 +4,13 @@ const path = require('path');
 const root = __dirname;
 
 const assessments = [
-  { lesson: 'U5L2 Resonance', slug: 'sound_waves_resonance', dir: '.', source: 'sound_waves_lab_simulation.html', template: 'u5l2-resonance-tube-buzz-assessment-template.html', preview: 'u5l2-resonance-tube-buzz-assessment-template-preview.html', count: 10 },
+  { lesson: 'U5L2 Resonance', slug: 'sound_waves_resonance', dir: 'sound-waves-resonance-lab', source: 'sound_waves_lab_simulation.html', template: 'u5l2-resonance-tube-buzz-assessment-template.html', preview: 'u5l2-resonance-tube-buzz-assessment-template-preview.html', count: 10 },
   { lesson: 'U5L2 Instrument', slug: 'design_perfect_instrument', dir: 'design-the-perfect-instrument', source: 'index.html', template: 'u5l2-perfect-instrument-buzz-assessment-template.html', preview: 'u5l2-perfect-instrument-buzz-assessment-template-preview.html', count: 8 },
-  { lesson: 'U5L3 Thin Lens', slug: 'thin_lens_refraction', dir: '.', source: 'thin_lens_refraction_investigation.html', template: 'u5l3-thin-lens-buzz-assessment-template.html', preview: 'u5l3-thin-lens-buzz-assessment-template-preview.html', count: 8 },
+  { lesson: 'U5L3 Thin Lens', slug: 'thin_lens_refraction', dir: 'thin-lens-refraction-lab', source: 'thin_lens_refraction_investigation.html', template: 'u5l3-thin-lens-buzz-assessment-template.html', preview: 'u5l3-thin-lens-buzz-assessment-template-preview.html', count: 8 },
   { lesson: 'U5L3 Color Vision', slug: 'light_color_vision', dir: 'light-color-and-vision-lab', source: 'index.html', template: 'u5l3-light-color-vision-buzz-assessment-template.html', preview: 'u5l3-light-color-vision-buzz-assessment-template-preview.html', count: 8 },
   { lesson: 'U5L5 Spectral Shift', slug: 'doppler_spectral_shift', dir: 'doppler-spectral-line-shift', source: 'index.html', template: 'u5l5-spectral-shift-buzz-assessment-template.html', preview: 'u5l5-spectral-shift-buzz-assessment-template-preview.html', count: 8 },
   { lesson: 'U5H Timekeeping', slug: 'honors_relativity', dir: 'honors-relativity-timekeeping-lab', source: 'index.html', template: 'u5h-relativity-timekeeping-buzz-assessment-template.html', preview: 'u5h-relativity-timekeeping-buzz-assessment-template-preview.html', count: 8 },
-  { lesson: 'U5H GPS', slug: 'gps_relativity', dir: '.', source: 'gps_relativity_investigation.html', template: 'u5h-gps-relativity-buzz-assessment-template.html', preview: 'u5h-gps-relativity-buzz-assessment-template-preview.html', count: 9 }
+  { lesson: 'U5H GPS', slug: 'gps_relativity', dir: 'gps-relativity-investigation', source: 'gps_relativity_investigation.html', template: 'u5h-gps-relativity-buzz-assessment-template.html', preview: 'u5h-gps-relativity-buzz-assessment-template-preview.html', count: 9 }
 ];
 
 function fail(message) { throw new Error(message); }
@@ -26,11 +26,12 @@ function property(block, name) {
 const visibleTitles = new Set();
 
 for (const item of assessments) {
-  const questionPath = path.join(root, `${item.slug}_buzz_questions.txt`);
+  const questionPath = path.join(root, item.dir, `${item.slug}_buzz_questions.txt`);
   const templatePath = path.join(root, item.dir, item.template);
   const previewPath = path.join(root, item.dir, item.preview);
-  const metadataPath = path.join(root, `${item.slug}-busybee-rubric-metadata.json`);
-  const setupPath = path.join(root, `${item.slug}_buzz_setup.html`);
+  const metadataPath = path.join(root, item.dir, `${item.slug}-busybee-rubric-metadata.json`);
+  const setupPath = path.join(root, item.dir, `${item.slug}_buzz_setup.txt`);
+  const legacySetupPath = path.join(root, item.dir, `${item.slug}_buzz_setup.html`);
   const questionText = read(questionPath).trim();
   if (!questionText.startsWith('Type:')) fail(`${item.lesson}: question import must begin with Type:`);
   const blocks = questionText.split(/\n\s*\n(?=Type:\s*)/).filter(Boolean);
@@ -110,9 +111,18 @@ for (const item of assessments) {
   });
 
   const setupText = read(setupPath);
+  if (fs.existsSync(legacySetupPath)) fail(`${item.lesson}: legacy HTML setup guide still exists`);
   if (!setupText.includes(`Import the ${item.count} questions`) || !setupText.includes('10 auto-graded points plus 5 BusyBee points')) {
     fail(`${item.lesson}: setup guide has stale question-count or scoring directions`);
   }
+  const missionIndex = setupText.indexOf('YOUR MISSION');
+  const learningIndex = setupText.indexOf('WHAT YOU WILL DO AND LEARN');
+  const instructionsIndex = setupText.indexOf('HOW TO COMPLETE THE LAB');
+  const teacherIndex = setupText.indexOf('TEACHER BUZZ SETUP');
+  if (!(missionIndex >= 0 && missionIndex < learningIndex && learningIndex < instructionsIndex && instructionsIndex < teacherIndex)) {
+    fail(`${item.lesson}: TXT setup guide must lead with the mission and learning goals before completion and teacher directions`);
+  }
+  if (/<(?:html|body|h[1-6]|p|li|strong|code)\b/i.test(setupText)) fail(`${item.lesson}: setup guide still contains HTML markup`);
   if (/Upload scoring:|one upload|upload question|copy and paste are blocked|uploaded evidence|uploaded data sheet/i.test(setupText)) {
     fail(`${item.lesson}: setup guide retains obsolete upload or accessibility directions`);
   }
@@ -156,6 +166,10 @@ if (secondsPerDay !== 86400) fail('Seconds-per-day constant changed');
 
 const launcher = read(path.join(root, 'index.html'));
 if (!launcher.includes('buzz-assessment-instructions.html')) fail('Launcher does not link the Unit 5 Buzz instructions');
+const riseArtifacts = fs.readdirSync(root, { recursive: true }).filter((entry) =>
+  /(?:\.zip|rise-before-you-begin\.txt)$/i.test(String(entry))
+);
+if (riseArtifacts.length) fail(`Application-only Unit 5 contains Rise artifacts: ${riseArtifacts.join(', ')}`);
 for (const item of assessments) {
   const previewHref = path.posix.join(item.dir === '.' ? '' : item.dir, item.preview);
   const templateHref = path.posix.join(item.dir === '.' ? '' : item.dir, item.template);

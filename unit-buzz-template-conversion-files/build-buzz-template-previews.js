@@ -123,16 +123,16 @@ const lessons = [
     output: 'u4l3-loop-sim-lab-buzz-assessment-template-preview.html'
   },
   {
-    dir: 'unit-ApplicationFiles/unit-6',
-    template: 'dynamic_electric_field_lab.html',
+    dir: 'unit-ApplicationFiles/unit-6/dynamic-electric-field-lab',
+    template: 'u6l2-dynamic-electric-field-buzz-assessment-template.html',
     questions: 'dynamic_electric_field_buzz_questions.txt',
-    output: 'dynamic_electric_field_lab_preview.html'
+    output: 'u6l2-dynamic-electric-field-buzz-assessment-template-preview.html'
   },
   {
-    dir: 'unit-ApplicationFiles/unit-6',
-    template: 'electromagnet_lab.html',
+    dir: 'unit-ApplicationFiles/unit-6/electromagnet-lab',
+    template: 'u6l4-electromagnet-design-buzz-assessment-template.html',
     questions: 'electromagnet_buzz_questions.txt',
-    output: 'electromagnet_lab_preview.html'
+    output: 'u6l4-electromagnet-design-buzz-assessment-template-preview.html'
   },
   {
     dir: 'unit-ApplicationFiles/unit-6/millikan-oil-drop-investigation',
@@ -159,19 +159,19 @@ const lessons = [
     output: 'u6h-motor-buzz-assessment-template-preview.html'
   },
   {
-    dir: 'unit-ApplicationFiles/unit-5',
+    dir: 'unit-ApplicationFiles/unit-5/thin-lens-refraction-lab',
     template: 'u5l3-thin-lens-buzz-assessment-template.html',
     questions: 'thin_lens_refraction_buzz_questions.txt',
     output: 'u5l3-thin-lens-buzz-assessment-template-preview.html'
   },
   {
-    dir: 'unit-ApplicationFiles/unit-5',
+    dir: 'unit-ApplicationFiles/unit-5/sound-waves-resonance-lab',
     template: 'u5l2-resonance-tube-buzz-assessment-template.html',
     questions: 'sound_waves_resonance_buzz_questions.txt',
     output: 'u5l2-resonance-tube-buzz-assessment-template-preview.html'
   },
   {
-    dir: 'unit-ApplicationFiles/unit-5',
+    dir: 'unit-ApplicationFiles/unit-5/gps-relativity-investigation',
     template: 'u5h-gps-relativity-buzz-assessment-template.html',
     questions: 'gps_relativity_buzz_questions.txt',
     output: 'u5h-gps-relativity-buzz-assessment-template-preview.html'
@@ -179,25 +179,25 @@ const lessons = [
   {
     dir: 'unit-ApplicationFiles/unit-5/light-color-and-vision-lab',
     template: 'u5l3-light-color-vision-buzz-assessment-template.html',
-    questions: '../light_color_vision_buzz_questions.txt',
+    questions: 'light_color_vision_buzz_questions.txt',
     output: 'u5l3-light-color-vision-buzz-assessment-template-preview.html'
   },
   {
     dir: 'unit-ApplicationFiles/unit-5/honors-relativity-timekeeping-lab',
     template: 'u5h-relativity-timekeeping-buzz-assessment-template.html',
-    questions: '../honors_relativity_buzz_questions.txt',
+    questions: 'honors_relativity_buzz_questions.txt',
     output: 'u5h-relativity-timekeeping-buzz-assessment-template-preview.html'
   },
   {
     dir: 'unit-ApplicationFiles/unit-5/doppler-spectral-line-shift',
     template: 'u5l5-spectral-shift-buzz-assessment-template.html',
-    questions: '../doppler_spectral_shift_buzz_questions.txt',
+    questions: 'doppler_spectral_shift_buzz_questions.txt',
     output: 'u5l5-spectral-shift-buzz-assessment-template-preview.html'
   },
   {
     dir: 'unit-ApplicationFiles/unit-5/design-the-perfect-instrument',
     template: 'u5l2-perfect-instrument-buzz-assessment-template.html',
-    questions: '../design_perfect_instrument_buzz_questions.txt',
+    questions: 'design_perfect_instrument_buzz_questions.txt',
     output: 'u5l2-perfect-instrument-buzz-assessment-template-preview.html'
   }
 ];
@@ -511,7 +511,9 @@ function buildPreview(lesson) {
 
 const requestedLessons = process.argv.slice(2);
 const selectedLessons = requestedLessons.length
-  ? lessons.filter((lesson) => requestedLessons.includes(lesson.dir) || requestedLessons.includes(lesson.template))
+  ? lessons.filter((lesson) => requestedLessons.some((request) =>
+      lesson.dir === request || lesson.dir.startsWith(`${request}/`) || lesson.template === request
+    ))
   : lessons;
 
 if (!selectedLessons.length) {

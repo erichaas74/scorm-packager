@@ -14,6 +14,17 @@ All seven Unit 5 application labs now use the same measurable grading structure:
 
 ## Deep-dive findings and changes
 
+All lab-specific sources and support artifacts now live together in seven application folders.
+The Unit 5 root retains only the launcher, shared instructions, build and validation scripts,
+this audit, and the README. Applications do not have Rise ZIPs; those packages are reserved
+for problem walkthroughs. The former application ZIPs, Rise-only directions, and ZIP builder
+were removed.
+Each generated `_buzz_setup.txt` now begins with an engaging student mission, learning goals,
+and completion instructions before the teacher-facing Buzz setup and preview checks. Legacy
+HTML setup guides are removed automatically by the Unit 5 assessment builder.
+The unreferenced legacy `GPS Relativity Calibrator.html` and superseded
+`unit-5-buzz-conversion-plan.md` were removed; both remain recoverable from Git history.
+
 | Application | Main issue found | Measurable evidence retained | Buzz assessment change |
 | --- | --- | --- | --- |
 | Resonance Tube | The earlier draft awarded upload points and exposed calculation help in the graded view. | Twelve resonance lengths, verified speeds, average, and percent difference. | Ten questions on fixed peak positions, odd harmonics, frequency-length evidence, and medium-dependent speed. |
@@ -49,9 +60,8 @@ Run after any question, template, or rubric change:
 
 ```text
 node unit-ApplicationFiles/unit-5/build-unit5-buzz-assessments.js
-node unit-buzz-template-conversion-files/build-buzz-template-previews.js
+node unit-buzz-template-conversion-files/build-buzz-template-previews.js unit-ApplicationFiles/unit-5
 node unit-ApplicationFiles/unit-5/validate-unit5-buzz-assessments.js
-node unit-ApplicationFiles/unit-5/build-unit5-rise-zips.js
 ```
 
 The validator checks counts, the 10 + 5 split, final BusyBee order, explicit numeric ranges,

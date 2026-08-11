@@ -17,6 +17,189 @@ const sharedCss = `
   @media(max-width:700px){.u6-buzz-section{padding:15px;border-radius:12px}.u6-question-slot{padding:11px}}
 </style>`;
 
+const setupGuides = [
+  {
+    slug: 'millikan_oil_drop',
+    dir: 'millikan-oil-drop-investigation',
+    title: 'Millikan Oil Drop Investigation',
+    buzzTitle: 'Unit 6 Lesson 1: Millikan Oil Drop Investigation',
+    questions: 'buzz-assessment-questions.txt',
+    template: 'u6l1-millikan-buzz-assessment-template.html',
+    preview: 'u6l1-millikan-buzz-assessment-template-preview.html',
+    count: 10,
+    mix: 'three numeric, five multiple-choice, and two essay questions',
+    mission: 'Suspend tiny charged drops in midair and uncover one of physics’ most important patterns! You will balance electric and gravitational forces, calculate relative charge, and use whole-number evidence to reveal that electric charge comes in discrete packets.',
+    goals: [
+      'Explain the force-balance condition for a suspended charged drop.',
+      'Calculate relative charge from the model balance voltage.',
+      'Use repeated whole-number results to support a claim about charge quantization.'
+    ],
+    steps: [
+      'Adjust the plate voltage until the balance indicator confirms that the electric and gravitational forces are balanced.',
+      'Record the balance voltage, atomize a new drop, and repeat until the evidence table contains six drops.',
+      'Compare the calculated q/e values and look for the whole-number pattern across the trials.',
+      'Answer all 10 Buzz questions in order and cite at least three evidence-table rows in the final responses.',
+      'Export the evidence CSV only if you want a personal record; it is not submitted or graded.'
+    ],
+    checks: [
+      'All six drops can be balanced and recorded, and the relative-charge values populate correctly.',
+      'The force vectors, evidence table, and scaled-model note remain visible and usable.',
+      'The optional CSV export works after evidence is recorded.'
+    ],
+    note: 'This is a scaled charge-pattern model; it does not reproduce every measurement required in a physical Millikan experiment.'
+  },
+  {
+    slug: 'dynamic_electric_field',
+    dir: 'dynamic-electric-field-lab',
+    title: 'Dynamic Electric-Field Motion Lab',
+    buzzTitle: 'Unit 6 Lesson 2: Dynamic Electric-Field Motion Lab',
+    questions: 'dynamic_electric_field_buzz_questions.txt',
+    template: 'u6l2-dynamic-electric-field-buzz-assessment-template.html',
+    preview: 'u6l2-dynamic-electric-field-buzz-assessment-template-preview.html',
+    count: 8,
+    mix: 'two numeric, four multiple-choice, and two essay questions',
+    mission: 'Become an electric-field navigator! You will arrange source charges, launch a positive test charge, and reshape its path using invisible fields and vector addition until it reaches each target.',
+    goals: [
+      'Predict electric-field direction around positive and negative source charges.',
+      'Connect electric field, force, acceleration, and changing velocity.',
+      'Use vector addition to explain a curved path created by multiple charges.'
+    ],
+    steps: [
+      'Complete the field-direction warm-up and inspect the vectors acting on the positive test charge.',
+      'Solve the first two one-charge challenges by choosing the correct source-charge sign and location.',
+      'Complete Challenge 3 by combining fields to guide the test charge around the barrier.',
+      'Review the three successful runs in the evidence table and answer all eight Buzz questions in order.',
+      'Use the saved charge arrangements in the final two responses. The evidence PNG is optional and not graded.'
+    ],
+    checks: [
+      'All three core challenges can be completed and record their source-charge arrangements.',
+      'Field, force, acceleration, and velocity vectors update during a run.',
+      'The optional evidence PNG unlocks only after all core evidence is complete.'
+    ],
+    note: 'Confirm drag, keyboard, and touch controls all allow students to place and adjust charges.'
+  },
+  {
+    slug: 'circuit_design_challenge',
+    dir: 'circuit-design-challenge',
+    title: 'Circuit Design Challenge',
+    buzzTitle: 'Unit 6 Lesson 3: Circuit Design Challenge',
+    questions: 'buzz-assessment-questions.txt',
+    template: 'u6l3-circuit-design-buzz-assessment-template.html',
+    preview: 'u6l3-circuit-design-buzz-assessment-template-preview.html',
+    count: 10,
+    mix: 'five numeric, three multiple-choice, and two essay questions',
+    mission: 'Wire a reliable three-room electrical system like an engineer! You will measure current and voltage, compare series and parallel circuits, test failures and switches, and defend a design that keeps every room working independently.',
+    goals: [
+      'Apply Ohms law and equivalent resistance to series and parallel circuits.',
+      'Use ammeter and voltmeter evidence to compare circuit arrangements.',
+      'Defend a parallel household-style design while recognizing its current tradeoff.'
+    ],
+    steps: [
+      'Complete the eight circuit missions in order and avoid creating a direct short across the battery.',
+      'Place the ammeter in series and the voltmeter across a component, then record model evidence for each mission.',
+      'Test series and parallel bulb failures and all four switch combinations.',
+      'Build the final three-room circuit and confirm that every design requirement passes.',
+      'Answer all 10 Buzz questions using the evidence tables. Any downloaded report is optional and not graded.'
+    ],
+    checks: [
+      'The circuit builder, meters, switches, failure tests, and evidence notebook respond.',
+      'All eight missions can record evidence and the final design can satisfy all six requirements.',
+      'The report download remains optional and does not affect the Buzz score.'
+    ],
+    note: 'Use meter readings, not electron-animation speed, as quantitative evidence.'
+  },
+  {
+    slug: 'electromagnet',
+    dir: 'electromagnet-lab',
+    title: 'Electromagnet Design Lab',
+    buzzTitle: 'Unit 6 Lesson 4: Electromagnet Design Lab',
+    questions: 'electromagnet_buzz_questions.txt',
+    template: 'u6l4-electromagnet-design-buzz-assessment-template.html',
+    preview: 'u6l4-electromagnet-design-buzz-assessment-template-preview.html',
+    count: 10,
+    mix: 'five numeric, three multiple-choice, and two essay questions',
+    mission: 'Build an electromagnet strong enough to win an engineering challenge! You will control coil turns, core material, diameter, cells, and wiring while balancing magnetic strength against wire and budget limits.',
+    goals: [
+      'Explain how current, coil turns, and core material affect an electromagnet.',
+      'Design controlled-variable trials and interpret current and lifting data.',
+      'Optimize a device while explaining resource and performance tradeoffs.'
+    ],
+    steps: [
+      'Predict the result of each required change before running the trial.',
+      'Complete and record fixed Trials 1-5 without changing extra variables.',
+      'Use the remaining controls to create an optimized design within the 250 cm wire and 50.00 budget limits.',
+      'Complete the optimization goal, then answer all 10 Buzz questions using the trial table.',
+      'Cite measured values in the final two responses. The evidence PNG is optional and not graded.'
+    ],
+    checks: [
+      'All five fixed trials reproduce the intended current and paperclip results.',
+      'The wire-length, cost, current, and lifting readouts respond to every design control.',
+      'The optional evidence PNG unlocks only after the fixed trials and optimization are complete.'
+    ],
+    note: 'Paperclip count is a classroom strength index, not a manufacturer performance prediction.'
+  },
+  {
+    slug: 'generator_design_challenge',
+    dir: 'generator-design-challenge',
+    title: 'Generator Design Challenge',
+    buzzTitle: 'Unit 6 Lesson 5: Generator Design Challenge',
+    questions: 'buzz-assessment-questions.txt',
+    template: 'u6l5-generator-buzz-assessment-template.html',
+    preview: 'u6l5-generator-buzz-assessment-template-preview.html',
+    count: 10,
+    mix: 'two numeric, six multiple-choice, and two essay questions',
+    mission: 'Turn motion into electricity and chase the brightest possible generator! You will control water flow, magnet strength, coil loops, and coil area while watching Faraday’s law come alive in the turbine, voltmeter, and bulb.',
+    goals: [
+      'Explain why changing magnetic flux produces an induced EMF.',
+      'Use controlled-variable trials to identify how generator settings affect output.',
+      'Optimize generator output while recognizing the load-speed tradeoff.'
+    ],
+    steps: [
+      'Start the turbine, compare powered rotation with hand rotation, and observe the alternating voltmeter reading.',
+      'Change only one variable at a time while testing water flow, magnet strength, coil loops, and coil area.',
+      'Record the required controlled-variable evidence cards and compare RPM, peak EMF, and brightness.',
+      'Build and record a final high-output design, then answer all 10 Buzz questions in order.',
+      'Use two controlled series and the final design in the written responses; no file upload is graded.'
+    ],
+    checks: [
+      'The turbine, magnet, electron motion, bulb, and voltmeter all respond to the controls.',
+      'Every controlled-variable evidence card and the final design can be recorded.',
+      'The specified and maximum settings reproduce the expected peak-EMF values.'
+    ],
+    note: 'The simulation is an instructional generator model, not a hardware power-rating tool.'
+  },
+  {
+    slug: 'honors_electric_motor',
+    dir: 'honors-electric-motor-engineering-challenge',
+    title: 'Honors Electric Motor Engineering Challenge',
+    buzzTitle: 'Unit 6 Honors: Electric Motor Engineering Challenge',
+    questions: 'buzz-assessment-questions.txt',
+    template: 'u6h-motor-buzz-assessment-template.html',
+    preview: 'u6h-motor-buzz-assessment-template-preview.html',
+    count: 10,
+    mix: 'one numeric, seven multiple-choice, and two essay questions',
+    mission: 'Engineer a motor for a real performance goal! You will make magnetic force produce torque, test controlled design changes, and optimize speed, load, or power without violating current, heat, mass, and resource constraints.',
+    goals: [
+      'Explain magnetic torque and the role of the commutator in continuous rotation.',
+      'Analyze energy transfers, back EMF, resistance, current, and mechanical losses.',
+      'Use systematic trial evidence to justify an optimized motor design.'
+    ],
+    steps: [
+      'Choose an engineering task and adjust the motor until every baseline constraint passes.',
+      'Save the baseline, select two investigation variables, and change only one selected variable between trials.',
+      'Record at least four systematic trials that test both selected variables.',
+      'Create and save a valid optimized design, then compare it quantitatively with the baseline.',
+      'Answer all 10 Buzz questions using the trial table and design log. CSV export is optional and not graded.'
+    ],
+    checks: [
+      'The motor animation and electrical, mechanical, thermal, and resource readouts respond.',
+      'A valid baseline, four systematic trials, and an optimized design satisfy the evidence gate.',
+      'The optional CSV export works and Reset clears teacher-test data.'
+    ],
+    note: 'Keep the current, heat, mass, and resource constraints active because they define the engineering tradeoffs.'
+  }
+];
+
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), 'utf8');
 }
@@ -63,15 +246,78 @@ function addLocalNoteScript(html) {
   return html.replace('</body>', `${script}\n</body>`);
 }
 
+function numbered(items) {
+  return items.map((value, index) => `${index + 1}. ${value}`);
+}
+
+function bullets(items) {
+  return items.map((value) => `- ${value}`);
+}
+
+function buildSetup(guide) {
+  const setupPath = path.join(root, guide.dir, `${guide.slug}_buzz_setup.txt`);
+  const legacyHtml = path.join(root, guide.dir, `${guide.slug}_buzz_setup.html`);
+  const studentSteps = [
+    ...guide.steps,
+    `Before submitting, confirm that all ${guide.count} questions are answered and the final two responses cite recorded evidence.`
+  ];
+  const previewChecks = [
+    ...guide.checks,
+    `Questions 1-${guide.count} appear in their matching labeled slots and the final two essay questions remain last.`,
+    'Keyboard navigation, copy/paste, text selection, and the context menu remain available.',
+    'Teacher-test data is reset before students open the assessment.'
+  ];
+  const output = [
+    guide.title.toUpperCase(),
+    'UNIT 6 BUZZ LAB GUIDE',
+    '',
+    'YOUR MISSION',
+    guide.mission,
+    '',
+    'WHAT YOU WILL DO AND LEARN',
+    ...bullets(guide.goals),
+    '',
+    'HOW TO COMPLETE THE LAB',
+    ...numbered(studentSteps),
+    '',
+    'SUCCESS AND SCORING',
+    '- The assessment is worth 15 points: 10 auto-graded points plus 5 BusyBee points.',
+    '- The final two evidence responses are worth 2 points and 3 points.',
+    '- Evidence downloads are optional records. No file upload earns or replaces points.',
+    '',
+    'TEACHER BUZZ SETUP',
+    `1. Create a Buzz Assessment titled "${guide.buzzTitle}".`,
+    `2. Import the ${guide.count} questions from ${guide.questions}.`,
+    `3. Confirm the import creates ${guide.count} questions worth 15 points: ${guide.mix}.`,
+    `4. Upload ${guide.template} from this folder as the assessment template.`,
+    '5. Turn question randomization/shuffling OFF and one-question-per-page OFF.',
+    `6. Preserve the authored feedback and Meta-grading fields in ${guide.questions}; the final two essays route to BusyBee.`,
+    `7. Use ${guide.preview} for the local placement check, never as the upload template.`,
+    '',
+    'PUBLISHING AND PREVIEW CHECKS',
+    ...bullets(previewChecks),
+    `- ${guide.note}`,
+    '',
+    'AUTHORITATIVE FILES',
+    `- Questions, answer feedback, and BusyBee rubrics: ${guide.questions}`,
+    `- Buzz assessment template: ${guide.template}`,
+    `- Generated local preview: ${guide.preview}`,
+    ''
+  ].join('\n');
+
+  fs.writeFileSync(setupPath, output, 'utf8');
+  if (fs.existsSync(legacyHtml)) fs.unlinkSync(legacyHtml);
+  console.log(`Built ${path.relative(root, setupPath)}`);
+}
+
 function buildMillikan() {
-  let html = read('millikan_oil_drop_simulation.html');
+  let html = read('millikan-oil-drop-investigation/millikan_oil_drop_simulation.html');
   html = addBodyClass(html);
   html = addHeadContent(html, `${sharedCss}\n<style>
     .u6-buzz-assessment .u6-legacy-analysis,.u6-buzz-assessment .finish-card{display:none!important}
   </style>`);
   html = html.replace('<section class="card">\n        <h2>Evidence Analysis</h2>', '<section class="card u6-legacy-analysis">\n        <h2>Evidence Analysis</h2>');
   html = html.replace('Use your table as evidence in all six analysis responses.', 'Use the completed table as evidence in the native Buzz questions below.');
-  html = html.replace('<!-- BUZZ_SCORM_WRAPPER -->', '');
   const section = assessmentSection(
     'Buzz assessment: Oil Drop Investigation',
     'Balance and record all six drops before answering. Keep the evidence table visible so your calculations and conclusion use your own measurements.',
@@ -92,6 +338,13 @@ function buildMillikan() {
   html = insertBefore(html, '</main>', section);
   html = addLocalNoteScript(html);
   write('millikan-oil-drop-investigation/u6l1-millikan-buzz-assessment-template.html', html);
+}
+
+function buildDynamicElectricField() {
+  write(
+    'dynamic-electric-field-lab/u6l2-dynamic-electric-field-buzz-assessment-template.html',
+    read('dynamic-electric-field-lab/dynamic_electric_field_lab.html')
+  );
 }
 
 function buildCircuit() {
@@ -160,7 +413,7 @@ function buildGenerator() {
 }
 
 function buildHonorsMotor() {
-  let html = read('honors_electric_motor_engineering_challenge.html');
+  let html = read('honors-electric-motor-engineering-challenge/honors_electric_motor_engineering_challenge.html');
   html = addBodyClass(html);
   html = addHeadContent(html, `${sharedCss}\n<style>
     .u6-buzz-assessment .u6-legacy-analysis,.u6-buzz-assessment #finishLab{display:none!important}
@@ -189,7 +442,17 @@ function buildHonorsMotor() {
   write('honors-electric-motor-engineering-challenge/u6h-motor-buzz-assessment-template.html', html);
 }
 
+function buildElectromagnet() {
+  write(
+    'electromagnet-lab/u6l4-electromagnet-design-buzz-assessment-template.html',
+    read('electromagnet-lab/electromagnet_lab.html')
+  );
+}
+
 buildMillikan();
+buildDynamicElectricField();
 buildCircuit();
+buildElectromagnet();
 buildGenerator();
 buildHonorsMotor();
+setupGuides.forEach(buildSetup);

@@ -1,6 +1,6 @@
 Unit 5 Applications — Buzz Assessment Conversion
 
-Last updated: 2026-08-10
+Last updated: 2026-08-11
 
 All seven Unit 5 applications are self-contained native Buzz assessment templates.
 Each preserves its interactive model and on-screen evidence, uses ordered question slots,
@@ -16,8 +16,10 @@ COMMON ASSESSMENT STANDARD
   BusyBee: 14 essays / 35 points across the unit.
 
 FILE SET PER APPLICATION
+  Each application's source, Buzz support files, and preview live in its lab folder.
+  Do not create Rise ZIPs for applications; Rise packages are reserved for problem walkthroughs.
   <slug>_buzz_questions.txt                pure Buzz text; paste the whole file
-  <slug>_buzz_setup.html                    lesson-specific answer key and preview checks
+  <slug>_buzz_setup.txt                     generated student guide and teacher Buzz setup
   <slug>-format-suggestions.txt             conversion decisions and publish checks
   <slug>-busybee-rubric-metadata.json       authoritative rubric copy for final essays
   <template>.html                           self-contained assessment template
@@ -34,12 +36,14 @@ THE SEVEN APPLICATIONS
 
 BUILD AND VERIFY
   node unit-ApplicationFiles/unit-5/build-unit5-buzz-assessments.js
-  node unit-buzz-template-conversion-files/build-buzz-template-previews.js
+  node unit-buzz-template-conversion-files/build-buzz-template-previews.js unit-ApplicationFiles/unit-5
   node unit-ApplicationFiles/unit-5/validate-unit5-buzz-assessments.js
-  node unit-ApplicationFiles/unit-5/build-unit5-rise-zips.js
 
   Every Unit 5 preview line must report "ok:" and the validator must finish with
   "Fixed model values and Unit 5 launcher links valid."
+
+  The assessment builder regenerates every setup guide as plain text and removes any
+  legacy <slug>_buzz_setup.html file automatically.
 
 BUZZ SETTINGS — REQUIRED FOR ALL SEVEN
   Turn question randomization/shuffling OFF.
