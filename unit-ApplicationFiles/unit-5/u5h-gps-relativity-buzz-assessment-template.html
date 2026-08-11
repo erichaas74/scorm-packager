@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GPS and Relativity Investigation</title>
+<style>
+:root{
+  --blue:#285f9f; --blue-dark:#17436f; --ink:#172033; --muted:#5c6678;
+  --line:#cfd8e6; --soft:#eef5fb; --good:#17643b; --good-bg:#e6f6ec;
+  --warn:#8a4b08; --warn-bg:#fdf1e0; --bad:#9b1c2e; --bad-bg:#fdecef;
+  --space:#0a1428; --gr:#d97706; --sr:#2563eb; --net:#7c3aed;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:transparent;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;color:var(--ink)}
+body{padding:10px}
+button,input,select{font:inherit}
+button{min-height:44px;min-width:44px;border-radius:10px;border:2px solid var(--blue);background:#fff;color:var(--blue-dark);font-weight:700;padding:10px 16px;cursor:pointer;transition:background .15s ease}
+button:hover:not([disabled]){background:#f2f7fc}
+button:focus-visible,input:focus-visible{outline:4px solid #f2b705;outline-offset:3px}
+button[disabled]{opacity:.55;cursor:not-allowed;border-color:var(--muted);color:var(--muted)}
+button.primary{background:var(--blue);color:#fff}
+button.primary:hover:not([disabled]){background:var(--blue-dark)}
+button.small{min-height:38px;padding:7px 12px;font-size:.9rem;border-radius:8px}
+
+.app{position:relative;max-width:1080px;margin:0 auto;border:5px solid var(--blue);border-radius:22px;background:#fff;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.1)}
+.top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);background:#f8fbfe}
+.top h1{margin:0;font-size:1.2rem;color:var(--blue-dark)}
+.sub{font-size:.9rem;color:var(--muted);font-weight:600}
+
+.tabs{display:flex;flex-wrap:wrap;gap:0;border-bottom:1px solid var(--line);background:#fff}
+.tab{flex:1 1 auto;min-width:150px;border:0;border-bottom:4px solid transparent;border-radius:0;background:#fff;color:var(--muted);font-weight:800;padding:13px 10px}
+.tab[aria-selected="true"]{color:var(--blue-dark);border-bottom-color:var(--blue);background:var(--soft)}
+.tab .n{display:inline-block;min-width:22px;margin-right:6px;padding:1px 6px;border-radius:999px;background:var(--soft);color:var(--blue-dark);font-size:.78rem}
+.tab[aria-selected="true"] .n{background:var(--blue);color:#fff}
+
+.panel{padding:18px 20px}
+.panel[hidden]{display:none}
+h2{margin:0 0 4px;font-size:1.05rem;color:var(--blue-dark)}
+h3{margin:0 0 6px;font-size:.98rem;color:var(--blue-dark)}
+p.note{margin:0 0 14px;color:var(--muted);font-size:.95rem;line-height:1.5}
+
+.stage{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--space)}
+svg{display:block;width:100%;height:auto}
+.sky{font:700 14px 'Segoe UI',sans-serif;fill:#dbe6f7}
+.sky-s{font:600 11px 'Segoe UI',sans-serif;fill:#9db4d4}
+.dial{font:800 15px Consolas,monospace;fill:#00ffcc}
+
+/* explainer */
+.ex-card{border:1px solid var(--line);border-radius:16px;padding:18px;background:#fbfdff;margin-top:14px}
+.ex-step{font-size:.76rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.ex-card h3{margin:6px 0 10px;font-size:1.1rem}
+.ex-card p{margin:0 0 10px;line-height:1.6}
+.ex-card ul{margin:0 0 10px;padding-left:20px;line-height:1.6}
+.ex-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px}
+.dots{display:flex;gap:6px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--line)}
+.dot.on{background:var(--blue)}
+
+/* investigation */
+.part{border:1px solid var(--line);border-radius:16px;padding:16px;background:#fff;margin-bottom:14px}
+.part.done{border-color:#7fd0a8;background:#fafffc}
+.part-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+.pill{padding:4px 10px;border-radius:999px;background:var(--soft);color:var(--blue-dark);font-size:.75rem;font-weight:800;white-space:nowrap}
+.pill.ok{background:var(--good-bg);color:var(--good)}
+.ctrl{display:grid;gap:6px;margin:12px 0}
+.ctrl-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.ctrl-head label{font-weight:700}
+.val{font-weight:800;color:var(--blue);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;cursor:pointer}
+.toggles{display:flex;flex-wrap:wrap;gap:14px;margin:12px 0}
+.toggles label{display:flex;align-items:center;gap:8px;font-weight:700;cursor:pointer}
+input[type=checkbox]{width:20px;height:20px;cursor:pointer}
+
+.readouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:14px 0}
+.ro{border:1px solid var(--line);border-left:6px solid var(--blue);border-radius:12px;padding:10px 14px;background:#fbfdff}
+.ro.gr{border-left-color:var(--gr)} .ro.sr{border-left-color:var(--sr)} .ro.net{border-left-color:var(--net)}
+.ro .k{font-size:.76rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.ro .v{font-size:1.2rem;font-weight:800;font-variant-numeric:tabular-nums}
+.ro .s{font-size:.78rem;color:var(--muted)}
+
+.fb{margin:10px 0 0;font-weight:700;font-size:.92rem;min-height:1.3em}
+.fb.ok{color:var(--good)} .fb.no{color:var(--bad)}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left;font-variant-numeric:normal}
+thead th{background:var(--soft);color:var(--blue-dark);font-size:.78rem;text-transform:uppercase;letter-spacing:.03em}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+.empty td{text-align:center;color:var(--muted);font-style:italic}
+
+.brief{border-left:5px solid var(--blue);border-radius:0 12px 12px 0;background:var(--soft);padding:14px 16px;margin:14px 0}
+.brief h3{margin:0 0 8px}
+.brief ol{margin:0;padding-left:20px;line-height:1.65}
+
+.checks{display:flex;flex-wrap:wrap;gap:9px;margin:12px 0}
+.chk{padding:7px 11px;border:1px solid var(--line);border-radius:999px;background:#f6f9fc;font-size:.8rem;font-weight:800}
+.chk.done{border-color:#7fd0a8;color:var(--good);background:var(--good-bg)}
+
+.local-note{margin-bottom:14px;padding:11px 14px;border-left:5px solid var(--warn);border-radius:0 10px 10px 0;background:var(--warn-bg);font-size:.9rem}
+.slot{margin-bottom:14px;padding:15px;border:1px solid var(--line);border-radius:13px;background:#fbfdff}
+.slot-label{margin:0 0 8px;color:var(--blue-dark);font-size:.86rem;font-weight:800}
+.slot-label span{display:block;margin-top:2px;color:var(--muted);font-weight:600}
+.sr-only{position:absolute;left:-9999px}
+
+@media(max-width:640px){
+  .panel{padding:14px}
+  .readouts{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+</style>
+</head>
+<body>
+<main class="app">
+
+<header class="top">
+  <div>
+    <h1>GPS and Relativity Investigation</h1>
+    <div class="sub" id="phase">Stage 1 of 3 &middot; Explainer</div>
+  </div>
+  <button type="button" class="small" id="resetBtn">Reset investigation</button>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="Investigation stages">
+  <button class="tab" id="tabExplain" role="tab" aria-selected="true" aria-controls="panelExplain" type="button"><span class="n">1</span>Explainer</button>
+  <button class="tab" id="tabInvestigate" role="tab" aria-selected="false" aria-controls="panelInvestigate" type="button"><span class="n">2</span>Investigate</button>
+  <button class="tab" id="tabReport" role="tab" aria-selected="false" aria-controls="panelReport" type="button"><span class="n">3</span>Evidence &amp; report</button>
+</nav>
+
+<!-- ============================ STAGE 1: EXPLAINER ============================ -->
+<section class="panel" id="panelExplain" role="tabpanel" aria-labelledby="tabExplain">
+  <h2>How a navigation system turns time into position</h2>
+  <p class="note">Work through all five steps. This explainer gives you the mechanisms and the vocabulary; every number you will report comes from your own measurements in Stage 2.</p>
+
+  <div class="stage">
+    <svg viewBox="0 0 900 300" role="img" aria-labelledby="exTitle exDesc">
+      <title id="exTitle">Earth with an orbiting satellite and two clocks</title>
+      <desc id="exDesc">A satellite orbits Earth. One clock sits on the ground and one rides the satellite.</desc>
+      <defs>
+        <radialGradient id="gEarth" cx="40%" cy="35%">
+          <stop offset="0" stop-color="#4a90d9"/><stop offset="1" stop-color="#123a63"/>
+        </radialGradient>
+      </defs>
+      <rect width="900" height="300" fill="#0a1428"/>
+      <g id="starfield"></g>
+      <circle cx="300" cy="150" r="72" fill="url(#gEarth)" stroke="#2b5c8a" stroke-width="2"/>
+      <circle cx="300" cy="150" r="150" fill="none" stroke="#2b4a70" stroke-width="1.5" stroke-dasharray="5 7"/>
+      <g id="satGroup">
+        <circle id="satDot" cx="450" cy="150" r="9" fill="#f2b705" stroke="#8a5c00" stroke-width="2"/>
+      </g>
+      <line id="beam" x1="450" y1="150" x2="300" y2="90" stroke="#00ffcc" stroke-width="1.6" stroke-dasharray="4 5" opacity=".8"/>
+      <circle cx="300" cy="90" r="5" fill="#00ffcc"/>
+      <text class="sky-s" x="312" y="86">ground receiver</text>
+      <text class="sky" x="620" y="60">Ground clock</text>
+      <text class="dial" id="exGround" x="620" y="86">0.000000 s</text>
+      <text class="sky" x="620" y="130">Satellite clock</text>
+      <text class="dial" id="exSat" x="620" y="156">0.000000 s</text>
+      <text class="sky-s" id="exCaption" x="620" y="200">Both clocks are perfect. They still disagree.</text>
+    </svg>
+  </div>
+
+  <div class="ex-card">
+    <div class="ex-step" id="exStep">Step 1 of 5</div>
+    <h3 id="exTitleText"></h3>
+    <div id="exBody"></div>
+  </div>
+
+  <div class="ex-nav">
+    <button type="button" class="small" id="exPrev" disabled>Back</button>
+    <div class="dots" id="exDots"></div>
+    <button type="button" class="small primary" id="exNext">Next</button>
+  </div>
+</section>
+
+<!-- =========================== STAGE 2: INVESTIGATION =========================== -->
+<section class="panel" id="panelInvestigate" role="tabpanel" aria-labelledby="tabInvestigate" hidden>
+  <h2>Investigation</h2>
+  <p class="note">Four parts. Each one records a measurement into your data sheet. Complete all four to unlock the evidence image.</p>
+
+  <!-- Part A -->
+  <section class="part" id="partA">
+    <div class="part-head">
+      <h3>Part A &middot; How precise must the timing be?</h3>
+      <span class="pill" id="pillA">Not recorded</span>
+    </div>
+    <p class="note">A receiver finds its distance to a satellite from how long the signal took to arrive. Drag the slider to introduce a clock error and watch what it does to the calculated position.</p>
+    <div class="ctrl">
+      <div class="ctrl-head"><label for="nsSlider">Clock error</label><span class="val" id="nsVal">0.0 ns</span></div>
+      <input type="range" id="nsSlider" min="0" max="120" step="0.1" value="0">
+    </div>
+    <div class="readouts">
+      <div class="ro"><div class="k">Position error</div><div class="v" id="posErrOut">0.0 m</div><div class="s">from this clock error alone</div></div>
+      <div class="ro"><div class="k">Navigation spec</div><div class="v">10.0 m</div><div class="s">the limit this receiver must stay inside</div></div>
+    </div>
+    <p class="note">Find the clock error that puts the position error exactly at the 10.0 m limit, then record it.</p>
+    <div class="actions"><button type="button" class="primary" id="recA">Record Part A</button></div>
+    <p class="fb" id="fbA"></p>
+  </section>
+
+  <!-- Part B -->
+  <section class="part" id="partB">
+    <div class="part-head">
+      <h3>Part B &middot; Isolate the two effects</h3>
+      <span class="pill" id="pillB">0 of 3 recorded</span>
+    </div>
+    <p class="note">The satellite is locked to the real GPS orbit: 20 180 km altitude, 3 875 m/s. Switch each effect on by itself, then both together, and record the drift rate the analyser reports each time.</p>
+    <div class="toggles">
+      <label><input type="checkbox" id="grToggle"> Gravity effect (general relativity)</label>
+      <label><input type="checkbox" id="srToggle"> Motion effect (special relativity)</label>
+    </div>
+    <div class="readouts">
+      <div class="ro net"><div class="k">Clock drift analyser</div><div class="v" id="driftOut">0.00 &micro;s/day</div><div class="s" id="driftNote">Both effects are switched off.</div></div>
+      <div class="ro"><div class="k">Satellite clock vs ground</div><div class="v" id="fastSlowOut">synchronised</div><div class="s">positive drift = satellite clock runs fast</div></div>
+    </div>
+    <div class="actions"><button type="button" class="primary" id="recB">Record this configuration</button></div>
+    <p class="fb" id="fbB"></p>
+    <div class="tbl" style="margin-top:12px">
+      <table>
+        <thead><tr><th scope="col">Configuration</th><th scope="col">Drift (&micro;s/day)</th></tr></thead>
+        <tbody id="bodyB"><tr class="empty"><td colspan="2">No configurations recorded yet.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Part C -->
+  <section class="part" id="partC">
+    <div class="part-head">
+      <h3>Part C &middot; Calibrate the oscillator before launch</h3>
+      <span class="pill" id="pillC">Not calibrated</span>
+    </div>
+    <p class="note">Engineers cannot switch relativity off, so they cancel it in hardware. The satellite's atomic oscillator is deliberately built to tick at the wrong rate on the ground, so that once it is in orbit the ground receives exactly 10.230000 MHz. Lower the pre-launch frequency until the received signal locks on.</p>
+    <div class="ctrl">
+      <div class="ctrl-head"><label for="offsetSlider">Pre-launch frequency offset</label><span class="val" id="offsetVal">0.000 mHz</span></div>
+      <input type="range" id="offsetSlider" min="0" max="9.999" step="0.001" value="0">
+    </div>
+    <div class="readouts">
+      <div class="ro"><div class="k">Set on the ground</div><div class="v" id="preOut">10 230 000.000000 Hz</div><div class="s">before launch</div></div>
+      <div class="ro"><div class="k">Received from orbit</div><div class="v" id="rxOut">10 230 000.004570 Hz</div><div class="s">target is 10 230 000.000000 Hz</div></div>
+      <div class="ro"><div class="k">Residual drift</div><div class="v" id="residOut">+38.60 &micro;s/day</div><div class="s">what is left after your correction</div></div>
+    </div>
+    <div class="actions"><button type="button" class="primary" id="recC" disabled>Record the calibration</button></div>
+    <p class="fb" id="fbC">Move the slider until the residual drift falls below 0.2 &micro;s/day.</p>
+  </section>
+
+  <!-- Part D -->
+  <section class="part" id="partD">
+    <div class="part-head">
+      <h3>Part D &middot; Fly one day with and without the fix</h3>
+      <span class="pill" id="pillD">Not recorded</span>
+    </div>
+    <p class="note">Run the constellation for one simulated day. The corrected satellite carries your Part C calibration; the uncorrected one was launched without it.</p>
+    <div class="readouts">
+      <div class="ro"><div class="k">Elapsed</div><div class="v" id="elapsedOut">0.00 h</div><div class="s">simulated time</div></div>
+      <div class="ro"><div class="k">Uncorrected position error</div><div class="v" id="badOut">0.000 km</div><div class="s">launched without the offset</div></div>
+      <div class="ro"><div class="k">Corrected position error</div><div class="v" id="goodOut">0.000 km</div><div class="s">launched with your offset</div></div>
+    </div>
+    <p class="fb" id="failNote"></p>
+    <div class="actions">
+      <button type="button" class="primary" id="runD" disabled>Run one simulated day</button>
+      <button type="button" class="small" id="recD" disabled>Record Part D</button>
+    </div>
+    <p class="fb" id="fbD">Calibrate in Part C before flying the mission.</p>
+  </section>
+</section>
+
+<!-- ========================= STAGE 3: EVIDENCE AND REPORT ========================= -->
+<section class="panel" id="panelReport" role="tabpanel" aria-labelledby="tabReport" hidden>
+  <h2>Evidence and report</h2>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th scope="col">Measurement</th><th scope="col">Your value</th></tr></thead>
+      <tbody id="sheetBody"></tbody>
+    </table>
+  </div>
+
+  <div class="checks" id="checks"></div>
+  <p class="note" id="evidenceMsg">Complete all four investigation parts. The evidence image unlocks when every measurement is recorded.</p>
+  <div class="actions">
+    <button type="button" class="primary" id="downloadEvidence" disabled>Download evidence image</button>
+  </div>
+  <p class="fb" id="evidenceStatus"></p>
+
+  <div class="brief">
+    <h3>Your report brief</h3>
+    <p class="note" style="margin-bottom:8px">Questions 8 to 11 below are the four sections of your report. Write them in Buzz, not in this lab. A strong report:</p>
+    <ol>
+      <li>Explains how a GPS receiver turns arrival times into a position, and uses your Part A measurement to show how little clock error the system can tolerate.</li>
+      <li>Describes both relativistic effects &mdash; what causes each, which direction each pushes the satellite clock &mdash; and uses your Part B values as evidence.</li>
+      <li>Explains the engineering correction, quoting your Part C calibration, and says why it is applied before launch rather than in the receiver.</li>
+      <li>Uses your Part D result to argue what would happen to the system over time without the correction.</li>
+    </ol>
+  </div>
+
+  <section id="buzzQuestions">
+    <h2>Buzz assessment questions</h2>
+    <p class="note">Use your completed data sheet while answering. The evidence image is an optional record; all 15 points come from the native Buzz questions below.</p>
+    <div class="local-note" id="localNote" hidden>If you opened this template as a local file, the response controls will be blank. Import <strong>gps_relativity_buzz_questions.txt</strong> into Buzz and upload this HTML as the assessment template.</div>
+    <div class="slot"><p class="slot-label">Question 1 <span>Clock error at the 10 m limit</span></p><a:question /></div>
+    <div class="slot"><p class="slot-label">Question 2 <span>Gravity effect alone</span></p><a:question /></div>
+    <div class="slot"><p class="slot-label">Question 3 <span>Motion effect alone</span></p><a:question /></div>
+    <div class="slot"><p class="slot-label">Question 4 <span>Net drift with both effects</span></p><a:question /></div>
+    <div class="slot"><p class="slot-label">Question 5 <span>Pre-launch frequency offset</span></p><a:question /></div>
+    <div class="slot"><p class="slot-label">Question 6 <span>Which effect dominates, and why</span></p><a:question /></div>
+    <div class="slot"><p class="slot-label">Question 7 <span>How GPS timing locates a receiver</span></p><a:question /></div>
+    <div class="slot"><p class="slot-label">Question 8 <span>The two competing relativistic effects</span></p><a:question /></div>
+    <div class="slot"><p class="slot-label">Question 9 <span>Engineering correction CER</span></p><a:question /></div>
+  </section>
+</section>
+
+<p class="sr-only" id="live" role="status" aria-live="polite"></p>
+</main>
+
+<script>
+(() => {
+"use strict";
+
+/* ---------------- physics ----------------
+   Weak-field rate comparison of a clock at radius r moving at speed v against a
+   clock on the rotating equator. Both terms are dimensionless rates (s per s).
+     gravitational : (GM/c^2)(1/R_E - 1/r)      positive -> satellite clock gains
+     kinematic     : (v_ground^2 - v^2)/(2c^2)  negative -> satellite clock loses
+   Multiply by 86400 for seconds per day. ------------------------------------- */
+const GM = 3.986004418e14;      // m^3/s^2
+const C  = 2.99792458e8;        // m/s
+const RE = 6.371e6;             // m
+const V_GROUND = 465;           // m/s, equatorial surface speed
+const DAY = 86400;              // s
+const GPS_ALT = 20180e3;        // m
+const GPS_R = RE + GPS_ALT;
+const GPS_V = Math.sqrt(GM / GPS_R);
+const BASE_FREQ = 10.23e6;      // Hz, the GPS fundamental
+const NAV_SPEC_M = 10.0;        // m, the position-error budget
+
+const GR_RATE = (GM / (C * C)) * (1 / RE - 1 / GPS_R);
+const SR_RATE = (V_GROUND * V_GROUND - GPS_V * GPS_V) / (2 * C * C);
+const NET_RATE = GR_RATE + SR_RATE;
+const REQUIRED_OFFSET_MHZ = BASE_FREQ * NET_RATE * 1000;   // millihertz
+const usPerDay = rate => rate * DAY * 1e6;
+
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const live = $('#live');
+const say = m => { live.textContent = m; };
+const fmtHz = hz => hz.toLocaleString('en-US', { minimumFractionDigits: 6, maximumFractionDigits: 6 });
+
+const state = {
+  a: null,            // ns at the 10 m limit
+  b: {},              // 'gr' | 'sr' | 'both' -> us/day
+  c: null,            // { offsetMHz, residualUsDay }
+  d: null             // { badKm, goodKm, failSeconds }
+};
+
+/* ---------------- explainer ---------------- */
+const STEPS = [
+  { t: 'A satellite tells you the time, not your position',
+    b: `<p>Every GPS satellite broadcasts one thing: the exact moment it sent the signal. Your receiver compares that stamp with its own clock, and the difference is how long the signal spent in flight.</p>
+        <p>Multiply that flight time by the speed of light and you have your distance to that satellite. Do it for four satellites at once and only one point in space fits all four distances &mdash; that point is you.</p>
+        <p><strong>So a navigation system is really a clock-comparison system.</strong> Everything depends on the satellite clock and your clock agreeing about what time it is.</p>` },
+  { t: 'Radio waves cover a lot of ground in very little time',
+    b: `<p>The signal travels at the speed of light, which is roughly 30 centimetres every nanosecond &mdash; every billionth of a second.</p>
+        <p>That cuts both ways. It is what makes the method precise, and it is what makes it fragile: an error of a few billionths of a second in the clock becomes a real error in metres on the ground.</p>
+        <p>In Part A you will measure exactly how much clock error this receiver can absorb before it misses its accuracy target.</p>` },
+  { t: 'Effect one: high above Earth, a clock runs fast',
+    b: `<p>General relativity says that clocks deeper in a gravitational well tick more slowly than clocks further out. A clock at sea level is deeper in Earth's gravity than a satellite 20 000 kilometres up.</p>
+        <p>So compared with the ground clock, <strong>the satellite clock gains time</strong>. Nothing is wrong with either clock; they are simply in different places in the gravitational field.</p>
+        <p>You will measure the size of this effect yourself in Part B.</p>` },
+  { t: 'Effect two: a fast-moving clock runs slow',
+    b: `<p>Special relativity says that a clock moving quickly relative to you ticks more slowly than your own. A GPS satellite is orbiting at almost 14 000 kilometres per hour, far faster than the ground turns beneath it.</p>
+        <p>So compared with the ground clock, <strong>the satellite clock loses time</strong>. This pushes in the opposite direction to gravity.</p>
+        <p>Two effects, opposite signs. Whether they cancel, and which one wins if they do not, is the question Part B answers with numbers.</p>` },
+  { t: 'The fix is built into the hardware before launch',
+    b: `<p>Engineers cannot switch either effect off, so they compensate for the net result in advance. The satellite's atomic oscillator is manufactured and set to tick at a slightly <em>different</em> rate while it is still on the ground.</p>
+        <p>Once it reaches orbit, relativity shifts that rate by precisely the amount that was subtracted, and the signal arriving at your receiver is exactly the frequency the system expects.</p>
+        <p>In Part C you will find that offset yourself, to the millihertz. In Part D you will fly a satellite that never received it.</p>` }
+];
+let step = 0;
+
+function renderExplainer() {
+  const s = STEPS[step];
+  $('#exStep').textContent = `Step ${step + 1} of ${STEPS.length}`;
+  $('#exTitleText').textContent = s.t;
+  $('#exBody').innerHTML = s.b;
+  $('#exPrev').disabled = step === 0;
+  $('#exNext').textContent = step === STEPS.length - 1 ? 'Go to the investigation' : 'Next';
+  $('#exDots').innerHTML = STEPS.map((_, i) => `<span class="dot ${i === step ? 'on' : ''}"></span>`).join('');
+  $('#exCaption').textContent = step >= 2
+    ? 'Both clocks are perfect. They still disagree.'
+    : 'Distance = speed of light x flight time.';
+}
+$('#exPrev').onclick = () => { if (step > 0) { step--; renderExplainer(); } };
+$('#exNext').onclick = () => {
+  if (step < STEPS.length - 1) { step++; renderExplainer(); }
+  else showPanel('investigate');
+};
+
+/* ---------------- tabs ---------------- */
+const PANELS = { explain: 1, investigate: 2, report: 3 };
+const NAMES = { explain: 'Explainer', investigate: 'Investigate', report: 'Evidence & report' };
+function showPanel(name) {
+  ['explain', 'investigate', 'report'].forEach(k => {
+    const cap = k.charAt(0).toUpperCase() + k.slice(1);
+    $('#panel' + cap).hidden = k !== name;
+    $('#tab' + cap).setAttribute('aria-selected', String(k === name));
+  });
+  $('#phase').textContent = `Stage ${PANELS[name]} of 3 · ${NAMES[name]}`;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+$('#tabExplain').onclick = () => showPanel('explain');
+$('#tabInvestigate').onclick = () => showPanel('investigate');
+$('#tabReport').onclick = () => showPanel('report');
+
+/* ---------------- Part A ---------------- */
+function nsToMetres(ns) { return ns * 1e-9 * C; }
+function renderA() {
+  const ns = Number($('#nsSlider').value);
+  $('#nsVal').textContent = ns.toFixed(1) + ' ns';
+  $('#posErrOut').textContent = nsToMetres(ns).toFixed(1) + ' m';
+}
+$('#nsSlider').addEventListener('input', renderA);
+$('#recA').onclick = () => {
+  const ns = Number($('#nsSlider').value);
+  const metres = nsToMetres(ns);
+  if (Math.abs(metres - NAV_SPEC_M) > 0.15) {
+    $('#fbA').textContent = `Not recorded. At ${ns.toFixed(1)} ns the position error is ${metres.toFixed(1)} m. Adjust until it reads 10.0 m.`;
+    $('#fbA').className = 'fb no';
+    return;
+  }
+  state.a = ns;
+  $('#fbA').textContent = `Recorded: ${ns.toFixed(1)} ns of clock error puts this receiver at its 10.0 m limit.`;
+  $('#fbA').className = 'fb ok';
+  say('Part A recorded.');
+  refresh();
+};
+
+/* ---------------- Part B ---------------- */
+function configKey(gr, sr) { return gr && sr ? 'both' : gr ? 'gr' : sr ? 'sr' : 'none'; }
+const B_LABEL = { gr: 'Gravity effect only', sr: 'Motion effect only', both: 'Both effects together' };
+function currentDriftRate() {
+  const gr = $('#grToggle').checked, sr = $('#srToggle').checked;
+  return (gr ? GR_RATE : 0) + (sr ? SR_RATE : 0);
+}
+function renderB() {
+  const gr = $('#grToggle').checked, sr = $('#srToggle').checked;
+  const rate = currentDriftRate();
+  const us = usPerDay(rate);
+  $('#driftOut').textContent = (us > 0 ? '+' : '') + us.toFixed(2) + ' µs/day';
+  $('#driftNote').textContent = configKey(gr, sr) === 'none'
+    ? 'Both effects are switched off.'
+    : B_LABEL[configKey(gr, sr)] + ' is active.';
+  $('#fastSlowOut').textContent = Math.abs(us) < 0.005 ? 'synchronised' : (us > 0 ? 'runs fast' : 'runs slow');
+  $('#recB').disabled = configKey(gr, sr) === 'none';
+  const rows = Object.keys(state.b);
+  $('#bodyB').innerHTML = rows.length
+    ? ['gr', 'sr', 'both'].filter(k => k in state.b)
+        .map(k => `<tr><th scope="row">${B_LABEL[k]}</th><td>${state.b[k] > 0 ? '+' : ''}${state.b[k].toFixed(2)}</td></tr>`).join('')
+    : '<tr class="empty"><td colspan="2">No configurations recorded yet.</td></tr>';
+  $('#pillB').textContent = `${rows.length} of 3 recorded`;
+  $('#pillB').classList.toggle('ok', rows.length === 3);
+}
+['#grToggle', '#srToggle'].forEach(s => $(s).addEventListener('change', renderB));
+$('#recB').onclick = () => {
+  const key = configKey($('#grToggle').checked, $('#srToggle').checked);
+  if (key === 'none') return;
+  state.b[key] = usPerDay(currentDriftRate());
+  $('#fbB').textContent = `Recorded: ${B_LABEL[key]}.`;
+  $('#fbB').className = 'fb ok';
+  say(B_LABEL[key] + ' recorded.');
+  refresh();
+};
+
+/* ---------------- Part C ---------------- */
+function renderC() {
+  const offsetMHz = Number($('#offsetSlider').value);
+  const applied = (offsetMHz / 1000) / BASE_FREQ;          // dimensionless rate removed
+  const residualRate = NET_RATE - applied;
+  const residualUs = usPerDay(residualRate);
+  $('#offsetVal').textContent = offsetMHz.toFixed(3) + ' mHz';
+  $('#preOut').textContent = fmtHz(BASE_FREQ - offsetMHz / 1000) + ' Hz';
+  $('#rxOut').textContent = fmtHz(BASE_FREQ + BASE_FREQ * residualRate) + ' Hz';
+  $('#residOut').textContent = (residualUs > 0 ? '+' : '') + residualUs.toFixed(2) + ' µs/day';
+  const locked = Math.abs(residualUs) < 0.2;
+  $('#recC').disabled = !locked;
+  if (!state.c) {
+    $('#fbC').textContent = locked
+      ? 'Locked on. Record the calibration.'
+      : 'Move the slider until the residual drift falls below 0.2 µs/day.';
+    $('#fbC').className = 'fb' + (locked ? ' ok' : '');
+  }
+  return { offsetMHz, residualUs };
+}
+$('#offsetSlider').addEventListener('input', renderC);
+$('#recC').onclick = () => {
+  const { offsetMHz, residualUs } = renderC();
+  if (Math.abs(residualUs) >= 0.2) return;
+  state.c = { offsetMHz, residualUs };
+  $('#fbC').textContent = `Recorded: a ${offsetMHz.toFixed(3)} mHz pre-launch offset leaves ${residualUs.toFixed(2)} µs/day.`;
+  $('#fbC').className = 'fb ok';
+  say('Calibration recorded.');
+  refresh();
+};
+
+/* ---------------- Part D ---------------- */
+let running = false;
+function runDay() {
+  if (running || !state.c) return;
+  running = true;
+  $('#runD').disabled = true;
+  const appliedRate = (state.c.offsetMHz / 1000) / BASE_FREQ;
+  const badRate = NET_RATE;                    // launched with no offset at all
+  const goodRate = NET_RATE - appliedRate;     // launched with the student's offset
+  const failSeconds = NAV_SPEC_M / (badRate * C);
+  // Drive the playback off wall-clock time, not frame count, so one simulated day always
+  // takes about four real seconds whatever the frame rate happens to be.
+  // The start stamp comes from the first animation frame rather than from the click, because
+  // the frame timestamp can predate a performance.now() sampled moments earlier.
+  const RUN_MS = 4000;
+  let startedAt = null;
+  let simSeconds = 0;
+  let failAnnounced = false;
+
+  const tick = now => {
+    if (startedAt === null) startedAt = now;
+    const frac = Math.min(1, Math.max(0, (now - startedAt) / RUN_MS));
+    simSeconds = frac * DAY;
+    const badM = badRate * C * simSeconds;
+    const goodM = goodRate * C * simSeconds;
+    $('#elapsedOut').textContent = (simSeconds / 3600).toFixed(2) + ' h';
+    $('#badOut').textContent = (badM / 1000).toFixed(3) + ' km';
+    $('#goodOut').textContent = (goodM / 1000).toFixed(3) + ' km';
+    if (!failAnnounced && badM >= NAV_SPEC_M) {
+      failAnnounced = true;
+      $('#failNote').textContent = `The uncorrected satellite passed the 10 m limit after ${failSeconds.toFixed(0)} seconds of flight.`;
+      $('#failNote').className = 'fb no';
+    }
+    if (frac < 1) requestAnimationFrame(tick);
+    else {
+      running = false;
+      state.d = { badKm: badRate * C * DAY / 1000, goodKm: goodRate * C * DAY / 1000, failSeconds };
+      $('#recD').disabled = false;
+      $('#runD').disabled = false;
+      $('#fbD').textContent = 'One day complete. Record Part D.';
+      $('#fbD').className = 'fb ok';
+      say('Simulated day complete.');
+    }
+  };
+  requestAnimationFrame(tick);
+}
+$('#runD').onclick = runDay;
+$('#recD').onclick = () => {
+  if (!state.d) return;
+  $('#fbD').textContent = `Recorded: ${state.d.badKm.toFixed(2)} km uncorrected against ${state.d.goodKm.toFixed(3)} km corrected, after one day.`;
+  $('#fbD').className = 'fb ok';
+  state.d.recorded = true;
+  say('Part D recorded.');
+  refresh();
+};
+
+/* ---------------- data sheet, gating, evidence ---------------- */
+function sheetRows() {
+  const b = state.b, d = state.d;
+  return [
+    ['Clock error at the 10.0 m limit', state.a == null ? null : state.a.toFixed(1) + ' ns'],
+    ['Gravity effect alone', 'gr' in b ? (b.gr > 0 ? '+' : '') + b.gr.toFixed(2) + ' µs/day' : null],
+    ['Motion effect alone', 'sr' in b ? (b.sr > 0 ? '+' : '') + b.sr.toFixed(2) + ' µs/day' : null],
+    ['Both effects together', 'both' in b ? (b.both > 0 ? '+' : '') + b.both.toFixed(2) + ' µs/day' : null],
+    ['Pre-launch frequency offset', state.c ? state.c.offsetMHz.toFixed(3) + ' mHz' : null],
+    ['Residual drift after calibration', state.c ? state.c.residualUs.toFixed(2) + ' µs/day' : null],
+    ['Position error after 1 day, uncorrected', d && d.recorded ? d.badKm.toFixed(2) + ' km' : null],
+    ['Position error after 1 day, corrected', d && d.recorded ? d.goodKm.toFixed(3) + ' km' : null],
+    ['Time for the uncorrected satellite to exceed 10 m', d && d.recorded ? d.failSeconds.toFixed(0) + ' s' : null]
+  ];
+}
+function partsDone() {
+  return {
+    A: state.a != null,
+    B: Object.keys(state.b).length === 3,
+    C: !!state.c,
+    D: !!(state.d && state.d.recorded)
+  };
+}
+function evidenceReady() { const p = partsDone(); return p.A && p.B && p.C && p.D; }
+
+function refresh() {
+  renderA(); renderB(); renderC();
+  const p = partsDone();
+  $('#pillA').textContent = p.A ? 'Recorded' : 'Not recorded';
+  $('#pillA').classList.toggle('ok', p.A);
+  $('#pillC').textContent = p.C ? 'Calibrated' : 'Not calibrated';
+  $('#pillC').classList.toggle('ok', p.C);
+  $('#pillD').textContent = p.D ? 'Recorded' : 'Not recorded';
+  $('#pillD').classList.toggle('ok', p.D);
+  $('#partA').classList.toggle('done', p.A);
+  $('#partB').classList.toggle('done', p.B);
+  $('#partC').classList.toggle('done', p.C);
+  $('#partD').classList.toggle('done', p.D);
+  $('#runD').disabled = !state.c || running;
+  if (state.c && !p.D && !running) { $('#fbD').textContent = 'Ready to fly. Run one simulated day.'; $('#fbD').className = 'fb'; }
+
+  $('#checks').innerHTML = ['A', 'B', 'C', 'D']
+    .map(k => `<span class="chk ${p[k] ? 'done' : ''}">${p[k] ? '●' : '○'} Part ${k}</span>`).join('');
+  $('#sheetBody').innerHTML = sheetRows()
+    .map(([k, v]) => `<tr><th scope="row">${k}</th><td>${v == null ? '—' : v}</td></tr>`).join('');
+  const ready = evidenceReady();
+  $('#downloadEvidence').disabled = !ready;
+  $('#evidenceMsg').textContent = ready
+    ? 'Every measurement is recorded. You may download an evidence image for your records.'
+    : 'Complete all four investigation parts. The evidence image unlocks when every measurement is recorded.';
+}
+
+function downloadBlob(blob, filename) {
+  const a = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function downloadEvidence() {
+  if (!evidenceReady()) {
+    $('#evidenceStatus').textContent = 'Complete all four parts before downloading the evidence image.';
+    $('#evidenceStatus').className = 'fb no';
+    return;
+  }
+  const rows = sheetRows();
+  const canvas = document.createElement('canvas');
+  canvas.width = 1200;
+  canvas.height = 250 + rows.length * 46;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#f6f8fc'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#152238'; ctx.fillRect(0, 0, canvas.width, 88);
+  ctx.fillStyle = '#fff'; ctx.font = '900 30px system-ui'; ctx.textAlign = 'left';
+  ctx.fillText('GPS and Relativity — Investigation Data Sheet', 54, 55);
+  ctx.fillStyle = '#5a6684'; ctx.font = '600 16px system-ui';
+  ctx.fillText('Generated ' + new Date().toLocaleString() + ' · all four parts complete', 54, 116);
+
+  const x = 54, w1 = 760, w2 = 332, rh = 46;
+  let y = 150;
+  ctx.fillStyle = '#e7ecf6'; ctx.fillRect(x, y, w1 + w2, rh);
+  ctx.strokeStyle = '#a4b0c8'; ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, w1, rh); ctx.strokeRect(x + w1, y, w2, rh);
+  ctx.fillStyle = '#2f3f5e'; ctx.font = '800 16px system-ui';
+  ctx.fillText('Measurement', x + 14, y + 29);
+  ctx.textAlign = 'center'; ctx.fillText('Your value', x + w1 + w2 / 2, y + 29);
+
+  rows.forEach(([k, v], i) => {
+    const ry = y + rh * (i + 1);
+    ctx.fillStyle = i % 2 ? '#f6f8fc' : '#ffffff'; ctx.fillRect(x, ry, w1 + w2, rh);
+    ctx.strokeStyle = '#c3cbdd';
+    ctx.strokeRect(x, ry, w1, rh); ctx.strokeRect(x + w1, ry, w2, rh);
+    ctx.fillStyle = '#152238'; ctx.textAlign = 'left'; ctx.font = '600 16px system-ui';
+    ctx.fillText(k, x + 14, ry + 29);
+    ctx.textAlign = 'center'; ctx.font = '800 17px system-ui';
+    ctx.fillText(v == null ? '—' : v, x + w1 + w2 / 2, ry + 29);
+  });
+
+  ctx.fillStyle = '#5a6684'; ctx.font = '600 15px system-ui'; ctx.textAlign = 'left';
+  ctx.fillText('Optional record: keep this image while completing the native Buzz evidence responses.',
+    x, y + rh * (rows.length + 1) + 34);
+
+  const done = () => {
+    $('#evidenceStatus').textContent = 'Optional evidence image download started.';
+    $('#evidenceStatus').className = 'fb ok';
+    say('Evidence image download started.');
+  };
+  if (canvas.toBlob) {
+    canvas.toBlob(b => {
+      if (b) { downloadBlob(b, 'gps-relativity-evidence.png'); done(); }
+      else { $('#evidenceStatus').textContent = 'The evidence image could not be created. Try again.'; $('#evidenceStatus').className = 'fb no'; }
+    }, 'image/png');
+  } else {
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png'); a.download = 'gps-relativity-evidence.png'; a.click();
+    done();
+  }
+}
+$('#downloadEvidence').onclick = downloadEvidence;
+
+/* ---------------- reset ---------------- */
+$('#resetBtn').onclick = () => {
+  if (!window.confirm('Clear every recorded measurement and start the investigation again?')) return;
+  state.a = null; state.b = {}; state.c = null; state.d = null;
+  $('#nsSlider').value = '0';
+  $('#offsetSlider').value = '0';
+  $('#grToggle').checked = false;
+  $('#srToggle').checked = false;
+  ['#fbA', '#fbB', '#fbD', '#failNote', '#evidenceStatus'].forEach(s => { $(s).textContent = ''; $(s).className = 'fb'; });
+  $('#elapsedOut').textContent = '0.00 h';
+  $('#badOut').textContent = '0.000 km';
+  $('#goodOut').textContent = '0.000 km';
+  $('#recD').disabled = true;
+  step = 0; renderExplainer();
+  refresh();
+  showPanel('explain');
+  say('Investigation reset.');
+};
+
+/* ---------------- decorative orbit animation ---------------- */
+(function stars() {
+  const g = $('#starfield');
+  let out = '';
+  for (let i = 0; i < 70; i++) {
+    const sx = Math.round(Math.random() * 900), sy = Math.round(Math.random() * 300);
+    const d = Math.hypot(sx - 300, sy - 150);
+    if (d < 165) continue;
+    out += `<circle cx="${sx}" cy="${sy}" r="${(Math.random() * 1.2 + 0.3).toFixed(1)}" fill="#ffffff" opacity="${(Math.random() * .6 + .2).toFixed(2)}"/>`;
+  }
+  g.innerHTML = out;
+})();
+
+const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let angle = 0, groundT = 0, satT = 0, lastFrame = 0;
+function orbit(ts) {
+  const dt = lastFrame ? Math.min(0.05, (ts - lastFrame) / 1000) : 0;
+  lastFrame = ts;
+  angle += dt * 0.5;
+  const cx = 300 + 150 * Math.cos(angle), cy = 150 + 150 * Math.sin(angle) * 0.55;
+  $('#satDot').setAttribute('cx', cx.toFixed(1));
+  $('#satDot').setAttribute('cy', cy.toFixed(1));
+  $('#beam').setAttribute('x1', cx.toFixed(1));
+  $('#beam').setAttribute('y1', cy.toFixed(1));
+  // The dials show the two clocks diverging at a visible rate; the real rate is far
+  // smaller and is what the analyser in Part B reports.
+  groundT += dt;
+  satT += dt * (1 + 0.0004);
+  $('#exGround').textContent = groundT.toFixed(6) + ' s';
+  $('#exSat').textContent = satT.toFixed(6) + ' s';
+  requestAnimationFrame(orbit);
+}
+
+/* ---------------- init ---------------- */
+if (window.location.protocol === 'file:' && document.getElementsByTagName('a:question').length) $('#localNote').hidden = false;
+renderExplainer();
+refresh();
+if (!reduced) requestAnimationFrame(orbit);
+})();
+</script>
+</body>
+</html>

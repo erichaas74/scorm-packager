@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Millikan Oil Drop: Charge Quantization Investigation</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        
+        .canvas-wrapper {
+            position: relative;
+            background-color: #e2e8f0;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px 0 rgb(0 0 0 / 0.1);
+        }
+        
+        /* Microscope reticle overlay for precise alignment */
+        .reticle {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            background: 
+                linear-gradient(rgba(15, 23, 42, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(15, 23, 42, 0.05) 1px, transparent 1px);
+            background-size: 25px 25px;
+            background-position: center center;
+        }
+        
+        .reticle::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 0;
+            width: 100%; height: 2px;
+            background: rgba(239, 68, 68, 0.6); /* Red center line */
+        }
+
+        /* Custom range slider styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #2563eb;
+            cursor: pointer;
+            margin-top: -8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
+
+        /* Custom scrollbar for data table */
+        .table-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .table-container::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .table-container::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        :root{--navy:#10243d;--blue:#2563eb;--blue-dark:#1746a2;--ink:#172033;--muted:#5f6b7a;--line:#cbd5e1;--soft:#eff6ff;--good:#087b4b;--warn:#a65700;--bad:#b42318;--paper:#fff;--shadow:0 16px 38px rgba(15,35,60,.13)}
+        *{box-sizing:border-box}
+        body{margin:0;min-height:100vh;padding:22px;background:linear-gradient(145deg,#e9f2fb,#f8fafc 55%,#eef2f7);color:var(--ink);font:16px/1.5 Arial,Helvetica,sans-serif}
+        button,input,textarea{font:inherit}
+        button{min-height:44px;border:0;border-radius:10px;padding:10px 14px;font-weight:800;cursor:pointer;transition:background .15s,transform .15s}
+        button:hover:not(:disabled){transform:translateY(-1px)}
+        button:focus-visible,input:focus-visible,textarea:focus-visible{outline:4px solid #facc15;outline-offset:3px}
+        button:disabled{opacity:.48;cursor:not-allowed}
+        .app{max-width:1180px;margin:0 auto}
+        .app-header{padding:24px 26px;background:linear-gradient(120deg,var(--navy),#1d4f7e);color:#fff;border-radius:22px 22px 0 0;box-shadow:var(--shadow)}
+        .eyebrow{margin:0 0 5px;color:#9bdcf6;font-size:.75rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase}
+        .app-header h1{margin:0;font-size:clamp(1.55rem,4vw,2.45rem);line-height:1.12}
+        .app-header p:last-child{max-width:820px;margin:8px 0 0;color:#deebf7}
+        .progress{margin-top:15px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+        .progress-track{width:min(360px,100%);height:10px;overflow:hidden;background:#ffffff35;border-radius:999px}
+        .progress-fill{height:100%;width:0;background:#45d59c;transition:width .2s}
+        .progress-text{font-size:.82rem;font-weight:800}
+        .simulation-layout{display:grid;grid-template-columns:minmax(0,1fr) 390px;background:#fff;border:1px solid var(--line);border-top:0;box-shadow:var(--shadow)}
+        .sim-left{padding:24px;background:#f8fafc;border-right:1px solid var(--line)}
+        .sim-right{padding:24px;display:flex;flex-direction:column;gap:20px}
+        .sim-left h2,.sim-right h2{margin:0;color:#1e293b;font-size:1.18rem}
+        .sim-left p{margin:4px 0 14px;color:var(--muted);font-size:.9rem}
+        .apparatus-card{display:flex;align-items:center;justify-content:center;padding:14px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 5px 15px rgba(15,35,60,.06)}
+        .apparatus-card svg{display:block;width:100%;max-width:450px;height:auto}
+        .microscope-head{margin-top:24px}
+        .canvas-stage{display:flex;align-items:center;justify-content:center;min-height:270px}
+        .canvas-wrapper{width:100%;max-width:320px;aspect-ratio:1;border:2px solid #cbd5e1}
+        #simCanvas{display:block;width:100%;height:100%}
+        .control-card{padding:14px;background:#f8fafc;border:1px solid var(--line);border-radius:13px}
+        .control-label{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;font-weight:800}
+        .voltage-readout{padding:5px 10px;background:#fff;border:1px solid var(--line);border-radius:8px;color:var(--blue);font:800 .95rem Consolas,monospace}
+        .range-scale{display:flex;justify-content:space-between;color:#8793a2;font-size:.75rem}
+        .vector-toggle{display:flex;align-items:center;gap:9px;margin-top:12px;padding:11px;background:#f8fafc;border:1px solid var(--line);border-radius:10px;font-size:.9rem;font-weight:700}
+        .vector-toggle input{width:20px;height:20px;accent-color:var(--blue)}
+        #btnAtomize{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;color:#fff;background:#24364e}
+        #btnAtomize svg{width:20px;height:20px;flex:0 0 20px}
+        #btnAtomize:hover{background:#17283e}
+        #btnRecord{width:100%;margin-bottom:10px;color:#fff;background:var(--blue)}
+        #btnRecord:hover:not(:disabled){background:var(--blue-dark)}
+        .balance-status{margin-top:10px;padding:10px 12px;border-radius:9px;background:#fff4df;color:var(--warn);font-size:.86rem;font-weight:800}
+        .balance-status.good{background:#e2f7ec;color:var(--good)}
+        .balance-status.bad{background:#feeceb;color:var(--bad)}
+        .data-section{min-height:260px;display:flex;flex-direction:column}
+        .table-shell{position:relative;flex:1;overflow:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+        .data-table{width:100%;border-collapse:collapse;font-size:.79rem}
+        .data-table th,.data-table td{padding:8px 7px;border-bottom:1px solid #edf1f5;text-align:left;white-space:nowrap}
+        .data-table th{position:sticky;top:0;background:#eef2f7;color:#526174;font-size:.7rem;text-transform:uppercase;letter-spacing:.03em}
+        .data-table td:nth-child(n+2){font-family:Consolas,monospace;color:#174ea6}
+        #emptyState{padding:28px 12px;text-align:center;color:#8b96a5;font-style:italic}
+        .content-grid{display:grid;grid-template-columns:.85fr 1.15fr;gap:16px;margin-top:16px}
+        .card{padding:20px;background:var(--paper);border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 24px rgba(15,35,60,.07)}
+        .card h2{margin:0 0 8px;font-size:1.15rem}
+        .card p{margin:6px 0;color:var(--muted)}
+        .steps{margin:12px 0 0;padding-left:22px}
+        .steps li{margin:7px 0}
+        .formula{margin:12px 0;padding:12px;background:var(--soft);border-left:4px solid var(--blue);border-radius:8px;font-weight:800}
+        .model-note{font-size:.82rem}
+        .question{padding:12px 0;border-bottom:1px solid #e7ecf1}
+        .question:last-child{border-bottom:0}
+        .question label{display:block;margin-bottom:6px;font-weight:800}
+        .qnum{display:inline-grid;place-items:center;width:25px;height:25px;margin-right:7px;border-radius:50%;background:#e4edff;color:#214fa2;font-size:.78rem}
+        textarea{width:100%;min-height:76px;padding:9px 10px;border:2px solid #b9c5d1;border-radius:9px;resize:vertical;color:var(--ink)}
+        .finish-card{margin-top:16px}
+        .check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:13px 0}
+        .check{padding:11px;background:#f3f5f7;border:1px solid var(--line);border-radius:10px;color:var(--muted);font-weight:800}
+        .check.done{background:#e2f7ec;border-color:#a7dcc5;color:var(--good)}
+        .button-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+        .primary{color:#fff;background:var(--blue)}
+        .secondary{color:#24364e;background:#e7edf3}
+        .danger{color:#9b2f2f;background:#feeceb}
+        .submit-status{min-height:24px;margin:10px 0 0;color:var(--good);font-weight:800}
+        @media(max-width:880px){.simulation-layout,.content-grid{grid-template-columns:1fr}.sim-left{border-right:0;border-bottom:1px solid var(--line)}}
+        @media(max-width:560px){body{padding:10px}.app-header,.sim-left,.sim-right,.card{padding:16px}.check-grid{grid-template-columns:1fr}.data-table{font-size:.73rem}}
+        @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+    </style>
+
+<style id="u6-buzz-assessment-styles">
+  .u6-buzz-section{max-width:1180px;margin:22px auto;padding:22px;border:1px solid #cfdcdf;border-radius:18px;background:#fff;color:#172b3a;box-shadow:0 10px 28px rgba(19,42,58,.08);font-family:Arial,sans-serif}
+  .u6-buzz-section h2{margin:0 0 7px;color:#123f5a;font-size:1.5rem}
+  .u6-buzz-section>p{margin:0 0 16px;color:#5d6e76;line-height:1.55}
+  .u6-score-strip{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+  .u6-score-strip span{padding:6px 10px;border-radius:999px;background:#e7f3f1;color:#174c50;font-weight:800;font-size:.82rem}
+  .u6-question-slot{margin:12px 0;padding:15px;border:1px solid #d6e1e3;border-radius:13px;background:#fbfdfd}
+  .u6-question-label{margin:0 0 9px;color:#17313a;font-weight:800}
+  .u6-question-label span{display:block;margin-top:3px;color:#62747b;font-size:.86rem;font-weight:600}
+  .u6-local-note{padding:11px 13px;border-left:5px solid #d27a1f;background:#fff6e8;color:#70490e;font-weight:700}
+  @media(max-width:700px){.u6-buzz-section{padding:15px;border-radius:12px}.u6-question-slot{padding:11px}}
+</style>
+<style>
+    .u6-buzz-assessment .u6-legacy-analysis,.u6-buzz-assessment .finish-card{display:none!important}
+  </style>
+</head>
+<body class="u6-buzz-assessment">
+  <main class="app">
+    <header class="app-header">
+      <p class="eyebrow">Unit 6 · Lesson 1 Alternative Application</p>
+      <h1>Millikan Oil Drop: Charge Quantization Investigation</h1>
+      <p>Balance charged oil drops between electric plates, measure the voltage for each drop, and use the pattern in your evidence to explain why electric charge is quantized.</p>
+      <div class="progress" aria-label="Application completion progress">
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+        <span class="progress-text" id="progressText">Evidence 0/6 · Responses 0/6</span>
+      </div>
+    </header>
+
+    <div class="simulation-layout">
+        
+        <!-- Left Side: Apparatus Diagram & Simulation -->
+        <div class="sim-left">
+            
+            <!-- Apparatus Overview Diagram -->
+            <div class="mb-8">
+                <h2 class="text-xl font-bold text-slate-800">Apparatus Overview</h2>
+                <p class="text-sm text-slate-500 mb-4">The physical components of the Millikan oil drop experiment.</p>
+                
+                <div class="apparatus-card">
+                    <svg viewBox="0 0 500 320" class="w-full max-w-[450px] h-auto font-sans drop-shadow-sm" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Wires -->
+                        <path d="M 360 95 L 430 95 L 430 285 L 290 285" stroke="#ef4444" stroke-width="3" fill="none" stroke-linejoin="round"/>
+                        <path d="M 360 215 L 410 215 L 410 265 L 290 265" stroke="#3b82f6" stroke-width="3" fill="none" stroke-linejoin="round"/>
+                        
+                        <!-- Chamber -->
+                        <rect x="130" y="50" width="240" height="190" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="4"/>
+                        
+                        <!-- Light Beam -->
+                        <polygon points="460,135 250,145 250,165 460,175" fill="#fef08a" opacity="0.5"/>
+                        
+                        <!-- Top Plate (Positive) -->
+                        <rect x="140" y="90" width="95" height="10" rx="2" fill="#94a3b8"/>
+                        <rect x="265" y="90" width="95" height="10" rx="2" fill="#94a3b8"/>
+                        <text x="150" y="82" font-size="20" fill="#ef4444" font-weight="900">+</text>
+                        <text x="340" y="82" font-size="20" fill="#ef4444" font-weight="900">+</text>
+                        
+                        <!-- Bottom Plate (Negative) -->
+                        <rect x="140" y="210" width="220" height="10" rx="2" fill="#94a3b8"/>
+                        <text x="150" y="240" font-size="24" fill="#3b82f6" font-weight="900">-</text>
+                        <text x="340" y="240" font-size="24" fill="#3b82f6" font-weight="900">-</text>
+                    
+                        <!-- Atomizer -->
+                        <path d="M 180 50 L 180 30 C 180 20, 230 20, 230 30 L 230 70 L 245 70" stroke="#64748b" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="180" cy="55" r="18" fill="#ef4444"/>
+                        <!-- Spraying Drops -->
+                        <circle cx="250" cy="70" r="1.5" fill="#1e293b"/>
+                        <circle cx="255" cy="74" r="1.5" fill="#1e293b"/>
+                        <circle cx="245" cy="76" r="1.5" fill="#1e293b"/>
+                        <circle cx="252" cy="82" r="1.5" fill="#1e293b"/>
+                        
+                        <!-- Falling/Suspended Drops -->
+                        <circle cx="250" cy="115" r="2" fill="#1e293b"/>
+                        <circle cx="250" cy="155" r="4" fill="#1e293b"/>
+                        
+                        <!-- Microscope -->
+                        <polygon points="30,135 120,145 120,165 30,175" fill="#64748b" stroke="#475569" stroke-width="2"/>
+                        <rect x="10" y="140" width="20" height="30" rx="3" fill="#334155"/>
+                        <path d="M 120 145 Q 140 155 120 165 Z" fill="#94a3b8"/>
+                        
+                        <!-- Light Source -->
+                        <rect x="460" y="125" width="25" height="60" rx="4" fill="#f59e0b" stroke="#b45309" stroke-width="2"/>
+                        <path d="M 460 135 Q 440 155 460 175 Z" fill="#fef08a"/>
+                    
+                        <!-- Power Supply -->
+                        <rect x="190" y="255" width="100" height="40" rx="6" fill="#475569"/>
+                        <text x="240" y="272" text-anchor="middle" font-size="11" font-weight="bold" fill="white">Variable</text>
+                        <text x="240" y="286" text-anchor="middle" font-size="11" font-weight="bold" fill="white">HV Supply</text>
+                    
+                        <!-- Labels -->
+                        <text x="75" y="120" text-anchor="middle" font-size="14" font-weight="bold" fill="#334155">Microscope</text>
+                        <text x="470" y="115" text-anchor="middle" font-size="14" font-weight="bold" fill="#b45309">Light</text>
+                        <text x="180" y="15" text-anchor="middle" font-size="14" font-weight="bold" fill="#dc2626">Atomizer</text>
+                        <text x="280" y="145" font-size="12" fill="#1e293b" font-weight="600">Oil Drop</text>
+                        <path d="M 275 140 L 255 152" stroke="#1e293b" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+                        
+                        <defs>
+                            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                                <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e293b" />
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Interactive Viewing Chamber -->
+            <div class="microscope-head">
+                <h2 class="text-xl font-bold text-slate-800">Microscope View</h2>
+                <p class="text-sm text-slate-500">Adjust the voltage to suspend the oil drop perfectly still on the red reticle line.</p>
+            </div>
+            
+            <div class="canvas-stage">
+                <div class="canvas-wrapper border-2 border-slate-300 w-full max-w-[300px] aspect-square">
+                    <div class="reticle"></div>
+                    <canvas id="simCanvas" class="w-full h-full block"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side: Controls and Data -->
+        <div class="sim-right">
+            
+            <!-- Controls Section -->
+            <div>
+                <h2 class="text-xl font-bold text-slate-800 mb-4">Controls</h2>
+                
+                <button id="btnAtomize" type="button">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M10 2a4 4 0 00-4 4v1H5a1 1 0 00-.994.89l-1 9A1 1 0 004 18h12a1 1 0 00.994-1.11l-1-9A1 1 0 0015 7h-1V6a4 4 0 00-4-4zm2 5V6a2 2 0 10-4 0v1h4zm-6 3a1 1 0 112 0 1 1 0 01-2 0zm7-1a1 1 0 100 2 1 1 0 000-2z" clip-rule="evenodd" />
+                    </svg>
+                    Atomize New Drop
+                </button>
+
+                <div class="control-card">
+                    <div class="control-label">
+                        <label for="voltageSlider">Plate Voltage</label>
+                        <div class="voltage-readout">
+                            <span id="voltageDisplay">0</span> V
+                        </div>
+                    </div>
+                    <input type="range" id="voltageSlider" min="0" max="400" step="1" value="0">
+                    <div class="range-scale">
+                        <span>0V</span>
+                        <span>400V</span>
+                    </div>
+                </div>
+
+                <div class="vector-toggle">
+                    <input type="checkbox" id="chkVectors">
+                    <label for="chkVectors">Show Force Vectors</label>
+                </div>
+                <div class="balance-status" id="balanceStatus" role="status" aria-live="polite">Adjust the voltage until the electric and gravitational forces balance.</div>
+            </div>
+
+            <!-- Data Recording Section -->
+            <div class="data-section">
+                <button id="btnRecord" type="button" disabled>
+                    Record Balance Voltage
+                </button>
+                
+                <div class="table-shell table-container" id="tableContainer">
+                        <table class="data-table">
+                            <thead><tr><th>Drop</th><th>Balance V</th><th>Relative q/e</th><th>Estimated charge</th></tr></thead>
+                            <tbody id="dataTable">
+                                <!-- Data rows injected here -->
+                            </tbody>
+                        </table>
+                        <div id="emptyState">
+                            No data recorded yet.
+                        </div>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+
+    <div class="content-grid">
+      <section class="card">
+        <h2>Investigation Method</h2>
+        <p>This classroom model keeps each drop’s weight constant and varies its hidden charge. When the drop is balanced, the upward electric force equals its downward weight.</p>
+        <div class="formula">F<sub>E</sub> = qE = F<sub>g</sub> &nbsp; and &nbsp; relative charge q/e = 200 V ÷ balance voltage</div>
+        <ol class="steps">
+          <li>Adjust the plate voltage until the balance status turns green.</li>
+          <li>Record the balanced drop, then atomize a new one.</li>
+          <li>Collect six balanced drops and compare the relative-charge values.</li>
+          <li>Use the completed table as evidence in the native Buzz questions below.</li>
+        </ol>
+        <p class="model-note"><b>Model note:</b> The 200 V calibration is scaled for this investigation. A physical Millikan experiment also measures each drop’s size, density, plate spacing, and terminal speed.</p>
+      </section>
+
+      <section class="card u6-legacy-analysis">
+        <h2>Evidence Analysis</h2>
+        <div class="question"><label><span class="qnum">1</span>Why is the drop suspended when the electric force and gravitational force are equal?</label><textarea data-question="1" maxlength="1200"></textarea></div>
+        <div class="question"><label><span class="qnum">2</span>What pattern do you observe in the balance voltages and calculated relative charges?</label><textarea data-question="2" maxlength="1200"></textarea></div>
+        <div class="question"><label><span class="qnum">3</span>Use at least three recorded values to support a claim that electric charge is quantized.</label><textarea data-question="3" maxlength="1200"></textarea></div>
+        <div class="question"><label><span class="qnum">4</span>How does the required balance voltage change as the drop’s charge increases? Explain using qE = Fg.</label><textarea data-question="4" maxlength="1200"></textarea></div>
+        <div class="question"><label><span class="qnum">5</span>Compare the least-charged and most-charged drops in your table. How many times larger is one charge than the other?</label><textarea data-question="5" maxlength="1200"></textarea></div>
+        <div class="question"><label><span class="qnum">6</span>Identify one source of measurement uncertainty and one improvement you would make in a physical oil-drop experiment.</label><textarea data-question="6" maxlength="1200"></textarea></div>
+      </section>
+    </div>
+
+    <section class="card finish-card">
+      <h2>Finish and Submit</h2>
+      <p>Buzz marks this alternative application complete after both requirements are satisfied and you submit the lab.</p>
+      <div class="check-grid">
+        <div class="check" id="evidenceCheck">Evidence table: 0/6 balanced drops</div>
+        <div class="check" id="responseCheck">Analysis responses: 0/6</div>
+      </div>
+      <div class="button-row">
+        <button class="primary" type="button" id="submitLab" disabled>Submit / Resubmit Lab</button>
+        <button class="secondary" type="button" id="csvBtn">Export Evidence (.csv)</button>
+        <button class="danger" type="button" id="clearBtn">Clear Saved Lab</button>
+      </div>
+      <p class="submit-status" id="submitStatus" role="status" aria-live="polite"></p>
+    </section>
+  <section class="u6-buzz-section" aria-labelledby="u6-buzz-heading">
+  <h2 id="u6-buzz-heading">Buzz assessment: Oil Drop Investigation</h2>
+  <p>Balance and record all six drops before answering. Keep the evidence table visible so your calculations and conclusion use your own measurements.</p>
+  <div class="u6-score-strip" aria-label="Assessment scoring"><span>15 points total</span><span>10 auto-graded</span><span>5 BusyBee rubric-graded</span></div>
+  <p class="u6-local-note" hidden data-u6-local-note>When opened outside Buzz, question controls are blank. Import <strong>buzz-assessment-questions.txt</strong> and upload this file as the assessment template.</p>
+    <div class="u6-question-slot">
+      <p class="u6-question-label">Question 1<span>Identify the force-balance condition</span></p>
+      <a:question></a:question>
+    </div>
+    <div class="u6-question-slot">
+      <p class="u6-question-label">Question 2<span>Select the model relative-charge formula</span></p>
+      <a:question></a:question>
+    </div>
+    <div class="u6-question-slot">
+      <p class="u6-question-label">Question 3<span>Calculate q/e for a 100 V balance</span></p>
+      <a:question></a:question>
+    </div>
+    <div class="u6-question-slot">
+      <p class="u6-question-label">Question 4<span>Calculate q/e for a 50 V balance</span></p>
+      <a:question></a:question>
+    </div>
+    <div class="u6-question-slot">
+      <p class="u6-question-label">Question 5<span>Reason about charge and balance voltage</span></p>
+      <a:question></a:question>
+    </div>
+    <div class="u6-question-slot">
+      <p class="u6-question-label">Question 6<span>Identify the quantization pattern</span></p>
+      <a:question></a:question>
+    </div>
+    <div class="u6-question-slot">
+      <p class="u6-question-label">Question 7<span>Calculate charge in coulombs</span></p>
+      <a:question></a:question>
+    </div>
+    <div class="u6-question-slot">
+      <p class="u6-question-label">Question 8<span>Apply the inverse voltage-charge relationship</span></p>
+      <a:question></a:question>
+    </div>
+    <div class="u6-question-slot">
+      <p class="u6-question-label">Question 9<span>Analyze three recorded drops</span></p>
+      <a:question></a:question>
+    </div>
+    <div class="u6-question-slot">
+      <p class="u6-question-label">Question 10<span>Write a quantization CER conclusion</span></p>
+      <a:question></a:question>
+    </div>
+</section>
+</main>
+
+    
+    <script>
+        "use strict";
+        const STORAGE_KEY = 'millikanOilDropLab-v1';
+        const REQUIRED_RECORDS = 6;
+        const REQUIRED_RESPONSES = 6;
+        const ELECTRON_CHARGE = 1.602e-19;
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Dynamically size canvas based on its actual rendered size for crisp resolution
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // UI Elements
+        const voltageSlider = document.getElementById('voltageSlider');
+        const voltageDisplay = document.getElementById('voltageDisplay');
+        const btnAtomize = document.getElementById('btnAtomize');
+        const btnRecord = document.getElementById('btnRecord');
+        const chkVectors = document.getElementById('chkVectors');
+        const dataTable = document.getElementById('dataTable');
+        const emptyState = document.getElementById('emptyState');
+        const tableContainer = document.getElementById('tableContainer');
+        const balanceStatus = document.getElementById('balanceStatus');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const evidenceCheck = document.getElementById('evidenceCheck');
+        const responseCheck = document.getElementById('responseCheck');
+        const submitLab = document.getElementById('submitLab');
+        const submitStatus = document.getElementById('submitStatus');
+        const csvBtn = document.getElementById('csvBtn');
+        const clearBtn = document.getElementById('clearBtn');
+
+        // Physics constants (Scaled for simulation visuals)
+        const GRAVITY = 0.04;         // Force of gravity (mass is simplified to 1)
+        const DRAG_COEF = 0.02;       // Stokes' drag analogue for terminal velocity
+        
+        // Base electric force multiplier. 
+        // Tuned so that 1 fundamental charge unit balances exactly at 200 Volts.
+        // mg = qE -> 0.04 = (1 * E_BASE) * 200 -> E_BASE = 0.0002
+        const E_BASE = 0.0002;       
+        
+        let drop = null;
+        let voltage = 0;
+        let state = loadState();
+        let scormReady = false;
+        let commitTimer = 0;
+
+        class Drop {
+            constructor(chargeMultiple) {
+                this.x = canvas.width / 2 + (Math.random() * (canvas.width * 0.2) - (canvas.width * 0.1));
+                // Start near the top plate
+                this.y = (canvas.height * 0.05) + 10;
+                this.v = 0;
+                this.radius = canvas.width * 0.015; // Responsive radius
+                
+                // The secret integer multiple of elementary charge (1 to 6)
+                // Students do not see this. They must discover the pattern!
+                this.n = chargeMultiple;
+                this.recorded = false;
+            }
+
+            update(V) {
+                // F_g is constant downwards
+                let F_g = GRAVITY;
+                
+                // F_e is proportional to charge multiple and voltage, directed upwards
+                let F_e = this.n * E_BASE * V;
+                
+                // Net force before air resistance
+                let F_net = F_g - F_e;
+                
+                // Apply drag (viscous force opposing motion)
+                let F_d = -this.v * DRAG_COEF;
+                
+                // Acceleration (mass assumed 1 for this isolated variable simulation)
+                let a = F_net + F_d;
+                
+                this.v += a;
+                this.y += this.v;
+
+                // Plate boundaries (bounce/stop)
+                const PLATE_TOP_Y = canvas.height * 0.05;
+                const PLATE_BOTTOM_Y = canvas.height * 0.95;
+
+                if (this.y > PLATE_BOTTOM_Y - this.radius) {
+                    this.y = PLATE_BOTTOM_Y - this.radius;
+                    this.v = 0;
+                }
+                if (this.y < PLATE_TOP_Y + this.radius) {
+                    this.y = PLATE_TOP_Y + this.radius;
+                    this.v = 0;
+                }
+            }
+
+            draw(ctx) {
+                // Shadow effect
+                ctx.beginPath();
+                ctx.arc(this.x, this.y + 2, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.fill();
+                ctx.closePath();
+
+                // Main Drop
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#1e293b';
+                ctx.fill();
+                
+                // Specular highlight to make it look like liquid
+                ctx.beginPath();
+                ctx.arc(this.x - this.radius*0.3, this.y - this.radius*0.3, this.radius*0.3, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.fill();
+                ctx.closePath();
+
+                // Draw Free Body Diagram / Vectors if checked
+                if (chkVectors.checked) {
+                    const vectorScale = canvas.height * 2; // Visual scaling for arrow lengths
+                    
+                    let F_g = GRAVITY;
+                    let F_e = this.n * E_BASE * voltage;
+
+                    // Gravity Arrow (Red, down)
+                    this.drawArrow(ctx, this.x + this.radius + 10, this.y, this.x + this.radius + 10, this.y + (F_g * vectorScale), '#ef4444');
+                    
+                    // Electric Force Arrow (Blue, up)
+                    if (F_e > 0) {
+                        this.drawArrow(ctx, this.x - this.radius - 10, this.y, this.x - this.radius - 10, this.y - (F_e * vectorScale), '#3b82f6');
+                    }
+                }
+            }
+
+            drawArrow(ctx, fromx, fromy, tox, toy, color) {
+                const headlen = 8;
+                const dx = tox - fromx;
+                const dy = toy - fromy;
+                const angle = Math.atan2(dy, dx);
+                
+                ctx.beginPath();
+                ctx.moveTo(fromx, fromy);
+                ctx.lineTo(tox, toy);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(tox, toy);
+                ctx.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
+                ctx.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
+                ctx.lineTo(tox, toy);
+                ctx.fillStyle = color;
+                ctx.fill();
+            }
+        }
+
+        function drawPlates() {
+            const plateHeight = canvas.height * 0.05;
+            const topY = 0;
+            const bottomY = canvas.height - plateHeight;
+
+            // Plates
+            ctx.fillStyle = '#94a3b8'; // Slate 400
+            ctx.fillRect(0, topY, canvas.width, plateHeight);
+            ctx.fillRect(0, bottomY, canvas.width, plateHeight);
+
+            // Plate connection accents
+            ctx.fillStyle = '#64748b'; // Slate 500
+            ctx.fillRect(0, plateHeight - 2, canvas.width, 2);
+            ctx.fillRect(0, bottomY, canvas.width, 2);
+
+            // Charge indicators
+            ctx.fillStyle = '#ef4444'; // Red (+)
+            ctx.font = 'bold 16px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            for (let i = 1; i < 5; i++) {
+                ctx.fillText('+', (canvas.width / 5) * i, plateHeight / 2);
+            }
+            
+            ctx.fillStyle = '#3b82f6'; // Blue (-)
+            for (let i = 1; i < 5; i++) {
+                ctx.fillText('-', (canvas.width / 5) * i, bottomY + (plateHeight / 2));
+            }
+        }
+
+        function loadState() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+                return {
+                    records: Array.isArray(saved.records) ? saved.records : [],
+                    answers: saved.answers && typeof saved.answers === 'object' ? saved.answers : {},
+                    submittedAt: saved.submittedAt || ''
+                };
+            } catch (error) {
+                return {records: [], answers: {}, submittedAt: ''};
+            }
+        }
+
+        function nextChargeMultiple() {
+            const used = new Set(state.records.map(record => Math.round(record.relative)));
+            const remaining = [1, 2, 3, 4, 5, 6].filter(value => !used.has(value));
+            const choices = remaining.length ? remaining : [1, 2, 3, 4, 5, 6];
+            return choices[Math.floor(Math.random() * choices.length)];
+        }
+
+        function isBalanced() {
+            if (!drop || voltage <= 0 || drop.recorded) return false;
+            return Math.abs(voltage - (200 / drop.n)) <= 0.75;
+        }
+
+        function updateBalanceUI() {
+            balanceStatus.className = 'balance-status';
+            if (!drop) {
+                balanceStatus.textContent = 'Atomize a drop to begin.';
+                btnRecord.disabled = true;
+                return;
+            }
+            if (drop.recorded) {
+                balanceStatus.classList.add('good');
+                balanceStatus.textContent = 'Balanced voltage recorded. Atomize a new drop for the next trial.';
+                btnRecord.disabled = true;
+                return;
+            }
+            if (isBalanced()) {
+                balanceStatus.classList.add('good');
+                balanceStatus.textContent = 'Balanced: electric force equals gravitational force. Record this voltage.';
+                btnRecord.disabled = false;
+                return;
+            }
+            btnRecord.disabled = true;
+            if (voltage === 0) {
+                balanceStatus.textContent = 'Increase the voltage until the falling drop becomes suspended.';
+            } else if (GRAVITY - drop.n * E_BASE * voltage > 0) {
+                balanceStatus.textContent = 'The drop is moving downward: increase the voltage.';
+            } else {
+                balanceStatus.classList.add('bad');
+                balanceStatus.textContent = 'The drop is moving upward: decrease the voltage.';
+            }
+        }
+
+        function atomizeDrop() {
+            drop = new Drop(nextChargeMultiple());
+            voltage = 0;
+            voltageSlider.value = 0;
+            voltageDisplay.textContent = '0';
+            updateBalanceUI();
+        }
+
+        function renderTable() {
+            dataTable.replaceChildren();
+            emptyState.style.display = state.records.length ? 'none' : 'block';
+            state.records.slice().reverse().forEach(record => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>Drop ${record.drop}</td><td>${record.voltage} V</td><td>${record.relative.toFixed(2)} e</td><td>${record.charge}</td>`;
+                dataTable.appendChild(row);
+            });
+        }
+
+        function responseCount() {
+            return [...document.querySelectorAll('[data-question]')].filter(field => field.value.trim()).length;
+        }
+
+        function progressState() {
+            const evidence = Math.min(state.records.length, REQUIRED_RECORDS);
+            const responses = responseCount();
+            const score = Math.round((evidence + responses) / (REQUIRED_RECORDS + REQUIRED_RESPONSES) * 100);
+            return {evidence, responses, score, ready: evidence === REQUIRED_RECORDS && responses === REQUIRED_RESPONSES};
+        }
+
+        function updateProgress() {
+            const progress = progressState();
+            progressFill.style.width = `${progress.score}%`;
+            progressText.textContent = `Evidence ${progress.evidence}/${REQUIRED_RECORDS} · Responses ${progress.responses}/${REQUIRED_RESPONSES}`;
+            evidenceCheck.textContent = `Evidence table: ${progress.evidence}/${REQUIRED_RECORDS} balanced drops`;
+            responseCheck.textContent = `Analysis responses: ${progress.responses}/${REQUIRED_RESPONSES}`;
+            evidenceCheck.classList.toggle('done', progress.evidence === REQUIRED_RECORDS);
+            responseCheck.classList.toggle('done', progress.responses === REQUIRED_RESPONSES);
+            submitLab.disabled = !progress.ready;
+        }
+
+        function suspendPayload() {
+            const progress = progressState();
+            return JSON.stringify({v:1,e:progress.evidence,a:progress.responses,p:progress.score,s:state.submittedAt ? 1 : 0});
+        }
+
+        function reportToBuzz() {
+            if (!scormReady || !window.SCORM) return;
+            try {
+                const progress = progressState();
+                window.SCORM.setScore(progress.score, 0, 100);
+                window.SCORM.setStatus(state.submittedAt && progress.ready ? 'completed' : 'incomplete');
+                window.SCORM.setValue('cmi.suspend_data', suspendPayload());
+                window.SCORM.commit();
+            } catch (error) { /* standalone mode */ }
+        }
+
+        function scheduleReport() {
+            clearTimeout(commitTimer);
+            commitTimer = setTimeout(reportToBuzz, 1200);
+        }
+
+        function saveState() {
+            state.answers = {};
+            document.querySelectorAll('[data-question]').forEach(field => state.answers[field.dataset.question] = field.value);
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (error) {}
+            updateProgress();
+            scheduleReport();
+        }
+
+        function animate() {
+            // Clear canvas with slight transparency for motion blur effect on fast drops (optional, keeping solid for clarity here)
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            drawPlates();
+
+            if (drop) {
+                drop.update(voltage);
+                drop.draw(ctx);
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        voltageSlider.addEventListener('input', (e) => {
+            voltage = parseFloat(e.target.value);
+            voltageDisplay.textContent = voltage;
+            updateBalanceUI();
+        });
+
+        btnAtomize.addEventListener('click', atomizeDrop);
+
+        btnRecord.addEventListener('click', () => {
+            if (!isBalanced()) return;
+            const relative = +(200 / voltage).toFixed(2);
+            state.records.push({
+                drop: state.records.length + 1,
+                voltage,
+                relative,
+                charge: `${(relative * ELECTRON_CHARGE).toExponential(3)} C`
+            });
+            drop.recorded = true;
+            renderTable();
+            updateBalanceUI();
+            saveState();
+        });
+
+        document.querySelectorAll('[data-question]').forEach(field => {
+            field.value = state.answers[field.dataset.question] || '';
+            field.addEventListener('input', saveState);
+        });
+
+        submitLab.addEventListener('click', () => {
+            if (!progressState().ready) return;
+            state.submittedAt = new Date().toISOString();
+            saveState();
+            reportToBuzz();
+            submitStatus.textContent = `Lab submitted ${new Date(state.submittedAt).toLocaleString()}. You may revise and resubmit.`;
+            try { window.parent.postMessage({type:'complete'}, '*'); } catch (error) {}
+        });
+
+        csvBtn.addEventListener('click', () => {
+            if (!state.records.length) {
+                submitStatus.textContent = 'Record at least one balanced drop before exporting evidence.';
+                return;
+            }
+            const rows = [['Drop','Balance Voltage (V)','Relative Charge (q/e)','Estimated Charge (C)'], ...state.records.map(record => [record.drop,record.voltage,record.relative.toFixed(2),record.charge.replace(' C','')])];
+            const csv = rows.map(row => row.map(value => `"${String(value).replaceAll('"','""')}"`).join(',')).join('\n');
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+            link.download = 'millikan_oil_drop_evidence.csv';
+            link.click();
+            URL.revokeObjectURL(link.href);
+        });
+
+        clearBtn.addEventListener('click', () => {
+            if (!confirm('Clear all balanced-drop evidence and written responses on this device?')) return;
+            localStorage.removeItem(STORAGE_KEY);
+            location.reload();
+        });
+
+        renderTable();
+        updateProgress();
+        atomizeDrop();
+        if (state.submittedAt) submitStatus.textContent = `Last submitted ${new Date(state.submittedAt).toLocaleString()}.`;
+
+        window.addEventListener('load', () => {
+            scormReady = !!window.SCORM;
+            resizeCanvas();
+            animate();
+            reportToBuzz();
+        });
+    </script>
+<script id="u6-buzz-local-note-script">
+(function(){if(window.location.protocol==='file:'){var note=document.querySelector('[data-u6-local-note]');if(note)note.hidden=false;}}());
+</script>
+</body>
+</html>

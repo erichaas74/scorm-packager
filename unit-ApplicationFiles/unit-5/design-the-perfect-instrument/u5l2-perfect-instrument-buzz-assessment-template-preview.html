@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Design the Perfect Instrument</title>
+<style>
+
+:root{
+  --blue:#285f9f;
+  --blue-dark:#17436f;
+  --ink:#172033;
+  --muted:#5c6678;
+  --line:#cfd8e6;
+  --soft:#eef5fb;
+  --panel:#ffffff;
+  --good:#17643b;
+  --warn:#8a4b08;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:transparent;font-family:Arial,Helvetica,sans-serif;color:var(--ink)}
+body{padding:10px}
+button,input{font:inherit}
+button{min-height:44px;min-width:44px;border-radius:10px;border:2px solid var(--blue);background:#fff;color:var(--blue-dark);font-weight:700;padding:10px 14px;cursor:pointer}
+button:hover{background:#f2f7fc}
+button:focus-visible,input:focus-visible{outline:4px solid #f2b705;outline-offset:3px}
+button[disabled]{opacity:.55;cursor:not-allowed}
+.rph-app{max-width:980px;margin:0 auto;border:5px solid var(--blue);border-radius:22px;background:#fff;overflow:hidden}
+.rph-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);background:#f8fbfe}
+.rph-title{margin:0;font-size:1.05rem;color:var(--blue-dark)}
+.rph-stage{padding:14px;background:linear-gradient(180deg,#f9fcff,#eef5fb)}
+.rph-scene{width:min(100%,900px);margin:0 auto;border:1px solid var(--line);border-radius:18px;background:#fff;overflow:hidden}
+.rph-card{padding:16px;border-top:1px solid var(--line);background:#fff}
+.dpi-section-title{margin:0 0 12px;font-size:1.05rem;color:var(--blue-dark)}
+.dpi-table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+.dpi-evidence-table{width:100%;min-width:820px;border-collapse:collapse;font-size:.88rem}
+.dpi-evidence-table th,.dpi-evidence-table td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
+.dpi-evidence-table th:first-child,.dpi-evidence-table td:first-child,
+.dpi-evidence-table th:nth-child(2),.dpi-evidence-table td:nth-child(2){text-align:left;font-variant-numeric:normal}
+.dpi-evidence-table thead th{background:var(--soft);color:var(--blue-dark);font-size:.76rem;text-transform:uppercase;letter-spacing:.03em}
+.dpi-empty-row td{text-align:center;color:var(--muted);font-style:italic}
+.dpi-evidence-message{margin:12px 0;color:var(--muted);font-size:.9rem}
+.dpi-evidence-actions{display:flex;flex-wrap:wrap;gap:10px}
+.dpi-evidence-status{margin:12px 0 0;color:var(--good);font-size:.9rem;font-weight:700;min-height:1.2em}
+.dpi-buzz-intro{margin:0 0 14px;color:var(--muted);font-size:.9rem}
+.dpi-local-note{margin-bottom:14px;padding:11px 14px;border-left:5px solid var(--warn);border-radius:0 10px 10px 0;background:#fff5e8;font-size:.88rem}
+.dpi-slot{margin-bottom:13px;padding:14px;border:1px solid var(--line);border-radius:12px;background:#fbfdff}
+.dpi-slot-label{margin:0 0 8px;color:var(--blue-dark);font-size:.85rem;font-weight:800}
+.dpi-slot-label span{display:block;margin-top:2px;color:var(--muted);font-weight:600}
+.rph-prompt{margin:0 0 12px;font-weight:700;font-size:1.05rem}
+.rph-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.rph-choices.pics button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 8px}
+.rph-choices.pics .pic-wave{width:100%;max-width:250px}
+.rph-choices.pics .pic-cap{font-size:1rem;font-weight:700;color:var(--blue-dark)}
+.rph-feedback{min-height:24px;margin:12px 0 0;padding:10px 12px;border-radius:10px;background:#f5f7fa;color:var(--ink)}
+.rph-controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.rph-progress{font-size:.9rem;color:var(--muted);font-weight:700}
+.rph-hidden{display:none!important}
+.rph-status{position:absolute;left:-9999px}
+
+/* control rail */
+.dpi-rail{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 18px;align-items:end;padding:14px 16px;border-top:1px solid var(--line);background:#fff}
+.dpi-ctl{display:grid;grid-template-columns:1fr auto;gap:2px 8px}
+.dpi-ctl label{font-size:.82rem;font-weight:700;color:var(--muted);letter-spacing:.02em;text-transform:uppercase}
+.dpi-ctl output{font-size:.95rem;font-weight:700;color:var(--blue-dark);font-variant-numeric:tabular-nums}
+.dpi-ctl input{grid-column:1/3;width:100%;margin:0;accent-color:var(--blue)}
+.dpi-ctl.off{opacity:.38}
+.dpi-ctl.off input{cursor:not-allowed}
+.dpi-foot{padding:0 16px 14px}
+.dpi-viz{border:1px solid var(--line);border-radius:14px;background:#fbfdff;padding:6px 10px;margin-bottom:10px}
+.dpi-actionrow{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.dpi-play{display:flex;flex-wrap:wrap;gap:10px}
+.dpi-play button.done{border-color:var(--good);color:var(--good);background:#f1f9f4}
+.dpi-note{font-size:.92rem;font-weight:700;color:var(--muted);min-height:22px}
+.dpi-note.ok{color:var(--good)}
+.dpi-note.no{color:var(--warn)}
+.dpi-scoreline{margin:0;font-weight:700;color:var(--blue-dark)}
+svg{width:100%;height:auto;display:block}
+
+/* scene paint */
+.s-wood{fill:#b9762f}.s-wood2{fill:#a35f22}.s-edge{fill:none;stroke:#5d3410;stroke-width:3}
+.s-metal{fill:#c9d3de;stroke:#6b7c90;stroke-width:2}
+.dpi-line{stroke:#93a2b5;stroke-width:1.5}
+.dpi-env{fill:none;stroke:#285f9f;stroke-width:2;stroke-dasharray:5 5;opacity:.45}
+.dpi-wave{fill:none;stroke:#17436f;stroke-width:3.5;stroke-linecap:round}
+.dpi-node{fill:#17436f}
+.dpi-anti{fill:none;stroke:#c2410c;stroke-width:2.5}
+.dpi-lbl{font:700 11px Arial;fill:#5c6678}
+.dpi-chip{font:700 13px Arial;fill:#17436f}
+.dpi-bad{stroke:#b91c1c;stroke-width:4;stroke-linecap:round}
+.dpi-tick{stroke:#93a2b5;stroke-width:2}
+.dpi-tickmaj{stroke:#5c6678;stroke-width:3}
+.dpi-needle{stroke:#b91c1c;stroke-width:4;stroke-linecap:round}
+.dpi-needle.ok{stroke:#17643b}
+.dpi-big{font:700 26px Arial;fill:#17436f}
+.dpi-sub{font:700 14px Arial;fill:#5c6678}
+.dpi-grab{cursor:ew-resize;touch-action:none}
+.dpi-grab.off{cursor:default}
+.dpi-grab.off #capoGrip{opacity:.2}
+.dpi-grab.drag #capoGrip{opacity:.35}
+/* decoration must never steal the pointer from the capo */
+#sDim,#sMarks,#sWave,#sEnvA,#sEnvB,#sInfo{pointer-events:none}
+.dpi-dim{stroke:#c2410c;stroke-width:2}
+.dpi-dimtxt{font:700 12px Arial;fill:#c2410c}
+.dpi-eq{font:700 13px Arial;fill:#17436f}
+.dpi-eq2{font:700 12px Arial;fill:#5c6678}
+
+/* foot diagram */
+.vz-ref{fill:none;stroke:#8fa2ba;stroke-width:3;stroke-dasharray:7 6}
+.vz-ins{fill:none;stroke:#17436f;stroke-width:4.5;stroke-linecap:round}
+.vz-band{fill:#dbeafe;opacity:.75}
+.vz-hw{fill:#5f6b7d}
+.vz-brk{stroke:#5c6678;stroke-width:2}
+.vz-brko{stroke:#c2410c;stroke-width:2}
+.vz-num{font:700 15px Arial;fill:#17436f}
+.vz-numo{font:700 15px Arial;fill:#c2410c}
+.vz-sym{font:700 17px Arial;fill:#5c6678}
+.vz-frac{font:700 46px Arial;fill:#17436f}
+.vz-q{font:700 36px Arial;fill:#c2410c}
+.vz-arrow{stroke:#17643b;stroke-width:7;stroke-linecap:round}
+.vz-head{fill:#17643b}
+.vz-big{font:700 24px Arial;fill:#17436f}
+
+@media(max-width:700px){
+  .rph-choices{grid-template-columns:1fr}
+  .dpi-rail{grid-template-columns:1fr}
+  .rph-top{align-items:flex-start}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}
+}
+
+</style>
+
+  <style id="buzz-preview-question-styles">
+    .buzz-preview-question {
+      border: 1px solid #c8d3e1;
+      border-left: 5px solid #2563a9;
+      border-radius: 8px;
+      padding: 12px;
+      margin: 8px 0;
+      background: #fff;
+      color: #172033;
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.45;
+      box-shadow: 0 6px 18px rgba(23, 32, 51, 0.08);
+    }
+    .buzz-preview-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+      color: #1f3b57;
+    }
+    .buzz-preview-head strong {
+      font-size: 0.95rem;
+    }
+    .buzz-preview-head span {
+      color: #5d687c;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+    .buzz-preview-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .buzz-preview-chip {
+      border: 1px solid #d8e0ec;
+      border-radius: 999px;
+      padding: 3px 8px;
+      background: #f3f7fc;
+      color: #334155;
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+    .buzz-preview-prompt {
+      margin: 0 0 10px;
+      color: #111827;
+      font-size: 0.98rem;
+      font-weight: 700;
+    }
+    .buzz-preview-details {
+      display: grid;
+      gap: 6px;
+    }
+    .buzz-preview-option {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr);
+      gap: 8px;
+      align-items: start;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 8px;
+      background: #f8fafc;
+    }
+    .buzz-preview-option span {
+      display: inline-flex;
+      width: 24px;
+      height: 24px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: #dbeafe;
+      color: #1e3a8a;
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+    .buzz-preview-option.correct {
+      border-color: #86efac;
+      background: #f0fdf4;
+    }
+    .buzz-preview-option.correct span {
+      background: #16a34a;
+      color: #fff;
+    }
+    .buzz-preview-option p,
+    .buzz-preview-detail {
+      margin: 0;
+      color: #1f2937;
+      font-size: 0.92rem;
+    }
+    .buzz-preview-feedback {
+      border-left: 3px solid #93c5fd;
+      padding: 6px 8px;
+      background: #eff6ff;
+      color: #1e3a8a;
+      font-size: 0.86rem;
+    }
+    .buzz-preview-placeholder {
+      border: 1px dashed #cbd5e1;
+      border-radius: 6px;
+      padding: 10px;
+      color: #64748b;
+      background: #f8fafc;
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+<main class="rph-app">
+
+<header class="rph-top">
+  <h1 class="rph-title" id="chTitle">Tune the string to A3</h1>
+  <div class="rph-progress" id="progress">1 / 6</div>
+  <button id="resetBtn" type="button">Reset</button>
+</header>
+
+<section class="rph-stage" aria-label="Instrument builder">
+  <div class="rph-scene">
+    <svg viewBox="0 0 900 360" role="img" aria-labelledby="sceneTitle sceneDesc">
+      <title id="sceneTitle">Instrument resonator</title>
+      <desc id="sceneDesc">A vibrating string or an air column showing its standing-wave pattern with nodes and antinodes.</desc>
+      <defs>
+        <linearGradient id="gPipe" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#e8eef6"/><stop offset=".45" stop-color="#b9c6d6"/><stop offset="1" stop-color="#8d9db1"/>
+        </linearGradient>
+        <linearGradient id="gBody" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#d08b3f"/><stop offset="1" stop-color="#9c5c1e"/>
+        </linearGradient>
+        <radialGradient id="gHole" cx=".5" cy=".5" r=".5">
+          <stop offset="0" stop-color="#241408"/><stop offset="1" stop-color="#4a2a12"/>
+        </radialGradient>
+      </defs>
+      <rect width="900" height="360" fill="#ffffff"/>
+
+      <!-- ================= STRING SCENE ================= -->
+      <g id="sceneString">
+        <!-- neck -->
+        <rect x="86" y="116" width="478" height="32" rx="4" fill="#5a3b22"/>
+        <rect x="86" y="116" width="478" height="7" fill="#6d4a2c" opacity=".7"/>
+        <!-- body -->
+        <path d="M560 132 C560 96,588 74,628 74 C664 74,686 92,706 102
+                 C726 92,748 64,784 64 C824 64,850 96,850 132
+                 C850 168,824 200,784 200 C748 200,726 172,706 162
+                 C686 172,664 190,628 190 C588 190,560 168,560 132 Z"
+              fill="url(#gBody)" stroke="#5d3410" stroke-width="3"/>
+        <circle cx="770" cy="132" r="38" fill="none" stroke="#6b3d15" stroke-width="3"/>
+        <circle cx="770" cy="132" r="34" fill="none" stroke="#e8c79a" stroke-width="2"/>
+        <circle cx="770" cy="132" r="30" fill="url(#gHole)"/>
+        <rect x="810" y="108" width="16" height="48" rx="4" fill="#6b3d15"/>
+        <rect x="819" y="102" width="6" height="60" rx="3" fill="#e8e2d6"/>
+        <!-- headstock -->
+        <path d="M18 92 H88 V172 H18 C10 172,10 92,18 92 Z" fill="#4a2f19" stroke="#2f1c0d" stroke-width="2"/>
+        <rect x="84" y="106" width="8" height="52" rx="3" fill="#e8e2d6"/>
+        <circle cx="44" cy="104" r="5.5" class="s-metal"/>
+        <circle cx="44" cy="160" r="5.5" class="s-metal"/>
+        <g id="pegSpin">
+          <circle cx="44" cy="132" r="13" fill="#dfe7f0" stroke="#5c6678" stroke-width="2"/>
+          <rect x="41" y="114" width="6" height="18" rx="3" fill="#5c6678"/>
+        </g>
+        <!-- string -->
+        <line x1="88" y1="132" x2="822" y2="132" stroke="#9aa6b4" stroke-width="2.5"/>
+        <path id="sEnvA" class="dpi-env"/>
+        <path id="sEnvB" class="dpi-env"/>
+        <path id="sWave" class="dpi-wave"/>
+        <g id="sMarks"></g>
+        <!-- draggable capo: the wide invisible rect is the grab target -->
+        <g id="sCapo" class="dpi-grab">
+          <rect id="capoHit" x="-30" y="44" width="72" height="176" fill="transparent"/>
+          <g id="capoGrip">
+            <path d="M-18 84 l11 -7 v14 z" fill="#2f3a48"/>
+            <path d="M30 84 l-11 -7 v14 z" fill="#2f3a48"/>
+            <line x1="-5" y1="84" x2="17" y2="84" stroke="#2f3a48" stroke-width="2.5"/>
+          </g>
+          <rect x="0" y="98" width="12" height="68" rx="5" fill="#2f3a48"/>
+          <circle cx="6" cy="132" r="7" fill="#7d8b9c"/>
+          <line x1="3" y1="110" x2="9" y2="110" stroke="#7d8b9c" stroke-width="2"/>
+          <line x1="3" y1="154" x2="9" y2="154" stroke="#7d8b9c" stroke-width="2"/>
+        </g>
+        <!-- wavelength dimension under the vibrating span -->
+        <g id="sDim">
+          <rect id="sDimBg" x="0" y="168" width="0" height="30" rx="7" fill="#ffffff" opacity=".9"/>
+          <line id="sDimBar" class="dpi-dim" x1="0" y1="186" x2="0" y2="186"/>
+          <line id="sDimT1" class="dpi-dim" x1="0" y1="178" x2="0" y2="194"/>
+          <line id="sDimT2" class="dpi-dim" x1="0" y1="178" x2="0" y2="194"/>
+          <text id="sDimTxt" class="dpi-dimtxt" x="0" y="182" text-anchor="middle">&#955;/2</text>
+        </g>
+        <text id="sInfo" class="dpi-eq" x="24" y="30">string</text>
+      </g>
+
+      <!-- ================= PIPE SCENE ================= -->
+      <g id="scenePipe">
+        <path id="mouth" d="M96 94 L140 104 L140 160 L96 170 Z" fill="url(#gPipe)" stroke="#6b7c90" stroke-width="2"/>
+        <rect id="pipeBody" x="140" y="90" width="400" height="84" rx="6" fill="url(#gPipe)" stroke="#6b7c90" stroke-width="2.5"/>
+        <rect id="pipeBore" x="146" y="102" width="388" height="60" fill="#f7fafd"/>
+        <rect id="pipeCap" x="540" y="86" width="16" height="92" rx="4" fill="#415063" stroke="#2f3a48" stroke-width="2"/>
+        <g id="pParticles"></g>
+        <path id="pEnvA" class="dpi-env"/>
+        <path id="pEnvB" class="dpi-env"/>
+        <path id="pWave" class="dpi-wave"/>
+        <g id="pMarks"></g>
+        <g id="capBad" class="rph-hidden">
+          <line class="dpi-bad" x1="0" y1="0" x2="0" y2="0" id="badA"/>
+          <line class="dpi-bad" x1="0" y1="0" x2="0" y2="0" id="badB"/>
+        </g>
+        <text id="pInfo" class="dpi-chip" x="24" y="36">air column</text>
+        <text id="pTemp" class="dpi-chip" x="876" y="36" text-anchor="end">20 °C · 343 m/s</text>
+      </g>
+
+      <!-- ============ THREE-STRING COMPARISON ============ -->
+      <g id="sceneTrio"></g>
+
+      <!-- ================= TUNER ================= -->
+      <g id="tuner" transform="translate(0,214)">
+        <line x1="40" y1="0" x2="860" y2="0" class="dpi-line" opacity=".5"/>
+        <path id="tArc" d="" fill="none" stroke="#dbe3ec" stroke-width="14" stroke-linecap="round"/>
+        <path id="tZone" d="" fill="none" stroke="#8fd3ad" stroke-width="14" stroke-linecap="round"/>
+        <g id="tTicks"></g>
+        <line id="tNeedle" class="dpi-needle" x1="450" y1="120" x2="450" y2="42"/>
+        <circle cx="450" cy="120" r="7" fill="#17436f"/>
+        <text class="dpi-sub" x="352" y="132" text-anchor="middle">&#9837;</text>
+        <text class="dpi-sub" x="548" y="132" text-anchor="middle">&#9839;</text>
+        <text id="tTarget" class="dpi-big" x="52" y="98">A3</text>
+        <text id="tTargetHz" class="dpi-sub" x="52" y="122">220.0 Hz target</text>
+        <text id="tNow" class="dpi-big" x="848" y="98" text-anchor="end">—</text>
+        <text id="tCents" class="dpi-sub" x="848" y="122" text-anchor="end">—</text>
+      </g>
+    </svg>
+  </div>
+</section>
+
+<div class="dpi-rail">
+  <div class="dpi-ctl" id="ctlL">
+    <label for="sL">Length</label><output id="oL">0.80 m</output>
+    <input id="sL" type="range" min="0.30" max="1.00" step="0.01" value="0.80">
+  </div>
+  <div class="dpi-ctl" id="ctlT">
+    <label for="sT">Tension</label><output id="oT">60 N</output>
+    <input id="sT" type="range" min="20" max="200" step="1" value="60">
+  </div>
+  <div class="dpi-ctl" id="ctlN">
+    <label for="sN">Harmonic</label><output id="oN">1</output>
+    <input id="sN" type="range" min="1" max="5" step="1" value="1">
+  </div>
+</div>
+
+<div class="dpi-foot">
+  <div class="dpi-viz">
+    <svg viewBox="0 0 900 240" role="img" aria-labelledby="vizT vizD">
+      <title id="vizT">Wave fit diagram</title>
+      <desc id="vizD">One full wavelength drawn above the resonator, to the same scale, so the fraction that fits inside can be read off directly.</desc>
+      <g id="vizBody"></g>
+    </svg>
+  </div>
+  <div class="dpi-actionrow">
+    <button id="nofitBtn" class="rph-hidden" type="button">No mode fits</button>
+    <div class="dpi-play rph-hidden" id="trioPlay">
+      <button type="button" data-i="0">&#9654; String 1</button>
+      <button type="button" data-i="1">&#9654; String 2</button>
+      <button type="button" data-i="2">&#9654; String 3</button>
+      <button id="contBtn" type="button" disabled>Continue</button>
+    </div>
+    <p class="dpi-note" id="note"></p>
+  </div>
+</div>
+
+<section class="rph-card rph-hidden" id="card" aria-live="polite">
+  <p class="rph-prompt" id="prompt"></p>
+  <div class="rph-choices" id="choices"></div>
+  <p class="rph-feedback rph-hidden" id="feedback"></p>
+  <div class="rph-controls">
+    <button id="nextBtn" class="rph-hidden" type="button">Next</button>
+  </div>
+</section>
+<section class="rph-card" aria-labelledby="evidenceHeading">
+  <h2 class="dpi-section-title" id="evidenceHeading">Your recorded builds</h2>
+  <div class="dpi-table-wrap">
+    <table class="dpi-evidence-table">
+      <thead><tr><th scope="col">Challenge</th><th scope="col">Resonator</th><th scope="col">Target</th><th scope="col">Length (m)</th><th scope="col">Tension (N)</th><th scope="col">Harmonic n</th><th scope="col">Air (&deg;C)</th><th scope="col">Achieved (Hz)</th></tr></thead>
+      <tbody id="evidenceBody"><tr class="dpi-empty-row"><td colspan="8">No builds recorded yet.</td></tr></tbody>
+    </table>
+  </div>
+  <p class="dpi-evidence-message" id="evidenceMessage">Clear all seven challenges. The evidence image unlocks when every build is recorded.</p>
+  <div class="dpi-evidence-actions">
+    <button type="button" id="downloadEvidence" disabled>Download evidence image</button>
+  </div>
+  <p class="dpi-evidence-status" id="evidenceStatus" role="status" aria-live="polite"></p>
+</section>
+
+<section class="rph-card" id="buzzQuestions" aria-labelledby="buzzHeading">
+  <h2 class="dpi-section-title" id="buzzHeading">Buzz assessment questions</h2>
+  <p class="dpi-buzz-intro">Use your recorded-build table while answering. The evidence image is an optional record; all 15 points come from the native Buzz questions below.</p>
+  <div class="dpi-local-note" id="localNote" hidden>If you opened this template as a local file, the response controls will be blank. Import <strong>design_perfect_instrument_buzz_questions.txt</strong> into Buzz and upload this HTML as the assessment template.</div>
+  <div class="dpi-slot"><p class="dpi-slot-label">Question 1 <span>Capo position for middle C</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="1">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 1</strong>
+        <span>F, Number - 2 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: F, Number</span><span class="buzz-preview-chip">Score: 2</span></div>
+      <div class="buzz-preview-prompt">1) Challenge 1. The wave travels along the string at 245 m/s and the target is middle C at 261.6 Hz. What vibrating length did you set? ________ m</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>0.46..0.48</p></div></div>
+    </div></div>
+  <div class="dpi-slot"><p class="dpi-slot-label">Question 2 <span>Open-pipe length for E4 at 20 &deg;C</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="2">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 2</strong>
+        <span>F, Number - 2 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: F, Number</span><span class="buzz-preview-chip">Score: 2</span></div>
+      <div class="buzz-preview-prompt">2) Challenge 4. Open pipe, 20 degree C air, target E4 at 330 Hz, 1st harmonic. What pipe length did you set? ________ m</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>0.51..0.53</p></div></div>
+    </div></div>
+  <div class="dpi-slot"><p class="dpi-slot-label">Question 3 <span>Stopped-pipe length for A3</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="3">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 3</strong>
+        <span>F, Number - 1 point</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: F, Number</span><span class="buzz-preview-chip">Score: 1</span></div>
+      <div class="buzz-preview-prompt">3) Challenge 5. Stopped pipe, 20 degree C air, target A3 at 220 Hz, 1st harmonic. What pipe length did you set? ________ m</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>0.38..0.40</p></div></div>
+    </div></div>
+  <div class="dpi-slot"><p class="dpi-slot-label">Question 4 <span>Open-pipe length for E4 at 35 &deg;C</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="4">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 4</strong>
+        <span>F, Number - 2 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: F, Number</span><span class="buzz-preview-chip">Score: 2</span></div>
+      <div class="buzz-preview-prompt">4) Challenge 7. Open pipe, same target E4 at 330 Hz, but the room has warmed to 35 degree C. What pipe length did you set? ________ m</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>0.525..0.542</p></div></div>
+    </div></div>
+  <div class="dpi-slot"><p class="dpi-slot-label">Question 5 <span>Why A4 was unreachable on that pipe</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="5">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 5</strong>
+        <span>MC - 2 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: MC</span><span class="buzz-preview-chip">Score: 2</span></div>
+      <div class="buzz-preview-prompt">5) Challenge 6 asked for A4 at 440 Hz on the same stopped pipe whose 1st harmonic is A3 at 220 Hz, and no setting worked. Which statement explains why?</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option correct"><span>A</span><p>A stopped pipe has a node at the closed end and an antinode at the open end, so only odd multiples of the fundamental exist - the next available mode after 220 Hz is 660 Hz.</p></div>
+<div class="buzz-preview-option"><span>B</span><p>The pipe was too short for a 440 Hz standing wave to fit inside it.</p></div>
+<div class="buzz-preview-option"><span>C</span><p>The harmonic slider does not reach high enough to produce 440 Hz.</p></div>
+<div class="buzz-preview-option"><span>D</span><p>A stopped pipe can produce only its fundamental frequency and no other modes.</p></div></div>
+    </div></div>
+  <div class="dpi-slot"><p class="dpi-slot-label">Question 6 <span>Three strings, one wavelength</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="6">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 6</strong>
+        <span>MC - 1 point</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: MC</span><span class="buzz-preview-chip">Score: 1</span></div>
+      <div class="buzz-preview-prompt">6) In Challenge 3 all three strings had the same length and vibrated in their 1st harmonic, so all three carried the same wavelength of 1.60 m, yet they sounded at different pitches. What explains the difference?</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option correct"><span>A</span><p>Each string carries the wave at a different speed because their masses per metre differ, and frequency is the wave speed divided by the wavelength.</p></div>
+<div class="buzz-preview-option"><span>B</span><p>Each string was actually vibrating in a different harmonic, so the wavelengths were not really equal.</p></div>
+<div class="buzz-preview-option"><span>C</span><p>The thicker strings stretch and hold a longer wavelength than the thin ones.</p></div>
+<div class="buzz-preview-option"><span>D</span><p>The pitch of a string depends only on its tension, not on the wave that travels along it.</p></div></div>
+    </div></div>
+  <div class="dpi-slot"><p class="dpi-slot-label">Question 7 <span>Boundary conditions across your builds</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="7">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 7</strong>
+        <span>E - 2 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: E</span><span class="buzz-preview-chip">Score: 2</span><span class="buzz-preview-chip">Height: 240</span></div>
+      <div class="buzz-preview-prompt">7) Compare the string in Challenge 1, the open pipe in Challenge 4, and the stopped pipe in Challenge 5. For each, state what the ends of the resonator must be, and use the lengths you recorded to explain why the stopped pipe needed a different length from the open pipe for a note of similar pitch.</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-feedback"><strong>Always</strong> Your response is graded on naming the boundary condition at each end of all three resonators and using your recorded lengths to explain the difference between the open and stopped pipe.</div>
+<div class="buzz-preview-option"><span>A</span><p>Full credit: States that a clamped string has a node at each end, an open pipe has an antinode at each end, and a stopped pipe has a node at the closed end and an antinode at the open end; connects the first two to holding a half wavelength and the stopped pipe to holding a quarter wavelength; and cites the recorded lengths to show that the stopped pipe is roughly half as long as an open pipe would be for the same frequency.</p></div>
+<p class="buzz-preview-detail">Partial credit: Names the boundary conditions correctly but does not connect them to the fraction of a wavelength held, or cites no recorded lengths.</p>
+<p class="buzz-preview-detail">No credit: Reverses nodes and antinodes, or gives no evidence from the recorded builds.</p></div>
+    </div></div>
+  <div class="dpi-slot"><p class="dpi-slot-label">Question 8 <span>What the warm room changed</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="8">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 8</strong>
+        <span>E - 3 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: E</span><span class="buzz-preview-chip">Score: 3</span><span class="buzz-preview-chip">Height: 260</span></div>
+      <div class="buzz-preview-prompt">8) Report your recorded pipe lengths for Challenge 4 and Challenge 7. The target note was the same in both, and the pipe still had two open ends. Explain what the warmer room changed, why that forced you to change the length, and in which direction.</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-feedback"><strong>Always</strong> Your response is graded on reporting both recorded lengths, identifying what the warmer air changed, and explaining why that required a longer pipe.</div>
+<div class="buzz-preview-option"><span>A</span><p>Full credit: Reports both recorded lengths and notes the second is longer; states that warmer air raises the speed of sound while the boundary conditions and the fraction of a wavelength held are unchanged; and explains that since frequency depends on wave speed divided by twice the length, a larger speed at the old length would sound sharp, so the pipe had to be lengthened to bring the frequency back down to 330 Hz.</p></div>
+<p class="buzz-preview-detail">Partial credit: Reports both lengths and identifies that warm air raises the wave speed, but does not explain why that requires a longer pipe.</p>
+<p class="buzz-preview-detail">No credit: Claims the boundary conditions changed, claims the pipe should be shortened, or cites no recorded lengths.</p></div>
+    </div></div>
+</section>
+
+<p class="rph-status" id="status" role="status" aria-live="polite"></p>
+
+<script>
+(() => {
+"use strict";
+
+const MU = 0.001;                 // string linear density, kg/m
+const NS = "http://www.w3.org/2000/svg";
+const $  = s => document.querySelector(s);
+
+const CH = [
+ {title:"Fret the string to middle C", mode:"string", target:261.63, note:"C4", tol:20,
+  init:{L:0.80,T:60,n:1,temp:20}, enable:["L"]},
+
+ {title:"Same string → C5", mode:"string", target:523.25, note:"C5", tol:30,
+  init:null, enable:["n"]},
+
+ {title:"Three strings, one wavelength", mode:"compare", tol:0,
+  init:null, enable:[]},
+
+ // Challenges 4 and 5 are locked to the fundamental. With the harmonic slider live, an
+ // n=2 pipe at 1.04 m (or an n=3 stopped pipe at 1.17 m) also clears the target, which
+ // would make the graded length ambiguous.
+ {title:"Open pipe → E4", mode:"pipe", closed:false, target:330, note:"E4", tol:15,
+  init:{L:0.90,T:60,n:1,temp:20}, enable:["L"]},
+
+ {title:"Stopped pipe → A3", mode:"pipe", closed:true, target:220, note:"A3", tol:15,
+  init:{L:0.90,T:60,n:1,temp:20}, enable:["L"]},
+
+ {title:"Same stopped pipe → A4", mode:"pipe", closed:true, target:440, note:"A4", tol:15,
+  init:null, enable:["n"], impossible:true},
+
+ {title:"Room warms to 35 °C", mode:"pipe", closed:false, target:330, note:"E4", tol:15,
+  init:{L:0.52,T:60,n:1,temp:35}, enable:["L"]}
+];
+
+const RANGE = {
+  string:{min:0.30,max:1.00,step:0.002},
+  pipe:{min:0.20,max:1.20,step:0.01},
+  compare:{min:0.30,max:1.00,step:0.01}
+};
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const P = {L:0.80, T:60, n:1, temp:20};
+let idx = 0, preIdx = 0, phase = "tune", raf = null;
+let builds = {};
+
+const el = {
+  title:$("#chTitle"), progress:$("#progress"), note:$("#note"), status:$("#status"),
+  card:$("#card"), prompt:$("#prompt"), choices:$("#choices"), feedback:$("#feedback"),
+  next:$("#nextBtn"), nofit:$("#nofitBtn"),
+  sL:$("#sL"), sT:$("#sT"), sN:$("#sN"), oL:$("#oL"), oT:$("#oT"), oN:$("#oN"),
+  ctlL:$("#ctlL"), ctlT:$("#ctlT"), ctlN:$("#ctlN"), rail:$(".dpi-rail"),
+  gString:$("#sceneString"), gPipe:$("#scenePipe"), gTrio:$("#sceneTrio"),
+  tuner:$("#tuner"), trioPlay:$("#trioPlay"), cont:$("#contBtn")
+};
+
+/* ---------------- three-string comparison ---------------- */
+
+const TRIO_L = 0.80;                       // every string the same length
+const TRIO = [                             // mu in g/m, T in N
+  {label:"String 1", mu:0.5, T:80, w:2.2},
+  {label:"String 2", mu:1.0, T:80, w:3.4},
+  {label:"String 3", mu:2.0, T:80, w:4.8}
+];
+const TRIO_Y = [88, 178, 268];
+const TRIO_X0 = 268, TRIO_W = 466;
+const trioV = s => Math.sqrt(s.T / (s.mu / 1000));
+const trioF = s => trioV(s) / (2 * TRIO_L);
+let trioWaves = [], trioBuilt = false, trioHeard = new Set();
+
+function svgEl(tag, attrs){
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+function buildTrio(){
+  const g = el.gTrio;
+  g.innerHTML = "";
+  trioWaves = [];
+
+  const cap = svgEl("text", {x:450, y:28, class:"dpi-chip", "text-anchor":"middle"});
+  cap.textContent = "0.80 m  ·  n 1  ·  λ 1.60 m  —  the same on all three";
+  g.appendChild(cap);
+
+  TRIO.forEach((s, i) => {
+    const y = TRIO_Y[i], x1 = TRIO_X0 + TRIO_W, v = trioV(s), f = trioF(s);
+
+    g.appendChild(svgEl("line", {x1:TRIO_X0, y1:y, x2:x1, y2:y, stroke:"#9aa6b4", "stroke-width":s.w}));
+    // fixed ends
+    [TRIO_X0, x1].forEach(x => {
+      g.appendChild(svgEl("rect", {x:x-5, y:y-18, width:10, height:36, rx:3, fill:"#2f3a48"}));
+      g.appendChild(circle(x, y, 4.5, "dpi-node"));
+      g.appendChild(label(x, y + 30, "N"));
+    });
+    g.appendChild(circle((TRIO_X0 + x1)/2, y - 30, 6, "dpi-anti"));
+    g.appendChild(label((TRIO_X0 + x1)/2, y - 44, "A"));
+
+    // the identical envelope: one half-wavelength, same on all three
+    const env = (k) => {
+      let d = "";
+      for (let t = 0; t <= 64; t++){
+        const xn = t/64;
+        d += (t ? "L" : "M") + (TRIO_X0 + TRIO_W*xn).toFixed(1) + " " +
+             (y - 30 * Math.sin(Math.PI*xn) * k).toFixed(1);
+      }
+      return d;
+    };
+    g.appendChild(svgEl("path", {d:env(1),  class:"dpi-env"}));
+    g.appendChild(svgEl("path", {d:env(-1), class:"dpi-env"}));
+    const wave = svgEl("path", {class:"dpi-wave", style:"stroke-width:" + (s.w + 1) + "px"});
+    g.appendChild(wave);
+    trioWaves.push({wave, env, f});
+
+    const name = svgEl("text", {x:20, y:y - 12, class:"dpi-eq"});
+    name.textContent = s.label;
+    const props = svgEl("text", {x:20, y:y + 8, class:"dpi-eq2"});
+    props.textContent = s.mu.toFixed(1) + " g/m  ·  " + s.T + " N";
+    // thickness of the swatch stands in for the mass per metre
+    const swatch = svgEl("rect", {x:20, y:y + 18, width:120, height:s.w * 2.6, rx:2, fill:"#9aa6b4"});
+    [name, props, swatch].forEach(t => g.appendChild(t));
+
+    const hz = svgEl("text", {x:880, y:y + 6, class:"dpi-big", "text-anchor":"end"});
+    hz.textContent = f.toFixed(1) + " Hz";
+    g.appendChild(hz);
+  });
+  trioBuilt = true;
+}
+
+/* ---------------- audio ---------------- */
+
+let actx = null;
+function tone(freq, ms){
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return false;
+    actx = actx || new AC();
+    if (actx.state === "suspended") actx.resume();
+    const t = actx.currentTime, dur = ms/1000;
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = "triangle";
+    o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(actx.destination);
+    o.start(t); o.stop(t + dur + 0.05);
+    return true;
+  } catch (e){ return false; }
+}
+
+/* ---------------- physics ---------------- */
+
+const soundSpeed = () => 331 + 0.6 * P.temp;
+const waveSpeed  = () => Math.sqrt(P.T / MU);   // on the string
+
+function frequency(){
+  const ch = CH[idx];
+  if (ch.mode === "compare") return null;
+  if (ch.mode === "string") return P.n / (2*P.L) * waveSpeed();
+  const v = soundSpeed();
+  if (ch.closed) return (P.n % 2 === 0) ? null : P.n * v / (4*P.L);
+  return P.n * v / (2*P.L);
+}
+
+const centsOff = f => (f == null ? null : 1200 * Math.log2(f / CH[idx].target));
+
+// normalized displacement, xn in 0..1
+function shape(xn){
+  const ch = CH[idx], n = P.n;
+  if (ch.mode === "string") return Math.sin(n * Math.PI * xn);
+  if (ch.closed)            return Math.cos(n * Math.PI * xn / 2);
+  return Math.cos(n * Math.PI * xn);
+}
+
+function marks(){
+  const ch = CH[idx], n = P.n, nodes = [], anti = [];
+  if (ch.mode === "string"){
+    for (let k = 0; k <= n; k++) nodes.push(k/n);
+    for (let k = 1; k <= n; k++) anti.push((2*k-1)/(2*n));
+  } else if (ch.closed){
+    for (let k = 0; (2*k+1)/n <= 1.0001; k++) nodes.push((2*k+1)/n);
+    for (let k = 0; (2*k)/n   <= 1.0001; k++) anti.push((2*k)/n);
+  } else {
+    for (let k = 1; k <= n; k++) nodes.push((2*k-1)/(2*n));
+    for (let k = 0; k <= n; k++) anti.push(k/n);
+  }
+  return {nodes, anti};
+}
+
+const fits = () => !(CH[idx].mode === "pipe" && CH[idx].closed && P.n % 2 === 0);
+
+/* ---------------- scene drawing ---------------- */
+
+const BRIDGE = 822, YC = 132, AMP = 30, PIPE_X = 140;
+const stringGeom = () => { const span = 640 * P.L; return {x0: BRIDGE - span, span}; };
+const pipeGeom   = () => { const len = 700 * (P.L / 1.20); return {x0: PIPE_X, len}; };
+
+function curve(x0, w, amp, k){
+  let d = "";
+  for (let s = 0; s <= 96; s++){
+    const xn = s/96, x = x0 + w*xn, y = YC - amp * shape(xn) * k;
+    d += (s ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
+  }
+  return d;
+}
+
+function circle(cx, cy, r, cls){
+  const c = document.createElementNS(NS, "circle");
+  c.setAttribute("cx", cx); c.setAttribute("cy", cy); c.setAttribute("r", r);
+  c.setAttribute("class", cls);
+  return c;
+}
+function label(x, y, txt){
+  const t = document.createElementNS(NS, "text");
+  t.setAttribute("x", x); t.setAttribute("y", y);
+  t.setAttribute("class", "dpi-lbl"); t.setAttribute("text-anchor", "middle");
+  t.textContent = txt;
+  return t;
+}
+
+function drawMarks(host, x0, w, amp){
+  host.innerHTML = "";
+  const m = marks();
+  m.nodes.forEach(xn => {
+    const x = x0 + w*xn;
+    host.appendChild(circle(x, YC, 4.5, "dpi-node"));
+    host.appendChild(label(x, YC + 24, "N"));
+  });
+  m.anti.forEach(xn => {
+    const x = x0 + w*xn, y = YC - amp * Math.sign(shape(xn) || 1) * 1;
+    host.appendChild(circle(x, y, 6, "dpi-anti"));
+    host.appendChild(label(x, y + (y < YC ? -12 : 22), "A"));
+  });
+}
+
+function buildParticles(count){
+  const host = $("#pParticles");
+  host.innerHTML = "";
+  const rows = [YC-24, YC-8, YC+8, YC+24];
+  const pool = [];
+  rows.forEach(y => {
+    for (let k = 0; k < count; k++){
+      const c = circle(0, y, 2.6, "");
+      c.setAttribute("fill", "#4a6a92");
+      c.setAttribute("opacity", ".8");
+      host.appendChild(c);
+      pool.push({el:c, k:k});
+    }
+  });
+  return pool;
+}
+
+let particlePool = [], particleCount = 0;
+
+// the standing-wave pattern stays hidden while the student predicts it
+const REVEALS = ["#sEnvA","#sEnvB","#sWave","#sMarks","#sDim",
+                 "#pEnvA","#pEnvB","#pWave","#pMarks","#pParticles"];
+function setRevealed(on){
+  REVEALS.forEach(s => $(s).classList.toggle("rph-hidden", !on));
+}
+
+function drawStringDim(g){
+  // one loop is half a wavelength; show a full λ once two loops exist
+  const loop = g.span / P.n, full = P.n >= 2;
+  const w = full ? loop * 2 : loop;
+  const x0 = g.x0, x1 = x0 + w;
+  const lam = 2 * P.L / P.n;
+  $("#sDimBg").setAttribute("x", x0 - 6);
+  $("#sDimBg").setAttribute("width", w + 12);
+  $("#sDimBar").setAttribute("x1", x0); $("#sDimBar").setAttribute("x2", x1);
+  $("#sDimT1").setAttribute("x1", x0);  $("#sDimT1").setAttribute("x2", x0);
+  $("#sDimT2").setAttribute("x1", x1);  $("#sDimT2").setAttribute("x2", x1);
+  $("#sDimTxt").setAttribute("x", (x0 + x1) / 2);
+  $("#sDimTxt").textContent = (full ? "λ = " + lam.toFixed(2) : "λ/2 = " + (lam/2).toFixed(2)) + " m";
+}
+
+function layout(){
+  const ch = CH[idx], isString = ch.mode === "string", isTrio = ch.mode === "compare";
+  el.gString.classList.toggle("rph-hidden", !isString);
+  el.gPipe.classList.toggle("rph-hidden", isString || isTrio);
+  el.gTrio.classList.toggle("rph-hidden", !isTrio);
+  el.tuner.classList.toggle("rph-hidden", isTrio);
+
+  if (isTrio){
+    if (!trioBuilt) buildTrio();
+    renderViz();
+    return;
+  }
+
+  if (isString){
+    const g = stringGeom();
+    $("#sCapo").setAttribute("transform", "translate(" + (g.x0 - 6) + ",0)");
+    const deg = (P.T - 20) / 180 * 300;
+    $("#pegSpin").setAttribute("transform", "rotate(" + deg.toFixed(1) + " 44 132)");
+    $("#sInfo").textContent = P.L.toFixed(3) + " m   ·   " + P.T + " N   ·   " +
+                              (MU*1000).toFixed(1) + " g/m   ·   n " + P.n;
+    drawMarks($("#sMarks"), g.x0, g.span, AMP);
+    drawStringDim(g);
+    $("#sEnvA").setAttribute("d", curve(g.x0, g.span, AMP,  1));
+    $("#sEnvB").setAttribute("d", curve(g.x0, g.span, AMP, -1));
+  } else {
+    const g = pipeGeom(), x1 = g.x0 + g.len;
+    $("#pipeBody").setAttribute("width", g.len);
+    $("#pipeBore").setAttribute("width", Math.max(g.len - 12, 4));
+    $("#pipeCap").setAttribute("x", x1 - 2);
+    $("#pipeCap").classList.toggle("rph-hidden", !ch.closed);
+    $("#pInfo").textContent = P.L.toFixed(2) + " m   ·   n " + P.n;
+    $("#pTemp").textContent = P.temp + " °C   ·   " + Math.round(soundSpeed()) + " m/s";
+
+    const bad = !fits() && !predicting();
+    $("#capBad").classList.toggle("rph-hidden", !bad);
+    if (bad){
+      $("#badA").setAttribute("x1", x1-14); $("#badA").setAttribute("y1", YC-22);
+      $("#badA").setAttribute("x2", x1+14); $("#badA").setAttribute("y2", YC+22);
+      $("#badB").setAttribute("x1", x1+14); $("#badB").setAttribute("y1", YC-22);
+      $("#badB").setAttribute("x2", x1-14); $("#badB").setAttribute("y2", YC+22);
+    }
+    drawMarks($("#pMarks"), g.x0, g.len, AMP);
+    $("#pEnvA").setAttribute("d", curve(g.x0, g.len, AMP,  1));
+    $("#pEnvB").setAttribute("d", curve(g.x0, g.len, AMP, -1));
+
+    const want = Math.max(6, Math.min(44, Math.floor((g.len - 16) / 13)));
+    if (want !== particleCount){ particleCount = want; particlePool = buildParticles(want); }
+  }
+  renderViz();
+}
+
+function animate(now){
+  const ch = CH[idx];
+  const k = REDUCED ? 1 : Math.cos(now / 1000 * 2 * Math.PI * 1.25);
+
+  if (ch.mode === "compare"){
+    // identical shape on all three; only the rate differs, scaled 100:1 to stay visible
+    trioWaves.forEach(t => {
+      const kk = REDUCED ? 1 : Math.cos(now / 1000 * 2 * Math.PI * (t.f / 100));
+      t.wave.setAttribute("d", t.env(kk));
+    });
+  } else if (ch.mode === "string"){
+    const g = stringGeom();
+    $("#sWave").setAttribute("d", curve(g.x0, g.span, AMP, k));
+  } else {
+    const g = pipeGeom(), step = (g.len - 16) / Math.max(particleCount - 1, 1);
+    $("#pWave").setAttribute("d", curve(g.x0, g.len, AMP, k));
+    particlePool.forEach(p => {
+      const x = g.x0 + 8 + p.k * step, xn = (x - g.x0) / g.len;
+      p.el.setAttribute("cx", (x + 15 * shape(xn) * k).toFixed(1));
+    });
+  }
+  raf = requestAnimationFrame(animate);
+}
+
+/* ---------------- foot diagram ----------------
+   Row 1 is one full wavelength. Row 2 is the resonator, drawn to the same
+   scale, so the fraction that fits is something you read off the picture. */
+
+const VZ = {x0:150, max:620, yRef:50, yIns:148, yBrkRef:88, yBrkIns:186, yV:216, amp:24};
+
+function vzTxt(g, x, y, cls, txt, anchor){
+  const t = svgEl("text", {x:x, y:y, class:cls});
+  if (anchor) t.setAttribute("text-anchor", anchor);
+  t.textContent = txt;
+  g.appendChild(t);
+  return t;
+}
+
+function vzCurve(x0, w, y, amp, fn){
+  let d = "";
+  for (let s = 0; s <= 96; s++){
+    const t = s/96;
+    d += (s ? "L" : "M") + (x0 + w*t).toFixed(1) + " " + (y - amp*fn(t)).toFixed(1);
+  }
+  return d;
+}
+
+function vzBracket(g, x1, x2, y, txt, cls, tcls){
+  g.appendChild(svgEl("line", {x1:x1, y1:y, x2:x2, y2:y, class:cls}));
+  g.appendChild(svgEl("line", {x1:x1, y1:y-7, x2:x1, y2:y+7, class:cls}));
+  g.appendChild(svgEl("line", {x1:x2, y1:y-7, x2:x2, y2:y+7, class:cls}));
+  vzTxt(g, (x1+x2)/2, y-9, tcls, txt, "middle");
+}
+
+// a fixed end (node) vs a free end (antinode), drawn not named
+function vzEnd(g, x, y, isNode){
+  if (isNode){
+    g.appendChild(svgEl("rect", {x:x-4, y:y-24, width:8, height:48, rx:2, class:"vz-hw"}));
+    g.appendChild(circle(x, y, 5.5, "dpi-node"));
+  } else {
+    g.appendChild(circle(x, y, 8, "dpi-anti"));
+    g.appendChild(svgEl("line", {x1:x, y1:y-26, x2:x, y2:y+26, stroke:"#c2410c", "stroke-width":2}));
+    g.appendChild(svgEl("path", {d:"M"+x+" "+(y-32)+"l-6 9h12z", fill:"#c2410c"}));
+    g.appendChild(svgEl("path", {d:"M"+x+" "+(y+32)+"l-6 -9h12z", fill:"#c2410c"}));
+  }
+}
+
+function vzArrow(g, x0, y, len, txt){
+  const x1 = x0 + Math.max(len, 8);
+  g.appendChild(svgEl("line", {x1:x0, y1:y, x2:x1-8, y2:y, class:"vz-arrow"}));
+  g.appendChild(svgEl("path", {d:"M"+(x1+8)+" "+y+"l-16 -10v20z", class:"vz-head"}));
+  if (txt) vzTxt(g, x1 + 18, y + 6, "vz-num", txt);
+}
+
+const FRAC = {0:"", 0.25:"¼", 0.5:"½", 0.75:"¾"};
+function fracGlyph(f){
+  const whole = Math.floor(f + 1e-9), rem = Math.round((f - whole) * 4) / 4;
+  return (whole ? whole : "") + (FRAC[rem] || "") || "0";
+}
+
+// while predicting: the bare resonator with the answers left as question marks
+function vizAsk(g){
+  const ch = CH[idx], x0 = VZ.x0, x1 = x0 + VZ.max, y = VZ.yIns;
+  if (ch.mode === "string"){
+    g.appendChild(svgEl("line", {x1:x0, y1:y, x2:x1, y2:y, stroke:"#9aa6b4", "stroke-width":3}));
+    [x0, x1].forEach(x => g.appendChild(svgEl("rect", {x:x-5, y:y-24, width:10, height:48, rx:2, class:"vz-hw"})));
+  } else {
+    [-26, 26].forEach(dy =>
+      g.appendChild(svgEl("line", {x1:x0, y1:y+dy, x2:x1, y2:y+dy, stroke:"#8d9db1", "stroke-width":4})));
+    if (ch.closed) g.appendChild(svgEl("rect", {x:x1-4, y:y-30, width:10, height:60, rx:2, class:"vz-hw"}));
+  }
+  vzTxt(g, x0, y - 48, "vz-q", "?", "middle");
+  vzTxt(g, x1, y - 48, "vz-q", "?", "middle");
+  vzBracket(g, x0, x1, VZ.yBrkIns, "?", "vz-brko", "vz-q");
+}
+
+function vizFit(g){
+  const ch = CH[idx], n = P.n;
+  const frac = (ch.mode === "string" || !ch.closed) ? n/2 : n/4;   // lengths per wavelength
+  const W  = VZ.max / Math.max(1, frac);      // pixels for one whole wavelength
+  const IW = W * frac;                        // pixels for the resonator
+  const x0 = VZ.x0;
+  const lam = (ch.mode === "pipe" && ch.closed) ? 4*P.L/n : 2*P.L/n;
+  const v = ch.mode === "string" ? waveSpeed() : soundSpeed();
+
+  // the shared span, shaded across both rows
+  g.appendChild(svgEl("rect", {x:x0, y:18, width:Math.min(W, IW), height:178, class:"vz-band"}));
+
+  // row 1 — one full wavelength
+  g.appendChild(svgEl("path", {class:"vz-ref", d:vzCurve(x0, W, VZ.yRef, VZ.amp, t => Math.sin(2*Math.PI*t))}));
+  vzBracket(g, x0, x0 + W, VZ.yBrkRef, "λ  " + lam.toFixed(2) + " m", "vz-brk", "vz-num");
+
+  // row 2 — the resonator, same scale
+  g.appendChild(svgEl("path", {class:"vz-ins", d:vzCurve(x0, IW, VZ.yIns, VZ.amp, shape)}));
+  g.appendChild(svgEl("path", {class:"vz-ins", style:"opacity:.28",
+                               d:vzCurve(x0, IW, VZ.yIns, VZ.amp, t => -shape(t))}));
+  vzEnd(g, x0,      VZ.yIns, Math.abs(shape(0)) < 0.02);
+  vzEnd(g, x0 + IW, VZ.yIns, Math.abs(shape(1)) < 0.02);
+  vzBracket(g, x0, x0 + IW, VZ.yBrkIns, "L  " + P.L.toFixed(2) + " m", "vz-brko", "vz-numo");
+
+  // a mode that violates its own boundary lands the wrong end on the cap
+  if (!fits()){
+    const xe = x0 + IW, ye = VZ.yIns;
+    g.appendChild(svgEl("line", {x1:xe-17, y1:ye-17, x2:xe+17, y2:ye+17, class:"dpi-bad"}));
+    g.appendChild(svgEl("line", {x1:xe+17, y1:ye-17, x2:xe-17, y2:ye+17, class:"dpi-bad"}));
+  }
+
+  // how many wavelengths that came to
+  vzTxt(g, 78, 130, "vz-frac", fracGlyph(frac) + "λ", "middle");
+
+  // wave speed as a length, not a formula
+  vzTxt(g, 128, VZ.yV + 6, "vz-sym", "v", "end");
+  vzArrow(g, x0, VZ.yV, VZ.max * Math.min(1, v/500), Math.round(v) + " m/s");
+}
+
+function vizTrio(g){
+  const ys = [58, 128, 198], vmax = 400;
+  vzTxt(g, 170, 26, "vz-sym", "λ", "middle");
+  vzTxt(g, 500, 26, "vz-sym", "v", "middle");
+  vzTxt(g, 840, 26, "vz-sym", "f", "middle");
+  TRIO.forEach((s, i) => {
+    const y = ys[i], v = trioV(s), f = trioF(s);
+    // identical wavelength on every row
+    g.appendChild(svgEl("path", {class:"vz-ins", style:"stroke-width:" + (s.w + 1) + "px",
+                                 d:vzCurve(40, 260, y, 22, t => Math.sin(2*Math.PI*t))}));
+    vzBracket(g, 40, 300, y + 34, "1.60 m", "vz-brk", "vz-num");
+    vzArrow(g, 360, y, 280 * (v/vmax), Math.round(v) + " m/s");
+    vzTxt(g, 880, y + 8, "vz-big", f.toFixed(1) + " Hz", "end");
+  });
+}
+
+function renderViz(){
+  const g = $("#vizBody");
+  g.innerHTML = "";
+  if (CH[idx].mode === "compare") vizTrio(g);
+  else if (predicting()) vizAsk(g);
+  else vizFit(g);
+}
+
+/* ---------------- tuner ---------------- */
+
+const PIV = {x:450, y:120};
+const pt = (deg, r) => {
+  const a = deg * Math.PI / 180;
+  return [PIV.x + r * Math.sin(a), PIV.y - r * Math.cos(a)];
+};
+const arc = (a1, a2, r) => {
+  const p1 = pt(a1, r), p2 = pt(a2, r);
+  return "M" + p1[0].toFixed(1) + " " + p1[1].toFixed(1) +
+         "A" + r + " " + r + " 0 0 1 " + p2[0].toFixed(1) + " " + p2[1].toFixed(1);
+};
+
+function buildTuner(){
+  $("#tArc").setAttribute("d", arc(-70, 70, 92));
+  const host = $("#tTicks");
+  host.innerHTML = "";
+  for (let c = -50; c <= 50; c += 10){
+    const deg = c / 50 * 70, maj = (c % 50 === 0);
+    const p1 = pt(deg, maj ? 74 : 80), p2 = pt(deg, 100);
+    const l = document.createElementNS(NS, "line");
+    l.setAttribute("x1", p1[0].toFixed(1)); l.setAttribute("y1", p1[1].toFixed(1));
+    l.setAttribute("x2", p2[0].toFixed(1)); l.setAttribute("y2", p2[1].toFixed(1));
+    l.setAttribute("class", maj ? "dpi-tickmaj" : "dpi-tick");
+    host.appendChild(l);
+  }
+}
+
+function renderTuner(){
+  const ch = CH[idx];
+  if (ch.mode === "compare") return;
+  const f = frequency(), c = centsOff(f);
+  const zone = ch.tol / 50 * 70;
+  $("#tZone").setAttribute("d", arc(-zone, zone, 92));
+  $("#tTarget").textContent = ch.note;
+  $("#tTargetHz").textContent = ch.target.toFixed(1) + " Hz target";
+
+  const needle = $("#tNeedle");
+  if (f == null){
+    $("#tNow").textContent = "—";
+    $("#tCents").textContent = "no resonance";
+    needle.classList.remove("ok");
+    needle.setAttribute("x1", PIV.x); needle.setAttribute("y1", PIV.y);
+    needle.setAttribute("x2", PIV.x); needle.setAttribute("y2", PIV.y);
+    return;
+  }
+  const clamped = Math.max(-50, Math.min(50, c));
+  const tip = pt(clamped / 50 * 70, 86);
+  needle.setAttribute("x1", PIV.x); needle.setAttribute("y1", PIV.y);
+  needle.setAttribute("x2", tip[0].toFixed(1)); needle.setAttribute("y2", tip[1].toFixed(1));
+  needle.classList.toggle("ok", Math.abs(c) <= ch.tol);
+  $("#tNow").textContent = f.toFixed(1) + " Hz";
+  $("#tCents").textContent = (c >= 0 ? "+" : "−") + Math.abs(Math.round(c)) + " ¢";
+}
+
+/* ---------------- controls ---------------- */
+
+const predicting = () => false;
+
+function syncControls(){
+  const ch = CH[idx], on = ch.enable, locked = phase !== "tune";
+  const r = RANGE[ch.mode];
+  el.sL.min = r.min; el.sL.max = r.max; el.sL.step = r.step;
+  el.sL.value = P.L; el.sT.value = P.T; el.sN.value = P.n;
+  el.oL.textContent = (ch.mode === "string" ? P.L.toFixed(3) : P.L.toFixed(2)) + " m";
+  el.oT.textContent = P.T + " N";
+  el.oN.textContent = P.n;
+
+  const allowed = on.map(s => s.toLowerCase());
+  [["L",el.ctlL,el.sL],["T",el.ctlT,el.sT],["N",el.ctlN,el.sN]].forEach(([key, box, input]) => {
+    const live = allowed.includes(key.toLowerCase()) && !locked;
+    input.disabled = !live;
+    box.classList.toggle("off", !live);
+  });
+  el.ctlT.classList.toggle("rph-hidden", ch.mode !== "string");
+  el.rail.classList.toggle("rph-hidden", ch.mode === "compare");
+  el.nofit.classList.toggle("rph-hidden", !(ch.mode === "pipe" && phase === "tune"));
+  el.trioPlay.classList.toggle("rph-hidden", !(ch.mode === "compare" && phase === "tune"));
+  capo.classList.toggle("off", !capoLive());
+}
+
+function check(){
+  if (phase !== "tune" || CH[idx].mode === "compare") return;
+  const ch = CH[idx], f = frequency(), c = centsOff(f);
+  if (!ch.impossible && f != null && Math.abs(c) <= ch.tol) lockIn("Matched.");
+}
+
+function lockIn(msg){
+  phase = "built";
+  const ch = CH[idx];
+  recordBuild();
+  el.note.textContent = msg;
+  el.note.className = "dpi-note ok";
+  el.status.textContent = msg;
+  syncControls();
+  el.card.classList.remove("rph-hidden");
+  el.prompt.textContent = ch.title + " — build recorded.";
+  el.choices.innerHTML = "";
+  el.feedback.classList.add("rph-hidden");
+  el.next.textContent = idx === CH.length - 1 ? "Finish" : "Next challenge";
+  el.next.classList.remove("rph-hidden");
+}
+
+// The student's own successful build for this challenge.
+function recordBuild(){
+  const ch = CH[idx];
+  const f = frequency();
+  builds[idx] = {
+    title: ch.title,
+    mode: ch.mode === "pipe" ? (ch.closed ? "Stopped pipe" : "Open pipe") : (ch.mode === "string" ? "String" : "Compare"),
+    note: ch.note || "—",
+    L: ch.mode === "compare" ? null : P.L,
+    T: ch.mode === "string" ? P.T : null,
+    n: ch.mode === "compare" ? null : P.n,
+    temp: P.temp,
+    f: ch.impossible ? null : f,
+    impossible: !!ch.impossible
+  };
+  renderEvidencePanel();
+}
+
+// a choice drawn to scale: the whole wavelength dashed, the half the string holds solid
+function askPre(){
+  startTune();
+}
+
+function startTune(){
+  phase = "tune";
+  const ch = CH[idx];
+  el.card.classList.add("rph-hidden");
+  if (ch.mode === "compare"){
+    trioHeard = new Set();
+    el.cont.disabled = true;
+    el.trioPlay.querySelectorAll("button[data-i]").forEach(b => b.classList.remove("done"));
+    el.note.textContent = "Play all three strings and listen to the pitches, then continue.";
+  } else {
+    const names = {L:"length", T:"tension", N:"harmonic"};
+    const which = ch.enable.map(k => names[k.toUpperCase()]).join(" and ");
+    const grab = (ch.mode === "string" && ch.enable.includes("L"))
+      ? " Slide the capo along the neck, or use the length slider."
+      : "";
+    el.note.textContent = "Now build it — adjust " + which + " until the tuner reads " + ch.note +
+                          (ch.enable.includes("n") ? "." : " on the 1st harmonic.") + grab;
+  }
+  el.note.className = "dpi-note";
+  el.status.textContent = el.note.textContent;
+  setRevealed(true);
+  syncControls();
+  layout();
+  renderTuner();
+}
+
+function load(i2){
+  idx = i2;
+  preIdx = 0;
+  phase = "pre";
+  const ch = CH[idx];
+  if (ch.init) Object.assign(P, ch.init);
+  const r = RANGE[ch.mode];
+  P.L = Math.max(r.min, Math.min(r.max, P.L));
+  if (!ch.enable.includes("n") && !ch.init) P.n = 1;
+
+  el.title.textContent = ch.title;
+  el.progress.textContent = (idx + 1) + " / " + CH.length;
+  el.note.textContent = "";
+  el.note.className = "dpi-note";
+  particleCount = 0;
+  setRevealed(false);
+  syncControls();
+  layout();
+  renderTuner();
+  askPre();
+}
+
+function finish(){
+  phase = "done";
+  el.card.classList.remove("rph-hidden");
+  el.prompt.textContent = "All seven builds recorded. Download your evidence image, then answer the Buzz questions below.";
+  el.choices.innerHTML = "";
+  el.feedback.classList.add("rph-hidden");
+  el.next.classList.add("rph-hidden");
+  el.status.textContent = "All builds recorded.";
+  renderEvidencePanel();
+}
+
+/* ---------------- wiring ---------------- */
+
+function onInput(){
+  P.L = parseFloat(el.sL.value);
+  P.T = parseInt(el.sT.value, 10);
+  P.n = parseInt(el.sN.value, 10);
+  el.note.textContent = "";
+  el.note.className = "dpi-note";
+  syncControls();
+  layout();
+  renderTuner();
+  check();
+}
+
+[el.sL, el.sT, el.sN].forEach(s => s.addEventListener("input", onInput));
+
+/* ---------------- drag the capo ---------------- */
+
+const svgRoot = $(".rph-scene svg");
+const capo = $("#sCapo");
+let dragging = false, grabDx = 0;
+
+const svgX = clientX => {
+  const r = svgRoot.getBoundingClientRect();
+  return (clientX - r.left) * (900 / r.width);
+};
+const capoLive = () =>
+  CH[idx].mode === "string" && phase === "tune" && CH[idx].enable.includes("L");
+
+function moveCapo(clientX){
+  if (!capoLive()) return;
+  const r = RANGE.string;
+  let L = (BRIDGE - (svgX(clientX) - grabDx)) / 640;
+  L = Math.max(r.min, Math.min(r.max, L));
+  L = Math.round((r.min + Math.round((L - r.min) / r.step) * r.step) * 1000) / 1000;
+  if (L === P.L) return;
+  P.L = L;
+  el.sL.value = L;
+  el.note.textContent = "";
+  el.note.className = "dpi-note";
+  syncControls();
+  layout();
+  renderTuner();
+  check();
+}
+
+function endDrag(e){
+  if (!dragging) return;
+  dragging = false;
+  capo.classList.remove("drag");
+  try { capo.releasePointerCapture(e.pointerId); } catch (err) {}
+}
+
+capo.addEventListener("pointerdown", e => {
+  if (!capoLive()) return;
+  e.preventDefault();
+  dragging = true;
+  capo.classList.add("drag");
+  grabDx = svgX(e.clientX) - (BRIDGE - 640 * P.L);   // grab anywhere in the box, no jump
+  try { capo.setPointerCapture(e.pointerId); } catch (err) {}
+});
+capo.addEventListener("pointermove", e => { if (dragging) moveCapo(e.clientX); });
+capo.addEventListener("pointerup", endDrag);
+capo.addEventListener("pointercancel", endDrag);
+
+el.nofit.onclick = () => {
+  if (phase !== "tune") return;
+  if (CH[idx].impossible){
+    lockIn("Recorded: no mode fits.");
+  } else {
+    el.note.textContent = "Not recorded — a mode does fit. Keep adjusting.";
+    el.note.className = "dpi-note no";
+    el.status.textContent = "A mode does fit.";
+  }
+};
+
+el.next.onclick = () => {
+  if (idx === CH.length - 1) finish();
+  else load(idx + 1);
+};
+
+el.trioPlay.querySelectorAll("button[data-i]").forEach(b => {
+  b.onclick = () => {
+    const i2 = parseInt(b.dataset.i, 10), s = TRIO[i2], f = trioF(s);
+    tone(f, 1400);
+    b.classList.add("done");
+    trioHeard.add(i2);
+    el.status.textContent = s.label + " sounds at " + f.toFixed(1) + " hertz.";
+    if (trioHeard.size === TRIO.length) el.cont.disabled = false;
+  };
+});
+
+el.cont.onclick = () => {
+  if (phase === "tune" && CH[idx].mode === "compare")
+    lockIn("Same wavelength on all three — but three different pitches.");
+};
+
+$("#resetBtn").onclick = () => {
+  builds = {};
+  renderEvidencePanel();
+  $("#evidenceStatus").textContent = "";
+  load(0);
+};
+
+/* ---------------- evidence export ---------------- */
+function evidenceReady(){
+  for (let i = 0; i < CH.length; i++) if (!builds[i]) return false;
+  return true;
+}
+
+function buildRow(i){
+  const b = builds[i];
+  if (!b) return null;
+  const num = v => v == null ? "—" : v;
+  return [
+    String(i + 1),
+    b.mode,
+    b.note,
+    b.L == null ? "—" : b.L.toFixed(3),
+    b.T == null ? "—" : String(b.T),
+    b.n == null ? "—" : String(b.n),
+    String(b.temp),
+    b.impossible ? "no mode fits" : (b.f == null ? "—" : b.f.toFixed(1))
+  ].map(num);
+}
+
+function renderEvidencePanel(){
+  const body = $("#evidenceBody");
+  let recorded = 0;
+  for (let i = 0; i < CH.length; i++) if (builds[i]) recorded++;
+  if (!recorded){
+    body.innerHTML = '<tr class="dpi-empty-row"><td colspan="8">No builds recorded yet.</td></tr>';
+  } else {
+    let html = "";
+    for (let i = 0; i < CH.length; i++){
+      const row = buildRow(i);
+      html += row
+        ? "<tr>" + row.map((cell, j) => j === 0 ? '<th scope="row">' + cell + "</th>" : "<td>" + cell + "</td>").join("") + "</tr>"
+        : '<tr><th scope="row">' + (i + 1) + "</th><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>";
+    }
+    body.innerHTML = html;
+  }
+  const ready = evidenceReady();
+  $("#downloadEvidence").disabled = !ready;
+  $("#evidenceMessage").textContent = ready
+    ? "All seven builds are recorded. You may download an evidence image for your records."
+    : "Clear all seven challenges. " + recorded + " of " + CH.length + " recorded so far.";
+}
+
+function downloadBlob(blob, filename){
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function drawEvidenceTable(ctx, x, y, widths, headers, rows, title){
+  const rowHeight = 44;
+  const totalWidth = widths.reduce((sum, v) => sum + v, 0);
+  ctx.fillStyle = "#152238";
+  ctx.font = "800 24px system-ui";
+  ctx.textAlign = "left";
+  ctx.fillText(title, x, y - 13);
+  ctx.fillStyle = "#e7ecf6";
+  ctx.fillRect(x, y, totalWidth, rowHeight);
+  let cursor = x;
+  headers.forEach((header, i) => {
+    ctx.strokeStyle = "#a4b0c8";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(cursor, y, widths[i], rowHeight);
+    ctx.fillStyle = "#2f3f5e";
+    ctx.font = "800 14px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText(header, cursor + widths[i] / 2, y + 28);
+    cursor += widths[i];
+  });
+  rows.forEach((row, rowIndex) => {
+    cursor = x;
+    const rowY = y + rowHeight * (rowIndex + 1);
+    ctx.fillStyle = rowIndex % 2 ? "#f6f8fc" : "#ffffff";
+    ctx.fillRect(x, rowY, totalWidth, rowHeight);
+    row.forEach((value, i) => {
+      ctx.strokeStyle = "#c3cbdd";
+      ctx.strokeRect(cursor, rowY, widths[i], rowHeight);
+      ctx.fillStyle = "#152238";
+      ctx.font = i === 0 ? "800 15px system-ui" : "600 15px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText(String(value === "" || value == null ? "—" : value), cursor + widths[i] / 2, rowY + 28);
+      cursor += widths[i];
+    });
+  });
+  return y + rowHeight * (rows.length + 1);
+}
+
+function downloadEvidenceImage(){
+  if (!evidenceReady()){
+    $("#evidenceStatus").textContent = "Clear all seven challenges before downloading the evidence image.";
+    return;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = 1400;
+  canvas.height = 300 + CH.length * 44;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#f6f8fc";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#152238";
+  ctx.fillRect(0, 0, canvas.width, 86);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "900 30px system-ui";
+  ctx.textAlign = "left";
+  ctx.fillText("Design the Perfect Instrument — Build Evidence", 54, 54);
+  ctx.fillStyle = "#5a6684";
+  ctx.font = "600 16px system-ui";
+  ctx.fillText("Generated " + new Date().toLocaleString() + " · all 7 challenges cleared", 54, 114);
+
+  const rows = [];
+  for (let i = 0; i < CH.length; i++) rows.push(buildRow(i));
+  const y = drawEvidenceTable(
+    ctx, 54, 164,
+    [110, 190, 130, 180, 170, 160, 150, 200],
+    ["Challenge", "Resonator", "Target", "Length (m)", "Tension (N)", "Harmonic n", "Air (°C)", "Achieved (Hz)"],
+    rows, "Recorded builds"
+  );
+
+  ctx.fillStyle = "#5a6684";
+  ctx.font = "600 15px system-ui";
+  ctx.textAlign = "left";
+  ctx.fillText("Optional record: keep this image while completing the native Buzz evidence responses.", 54, y + 44);
+
+  function reportStarted(){
+    $("#evidenceStatus").textContent = "Optional evidence image download started.";
+    el.status.textContent = "Evidence image download started.";
+  }
+  if (canvas.toBlob){
+    canvas.toBlob(blob => {
+      if (blob){ downloadBlob(blob, "instrument-build-evidence.png"); reportStarted(); }
+      else { $("#evidenceStatus").textContent = "The evidence image could not be created. Try again."; }
+    }, "image/png");
+  } else {
+    const link = document.createElement("a");
+    link.href = canvas.toDataURL("image/png");
+    link.download = "instrument-build-evidence.png";
+    link.click();
+    reportStarted();
+  }
+}
+
+$("#downloadEvidence").onclick = downloadEvidenceImage;
+if (window.location.protocol === "file:" && document.getElementsByTagName("a:question").length) $("#localNote").hidden = false;
+
+buildTuner();
+load(0);
+renderEvidencePanel();
+if (REDUCED) { animate(0); cancelAnimationFrame(raf); }
+else raf = requestAnimationFrame(animate);
+
+})();
+</script>
+</main>
+</body>
+</html>

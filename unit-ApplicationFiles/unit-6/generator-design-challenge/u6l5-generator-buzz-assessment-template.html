@@ -1,0 +1,1165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Generator Design Challenge</title>
+<style>
+:root{
+  --navy:#10263f;--navy2:#173d61;--blue:#1769aa;--blue2:#0d4f87;--cyan:#13a7c7;
+  --ink:#182538;--muted:#5c6979;--line:#c9d6e2;--soft:#eef5fa;--card:#fff;
+  --good:#087b4b;--warn:#9b5700;--focus:#ffd43b;--shadow:0 12px 30px rgba(20,45,70,.14)
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:#e7f0f6;color:var(--ink);font:16px/1.45 Arial,Helvetica,sans-serif}
+button,input,textarea,select{font:inherit}
+button{min-height:44px;border:2px solid var(--blue);border-radius:10px;background:#fff;color:var(--blue2);font-weight:800;padding:9px 14px;cursor:pointer}
+button:hover{background:#edf7ff}button:disabled{opacity:.5;cursor:not-allowed}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,summary:focus-visible{outline:4px solid var(--focus);outline-offset:3px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.app{max-width:1240px;margin:0 auto;min-height:100vh;background:#f8fbfd;box-shadow:0 0 40px rgba(20,45,70,.15)}
+.top{background:linear-gradient(115deg,var(--navy),var(--navy2));color:#fff;padding:16px 22px}
+.top-row{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.eyebrow{margin:0 0 2px;color:#9fe8f7;text-transform:uppercase;letter-spacing:.12em;font-weight:900;font-size:.75rem}
+h1{font-size:clamp(1.35rem,3vw,2rem);margin:0}.goal{margin:5px 0 0;color:#dceaf5;max-width:760px;font-size:.93rem}
+.progress-box{min-width:230px}.progress-line{display:flex;justify-content:space-between;gap:12px;font-size:.82rem;font-weight:800;margin-bottom:5px}
+.progress-track{height:10px;background:#ffffff2e;border-radius:99px;overflow:hidden}.progress-fill{height:100%;width:0;background:#49d59a;transition:width .25s}
+.tabs{display:flex;background:#fff;border-bottom:1px solid var(--line);padding:8px 16px 0;gap:5px;position:sticky;top:0;z-index:20}
+.tab{border-color:transparent;border-bottom:4px solid transparent;border-radius:10px 10px 0 0;color:#526174;background:transparent}
+.tab.active{color:var(--blue2);border-bottom-color:var(--blue);background:#eaf4fb}
+.tab .badge{background:#d8e8f4;border-radius:99px;padding:2px 7px;font-size:.75rem;margin-left:5px}
+.panel{display:none;padding:18px}.panel.active{display:block}
+.guided{display:flex;gap:12px;align-items:flex-start;background:#fff8dd;border:1px solid #ecd47b;border-left:6px solid #e2a900;border-radius:12px;padding:12px 14px;margin-bottom:14px}
+.guided strong{display:block;color:#684700}.guided p{margin:2px 0 0}
+.guided .step-no{display:grid;place-items:center;flex:0 0 36px;height:36px;background:#684700;color:#fff;border-radius:50%;font-weight:900}
+.workspace{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(290px,.85fr);gap:16px;align-items:start}
+.stage-col{display:grid;gap:16px;min-width:0;align-content:start}
+.stage-card,.controls-card,.graph-card,.rec-card,.notebook-card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+.stage-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;background:#edf5fa;border-bottom:1px solid var(--line)}
+.stage-head h2,.controls-card h2{font-size:1rem;margin:0}
+.readout{font-size:.84rem;color:var(--muted);font-weight:800}
+.sim-stage{position:relative;background:radial-gradient(circle at 62% 40%,#28405c,#08131f 74%);overflow:hidden;color:#fff}
+.sim-stage svg{display:block;width:100%;height:auto}
+.hud-bar{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--line)}
+.hud-cell{background:#f7fbfe;padding:9px 6px;text-align:center}
+.hud-cell small{display:block;color:var(--muted);font-size:.71rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.hud-cell b{font-variant-numeric:tabular-nums;font-size:.95rem}
+.hud-cell.lit b{color:#9b6b00}
+.stage-note{margin:0;padding:10px 14px;background:#fff8dd;border-top:1px solid #ecd47b;font-size:.85rem;font-weight:700;color:#684700}
+.controls-card{padding:14px}
+.control-group{border:0;border-top:1px solid var(--line);padding:13px 0 2px;margin:12px 0 0}
+.control-group:first-of-type{border-top:0;margin-top:0;padding-top:0}
+.control-group legend{font-weight:900;padding:0 7px 0 0}
+.range-label{display:flex;justify-content:space-between;font-weight:800;gap:10px}
+.range-label output{color:var(--blue2);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--blue);min-height:30px}
+.scale{display:flex;justify-content:space-between;color:var(--muted);font-size:.74rem;font-weight:700}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px}
+.seg label{cursor:pointer;position:relative}
+.seg input{position:absolute;opacity:0}
+.seg span{display:grid;place-items:center;min-height:42px;padding:7px;border:2px solid var(--line);border-radius:9px;text-align:center;font-weight:800;color:#536375}
+.seg input:checked+span{border-color:var(--blue);background:#e5f3fd;color:var(--blue2)}
+.seg input:focus-visible+span{outline:4px solid var(--focus);outline-offset:3px}
+.switch{display:flex;align-items:center;gap:8px;font-weight:800}
+.switch input{width:22px;height:22px;accent-color:var(--blue)}
+.quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.quick button{min-height:38px;padding:6px 10px;font-size:.84rem}
+.primary{background:var(--blue);color:#fff}.primary:hover{background:var(--blue2)}
+.good{background:var(--good);border-color:var(--good);color:#fff}.good:hover{background:#06643e}
+.danger{color:#9b2f2f;border-color:#ba6a6a}
+.data-strip{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}
+.data-cell{background:var(--soft);border-radius:9px;padding:8px;text-align:center}
+.data-cell small{display:block;color:var(--muted)}
+.data-cell b{font-variant-numeric:tabular-nums}
+.callout{font-size:.84rem;color:var(--muted);margin:9px 0 0}
+.graph-stage{background:#07111d;padding:8px 10px}
+.graph-stage svg{display:block;width:100%;height:auto}
+.g-grid{stroke:#ffffff24;stroke-width:1}
+.g-axis{stroke:#dbe7f1;stroke-width:2}
+.g-tick{fill:#c6d6e4;font-size:15px;font-weight:700}
+.g-trace{fill:none;stroke:#5ce0a5;stroke-width:4;stroke-linejoin:round;stroke-linecap:round}
+.g-peak{stroke:#ffd76b;stroke-width:2;stroke-dasharray:9 8;opacity:.75}
+.g-now{fill:#fff;stroke:#5ce0a5;stroke-width:3}
+.evidence-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(258px,1fr));gap:12px;margin-top:16px}
+.rec-card{padding:13px}
+.rec-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.rec-head h3{margin:0;font-size:.95rem}
+.rec-count{font-weight:900;color:var(--blue2);background:#e5f3fd;border-radius:99px;padding:2px 9px;font-size:.8rem}
+.rec-count.done{background:#e2f7ec;color:var(--good)}
+.rec-hint{margin:6px 0 9px;color:var(--muted);font-size:.83rem}
+.rec-card input[type=text]{width:100%;border:2px solid #aebdca;border-radius:9px;padding:8px;margin-bottom:9px}
+.rec-card button{width:100%}
+.rec-card button+button{margin-top:7px}
+.rec-note{min-height:20px;margin:7px 0 0;font-size:.8rem;font-weight:800;color:var(--good)}
+.rec-note.warn{color:var(--warn)}
+.best-line{display:flex;justify-content:space-between;font-weight:800;margin-bottom:6px}
+.best-track{height:11px;background:#dce5ec;border-radius:99px;overflow:hidden;margin-bottom:10px}
+.best-fill{display:block;height:100%;width:0;background:linear-gradient(90deg,#f0b429,#ffe08a);transition:width .2s}
+.notebook-layout{display:grid;grid-template-columns:240px minmax(0,1fr);gap:16px}
+.notebook-nav{position:sticky;top:64px;align-self:start;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px}
+.notebook-nav button{display:block;width:100%;text-align:left;border:0;min-height:38px;padding:7px 9px;color:#44566a}
+.notebook-nav button:hover{background:#edf5fa}
+.notebook-main{min-width:0}
+.notebook-intro{padding:16px;margin-bottom:12px;background:#fff;border:1px solid var(--line);border-radius:14px}
+.notebook-intro h2{margin:0 0 5px}.notebook-intro p{margin:0;color:var(--muted)}
+.lab-part{background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden;scroll-margin-top:70px}
+.lab-part summary{cursor:pointer;padding:14px 16px;font-weight:900;background:#f1f7fb;border-bottom:1px solid transparent}
+.lab-part[open] summary{border-color:var(--line)}
+.part-body{padding:14px}
+.directions{background:#edf7ff;border-left:5px solid var(--cyan);padding:10px 12px;margin-bottom:13px;border-radius:7px}
+.directions p{margin:0}
+.directions button{margin-top:8px;min-height:36px;padding:5px 9px}
+.evidence-table-wrap{overflow-x:auto;margin:10px 0 16px}
+.evidence-table{width:100%;border-collapse:collapse;font-size:.9rem}
+.evidence-table th,.evidence-table td{border:1px solid var(--line);padding:8px;text-align:left;vertical-align:top}
+.evidence-table th{background:#e9f2f8}
+.empty{color:#8a96a4;font-style:italic}
+.answer{border-top:1px solid #dfe7ed;padding:12px 0}
+.answer:first-of-type{border-top:0}
+.answer label{display:block;font-weight:800;margin-bottom:5px}
+.answer textarea{width:100%;min-height:78px;border:2px solid #aebdca;border-radius:9px;padding:9px;resize:vertical}
+.answer-meta{display:flex;justify-content:space-between;color:var(--muted);font-size:.76rem;margin-top:3px}
+.answered{color:var(--good);font-weight:900}
+.chain{font-weight:800;background:var(--soft);border-radius:8px;padding:9px 11px;margin:0 0 8px}
+.submit-card{background:#fff;border:2px solid var(--blue);border-radius:14px;padding:16px;margin-top:16px}
+.checklist{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.check{padding:9px;background:var(--soft);border-radius:9px;font-weight:800}
+.check.done{background:#e2f7ec;color:var(--good)}
+.submit-status{min-height:25px;font-weight:800;color:var(--good);margin:8px 0 0}
+.note{font-size:.82rem;color:var(--muted);background:#f5f6f8;border-radius:8px;padding:8px 10px}
+@media(max-width:980px){
+  .workspace{grid-template-columns:1fr}
+  .workspace>.controls-card{order:-1}
+  .notebook-layout{grid-template-columns:1fr}
+  .notebook-nav{position:static;display:flex;overflow-x:auto}
+  .notebook-nav button{width:auto;white-space:nowrap}
+}
+@media(max-width:600px){
+  .panel{padding:10px}.top{padding:13px}.goal{display:none}
+  .tabs{overflow-x:auto}.tab{white-space:nowrap}
+  .checklist{grid-template-columns:1fr}
+  .hud-bar{grid-template-columns:repeat(3,1fr)}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.001ms!important}}
+</style>
+
+<style id="u6-buzz-assessment-styles">
+  .u6-buzz-section{max-width:1180px;margin:22px auto;padding:22px;border:1px solid #cfdcdf;border-radius:18px;background:#fff;color:#172b3a;box-shadow:0 10px 28px rgba(19,42,58,.08);font-family:Arial,sans-serif}
+  .u6-buzz-section h2{margin:0 0 7px;color:#123f5a;font-size:1.5rem}
+  .u6-buzz-section>p{margin:0 0 16px;color:#5d6e76;line-height:1.55}
+  .u6-score-strip{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+  .u6-score-strip span{padding:6px 10px;border-radius:999px;background:#e7f3f1;color:#174c50;font-weight:800;font-size:.82rem}
+  .u6-question-slot{margin:12px 0;padding:15px;border:1px solid #d6e1e3;border-radius:13px;background:#fbfdfd}
+  .u6-question-label{margin:0 0 9px;color:#17313a;font-weight:800}
+  .u6-question-label span{display:block;margin-top:3px;color:#62747b;font-size:.86rem;font-weight:600}
+  .u6-local-note{padding:11px 13px;border-left:5px solid #d27a1f;background:#fff6e8;color:#70490e;font-weight:700}
+  @media(max-width:700px){.u6-buzz-section{padding:15px;border-radius:12px}.u6-question-slot{padding:11px}}
+</style>
+<style>
+    .u6-buzz-assessment #notebookPanel .answer,.u6-buzz-assessment #submitCard,.u6-buzz-assessment .progress-box,.u6-buzz-assessment #answerBadge{display:none!important}
+  </style>
+</head>
+<body class="u6-buzz-assessment">
+<main class="app">
+  <header class="top">
+    <div class="top-row">
+      <div>
+        <p class="eyebrow">Unit 6 &bull; Lesson 5 Application</p>
+        <h1>Generator Design Challenge</h1>
+        <p class="goal">Investigate what controls the amount of electricity a generator produces, then use your evidence to design the strongest generator you can.</p>
+      </div>
+      <div class="progress-box" aria-label="Lab completion progress">
+        <div class="progress-line"><span id="progressText">Evidence 0/16 &bull; Responses 0/24</span><span id="progressPercent">0%</span></div>
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Lab workspaces">
+    <button class="tab active" type="button" data-tab="generator">Generator</button>
+    <button class="tab" type="button" data-tab="notebook">Evidence Tables <span class="badge" id="answerBadge">0/24</span></button>
+  </nav>
+
+  <section class="panel active" id="generatorPanel" data-panel="generator">
+    <div class="guided">
+      <span class="step-no" id="guideStep">1</span>
+      <div><strong id="guideTitle">Part 1: Explore the generator</strong><p id="guideText">Turn on the faucet and slowly raise the water flow. Watch the turbine, the electrons, and the light bulb.</p></div>
+    </div>
+
+    <div class="workspace">
+     <div class="stage-col">
+      <div class="stage-card">
+        <div class="stage-head"><h2>Water-driven generator</h2><span class="readout" id="stageReadout">Faucet off &bull; 0 rpm</span></div>
+        <div class="sim-stage">
+          <svg viewBox="0 0 900 440" role="img" aria-labelledby="sceneTitle sceneDesc">
+            <title id="sceneTitle">Water-driven generator</title>
+            <desc id="sceneDesc">A faucet drives a turbine that spins a bar magnet next to a pickup coil wired to a light bulb.</desc>
+            <defs>
+              <linearGradient id="gPipe" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#8ea3b8"/><stop offset=".5" stop-color="#5c7086"/><stop offset="1" stop-color="#3d4d5e"/>
+              </linearGradient>
+              <linearGradient id="gWater" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#8fd8ff" stop-opacity=".95"/><stop offset="1" stop-color="#2b8fd0" stop-opacity=".7"/>
+              </linearGradient>
+              <linearGradient id="gWheel" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#2c465f"/><stop offset="1" stop-color="#132638"/>
+              </linearGradient>
+              <radialGradient id="gGlass" cx=".38" cy=".32" r=".75">
+                <stop offset="0" stop-color="#ffffff" stop-opacity=".5"/><stop offset="1" stop-color="#b9d2e4" stop-opacity=".16"/>
+              </radialGradient>
+              <linearGradient id="gCopper" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#f0b070"/><stop offset="1" stop-color="#b46a26"/>
+              </linearGradient>
+            </defs>
+
+            <!-- faucet -->
+            <g id="faucet">
+              <rect x="0" y="26" width="152" height="36" rx="8" fill="url(#gPipe)"/>
+              <rect x="146" y="26" width="36" height="52" rx="7" fill="url(#gPipe)"/>
+              <rect x="140" y="66" width="48" height="14" rx="6" fill="#33424f"/>
+              <g id="valve">
+                <rect x="104" y="14" width="9" height="16" fill="#6b7f93"/>
+                <circle cx="108.5" cy="16" r="12" fill="none" stroke="#93a8bd" stroke-width="6"/>
+                <line x1="97" y1="16" x2="120" y2="16" stroke="#93a8bd" stroke-width="4"/>
+              </g>
+            </g>
+
+            <!-- water stream -->
+            <g id="water" opacity="0">
+              <rect id="waterCol" x="152" y="78" width="24" height="104" fill="url(#gWater)"/>
+              <line id="waterDash" x1="164" y1="78" x2="164" y2="182" stroke="#ffffff" stroke-width="6"
+                    stroke-linecap="round" stroke-dasharray="14 20" opacity=".55"/>
+              <g id="splash" opacity=".8">
+                <circle cx="150" cy="188" r="4" fill="#bfe9ff"/><circle cx="182" cy="192" r="3" fill="#bfe9ff"/>
+                <circle cx="140" cy="199" r="3" fill="#bfe9ff"/><circle cx="192" cy="203" r="4" fill="#bfe9ff"/>
+              </g>
+            </g>
+
+            <!-- turbine support -->
+            <rect x="198" y="330" width="24" height="78" rx="5" fill="#3c4c5d"/>
+            <rect x="160" y="402" width="100" height="16" rx="7" fill="#2b3846"/>
+
+            <!-- magnetic field lines (rotate with the magnet) -->
+            <g id="fieldLines" transform="translate(210,250)" opacity=".7">
+              <g id="fieldSpin" stroke="#7fd4ff" fill="none" stroke-width="2.5" stroke-linecap="round">
+                <path d="M70,0 C110,-34 -110,-34 -70,0"/>
+                <path d="M70,0 C132,-78 -132,-78 -70,0"/>
+                <path d="M70,0 C168,-140 -168,-140 -70,0"/>
+                <path d="M70,0 C110,34 -110,34 -70,0"/>
+                <path d="M70,0 C132,78 -132,78 -70,0"/>
+                <path d="M70,0 C168,140 -168,140 -70,0"/>
+              </g>
+            </g>
+
+            <!-- turbine wheel + bar magnet -->
+            <g id="turbine" transform="translate(210,250)">
+              <circle r="88" fill="url(#gWheel)" stroke="#8fa3b6" stroke-width="4"/>
+              <g id="wheelSpin">
+                <g id="buckets"></g>
+                <circle r="72" fill="none" stroke="#6f8599" stroke-width="3"/>
+                <!-- bar magnet -->
+                <g id="magnet">
+                  <rect x="-70" y="-21" width="70" height="42" rx="4" fill="#2f6fd0" stroke="#0f2b52" stroke-width="2"/>
+                  <rect x="0" y="-21" width="70" height="42" rx="4" fill="#d0342c" stroke="#5a120d" stroke-width="2"/>
+                  <text id="lblS" x="-38" y="8" fill="#fff" font-size="24" font-weight="900" text-anchor="middle">S</text>
+                  <text id="lblN" x="38" y="8" fill="#fff" font-size="24" font-weight="900" text-anchor="middle">N</text>
+                </g>
+              </g>
+              <circle r="15" fill="#93a8bd" stroke="#4e6274" stroke-width="3"/>
+            </g>
+            <text x="210" y="432" fill="#a9bdce" font-size="15" font-weight="700" text-anchor="middle">Turbine + bar magnet</text>
+
+            <!-- compass -->
+            <g id="compass" transform="translate(398,372)">
+              <circle r="31" fill="#0e1c2b" stroke="#93a8bd" stroke-width="3"/>
+              <circle r="25" fill="none" stroke="#33475c" stroke-width="1.5"/>
+              <g id="needle">
+                <path d="M0,-22 L6,0 L0,6 L-6,0 Z" fill="#d0342c"/>
+                <path d="M0,22 L6,0 L0,-6 L-6,0 Z" fill="#dbe7f1"/>
+              </g>
+              <circle r="3.5" fill="#93a8bd"/>
+              <text x="0" y="52" fill="#a9bdce" font-size="14" font-weight="700" text-anchor="middle">Compass</text>
+            </g>
+
+            <!-- circuit wire (electrons ride this closed loop) -->
+            <path id="wirePath" d="M630,240 H680 V160 H890 V310 H630 Z" fill="none" stroke="url(#gCopper)" stroke-width="7" stroke-linejoin="round"/>
+
+            <!-- flux arrow through the coil -->
+            <g id="fluxArrow" opacity=".85">
+              <line id="fluxLine" x1="560" y1="275" x2="620" y2="275" stroke="#7fd4ff" stroke-width="9" stroke-linecap="round"/>
+              <polygon id="fluxHead" points="0,0 0,0 0,0" fill="#7fd4ff"/>
+            </g>
+
+            <!-- pickup coil -->
+            <g id="coil"></g>
+            <path id="leadTop" fill="none" stroke="url(#gCopper)" stroke-width="7" stroke-linecap="round"/>
+            <path id="leadBottom" fill="none" stroke="url(#gCopper)" stroke-width="7" stroke-linecap="round"/>
+            <text x="560" y="366" fill="#a9bdce" font-size="15" font-weight="700" text-anchor="middle">Pickup coil</text>
+            <text id="fluxLabel" x="560" y="386" fill="#7fd4ff" font-size="13" font-weight="700" text-anchor="middle">flux through coil</text>
+
+            <!-- electrons -->
+            <g id="electrons"></g>
+
+            <!-- detector: light bulb -->
+            <g id="bulbGroup">
+              <circle id="bulbGlow" cx="770" cy="92" r="60" fill="#ffd76b" opacity="0"/>
+              <circle cx="770" cy="92" r="45" fill="url(#gGlass)" stroke="#b9d2e4" stroke-width="3"/>
+              <circle id="bulbFill" cx="770" cy="92" r="42" fill="#ffe08a" opacity="0"/>
+              <path id="filament" d="M756,120 L756,100 L762,86 L770,100 L778,86 L784,100 L784,120"
+                    fill="none" stroke="#8a6a35" stroke-width="3.5" stroke-linecap="round"/>
+              <rect x="750" y="118" width="40" height="30" rx="5" fill="#9aa8b6" stroke="#5f7183" stroke-width="2"/>
+              <line x1="750" y1="126" x2="790" y2="126" stroke="#6d7f90" stroke-width="2"/>
+              <line x1="750" y1="134" x2="790" y2="134" stroke="#6d7f90" stroke-width="2"/>
+              <line x1="750" y1="142" x2="790" y2="142" stroke="#6d7f90" stroke-width="2"/>
+            </g>
+
+            <!-- detector: voltmeter -->
+            <g id="meterGroup" style="display:none">
+              <rect x="676" y="26" width="188" height="122" rx="12" fill="#f2f6fa" stroke="#7d93a8" stroke-width="3"/>
+              <path d="M702,130 A72,72 0 0 1 838,130" fill="none" stroke="#8b9cad" stroke-width="2.5"/>
+              <g id="meterTicks" stroke="#5c6979" stroke-width="2.5"></g>
+              <text x="704" y="146" fill="#5c6979" font-size="15" font-weight="800" text-anchor="middle">&#8722;12</text>
+              <text x="770" y="52" fill="#5c6979" font-size="14" font-weight="800" text-anchor="middle">0</text>
+              <text x="836" y="146" fill="#5c6979" font-size="15" font-weight="800" text-anchor="middle">+12</text>
+              <text x="770" y="122" fill="#0d4f87" font-size="15" font-weight="900" text-anchor="middle">VOLTS</text>
+              <line id="meterNeedle" x1="770" y1="132" x2="770" y2="62" stroke="#d0342c" stroke-width="4" stroke-linecap="round"/>
+              <circle cx="770" cy="132" r="6" fill="#33424f"/>
+            </g>
+
+            <!-- detector base plate -->
+            <rect x="700" y="146" width="140" height="30" rx="9" fill="#34485c" stroke="#7d93a8" stroke-width="2"/>
+            <text id="detectorLabel" x="770" y="196" fill="#a9bdce" font-size="15" font-weight="700" text-anchor="middle">Light bulb</text>
+          </svg>
+        </div>
+
+        <div class="hud-bar" aria-live="off">
+          <div class="hud-cell"><small>Turbine</small><b id="hudRpm">0 rpm</b></div>
+          <div class="hud-cell"><small>Flux &Phi;</small><b id="hudFlux">0 mWb</b></div>
+          <div class="hud-cell"><small>&Delta;&Phi;/&Delta;t</small><b id="hudRate">0.00 Wb/s</b></div>
+          <div class="hud-cell"><small>Induced EMF</small><b id="hudEmf">0.0 V</b></div>
+          <div class="hud-cell lit"><small>Peak EMF</small><b id="hudPeak">0.0 V</b></div>
+          <div class="hud-cell lit"><small>Brightness</small><b id="hudBright">0%</b></div>
+        </div>
+        <p class="stage-note" id="stageNote">Turn on the faucet to start the turbine.</p>
+      </div>
+
+      <div class="graph-card">
+        <div class="stage-head"><h2>Induced EMF vs. time</h2><span class="readout" id="graphReadout">magnet not turning</span></div>
+        <div class="graph-stage">
+          <svg viewBox="0 0 900 200" role="img" aria-labelledby="graphTitle graphDesc">
+            <title id="graphTitle">Induced EMF versus time</title>
+            <desc id="graphDesc">A scrolling trace of the induced voltage. It is flat at zero when the magnet is not turning.</desc>
+            <line class="g-grid" x1="52" y1="34" x2="884" y2="34"/>
+            <line class="g-grid" x1="52" y1="166" x2="884" y2="166"/>
+            <line class="g-axis" x1="52" y1="100" x2="884" y2="100"/>
+            <line class="g-axis" x1="52" y1="24" x2="52" y2="176"/>
+            <text class="g-tick" x="46" y="39" text-anchor="end">+12</text>
+            <text class="g-tick" x="46" y="105" text-anchor="end">0</text>
+            <text class="g-tick" x="46" y="171" text-anchor="end">&#8722;12</text>
+            <line id="peakHi" class="g-peak" x1="52" y1="100" x2="884" y2="100"/>
+            <line id="peakLo" class="g-peak" x1="52" y1="100" x2="884" y2="100"/>
+            <polyline id="emfTrace" class="g-trace" points=""/>
+            <circle id="emfNow" class="g-now" cx="884" cy="100" r="6"/>
+          </svg>
+        </div>
+      </div>
+     </div>
+
+      <div class="controls-card">
+        <h2>Generator controls</h2>
+
+        <fieldset class="control-group">
+          <legend>Water flow / turbine speed</legend>
+          <div class="range-label"><label for="flowRange">Faucet opening</label><output id="flowOut">0%</output></div>
+          <input id="flowRange" type="range" min="0" max="100" step="5" value="0">
+          <div class="scale"><span>off</span><span>full</span></div>
+          <div class="quick">
+            <button type="button" data-flow="0">Faucet off</button>
+            <button type="button" data-flow="40">40%</button>
+            <button type="button" data-flow="70">70%</button>
+            <button type="button" data-flow="100">100%</button>
+          </div>
+          <button type="button" id="handTurn" class="quick-hand" style="width:100%;margin-top:9px">Turn the magnet by hand (one turn)</button>
+        </fieldset>
+
+        <fieldset class="control-group">
+          <legend>Magnet strength</legend>
+          <div class="range-label"><label for="magnetRange">Bar magnet</label><output id="magnetOut">60%</output></div>
+          <input id="magnetRange" type="range" min="0" max="100" step="5" value="60">
+          <div class="scale"><span>weak</span><span>strong</span></div>
+        </fieldset>
+
+        <fieldset class="control-group">
+          <legend>Pickup coil loops</legend>
+          <div class="seg" role="radiogroup" aria-label="Number of pickup coil loops">
+            <label><input type="radio" name="loops" value="1"><span>1</span></label>
+            <label><input type="radio" name="loops" value="2" checked><span>2</span></label>
+            <label><input type="radio" name="loops" value="3"><span>3</span></label>
+            <label><input type="radio" name="loops" value="4"><span>4</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="control-group">
+          <legend>Coil area</legend>
+          <div class="range-label"><label for="areaRange">Loop area</label><output id="areaOut">70%</output></div>
+          <input id="areaRange" type="range" min="40" max="100" step="10" value="70">
+          <div class="scale"><span>small</span><span>large</span></div>
+        </fieldset>
+
+        <fieldset class="control-group">
+          <legend>Detector</legend>
+          <div class="seg" role="radiogroup" aria-label="Detector">
+            <label><input type="radio" name="detector" value="bulb" checked><span>Light bulb</span></label>
+            <label><input type="radio" name="detector" value="meter"><span>Voltmeter</span></label>
+          </div>
+          <label class="switch" style="margin-top:11px"><input type="checkbox" id="fieldToggle" checked> Show magnetic field lines</label>
+        </fieldset>
+
+        <div class="data-strip">
+          <div class="data-cell"><small>Bulb brightness</small><b id="cellBright">0% &mdash; off</b></div>
+          <div class="data-cell"><small>Voltmeter</small><b id="cellVolt">steady at zero</b></div>
+        </div>
+        <p class="callout">The peak EMF equals loops &times; peak flux &times; rotation rate. Watch which control changes it most.</p>
+      </div>
+    </div>
+
+    <div class="evidence-strip">
+      <div class="rec-card" data-series="speed">
+        <div class="rec-head"><h3>Part 2 &middot; Turbine speed</h3><span class="rec-count" id="countSpeed">0/4</span></div>
+        <p class="rec-hint">Hold magnet strength, loops, and coil area constant. Record at least four different water-flow settings.</p>
+        <button type="button" class="primary" data-record="speed">Record speed trial</button>
+        <button type="button" data-match="speed" hidden>Restore this series' settings</button>
+        <p class="rec-note" id="noteSpeed" role="status"></p>
+      </div>
+
+      <div class="rec-card" data-series="magnet">
+        <div class="rec-head"><h3>Part 3 &middot; Magnet strength</h3><span class="rec-count" id="countMagnet">0/3</span></div>
+        <p class="rec-hint">Pick one water-flow setting and leave the coil alone. Record three different magnet strengths.</p>
+        <button type="button" class="primary" data-record="magnet">Record magnet trial</button>
+        <button type="button" data-match="magnet" hidden>Restore this series' settings</button>
+        <p class="rec-note" id="noteMagnet" role="status"></p>
+      </div>
+
+      <div class="rec-card" data-series="loops">
+        <div class="rec-head"><h3>Part 4 &middot; Coil loops</h3><span class="rec-count" id="countLoops">0/3</span></div>
+        <p class="rec-hint">Predict first, then test. Record three different loop counts with speed, magnet, and area held constant.</p>
+        <input type="text" id="loopPredict" maxlength="160" placeholder="Predict the output for this loop count&hellip;" aria-label="Prediction for this loop count">
+        <button type="button" class="primary" data-record="loops">Record loop trial</button>
+        <button type="button" data-match="loops" hidden>Restore this series' settings</button>
+        <p class="rec-note" id="noteLoops" role="status"></p>
+      </div>
+
+      <div class="rec-card" data-series="area">
+        <div class="rec-head"><h3>Part 4 &middot; Coil area</h3><span class="rec-count" id="countArea">0/3</span></div>
+        <p class="rec-hint">Keep everything else constant and change only the loop area. Record three different areas.</p>
+        <button type="button" class="primary" data-record="area">Record area trial</button>
+        <button type="button" data-match="area" hidden>Restore this series' settings</button>
+        <p class="rec-note" id="noteArea" role="status"></p>
+      </div>
+
+      <div class="rec-card" data-series="detector">
+        <div class="rec-head"><h3>Part 5 &middot; Bulb vs. voltmeter</h3><span class="rec-count" id="countDetector">0/2</span></div>
+        <p class="rec-hint">Run the generator with the bulb, then with the voltmeter, and record what each detector shows.</p>
+        <button type="button" class="primary" data-record="detector">Record what the light bulb shows</button>
+        <p class="rec-note" id="noteDetector" role="status"></p>
+      </div>
+
+      <div class="rec-card" data-series="design">
+        <div class="rec-head"><h3>Part 6 &middot; Design challenge</h3><span class="rec-count" id="countDesign">0/1</span></div>
+        <p class="rec-hint">Change anything you like. Create the configuration that produces the brightest possible bulb.</p>
+        <div class="best-line"><span>Brightest so far</span><b id="bestValue">0%</b></div>
+        <div class="best-track"><span class="best-fill" id="bestFill"></span></div>
+        <button type="button" class="good" data-record="design">Record my final design</button>
+        <p class="rec-note" id="noteDesign" role="status"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="notebookPanel" data-panel="notebook">
+    <div class="notebook-layout">
+      <nav class="notebook-nav" id="notebookNav" aria-label="Notebook parts"></nav>
+      <div class="notebook-main">
+        <div class="notebook-intro">
+          <h2>Lab Notebook</h2>
+          <p>Your recorded evidence saves automatically on this device. Review these tables while answering the native Buzz questions.</p>
+        </div>
+        <div id="notebookParts"></div>
+        <section class="submit-card" id="submitCard">
+          <h2 style="margin:0">Finish and submit</h2>
+          <p>Complete all 16 evidence records and all 24 written responses before submitting.</p>
+          <div class="checklist">
+            <div class="check" id="evidenceCheck">&#9675; Evidence records: 0/16</div>
+            <div class="check" id="responsesCheck">&#9675; Written responses: 0/24</div>
+          </div>
+          <button type="button" class="good" id="submitLab" disabled>Submit / Resubmit Lab</button>
+          <button type="button" class="danger" id="resetLab">Clear saved work</button>
+          <p class="submit-status" id="submitStatus" role="status" aria-live="polite"></p>
+        </section>
+      </div>
+    </div>
+  </section>
+<section class="u6-buzz-section" aria-labelledby="u6-buzz-heading">
+  <h2 id="u6-buzz-heading">Buzz assessment: Generator Design Challenge</h2>
+  <p>Complete the controlled-variable evidence cards and record a final design. Use the live RPM, peak EMF, and brightness readouts for calculations and written evidence.</p>
+  <div class="u6-score-strip" aria-label="Assessment scoring"><span>15 points total</span><span>10 auto-graded</span><span>5 BusyBee rubric-graded</span></div>
+  <p class="u6-local-note" hidden data-u6-local-note>When opened outside Buzz, question controls are blank. Import <strong>buzz-assessment-questions.txt</strong> and upload this file as the assessment template.</p>
+    <div class="u6-question-slot">
+      <p class="u6-question-label">Question 1<span>Identify the changing-flux requirement</span></p>
+      <a:question></a:question>
+    </div>
+    <div class="u6-question-slot">
+      <p class="u6-question-label">Question 2<span>Predict the effect of faster rotation</span></p>
+      <a:question></a:question>
+    </div>
+    <div class="u6-question-slot">
+      <p class="u6-question-label">Question 3<span>Explain the magnet-strength effect</span></p>
+      <a:question></a:question>
+    </div>
+    <div class="u6-question-slot">
+      <p class="u6-question-label">Question 4<span>Explain the coil-loop effect</span></p>
+      <a:question></a:question>
+    </div>
+    <div class="u6-question-slot">
+      <p class="u6-question-label">Question 5<span>Explain the coil-area effect</span></p>
+      <a:question></a:question>
+    </div>
+    <div class="u6-question-slot">
+      <p class="u6-question-label">Question 6<span>Record peak EMF for the specified settings</span></p>
+      <a:question></a:question>
+    </div>
+    <div class="u6-question-slot">
+      <p class="u6-question-label">Question 7<span>Explain the reversing voltmeter reading</span></p>
+      <a:question></a:question>
+    </div>
+    <div class="u6-question-slot">
+      <p class="u6-question-label">Question 8<span>Record maximum-setting peak EMF</span></p>
+      <a:question></a:question>
+    </div>
+    <div class="u6-question-slot">
+      <p class="u6-question-label">Question 9<span>Analyze two controlled-variable series</span></p>
+      <a:question></a:question>
+    </div>
+    <div class="u6-question-slot">
+      <p class="u6-question-label">Question 10<span>Defend the final generator with CER</span></p>
+      <a:question></a:question>
+    </div>
+</section>
+</main>
+
+<script>
+(() => {
+  'use strict';
+  const STORAGE_KEY = 'generatorDesignChallenge-v1';
+
+  /* ---------- lab content ---------- */
+  const questions = [
+    [1,'What happens to the turbine as water flow increases?'],
+    [1,'What happens to the brightness of the bulb?'],
+    [1,'Does electricity appear when the magnet is stopped? What evidence supports your answer?'],
+    [1,'What appears to be necessary for the generator to produce electricity?'],
+    [2,'What relationship do you observe between turbine speed and generated voltage?'],
+    [2,'Why does a faster-spinning magnet produce a larger electrical effect?'],
+    [2,'Is the magnetic field simply being present enough to generate electricity, or must something about the field change?'],
+    [3,'How does increasing magnet strength affect the generator output?'],
+    [3,'Explain why a stronger magnetic field changes the induced voltage.'],
+    [4,'Was your prediction correct?'],
+    [4,'What relationship exists between the number of coil loops and generator output?'],
+    [4,'What happens to the generator output as coil area increases?'],
+    [4,'Why would changing the amount of magnetic field passing through the coil affect the generated electricity?'],
+    [5,'What information can you determine from the bulb?'],
+    [5,'What additional information can you determine from the voltmeter?'],
+    [5,'Why does the voltmeter reading change direction as the magnet rotates?'],
+    [5,'What does this tell you about the direction of the induced current?'],
+    [6,'Which variable had the greatest effect on your generator?'],
+    [6,'List all the changes you discovered that can make the bulb brighter.'],
+    [6,'What do all of these changes have in common in terms of the magnetic field passing through the coil?'],
+    [6,'In your own words, what causes electromagnetic induction?'],
+    [6,'Trace the energy transformation in this simulation: moving water → ______ → ______ → light'],
+    [6,'Write a 3–4 sentence explanation answering: How does a generator produce electricity?']
+  ];
+  const parts = [
+    {title:'Part 1: Explore the Generator', dir:'Turn on the faucet and slowly increase the water flow. Watch the turbine, the electrons in the wire, and the light bulb. Then set the flow back to zero and use "Turn the magnet by hand".'},
+    {title:'Part 2: Test Generator Speed', dir:'Keep the magnet and pickup coil settings unchanged. Record at least four different water-flow settings.', table:'speed'},
+    {title:'Part 3: Test Magnet Strength', dir:'Choose one constant water-flow setting, keep the pickup coil unchanged, and record three different magnet strengths.', table:'magnet'},
+    {title:'Part 4: Test the Pickup Coil', dir:'Keep turbine speed and magnet strength constant. Predict before each loop test, then change the number of loops. Afterwards change only the coil area.', table:'loops', table2:'area'},
+    {title:'Part 5: Bulb vs. Voltmeter', dir:'Run the generator first with the light bulb and then with the voltmeter. Observe several complete rotations of the magnet.', table:'detector'},
+    {title:'Part 6: Generator Design Challenge', dir:'Create the configuration that produces the brightest possible bulb, then record your final design.', table:'design'}
+  ];
+
+  /* ---------- physics model ---------- */
+  const MAX_RPM = 120;         // turbine speed at full flow with no electrical load
+  const DRAG_K = 0.35;         // simplified back-EMF drag on the turbine
+  const FLUX_MAX = 0.322;      // peak flux (Wb) through one loop at full magnet and full area
+  const EMF_MAX = 11.99;       // peak EMF (V) with every control at maximum
+
+  const series = {
+    speed:   {vary:'flow',   hold:['magnet','loops','area'], need:4, gap:10, unit:'water-flow setting'},
+    magnet:  {vary:'magnet', hold:['flow','loops','area'],   need:3, gap:10, unit:'magnet strength'},
+    loops:   {vary:'loops',  hold:['flow','magnet','area'],  need:3, gap:1,  unit:'loop count'},
+    area:    {vary:'area',   hold:['flow','magnet','loops'], need:3, gap:10, unit:'coil area'}
+  };
+  const holdName = {flow:'water flow', magnet:'magnet strength', loops:'number of loops', area:'coil area'};
+
+  const defaultData = {answers:{}, speed:{}, magnet:{}, loops:{}, area:{}, detector:{}, design:null, best:0, submittedAt:''};
+
+  /* ---------- state ---------- */
+  let data = loadData();
+  let flow = 0, magnet = 60, loops = 2, area = 70, detector = 'bulb', showField = true;
+  let theta = 0, handSpin = 0, waterPhase = 0, lastFrame = 0, completionSent = false;
+  const trace = [];
+  const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+
+  function loadData(){
+    try{
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+      return Object.assign({}, defaultData, saved, {
+        answers:Object.assign({}, saved.answers), speed:Object.assign({}, saved.speed),
+        magnet:Object.assign({}, saved.magnet), loops:Object.assign({}, saved.loops),
+        area:Object.assign({}, saved.area), detector:Object.assign({}, saved.detector)
+      });
+    }catch(e){ return JSON.parse(JSON.stringify(defaultData)); }
+  }
+  function saveData(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }catch(e){} updateProgress(); }
+
+  const settings = () => ({flow, magnet, loops, area});
+  const load = () => (loops/4) * (magnet/100) * (area/100);
+  const rpm = () => (flow/100) * MAX_RPM / (1 + DRAG_K*load());
+  const fluxMax = () => FLUX_MAX * (magnet/100) * (area/100);
+  const omega = () => handSpin > 0 ? 2.2 : rpm() * Math.PI / 30;
+  const spinning = () => omega() > 0.001;
+  const emfPeak = () => loops * fluxMax() * omega();
+  const brightness = () => Math.min(100, Math.round(100 * emfPeak() / EMF_MAX));
+  const reversalsPerSec = () => omega() / Math.PI;
+
+  function brightWord(b){
+    if(b <= 0) return 'off';
+    if(b < 8) return 'barely glowing';
+    if(b < 25) return 'very dim';
+    if(b < 45) return 'dim';
+    if(b < 65) return 'moderate';
+    if(b < 85) return 'bright';
+    return 'very bright';
+  }
+  const brightText = () => { const b = brightness(); return b + '% — ' + brightWord(b); };
+  function voltText(){
+    if(!spinning()) return 'steady at zero';
+    return '±' + emfPeak().toFixed(1) + ' V, reverses ' + reversalsPerSec().toFixed(1) + '×/s';
+  }
+
+  /* ---------- scene build ---------- */
+  const svgNS = 'http://www.w3.org/2000/svg';
+  function el(name, attrs){
+    const node = document.createElementNS(svgNS, name);
+    for(const k in attrs) node.setAttribute(k, attrs[k]);
+    return node;
+  }
+  (function buildBuckets(){
+    const g = $('#buckets');
+    for(let i = 0; i < 12; i++){
+      const a = i * 30;
+      const blade = el('path', {
+        d:'M0,-88 L13,-62 L-13,-62 Z',
+        transform:'rotate(' + a + ')', fill:'#42607d', stroke:'#8fa3b6', 'stroke-width':'2'
+      });
+      g.appendChild(blade);
+    }
+  })();
+  (function buildMeterTicks(){
+    const g = $('#meterTicks');
+    for(let i = -4; i <= 4; i++){
+      const a = i * 20;
+      g.appendChild(el('line', {x1:770, y1:64, x2:770, y2:i % 2 ? 74 : 78, transform:'rotate(' + a + ' 770 132)'}));
+    }
+  })();
+
+  const ELECTRONS = 18;
+  const electronNodes = [];
+  (function buildElectrons(){
+    const g = $('#electrons');
+    for(let i = 0; i < ELECTRONS; i++){
+      const dot = el('circle', {r:6, fill:'#8ff0c4', stroke:'#0b3d2a', 'stroke-width':'1.5', opacity:'0'});
+      g.appendChild(dot); electronNodes.push(dot);
+    }
+  })();
+  const wirePts = (() => {
+    const path = $('#wirePath'), len = path.getTotalLength(), pts = [];
+    for(let i = 0; i < 320; i++){ const p = path.getPointAtLength(i / 320 * len); pts.push([p.x, p.y]); }
+    return pts;
+  })();
+  let electronPhase = 0;
+
+  const COIL_X = 560, COIL_Y = 275, LOOP_GAP = 18, LOOP_RX = 22;
+  const loopRy = () => 26 + (area - 40) / 60 * 32;   // 26 .. 58
+
+  function renderCoil(){
+    const g = $('#coil'), ry = loopRy();
+    g.replaceChildren();
+    for(let i = 0; i < loops; i++){
+      const cx = COIL_X + (i - (loops - 1) / 2) * LOOP_GAP;
+      g.appendChild(el('ellipse', {cx, cy:COIL_Y, rx:LOOP_RX, ry, fill:'none', stroke:'url(#gCopper)', 'stroke-width':'7'}));
+    }
+    const rightCx = COIL_X + (loops - 1) / 2 * LOOP_GAP;
+    $('#leadTop').setAttribute('d', 'M' + rightCx + ',' + (COIL_Y - ry) + ' L630,240');
+    $('#leadBottom').setAttribute('d', 'M' + rightCx + ',' + (COIL_Y + ry) + ' L630,310');
+  }
+
+  /* ---------- per-frame rendering ---------- */
+  function renderFrame(dt){
+    const w = omega(), e = emfPeak() * Math.sin(theta), phi = fluxMax() * Math.cos(theta);
+    const rate = -fluxMax() * w * Math.sin(theta);
+    const deg = theta * 180 / Math.PI;
+
+    $('#wheelSpin').setAttribute('transform', 'rotate(' + deg + ')');
+    $('#fieldSpin').setAttribute('transform', 'rotate(' + deg + ')');
+    $('#fieldLines').style.display = showField ? '' : 'none';
+    $('#lblN').setAttribute('transform', 'rotate(' + (-deg) + ' 38 0)');
+    $('#lblS').setAttribute('transform', 'rotate(' + (-deg) + ' -38 0)');
+
+    // compass reads the rotating dipole field at its own position
+    const mx = Math.cos(theta), my = Math.sin(theta), rx = 398 - 210, ry2 = 372 - 250;
+    const rlen = Math.hypot(rx, ry2), ux = rx / rlen, uy = ry2 / rlen, dot = mx * ux + my * uy;
+    const bx = 3 * dot * ux - mx, by = 3 * dot * uy - my;
+    $('#needle').setAttribute('transform', 'rotate(' + (Math.atan2(by, bx) * 180 / Math.PI + 90) + ')');
+
+    // water
+    const on = flow > 0;
+    $('#water').setAttribute('opacity', on ? 1 : 0);
+    if(on){
+      const width = 8 + flow * 0.2;
+      $('#waterCol').setAttribute('x', 164 - width / 2);
+      $('#waterCol').setAttribute('width', width);
+      waterPhase = (waterPhase - dt * (60 + flow * 5)) % 34;
+      $('#waterDash').setAttribute('stroke-dashoffset', waterPhase.toFixed(1));
+      $('#splash').setAttribute('opacity', 0.25 + flow / 200);
+    }
+    $('#valve').setAttribute('transform', 'rotate(' + (flow * 2.4) + ' 108.5 16)');
+
+    // flux arrow through the coil
+    const fluxNorm = Math.abs(phi) / FLUX_MAX, dir = Math.cos(theta) >= 0 ? 1 : -1;
+    const half = 14 + fluxNorm * 78;
+    const tipX = COIL_X + dir * half, tailX = COIL_X - dir * half;
+    $('#fluxLine').setAttribute('x1', tailX); $('#fluxLine').setAttribute('x2', tipX);
+    $('#fluxHead').setAttribute('points',
+      (tipX + dir * 16) + ',' + COIL_Y + ' ' + tipX + ',' + (COIL_Y - 13) + ' ' + tipX + ',' + (COIL_Y + 13));
+    $('#fluxArrow').setAttribute('opacity', 0.2 + 0.75 * fluxNorm);
+
+    // electrons
+    const drive = e / EMF_MAX;
+    electronPhase = (electronPhase + drive * dt * 0.85 + 1) % 1;
+    const visible = Math.min(1, Math.abs(drive) * 6);
+    for(let i = 0; i < ELECTRONS; i++){
+      const t = (electronPhase + i / ELECTRONS) % 1;
+      const p = wirePts[Math.floor(t * wirePts.length) % wirePts.length];
+      electronNodes[i].setAttribute('cx', p[0]);
+      electronNodes[i].setAttribute('cy', p[1]);
+      electronNodes[i].setAttribute('opacity', visible.toFixed(2));
+    }
+
+    // detector
+    const bulbOn = detector === 'bulb';
+    $('#bulbGroup').style.display = bulbOn ? '' : 'none';
+    $('#meterGroup').style.display = bulbOn ? 'none' : '';
+    $('#detectorLabel').textContent = bulbOn ? 'Light bulb' : 'Voltmeter';
+    if(bulbOn){
+      const lit = Math.abs(e) / EMF_MAX;            // the bulb only responds to size, never direction
+      $('#bulbFill').setAttribute('opacity', (lit * 0.95).toFixed(3));
+      $('#bulbGlow').setAttribute('opacity', (lit * 0.55).toFixed(3));
+      $('#filament').setAttribute('stroke', lit > 0.05 ? '#fff3c4' : '#8a6a35');
+    }else{
+      const angle = Math.max(-88, Math.min(88, e / 12 * 80));
+      $('#meterNeedle').setAttribute('transform', 'rotate(' + angle.toFixed(1) + ' 770 132)');
+    }
+
+    // graph
+    trace.push(e);
+    if(trace.length > 300) trace.shift();
+    const gy = v => 100 - Math.max(-1, Math.min(1, v / 12)) * 66;
+    let pts = '';
+    for(let i = 0; i < trace.length; i++){
+      pts += (52 + i / 299 * 832).toFixed(1) + ',' + gy(trace[i]).toFixed(1) + ' ';
+    }
+    $('#emfTrace').setAttribute('points', pts.trim());
+    $('#emfNow').setAttribute('cx', (52 + (trace.length - 1) / 299 * 832).toFixed(1));
+    $('#emfNow').setAttribute('cy', gy(e).toFixed(1));
+    $('#peakHi').setAttribute('y1', gy(emfPeak())); $('#peakHi').setAttribute('y2', gy(emfPeak()));
+    $('#peakLo').setAttribute('y1', gy(-emfPeak())); $('#peakLo').setAttribute('y2', gy(-emfPeak()));
+
+    // readouts
+    $('#hudRpm').textContent = (handSpin > 0 ? 21 : Math.round(rpm())) + ' rpm';
+    $('#hudFlux').textContent = (phi * 1000).toFixed(0) + ' mWb';
+    $('#hudRate').textContent = rate.toFixed(2) + ' Wb/s';
+    $('#hudEmf').textContent = e.toFixed(1) + ' V';
+    $('#hudPeak').textContent = emfPeak().toFixed(1) + ' V';
+    $('#hudBright').textContent = brightness() + '%';
+    $('#graphReadout').textContent = spinning()
+      ? reversalsPerSec().toFixed(1) + ' direction reversals per second'
+      : 'magnet not turning — no induced EMF';
+  }
+
+  function renderStatic(){
+    $('#flowOut').textContent = flow + '%';
+    $('#magnetOut').textContent = magnet + '%';
+    $('#areaOut').textContent = area + '%';
+    $('#cellBright').textContent = brightText();
+    $('#cellVolt').textContent = voltText();
+    $('#stageReadout').textContent = (flow === 0 ? 'Faucet off' : 'Faucet ' + flow + '%') + ' • ' + Math.round(rpm()) + ' rpm';
+    $('#handTurn').disabled = flow > 0 || handSpin > 0;
+    $('[data-record="detector"]').textContent = detector === 'bulb'
+      ? 'Record what the light bulb shows' : 'Record what the voltmeter shows';
+    let note;
+    if(flow === 0 && handSpin <= 0) note = 'The magnet is still. Its field is still there — the compass proves it — but nothing is changing.';
+    else if(load() > 0.55 && flow > 0) note = 'Notice the turbine running slower than the faucet setting alone would predict: the coil pushes back.';
+    else if(brightness() >= 85) note = 'Very bright. Try to find the setting that still adds output.';
+    else note = 'Watch the flux arrow through the coil grow, shrink, and reverse as the magnet turns.';
+    $('#stageNote').textContent = note;
+    renderCoil();
+    updateGuide();
+    updateCounts();
+  }
+
+  function tick(now){
+    const dt = lastFrame ? Math.min(0.05, (now - lastFrame) / 1000) : 0;
+    lastFrame = now;
+    const w = omega();
+    theta += w * dt;
+    if(theta > Math.PI * 2) theta -= Math.PI * 2;
+    if(handSpin > 0){
+      handSpin -= w * dt;
+      if(handSpin <= 0){ handSpin = 0; renderStatic(); }
+    }
+    if(spinning() && brightness() > data.best){
+      data.best = brightness(); saveData(); renderBest();
+    }
+    renderFrame(dt);
+    requestAnimationFrame(tick);
+  }
+
+  function renderBest(){
+    $('#bestValue').textContent = data.best + '%';
+    $('#bestFill').style.width = data.best + '%';
+  }
+
+  /* ---------- guided banner ---------- */
+  function updateGuide(){
+    const n = count();
+    let step = 1,
+        title = 'Part 1: Explore the generator',
+        text = 'Turn on the faucet and slowly raise the water flow. Watch the turbine, the electrons, and the bulb. Then stop the water and use "Turn the magnet by hand".';
+    if(n.speed < series.speed.need && flow > 0){
+      step = 2; title = 'Part 2: Test generator speed';
+      text = 'Hold the magnet and coil settings still. Record four different water-flow settings.';
+    }
+    if(n.speed >= series.speed.need){
+      step = 3; title = 'Part 3: Test magnet strength';
+      text = 'Pick one water-flow setting, leave the coil alone, and record three magnet strengths.';
+    }
+    if(n.magnet >= series.magnet.need){
+      step = 4; title = 'Part 4: Test the pickup coil';
+      text = 'Predict first, then record three loop counts. After that, change only the coil area and record three areas.';
+    }
+    if(n.loops >= series.loops.need && n.area >= series.area.need){
+      step = 5; title = 'Part 5: Bulb vs. voltmeter';
+      text = 'Run the generator with the bulb, then switch to the voltmeter and watch several complete rotations.';
+    }
+    if(n.detector >= 2){
+      step = 6; title = 'Part 6: Generator design challenge';
+      text = 'Change anything you like to make the bulb as bright as possible, then record your final design.';
+    }
+    if(data.design){
+      step = 6; title = 'Evidence complete';
+      text = 'All investigation evidence is recorded. Open the Lab Notebook and finish every written response.';
+    }
+    $('#guideStep').textContent = step;
+    $('#guideTitle').textContent = title;
+    $('#guideText').textContent = text;
+  }
+
+  /* ---------- evidence recording ---------- */
+  function count(){
+    return {
+      speed:Object.keys(data.speed).length,
+      magnet:Object.keys(data.magnet).length,
+      loops:Object.keys(data.loops).length,
+      area:Object.keys(data.area).length,
+      detector:Object.keys(data.detector).length,
+      design:data.design ? 1 : 0
+    };
+  }
+  function evidenceTotal(){ const n = count(); return n.speed + n.magnet + n.loops + n.area + n.detector + n.design; }
+  function answered(){
+    return questions.filter((_, i) => (data.answers[i + 1] || '').trim()).length
+         + ((data.answers.prediction || '').trim() ? 1 : 0);
+  }
+
+  function updateCounts(){
+    const n = count();
+    [['Speed','speed',4],['Magnet','magnet',3],['Loops','loops',3],['Area','area',3],['Detector','detector',2],['Design','design',1]]
+      .forEach(([id, key, need]) => {
+        const cell = $('#count' + id);
+        cell.textContent = n[key] + '/' + need;
+        cell.classList.toggle('done', n[key] >= need);
+      });
+    renderBest();
+  }
+
+  function note(key, msg, warn){
+    const p = $('#note' + key.charAt(0).toUpperCase() + key.slice(1));
+    p.textContent = msg;
+    p.classList.toggle('warn', !!warn);
+  }
+
+  function recordSeries(key){
+    const spec = series[key], cur = settings(), rows = Object.values(data[key]);
+    if(rows.length >= spec.need){ note(key, 'This series already has ' + spec.need + ' trials. Clear saved work to start over.', true); return; }
+    if(key !== 'speed' && !spinning()){ note(key, 'Turn on the water first — a still magnet produces no output to compare.', true); return; }
+    if(key === 'loops' && !$('#loopPredict').value.trim()){ note(key, 'Write your prediction for this loop count before testing it.', true); return; }
+    if(rows.length){
+      const base = rows[0].set, changed = spec.hold.filter(h => base[h] !== cur[h]);
+      if(changed.length){
+        note(key, 'Change only the ' + spec.unit + ' in this series. These drifted: ' + changed.map(h => holdName[h]).join(', ') + '.', true);
+        $('[data-match="' + key + '"]').hidden = false;
+        return;
+      }
+    }
+    if(rows.some(r => Math.abs(r.set[spec.vary] - cur[spec.vary]) < spec.gap)){
+      note(key, 'You already recorded a trial at that ' + spec.unit + '. Try a different one.', true);
+      return;
+    }
+    const row = {
+      set:cur, rpm:Math.round(rpm()), peak:+emfPeak().toFixed(1),
+      bright:brightText(), volt:voltText()
+    };
+    if(key === 'loops'){
+      row.pred = $('#loopPredict').value.trim();
+      $('#loopPredict').value = '';
+    }
+    data[key][cur[spec.vary]] = row;
+    saveData();
+    $('[data-match="' + key + '"]').hidden = true;
+    note(key, 'Trial recorded: ' + row.bright + '.', false);
+    renderStatic();
+    renderTables();
+  }
+
+  function recordDetector(){
+    if(!spinning()){ note('detector', 'Start the generator so the detector has something to show.', true); return; }
+    const rev = reversalsPerSec().toFixed(1);
+    if(detector === 'bulb'){
+      data.detector.bulb = {label:'Light bulb', text:'Peak brightness ' + brightness() + '% (' + brightWord(brightness()) +
+        '). The glow rises and falls ' + rev + ' times per second and never drops below "off".'};
+    }else{
+      data.detector.meter = {label:'Voltmeter', text:'Needle swings from +' + emfPeak().toFixed(1) + ' V to −' +
+        emfPeak().toFixed(1) + ' V, passing through zero ' + rev + ' times per second.'};
+    }
+    saveData();
+    note('detector', (detector === 'bulb' ? 'Bulb' : 'Voltmeter') + ' observation recorded.' +
+      (Object.keys(data.detector).length < 2 ? ' Now switch detectors and record the other one.' : ''), false);
+    renderStatic();
+    renderTables();
+  }
+
+  function recordDesign(){
+    if(!spinning()){ note('design', 'Run your design before recording it.', true); return; }
+    data.design = {set:settings(), rpm:Math.round(rpm()), peak:+emfPeak().toFixed(1), bright:brightText()};
+    saveData();
+    note('design', 'Final design recorded at ' + data.design.bright + '.', false);
+    renderStatic();
+    renderTables();
+  }
+
+  /* ---------- notebook ---------- */
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const cell = v => v ? esc(v) : '<span class="empty">not recorded</span>';
+
+  function tableHtml(type){
+    let head = '', body = '';
+    if(type === 'speed' || type === 'magnet'){
+      const spec = series[type], rows = Object.values(data[type]).sort((a, b) => a.set[spec.vary] - b.set[spec.vary]);
+      const first = type === 'speed' ? 'Water Flow / Turbine Speed' : 'Magnet Strength';
+      head = '<tr><th>Trial</th><th>' + first + '</th><th>Bulb Brightness</th><th>Voltmeter Behavior</th></tr>';
+      for(let i = 0; i < spec.need; i++){
+        const r = rows[i];
+        const label = r ? (type === 'speed' ? r.set.flow + '% flow — ' + r.rpm + ' rpm' : r.set.magnet + '% strength') : '';
+        body += '<tr><th>' + (i + 1) + '</th><td>' + cell(label) + '</td><td>' + cell(r && r.bright) + '</td><td>' + cell(r && r.volt) + '</td></tr>';
+      }
+    }else if(type === 'loops'){
+      const rows = Object.values(data.loops).sort((a, b) => a.set.loops - b.set.loops);
+      head = '<tr><th>Number of Loops</th><th>Predicted Output</th><th>Observed Output</th></tr>';
+      for(let i = 0; i < 3; i++){
+        const r = rows[i];
+        body += '<tr><th>' + (r ? r.set.loops + ' loops' : '<span class="empty">—</span>') + '</th><td>' + cell(r && r.pred) +
+          '</td><td>' + cell(r && (r.bright + ', peak ' + r.peak.toFixed(1) + ' V')) + '</td></tr>';
+      }
+    }else if(type === 'area'){
+      const rows = Object.values(data.area).sort((a, b) => a.set.area - b.set.area);
+      head = '<tr><th>Coil Area</th><th>Bulb Brightness</th><th>Peak Voltage</th></tr>';
+      for(let i = 0; i < 3; i++){
+        const r = rows[i];
+        body += '<tr><th>' + (r ? r.set.area + '% area' : '<span class="empty">—</span>') + '</th><td>' + cell(r && r.bright) +
+          '</td><td>' + cell(r && (r.peak.toFixed(1) + ' V')) + '</td></tr>';
+      }
+    }else if(type === 'detector'){
+      head = '<tr><th>Detector</th><th>What You Observed</th></tr>';
+      ['bulb','meter'].forEach(k => {
+        const r = data.detector[k];
+        body += '<tr><th>' + (k === 'bulb' ? 'Light bulb' : 'Voltmeter') + '</th><td>' + cell(r && r.text) + '</td></tr>';
+      });
+    }else if(type === 'design'){
+      const d = data.design;
+      head = '<tr><th>Design Variable</th><th>Your Setting</th></tr>';
+      body = [['Turbine speed', d && d.set.flow + '% flow — ' + d.rpm + ' rpm'],
+              ['Magnet strength', d && d.set.magnet + '%'],
+              ['Coil loops', d && d.set.loops + ' loops'],
+              ['Coil area', d && d.set.area + '%'],
+              ['Result', d && (d.bright + ', peak ' + d.peak.toFixed(1) + ' V')]]
+             .map(([k, v]) => '<tr><th>' + k + '</th><td>' + cell(v) + '</td></tr>').join('');
+    }
+    return '<div class="evidence-table-wrap"><table class="evidence-table"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>';
+  }
+
+  function answerBlock(id, label, value, extra){
+    return '<div class="answer">' + (extra || '') +
+      '<label for="q' + id + '">' + label + '</label>' +
+      '<textarea id="q' + id + '" data-question="' + id + '" maxlength="1200" placeholder="Record your evidence-based response…">' +
+      esc(value || '') + '</textarea>' +
+      '<div class="answer-meta"><span>' + ((value || '').trim() ? '<span class="answered">✓ answered</span>' : 'Required') +
+      '</span><span>' + (value || '').length + '/1200</span></div></div>';
+  }
+
+  function renderNotebook(){
+    const nav = $('#notebookNav'), root = $('#notebookParts');
+    nav.replaceChildren(); root.replaceChildren();
+    parts.forEach((part, idx) => {
+      const n = idx + 1;
+      const navBtn = document.createElement('button');
+      navBtn.type = 'button';
+      navBtn.textContent = n + '. ' + part.title.replace(/^Part \d+: /, '');
+      navBtn.addEventListener('click', () => document.getElementById('part' + n).scrollIntoView({behavior:'smooth'}));
+      nav.appendChild(navBtn);
+
+      const detail = document.createElement('details');
+      detail.className = 'lab-part';
+      detail.id = 'part' + n;
+      if(n === 1) detail.open = true;
+      const qs = questions.map((q, i) => ({part:q[0], text:q[1], num:i + 1})).filter(q => q.part === n);
+
+      let inner = '<summary>' + part.title + '</summary><div class="part-body">' +
+        '<div class="directions"><p>' + part.dir + '</p><button type="button" data-open-sim>Open the generator workspace</button></div>';
+      if(n === 4){
+        inner += answerBlock('prediction',
+          'Before testing: Predict what will happen if the number of loops is cut approximately in half.',
+          data.answers.prediction);
+      }
+      if(part.table) inner += tableHtml(part.table);
+      if(part.table2) inner += tableHtml(part.table2);
+      inner += qs.map(q => {
+        const extra = q.num === 22 ? '<p class="chain">moving water → ______ → ______ → light</p>' : '';
+        return answerBlock(q.num, q.num + '. ' + q.text, data.answers[q.num], extra);
+      }).join('');
+      inner += '</div>';
+      detail.innerHTML = inner;
+      root.appendChild(detail);
+    });
+  }
+
+  function renderTables(){
+    if(!$('#notebookParts').children.length) return;
+    renderNotebook();
+  }
+
+  function updateProgress(){
+    const ev = evidenceTotal(), ans = answered(), pct = Math.round((ev + ans) / 40 * 100);
+    $('#progressText').textContent = 'Evidence ' + ev + '/16 • Responses ' + ans + '/24';
+    $('#progressPercent').textContent = pct + '%';
+    $('#progressFill').style.width = pct + '%';
+    $('#answerBadge').textContent = ans + '/24';
+    $('#evidenceCheck').textContent = (ev === 16 ? '✓' : '○') + ' Evidence records: ' + ev + '/16';
+    $('#responsesCheck').textContent = (ans === 24 ? '✓' : '○') + ' Written responses: ' + ans + '/24';
+    $('#evidenceCheck').classList.toggle('done', ev === 16);
+    $('#responsesCheck').classList.toggle('done', ans === 24);
+    $('#submitLab').disabled = !(ev === 16 && ans === 24);
+  }
+
+  /* ---------- wiring ---------- */
+  function showTab(name){
+    $$('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+    $$('.panel').forEach(p => p.classList.toggle('active', p.dataset.panel === name));
+    if(name === 'notebook') renderTables();
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+  $$('.tab').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+  $('#flowRange').addEventListener('input', e => { flow = +e.target.value; if(flow > 0) handSpin = 0; renderStatic(); });
+  $$('[data-flow]').forEach(b => b.addEventListener('click', () => {
+    flow = +b.dataset.flow; $('#flowRange').value = flow; if(flow > 0) handSpin = 0; renderStatic();
+  }));
+  $('#magnetRange').addEventListener('input', e => { magnet = +e.target.value; renderStatic(); });
+  $('#areaRange').addEventListener('input', e => { area = +e.target.value; renderStatic(); });
+  $$('input[name="loops"]').forEach(r => r.addEventListener('change', () => { loops = +r.value; renderStatic(); }));
+  $$('input[name="detector"]').forEach(r => r.addEventListener('change', () => { detector = r.value; renderStatic(); }));
+  $('#fieldToggle').addEventListener('change', e => { showField = e.target.checked; });
+  $('#handTurn').addEventListener('click', () => { if(flow === 0){ handSpin = Math.PI * 2; renderStatic(); } });
+
+  $$('[data-record]').forEach(b => b.addEventListener('click', () => {
+    const key = b.dataset.record;
+    if(key === 'detector') recordDetector();
+    else if(key === 'design') recordDesign();
+    else recordSeries(key);
+  }));
+  $$('[data-match]').forEach(b => b.addEventListener('click', () => {
+    const key = b.dataset.match, base = Object.values(data[key])[0];
+    if(!base) return;
+    ({flow, magnet, loops, area} = base.set);
+    $('#flowRange').value = flow; $('#magnetRange').value = magnet; $('#areaRange').value = area;
+    $('input[name="loops"][value="' + loops + '"]').checked = true;
+    b.hidden = true;
+    note(key, 'Controls restored to this series’ settings. Now change only the ' + series[key].unit + '.', false);
+    renderStatic();
+  }));
+
+  $('#notebookParts').addEventListener('input', e => {
+    const t = e.target;
+    if(!t.dataset.question) return;
+    data.answers[t.dataset.question] = t.value;
+    saveData();
+    const meta = t.nextElementSibling;
+    meta.lastElementChild.textContent = t.value.length + '/1200';
+    meta.firstElementChild.innerHTML = t.value.trim() ? '<span class="answered">✓ answered</span>' : 'Required';
+  });
+  $('#notebookParts').addEventListener('click', e => {
+    if(e.target.hasAttribute('data-open-sim')) showTab('generator');
+  });
+
+  $('#submitLab').addEventListener('click', () => {
+    if(evidenceTotal() < 16 || answered() < 24) return;
+    data.submittedAt = new Date().toISOString();
+    saveData();
+    $('#submitStatus').textContent = 'Lab submitted ' + new Date(data.submittedAt).toLocaleString() + '. You may revise and resubmit.';
+    if(!completionSent){
+      completionSent = true;
+      try{ window.parent.postMessage({type:'complete'}, '*'); }catch(e){}
+    }
+  });
+  $('#resetLab').addEventListener('click', () => {
+    if(!confirm('Clear all saved evidence and written responses for this lab?')) return;
+    data = JSON.parse(JSON.stringify(defaultData));
+    saveData();
+    renderNotebook();
+    renderStatic();
+    $('#submitStatus').textContent = 'Saved work cleared.';
+  });
+
+  /* ---------- start ---------- */
+  renderNotebook();
+  renderStatic();
+  updateProgress();
+  if(data.submittedAt) $('#submitStatus').textContent = 'Last submitted ' + new Date(data.submittedAt).toLocaleString() + '.';
+  requestAnimationFrame(tick);
+})();
+</script>
+<script id="u6-buzz-local-note-script">
+(function(){if(window.location.protocol==='file:'){var note=document.querySelector('[data-u6-local-note]');if(note)note.hidden=false;}}());
+</script>
+</body>
+</html>

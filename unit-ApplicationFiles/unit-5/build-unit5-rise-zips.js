@@ -1,7 +1,8 @@
 "use strict";
 
 // Rebuilds the Rise-ready ZIP for each Unit 5 application folder.
-// Each ZIP carries the folder's index.html, which is also the Buzz assessment template.
+// Each ZIP carries the maintained source app as index.html. The separate Unit 5 Buzz builder
+// copies that source to a uniquely named assessment-template file for upload safety.
 // Run from anywhere: node unit-ApplicationFiles/unit-5/build-unit5-rise-zips.js
 
 const archiver = require("archiver");

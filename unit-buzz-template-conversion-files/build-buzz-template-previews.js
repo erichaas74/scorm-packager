@@ -135,40 +135,70 @@ const lessons = [
     output: 'electromagnet_lab_preview.html'
   },
   {
-    dir: 'unit-ApplicationFiles/unit-5',
-    template: 'thin_lens_refraction_investigation.html',
-    questions: 'thin_lens_refraction_buzz_questions.txt',
-    output: 'thin_lens_refraction_investigation_preview.html'
+    dir: 'unit-ApplicationFiles/unit-6/millikan-oil-drop-investigation',
+    template: 'u6l1-millikan-buzz-assessment-template.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'u6l1-millikan-buzz-assessment-template-preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-6/circuit-design-challenge',
+    template: 'u6l3-circuit-design-buzz-assessment-template.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'u6l3-circuit-design-buzz-assessment-template-preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-6/generator-design-challenge',
+    template: 'u6l5-generator-buzz-assessment-template.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'u6l5-generator-buzz-assessment-template-preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-6/honors-electric-motor-engineering-challenge',
+    template: 'u6h-motor-buzz-assessment-template.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'u6h-motor-buzz-assessment-template-preview.html'
   },
   {
     dir: 'unit-ApplicationFiles/unit-5',
-    template: 'sound_waves_lab_simulation.html',
+    template: 'u5l3-thin-lens-buzz-assessment-template.html',
+    questions: 'thin_lens_refraction_buzz_questions.txt',
+    output: 'u5l3-thin-lens-buzz-assessment-template-preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-5',
+    template: 'u5l2-resonance-tube-buzz-assessment-template.html',
     questions: 'sound_waves_resonance_buzz_questions.txt',
-    output: 'sound_waves_lab_simulation_preview.html'
+    output: 'u5l2-resonance-tube-buzz-assessment-template-preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-5',
+    template: 'u5h-gps-relativity-buzz-assessment-template.html',
+    questions: 'gps_relativity_buzz_questions.txt',
+    output: 'u5h-gps-relativity-buzz-assessment-template-preview.html'
   },
   {
     dir: 'unit-ApplicationFiles/unit-5/light-color-and-vision-lab',
-    template: 'index.html',
+    template: 'u5l3-light-color-vision-buzz-assessment-template.html',
     questions: '../light_color_vision_buzz_questions.txt',
-    output: 'index_preview.html'
+    output: 'u5l3-light-color-vision-buzz-assessment-template-preview.html'
   },
   {
     dir: 'unit-ApplicationFiles/unit-5/honors-relativity-timekeeping-lab',
-    template: 'index.html',
+    template: 'u5h-relativity-timekeeping-buzz-assessment-template.html',
     questions: '../honors_relativity_buzz_questions.txt',
-    output: 'index_preview.html'
+    output: 'u5h-relativity-timekeeping-buzz-assessment-template-preview.html'
   },
   {
     dir: 'unit-ApplicationFiles/unit-5/doppler-spectral-line-shift',
-    template: 'index.html',
+    template: 'u5l5-spectral-shift-buzz-assessment-template.html',
     questions: '../doppler_spectral_shift_buzz_questions.txt',
-    output: 'index_preview.html'
+    output: 'u5l5-spectral-shift-buzz-assessment-template-preview.html'
   },
   {
     dir: 'unit-ApplicationFiles/unit-5/design-the-perfect-instrument',
-    template: 'index.html',
+    template: 'u5l2-perfect-instrument-buzz-assessment-template.html',
     questions: '../design_perfect_instrument_buzz_questions.txt',
-    output: 'index_preview.html'
+    output: 'u5l2-perfect-instrument-buzz-assessment-template-preview.html'
   }
 ];
 
