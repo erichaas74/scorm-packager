@@ -1,0 +1,1535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unit 3 Lesson 5 - Impulse Jump Buzz Simulation</title>
+  <style>
+    :root {
+      --bg: #eef2f5;
+      --panel: #ffffff;
+      --ink: #243447;
+      --muted: #5d6f82;
+      --line: #c9d3df;
+      --accent: #2563a9;
+      --accent-dark: #174f8c;
+      --gold: #b47d10;
+      --ok: #1f8a5b;
+      --soft: #f6f9fc;
+      --shadow: 0 8px 24px rgba(36, 52, 71, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    .page {
+      width: min(1100px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 24px 0 34px;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    .title-card,
+    .sim-card,
+    .question-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .title-card {
+      padding: 18px 20px;
+      margin-bottom: 18px;
+    }
+
+    .title-card h1 {
+      font-size: clamp(1.6rem, 4vw, 2.35rem);
+      line-height: 1.1;
+      color: #1f2d3d;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      line-height: 1.55;
+      max-width: 860px;
+    }
+
+    .sim-card {
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+
+    .sim-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .sim-head h2 {
+      color: #1f2d3d;
+      font-size: 1.25rem;
+      margin-bottom: 5px;
+    }
+
+    .fact-row,
+    .formula-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #e9eef5;
+      border: 1px solid #d6e0ea;
+      color: #34465b;
+      font-size: 0.82rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .formula-row {
+      margin-top: 10px;
+    }
+
+    .formula-row .pill {
+      background: #fdf6e3;
+      border-color: #eadba9;
+      color: #664607;
+    }
+
+    .sim-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+    }
+
+    .canvas-shell {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f4faff;
+      height: min(600px, 74vh);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: default;
+      touch-action: none;
+    }
+
+    #button-container {
+      position: absolute;
+      left: clamp(12px, 4vw, 42px);
+      bottom: 8px;
+      z-index: 5;
+      width: min(46vw, 480px);
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .trial-btn {
+      padding: 7px 4px;
+      border-radius: 6px;
+      border: 2px solid;
+      background: #ffffff;
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 800;
+      line-height: 1.2;
+      cursor: pointer;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+      transition: transform 0.14s ease, filter 0.14s ease;
+    }
+
+    .trial-btn:hover {
+      filter: brightness(0.97);
+      transform: translateY(-1px);
+    }
+
+    .trial-btn.required {
+      grid-column: 1 / -1;
+      font-size: 0.82rem;
+      background: #fdf6e3;
+    }
+
+    .sim-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    button.action {
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 15px;
+      color: #ffffff;
+      background: var(--accent);
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.16s ease, filter 0.16s ease;
+    }
+
+    button.action:hover {
+      filter: brightness(0.96);
+      transform: translateY(-1px);
+    }
+
+    button.action.secondary { background: #607d8b; }
+
+    .run-message {
+      min-height: 22px;
+      color: var(--muted);
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    .question-grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .question-card {
+      padding: 14px;
+      border-left: 5px solid var(--accent);
+    }
+
+    .question-card.final {
+      border-left-color: var(--gold);
+    }
+
+    .question-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .step-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 78px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      color: #ffffff;
+      background: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .final .step-badge { background: var(--gold); }
+
+    .question-card h2 {
+      color: #1f2d3d;
+      font-size: 1.08rem;
+    }
+
+    .question-note {
+      color: var(--muted);
+      line-height: 1.45;
+      margin-bottom: 10px;
+    }
+
+    .q-slot {
+      background: #ffffff;
+      border: 1px dashed var(--line);
+      border-radius: 6px;
+      padding: 8px;
+    }
+
+    @media (max-width: 620px) {
+      .page { width: min(100% - 20px, 1100px); }
+      .title-card, .sim-card, .question-card { padding: 12px; }
+      .pill { white-space: normal; }
+      .sim-actions { align-items: stretch; }
+      button.action { width: 100%; }
+      .run-message { width: 100%; }
+      #button-container { width: calc(100% - 20px); left: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="title-card">
+      <h1>Unit 3 Lesson 5: Impulse Jump Lab</h1>
+      <p class="subtitle">Run the gold Required Assessment Jump below. The force plate is zeroed to body weight, so the shaded area under the curve is net impulse. Read the graph, calculate impulse, connect it to change in momentum, then find takeoff velocity and maximum height.</p>
+    </header>
+
+    <section class="sim-card" aria-label="Impulse jump simulation">
+      <div class="sim-head">
+        <div>
+          <h2>Impulse Jump Simulation</h2>
+          <p class="subtitle">The gold <strong>Required Assessment Jump</strong> makes the triangle graph the questions are graded on. You can also explore the three practice profiles, or press and hold the jumper, drag straight down, and release to make your own jump.</p>
+          <div class="formula-row" aria-label="Useful equations">
+            <span class="pill">Impulse = graph area</span>
+            <span class="pill">J = &Delta;p</span>
+            <span class="pill">v = J / m</span>
+            <span class="pill">h = v^2 / (2g)</span>
+          </div>
+        </div>
+        <div class="fact-row" aria-label="Given values">
+          <span class="pill">mass = 75 kg</span>
+          <span class="pill">g = 9.81 m/s^2</span>
+          <span class="pill">1 grid box = 50 N*s</span>
+        </div>
+      </div>
+
+      <div class="sim-layout">
+        <div class="canvas-shell" id="canvas-shell">
+          <canvas id="jumpCanvas" aria-label="Animated jumper on a force plate with a net force versus time graph"></canvas>
+          <div id="button-container" aria-label="Jump trials"></div>
+        </div>
+        <div class="sim-actions">
+          <button class="action secondary" type="button" id="clearGraphs">Clear Graphs</button>
+          <span class="run-message" id="runMessage">Ready. Run the gold Required Assessment Jump to draw the graph used in the questions below.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="question-grid" aria-label="Buzz questions">
+      <article class="question-card">
+        <div class="question-head">
+          <span class="step-badge">Step 1</span>
+          <h2>Read the Push Time</h2>
+        </div>
+        <p class="question-note">Find where the net force leaves 0 N and where it returns to 0 N.</p>
+        <div class="q-slot"><a:question></a:question></div>
+      </article>
+
+      <article class="question-card">
+        <div class="question-head">
+          <span class="step-badge">Step 2</span>
+          <h2>Read the Peak Force</h2>
+        </div>
+        <p class="question-note">Use the y-axis scale to read the highest point of the triangular force pulse.</p>
+        <div class="q-slot"><a:question></a:question></div>
+      </article>
+
+      <article class="question-card">
+        <div class="question-head">
+          <span class="step-badge">Step 3</span>
+          <h2>Find the Average Force</h2>
+        </div>
+        <p class="question-note">For this triangle, the average force during the push is half of the peak force.</p>
+        <div class="q-slot"><a:question></a:question></div>
+      </article>
+
+      <article class="question-card">
+        <div class="question-head">
+          <span class="step-badge">Step 4</span>
+          <h2>Determine the Impulse</h2>
+        </div>
+        <p class="question-note">Use the area under the graph. You can use the triangle area formula or count grid boxes.</p>
+        <div class="q-slot"><a:question></a:question></div>
+      </article>
+
+      <article class="question-card">
+        <div class="question-head">
+          <span class="step-badge">Step 5</span>
+          <h2>Connect to Momentum</h2>
+        </div>
+        <p class="question-note">The impulse-momentum theorem says the impulse equals the jumper's change in momentum.</p>
+        <div class="q-slot"><a:question></a:question></div>
+      </article>
+
+      <article class="question-card">
+        <div class="question-head">
+          <span class="step-badge">Step 6</span>
+          <h2>Find Takeoff Velocity</h2>
+        </div>
+        <p class="question-note">The jumper starts from rest on the force plate, so the vertical takeoff velocity is found from J = m * change in v.</p>
+        <div class="q-slot"><a:question></a:question></div>
+      </article>
+
+      <article class="question-card">
+        <div class="question-head">
+          <span class="step-badge">Step 7</span>
+          <h2>Find Maximum Height</h2>
+        </div>
+        <p class="question-note">Use the takeoff velocity as the initial vertical velocity of the jump after the feet leave the ground.</p>
+        <div class="q-slot"><a:question></a:question></div>
+      </article>
+
+      <article class="question-card">
+        <div class="question-head">
+          <span class="step-badge">Step 8</span>
+          <h2>Interpret Graph Area</h2>
+        </div>
+        <p class="question-note">Identify the graph feature that represents impulse before writing your full explanation.</p>
+        <div class="q-slot"><a:question></a:question></div>
+      </article>
+
+      <article class="question-card final">
+        <div class="question-head">
+          <span class="step-badge">Explain 1</span>
+          <h2>Impulse Chain</h2>
+        </div>
+        <p class="question-note">Summarize how the graph area turns into momentum change, takeoff velocity, and jump height.</p>
+        <div class="q-slot"><a:question></a:question></div>
+      </article>
+
+      <article class="question-card final">
+        <div class="question-head">
+          <span class="step-badge">Explain 2</span>
+          <h2>Compare Jump Profiles</h2>
+        </div>
+        <p class="question-note">Compare the required graph with a practice profile using peak force, contact time, graph shape, and area.</p>
+        <div class="q-slot"><a:question></a:question></div>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    /* Stickman jump animator (inlined so the Buzz template stays self-contained). */
+    (function (global) {
+      "use strict";
+
+      const SIZES = {
+        stroke: 11,
+        headRadius: 35,
+        neck: 34,
+        torso: 125,
+        shoulderWidth: 81,
+        hipWidth: 62,
+        upperArm: 72,
+        forearm: 66,
+        hand: 14,
+        upperLeg: 105,
+        lowerLeg: 98,
+        foot: 38
+      };
+
+      const REST_POSE = {
+        rootX: 450,
+        rootY: 330,
+        torsoLean: -2,
+        leftShoulder: 46,
+        rightShoulder: 46,
+        leftElbow: -101,
+        rightElbow: -101,
+        leftHip: 1,
+        rightHip: 1,
+        leftKnee: -4,
+        rightKnee: -4,
+        leftAnkle: -4,
+        rightAnkle: -4
+      };
+
+      const SQUAT_POSE = {
+        rootX: 435,
+        rootY: 412,
+        torsoLean: -4,
+        leftShoulder: 42,
+        rightShoulder: 42,
+        leftElbow: -86,
+        rightElbow: -86,
+        leftHip: 60,
+        rightHip: 60,
+        leftKnee: 124,
+        rightKnee: 124,
+        leftAnkle: 1,
+        rightAnkle: 1
+      };
+
+      const TAKEOFF_POSE = {
+        rootX: 450,
+        rootY: 270,
+        torsoLean: 1,
+        leftShoulder: 118,
+        rightShoulder: 118,
+        leftElbow: 30,
+        rightElbow: 30,
+        leftHip: 12,
+        rightHip: 12,
+        leftKnee: 14,
+        rightKnee: 14,
+        leftAnkle: -28,
+        rightAnkle: -28
+      };
+
+      const POSE_KEYS = Object.keys(REST_POSE);
+      const LANDING_POSE = blendPose(REST_POSE, SQUAT_POSE, 0.45);
+
+      function createStickmanJumpAnimator(ctx, options) {
+        return new StickmanJumpAnimator(ctx, options);
+      }
+
+      class StickmanJumpAnimator {
+        constructor(ctx, options) {
+          this.ctx = ctx;
+          this.options = Object.assign({
+            height: 175,
+            pixelsPerMeter: 180,
+            idleColor: "#64748b",
+            lineColor: "#111827",
+            forceColor: "#f59e0b",
+            bendScale: 1,
+            jumpHeightScale: 1,
+            showShadow: true,
+            showForceArrow: true
+          }, options || {});
+        }
+
+        setOptions(options) {
+          Object.assign(this.options, options || {});
+          return this;
+        }
+
+        drawJumpState(jumpState) {
+          const state = Object.assign({}, jumpState || {});
+          const profile = state.profile || {};
+          const contactTime = numberOr(state.contactTime, profile.contactTime, 0.3);
+          const depth = bendDepthForState(state, profile, contactTime, this.options);
+          const pushProgress = clamp(numberOr(state.pushProgress, 0), 0, 1);
+          const jumpHeightScale = numberOr(state.jumpHeightScale, profile.jumpHeightScale, this.options.jumpHeightScale, 1);
+          const athleteY = Math.max(0, numberOr(state.athleteY, 0) * jumpHeightScale);
+          const pixelsPerMeter = numberOr(state.pixelsPerMeter, this.options.pixelsPerMeter);
+          const groundY = numberOr(state.groundY, this.options.groundY, 0);
+          const x = numberOr(state.x, this.options.x, 0);
+          const color = state.color || profile.color || this.options.idleColor;
+          const pose = poseForState(state.state || "idle", pushProgress, depth);
+          const bodyHeight = numberOr(state.height, this.options.height);
+          const visualGroundY = groundY - athleteY * pixelsPerMeter;
+
+          this.drawPose(pose, {
+            x,
+            groundY: visualGroundY,
+            height: bodyHeight,
+            color,
+            active: state.state !== "idle",
+            shadowGroundY: groundY,
+            shadowLift: athleteY,
+            currentForce: numberOr(state.currentForce, 0),
+            weight: numberOr(state.weight, 0),
+            showForceArrow: state.showForceArrow !== false && this.options.showForceArrow
+          });
+        }
+
+        drawPose(pose, drawOptions) {
+          const ctx = this.ctx;
+          const points = calcPose(pose, SIZES);
+          const bounds = getBounds(points);
+          const naturalHeight = Math.max(1, bounds.maxY - bounds.minY);
+          const desiredHeight = numberOr(drawOptions.height, this.options.height, 175);
+          const scale = numberOr(drawOptions.scale, desiredHeight / naturalHeight);
+          const stroke = Math.max(3, SIZES.stroke * scale);
+          const root = points.root;
+          const drawX = numberOr(drawOptions.x, this.options.x, 0);
+          const drawGroundY = numberOr(drawOptions.groundY, this.options.groundY, 0);
+          const offsetX = drawX - root.x * scale;
+          const offsetY = drawGroundY - bounds.maxY * scale;
+          const color = drawOptions.active ? drawOptions.color : this.options.idleColor;
+
+          const toScreen = point => ({
+            x: offsetX + point.x * scale,
+            y: offsetY + point.y * scale
+          });
+
+          const p = {};
+          Object.keys(points).forEach(key => {
+            p[key] = toScreen(points[key]);
+          });
+
+          ctx.save();
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+
+          if (this.options.showShadow) {
+            drawShadow(ctx, drawX, numberOr(drawOptions.shadowGroundY, drawGroundY), scale, numberOr(drawOptions.shadowLift, 0));
+          }
+
+          if (drawOptions.showForceArrow && drawOptions.currentForce > drawOptions.weight) {
+            drawForceArrow(ctx, drawX, drawGroundY, drawOptions.currentForce, drawOptions.weight, this.options.forceColor);
+          }
+
+          ctx.strokeStyle = color;
+          ctx.lineWidth = stroke;
+          drawLine(ctx, p.root, p.shoulderCenter);
+          drawLine(ctx, p.leftShoulder, p.rightShoulder);
+          drawLine(ctx, p.leftHip, p.rightHip);
+          drawLine(ctx, p.leftShoulder, p.leftElbow);
+          drawLine(ctx, p.leftElbow, p.leftHand);
+          drawLine(ctx, p.rightShoulder, p.rightElbow);
+          drawLine(ctx, p.rightElbow, p.rightHand);
+          drawLine(ctx, p.leftHip, p.leftKnee);
+          drawLine(ctx, p.leftKnee, p.leftAnkle);
+          drawLine(ctx, p.leftAnkle, p.leftToe);
+          drawLine(ctx, p.rightHip, p.rightKnee);
+          drawLine(ctx, p.rightKnee, p.rightAnkle);
+          drawLine(ctx, p.rightAnkle, p.rightToe);
+
+          ctx.strokeStyle = this.options.lineColor;
+          ctx.lineWidth = Math.max(2, stroke * 0.55);
+          drawLine(ctx, p.neckTop, p.shoulderCenter);
+
+          ctx.beginPath();
+          ctx.arc(p.headCenter.x, p.headCenter.y, SIZES.headRadius * scale, 0, Math.PI * 2);
+          ctx.fillStyle = "#f8fafc";
+          ctx.fill();
+          ctx.strokeStyle = this.options.lineColor;
+          ctx.lineWidth = Math.max(2, stroke * 0.72);
+          ctx.stroke();
+
+          drawHand(ctx, p.leftHand, SIZES.hand * scale, this.options.lineColor);
+          drawHand(ctx, p.rightHand, SIZES.hand * scale, this.options.lineColor);
+
+          ctx.restore();
+        }
+      }
+
+      function poseForState(state, pushProgress, depth) {
+        if (state === "pushing") {
+          const bendAmount = Math.sin(Math.PI * pushProgress) * depth;
+          const extension = smoothStep(clamp((pushProgress - 0.58) / 0.42, 0, 1));
+          const loaded = blendPose(REST_POSE, SQUAT_POSE, bendAmount);
+          return blendPose(loaded, TAKEOFF_POSE, extension);
+        }
+
+        if (state === "flight") {
+          return TAKEOFF_POSE;
+        }
+
+        if (state === "landed") {
+          return LANDING_POSE;
+        }
+
+        return REST_POSE;
+      }
+
+      function depthForContactTime(contactTime) {
+        return clamp(0.2 + ((contactTime - 0.12) / 0.53) * 0.9, 0.18, 1.08);
+      }
+
+      function bendDepthForState(state, profile, contactTime, options) {
+        if (typeof state.squatDepth === "number" && Number.isFinite(state.squatDepth)) {
+          return clamp(state.squatDepth, 0, 1.35);
+        }
+
+        const bendScale = numberOr(state.bendScale, profile.bendScale, options.bendScale, 1);
+        return clamp(depthForContactTime(contactTime) * bendScale, 0, 1.35);
+      }
+
+      function calcPose(pose, sizes) {
+        const root = { x: pose.rootX, y: pose.rootY };
+        const torsoAngle = pose.torsoLean;
+        const shoulderCenter = pointFromVerticalUp(root, sizes.torso, torsoAngle);
+        const neckTop = pointFromVerticalUp(shoulderCenter, sizes.neck, torsoAngle);
+        const headCenter = pointFromVerticalUp(neckTop, sizes.headRadius * 0.65, torsoAngle);
+        const perp = perpendicularUnit(torsoAngle);
+
+        const leftShoulder = offsetPoint(shoulderCenter, perp, -sizes.shoulderWidth / 2);
+        const rightShoulder = offsetPoint(shoulderCenter, perp, sizes.shoulderWidth / 2);
+        const leftHip = offsetPoint(root, perp, -sizes.hipWidth / 2);
+        const rightHip = offsetPoint(root, perp, sizes.hipWidth / 2);
+
+        const leftElbow = pointFromVerticalDown(leftShoulder, sizes.upperArm, pose.leftShoulder, -1);
+        const rightElbow = pointFromVerticalDown(rightShoulder, sizes.upperArm, pose.rightShoulder, 1);
+        const leftHand = pointFromVerticalDown(leftElbow, sizes.forearm, pose.leftShoulder + pose.leftElbow, -1);
+        const rightHand = pointFromVerticalDown(rightElbow, sizes.forearm, pose.rightShoulder + pose.rightElbow, 1);
+
+        const leftKnee = pointFromVerticalDown(leftHip, sizes.upperLeg, pose.leftHip, -1);
+        const rightKnee = pointFromVerticalDown(rightHip, sizes.upperLeg, pose.rightHip, 1);
+        const leftAnkle = pointFromVerticalDown(leftKnee, sizes.lowerLeg, pose.leftHip - pose.leftKnee, -1);
+        const rightAnkle = pointFromVerticalDown(rightKnee, sizes.lowerLeg, pose.rightHip - pose.rightKnee, 1);
+        const leftToe = pointFromVerticalDown(leftAnkle, sizes.foot, 90 + pose.leftAnkle, -1);
+        const rightToe = pointFromVerticalDown(rightAnkle, sizes.foot, 90 + pose.rightAnkle, 1);
+
+        return {
+          root,
+          shoulderCenter,
+          neckTop,
+          headCenter,
+          leftShoulder,
+          rightShoulder,
+          leftElbow,
+          rightElbow,
+          leftHand,
+          rightHand,
+          leftHip,
+          rightHip,
+          leftKnee,
+          rightKnee,
+          leftAnkle,
+          rightAnkle,
+          leftToe,
+          rightToe
+        };
+      }
+
+      function blendPose(fromPose, toPose, amount) {
+        const q = clamp(amount, 0, 1);
+        const pose = {};
+        POSE_KEYS.forEach(key => {
+          pose[key] = fromPose[key] + (toPose[key] - fromPose[key]) * q;
+        });
+        return pose;
+      }
+
+      function getBounds(points) {
+        const values = Object.values(points);
+        return values.reduce((bounds, point) => ({
+          minX: Math.min(bounds.minX, point.x),
+          maxX: Math.max(bounds.maxX, point.x),
+          minY: Math.min(bounds.minY, point.y),
+          maxY: Math.max(bounds.maxY, point.y)
+        }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
+      }
+
+      function drawLine(ctx, a, b) {
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+
+      function drawHand(ctx, point, radius, color) {
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, Math.max(3, radius), 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+      }
+
+      function drawShadow(ctx, x, groundY, scale, liftMeters) {
+        const liftFactor = clamp(1 - liftMeters * 0.28, 0.48, 1);
+        ctx.save();
+        ctx.fillStyle = "rgba(15, 23, 42, 0.16)";
+        ctx.beginPath();
+        ctx.ellipse(x, groundY + 7, 86 * scale * liftFactor, 14 * scale * liftFactor, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawForceArrow(ctx, x, groundY, currentForce, weight, color) {
+        const ratio = clamp((currentForce - weight) / Math.max(weight, 1), 0, 3);
+        const length = 24 + ratio * 26;
+        const bottom = groundY + 30;
+        const top = bottom - length;
+
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 4;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(x, bottom);
+        ctx.lineTo(x, top);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, top - 9);
+        ctx.lineTo(x - 8, top + 5);
+        ctx.lineTo(x + 8, top + 5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function pointFromVerticalUp(origin, length, deg) {
+        const r = degToRad(deg);
+        return { x: origin.x + Math.sin(r) * length, y: origin.y - Math.cos(r) * length };
+      }
+
+      function pointFromVerticalDown(origin, length, deg, side) {
+        const r = degToRad(deg);
+        return { x: origin.x + side * Math.sin(r) * length, y: origin.y + Math.cos(r) * length };
+      }
+
+      function perpendicularUnit(deg) {
+        const r = degToRad(deg);
+        return { x: Math.cos(r), y: Math.sin(r) };
+      }
+
+      function offsetPoint(origin, unit, distance) {
+        return { x: origin.x + unit.x * distance, y: origin.y + unit.y * distance };
+      }
+
+      function smoothStep(x) {
+        const q = clamp(x, 0, 1);
+        return q * q * (3 - 2 * q);
+      }
+
+      function degToRad(deg) {
+        return deg * Math.PI / 180;
+      }
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function numberOr() {
+        for (let i = 0; i < arguments.length; i += 1) {
+          const value = arguments[i];
+          if (typeof value === "number" && Number.isFinite(value)) return value;
+        }
+        return 0;
+      }
+
+      global.createStickmanJumpAnimator = createStickmanJumpAnimator;
+      global.StickmanJumpAnimator = StickmanJumpAnimator;
+    })(typeof window !== "undefined" ? window : globalThis);
+
+    /* Impulse Jump Lab simulation (ported from impulse-jump-lab.html). */
+    (function () {
+      "use strict";
+
+      var canvas = document.getElementById("jumpCanvas");
+      var ctx = canvas.getContext("2d");
+      var shell = document.getElementById("canvas-shell");
+      var runMessage = document.getElementById("runMessage");
+      var stickmanAnimator = window.createStickmanJumpAnimator
+        ? window.createStickmanJumpAnimator(ctx, { pixelsPerMeter: 180 })
+        : null;
+
+      var width = 0;
+      var height = 0;
+      function resize() {
+        width = shell.clientWidth;
+        height = shell.clientHeight;
+        var dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.max(1, Math.floor(width * dpr));
+        canvas.height = Math.max(1, Math.floor(height * dpr));
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+      window.addEventListener("resize", resize);
+      resize();
+
+      // Physics constants (match the Buzz question set: m = 75 kg).
+      var mass = 75;
+      var gravity = 9.81;
+      var weight = mass * gravity;
+      var GRAPH_MAX_TIME = 0.6;
+      var GRAPH_MAX_FORCE = 4000;
+      var GROUND_OFFSET = 92;
+      var CUSTOM_JUMP_COLOR = "#8b5cf6";
+      var MAX_DRAG_DEPTH = 1.2;
+
+      var state = "idle"; // idle, charging, pushing, flight, landed
+      var athleteY = 0;
+      var athleteVy = 0;
+      var timeInPush = 0;
+      var currentForce = 0;
+
+      var jumpHistory = [];
+      var currentGraphData = [];
+      var activeProfile = null;
+      var lastResult = null;
+      var isCharging = false;
+      var dragStartY = 0;
+      var dragDepth = 0;
+
+      // The gold required jump draws the exact triangle graph the questions grade.
+      var requiredProfile = {
+        id: "required",
+        name: "Required Assessment Jump",
+        contactTime: 0.40,
+        peakNetForce: 1500,
+        shape: "triangle",
+        visualBendScale: 1.4,
+        color: "#b47d10",
+        required: true
+      };
+
+      var jumpProfiles = [
+        requiredProfile,
+        { id: "quick", name: "Quick Hop", contactTime: 0.16, peakNetForce: 1200, pulsePower: 1, visualBendScale: 0.35, color: "#f97316" },
+        { id: "deep", name: "Deep Squat Jump", contactTime: 0.50, peakNetForce: 1050, pulsePower: 4, visualBendScale: 1.8, color: "#3b82f6" },
+        { id: "athletic", name: "Athletic Max Jump", contactTime: 0.32, peakNetForce: 3000, pulsePower: 6, visualBendScale: 1.3, color: "#22c55e" }
+      ];
+
+      var btnContainer = document.getElementById("button-container");
+      jumpProfiles.forEach(function (p) {
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "trial-btn" + (p.required ? " required" : "");
+        btn.style.borderColor = p.color;
+        btn.style.color = p.color;
+        btn.innerText = p.name;
+        btn.onclick = function () { startJump(p); };
+        btnContainer.appendChild(btn);
+      });
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function buildCustomProfile(depth) {
+        var d = clamp(depth, 0.15, MAX_DRAG_DEPTH);
+        return {
+          id: "custom",
+          name: "Your Jump",
+          isCustom: true,
+          dragDepth: d,
+          contactTime: Math.round((0.16 + 0.30 * d) * 50) / 50,
+          peakNetForce: Math.round((400 + 1100 * d) / 10) * 10,
+          pulsePower: 3,
+          visualBendScale: 1,
+          color: CUSTOM_JUMP_COLOR
+        };
+      }
+
+      function scenePixelsPerMeter() {
+        return Math.max(120, Math.min(180, height * 0.34));
+      }
+
+      function sceneAthleteHeight() {
+        return Math.max(100, Math.min(190, height * 0.38));
+      }
+
+      function graphLayout() {
+        var cardW = Math.min(550, width * 0.48);
+        var cardX = width - cardW - 24;
+        var gH = height - 116;
+        return {
+          cardX: cardX,
+          cardY: 10,
+          cardW: cardW,
+          cardH: gH + 96,
+          gX: cardX + 66,
+          gY: 48,
+          gW: cardW - 82,
+          gH: gH
+        };
+      }
+
+      function canvasPos(evt) {
+        var rect = canvas.getBoundingClientRect();
+        return { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
+      }
+
+      function overJumper(pos) {
+        var groundY = height - GROUND_OFFSET;
+        var athleteHeight = sceneAthleteHeight();
+        return Math.abs(pos.x - width * 0.25) < 95 &&
+          pos.y > groundY - athleteHeight - 55 &&
+          pos.y < groundY + 16;
+      }
+
+      canvas.addEventListener("pointerdown", function (evt) {
+        if (isCharging || state === "pushing" || state === "flight") return;
+        var pos = canvasPos(evt);
+        if (!overJumper(pos)) return;
+
+        isCharging = true;
+        state = "charging";
+        dragStartY = pos.y;
+        dragDepth = 0;
+        activeProfile = null;
+        lastResult = null;
+        currentForce = 0;
+        athleteY = 0;
+        athleteVy = 0;
+        canvas.setPointerCapture(evt.pointerId);
+        canvas.style.cursor = "grabbing";
+        evt.preventDefault();
+      });
+
+      canvas.addEventListener("pointermove", function (evt) {
+        var pos = canvasPos(evt);
+        if (isCharging) {
+          var maxPull = sceneAthleteHeight() * 0.42;
+          dragDepth = clamp((pos.y - dragStartY) / maxPull, 0, 1) * MAX_DRAG_DEPTH;
+        } else if (state === "idle" || state === "landed") {
+          canvas.style.cursor = overJumper(pos) ? "grab" : "default";
+        }
+      });
+
+      function releaseCharge() {
+        if (!isCharging) return;
+        isCharging = false;
+        canvas.style.cursor = "default";
+
+        if (dragDepth > 0.12) {
+          state = "landed";
+          startJump(buildCustomProfile(dragDepth));
+        } else {
+          state = "idle";
+        }
+        dragDepth = 0;
+      }
+      canvas.addEventListener("pointerup", releaseCharge);
+      canvas.addEventListener("pointercancel", releaseCharge);
+
+      function clearHistory() {
+        jumpHistory = [];
+        currentGraphData = [];
+        lastResult = null;
+        state = "idle";
+        athleteY = 0;
+        athleteVy = 0;
+        activeProfile = null;
+        currentForce = 0;
+        isCharging = false;
+        dragDepth = 0;
+        runMessage.textContent = "Graphs cleared. Run the gold Required Assessment Jump to redraw the required graph.";
+      }
+      document.getElementById("clearGraphs").addEventListener("click", clearHistory);
+
+      function startJump(profile) {
+        if (state === "pushing" || state === "flight") return;
+
+        isCharging = false;
+        canvas.style.cursor = "default";
+        activeProfile = profile;
+        lastResult = null;
+        state = "pushing";
+        timeInPush = 0;
+        athleteY = 0;
+        athleteVy = 0;
+        currentForce = 0;
+        currentGraphData = [{ t: 0, f: 0 }];
+        runMessage.textContent = "Running " + profile.name + "...";
+      }
+
+      function getNetForce(profile, time) {
+        if (!profile || time <= 0 || time >= profile.contactTime) return 0;
+
+        if (profile.shape === "triangle") {
+          var half = profile.contactTime / 2;
+          return time <= half
+            ? profile.peakNetForce * (time / half)
+            : profile.peakNetForce * (1 - (time - half) / half);
+        }
+
+        var phase = Math.sin(Math.PI * time / profile.contactTime);
+        return profile.peakNetForce * Math.pow(Math.max(0, phase), profile.pulsePower);
+      }
+
+      function calculateNetImpulse(profile) {
+        var steps = 600;
+        var dt = profile.contactTime / steps;
+        var area = 0;
+        var previousForce = getNetForce(profile, 0);
+
+        for (var i = 1; i <= steps; i++) {
+          var force = getNetForce(profile, i * dt);
+          area += ((previousForce + force) / 2) * dt;
+          previousForce = force;
+        }
+
+        return area;
+      }
+
+      var lastTime = performance.now();
+      function animate(currentTime) {
+        var dt = (currentTime - lastTime) / 1000;
+        if (dt > 0.1) dt = 0.1;
+        lastTime = currentTime;
+
+        updatePhysics(dt);
+        drawScene();
+
+        requestAnimationFrame(animate);
+      }
+
+      function updatePhysics(dt) {
+        if (state === "pushing") {
+          timeInPush += dt;
+
+          if (timeInPush >= activeProfile.contactTime) {
+            state = "flight";
+            currentForce = 0;
+            currentGraphData.push({ t: activeProfile.contactTime, f: 0 });
+
+            var netImpulse = calculateNetImpulse(activeProfile);
+            var avgNetForce = netImpulse / activeProfile.contactTime;
+            var takeoffSpeed = netImpulse / mass;
+            var maxHeight = (takeoffSpeed * takeoffSpeed) / (2 * gravity);
+
+            athleteVy = takeoffSpeed;
+
+            lastResult = {
+              profile: activeProfile,
+              contactTime: activeProfile.contactTime,
+              avgNetForce: avgNetForce,
+              netImpulse: netImpulse,
+              takeoffSpeed: takeoffSpeed,
+              maxHeight: maxHeight
+            };
+
+            jumpHistory.push({
+              profile: activeProfile,
+              points: currentGraphData.slice(),
+              result: lastResult
+            });
+
+            runMessage.textContent = activeProfile.required
+              ? "Required graph is on the chart. Use it to answer the Buzz questions below."
+              : activeProfile.name + " complete. Remember: the questions grade the gold required graph.";
+          } else {
+            currentForce = getNetForce(activeProfile, timeInPush);
+            currentGraphData.push({ t: timeInPush, f: currentForce });
+          }
+        } else if (state === "flight") {
+          athleteVy -= gravity * dt;
+          athleteY += athleteVy * dt;
+
+          if (athleteY <= 0 && athleteVy < 0) {
+            athleteY = 0;
+            athleteVy = 0;
+            state = "landed";
+          }
+        }
+      }
+
+      function roundedRectPath(x, y, w, h, r) {
+        if (typeof ctx.roundRect === "function") {
+          ctx.beginPath();
+          ctx.roundRect(x, y, w, h, r);
+          return;
+        }
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+      }
+
+      function drawScene() {
+        ctx.clearRect(0, 0, width, height);
+        var groundY = height - GROUND_OFFSET;
+
+        drawBackdrop(groundY);
+        drawRuler(groundY);
+        drawPeakMarker(groundY);
+        drawForcePlate(groundY);
+        drawJumper(groundY);
+        if (isCharging) {
+          drawPowerMeter(groundY);
+        } else {
+          drawDragHint(groundY);
+        }
+        drawGraph();
+      }
+
+      function drawBackdrop(groundY) {
+        var sky = ctx.createLinearGradient(0, 0, 0, groundY);
+        sky.addColorStop(0, "#dbeafe");
+        sky.addColorStop(0.65, "#eff6ff");
+        sky.addColorStop(1, "#f8fafc");
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, width, groundY);
+
+        drawCloud(width * 0.13, height * 0.16, Math.min(28, height * 0.05));
+        drawCloud(width * 0.36, height * 0.3, Math.min(21, height * 0.038));
+
+        var dirt = ctx.createLinearGradient(0, groundY, 0, height);
+        dirt.addColorStop(0, "#94a3b8");
+        dirt.addColorStop(1, "#64748b");
+        ctx.fillStyle = dirt;
+        ctx.fillRect(0, groundY, width, height - groundY);
+        ctx.fillStyle = "#475569";
+        ctx.fillRect(0, groundY, width, 4);
+      }
+
+      function drawCloud(cx, cy, r) {
+        if (r < 8) return;
+        ctx.save();
+        ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.arc(cx + r * 0.95, cy + r * 0.3, r * 0.72, 0, Math.PI * 2);
+        ctx.arc(cx - r * 0.95, cy + r * 0.32, r * 0.66, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawRuler(groundY) {
+        var ppm = scenePixelsPerMeter();
+        var x = Math.max(34, width * 0.05);
+        var topY = groundY - 1.5 * ppm;
+        if (topY < 10) return;
+
+        ctx.save();
+        ctx.strokeStyle = "#94a3b8";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x, groundY);
+        ctx.lineTo(x, topY);
+        ctx.stroke();
+
+        ctx.font = "11px Segoe UI, Arial";
+        ctx.fillStyle = "#64748b";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+
+        for (var m = 0; m <= 1.501; m += 0.25) {
+          var y = groundY - m * ppm;
+          var major = Math.round(m * 100) % 50 === 0;
+          ctx.lineWidth = major ? 2 : 1;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + (major ? 12 : 7), y);
+          ctx.stroke();
+          if (major && m > 0) ctx.fillText(m.toFixed(1) + " m", x + 16, y);
+        }
+        ctx.restore();
+      }
+
+      function drawPeakMarker(groundY) {
+        if (!lastResult || (state !== "flight" && state !== "landed")) return;
+        var ppm = scenePixelsPerMeter();
+        var jumperX = width * 0.25;
+        var y = groundY - lastResult.maxHeight * ppm;
+
+        ctx.save();
+        ctx.strokeStyle = lastResult.profile.color;
+        ctx.setLineDash([6, 5]);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(Math.max(34, width * 0.05), y);
+        ctx.lineTo(jumperX + 108, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = lastResult.profile.color;
+        ctx.font = "bold 13px Segoe UI, Arial";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText("max height", jumperX + 116, y);
+        ctx.restore();
+      }
+
+      function drawForcePlate(groundY) {
+        var jumperX = width * 0.25;
+        var plateW = 170;
+
+        ctx.save();
+        if (currentForce > 0 && activeProfile) {
+          ctx.shadowColor = activeProfile.color;
+          ctx.shadowBlur = 10 + 22 * Math.min(1, (currentForce / GRAPH_MAX_FORCE) * 2);
+        }
+        roundedRectPath(jumperX - plateW / 2, groundY - 5, plateW, 14, 4);
+        ctx.fillStyle = "#334155";
+        ctx.fill();
+        ctx.shadowColor = "transparent";
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = "#1e293b";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = "#94a3b8";
+        [jumperX - plateW / 2 + 13, jumperX + plateW / 2 - 13].forEach(function (bx) {
+          ctx.beginPath();
+          ctx.arc(bx, groundY + 2, 3, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.restore();
+      }
+
+      function drawPowerMeter(groundY) {
+        var jumperX = width * 0.25;
+        var mH = Math.min(150, height * 0.32);
+        var mX = jumperX + 100;
+        var mBottom = groundY - 12;
+        var frac = clamp(dragDepth / MAX_DRAG_DEPTH, 0, 1);
+
+        ctx.save();
+        roundedRectPath(mX, mBottom - mH, 20, mH, 6);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+        ctx.fill();
+        ctx.strokeStyle = "#94a3b8";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        if (frac > 0.02) {
+          var fillH = (mH - 6) * frac;
+          var hue = 120 - 120 * frac;
+          roundedRectPath(mX + 3, mBottom - 3 - fillH, 14, fillH, 4);
+          ctx.fillStyle = "hsl(" + hue + ", 85%, 46%)";
+          ctx.fill();
+        }
+
+        ctx.fillStyle = "#475569";
+        ctx.font = "bold 11px Segoe UI, Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        ctx.fillText("POWER", mX + 10, mBottom - mH - 8);
+
+        var preview = buildCustomProfile(dragDepth);
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.font = "bold 12px Segoe UI, Arial";
+        ctx.fillStyle = "#6d28d9";
+        ctx.fillText("peak ~" + preview.peakNetForce + " N", mX + 32, mBottom - mH * 0.5);
+        ctx.fillText("push ~" + preview.contactTime.toFixed(2) + " s", mX + 32, mBottom - mH * 0.5 + 18);
+
+        if (frac > 0.12) {
+          ctx.fillStyle = "#16a34a";
+          ctx.font = "bold 14px Segoe UI, Arial";
+          ctx.fillText("Release to jump!", mX + 32, mBottom - mH * 0.5 - 24);
+        }
+        ctx.restore();
+      }
+
+      function drawDragHint(groundY) {
+        if (state !== "idle" && state !== "landed") return;
+        var jumperX = width * 0.25;
+        var athleteHeight = sceneAthleteHeight();
+        var bob = Math.sin(performance.now() / 400) * 4;
+        var y = groundY - athleteHeight - 44 + bob;
+
+        ctx.save();
+        ctx.fillStyle = "#7c3aed";
+        ctx.font = "bold 13px Segoe UI, Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        ctx.fillText("Drag me down, then release!", jumperX, y);
+        ctx.strokeStyle = "#7c3aed";
+        ctx.lineWidth = 3;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(jumperX, y + 8);
+        ctx.lineTo(jumperX, y + 26);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(jumperX - 6, y + 20);
+        ctx.lineTo(jumperX, y + 28);
+        ctx.lineTo(jumperX + 6, y + 20);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawJumper(groundY) {
+        var jumperX = width * 0.25;
+        var pixelsPerMeter = scenePixelsPerMeter();
+        var athleteHeight = sceneAthleteHeight();
+        var visualBendScale = activeProfile ? (activeProfile.visualBendScale || 1) : 1;
+
+        var displayState = state;
+        var pushProgress = activeProfile ? timeInPush / activeProfile.contactTime : 0;
+        var squatDepth;
+        var color = activeProfile ? activeProfile.color : "#64748b";
+
+        if (state === "charging") {
+          displayState = "pushing";
+          pushProgress = 0.5;
+          squatDepth = dragDepth;
+          color = CUSTOM_JUMP_COLOR;
+        } else if (state === "pushing" && activeProfile && activeProfile.isCustom) {
+          // Launch from the held squat instead of dipping again.
+          pushProgress = 0.5 + 0.5 * clamp(timeInPush / activeProfile.contactTime, 0, 1);
+          squatDepth = activeProfile.dragDepth;
+        }
+
+        if (stickmanAnimator) {
+          stickmanAnimator.drawJumpState({
+            x: jumperX,
+            groundY: groundY,
+            height: athleteHeight,
+            pixelsPerMeter: pixelsPerMeter,
+            state: displayState,
+            athleteY: athleteY,
+            pushProgress: pushProgress,
+            squatDepth: squatDepth,
+            currentForce: currentForce + weight,
+            weight: weight,
+            profile: activeProfile,
+            bendScale: visualBendScale,
+            color: color,
+            showForceArrow: state === "pushing"
+          });
+          return;
+        }
+
+        var boxHeight = Math.max(38, Math.min(56, height * 0.28));
+        if (state === "charging") {
+          boxHeight = boxHeight - (boxHeight * 0.45 * clamp(dragDepth, 0, MAX_DRAG_DEPTH));
+        } else if (state === "pushing" && activeProfile) {
+          var fallbackDepth = clamp((activeProfile.contactTime / 0.65) * visualBendScale, 0, 1.35);
+          boxHeight = boxHeight - (boxHeight * 0.45 * fallbackDepth * Math.sin(Math.PI * timeInPush / activeProfile.contactTime));
+        }
+        var visualY = groundY - (athleteY * pixelsPerMeter) - boxHeight;
+        ctx.fillStyle = (state === "idle") ? "#cbd5e1" : (activeProfile ? activeProfile.color : (state === "charging" ? CUSTOM_JUMP_COLOR : "#cbd5e1"));
+        ctx.fillRect(jumperX - 25, visualY, 50, boxHeight);
+        ctx.strokeStyle = "#1e293b";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(jumperX - 25, visualY, 50, boxHeight);
+      }
+
+      function drawGraph() {
+        var layout = graphLayout();
+        var gX = layout.gX;
+        var gY = layout.gY;
+        var gW = layout.gW;
+        var gH = layout.gH;
+
+        if (gW < 100 || gH < 80) return;
+
+        ctx.save();
+        roundedRectPath(layout.cardX, layout.cardY, layout.cardW, layout.cardH, 12);
+        ctx.fillStyle = "#ffffff";
+        ctx.shadowColor = "rgba(15, 23, 42, 0.14)";
+        ctx.shadowBlur = 16;
+        ctx.shadowOffsetY = 4;
+        ctx.fill();
+        ctx.shadowColor = "transparent";
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+        ctx.strokeStyle = "#e2e8f0";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "bold 14px Segoe UI, Arial";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "alphabetic";
+        ctx.fillText("Net Force vs. Time", gX - 48, 34);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(gX, gY, gW, gH);
+        ctx.strokeStyle = "#cbd5e1";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(gX, gY, gW, gH);
+
+        drawGraphGrid(gX, gY, gW, gH);
+
+        var zeroY = gY + gH;
+        ctx.beginPath();
+        ctx.moveTo(gX, zeroY);
+        ctx.lineTo(gX + gW, zeroY);
+        ctx.strokeStyle = "#94a3b8";
+        ctx.stroke();
+
+        ctx.fillStyle = "#64748b";
+        ctx.font = height < 210 ? "10px Segoe UI, Arial" : "12px Segoe UI, Arial";
+        ctx.fillText("0 N net", gX + 5, zeroY - 5);
+
+        ctx.fillText("Time (s)", gX + gW - 48, gY + gH + 22);
+        ctx.save();
+        ctx.translate(gX - 48, gY + Math.min(64, gH * 0.6));
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText("Force (N)", 0, 0);
+        ctx.restore();
+
+        // Ghosted history; the required jump stays prominent so it is always readable.
+        jumpHistory.forEach(function (jump) {
+          drawCurve(jump.points, jump.profile.color, jump.profile.required ? 0.85 : 0.3, false, gX, gY, gW, gH, zeroY);
+        });
+
+        if (state === "pushing") {
+          drawCurve(currentGraphData, activeProfile.color, 1.0, true, gX, gY, gW, gH, zeroY);
+        } else if (jumpHistory.length > 0 && state !== "idle") {
+          var lastJump = jumpHistory[jumpHistory.length - 1];
+          drawCurve(lastJump.points, lastJump.profile.color, 1.0, true, gX, gY, gW, gH, zeroY);
+        }
+      }
+
+      function drawGraphGrid(gX, gY, gW, gH) {
+        var labelFont = height < 210 ? "9px Segoe UI, Arial" : "10px Segoe UI, Arial";
+        ctx.save();
+        ctx.lineWidth = 1;
+        ctx.font = labelFont;
+        ctx.fillStyle = "#475569";
+
+        for (var force = 0; force <= GRAPH_MAX_FORCE; force += 500) {
+          var y = gY + gH - (force / GRAPH_MAX_FORCE) * gH;
+          ctx.beginPath();
+          ctx.moveTo(gX, y);
+          ctx.lineTo(gX + gW, y);
+          ctx.strokeStyle = force === 0 ? "#94a3b8" : "#e2e8f0";
+          ctx.stroke();
+
+          ctx.textAlign = "right";
+          ctx.textBaseline = "middle";
+          ctx.fillText(String(force), gX - 8, y);
+        }
+
+        var timeSteps = Math.round(GRAPH_MAX_TIME / 0.1);
+        for (var i = 0; i <= timeSteps; i++) {
+          var time = i * 0.1;
+          var x = gX + (time / GRAPH_MAX_TIME) * gW;
+          ctx.beginPath();
+          ctx.moveTo(x, gY);
+          ctx.lineTo(x, gY + gH);
+          ctx.strokeStyle = i === 0 ? "#94a3b8" : "#e2e8f0";
+          ctx.stroke();
+
+          ctx.textAlign = "center";
+          ctx.textBaseline = "top";
+          ctx.fillText(time.toFixed(1), x, gY + gH + 4);
+        }
+
+        ctx.restore();
+      }
+
+      function drawCurve(points, color, alpha, fillArea, gX, gY, gW, gH, zeroY) {
+        if (points.length === 0) return;
+
+        ctx.beginPath();
+        ctx.moveTo(gX, gY + gH - (points[0].f / GRAPH_MAX_FORCE) * gH);
+
+        for (var i = 1; i < points.length; i++) {
+          var x = gX + (points[i].t / GRAPH_MAX_TIME) * gW;
+          var y = gY + gH - (points[i].f / GRAPH_MAX_FORCE) * gH;
+          ctx.lineTo(x, y);
+        }
+
+        ctx.strokeStyle = color;
+        ctx.globalAlpha = alpha;
+        ctx.lineWidth = fillArea ? 3 : 2;
+        ctx.stroke();
+
+        if (fillArea) {
+          var lastX = gX + (points[points.length - 1].t / GRAPH_MAX_TIME) * gW;
+          ctx.lineTo(lastX, zeroY);
+          ctx.lineTo(gX, zeroY);
+          ctx.fillStyle = color;
+          ctx.globalAlpha = 0.2;
+          ctx.fill();
+        }
+
+        ctx.globalAlpha = 1.0;
+      }
+
+      requestAnimationFrame(animate);
+    }());
+  </script>
+  <script id="buzz-assessment-integrity-guard">
+    (function () {
+      'use strict';
+
+      function blockClipboardAction(event) {
+        event.preventDefault();
+      }
+
+      ['copy', 'cut', 'paste', 'contextmenu'].forEach(function (eventName) {
+        document.addEventListener(eventName, blockClipboardAction, true);
+      });
+
+      document.addEventListener('keydown', function (event) {
+        var key = String(event.key || '').toLowerCase();
+        if ((event.ctrlKey || event.metaKey) && (key === 'c' || key === 'x' || key === 'v')) {
+          event.preventDefault();
+        }
+      }, true);
+    }());
+  </script>
+</body>
+</html>

@@ -1108,20 +1108,14 @@
       accelArrow.style.opacity = Math.abs(acceleration) < 0.1 ? '0.35' : '';
     }
 
-    /* ===== SCORM ===== */
+    /* ===== Local practice persistence ===== */
     function reportScore() {
       const total = Math.max(getTotalScore(), appState.bestScore);
       appState.bestScore = total;
-      if (typeof SCORM !== 'undefined') {
-        SCORM.setScore(total, 0, 100);
-        SCORM.setStatus(total >= PASS_THRESHOLD ? 'passed' : 'failed');
-        SCORM.commit();
-      }
       saveSuspendData();
     }
 
     function saveSuspendData() {
-      if (typeof SCORM === 'undefined') return;
       const data = {
         v: 2,
         th: appState.mission.targetHeight,
@@ -1142,13 +1136,12 @@
         l4S: appState.l4Score,
         l4At: appState.l4Attempts,
       };
-      SCORM.setValue('cmi.suspend_data', JSON.stringify(data));
-      SCORM.commit();
+      try { localStorage.setItem('u1h_rocket_launch_progress', JSON.stringify(data)); } catch (error) { /* storage unavailable */ }
     }
 
     function loadSuspendData() {
-      if (typeof SCORM === 'undefined') return false;
-      const raw = SCORM.getValue('cmi.suspend_data');
+      let raw = '';
+      try { raw = localStorage.getItem('u1h_rocket_launch_progress') || ''; } catch (error) { /* storage unavailable */ }
       if (!raw) return false;
       try {
         const data = JSON.parse(raw);
@@ -2415,10 +2408,6 @@
 
     /* ===== Init ===== */
     function init() {
-      if (typeof SCORM !== 'undefined') {
-        SCORM.initialize();
-      }
-
       const restored = loadSuspendData();
       closeWalkthrough();
 

@@ -419,7 +419,7 @@
             banner.classList.remove('bg-indigo-900/80', 'border-indigo-500', 'text-indigo-100');
             banner.classList.add('bg-green-900/80', 'border-green-500', 'text-green-100');
             title.textContent = 'Data Collection Complete';
-            text.textContent  = 'The data table is complete. Download the evidence image, then return to Buzz and answer the assessment questions.';
+            text.textContent  = 'The data table is complete. Use these values in the final two Buzz evidence responses; no file upload is required.';
         }
     }
 
@@ -524,7 +524,7 @@
         imageCtx.textAlign = 'left';
         imageCtx.fillStyle = '#475569';
         imageCtx.font = '15px Arial, sans-serif';
-        imageCtx.fillText('Upload this image to the final Buzz question.', left, height - 28);
+        imageCtx.fillText('Optional reference copy — no Buzz upload is required.', left, height - 28);
 
         var link = document.createElement('a');
         link.download = 'unit-1-lesson-3-galileo-evidence.png';
@@ -625,30 +625,18 @@
         if (scoreBadge) scoreBadge.textContent = 'Score: ' + bestScore + '%';
         showSubmittedState();
         saveSuspendData();
-        if (typeof SCORM !== 'undefined') {
-            SCORM.setScore(bestScore, 0, 100);
-            SCORM.setStatus(bestScore >= PASS_THRESHOLD ? 'passed' : 'failed');
-            SCORM.commit();
-            SCORM.finish();
-        }
     }
 
     function reportScore() {
         var score = getScore();
         if (score > bestScore) bestScore = score;
         if (scoreBadge) scoreBadge.textContent = 'Score: ' + bestScore + '%';
-        if (typeof SCORM !== 'undefined') {
-            SCORM.setScore(bestScore, 0, 100);
-            SCORM.setStatus(bestScore >= PASS_THRESHOLD ? 'passed' : 'failed');
-            SCORM.commit();
-        }
         saveSuspendData();
         updateSubmitButton();
     }
 
-    /* ── SCORM Persist ────────────────────────────────────────────────── */
+    /* ── Local practice persistence ──────────────────────────────────── */
     function saveSuspendData() {
-        if (typeof SCORM === 'undefined') return;
         var colsList = ['dist', 'interval', 'intratio', 'ratio'];
         var cells    = {};
         times.forEach(function (t) {
@@ -669,13 +657,12 @@
             console.warn('suspend_data exceeds 4096 chars (' + payload.length + '); saving without responses.');
             payload = JSON.stringify({ v: 1, stg: currentStage, best: bestScore, submitted: submitted, cells: cells, responses: {} });
         }
-        SCORM.setValue('cmi.suspend_data', payload);
-        SCORM.commit();
+        try { localStorage.setItem('u1l3_galileo_progress', payload); } catch (e) { /* storage unavailable */ }
     }
 
     function loadSuspendData() {
-        if (typeof SCORM === 'undefined') return false;
-        var raw = SCORM.getValue('cmi.suspend_data');
+        var raw = '';
+        try { raw = localStorage.getItem('u1l3_galileo_progress') || ''; } catch (e) { /* storage unavailable */ }
         if (!raw) return false;
         try {
             var data   = JSON.parse(raw);
@@ -709,7 +696,7 @@
 
             if (scoreBadge) scoreBadge.textContent = 'Score: ' + bestScore + '%';
             revalidateAll();
-            reportScore();    // sync current score to Buzz after full restore
+            reportScore();
 
             if (data.submitted === true) {
                 submitted = true;
@@ -849,7 +836,6 @@
     }
 
     window.addEventListener('load', function () {
-        if (typeof SCORM !== 'undefined') SCORM.initialize();
         if (!startScreenButton) setupCanvas();
         loadSuspendData();
         highlightColumn(currentStage);
@@ -857,14 +843,8 @@
     });
 
     window.addEventListener('beforeunload', function () {
-        if (submitted) return;   // already finalized via submitAssignment()
+        if (submitted) return;
         saveSuspendData();
-        if (typeof SCORM !== 'undefined') {
-            SCORM.setScore(bestScore, 0, 100);
-            SCORM.setStatus(bestScore >= PASS_THRESHOLD ? 'passed' : 'failed');
-            SCORM.commit();
-            SCORM.finish();
-        }
     });
 
 }());

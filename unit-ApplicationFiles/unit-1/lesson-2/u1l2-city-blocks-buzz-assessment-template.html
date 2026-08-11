@@ -649,7 +649,7 @@
 
   <section class="buzz-evidence" aria-label="City Blocks evidence report">
     <h2>City Blocks Evidence Report</h2>
-    <p>Complete the challenge levels, then download this report or take a screenshot for your Buzz evidence upload.</p>
+    <p>Complete the challenge levels, then use the values in this report while answering the final two evidence responses. No file upload is required.</p>
     <div class="evidence-readout" id="evidenceReadout"></div>
     <div class="evidence-actions">
       <button id="downloadEvidenceBtn" type="button">Download Evidence Image</button>
@@ -658,6 +658,10 @@
 
   <section class="buzz-questions" aria-label="Buzz questions">
     <h2>Assessment Questions</h2>
+    <div class="question-card"><a:question></a:question></div>
+    <div class="question-card"><a:question></a:question></div>
+    <div class="question-card"><a:question></a:question></div>
+    <div class="question-card"><a:question></a:question></div>
     <div class="question-card"><a:question></a:question></div>
     <div class="question-card"><a:question></a:question></div>
     <div class="question-card"><a:question></a:question></div>
@@ -758,7 +762,7 @@
       walkthroughOverlay.classList.add('hidden');
     }
 
-    // Progress tracking (drives the SCORM completion score)
+    // Progress tracking for the six practice levels
     // passed = level indices whose route matched both targets (1 pt each)
     var progressState = {
       passed: []
@@ -2207,36 +2211,27 @@
       updateHud();
     }
 
-    // --- SCORM PROGRESS + SUSPEND DATA ---
+    // --- LOCAL PRACTICE PROGRESS ---
     function earnedPoints() {
       return progressState.passed.length === levels.length ? POINTS_MAX : 0;
     }
 
-    // Completion activity: status is only ever completed/incomplete.
     function reportProgress() {
-      var complete = progressState.passed.length === levels.length;
-      if (typeof SCORM !== 'undefined') {
-        SCORM.setScore(earnedPoints(), 0, POINTS_MAX);
-        SCORM.setStatus(complete ? 'completed' : 'incomplete');
-        SCORM.commit();
-      }
       saveSuspendData();
       updateScoreReadout();
     }
 
     function saveSuspendData() {
-      if (typeof SCORM === 'undefined') return;
       var data = JSON.stringify({
         v: 3,
         passed: progressState.passed
       });
-      SCORM.setValue('cmi.suspend_data', data);
-      SCORM.commit();
+      try { localStorage.setItem('u1l2_city_blocks_progress', data); } catch (e) { /* storage unavailable */ }
     }
 
     function loadSuspendData() {
-      if (typeof SCORM === 'undefined') return;
-      var raw = SCORM.getValue('cmi.suspend_data');
+      var raw = '';
+      try { raw = localStorage.getItem('u1l2_city_blocks_progress') || ''; } catch (e) { /* storage unavailable */ }
       if (raw) {
         try {
           var parsed = JSON.parse(raw);
@@ -2264,10 +2259,6 @@
 
     function initializeActivity() {
       loadSuspendData();
-      if (typeof SCORM !== 'undefined' && progressState.passed.length < levels.length) {
-        SCORM.setStatus('incomplete');
-        SCORM.commit();
-      }
       boot();
       if (document.fonts && document.fonts.ready) {
         document.fonts.ready.then(function() {
@@ -2336,14 +2327,8 @@
       if (e.key.toLowerCase() === 'n') nextLevel();
     });
 
-    // Completion activity: never report passed/failed, only progress so far.
     window.addEventListener('beforeunload', function() {
-      if (typeof SCORM !== 'undefined') {
-        SCORM.setScore(earnedPoints(), 0, POINTS_MAX);
-        SCORM.setStatus(progressState.passed.length === levels.length ? 'completed' : 'incomplete');
-        SCORM.commit();
-        SCORM.finish();
-      }
+      saveSuspendData();
     });
     
   </script>

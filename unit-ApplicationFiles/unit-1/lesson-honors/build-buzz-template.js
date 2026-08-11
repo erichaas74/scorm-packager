@@ -15,6 +15,20 @@ const outputPath = path.join(lessonDir, 'u1h-rocket-launch-buzz-assessment-templ
 
 const EXPECTED_SLOTS = 10;
 
+const integrityGuard = `  <script id="buzz-assessment-integrity-guard">
+    (function () {
+      'use strict';
+      function blockClipboardAction(event) { event.preventDefault(); }
+      ['copy', 'cut', 'paste', 'contextmenu'].forEach(function (eventName) {
+        document.addEventListener(eventName, blockClipboardAction, true);
+      });
+      document.addEventListener('keydown', function (event) {
+        var key = String(event.key || '').toLowerCase();
+        if ((event.ctrlKey || event.metaKey) && (key === 'c' || key === 'x' || key === 'v')) event.preventDefault();
+      }, true);
+    }());
+  </script>`;
+
 function replaceOnce(source, find, replacement, label) {
   const parts = source.split(find);
   if (parts.length !== 2) {
@@ -586,7 +600,7 @@ function labRuntime() {
  * 3. Per-section markup
  * ------------------------------------------------------------------ */
 const appStart = sourceHtml.indexOf('<div class="app">');
-const appEnd = sourceHtml.indexOf('<script src="scorm-wrapper.js">');
+const appEnd = sourceHtml.indexOf('<script src="sim.js">');
 if (appStart === -1 || appEnd === -1) {
   throw new Error('Could not locate the app markup in index.html.');
 }
@@ -856,6 +870,7 @@ ${sectionsMarkup}
 ${buildLabFactory(sourceScript)}
   </script>
 ${bootstrap}
+${integrityGuard}
 </body>`;
 
 const template = `<!DOCTYPE html>

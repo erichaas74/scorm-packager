@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>City Blocks Challenge</title>
-  <script src="scorm-wrapper.js"></script>
   <style>
     :root {
       --bg: #f4f7fb;
@@ -545,7 +544,7 @@
         <div style="display:flex;align-items:center;gap:10px;">
           <button id="show-walkthrough">Guide</button>
           <a class="resource-link" href="u1l2-city-blocks-buzz-assessment-template-preview.html" target="_blank" rel="noopener">Buzz Assessment Preview</a>
-          <a class="resource-link" href="setup-instructions.html" target="_blank" rel="noopener">Buzz Setup</a>
+          <a class="resource-link" href="u1l2_city_blocks_buzz_setup.txt" target="_blank" rel="noopener">Buzz Setup</a>
           <strong>Distance, displacement, speed and velocity city challenge</strong>
         </div>
         <div class="status" id="statusText"></div>
@@ -708,7 +707,7 @@
       walkthroughOverlay.classList.add('hidden');
     }
 
-    // Progress tracking (drives the 15-point SCORM completion score)
+    // Progress tracking for the six practice levels
     // passed = level indices whose route matched both targets
     var progressState = {
       passed: []
@@ -2038,7 +2037,7 @@
       var allDone = progressState.passed.length === levels.length;
       var title = allDone ? 'All Levels Complete!' : 'Level Complete!';
       var subtitle = allDone
-        ? (completionReportConfirmed ? '15 completion points reported to Buzz' : 'Complete — reconnect in Buzz to report 15 points')
+        ? 'Complete — use these route values in the native Buzz assessment'
         : 'Next level loading...';
 
       var boxW = 460;
@@ -2117,45 +2116,30 @@
       updateHud();
     }
 
-    // --- SCORM PROGRESS + SUSPEND DATA ---
+    // --- LOCAL PRACTICE PROGRESS ---
     function earnedPoints() {
       return progressState.passed.length === levels.length ? POINTS_MAX : 0;
     }
 
-    // Completion activity: all six levels earn 15/15; partial progress remains 0/15.
     function reportProgress() {
       var complete = progressState.passed.length === levels.length;
-      completionReportConfirmed = false;
-      if (typeof SCORM !== 'undefined' && (!SCORM.isInitialized || SCORM.isInitialized() || SCORM.initialize())) {
-        var writesAccepted = [
-          SCORM.setValue('cmi.core.score.raw', earnedPoints()),
-          SCORM.setValue('cmi.core.score.min', 0),
-          SCORM.setValue('cmi.core.score.max', POINTS_MAX),
-          SCORM.setValue('cmi.core.lesson_status', complete ? 'completed' : 'incomplete'),
-          SCORM.setValue('cmi.core.lesson_location', complete ? 'complete' : 'activity'),
-          SCORM.setValue('cmi.core.exit', 'suspend'),
-          SCORM.setValue('cmi.comments', complete ? 'City Blocks Challenge completed: 15 / 15' : 'City Blocks Challenge in progress: 0 / 15')
-        ].every(Boolean);
-        completionReportConfirmed = writesAccepted && SCORM.commit();
-      }
+      completionReportConfirmed = complete;
       saveSuspendData();
       updateScoreReadout();
       return completionReportConfirmed;
     }
 
     function saveSuspendData() {
-      if (typeof SCORM === 'undefined') return;
       var data = JSON.stringify({
         v: 3,
         passed: progressState.passed
       });
-      SCORM.setValue('cmi.suspend_data', data);
-      SCORM.commit();
+      try { localStorage.setItem('u1l2_city_blocks_progress', data); } catch (e) { /* storage unavailable */ }
     }
 
     function loadSuspendData() {
-      if (typeof SCORM === 'undefined') return;
-      var raw = SCORM.getValue('cmi.suspend_data');
+      var raw = '';
+      try { raw = localStorage.getItem('u1l2_city_blocks_progress') || ''; } catch (e) { /* storage unavailable */ }
       if (raw) {
         try {
           var parsed = JSON.parse(raw);
@@ -2181,14 +2165,8 @@
       loadLevel(firstUnpassedLevel());
     }
 
-    // scorm-wrapper.js initializes the LMS connection on this same event
-    // (its listener registers first), so suspend data is readable here.
     window.addEventListener('load', function() {
       loadSuspendData();
-      if (typeof SCORM !== 'undefined' && progressState.passed.length < levels.length) {
-        SCORM.setStatus('incomplete');
-        SCORM.commit();
-      }
       document.fonts.ready.then(boot);
     });
 

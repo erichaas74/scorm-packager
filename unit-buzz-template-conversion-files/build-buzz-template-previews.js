@@ -3,6 +3,12 @@ const path = require('path');
 
 const lessons = [
   {
+    dir: 'unit-ApplicationFiles/unit-1/lesson-1',
+    template: 'u1l1-motion-graphs-buzz-assessment-template.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'u1l1-motion-graphs-buzz-assessment-template-preview.html'
+  },
+  {
     dir: 'unit-ApplicationFiles/unit-1/lesson-2',
     template: 'u1l2-city-blocks-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
@@ -69,12 +75,6 @@ const lessons = [
     output: 'u2h-coriolis-cannon-buzz-assessment-template-preview.html'
   },
   {
-    dir: 'unit-ApplicationFiles/unit-2/lesson-u2honors',
-    template: 'u2h-coriolis-cannon-hosted-buzz-assessment-template.html',
-    questions: 'buzz-assessment-questions.txt',
-    output: 'u2h-coriolis-cannon-hosted-buzz-assessment-template-preview.html'
-  },
-  {
     dir: 'unit-ApplicationFiles/unit-3/lesson-1',
     template: 'u3l1-phet-forces-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
@@ -99,7 +99,7 @@ const lessons = [
     output: 'u3l4-collision-lab-buzz-assessment-template-preview.html'
   },
   {
-    dir: 'unit-ApplicationFiles/unit-3/lesson-u3l5',
+    dir: 'unit-ApplicationFiles/unit-3/lesson-5',
     template: 'u3l5-impulse-jump-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
     output: 'u3l5-impulse-jump-buzz-assessment-template-preview.html'
@@ -348,8 +348,7 @@ function renderQuestion(question) {
   const score = question.fieldMap.Score || '';
   const details = question.details.map(renderDetailLine).join('\n');
 
-  return `
-    <div class="buzz-preview-question" data-buzz-preview-question="${question.index}">
+  return `<div class="buzz-preview-question" data-buzz-preview-question="${question.index}">
       <div class="buzz-preview-head">
         <strong>Buzz Question ${question.index}</strong>
         <span>${escapeHtml(type)}${score ? ` - ${escapeHtml(score)} point${score === '1' ? '' : 's'}` : ''}</span>

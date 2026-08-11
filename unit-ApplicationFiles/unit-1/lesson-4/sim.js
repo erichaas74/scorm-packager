@@ -1306,7 +1306,7 @@ function drawStarter(ctx, gunFired, flashAlpha) {
 
 
   /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-     LAB REBUILD â€“ notebook workflow + SCORM scoring
+     LAB REBUILD â€“ notebook workflow + local practice progress
      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
   var REQUIRED_TRIALS = 3;
   var LAB_PASS_SCORE = 80;
@@ -1746,7 +1746,6 @@ function drawStarter(ctx, gunFired, flashAlpha) {
   }
 
   function saveSuspendData() {
-    if (typeof SCORM === 'undefined') return;
     try {
       var payload = JSON.stringify(serializeState());
       if (payload.length > 4096) {
@@ -1763,14 +1762,13 @@ function drawStarter(ctx, gunFired, flashAlpha) {
           payload = JSON.stringify({ v: 2, l: state.currentLevel, sc: state.score, sub: state.submitted ? 1 : 0 });
         }
       }
-      SCORM.setValue('cmi.suspend_data', payload);
-      SCORM.commit();
+      localStorage.setItem('u1l4_reaction_time_progress', payload);
     } catch (err) {}
   }
 
   function loadSuspendData() {
-    if (typeof SCORM === 'undefined') return false;
-    var raw = SCORM.getValue('cmi.suspend_data');
+    var raw = '';
+    try { raw = localStorage.getItem('u1l4_reaction_time_progress') || ''; } catch (err) { return false; }
     if (!raw) return false;
     try {
       var data = JSON.parse(raw);
@@ -1786,7 +1784,7 @@ function drawStarter(ctx, gunFired, flashAlpha) {
         if (typeof data.sc === 'number') state.score = data.sc;
         state.submitted = !!data.sub;
       } else {
-        // Backward compatibility for earlier suspend_data schema.
+        // Backward compatibility for an earlier local schema.
         if (data.currentLevel) state.currentLevel = data.currentLevel;
         if (data.trialsByLevel) state.trialsByLevel = data.trialsByLevel;
         if (data.analysis) state.analysis = data.analysis;
@@ -1799,17 +1797,10 @@ function drawStarter(ctx, gunFired, flashAlpha) {
     }
   }
 
-  function setSCORMProgress(finalize) {
+  function saveLocalProgress(finalize) {
     var breakdown = computeScoreBreakdown();
     state.score = breakdown.percent;
-    if (typeof SCORM === 'undefined') return;
-    SCORM.setScore(breakdown.percent, 0, 100);
-    if (finalize || state.submitted) {
-      SCORM.setStatus(breakdown.percent >= LAB_PASS_SCORE ? 'passed' : 'failed');
-    } else {
-      SCORM.setStatus('incomplete');
-    }
-    SCORM.commit();
+    saveSuspendData();
   }
 
   function averageForLevel(level, key) {
@@ -1858,7 +1849,7 @@ function drawStarter(ctx, gunFired, flashAlpha) {
     state.analysis.a2 = el.analysis2.value;
     state.analysis.a3 = el.analysis3.value;
     state.analysis.a4 = el.analysis4.value;
-    setSCORMProgress(state.submitted);
+    saveLocalProgress(state.submitted);
     saveSuspendData();
     render();
   }
@@ -2036,7 +2027,7 @@ function drawStarter(ctx, gunFired, flashAlpha) {
     resetRace();
     resetCaptureState();
     state.gameState = 'idle';
-    setSCORMProgress(false);
+    saveLocalProgress(false);
     saveSuspendData();
     if (isCanvasLevel(state.currentLevel)) startAnimLoop();
     render();
@@ -2082,12 +2073,7 @@ function drawStarter(ctx, gunFired, flashAlpha) {
     state.trialsByLevel = { 1: [], 2: [], 3: [] };
     state.score = 0;
     state.submitted = false;
-    if (typeof SCORM !== 'undefined') {
-      SCORM.setValue('cmi.suspend_data', '');
-      SCORM.setScore(0, 0, 100);
-      SCORM.setStatus('incomplete');
-      SCORM.commit();
-    }
+    try { localStorage.removeItem('u1l4_reaction_time_progress'); } catch (err) { /* storage unavailable */ }
     sizeCanvas();
     render();
   }
@@ -2317,7 +2303,7 @@ function drawStarter(ctx, gunFired, flashAlpha) {
       // No toast/notice UI currently shown; completion is reflected in notebook and badges.
     }
 
-    setSCORMProgress(false);
+    saveLocalProgress(false);
     saveSuspendData();
     render();
   }
@@ -2330,7 +2316,7 @@ function drawStarter(ctx, gunFired, flashAlpha) {
     if (!allRequiredTrialsRecorded() || !allAnalysisComplete()) return;
 
     state.submitted = true;
-    setSCORMProgress(true);
+    saveLocalProgress(true);
     saveSuspendData();
     render();
   }
@@ -2645,7 +2631,7 @@ function drawStarter(ctx, gunFired, flashAlpha) {
     loadSuspendData();
     sizeCanvas();
     bindEvents();
-    setSCORMProgress(state.submitted);
+    saveLocalProgress(state.submitted);
     render();
   }
 

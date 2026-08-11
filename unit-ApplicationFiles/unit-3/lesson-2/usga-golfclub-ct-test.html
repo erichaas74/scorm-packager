@@ -329,7 +329,7 @@
         <ol>
             <li><b>Part A — Calibration:</b> Pick a face material on the tester and press <b>Drop Pendulum</b>. Test <b>all five known materials</b>. The machine only plots the raw force&ndash;time trace — <b>it does not compute results for you</b>. Hover over the graph to read time and force values, calculate each CT yourself, and record your readings in the Test Log notebook below. The tester re-arms itself a few seconds after each drop.</li>
             <li><b>Part B — The Mystery Prototype:</b> A tour player's driver has been confiscated. The <b>Prototype X-7</b> button on the tester unlocks once all five known materials are tested. Test it, measure its trace, and use your Part A data to decide how stiff its face is and whether it conforms to the USGA limit (CT &le; 257 &micro;s).</li>
-            <li>Answer all 8 questions below the tester. Full credit on the first try; a correct answer after a miss earns half credit. Your score and progress are saved automatically — when every question is complete, you are done and can return to Buzz.</li>
+            <li>The 8 checks below the tester are optional standalone practice. They save only in this browser and do not submit a grade. Complete the official 12-question assessment in Buzz.</li>
         </ol>
     </div>
 
@@ -400,12 +400,26 @@
     <div id="questionsRoot"></div>
 
     <div id="finishBanner" class="finish-banner">
-        &#127942; Compliance report filed! You answered all 8 questions and your score has been recorded.
+        &#127942; Standalone practice complete! Return to Buzz for the official 12-question assessment.
         You can close this activity and return to Buzz.
     </div>
 </div>
 
-<script src="scorm-wrapper.js"></script>
+<script id="standalone-activity-store">
+  const ActivityStore = {
+    key: 'u3l2-golf-ct-activity',
+    read() {
+      try { return JSON.parse(localStorage.getItem(this.key) || '{}'); } catch (error) { return {}; }
+    },
+    write(data) {
+      try { localStorage.setItem(this.key, JSON.stringify(data)); return true; } catch (error) { return false; }
+    },
+    getValue(name) { return this.read()[name] || ''; },
+    setValue(name, value) { const data = this.read(); data[name] = value; return this.write(data); },
+    setScore(score, min, max) { return this.setValue('score', { score, min, max }); },
+    setStatus(status) { return this.setValue('status', status); }
+  };
+</script>
 <script>
     // ================================================================
     //  SIMULATOR
@@ -1183,7 +1197,7 @@
     });
 
     // ================================================================
-    //  ACTIVITY: notebook, questions, scoring, SCORM
+    //  STANDALONE PRACTICE: notebook, questions, and local progress
     // ================================================================
     const POINTS_FULL = 2;
     const POINTS_RETRY = 1;
@@ -1346,7 +1360,7 @@
             if (arr.some(v => v !== '')) data.n[k] = arr.map(v => String(v).slice(0, 12));
         });
         const json = JSON.stringify(data);
-        const ok = SCORM.setValue('cmi.suspend_data', json);
+        const ok = ActivityStore.setValue('activity.progress', json);
         try { localStorage.setItem(LS_KEY, json); } catch (e) { /* private mode etc. */ }
         document.getElementById('saveNote').innerText = ok
             ? 'Progress saved to your class account.'
@@ -1355,7 +1369,7 @@
 
     function loadProgress() {
         let json = '';
-        try { json = SCORM.getValue('cmi.suspend_data') || ''; } catch (e) { json = ''; }
+        try { json = ActivityStore.getValue('activity.progress') || ''; } catch (e) { json = ''; }
         if (!json) {
             try { json = localStorage.getItem(LS_KEY) || ''; } catch (e) { json = ''; }
         }
@@ -1377,9 +1391,9 @@
     }
 
     function reportScore() {
-        SCORM.setScore(totalScore(), 0, MAX_SCORE);
+        ActivityStore.setScore(totalScore(), 0, MAX_SCORE);
         if (doneCount() === QUESTIONS.length) {
-            SCORM.setStatus('completed');
+            ActivityStore.setStatus('completed');
         }
     }
 
@@ -1640,12 +1654,12 @@
         }
 
         // Completion activity: only ever incomplete/completed, never failed.
-        const prev = SCORM.getValue('cmi.core.lesson_status');
+        const prev = ActivityStore.getValue('status');
         if (doneCount() === QUESTIONS.length) {
-            SCORM.setScore(totalScore(), 0, MAX_SCORE);
-            SCORM.setStatus('completed');
+            ActivityStore.setScore(totalScore(), 0, MAX_SCORE);
+            ActivityStore.setStatus('completed');
         } else if (!prev || prev === 'not attempted' || prev === 'browsed') {
-            SCORM.setStatus('incomplete');
+            ActivityStore.setStatus('incomplete');
         }
 
         buildNotebook();
@@ -1654,7 +1668,7 @@
         buildQuestionCards();
     }
 
-    // The SCORM wrapper initializes on window load; run activity setup after it.
+    // Run the local practice setup after the page loads.
     window.addEventListener('load', initActivity);
 
     resizeCanvas();

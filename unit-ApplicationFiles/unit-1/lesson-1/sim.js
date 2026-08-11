@@ -739,38 +739,11 @@ const MotionGraphsLab = (function() {
   }
 
   function restoreAssessmentLogsFromScorm() {
-    if (typeof SCORM === 'undefined' || (SCORM.isInitialized && !SCORM.isInitialized())) return;
-    try {
-      const saved = JSON.parse(SCORM.getValue('cmi.suspend_data') || '{}');
-      const answers = saved && saved.answers ? saved.answers : {};
-      Object.keys(answers).forEach(id => {
-        const entries = Array.isArray(state.logs[id]) ? state.logs[id] : [];
-        const wasCorrect = entries.some(entry => Number(entry.score) >= 100);
-        if (!entries.length || (answers[id] === 1 && !wasCorrect)) {
-          entries.push({
-            score: answers[id] === 1 ? 100 : 0,
-            response: 'Restored from Buzz',
-            timestamp: 0
-          });
-          state.logs[id] = entries;
-        }
-      });
-    } catch (e) {
-      console.warn('[Motion Graphs Lab] Could not restore Buzz attempt data.', e);
-    }
     updateAssessmentProgress();
   }
 
   function saveAssessmentLogs() {
     try { localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(state.logs)); } catch (e) {}
-    if (typeof SCORM !== 'undefined' && (!SCORM.isInitialized || SCORM.isInitialized())) {
-      try {
-        SCORM.setValue('cmi.suspend_data', JSON.stringify({
-          version: 1,
-          answers: compactAssessmentLogs(state.logs)
-        }));
-      } catch (e) {}
-    }
   }
   function bestAssessmentScore(id) {
     const entries = state.logs[id] || [];
@@ -790,45 +763,18 @@ const MotionGraphsLab = (function() {
     return attemptedCount(0, CORE_QUESTION_COUNT) === CORE_QUESTION_COUNT;
   }
   function syncAssessmentScore() {
-    const points = assessmentEarnedPoints();
-    if (typeof SCORM === 'undefined') return { submitted: false, standalone: true };
-    if (SCORM.isInitialized && !SCORM.isInitialized() && !SCORM.initialize()) {
-      return { submitted: false, standalone: true };
-    }
-    if (!SCORM.isInitialized || SCORM.isInitialized()) {
-      try {
-        saveAssessmentLogs();
-        const writesAccepted = [
-          SCORM.setValue('cmi.core.score.raw', points),
-          SCORM.setValue('cmi.core.score.min', 0),
-          SCORM.setValue('cmi.core.score.max', CORE_QUESTION_COUNT),
-          SCORM.setValue('cmi.core.lesson_status', coreAssessmentComplete() ? 'completed' : 'incomplete'),
-          SCORM.setValue('cmi.core.lesson_location', coreAssessmentComplete() ? 'complete' : 'assessment'),
-          SCORM.setValue('cmi.core.exit', 'suspend'),
-          SCORM.setValue('cmi.comments', 'Motion Graphs Lab score: ' + points + ' / ' + CORE_QUESTION_COUNT)
-        ].every(Boolean);
-        const committed = SCORM.commit();
-        return { submitted: writesAccepted && committed, standalone: false };
-      } catch (e) {
-        console.error('[Motion Graphs Lab] Buzz submission failed.', e);
-        return { submitted: false, standalone: false };
-      }
-    }
-    return { submitted: false, standalone: true };
+    saveAssessmentLogs();
+    return { submitted: true, standalone: true };
   }
 
   function submitScoreToBuzz() {
     const result = syncAssessmentScore();
     if (!els.submitScoreBtn) return;
-    els.submitScoreBtn.textContent = result.submitted ? 'Submitted to Buzz' : 'Try Submit Again';
+    els.submitScoreBtn.textContent = 'Practice Progress Saved';
     if (!els.submissionStatus) return;
     els.submissionStatus.classList.toggle('success', result.submitted);
     els.submissionStatus.classList.toggle('error', !result.submitted);
-    els.submissionStatus.textContent = result.submitted
-      ? 'Your score was accepted and saved by Buzz.'
-      : result.standalone
-        ? 'Buzz is not connected. Your work is saved on this device; reopen this lab in Buzz to submit.'
-        : 'Buzz did not confirm the submission. Check your connection and try again.';
+    els.submissionStatus.textContent = 'Your optional practice progress is saved on this device. Complete the graded assessment in Buzz.';
   }
   function updateAssessmentProgress() {
     const points = assessmentEarnedPoints();
