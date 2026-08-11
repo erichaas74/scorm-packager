@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Honors Relativity Timekeeping Lab</title>
+
+<style>
+:root {
+  --blue: #285f9f;
+  --blue-dark: #17436f;
+  --ink: #172033;
+  --muted: #5c6678;
+  --line: #cfd8e6;
+  --soft: #eef5fb;
+  --panel: #ffffff;
+  --good: #17643b;
+  --good-bg: #e6f6ec;
+  --warn: #8a4b08;
+  --warn-bg: #fdf1e0;
+  --bad: #9b1c2e;
+  --bad-bg: #fdecef;
+  --space: #0a1428;
+  --gr: #d97706;
+  --sr: #2563eb;
+  --net: #7c3aed;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: transparent;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: var(--ink);
+}
+
+body { padding: 10px; }
+
+button, input, select { font: inherit; }
+
+button {
+  min-height: 44px;
+  min-width: 44px;
+  border-radius: 10px;
+  border: 2px solid var(--blue);
+  background: #fff;
+  color: var(--blue-dark);
+  font-weight: 700;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+button:hover:not([disabled]) { background: #f2f7fc; transform: translateY(-1px); }
+button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 4px solid #f2b705;
+  outline-offset: 3px;
+}
+button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--muted); color: var(--muted); }
+button.primary { background: var(--blue); color: #fff; }
+button.primary:hover:not([disabled]) { background: var(--blue-dark); }
+button.small { min-height: 38px; padding: 7px 12px; font-size: 0.9rem; border-radius: 8px; }
+button.preset.active { background: var(--blue); color: #fff; }
+
+.rel-app {
+  position: relative;
+  max-width: 1080px;
+  margin: 0 auto;
+  border: 5px solid var(--blue);
+  border-radius: 22px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.rel-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+  background: #f8fbfe;
+}
+.rel-title { margin: 0; font-size: 1.2rem; color: var(--blue-dark); }
+.rel-sub { font-size: 0.9rem; color: var(--muted); font-weight: 600; }
+.rel-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.badge {
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--blue-dark);
+  font-weight: 800;
+  font-size: 0.85rem;
+  border: 1px solid var(--line);
+}
+
+.rel-stage { padding: 16px 20px; background: linear-gradient(180deg, #f9fcff, #eef5fb); }
+.rel-section { padding: 18px 20px; border-top: 1px solid var(--line); background: #fff; }
+.rel-section h2 {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+  color: var(--blue-dark);
+}
+.rel-section p.note { margin: 0 0 14px; color: var(--muted); font-size: 0.95rem; }
+
+.scene-wrap {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--space);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+svg { display: block; width: 100%; height: auto; }
+
+.sky-text { font: 700 15px 'Segoe UI', sans-serif; fill: #dbe6f7; }
+.sky-small { font: 600 12px 'Segoe UI', sans-serif; fill: #9db4d4; }
+.dial-text { font: 800 13px 'Segoe UI', sans-serif; fill: #17436f; }
+.dial-read { font: 800 15px 'Consolas', monospace; fill: #0f2a4a; }
+.dial-sub { font: 600 11px 'Segoe UI', sans-serif; fill: #5c6678; }
+
+.control-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+  margin-top: 4px;
+}
+.ctrl { display: grid; gap: 6px; }
+.ctrl-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.ctrl-head label { font-weight: 700; }
+.ctrl-val { font-weight: 800; color: var(--blue); font-variant-numeric: tabular-nums; }
+input[type="range"] { width: 100%; cursor: pointer; }
+.hint { font-size: 0.85rem; color: var(--muted); }
+
+.preset-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+
+.readout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.readout {
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--blue);
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: #fbfdff;
+}
+.readout.gr { border-left-color: var(--gr); }
+.readout.sr { border-left-color: var(--sr); }
+.readout.net { border-left-color: var(--net); }
+.readout .k { font-size: 0.8rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.readout .v { font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.readout .s { font-size: 0.8rem; color: var(--muted); }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: right; font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; font-variant-numeric: normal; }
+thead th { background: var(--soft); color: var(--blue-dark); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.03em; }
+tbody tr:nth-child(even) { background: #fafcff; }
+.table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+.empty-row td { text-align: center; color: var(--muted); font-style: italic; }
+
+.pos { color: var(--good); font-weight: 700; }
+.neg { color: var(--bad); font-weight: 700; }
+
+.gate {
+  margin-top: 14px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--warn-bg);
+  border: 1px solid #f0d3a8;
+  color: var(--warn);
+  font-weight: 700;
+}
+.gate.done { background: var(--good-bg); border-color: #b7e2c6; color: var(--good); }
+
+.evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 14px;
+}
+.ev-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  background: #fbfdff;
+}
+.ev-card h3 { margin: 0 0 6px; font-size: 0.98rem; color: var(--blue-dark); }
+.ev-card p { margin: 0 0 8px; font-size: 0.9rem; line-height: 1.45; color: #33405a; }
+.ev-num { font-weight: 800; color: var(--net); font-size: 0.9rem; }
+.ev-tag {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ev-tag.sr { background: #e3edfd; color: #1d4ed8; }
+.ev-tag.gr { background: #fdf0dd; color: #92500a; }
+.ev-tag.both { background: #f0e8fd; color: #6d28d9; }
+
+.rel-evidence-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+.rel-local-note {
+  margin-bottom: 14px;
+  padding: 11px 14px;
+  border-left: 5px solid var(--warn);
+  border-radius: 0 10px 10px 0;
+  background: var(--warn-bg);
+  font-size: 0.9rem;
+}
+.rel-slot {
+  margin-bottom: 14px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #fbfdff;
+}
+.rel-slot-label { margin: 0 0 8px; color: var(--blue-dark); font-size: 0.86rem; font-weight: 800; }
+.rel-slot-label span { display: block; margin-top: 2px; color: var(--muted); font-weight: 600; }
+
+.q-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  background: #fff;
+  margin-bottom: 14px;
+}
+.q-card.locked { opacity: 0.5; }
+.q-num { font-size: 0.78rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.q-text { margin: 6px 0 12px; font-weight: 700; line-height: 1.5; }
+.q-given { margin: 0 0 12px; padding: 10px 12px; background: var(--soft); border-radius: 10px; font-size: 0.9rem; color: #33405a; line-height: 1.5; }
+.q-choices { display: grid; gap: 8px; }
+.q-choices button { text-align: left; font-weight: 600; }
+.q-choices button.chosen-wrong { border-color: var(--bad); background: var(--bad-bg); color: var(--bad); }
+.q-choices button.chosen-right { border-color: var(--good); background: var(--good-bg); color: var(--good); }
+.q-numeric { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.q-numeric input { padding: 10px 12px; border: 2px solid var(--line); border-radius: 10px; width: 150px; }
+.q-unit { font-weight: 700; color: var(--muted); }
+.q-fb { margin-top: 10px; padding: 10px 14px; border-radius: 10px; font-size: 0.92rem; line-height: 1.5; }
+.q-fb.right { background: var(--good-bg); color: var(--good); }
+.q-fb.wrong { background: var(--bad-bg); color: var(--bad); }
+.q-fb.retry { background: var(--warn-bg); color: var(--warn); }
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(10, 20, 40, 0.72);
+}
+.overlay-panel {
+  width: min(560px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  background: #fff;
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+}
+.overlay-panel h2 { margin: 0 0 10px; color: var(--blue-dark); font-size: 1.3rem; }
+.overlay-panel p { line-height: 1.55; margin: 0 0 12px; }
+.overlay-panel ul { margin: 0 0 14px; padding-left: 20px; line-height: 1.6; }
+.step-label { font-size: 0.78rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.walk-nav { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 8px; }
+.dots { display: flex; gap: 6px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
+.dot.on { background: var(--blue); }
+
+.result-line { font-size: 1.05rem; font-weight: 800; color: var(--blue-dark); margin-top: 10px; }
+.hidden { display: none !important; }
+.sr-only { position: absolute; left: -9999px; }
+
+@media (max-width: 700px) {
+  .rel-stage, .rel-section { padding: 14px 12px; }
+  .rel-top { padding: 12px; }
+  .q-choices { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+</style>
+
+  <style id="buzz-preview-question-styles">
+    .buzz-preview-question {
+      border: 1px solid #c8d3e1;
+      border-left: 5px solid #2563a9;
+      border-radius: 8px;
+      padding: 12px;
+      margin: 8px 0;
+      background: #fff;
+      color: #172033;
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.45;
+      box-shadow: 0 6px 18px rgba(23, 32, 51, 0.08);
+    }
+    .buzz-preview-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+      color: #1f3b57;
+    }
+    .buzz-preview-head strong {
+      font-size: 0.95rem;
+    }
+    .buzz-preview-head span {
+      color: #5d687c;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+    .buzz-preview-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .buzz-preview-chip {
+      border: 1px solid #d8e0ec;
+      border-radius: 999px;
+      padding: 3px 8px;
+      background: #f3f7fc;
+      color: #334155;
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+    .buzz-preview-prompt {
+      margin: 0 0 10px;
+      color: #111827;
+      font-size: 0.98rem;
+      font-weight: 700;
+    }
+    .buzz-preview-details {
+      display: grid;
+      gap: 6px;
+    }
+    .buzz-preview-option {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr);
+      gap: 8px;
+      align-items: start;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 8px;
+      background: #f8fafc;
+    }
+    .buzz-preview-option span {
+      display: inline-flex;
+      width: 24px;
+      height: 24px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: #dbeafe;
+      color: #1e3a8a;
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+    .buzz-preview-option.correct {
+      border-color: #86efac;
+      background: #f0fdf4;
+    }
+    .buzz-preview-option.correct span {
+      background: #16a34a;
+      color: #fff;
+    }
+    .buzz-preview-option p,
+    .buzz-preview-detail {
+      margin: 0;
+      color: #1f2937;
+      font-size: 0.92rem;
+    }
+    .buzz-preview-feedback {
+      border-left: 3px solid #93c5fd;
+      padding: 6px 8px;
+      background: #eff6ff;
+      color: #1e3a8a;
+      font-size: 0.86rem;
+    }
+    .buzz-preview-placeholder {
+      border: 1px dashed #cbd5e1;
+      border-radius: 6px;
+      padding: 10px;
+      color: #64748b;
+      background: #f8fafc;
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+<main class="rel-app">
+
+  <header class="rel-top">
+    <div>
+      <h1 class="rel-title">Honors Relativity Timekeeping Lab</h1>
+      <div class="rel-sub" id="phaseLabel">Trials recorded: 0 of 4 &middot; Evidence locked</div>
+    </div>
+    <div class="rel-tools">
+      <button type="button" class="small" id="resetBtn">Reset Lab</button>
+    </div>
+  </header>
+
+  <section class="rel-stage" aria-label="Orbiting satellite and ground atomic clock">
+    <div class="scene-wrap">
+      <svg viewBox="0 0 1000 470" role="img" aria-labelledby="sceneTitle sceneDesc">
+        <title id="sceneTitle">Satellite orbiting Earth with a clock, compared to an atomic clock on the ground</title>
+        <desc id="sceneDesc">Earth sits at the center with a ground atomic clock on its surface. A satellite carrying its own clock travels along a circular orbit. Two clock dials compare elapsed time, and a readout shows the accumulated offset in microseconds.</desc>
+
+        <defs>
+          <radialGradient id="earthFill" cx="38%" cy="32%" r="72%">
+            <stop offset="0%" stop-color="#5fa8e8"/>
+            <stop offset="60%" stop-color="#1f6fbf"/>
+            <stop offset="100%" stop-color="#0d3f75"/>
+          </radialGradient>
+          <radialGradient id="earthGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="70%" stop-color="#5aa9ff" stop-opacity="0"/>
+            <stop offset="88%" stop-color="#5aa9ff" stop-opacity="0.38"/>
+            <stop offset="100%" stop-color="#5aa9ff" stop-opacity="0"/>
+          </radialGradient>
+          <radialGradient id="wellGrad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#f2b705" stop-opacity="0.30"/>
+            <stop offset="55%" stop-color="#f2b705" stop-opacity="0.10"/>
+            <stop offset="100%" stop-color="#f2b705" stop-opacity="0"/>
+          </radialGradient>
+          <linearGradient id="panelGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#4c86d6"/>
+            <stop offset="100%" stop-color="#1c3f74"/>
+          </linearGradient>
+          <clipPath id="earthClip"><circle cx="360" cy="235" r="96"/></clipPath>
+        </defs>
+
+        <rect width="1000" height="470" fill="#0a1428"/>
+        <g id="starfield" opacity="0.85"></g>
+
+        <!-- gravitational well shading: deeper (slower clocks) near Earth -->
+        <circle cx="360" cy="235" r="215" fill="url(#wellGrad)"/>
+
+        <!-- orbit path -->
+        <ellipse id="orbitPath" cx="360" cy="235" rx="185" ry="66"
+                 fill="none" stroke="#7fb3ee" stroke-width="2"
+                 stroke-dasharray="7 8" opacity="0.75"/>
+
+        <!-- satellite behind Earth (far half of the orbit) -->
+        <g id="satBack"></g>
+
+        <!-- Earth -->
+        <g id="earth">
+          <circle cx="360" cy="235" r="130" fill="url(#earthGlow)"/>
+          <circle cx="360" cy="235" r="96" fill="url(#earthFill)"/>
+          <g clip-path="url(#earthClip)" opacity="0.9">
+            <path d="M292 178 q28 -16 54 -4 q22 10 12 28 q-10 18 -36 16 q-26 -2 -34 -18 q-6 -14 4 -22 z" fill="#2f8f5b"/>
+            <path d="M370 168 q34 -8 58 8 q18 12 4 26 q-16 16 -44 10 q-24 -6 -26 -22 q-2 -14 8 -22 z" fill="#37a066"/>
+            <path d="M300 258 q30 -10 48 6 q16 14 6 34 q-12 22 -38 20 q-26 -2 -32 -24 q-6 -22 16 -36 z" fill="#2f8f5b"/>
+            <path d="M392 250 q40 -6 56 16 q12 18 -6 32 q-22 16 -48 4 q-22 -10 -18 -30 q4 -18 16 -22 z" fill="#37a066"/>
+            <ellipse cx="330" cy="150" rx="46" ry="12" fill="#ffffff" opacity="0.35"/>
+            <ellipse cx="404" cy="308" rx="52" ry="13" fill="#ffffff" opacity="0.28"/>
+            <ellipse cx="360" cy="235" rx="96" ry="96" fill="none" stroke="#0a2545" stroke-width="2" opacity="0.5"/>
+          </g>
+          <circle cx="360" cy="235" r="96" fill="none" stroke="#8fc4f5" stroke-width="1.5" opacity="0.6"/>
+        </g>
+
+        <!-- ground atomic clock station on Earth's surface -->
+        <g id="groundStation">
+          <line x1="360" y1="139" x2="360" y2="118" stroke="#cfe1f7" stroke-width="3"/>
+          <rect x="345" y="98" width="30" height="22" rx="4" fill="#dbe6f7" stroke="#7fb3ee" stroke-width="2"/>
+          <circle cx="360" cy="109" r="6" fill="#f2b705"/>
+          <path d="M352 96 q8 -12 16 0" fill="none" stroke="#f2b705" stroke-width="2"/>
+          <text class="sky-small" x="360" y="88" text-anchor="middle">Ground atomic clock</text>
+        </g>
+
+        <!-- satellite in front of Earth (near half of the orbit) -->
+        <g id="satFront"></g>
+
+        <!-- clock dial panels -->
+        <g id="dialGround" transform="translate(770, 60)">
+          <rect x="-95" y="-34" width="190" height="176" rx="14" fill="#f7fbff" stroke="#7fb3ee" stroke-width="2"/>
+          <text class="dial-text" x="0" y="-14" text-anchor="middle">GROUND ATOMIC CLOCK</text>
+          <circle cx="0" cy="48" r="52" fill="#ffffff" stroke="#285f9f" stroke-width="3"/>
+          <g id="ticksGround"></g>
+          <line id="handGroundMin" x1="0" y1="48" x2="0" y2="12" stroke="#17436f" stroke-width="4" stroke-linecap="round"/>
+          <line id="handGroundSec" x1="0" y1="48" x2="0" y2="4" stroke="#d64b62" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="0" cy="48" r="4" fill="#17436f"/>
+          <text class="dial-read" id="readGround" x="0" y="122" text-anchor="middle">0.000000 s</text>
+        </g>
+
+        <g id="dialSat" transform="translate(770, 268)">
+          <rect x="-95" y="-34" width="190" height="176" rx="14" fill="#f7fbff" stroke="#f2b705" stroke-width="2"/>
+          <text class="dial-text" x="0" y="-14" text-anchor="middle">SATELLITE CLOCK</text>
+          <circle cx="0" cy="48" r="52" fill="#ffffff" stroke="#8a4b08" stroke-width="3"/>
+          <g id="ticksSat"></g>
+          <line id="handSatMin" x1="0" y1="48" x2="0" y2="12" stroke="#8a4b08" stroke-width="4" stroke-linecap="round"/>
+          <line id="handSatSec" x1="0" y1="48" x2="0" y2="4" stroke="#d64b62" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="0" cy="48" r="4" fill="#8a4b08"/>
+          <text class="dial-read" id="readSat" x="0" y="122" text-anchor="middle">0.000000 s</text>
+        </g>
+
+        <!-- mission readouts -->
+        <g transform="translate(20, 24)">
+          <text class="sky-text" id="scenarioName" x="0" y="0">Scenario: GPS satellite</text>
+          <text class="sky-small" id="orbitInfo" x="0" y="20">Altitude 20 180 km &middot; speed 3 874 m/s</text>
+        </g>
+        <g transform="translate(20, 400)">
+          <text class="sky-small" x="0" y="0">Simulated elapsed time</text>
+          <text class="sky-text" id="elapsedDays" x="0" y="22">0.00 days</text>
+          <text class="sky-small" x="0" y="46">Clock offset (satellite &minus; ground)</text>
+          <text class="sky-text" id="offsetLive" x="0" y="68" fill="#f2b705">+0.0 &micro;s</text>
+        </g>
+        <text class="sky-small" x="980" y="458" text-anchor="end" opacity="0.7">Dial offset exaggerated for visibility; numbers are real</text>
+      </svg>
+    </div>
+  </section>
+
+  <section class="rel-section" aria-labelledby="controlsHeading">
+    <h2 id="controlsHeading">1 &middot; Set up a clock comparison</h2>
+    <p class="note">Pick a preset or move the sliders yourself. <strong>Snap to circular orbit</strong> forces the speed that gravity requires at that altitude, <em>v</em> = &radic;(GM/r).</p>
+
+    <div class="preset-row" id="presetRow"></div>
+
+    <div class="control-grid">
+      <div class="ctrl">
+        <div class="ctrl-head">
+          <label for="altSlider">Altitude above sea level</label>
+          <span class="ctrl-val" id="altVal">20 180 km</span>
+        </div>
+        <input type="range" id="altSlider" min="0" max="36000" step="10" value="20180">
+        <div class="hint">Sets the gravitational potential &mdash; higher means weaker gravity, so the clock runs <em>fast</em>.</div>
+      </div>
+
+      <div class="ctrl">
+        <div class="ctrl-head">
+          <label for="speedSlider">Speed in the Earth-centered frame</label>
+          <span class="ctrl-val" id="speedVal">3 874 m/s</span>
+        </div>
+        <input type="range" id="speedSlider" min="0" max="11000" step="1" value="3874">
+        <div class="hint">Sets the motion effect &mdash; faster means the clock runs <em>slow</em>. The ground itself moves at 465 m/s from Earth's spin.</div>
+      </div>
+    </div>
+
+    <div class="preset-row" style="margin-top:16px; margin-bottom:0;">
+      <button type="button" class="small" id="snapBtn">Snap to circular orbit</button>
+      <button type="button" class="small primary" id="recordBtn">Record this trial</button>
+      <button type="button" class="small" id="clearBtn">Clear data table</button>
+    </div>
+
+    <div class="readout-grid">
+      <div class="readout gr">
+        <div class="k">Gravity effect (GR)</div>
+        <div class="v" id="grOut">+45.7 &micro;s/day</div>
+        <div class="s">measured against the ground clock</div>
+      </div>
+      <div class="readout sr">
+        <div class="k">Motion effect (SR)</div>
+        <div class="v" id="srOut">&minus;7.2 &micro;s/day</div>
+        <div class="s">measured against the ground clock</div>
+      </div>
+      <div class="readout net">
+        <div class="k">Net clock drift</div>
+        <div class="v" id="netOut">+38.6 &micro;s/day</div>
+        <div class="s">positive = satellite clock runs fast</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="rel-section" aria-labelledby="dataHeading">
+    <h2 id="dataHeading">2 &middot; Trial data</h2>
+    <p class="note">Record at least <strong>four trials</strong>, including at least one clock that ends up <strong>fast</strong> and one that ends up <strong>slow</strong>, to unlock the analysis questions.</p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Scenario</th>
+            <th scope="col">Altitude (km)</th>
+            <th scope="col">r / R<sub>E</sub></th>
+            <th scope="col">Speed (m/s)</th>
+            <th scope="col">GR (&micro;s/day)</th>
+            <th scope="col">SR (&micro;s/day)</th>
+            <th scope="col">Net (&micro;s/day)</th>
+          </tr>
+        </thead>
+        <tbody id="dataBody">
+          <tr class="empty-row"><td colspan="7">No trials recorded yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="gate" id="gateMsg">Locked: record 4 trials including one fast clock and one slow clock.</div>
+  </section>
+
+  <section class="rel-section" aria-labelledby="graphHeading">
+    <h2 id="graphHeading">3 &middot; Net drift vs. orbital radius</h2>
+    <p class="note">The curve is the net drift for a <em>circular</em> orbit at each radius. Your recorded trials appear as dots. Notice where the curve crosses zero.</p>
+    <svg id="graph" viewBox="0 0 900 380" role="img" aria-labelledby="graphTitle graphDesc" style="background:#fbfdff; border:1px solid var(--line); border-radius:14px;">
+      <title id="graphTitle">Net clock drift versus orbital radius</title>
+      <desc id="graphDesc">Net drift in microseconds per day plotted against orbital radius in Earth radii for circular orbits. The curve is negative for low orbits, crosses zero near 1.5 Earth radii, and rises toward a positive limit for high orbits.</desc>
+    </svg>
+  </section>
+
+  <section class="rel-section" aria-labelledby="evidenceHeading">
+    <h2 id="evidenceHeading">4 &middot; Other places relativity shows up</h2>
+    <p class="note">GPS is the most useful test, but it is far from the only one. Question 5 onward uses these cases.</p>
+    <div class="evidence-grid">
+
+      <div class="ev-card">
+        <span class="ev-tag sr">Motion</span>
+        <h3>Cosmic-ray muons</h3>
+        <p>Muons created ~15 km up live only 2.2 &micro;s at rest &mdash; long enough to travel about 660 m. Yet they reach the ground in large numbers because at 0.998<em>c</em> their internal clock is stretched.</p>
+        <p class="ev-num">&gamma; &asymp; 15.8, so the lab-frame lifetime becomes ~35 &micro;s (~10 km of travel).</p>
+      </div>
+
+      <div class="ev-card">
+        <span class="ev-tag both">Both</span>
+        <h3>Hafele&ndash;Keating, 1971</h3>
+        <p>Four cesium clocks flew around the world on commercial jets. Eastward flights move <em>with</em> Earth's spin (faster in the Earth-centered frame), westward flights move against it and are actually slower than the ground.</p>
+        <p class="ev-num">Measured: eastward &minus;59 ns, westward +273 ns &mdash; both matched prediction.</p>
+      </div>
+
+      <div class="ev-card">
+        <span class="ev-tag gr">Gravity</span>
+        <h3>Pound&ndash;Rebka tower, 1960</h3>
+        <p>Gamma rays climbed a 22.5 m tower at Harvard. Climbing out of the gravitational well cost them energy, so they arrived redshifted &mdash; a clock at the top ticks faster than one at the bottom.</p>
+        <p class="ev-num">Fractional shift 2.46 &times; 10&#8315;&#185;&#8309; &mdash; about 0.2 ns per day.</p>
+      </div>
+
+      <div class="ev-card">
+        <span class="ev-tag gr">Gravity</span>
+        <h3>White dwarf Sirius B</h3>
+        <p>Sirius B packs a solar mass into an Earth-sized ball, so its surface gravity is ~350 000 g. Light leaving it is redshifted, and its surface clocks run measurably slow compared with ours.</p>
+        <p class="ev-num">Gravitational redshift ~ 3 &times; 10&#8315;&#8308; &mdash; roughly 25 s per day.</p>
+      </div>
+
+      <div class="ev-card">
+        <span class="ev-tag sr">Motion</span>
+        <h3>Storage-ring muons</h3>
+        <p>At CERN, muons circulating at &gamma; = 29.3 lived 29.3 times longer than muons at rest &mdash; time dilation confirmed to better than 0.1 % at extreme acceleration.</p>
+        <p class="ev-num">Rest lifetime 2.2 &micro;s &rarr; measured 64.4 &micro;s.</p>
+      </div>
+
+      <div class="ev-card">
+        <span class="ev-tag both">Both</span>
+        <h3>Optical clocks on a lab bench</h3>
+        <p>Modern aluminum-ion clocks are so precise that raising one by 33 cm, or moving it at 10 m/s, produces a measurable change in tick rate. Relativity is now a desktop effect, not just an astronomical one.</p>
+        <p class="ev-num">33 cm of height &rarr; ~4 &times; 10&#8315;&#185;&#8311; fractional rate change.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="rel-section" aria-labelledby="evidenceExportHeading">
+    <h2 id="evidenceExportHeading">5 &middot; Build your evidence</h2>
+    <p class="note" id="evidenceMessage">Record at least four trials, including at least one clock that ends up fast and one that ends up slow. The evidence image unlocks when your data table meets that requirement.</p>
+    <div class="rel-evidence-actions">
+      <button type="button" class="small primary" id="downloadEvidence" disabled>Download evidence image</button>
+    </div>
+    <p class="note" id="evidenceStatus" role="status" aria-live="polite"></p>
+  </section>
+
+  <section class="rel-section" id="buzzQuestions" aria-labelledby="questionsHeading">
+    <h2 id="questionsHeading">6 &middot; Buzz assessment questions</h2>
+    <p class="note">Upload your evidence image first, then answer each question from your own trial data, the graph, and the evidence cards. Buzz inserts the graded response controls into the ordered slots below.</p>
+    <div class="rel-local-note" id="localNote" hidden>If you opened this template as a local file, the response controls will be blank. Import <strong>honors_relativity_buzz_questions.txt</strong> into Buzz and upload this HTML as the assessment template.</div>
+    <div class="rel-slot"><p class="rel-slot-label">Question 1 <span>Upload the completed trial-data evidence image</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="1">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 1</strong>
+        <span>UP - 3 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: UP</span><span class="buzz-preview-chip">Score: 3</span><span class="buzz-preview-chip">MaxFiles: 1</span><span class="buzz-preview-chip">FileTypes: png|jpg|pdf</span></div>
+      <div class="buzz-preview-prompt">1) Record at least four trials in the embedded Honors Relativity Timekeeping Lab, including at least one clock that ends up running fast and one that ends up running slow. Select Download evidence image, then upload the completed evidence image here.</div>
+      <div class="buzz-preview-placeholder">Upload question or external response field.</div>
+    </div></div>
+    <div class="rel-slot"><p class="rel-slot-label">Question 2 <span>Cancellation radius</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="2">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 2</strong>
+        <span>F, Number - 2 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: F, Number</span><span class="buzz-preview-chip">Score: 2</span></div>
+      <div class="buzz-preview-prompt">2) Read your graph. At what orbital radius, in units of Earth radii, do the gravity effect and the motion effect cancel exactly for a circular orbit? ________ Earth radii</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>1.42..1.58</p></div></div>
+    </div></div>
+    <div class="rel-slot"><p class="rel-slot-label">Question 3 <span>Uncorrected GPS position error</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="3">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 3</strong>
+        <span>F, Number - 2 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: F, Number</span><span class="buzz-preview-chip">Score: 2</span></div>
+      <div class="buzz-preview-prompt">3) A GPS satellite clock drifts by a net +38.6 microseconds per day. If the system ignored relativity, how large would the position error be after one day? Use c = 3.00 x 10^8 m/s. ________ km/day</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>10.4..12.8</p></div></div>
+    </div></div>
+    <div class="rel-slot"><p class="rel-slot-label">Question 4 <span>Lorentz factor for cosmic-ray muons</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="4">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 4</strong>
+        <span>F, Number - 2 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: F, Number</span><span class="buzz-preview-chip">Score: 2</span></div>
+      <div class="buzz-preview-prompt">4) Cosmic-ray muons travel at 0.998c. Calculate the Lorentz factor for that speed. ________</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>15.2..16.4</p></div></div>
+    </div></div>
+    <div class="rel-slot"><p class="rel-slot-label">Question 5 <span>GPS satellite: which effect wins</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="5">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 5</strong>
+        <span>MC - 1 point</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: MC</span><span class="buzz-preview-chip">Score: 1</span></div>
+      <div class="buzz-preview-prompt">5) Use your GPS satellite trial at 20 180 km. Which effect wins, and what happens to the satellite clock?</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option correct"><span>A</span><p>Gravity wins - the satellite clock runs fast by about 38 microseconds per day.</p></div>
+<div class="buzz-preview-option"><span>B</span><p>Motion wins - the satellite clock runs slow by about 38 microseconds per day.</p></div>
+<div class="buzz-preview-option"><span>C</span><p>The two effects cancel - the satellite clock stays synchronized with the ground.</p></div>
+<div class="buzz-preview-option"><span>D</span><p>Gravity wins - the satellite clock runs slow by about 46 microseconds per day.</p></div></div>
+    </div></div>
+    <div class="rel-slot"><p class="rel-slot-label">Question 6 <span>ISS: which effect wins</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="6">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 6</strong>
+        <span>MC - 1 point</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: MC</span><span class="buzz-preview-chip">Score: 1</span></div>
+      <div class="buzz-preview-prompt">6) Use your ISS trial. The ISS orbits at only 417 km but moves at 7 660 m/s. What does its clock do compared with the ground clock?</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option correct"><span>A</span><p>It runs slow, because at that low altitude the speed effect is larger than the altitude effect.</p></div>
+<div class="buzz-preview-option"><span>B</span><p>It runs fast, because any clock above the ground gains time.</p></div>
+<div class="buzz-preview-option"><span>C</span><p>It stays exactly synchronized, because the two effects always cancel.</p></div>
+<div class="buzz-preview-option"><span>D</span><p>It runs slow, because gravity is stronger at that altitude than at the ground.</p></div></div>
+    </div></div>
+    <div class="rel-slot"><p class="rel-slot-label">Question 7 <span>Hafele-Keating east and west</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="7">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 7</strong>
+        <span>MC - 1 point</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: MC</span><span class="buzz-preview-chip">Score: 1</span></div>
+      <div class="buzz-preview-prompt">7) In the Hafele-Keating experiment the westward-flying clocks gained time while the eastward clocks lost time. Both flights reached the same altitude. What explains the difference in sign?</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option correct"><span>A</span><p>Speed must be measured in the non-rotating Earth-centered frame, so a westward plane moves slower than the ground itself while an eastward plane moves faster.</p></div>
+<div class="buzz-preview-option"><span>B</span><p>Westward flights take longer, so gravity has more time to act on those clocks.</p></div>
+<div class="buzz-preview-option"><span>C</span><p>Only the eastward flights climbed high enough for the altitude effect to matter.</p></div>
+<div class="buzz-preview-option"><span>D</span><p>Air resistance slows the mechanism inside the westward clocks.</p></div></div>
+    </div></div>
+    <div class="rel-slot"><p class="rel-slot-label">Question 8 <span>Your fast clock and your slow clock</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="8">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 8</strong>
+        <span>E - 2 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: E</span><span class="buzz-preview-chip">Score: 2</span><span class="buzz-preview-chip">Height: 240</span></div>
+      <div class="buzz-preview-prompt">8) Report one trial from your data table where the clock ended up fast and one where it ended up slow. For each, give the altitude, the speed, the GR value, the SR value, and the net drift. Then explain what changed between the two trials to flip the sign.</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>Full credit: Reports both trials with all five values from the student&#39;s own table; identifies that the fast clock sits at high altitude where the gravity term is large and the orbital speed is low, while the slow clock sits at low altitude where the gravity term is small and the orbital speed is high; and states that the sign of the net drift is set by which of the two competing terms is larger. Partial credit: Reports both trials with some values and states which effect dominates, but does not connect altitude and speed to the size of each term. No credit: Reports no data from the table, or claims only one of the two effects is present.</p></div></div>
+    </div></div>
+    <div class="rel-slot"><p class="rel-slot-label">Question 9 <span>An independent confirmation</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="9">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 9</strong>
+        <span>E - 2 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: E</span><span class="buzz-preview-chip">Score: 2</span><span class="buzz-preview-chip">Height: 240</span></div>
+      <div class="buzz-preview-prompt">9) Choose one of the non-GPS cases from the evidence cards - the cosmic-ray muons, the Pound-Rebka tower, Sirius B, the storage-ring muons, or the optical clocks. Describe what that experiment measured and explain which of the two effects it confirms, and why it counts as independent evidence for what you measured in this lab.</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>Full credit: Names a specific case and what was measured; correctly assigns it to the motion effect (muons, storage ring) or the gravity effect (Pound-Rebka, Sirius B, optical clocks); and explains that because the experiment uses a different system and a different measurement technique from a satellite clock, agreement with the same theory is independent confirmation rather than a repeat of the same test. Partial credit: Describes a case and assigns the correct effect, but does not explain why it is independent evidence. No credit: Assigns the wrong effect, describes no measurement, or restates the GPS case.</p></div></div>
+    </div></div>
+  </section>
+
+  <p class="sr-only" id="liveStatus" role="status" aria-live="polite"></p>
+
+  <!-- start overlay -->
+  <div class="overlay" id="startOverlay">
+    <div class="overlay-panel">
+      <h2>Honors Relativity Timekeeping Lab</h2>
+      <p>A clock in orbit and a clock on the ground do not agree. This lab measures the disagreement.</p>
+      <ol>
+        <li>Choose a preset or set the altitude and speed sliders yourself. <strong>Snap to circular orbit</strong> sets the speed gravity requires at that altitude.</li>
+        <li>Select <strong>Record this trial</strong> for each setup you want in your data table.</li>
+        <li>Record at least four trials, including at least one clock that ends up fast and one that ends up slow.</li>
+        <li>Read the zero crossing off the graph, review the evidence cards, then download your evidence image.</li>
+        <li>Answer the Buzz questions below the lab.</li>
+      </ol>
+      <div class="walk-nav">
+        <span class="hint">Estimated time: 25&ndash;35 minutes</span>
+        <button type="button" class="primary" id="beginBtn">Begin</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  "use strict";
+
+  const svgNS = "http://www.w3.org/2000/svg";
+  const $ = (s) => document.querySelector(s);
+
+  /* ---------------- physical constants ---------------- */
+  const GM = 3.986004418e14;   // m^3/s^2, Earth
+  const C  = 299792458;        // m/s
+  const RE = 6.371e6;          // m, mean Earth radius
+  const V_GROUND = 465;        // m/s, equatorial surface speed from Earth's rotation
+  const SEC_PER_DAY = 86400;
+
+  /* ---------------- physics model ----------------
+     Weak-field rate comparison of a clock at radius r moving at speed v
+     (both measured in the non-rotating Earth-centered frame) against a
+     clock on the rotating equator:
+
+       Δrate = GM/c² (1/R_E − 1/r)  +  (v_ground² − v²) / (2c²)
+
+     First term: gravitational (GR). Second term: kinematic (SR).
+     Multiply by 86400 s to get seconds gained per day. ------------- */
+  function rates(altKm, speed) {
+    const r = RE + altKm * 1000;
+    const gr = (GM / (C * C)) * (1 / RE - 1 / r);
+    const sr = (V_GROUND * V_GROUND - speed * speed) / (2 * C * C);
+    return {
+      r,
+      grDay: gr * SEC_PER_DAY * 1e6,          // µs/day
+      srDay: sr * SEC_PER_DAY * 1e6,          // µs/day
+      netDay: (gr + sr) * SEC_PER_DAY * 1e6,  // µs/day
+      netFrac: gr + sr
+    };
+  }
+
+  const circularSpeed = (altKm) => Math.sqrt(GM / (RE + altKm * 1000));
+
+  /* ---------------- presets ---------------- */
+  const PRESETS = [
+    { id: "gps",    name: "GPS satellite",        alt: 20180,   speed: 3874 },
+    { id: "iss",    name: "ISS",                  alt: 417,     speed: 7660 },
+    { id: "leo",    name: "Low fast orbit",       alt: 200,     speed: 7784 },
+    { id: "cross",  name: "Cancellation orbit",   alt: 3186,    speed: 6458 },
+    { id: "geo",    name: "Geostationary",        alt: 35786,   speed: 3075 },
+    { id: "east",   name: "Jet flying east",      alt: 11,      speed: 715  },
+    { id: "west",   name: "Jet flying west",      alt: 11,      speed: 215  },
+    { id: "tower",  name: "Pound–Rebka tower",    alt: 0.0225,  speed: 465  }
+  ];
+
+  /* ---------------- state ---------------- */
+  const state = {
+    alt: 20180,
+    speed: 3874,
+    scenario: "GPS satellite",
+    simDays: 0,
+    orbitAngle: 0,
+    trials: [],
+    started: false,
+    unlocked: false,
+    lastFrame: 0
+  };
+
+  /* ---------------- element refs ---------------- */
+  const altSlider = $("#altSlider");
+  const speedSlider = $("#speedSlider");
+  const altVal = $("#altVal");
+  const speedVal = $("#speedVal");
+  const grOut = $("#grOut");
+  const srOut = $("#srOut");
+  const netOut = $("#netOut");
+  const dataBody = $("#dataBody");
+  const gateMsg = $("#gateMsg");
+  const phaseLabel = $("#phaseLabel");
+  const liveStatus = $("#liveStatus");
+  const orbitPath = $("#orbitPath");
+  const satFront = $("#satFront");
+  const satBack = $("#satBack");
+
+  /* ---------------- formatting ---------------- */
+  const groupNum = (n, digits = 0) =>
+    n.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits })
+     .replace(/,/g, " ");
+
+  function signed(n, digits = 1) {
+    const s = n >= 0 ? "+" : "−";
+    return s + Math.abs(n).toFixed(digits);
+  }
+
+  // small drifts are easier to read in nanoseconds
+  function driftText(usPerDay) {
+    if (Math.abs(usPerDay) < 1) return signed(usPerDay * 1000, 2) + " ns/day";
+    return signed(usPerDay, 1) + " µs/day";
+  }
+
+  /* ---------------- starfield ---------------- */
+  (function drawStars() {
+    const g = $("#starfield");
+    let seed = 20250611;
+    const rand = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+    for (let i = 0; i < 110; i++) {
+      const x = rand() * 1000, y = rand() * 470;
+      // keep the field clear of the clock dials
+      if (x > 660 && y < 420) continue;
+      const star = document.createElementNS(svgNS, "circle");
+      star.setAttribute("cx", x.toFixed(1));
+      star.setAttribute("cy", y.toFixed(1));
+      star.setAttribute("r", (rand() * 1.3 + 0.4).toFixed(2));
+      star.setAttribute("fill", "#ffffff");
+      star.setAttribute("opacity", (rand() * 0.6 + 0.25).toFixed(2));
+      g.appendChild(star);
+    }
+  })();
+
+  /* ---------------- clock dial ticks ---------------- */
+  (function drawTicks() {
+    [["#ticksGround", "#285f9f"], ["#ticksSat", "#8a4b08"]].forEach(([sel, color]) => {
+      const g = $(sel);
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        const t = document.createElementNS(svgNS, "line");
+        t.setAttribute("x1", (Math.sin(a) * 44).toFixed(1));
+        t.setAttribute("y1", (48 - Math.cos(a) * 44).toFixed(1));
+        t.setAttribute("x2", (Math.sin(a) * 38).toFixed(1));
+        t.setAttribute("y2", (48 - Math.cos(a) * 38).toFixed(1));
+        t.setAttribute("stroke", color);
+        t.setAttribute("stroke-width", i % 3 === 0 ? "3" : "1.5");
+        t.setAttribute("opacity", i % 3 === 0 ? "1" : "0.5");
+        g.appendChild(t);
+      }
+    });
+  })();
+
+  /* ---------------- satellite drawing ---------------- */
+  function makeSatellite() {
+    const g = document.createElementNS(svgNS, "g");
+    g.innerHTML =
+      '<line x1="-34" y1="0" x2="34" y2="0" stroke="#9db4d4" stroke-width="2"/>' +
+      '<rect x="-40" y="-11" width="22" height="22" rx="3" fill="url(#panelGrad)" stroke="#9db4d4" stroke-width="1.5"/>' +
+      '<rect x="18" y="-11" width="22" height="22" rx="3" fill="url(#panelGrad)" stroke="#9db4d4" stroke-width="1.5"/>' +
+      '<rect x="-13" y="-13" width="26" height="26" rx="5" fill="#e7eefb" stroke="#f2b705" stroke-width="2.5"/>' +
+      '<circle cx="0" cy="0" r="9" fill="#ffffff" stroke="#8a4b08" stroke-width="1.5"/>' +
+      '<line class="sat-hand" x1="0" y1="0" x2="0" y2="-7" stroke="#d64b62" stroke-width="1.8" stroke-linecap="round"/>' +
+      '<circle cx="0" cy="0" r="1.6" fill="#8a4b08"/>' +
+      '<path d="M0 -18 l0 -8" stroke="#f2b705" stroke-width="2"/>' +
+      '<circle cx="0" cy="-28" r="3" fill="#f2b705"/>';
+    return g;
+  }
+  const satellite = makeSatellite();
+  const satHand = satellite.querySelector(".sat-hand");
+  satFront.appendChild(satellite);
+
+  // dashed signal beam from satellite down to the ground station
+  const beam = document.createElementNS(svgNS, "line");
+  beam.setAttribute("stroke", "#f2b705");
+  beam.setAttribute("stroke-width", "1.6");
+  beam.setAttribute("stroke-dasharray", "5 7");
+  beam.setAttribute("opacity", "0.55");
+  satBack.appendChild(beam);
+
+  /* ---------------- scene update ---------------- */
+  function orbitRadii() {
+    // map altitude 0…36000 km onto a readable on-screen orbit
+    const frac = Math.min(1, state.alt / 36000);
+    const rx = 108 + Math.pow(frac, 0.6) * 190;
+    return { rx, ry: rx * 0.36 };
+  }
+
+  function updateScene(dt) {
+    const { rx, ry } = orbitRadii();
+    orbitPath.setAttribute("rx", rx.toFixed(1));
+    orbitPath.setAttribute("ry", ry.toFixed(1));
+
+    // angular rate on screen: fast low orbits, slow high orbits (visually scaled)
+    const period = 2 * Math.PI * Math.sqrt(Math.pow(RE + state.alt * 1000, 3) / GM); // seconds
+    const screenRate = Math.max(0.12, Math.min(1.6, 9000 / period));
+    state.orbitAngle += dt * screenRate;
+
+    const cx = 360 + Math.cos(state.orbitAngle) * rx;
+    const cy = 235 + Math.sin(state.orbitAngle) * ry;
+    const front = Math.sin(state.orbitAngle) > 0;
+
+    satellite.setAttribute("transform", `translate(${cx.toFixed(1)}, ${cy.toFixed(1)}) scale(${front ? 1 : 0.82})`);
+    satellite.setAttribute("opacity", front ? "1" : "0.6");
+    if (front && satellite.parentNode !== satFront) satFront.appendChild(satellite);
+    if (!front && satellite.parentNode !== satBack) satBack.appendChild(satellite);
+
+    beam.setAttribute("x1", cx.toFixed(1));
+    beam.setAttribute("y1", cy.toFixed(1));
+    beam.setAttribute("x2", "360");
+    beam.setAttribute("y2", "109");
+    beam.setAttribute("opacity", front ? "0.55" : "0.15");
+  }
+
+  /* ---------------- clocks ---------------- */
+  // A real offset of tens of microseconds would be invisible on a dial, so the
+  // satellite hand is displaced by one degree per microsecond, capped at 45°.
+  const dialNudge = (offsetUs) => Math.max(-45, Math.min(45, offsetUs));
+
+  function updateClocks() {
+    const r = rates(state.alt, state.speed);
+    const groundSec = state.simDays * SEC_PER_DAY;
+    const offsetUs = r.netDay * state.simDays;              // µs, real value
+    const satSec = groundSec + offsetUs * 1e-6;
+
+    const secAngleGround = ((state.simDays * 24) % 1) * 360; // one sweep per simulated hour
+    const minAngleGround = (state.simDays % 1) * 360;        // one sweep per simulated day
+    const nudge = dialNudge(offsetUs);
+
+    $("#handGroundSec").setAttribute("transform", `rotate(${secAngleGround.toFixed(2)} 0 48)`);
+    $("#handGroundMin").setAttribute("transform", `rotate(${minAngleGround.toFixed(2)} 0 48)`);
+    $("#handSatSec").setAttribute("transform", `rotate(${(secAngleGround + nudge).toFixed(2)} 0 48)`);
+    $("#handSatMin").setAttribute("transform", `rotate(${minAngleGround.toFixed(2)} 0 48)`);
+    satHand.setAttribute("transform", `rotate(${(secAngleGround + nudge).toFixed(2)} 0 0)`);
+
+    $("#readGround").textContent = groundSec.toFixed(6) + " s";
+    $("#readSat").textContent = satSec.toFixed(6) + " s";
+    $("#elapsedDays").textContent = state.simDays.toFixed(2) + " days";
+
+    const off = $("#offsetLive");
+    off.textContent = Math.abs(offsetUs) < 1
+      ? signed(offsetUs * 1000, 2) + " ns"
+      : signed(offsetUs, 1) + " µs";
+    off.setAttribute("fill", offsetUs >= 0 ? "#f2b705" : "#ff8b9a");
+  }
+
+  /* ---------------- readouts ---------------- */
+  function updateReadouts() {
+    const r = rates(state.alt, state.speed);
+    altVal.textContent = (state.alt < 1 ? state.alt.toFixed(4) : groupNum(state.alt)) + " km";
+    speedVal.textContent = groupNum(state.speed) + " m/s";
+
+    grOut.textContent = driftText(r.grDay);
+    srOut.textContent = driftText(r.srDay);
+    netOut.textContent = driftText(r.netDay);
+    netOut.className = "v " + (r.netDay >= 0 ? "pos" : "neg");
+
+    $("#scenarioName").textContent = "Scenario: " + state.scenario;
+    $("#orbitInfo").textContent =
+      "Altitude " + (state.alt < 1 ? state.alt.toFixed(4) : groupNum(state.alt)) + " km · speed " +
+      groupNum(state.speed) + " m/s · r = " + (r.r / RE).toFixed(2) + " Rₑ";
+
+    drawGraph();
+  }
+
+  /* ---------------- presets UI ---------------- */
+  (function buildPresets() {
+    const row = $("#presetRow");
+    PRESETS.forEach((p) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "small preset";
+      b.dataset.id = p.id;
+      b.textContent = p.name;
+      b.addEventListener("click", () => applyPreset(p));
+      row.appendChild(b);
+    });
+  })();
+
+  function applyPreset(p) {
+    state.alt = p.alt;
+    state.speed = p.speed;
+    state.scenario = p.name;
+    state.simDays = 0;
+    altSlider.value = Math.round(p.alt);
+    speedSlider.value = Math.round(p.speed);
+    markActivePreset(p.id);
+    updateReadouts();
+    liveStatus.textContent = "Loaded preset " + p.name + ".";
+  }
+
+  function markActivePreset(id) {
+    document.querySelectorAll(".preset").forEach((b) =>
+      b.classList.toggle("active", b.dataset.id === id));
+  }
+
+  function manualChange() {
+    state.alt = Number(altSlider.value);
+    state.speed = Number(speedSlider.value);
+    state.scenario = "Custom setup";
+    state.simDays = 0;
+    markActivePreset("");
+    updateReadouts();
+  }
+
+  altSlider.addEventListener("input", manualChange);
+  speedSlider.addEventListener("input", manualChange);
+
+  $("#snapBtn").addEventListener("click", () => {
+    const v = circularSpeed(state.alt);
+    speedSlider.value = Math.round(v);
+    state.speed = Math.round(v);
+    state.scenario = "Circular orbit, " + groupNum(state.alt) + " km";
+    state.simDays = 0;
+    markActivePreset("");
+    updateReadouts();
+    liveStatus.textContent = "Speed set to circular-orbit value " + groupNum(Math.round(v)) + " m per second.";
+  });
+
+  /* ---------------- data table ---------------- */
+  $("#recordBtn").addEventListener("click", () => {
+    const r = rates(state.alt, state.speed);
+    state.trials.push({
+      name: state.scenario,
+      alt: state.alt,
+      rRatio: r.r / RE,
+      speed: state.speed,
+      gr: r.grDay,
+      sr: r.srDay,
+      net: r.netDay
+    });
+    renderTable();
+    checkGate();
+    drawGraph();
+    liveStatus.textContent = "Trial recorded. " + state.trials.length + " total.";
+  });
+
+  $("#clearBtn").addEventListener("click", () => {
+    state.trials = [];
+    renderTable();
+    checkGate();
+    drawGraph();
+  });
+
+  function renderTable() {
+    if (!state.trials.length) {
+      dataBody.innerHTML = '<tr class="empty-row"><td colspan="7">No trials recorded yet.</td></tr>';
+      return;
+    }
+    dataBody.innerHTML = state.trials.map((t) => `
+      <tr>
+        <td>${t.name}</td>
+        <td>${t.alt < 1 ? t.alt.toFixed(4) : groupNum(t.alt)}</td>
+        <td>${t.rRatio.toFixed(2)}</td>
+        <td>${groupNum(t.speed)}</td>
+        <td>${signed(t.gr, 2)}</td>
+        <td>${signed(t.sr, 2)}</td>
+        <td class="${t.net >= 0 ? "pos" : "neg"}">${signed(t.net, 2)}</td>
+      </tr>`).join("");
+  }
+
+  function checkGate() {
+    const n = state.trials.length;
+    const hasFast = state.trials.some((t) => t.net > 0);
+    const hasSlow = state.trials.some((t) => t.net < 0);
+    const ready = n >= 4 && hasFast && hasSlow;
+
+    if (ready && !state.unlocked) {
+      state.unlocked = true;
+      liveStatus.textContent = "Evidence image unlocked.";
+    }
+
+    gateMsg.classList.toggle("done", ready);
+    gateMsg.textContent = ready
+      ? "Unlocked: " + n + " trials recorded, including fast and slow clocks. The evidence image is ready below."
+      : "Locked: " + n + " of 4 trials recorded" +
+        (hasFast ? "" : " · still need a clock that runs fast (high orbit)") +
+        (hasSlow ? "" : " · still need a clock that runs slow (low fast orbit)") + ".";
+
+    renderEvidencePanel();
+    updatePhase();
+  }
+
+  function updatePhase() {
+    phaseLabel.textContent = state.unlocked
+      ? "Trials: " + state.trials.length + " · Evidence image ready"
+      : "Trials recorded: " + state.trials.length + " of 4 · Evidence locked";
+  }
+
+  /* ---------------- graph ---------------- */
+  function drawGraph() {
+    const svg = $("#graph");
+    const keep = svg.querySelectorAll("title, desc");
+    svg.innerHTML = "";
+    keep.forEach((n) => svg.appendChild(n));
+
+    const L = 78, R = 880, T = 26, B = 322;
+    const xMin = 1, xMax = 7;                 // r / R_E
+    const yMin = -60, yMax = 60;              // µs/day
+
+    const xPix = (x) => L + ((x - xMin) / (xMax - xMin)) * (R - L);
+    const yPix = (y) => B - ((y - yMin) / (yMax - yMin)) * (B - T);
+
+    const add = (tag, attrs, text) => {
+      const el = document.createElementNS(svgNS, tag);
+      for (const k in attrs) el.setAttribute(k, attrs[k]);
+      if (text !== undefined) el.textContent = text;
+      svg.appendChild(el);
+      return el;
+    };
+
+    // grid + axis labels
+    for (let y = yMin; y <= yMax; y += 20) {
+      add("line", { x1: L, y1: yPix(y), x2: R, y2: yPix(y), stroke: y === 0 ? "#172033" : "#e2e9f4", "stroke-width": y === 0 ? 2 : 1 });
+      add("text", { x: L - 10, y: yPix(y) + 4, "text-anchor": "end", font: "600 12px 'Segoe UI'", fill: "#5c6678" }, signed(y, 0));
+    }
+    for (let x = xMin; x <= xMax; x += 1) {
+      add("line", { x1: xPix(x), y1: T, x2: xPix(x), y2: B, stroke: "#e2e9f4", "stroke-width": 1 });
+      add("text", { x: xPix(x), y: B + 20, "text-anchor": "middle", font: "600 12px 'Segoe UI'", fill: "#5c6678" }, x.toFixed(0));
+    }
+    add("text", { x: (L + R) / 2, y: B + 46, "text-anchor": "middle", font: "700 13px 'Segoe UI'", fill: "#172033" },
+      "Orbital radius r / Rₑ   (Rₑ = 6 371 km)");
+    add("text", { x: 20, y: (T + B) / 2, "text-anchor": "middle", font: "700 13px 'Segoe UI'", fill: "#172033",
+      transform: `rotate(-90 20 ${(T + B) / 2})` }, "Net drift (µs per day)");
+
+    // circular-orbit curve
+    let d = "";
+    for (let i = 0; i <= 240; i++) {
+      const x = xMin + (i / 240) * (xMax - xMin);
+      const altKm = (x * RE - RE) / 1000;
+      const y = rates(altKm, circularSpeed(altKm)).netDay;
+      d += (i === 0 ? "M " : "L ") + xPix(x).toFixed(1) + " " + yPix(Math.max(yMin, Math.min(yMax, y))).toFixed(1) + " ";
+    }
+    add("path", { d, fill: "none", stroke: "#7c3aed", "stroke-width": 3 });
+
+    // zero crossing at r = 1.5 R_E
+    const xc = xPix(1.5);
+    add("line", { x1: xc, y1: T, x2: xc, y2: B, stroke: "#17643b", "stroke-width": 2, "stroke-dasharray": "6 6" });
+    add("circle", { cx: xc, cy: yPix(0), r: 6, fill: "#17643b" });
+    add("text", { x: xc + 10, y: yPix(0) - 12, font: "700 12px 'Segoe UI'", fill: "#17643b" },
+      "SR and GR cancel: r = 1.5 Rₑ");
+
+    // reference markers
+    [["ISS", 417], ["GPS", 20180], ["GEO", 35786]].forEach(([label, altKm]) => {
+      const x = (RE + altKm * 1000) / RE;
+      if (x < xMin || x > xMax) return;
+      const y = rates(altKm, circularSpeed(altKm)).netDay;
+      add("circle", { cx: xPix(x), cy: yPix(y), r: 4, fill: "#7c3aed", opacity: 0.6 });
+      add("text", { x: xPix(x), y: yPix(y) - 12, "text-anchor": "middle", font: "700 11px 'Segoe UI'", fill: "#5b21b6" }, label);
+    });
+
+    // recorded trials
+    state.trials.forEach((t, i) => {
+      if (t.rRatio < xMin || t.rRatio > xMax) return;
+      const y = Math.max(yMin, Math.min(yMax, t.net));
+      add("circle", { cx: xPix(t.rRatio), cy: yPix(y), r: 7, fill: "#f2b705", stroke: "#8a4b08", "stroke-width": 2 });
+      add("text", { x: xPix(t.rRatio), y: yPix(y) + 4, "text-anchor": "middle", font: "800 10px 'Segoe UI'", fill: "#3f2a02" }, String(i + 1));
+    });
+
+    // legend
+    add("rect", { x: L + 8, y: T + 6, width: 236, height: 46, rx: 8, fill: "#ffffff", stroke: "#cfd8e6" });
+    add("line", { x1: L + 20, y1: T + 22, x2: L + 46, y2: T + 22, stroke: "#7c3aed", "stroke-width": 3 });
+    add("text", { x: L + 54, y: T + 26, font: "600 12px 'Segoe UI'", fill: "#33405a" }, "Circular-orbit prediction");
+    add("circle", { cx: L + 33, cy: T + 40, r: 6, fill: "#f2b705", stroke: "#8a4b08", "stroke-width": 2 });
+    add("text", { x: L + 54, y: T + 44, font: "600 12px 'Segoe UI'", fill: "#33405a" }, "Your recorded trials");
+  }
+
+  /* ---------------- evidence export ---------------- */
+  function evidenceReady() {
+    const hasFast = state.trials.some((t) => t.net > 0);
+    const hasSlow = state.trials.some((t) => t.net < 0);
+    return state.trials.length >= 4 && hasFast && hasSlow;
+  }
+
+  function renderEvidencePanel() {
+    const ready = evidenceReady();
+    $("#downloadEvidence").disabled = !ready;
+    $("#evidenceMessage").textContent = ready
+      ? "Your data table meets the requirement. Download the evidence image and upload it in Buzz Question 1."
+      : "Record at least four trials, including at least one clock that ends up fast and one that ends up slow. The evidence image unlocks when your data table meets that requirement.";
+  }
+
+  function downloadBlob(blob, filename) {
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function drawEvidenceTable(ctx, x, y, widths, headers, rows, title) {
+    const rowHeight = 42;
+    const totalWidth = widths.reduce((sum, v) => sum + v, 0);
+    ctx.fillStyle = "#1d2a44";
+    ctx.font = "800 24px system-ui";
+    ctx.textAlign = "left";
+    ctx.fillText(title, x, y - 13);
+    ctx.fillStyle = "#e8edf7";
+    ctx.fillRect(x, y, totalWidth, rowHeight);
+    let cursor = x;
+    headers.forEach((header, i) => {
+      ctx.strokeStyle = "#a8b3cb";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(cursor, y, widths[i], rowHeight);
+      ctx.fillStyle = "#33405a";
+      ctx.font = "800 15px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText(header, cursor + widths[i] / 2, y + 27);
+      cursor += widths[i];
+    });
+    rows.forEach((row, rowIndex) => {
+      cursor = x;
+      const rowY = y + rowHeight * (rowIndex + 1);
+      ctx.fillStyle = rowIndex % 2 ? "#f6f8fc" : "#ffffff";
+      ctx.fillRect(x, rowY, totalWidth, rowHeight);
+      row.forEach((value, i) => {
+        ctx.strokeStyle = "#c3cbdd";
+        ctx.strokeRect(cursor, rowY, widths[i], rowHeight);
+        ctx.fillStyle = "#1d2a44";
+        ctx.font = i === 0 ? "800 15px system-ui" : "600 15px system-ui";
+        ctx.textAlign = "center";
+        ctx.fillText(String(value === "" || value == null ? "—" : value), cursor + widths[i] / 2, rowY + 27);
+        cursor += widths[i];
+      });
+    });
+    return y + rowHeight * (rows.length + 1);
+  }
+
+  function downloadEvidenceImage() {
+    if (!evidenceReady()) {
+      $("#evidenceStatus").textContent = "Record four trials including one fast clock and one slow clock before downloading the evidence image.";
+      return;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = 1400;
+    canvas.height = 340 + state.trials.length * 42;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#f6f8fc";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#1d2a44";
+    ctx.fillRect(0, 0, canvas.width, 88);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "900 32px system-ui";
+    ctx.textAlign = "left";
+    ctx.fillText("Honors Relativity Timekeeping Lab Evidence", 56, 55);
+    ctx.fillStyle = "#5a6684";
+    ctx.font = "600 16px system-ui";
+    ctx.fillText("Generated " + new Date().toLocaleString() + " · " + state.trials.length + " trials recorded, including a fast clock and a slow clock", 56, 116);
+
+    const rows = state.trials.map((t) => [
+      t.name,
+      t.alt < 1 ? t.alt.toFixed(4) : groupNum(t.alt),
+      t.rRatio.toFixed(2),
+      groupNum(t.speed),
+      signed(t.gr, 2),
+      signed(t.sr, 2),
+      signed(t.net, 2)
+    ]);
+    const y = drawEvidenceTable(ctx, 56, 168, [300, 200, 150, 200, 190, 190, 190], ["Scenario", "Altitude (km)", "r / RE", "Speed (m/s)", "GR (µs/day)", "SR (µs/day)", "Net (µs/day)"], rows, "Trial data");
+
+    ctx.fillStyle = "#5a6684";
+    ctx.font = "600 15px system-ui";
+    ctx.textAlign = "left";
+    ctx.fillText("Upload this complete image in Buzz Question 1, then cite specific trials in your written explanations.", 56, y + 46);
+
+    function reportStarted() {
+      $("#evidenceStatus").textContent = "Evidence image download started. Upload that PNG in Buzz Question 1.";
+      liveStatus.textContent = "Evidence image download started.";
+    }
+    if (canvas.toBlob) {
+      canvas.toBlob((blob) => {
+        if (blob) { downloadBlob(blob, "relativity-timekeeping-evidence.png"); reportStarted(); }
+        else { $("#evidenceStatus").textContent = "The evidence image could not be created. Try again."; }
+      }, "image/png");
+    } else {
+      const link = document.createElement("a");
+      link.href = canvas.toDataURL("image/png");
+      link.download = "relativity-timekeeping-evidence.png";
+      link.click();
+      reportStarted();
+    }
+  }
+
+  $("#downloadEvidence").addEventListener("click", downloadEvidenceImage);
+
+  $("#beginBtn").addEventListener("click", () => {
+    $("#startOverlay").classList.add("hidden");
+    state.started = true;
+  });
+
+  $("#resetBtn").addEventListener("click", () => {
+    state.trials = [];
+    state.simDays = 0;
+    state.unlocked = false;
+    applyPreset(PRESETS[0]);
+    renderTable();
+    checkGate();
+    renderEvidencePanel();
+    $("#evidenceStatus").textContent = "";
+    liveStatus.textContent = "Lab reset.";
+  });
+
+
+  /* ---------------- animation loop ---------------- */
+  const DAYS_PER_SECOND = 0.25;  // one simulated day every 4 real seconds
+
+  function loop(ts) {
+    const dt = state.lastFrame ? Math.min(0.05, (ts - state.lastFrame) / 1000) : 0;
+    state.lastFrame = ts;
+    if (state.started) state.simDays += dt * DAYS_PER_SECOND;
+    updateScene(dt);
+    updateClocks();
+    requestAnimationFrame(loop);
+  }
+
+  /* ---------------- init ---------------- */
+  if (window.location.protocol === "file:" && document.getElementsByTagName("a:question").length) $("#localNote").hidden = false;
+  applyPreset(PRESETS[0]);
+  renderTable();
+  checkGate();
+  drawGraph();
+  requestAnimationFrame(loop);
+})();
+</script>
+<script id="buzz-assessment-integrity-guard">
+(function () {
+  'use strict';
+  ['copy', 'cut', 'paste', 'contextmenu'].forEach(function (eventName) { document.addEventListener(eventName, function (event) { event.preventDefault(); }, true); });
+  document.addEventListener('keydown', function (event) { if ((event.ctrlKey || event.metaKey) && ['c', 'x', 'v'].indexOf(String(event.key).toLowerCase()) !== -1) event.preventDefault(); }, true);
+}());
+</script>
+</main>
+</body>
+</html>

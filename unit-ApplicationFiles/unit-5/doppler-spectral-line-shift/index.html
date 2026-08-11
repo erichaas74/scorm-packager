@@ -244,6 +244,36 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line)
 .ssi-hidden { display: none !important; }
 .ssi-status { position: absolute; left: -9999px; }
 
+.ssi-section-title { margin: 0 0 14px; font-size: 1.1rem; color: var(--blue-dark); }
+.ssi-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+.ssi-evidence-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.ssi-evidence-table th, .ssi-evidence-table td { padding: 9px 12px; border-bottom: 1px solid var(--line); text-align: right; font-variant-numeric: tabular-nums; }
+.ssi-evidence-table th:first-child, .ssi-evidence-table td:first-child { text-align: left; font-variant-numeric: normal; }
+.ssi-evidence-table thead th { background: var(--soft); color: var(--blue-dark); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.ssi-empty-row td { text-align: center; color: var(--muted); font-style: italic; }
+.ssi-evidence-message { margin: 12px 0; color: var(--muted); font-size: 0.92rem; }
+.ssi-evidence-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.ssi-evidence-status { margin: 12px 0 0; color: var(--good); font-size: 0.92rem; font-weight: 700; min-height: 1.2em; }
+
+.ssi-buzz-intro { margin: 0 0 14px; color: var(--muted); font-size: 0.92rem; }
+.ssi-local-note {
+  margin-bottom: 14px;
+  padding: 11px 14px;
+  border-left: 5px solid var(--warn);
+  border-radius: 0 10px 10px 0;
+  background: var(--warn-soft);
+  font-size: 0.9rem;
+}
+.ssi-slot {
+  margin-bottom: 14px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fbfdff;
+}
+.ssi-slot-label { margin: 0 0 8px; color: var(--blue-dark); font-size: 0.86rem; font-weight: 800; }
+.ssi-slot-label span { display: block; margin-top: 2px; color: var(--muted); font-weight: 600; }
+
 @media(max-width: 720px) {
   .ssi-choice-grid, .ssi-reference-grid { grid-template-columns: 1fr; }
   .ssi-top { flex-direction: column; align-items: flex-start; }
@@ -385,6 +415,35 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line)
   </section>
 
   <p class="ssi-status" id="status" role="status" aria-live="polite"></p>
+
+  <section class="ssi-card" aria-labelledby="evidenceHeading">
+    <h2 class="ssi-section-title" id="evidenceHeading">Measured shifts</h2>
+    <div class="ssi-table-wrap">
+      <table class="ssi-evidence-table">
+        <thead><tr><th scope="col">Object</th><th scope="col">Element</th><th scope="col">&lambda;<sub>0</sub> of measured line (nm)</th><th scope="col">&Delta;&lambda; (nm)</th></tr></thead>
+        <tbody id="evidenceBody"><tr class="ssi-empty-row"><td colspan="4">No measurements recorded yet.</td></tr></tbody>
+      </table>
+    </div>
+    <p class="ssi-evidence-message" id="evidenceMessage">Align all three cases. The evidence image unlocks when every object has a recorded shift.</p>
+    <div class="ssi-evidence-actions">
+      <button type="button" id="downloadEvidence" disabled>Download evidence image</button>
+    </div>
+    <p class="ssi-evidence-status" id="evidenceStatus" role="status" aria-live="polite"></p>
+  </section>
+
+  <section class="ssi-card" id="buzzQuestions" aria-labelledby="buzzHeading">
+    <h2 class="ssi-section-title" id="buzzHeading">Buzz assessment questions</h2>
+    <p class="ssi-buzz-intro">Upload your evidence image first, then answer each question from your own recorded measurements. Buzz inserts the graded response controls into the ordered slots below.</p>
+    <div class="ssi-local-note" id="localNote" hidden>If you opened this template as a local file, the response controls will be blank. Import <strong>doppler_spectral_shift_buzz_questions.txt</strong> into Buzz and upload this HTML as the assessment template.</div>
+    <div class="ssi-slot"><p class="ssi-slot-label">Question 1 <span>Upload the completed measurement evidence image</span></p><a:question /></div>
+    <div class="ssi-slot"><p class="ssi-slot-label">Question 2 <span>Object A measured shift</span></p><a:question /></div>
+    <div class="ssi-slot"><p class="ssi-slot-label">Question 3 <span>Object B measured shift</span></p><a:question /></div>
+    <div class="ssi-slot"><p class="ssi-slot-label">Question 4 <span>Object C measured shift</span></p><a:question /></div>
+    <div class="ssi-slot"><p class="ssi-slot-label">Question 5 <span>Classify Object A and Object B</span></p><a:question /></div>
+    <div class="ssi-slot"><p class="ssi-slot-label">Question 6 <span>Recession speed of Object A</span></p><a:question /></div>
+    <div class="ssi-slot"><p class="ssi-slot-label">Question 7 <span>Pattern versus position</span></p><a:question /></div>
+    <div class="ssi-slot"><p class="ssi-slot-label">Question 8 <span>What Object C does and does not tell you</span></p><a:question /></div>
+  </section>
 </main>
 
 <script>
@@ -440,7 +499,7 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line)
   let isDragging = false;
   let dragStartX = 0;
   let dragStartZ = 0;
-  let completionSent = false;
+  let measuredCases = {};
 
   const byId = id => document.getElementById(id);
   
@@ -627,7 +686,7 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line)
     const deltaLam = lam0 * measuredZ;
     shiftReadout.innerHTML =
       `Δλ = ${deltaLam > 0.05 ? '+' : ''}${deltaLam.toFixed(1)} nm` +
-      `<span class="ssi-shift-sub">λ₀ = ${lam0.toFixed(1)} nm · z = Δλ/λ₀ = ${measuredZ.toFixed(3)}</span>`;
+      `<span class="ssi-shift-sub">rest wavelength of the measured line: λ₀ = ${lam0.toFixed(1)} nm</span>`;
   }
 
   function renderReferenceCards() {
@@ -800,54 +859,32 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line)
   // No button: landing on the alignment is itself the confirmation.
   function confirmAlignment() {
     zUser = -currentCase().z;
-    phase = 'classify';
+    phase = 'result';
     obsDragTarget.classList.add('ssi-hidden');
-    setFeedback('Lines aligned! Now read the measured shift and name it.', 'good');
+    recordCase();
+    drawMotion();
+    motionPanel.classList.add('visible');
+    setFeedback('Lines aligned. Record the measured shift from the readout, then continue.', 'good');
     renderUI();
+  }
+
+  // Each aligned case stores the wavelength the student actually measured.
+  function recordCase() {
+    const item = currentCase();
+    const lam0 = measuredLine();
+    measuredCases[item.object] = {
+      object: item.object,
+      element: currentReference().label,
+      lam0: lam0,
+      deltaLam: lam0 * -zUser
+    };
+    renderEvidencePanel();
   }
 
   function setFeedback(message, tone = '') {
     feedback.textContent = message;
     feedback.className = `ssi-feedback${tone ? ` ${tone}` : ''}`;
     status.textContent = message;
-  }
-
-  function setChoices(options, correctValue, onCorrect) {
-    choices.innerHTML = '';
-    options.forEach(opt => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.textContent = opt.label;
-      btn.addEventListener('click', () => {
-        if (opt.value === correctValue) {
-          onCorrect();
-        } else {
-          setFeedback(opt.feedback, 'warn');
-        }
-      });
-      choices.appendChild(btn);
-    });
-  }
-
-  function classifyShift() {
-    phase = 'motion';
-    const item = currentCase();
-    setFeedback(`Correct! The spectrum shows a ${item.shift}. Now infer the object's motion.`, 'good');
-    renderUI();
-  }
-
-  function revealMotion() {
-    phase = 'result';
-    drawMotion();
-    motionPanel.classList.add('visible');
-    const item = currentCase();
-    const exp = item.motion === 'receding'
-      ? 'Redshift indicates the object is moving away from Earth.'
-      : item.motion === 'approaching'
-        ? 'Blueshift indicates the object is moving toward Earth.'
-        : 'Zero shift indicates no measurable motion along our line of sight.';
-    setFeedback(exp, 'good');
-    renderUI();
   }
 
   function stopMotionAnim() {
@@ -996,9 +1033,7 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line)
     const phaseData = {
       match: ['Match the fingerprint', 'Step 1 · Identify', 'Drag a reference spectrum into the top slot. Try any of them — testing one that does not fit is a fair way to rule it out.', 'Which reference has the same absorption-line fingerprint?'],
       align: ['Align the lines', 'Step 2 · Measure', 'Drag the dashed markers off the solid observed lines until they sit on the reference lines above. The colors stay fixed to the wavelength scale. If the markers never all line up at once, try a different reference.', 'How far must the lines shift to reach their rest wavelengths?'],
-      classify: ['Name the shift', 'Step 3 · Interpret', 'Analyze the measured shift value.', 'What type of spectral shift does the alignment show?'],
-      motion: ['Infer the motion', 'Step 4 · Doppler Effect', 'Use the shift to determine relative motion.', `What is ${item.object}'s motion relative to Earth?`],
-      result: ['Evidence complete', 'Result · Synthesis', 'Review the collected evidence.', 'The evidence chain is complete for this object.']
+      result: ['Measurement recorded', 'Step 3 · Record', 'Read Δλ and λ₀ from the readout and copy them into your notes. The motion diagram below shows how this object moves relative to Earth.', `Δλ has been measured for ${item.object}.`]
     };
 
     const [prog, step, dir, qText] = phaseData[phase];
@@ -1007,19 +1042,7 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line)
     directions.textContent = dir;
     question.textContent = qText;
 
-    if (phase === 'classify') {
-      setChoices([
-        { label: 'Redshift', value: 'redshift', feedback: 'Check the sign of Δλ. A positive Δλ means the lines sit at longer wavelengths than at rest.' },
-        { label: 'Blueshift', value: 'blueshift', feedback: 'Check the sign of Δλ. A negative Δλ means the lines sit at shorter wavelengths than at rest.' },
-        { label: 'No shift', value: 'no shift', feedback: 'Check Δλ. Is it essentially zero?' }
-      ], item.shift, classifyShift);
-    } else if (phase === 'motion') {
-      setChoices([
-        { label: 'Approaching Earth', value: 'approaching', feedback: 'Approaching objects cause Blueshift. Does the evidence match?' },
-        { label: 'Receding from Earth', value: 'receding', feedback: 'Receding objects cause Redshift. Does the evidence match?' },
-        { label: 'No radial motion', value: 'no radial motion', feedback: 'Requires no measurable shift. Does the evidence match?' }
-      ], item.motion, revealMotion);
-    } else if (phase === 'result') {
+    if (phase === 'result') {
       nextBtn.textContent = caseIndex === cases.length - 1 ? 'Finish' : 'Next Case';
       nextBtn.classList.remove('ssi-hidden');
     }
@@ -1027,17 +1050,12 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line)
 
   nextBtn.addEventListener('click', () => {
     if (caseIndex === cases.length - 1) {
-      question.textContent = 'Investigation Complete';
-      directions.textContent = 'Absorption patterns identify materials; their shift reveals motion.';
-      feedback.textContent = 'You successfully matched fingerprints, measured shifts, and inferred motion for all objects.';
+      question.textContent = 'All three measurements recorded';
+      directions.textContent = 'Download your evidence image, then answer the Buzz questions below.';
+      feedback.textContent = 'Measurements complete for all three objects.';
       feedback.className = 'ssi-feedback good';
       nextBtn.classList.add('ssi-hidden');
-      progress.textContent = '3 of 3 cases complete';
-      
-      if (!completionSent) {
-        completionSent = true;
-        window.parent.postMessage({ type: 'complete' }, '*');
-      }
+      progress.textContent = '3 of 3 cases measured';
       return;
     }
     caseIndex++;
@@ -1053,17 +1071,158 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line)
     caseIndex = 0;
     phase = 'match';
     selectedReference = null;
+    measuredCases = {};
+    renderEvidencePanel();
+    byId('evidenceStatus').textContent = '';
     motionPanel.classList.remove('visible');
     stopMotionAnim();
     setFeedback('Drag a reference to the dropzone above to compare.');
     renderUI();
   });
 
+  /* ---------------- evidence export ---------------- */
+  const CASE_ORDER = ['Object A', 'Object B', 'Object C'];
+
+  function evidenceReady() {
+    return CASE_ORDER.every(name => measuredCases[name]);
+  }
+
+  function renderEvidencePanel() {
+    const body = byId('evidenceBody');
+    const recorded = CASE_ORDER.filter(name => measuredCases[name]);
+    if (!recorded.length) {
+      body.innerHTML = '<tr class="ssi-empty-row"><td colspan="4">No measurements recorded yet.</td></tr>';
+    } else {
+      body.innerHTML = CASE_ORDER.map(name => {
+        const row = measuredCases[name];
+        if (!row) return `<tr><th scope="row">${name}</th><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>`;
+        const sign = row.deltaLam > 0.05 ? '+' : '';
+        return `<tr><th scope="row">${row.object}</th><td>${row.element}</td><td>${row.lam0.toFixed(1)}</td><td>${sign}${row.deltaLam.toFixed(1)}</td></tr>`;
+      }).join('');
+    }
+    const ready = evidenceReady();
+    byId('downloadEvidence').disabled = !ready;
+    byId('evidenceMessage').textContent = ready
+      ? 'All three objects are measured. Download the evidence image and upload it in Buzz Question 1.'
+      : `Align all three cases. ${recorded.length} of 3 measured so far.`;
+  }
+
+  function downloadBlob(blob, filename) {
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function drawEvidenceTable(ctx, x, y, widths, headers, rows, title) {
+    const rowHeight = 46;
+    const totalWidth = widths.reduce((sum, v) => sum + v, 0);
+    ctx.fillStyle = '#101a2e';
+    ctx.font = '800 24px system-ui';
+    ctx.textAlign = 'left';
+    ctx.fillText(title, x, y - 14);
+    ctx.fillStyle = '#e6ecf7';
+    ctx.fillRect(x, y, totalWidth, rowHeight);
+    let cursor = x;
+    headers.forEach((header, i) => {
+      ctx.strokeStyle = '#9fadc6';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(cursor, y, widths[i], rowHeight);
+      ctx.fillStyle = '#2c3d5c';
+      ctx.font = '800 16px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText(header, cursor + widths[i] / 2, y + 29);
+      cursor += widths[i];
+    });
+    rows.forEach((row, rowIndex) => {
+      cursor = x;
+      const rowY = y + rowHeight * (rowIndex + 1);
+      ctx.fillStyle = rowIndex % 2 ? '#f5f7fc' : '#ffffff';
+      ctx.fillRect(x, rowY, totalWidth, rowHeight);
+      row.forEach((value, i) => {
+        ctx.strokeStyle = '#c0c9dc';
+        ctx.strokeRect(cursor, rowY, widths[i], rowHeight);
+        ctx.fillStyle = '#101a2e';
+        ctx.font = i === 0 ? '800 17px system-ui' : '600 17px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(String(value === '' || value == null ? '—' : value), cursor + widths[i] / 2, rowY + 29);
+        cursor += widths[i];
+      });
+    });
+    return y + rowHeight * (rows.length + 1);
+  }
+
+  function downloadEvidenceImage() {
+    if (!evidenceReady()) {
+      byId('evidenceStatus').textContent = 'Align all three cases before downloading the evidence image.';
+      return;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = 1180;
+    canvas.height = 460;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#f5f7fc';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#101a2e';
+    ctx.fillRect(0, 0, canvas.width, 88);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 31px system-ui';
+    ctx.textAlign = 'left';
+    ctx.fillText('Spectral Shift Investigation Evidence', 56, 55);
+    ctx.fillStyle = '#5a6684';
+    ctx.font = '600 16px system-ui';
+    ctx.fillText('Generated ' + new Date().toLocaleString() + ' · 3 of 3 objects measured', 56, 116);
+
+    const rows = CASE_ORDER.map(name => {
+      const row = measuredCases[name];
+      const sign = row.deltaLam > 0.05 ? '+' : '';
+      return [row.object, row.element, row.lam0.toFixed(1), sign + row.deltaLam.toFixed(1)];
+    });
+    const y = drawEvidenceTable(ctx, 56, 168, [260, 260, 300, 300], ['Object', 'Element', 'Rest wavelength λ₀ (nm)', 'Measured Δλ (nm)'], rows, 'Measured shifts');
+
+    ctx.fillStyle = '#5a6684';
+    ctx.font = '600 15px system-ui';
+    ctx.textAlign = 'left';
+    ctx.fillText('Upload this complete image in Buzz Question 1, then cite specific objects in your written explanations.', 56, y + 44);
+
+    function reportStarted() {
+      byId('evidenceStatus').textContent = 'Evidence image download started. Upload that PNG in Buzz Question 1.';
+      status.textContent = 'Evidence image download started.';
+    }
+    if (canvas.toBlob) {
+      canvas.toBlob(blob => {
+        if (blob) { downloadBlob(blob, 'spectral-shift-evidence.png'); reportStarted(); }
+        else { byId('evidenceStatus').textContent = 'The evidence image could not be created. Try again.'; }
+      }, 'image/png');
+    } else {
+      const link = document.createElement('a');
+      link.href = canvas.toDataURL('image/png');
+      link.download = 'spectral-shift-evidence.png';
+      link.click();
+      reportStarted();
+    }
+  }
+
+  byId('downloadEvidence').addEventListener('click', downloadEvidenceImage);
+  if (window.location.protocol === 'file:' && document.getElementsByTagName('a:question').length) byId('localNote').hidden = false;
+
   drawAxis();
   updateGradient('obsGradient', 0); // Static: the color scale is the wavelength axis
   renderUI();
+  renderEvidencePanel();
 
 })();
+</script>
+<script id="buzz-assessment-integrity-guard">
+(function () {
+  'use strict';
+  ['copy', 'cut', 'paste', 'contextmenu'].forEach(function (eventName) { document.addEventListener(eventName, function (event) { event.preventDefault(); }, true); });
+  document.addEventListener('keydown', function (event) { if ((event.ctrlKey || event.metaKey) && ['c', 'x', 'v'].indexOf(String(event.key).toLowerCase()) !== -1) event.preventDefault(); }, true);
+}());
 </script>
 </body>
 </html>

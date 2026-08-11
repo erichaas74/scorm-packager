@@ -894,7 +894,7 @@
             <ol>
               <li>Note the unstretched length, <i>L</i><sub>0</sub> = 0.180 m.</li>
               <li>Choose one unknown spring. Changing springs clears the current data set.</li>
-              <li>Drag each known mass to the apparatus. Its measurement records automatically at equilibrium.</li>
+              <li>Drag each known mass to the apparatus. Its extension records automatically to the nearest 0.001 m at equilibrium.</li>
               <li>Create a best-fit line on the force-versus-extension graph.</li>
               <li>Use the slope as the experimental spring constant, <i>k</i>, then use the mystery mass's extension to investigate its mass.</li>
             </ol>
@@ -937,9 +937,17 @@
             <div class="analysis-grid">
               <div class="control">
                 <label for="studentK">Experimental spring constant, <i>k</i> (N/m)</label>
-                <input id="studentK" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Enter the graph's slope">
+                <input id="studentK" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Calculate and enter k before fitting">
               </div>
               <button id="checkButton" type="button">Check result</button>
+            </div>
+
+            <div class="analysis-grid">
+              <div class="control">
+                <label for="studentMysteryMass">Calculated mystery mass (kg)</label>
+                <input id="studentMysteryMass" type="number" min="0" step="0.001" inputmode="decimal" placeholder="Use m = kx/g">
+              </div>
+              <button id="checkMysteryButton" type="button">Check mystery mass</button>
             </div>
 
             <div class="status" id="statusMessage" role="status" aria-live="polite">Drag a known hanging mass to the apparatus. Its measurement records automatically.</div>
@@ -947,7 +955,7 @@
             <div class="button-row">
               <button id="copyButton" class="secondary" type="button" disabled>Copy data</button>
               <button id="csvButton" class="secondary" type="button" disabled>Download CSV</button>
-              <button id="revealButton" class="secondary" type="button">Reveal actual <i>k</i></button>
+              <button id="revealButton" class="secondary" type="button" disabled>Reveal actual <i>k</i></button>
             </div>
             <div class="answer" id="answerBox" hidden></div>
           </div>
@@ -1002,6 +1010,7 @@
       const fitButton = document.getElementById("fitButton");
       const clearButton = document.getElementById("clearButton");
       const checkButton = document.getElementById("checkButton");
+      const checkMysteryButton = document.getElementById("checkMysteryButton");
       const copyButton = document.getElementById("copyButton");
       const csvButton = document.getElementById("csvButton");
       const revealButton = document.getElementById("revealButton");
@@ -1015,6 +1024,7 @@
       const studentK = document.getElementById("studentK");
       const statusMessage = document.getElementById("statusMessage");
       const answerBox = document.getElementById("answerBox");
+      const studentMysteryMass = document.getElementById("studentMysteryMass");
       const workflowSteps = [...document.querySelectorAll(".step")];
 
       const NATURAL_LENGTH = 0.180;
@@ -1026,10 +1036,12 @@
       };
       const MYSTERY_MASS_VALUES = [0.125, 0.150, 0.175, 0.250, 0.275, 0.350, 0.375, 0.425];
       const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const assessmentMode = document.body.dataset.assessmentMode === "true";
+      const storageKey = assessmentMode ? "u4l2-hookes-law-assessment-state-v2" : "u4l2-hookes-law-practice-state-v2";
 
       let selectedSpringKey = "A";
       let springK = SPRINGS[selectedSpringKey].k;
-      let mysteryMass = MYSTERY_MASS_VALUES[Math.floor(Math.random() * MYSTERY_MASS_VALUES.length)];
+      let mysteryMass = assessmentMode ? 0.250 : MYSTERY_MASS_VALUES[Math.floor(Math.random() * MYSTERY_MASS_VALUES.length)];
       let selectedMass = 0;
       let selectedMassKey = "";
       let selectedMystery = false;
@@ -1056,6 +1068,31 @@
         statusMessage.className = "status" + (kind === "success" ? " is-success" : kind === "error" ? " is-error" : "");
       }
 
+      function saveState() {
+        try {
+          sessionStorage.setItem(storageKey, JSON.stringify({
+            version: 2,
+            selectedSpringKey,
+            mysteryMass,
+            samples,
+            nextTrialId
+          }));
+        } catch (error) { /* Storage is optional in restricted embeds. */ }
+      }
+
+      function restoreState() {
+        try {
+          const saved = JSON.parse(sessionStorage.getItem(storageKey) || "null");
+          if (!saved || saved.version !== 2 || !Array.isArray(saved.samples)) return false;
+          selectedSpringKey = assessmentMode ? "A" : (SPRINGS[saved.selectedSpringKey] ? saved.selectedSpringKey : "A");
+          springK = SPRINGS[selectedSpringKey].k;
+          mysteryMass = assessmentMode ? 0.250 : (MYSTERY_MASS_VALUES.includes(saved.mysteryMass) ? saved.mysteryMass : mysteryMass);
+          samples = saved.samples.slice(0, 5);
+          nextTrialId = Number(saved.nextTrialId) || samples.length + 1;
+          return true;
+        } catch (error) { return false; }
+      }
+
       function setActiveStep(step) {
         workflowSteps.forEach((item) => item.classList.toggle("is-active", Number(item.dataset.step) === step));
       }
@@ -1064,7 +1101,7 @@
         const count = samples.length;
         progressBar.style.width = `${Math.min(100, count / 5 * 100)}%`;
         trialCount.textContent = `${count} / 5 trial${count === 1 ? "" : "s"}`;
-        fitButton.disabled = count < 2;
+        fitButton.disabled = count < 5;
         clearButton.disabled = count === 0;
         copyButton.disabled = count === 0;
         csvButton.disabled = count === 0;
@@ -1464,7 +1501,7 @@
           return;
         }
 
-        const measuredExtension = Math.max(0, equilibriumExtension());
+        const measuredExtension = Math.round(Math.max(0, equilibriumExtension()) * 1000) / 1000;
         samples.push({
           id: nextTrialId++,
           mass: mass(),
@@ -1476,6 +1513,7 @@
         clearFit();
         renderTable();
         drawGraph();
+        saveState();
         const remaining = Math.max(0, 5 - samples.length);
         setStatus(
           remaining
@@ -1503,12 +1541,13 @@
         clearFit();
         renderTable();
         drawGraph();
+        saveState();
         setStatus(`Trial ${id} deleted.`, "neutral");
       }
 
       function calculateFit() {
-        if (samples.length < 2) {
-          setStatus("Record at least two different force values before fitting a line.", "error");
+        if (samples.length < 5) {
+          setStatus("Record all five known masses before fitting a line.", "error");
           return;
         }
         const count = samples.length;
@@ -1535,13 +1574,17 @@
         equationOut.textContent = `F = ${slope.toFixed(2)}x ${intercept < 0 ? "−" : "+"} ${Math.abs(intercept).toFixed(3)}`;
         slopeOut.textContent = `${slope.toFixed(2)} N/m`;
         rSquaredOut.textContent = rSquared.toFixed(4);
-        studentK.value = slope.toFixed(2);
         setActiveStep(4);
         drawGraph();
-        setStatus("Best-fit line calculated. Its slope is your experimental spring constant.", "success");
+        saveState();
+        setStatus("Best-fit line calculated. Compare its slope with the value you entered for k.", "success");
       }
 
       function checkResult() {
+        if (samples.length < 5) {
+          setStatus("Complete all five known-mass trials before checking k.", "error");
+          return;
+        }
         const entered = Number(studentK.value);
         if (!Number.isFinite(entered) || entered <= 0) {
           setStatus("Enter a positive spring constant in N/m before checking.", "error");
@@ -1555,6 +1598,26 @@
         } else {
           setStatus(`Your result has ${percentError.toFixed(1)}% error. Check that force is vertical, extension is horizontal, and k is the slope.`, "error");
         }
+        if (!assessmentMode) revealButton.disabled = false;
+      }
+
+      function checkMysteryMass() {
+        if (!selectedMystery) {
+          setStatus("Attach the mystery mass and wait for it to settle before checking your calculation.", "error");
+          return;
+        }
+        const entered = Number(studentMysteryMass.value);
+        if (!Number.isFinite(entered) || entered <= 0) {
+          setStatus("Enter the calculated mystery mass in kilograms.", "error");
+          return;
+        }
+        const percentError = Math.abs(entered - mysteryMass) / mysteryMass * 100;
+        setStatus(
+          percentError <= 4
+            ? `Mystery mass verified — ${percentError.toFixed(1)}% error.`
+            : `Mystery-mass error is ${percentError.toFixed(1)}%. Use m = kx/g and keep units in metres and kilograms.`,
+          percentError <= 4 ? "success" : "error"
+        );
       }
 
       function tabSeparatedData() {
@@ -1604,6 +1667,7 @@
       }
 
       function revealAnswer() {
+        if (assessmentMode) return;
         answerBox.hidden = false;
         answerBox.innerHTML = `<strong>Actual spring constant:</strong> ${springK.toFixed(1)} N/m. A strong data set has a slope near this value, an intercept near 0 N, and R² close to 1.`;
       }
@@ -1614,6 +1678,7 @@
         clearFit();
         renderTable();
         drawGraph();
+        saveState();
         setStatus(message, "neutral");
       }
 
@@ -1645,6 +1710,10 @@
       function selectSpringPiece(piece) {
         if (!piece) return;
         const nextKey = piece.dataset.springKey;
+        if (assessmentMode && nextKey !== "A") {
+          setStatus("The Buzz assessment uses fixed Spring A so every learner receives the same numeric evidence.", "neutral");
+          return;
+        }
         if (nextKey === selectedSpringKey) {
           setStatus(`Spring ${nextKey} is already installed.`, "neutral");
           return;
@@ -1755,13 +1824,26 @@
       fitButton.addEventListener("click", calculateFit);
       clearButton.addEventListener("click", () => clearData());
       checkButton.addEventListener("click", checkResult);
+      checkMysteryButton.addEventListener("click", checkMysteryMass);
       copyButton.addEventListener("click", copyData);
       csvButton.addEventListener("click", downloadCsv);
       revealButton.addEventListener("click", revealAnswer);
       studentK.addEventListener("keydown", (event) => {
         if (event.key === "Enter") checkResult();
       });
+      studentMysteryMass.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") checkMysteryMass();
+      });
 
+      restoreState();
+      springLabel.textContent = `Unknown spring ${selectedSpringKey}`;
+      springPieces.forEach((item) => {
+        const active = item.dataset.springKey === selectedSpringKey;
+        item.classList.toggle("is-active", active);
+        item.setAttribute("aria-pressed", String(active));
+        if (assessmentMode && !active) item.disabled = true;
+      });
+      if (assessmentMode) revealButton.hidden = true;
       renderTable();
       drawGraph();
       updateLiveState();

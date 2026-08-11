@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Light, Color, and Vision Lab</title>
+<style>
+:root{
+  --navy:#10263f;--navy2:#173d61;--blue:#1769aa;--blue2:#0d4f87;--cyan:#13a7c7;
+  --ink:#182538;--muted:#5c6979;--line:#c9d6e2;--soft:#eef5fa;--card:#fff;
+  --good:#087b4b;--warn:#9b5700;--focus:#ffd43b;--shadow:0 12px 30px rgba(20,45,70,.14)
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:#e7f0f6;color:var(--ink);font:16px/1.45 Arial,Helvetica,sans-serif}
+button,input,textarea,select{font:inherit}
+button{min-height:44px;border:2px solid var(--blue);border-radius:10px;background:#fff;color:var(--blue2);font-weight:800;padding:9px 14px;cursor:pointer}
+button:hover{background:#edf7ff}button:disabled{opacity:.5;cursor:not-allowed}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,summary:focus-visible{outline:4px solid var(--focus);outline-offset:3px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.app{max-width:1240px;margin:0 auto;min-height:100vh;background:#f8fbfd;box-shadow:0 0 40px rgba(20,45,70,.15)}
+.top{background:linear-gradient(115deg,var(--navy),var(--navy2));color:#fff;padding:16px 22px}
+.top-row{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.eyebrow{margin:0 0 2px;color:#9fe8f7;text-transform:uppercase;letter-spacing:.12em;font-weight:900;font-size:.75rem}
+h1{font-size:clamp(1.35rem,3vw,2rem);margin:0}.goal{margin:5px 0 0;color:#dceaf5;max-width:760px;font-size:.93rem}
+.progress-box{min-width:230px}.progress-line{display:flex;justify-content:space-between;gap:12px;font-size:.82rem;font-weight:800;margin-bottom:5px}
+.progress-track{height:10px;background:#ffffff2e;border-radius:99px;overflow:hidden}.progress-fill{height:100%;width:0;background:#49d59a;transition:width .25s}
+.tabs{display:flex;background:#fff;border-bottom:1px solid var(--line);padding:8px 16px 0;gap:5px;position:sticky;top:0;z-index:20}
+.tab{border-color:transparent;border-bottom:4px solid transparent;border-radius:10px 10px 0 0;color:#526174;background:transparent}
+.tab.active{color:var(--blue2);border-bottom-color:var(--blue);background:#eaf4fb}.tab .badge{background:#d8e8f4;border-radius:99px;padding:2px 7px;font-size:.75rem;margin-left:5px}
+.panel{display:none;padding:18px}.panel.active{display:block}
+.guided{display:flex;gap:12px;align-items:flex-start;background:#fff8dd;border:1px solid #ecd47b;border-left:6px solid #e2a900;border-radius:12px;padding:12px 14px;margin-bottom:14px}
+.guided strong{display:block;color:#684700}.guided p{margin:2px 0 0}.guided .step-no{display:grid;place-items:center;flex:0 0 36px;height:36px;background:#684700;color:white;border-radius:50%;font-weight:900}
+.workspace{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(280px,.85fr);gap:16px;align-items:start}
+.stage-card,.controls-card,.notebook-card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+.stage-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;background:#edf5fa;border-bottom:1px solid var(--line)}
+.stage-head h2,.controls-card h2{font-size:1rem;margin:0}.readout{font-size:.84rem;color:var(--muted);font-weight:800}
+.sim-stage{position:relative;min-height:410px;background:radial-gradient(circle at 70% 45%,#263a54,#091522 72%);overflow:hidden;color:#fff}
+.sim-stage svg{display:block;width:100%;height:auto;min-height:410px}
+.source-glow{filter:drop-shadow(0 0 15px currentColor)}.beam{mix-blend-mode:screen;transition:fill .2s,opacity .2s}.filter-glow{filter:drop-shadow(0 0 10px currentColor)}
+.perceived-label{position:absolute;right:20px;bottom:16px;background:#08111cdd;border:1px solid #ffffff44;border-radius:12px;padding:9px 12px;text-align:center;min-width:150px}
+.perceived-label small{display:block;color:#a9bdce}.perceived-label strong{font-size:1.05rem}
+.photon-layer{position:absolute;inset:0;pointer-events:none}.photon{position:absolute;width:13px;height:13px;border:2px solid #fff8;border-radius:50%;box-shadow:0 0 9px currentColor;animation:travel 2.4s linear infinite}.photon.post{animation-name:travelPost}.absorbed{position:absolute;color:#ffcf4c;font-size:18px;font-weight:900;text-shadow:0 0 6px #000;animation:pulse 1.5s ease-in-out infinite}
+@keyframes travel{from{left:21%}to{left:51%}}@keyframes travelPost{from{left:57%}to{left:82%}}@keyframes pulse{50%{opacity:.35;transform:scale(.8)}}
+.controls-card{padding:14px}.control-group{border:0;border-top:1px solid var(--line);padding:13px 0 2px;margin:12px 0 0}.control-group:first-of-type{border-top:0;margin-top:0;padding-top:0}.control-group legend{font-weight:900;padding:0 7px 0 0}.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px}.seg label{cursor:pointer}.seg input{position:absolute;opacity:0}.seg span{display:grid;place-items:center;min-height:42px;padding:7px;border:2px solid var(--line);border-radius:9px;text-align:center;font-weight:800;color:#536375}.seg input:checked+span{border-color:var(--blue);background:#e5f3fd;color:var(--blue2)}.seg input:focus-visible+span{outline:4px solid var(--focus);outline-offset:3px}
+.range-label{display:flex;justify-content:space-between;font-weight:800;gap:10px}.range-label output{color:var(--blue2)}input[type=range]{width:100%;accent-color:var(--blue);min-height:30px}.spectrum{height:13px;border-radius:99px;background:linear-gradient(90deg,#6b00a8,#2949ff,#00a9ff,#00c96b,#f1e900,#ff8500,#e91515);border:1px solid #7d8790}
+.switch-row{display:flex;align-items:center;justify-content:space-between;gap:10px}.switch{display:flex;align-items:center;gap:8px;font-weight:800}.switch input{width:22px;height:22px;accent-color:var(--blue)}
+.quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}.quick button{min-height:36px;padding:5px 9px;font-size:.82rem}.primary{background:var(--blue);color:#fff}.primary:hover{background:var(--blue2)}.good{background:var(--good);border-color:var(--good);color:#fff}.good:hover{background:#06643e}.danger{color:#9b2f2f;border-color:#ba6a6a}
+.data-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.data-cell{background:var(--soft);border-radius:9px;padding:8px;text-align:center}.data-cell small{display:block;color:var(--muted)}.swatch{display:inline-block;width:14px;height:14px;border:1px solid #445;border-radius:50%;vertical-align:-2px;margin-right:4px}
+.callout{font-size:.84rem;color:var(--muted);margin:9px 0 0}.record-status{min-height:22px;margin:8px 0 0;color:var(--good);font-weight:800;font-size:.84rem}
+.rgb-stage{min-height:410px;position:relative;background:radial-gradient(circle at 62% 38%,#263a54,#091522 72%);overflow:hidden}.rgb-stage svg{width:100%;height:auto;display:block;min-height:410px}.rgb-beam{mix-blend-mode:screen;transition:opacity .15s}.target-card{position:absolute;right:15px;bottom:15px;background:#07111ddd;border:1px solid #ffffff44;border-radius:12px;color:#fff;padding:10px;width:185px}.target-row{display:flex;align-items:center;justify-content:space-between;gap:8px}.target-dot,.mix-dot{width:36px;height:36px;border-radius:50%;border:2px solid #fff}.match-meter{height:8px;background:#ffffff33;border-radius:99px;overflow:hidden;margin-top:8px}.match-meter span{display:block;height:100%;background:#4ee29f;width:0;transition:width .2s}.target-card small{color:#b9c9d8}
+.rgb-controls{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.channel{border:1px solid var(--line);border-radius:10px;padding:9px;text-align:center}.channel.r{border-top:7px solid #e33}.channel.g{border-top:7px solid #19a957}.channel.b{border-top:7px solid #2872e8}.channel output{font-weight:900}.challenge-box{background:#f2f7fb;border-radius:11px;padding:10px;margin-top:12px}.challenge-box h3{font-size:.9rem;margin:0 0 7px}
+.cone-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(280px,.8fr);gap:16px;align-items:start}.cone-stage{background:#07111d;padding:10px;overflow:hidden}.cone-stage svg{display:block;width:100%;height:auto}.cone-curve{fill:none;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}.cone-curve.s{stroke:#71a7ff}.cone-curve.m{stroke:#55db91}.cone-curve.l{stroke:#ff7979}.cone-grid{stroke:#ffffff2b;stroke-width:1}.cone-axis{stroke:#e7eef5;stroke-width:2}.cone-tick{fill:#dce8f2;font-size:15px;font-weight:700}.cone-label{font-size:25px;font-weight:900}.cone-point{stroke:#fff;stroke-width:3}.cone-marker{stroke:#fff;stroke-width:3;stroke-dasharray:8 7}.cone-readout{padding:14px}.color-chip{display:flex;align-items:center;gap:12px;background:var(--soft);border-radius:11px;padding:11px;margin:10px 0 14px}.color-preview{width:54px;height:54px;flex:0 0 54px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px #7b8996}.color-chip small{display:block;color:var(--muted)}.color-chip strong{font-size:1.1rem}.response-list{display:grid;gap:12px;margin:12px 0}.response-row{display:grid;grid-template-columns:28px 1fr 48px;gap:9px;align-items:center}.response-row>strong{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;color:#fff}.response-row.s>strong{background:#2868c7}.response-row.m>strong{background:#087c49}.response-row.l>strong{background:#b63d3d}.response-track{height:13px;border-radius:99px;background:#dce5ec;overflow:hidden}.response-fill{display:block;height:100%;width:0;border-radius:inherit;transition:width .18s}.response-row.s .response-fill{background:#4f8ee9}.response-row.m .response-fill{background:#23a968}.response-row.l .response-fill{background:#d95757}.response-value{text-align:right;font-weight:900}.cone-note{background:#fff8dd;border-left:5px solid #e2a900;border-radius:7px;padding:10px 12px;font-size:.86rem}.cone-note p{margin:0}.cone-note p+p{margin-top:7px}
+.embedded-cones{padding:12px 14px 14px;border-top:1px solid var(--line);background:#fff}.embedded-cone-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px}.embedded-cone-head h3{font-size:1rem;margin:0}.embedded-cone-head button{min-height:36px;padding:5px 10px;font-size:.82rem}.embedded-cone-chart{background:#07111d;border-radius:10px;overflow:hidden}.embedded-cone-chart svg{display:block;width:100%;height:auto}.embedded-cone-control{margin-top:8px}.embedded-cone-control input{margin:0}.embedded-cone-control output{color:var(--blue2)}
+.rgb-cone-summary{margin-top:10px}.rgb-cone-summary>p{margin:0;color:var(--muted);font-size:.84rem;font-weight:800}.rgb-cone-summary .response-list{margin-bottom:0}.rgb-cone-marker{stroke-width:4;stroke-dasharray:8 6}.rgb-cone-label{font-size:22px;font-weight:900;text-anchor:middle}
+.notebook-layout{display:grid;grid-template-columns:240px minmax(0,1fr);gap:16px}.notebook-nav{position:sticky;top:64px;align-self:start;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px}.notebook-nav button{display:block;width:100%;text-align:left;border:0;min-height:38px;padding:7px 9px;color:#44566a}.notebook-nav button:hover{background:#edf5fa}.notebook-main{min-width:0}.notebook-intro{padding:16px;margin-bottom:12px;background:#fff;border:1px solid var(--line);border-radius:14px}.notebook-intro h2{margin:0 0 5px}.notebook-intro p{margin:0;color:var(--muted)}
+.lab-part{background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden;scroll-margin-top:70px}
+.lab-part-static{background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:12px;padding:16px}
+.lab-part-static h3{margin:0 0 8px;font-size:1rem}
+.buzz-section{margin:18px 0 0;padding:20px;background:#fff;border:1px solid var(--line);border-radius:16px}
+.buzz-section h2{margin:0 0 5px}
+.buzz-section>p{margin:0 0 14px;color:var(--muted);font-size:.9rem}
+.local-note{margin-bottom:14px;padding:11px 13px;border-left:5px solid #a85c00;border-radius:0 9px 9px 0;background:#fff6e8;font-size:.86rem}
+.buzz-slot{margin-bottom:13px;padding:14px;background:#f9fbfe;border:1px solid var(--line);border-radius:13px}
+.buzz-slot-label{margin:0 0 8px;color:var(--blue);font-size:.85rem;font-weight:900}
+.buzz-slot-label span{display:block;margin-top:2px;color:var(--muted);font-weight:700}.lab-part summary{cursor:pointer;padding:14px 16px;font-weight:900;background:#f1f7fb;border-bottom:1px solid transparent}.lab-part[open] summary{border-color:var(--line)}.part-body{padding:14px}.directions{background:#edf7ff;border-left:5px solid var(--cyan);padding:10px 12px;margin-bottom:13px;border-radius:7px}.directions p{margin:0}.directions button{margin-top:8px;min-height:36px;padding:5px 9px}
+.evidence-table-wrap{overflow-x:auto;margin:10px 0 16px}.evidence-table{width:100%;border-collapse:collapse;font-size:.9rem}.evidence-table th,.evidence-table td{border:1px solid var(--line);padding:8px;text-align:left}.evidence-table th{background:#e9f2f8}.empty{color:#8a96a4;font-style:italic}.answer{border-top:1px solid #dfe7ed;padding:12px 0}.answer:first-of-type{border-top:0}.answer label{display:block;font-weight:800;margin-bottom:5px}.answer textarea{width:100%;min-height:78px;border:2px solid #aebdca;border-radius:9px;padding:9px;resize:vertical}.answer-meta{display:flex;justify-content:space-between;color:var(--muted);font-size:.76rem;margin-top:3px}.answered{color:var(--good);font-weight:900}
+.submit-card{background:#fff;border:2px solid var(--blue);border-radius:14px;padding:16px;margin-top:16px}.checklist{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.check{padding:9px;background:var(--soft);border-radius:9px;font-weight:800}.check.done{background:#e2f7ec;color:var(--good)}.submit-status{min-height:25px;font-weight:800;color:var(--good);margin:8px 0 0}
+.note{font-size:.82rem;color:var(--muted);background:#f5f6f8;border-radius:8px;padding:8px 10px}
+@media(max-width:900px){.workspace,.cone-layout{grid-template-columns:1fr}.notebook-layout{grid-template-columns:1fr}.notebook-nav{position:static;display:flex;overflow-x:auto}.notebook-nav button{width:auto;white-space:nowrap}.sim-stage,.rgb-stage{min-height:330px}.sim-stage svg,.rgb-stage svg{min-height:330px}.workspace>.controls-card{order:-1}}
+@media(max-width:600px){.panel{padding:10px}.top{padding:13px}.tabs{overflow-x:auto}.tab{white-space:nowrap}.rgb-controls,.data-strip,.checklist{grid-template-columns:1fr}.guided{font-size:.9rem}.perceived-label{right:8px;bottom:8px}.goal{display:none}.cone-stage{padding:4px}.cone-curve{stroke-width:7}.cone-tick{font-size:18px}.cone-label{font-size:29px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
+</style>
+
+  <style id="buzz-preview-question-styles">
+    .buzz-preview-question {
+      border: 1px solid #c8d3e1;
+      border-left: 5px solid #2563a9;
+      border-radius: 8px;
+      padding: 12px;
+      margin: 8px 0;
+      background: #fff;
+      color: #172033;
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.45;
+      box-shadow: 0 6px 18px rgba(23, 32, 51, 0.08);
+    }
+    .buzz-preview-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+      color: #1f3b57;
+    }
+    .buzz-preview-head strong {
+      font-size: 0.95rem;
+    }
+    .buzz-preview-head span {
+      color: #5d687c;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+    .buzz-preview-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .buzz-preview-chip {
+      border: 1px solid #d8e0ec;
+      border-radius: 999px;
+      padding: 3px 8px;
+      background: #f3f7fc;
+      color: #334155;
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+    .buzz-preview-prompt {
+      margin: 0 0 10px;
+      color: #111827;
+      font-size: 0.98rem;
+      font-weight: 700;
+    }
+    .buzz-preview-details {
+      display: grid;
+      gap: 6px;
+    }
+    .buzz-preview-option {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr);
+      gap: 8px;
+      align-items: start;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 8px;
+      background: #f8fafc;
+    }
+    .buzz-preview-option span {
+      display: inline-flex;
+      width: 24px;
+      height: 24px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: #dbeafe;
+      color: #1e3a8a;
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+    .buzz-preview-option.correct {
+      border-color: #86efac;
+      background: #f0fdf4;
+    }
+    .buzz-preview-option.correct span {
+      background: #16a34a;
+      color: #fff;
+    }
+    .buzz-preview-option p,
+    .buzz-preview-detail {
+      margin: 0;
+      color: #1f2937;
+      font-size: 0.92rem;
+    }
+    .buzz-preview-feedback {
+      border-left: 3px solid #93c5fd;
+      padding: 6px 8px;
+      background: #eff6ff;
+      color: #1e3a8a;
+      font-size: 0.86rem;
+    }
+    .buzz-preview-placeholder {
+      border: 1px dashed #cbd5e1;
+      border-radius: 6px;
+      padding: 10px;
+      color: #64748b;
+      background: #f8fafc;
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+<main class="app">
+  <header class="top">
+    <div class="top-row">
+      <div><p class="eyebrow">Unit 5 • Lesson 3 Application</p><h1>Light, Color, and Vision Lab</h1><p class="goal">Investigate wavelengths, filters, additive color mixing, and how light reaching the eye determines perceived color.</p></div>
+      <div class="progress-box" aria-label="Lab completion progress"><div class="progress-line"><span id="progressText">Evidence trials 0/18</span><span id="progressPercent">0%</span></div><div class="progress-track"><div class="progress-fill" id="progressFill"></div></div></div>
+    </div>
+  </header>
+  <nav class="tabs" aria-label="Lab workspaces">
+    <button class="tab active" type="button" data-tab="single">Single Bulb</button>
+    <button class="tab" type="button" data-tab="cones">Wavelength &amp; Cones</button>
+    <button class="tab" type="button" data-tab="rgb">RGB Bulbs</button>
+    <button class="tab" type="button" data-tab="notebook">Evidence <span class="badge" id="answerBadge">0/18</span></button>
+  </nav>
+
+  <section class="panel active" id="singlePanel" data-panel="single">
+    <div class="guided"><span class="step-no" id="singleStepNo">1</span><div><strong id="singleGuideTitle">Part 1: Explore monochromatic light</strong><p id="singleGuideText">Select Monochromatic, switch to Photons, and move the bulb wavelength through the spectrum. Compare the photons with the color perceived.</p></div></div>
+    <div class="workspace">
+      <div class="stage-card">
+        <div class="stage-head"><h2>Light path</h2><span class="readout" id="singleReadout">650 nm red light • filter off</span></div>
+        <div class="sim-stage" id="singleStage">
+          <svg viewBox="0 0 760 430" role="img" aria-labelledby="singleTitle singleDesc">
+            <title id="singleTitle">Single bulb and filter simulation</title><desc id="singleDesc">A flashlight sends light through an optional colored filter to a viewer's eye.</desc>
+            <defs><radialGradient id="eyeWhite"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#b9c9d7"/></radialGradient></defs>
+            <polygon id="beamBefore" class="beam" points="145,162 395,118 395,308 145,258" fill="#e91919" opacity=".42"/>
+            <polygon id="beamAfter" class="beam" points="430,126 650,166 650,255 430,300" fill="#e91919" opacity=".42"/>
+            <g aria-hidden="true"><rect x="34" y="145" width="120" height="132" rx="22" fill="#263645" stroke="#8094a6" stroke-width="4"/><rect x="112" y="157" width="52" height="106" rx="12" fill="#dbe4ea"/><circle id="bulbGlow" class="source-glow" cx="146" cy="210" r="33" fill="#e91919" style="color:#e91919"/><path d="M32 178H10v66h22" fill="#354a5c" stroke="#8094a6" stroke-width="4"/></g>
+            <g id="filterGraphic"><rect x="392" y="94" width="42" height="240" rx="12" fill="#263645" stroke="#98a9b6" stroke-width="4"/><rect id="filterGlass" class="filter-glow" x="400" y="110" width="26" height="208" rx="7" fill="#21b85b" fill-opacity=".75" style="color:#21b85b"/></g>
+            <g aria-hidden="true"><path d="M662 154c38-24 79-1 88 55-10 54-49 79-88 51-23-17-23-89 0-106Z" fill="#d7a27d" stroke="#5c3a2b" stroke-width="4"/><ellipse cx="681" cy="210" rx="42" ry="28" fill="url(#eyeWhite)" stroke="#273849" stroke-width="4"/><circle id="iris" cx="681" cy="210" r="18" fill="#e91919" stroke="#1a2733" stroke-width="3"/><circle cx="681" cy="210" r="8" fill="#101820"/><path d="M650 177q32-22 65 0M650 244q32 22 65 0" fill="none" stroke="#5c3a2b" stroke-width="3"/></g>
+            <text x="62" y="315" fill="#d4e4f0" font-size="16" font-weight="700">LIGHT SOURCE</text><text x="382" y="365" fill="#d4e4f0" font-size="16" font-weight="700">FILTER</text><text x="651" y="315" fill="#d4e4f0" font-size="16" font-weight="700">VIEWER</text>
+          </svg>
+          <div class="photon-layer" id="photonLayer" aria-hidden="true"></div>
+          <div class="perceived-label"><small>Brain perceives</small><strong><span class="swatch" id="perceivedSwatch"></span><span id="perceivedName">Red</span></strong></div>
+        </div>
+        <section class="embedded-cones" aria-labelledby="singleEmbeddedConeTitle">
+          <div class="embedded-cone-head"><h3 id="singleEmbeddedConeTitle">Wavelength &amp; cone response</h3><button type="button" data-open-cones>Open full explorer</button></div>
+          <div class="embedded-cone-chart" data-cone-mount="single"></div>
+          <div class="embedded-cone-control"><label class="range-label" for="singleConeWavelength"><span>Reference wavelength</span><output data-cone-output>650 nm · red</output></label><input id="singleConeWavelength" data-cone-range type="range" min="380" max="700" value="650" step="1"></div>
+        </section>
+      </div>
+      <aside class="controls-card" aria-label="Single bulb controls">
+        <fieldset class="control-group"><legend>Bulb output</legend><div class="seg"><label><input type="radio" name="sourceType" value="white"><span>White light</span></label><label><input type="radio" name="sourceType" value="mono" checked><span>Monochromatic</span></label></div></fieldset>
+        <fieldset class="control-group" id="wavelengthGroup"><legend>Bulb color</legend><label class="range-label" for="wavelength"><span>Wavelength</span><output id="wavelengthOut">650 nm • red</output></label><input id="wavelength" type="range" min="380" max="700" value="650" step="1"><div class="spectrum" aria-hidden="true"></div></fieldset>
+        <fieldset class="control-group"><legend>Representation</legend><div class="seg"><label><input type="radio" name="viewMode" value="beam" checked><span>Beam</span></label><label><input type="radio" name="viewMode" value="photons"><span>Photons</span></label></div></fieldset>
+        <fieldset class="control-group"><legend>Colored filter</legend><div class="switch-row"><label class="switch"><input id="filterOn" type="checkbox"> Insert filter</label><strong id="transmissionOut">100% transmitted</strong></div><div id="filterControls"><label class="range-label" for="filterWave"><span>Filter color</span><output id="filterOut">530 nm • green</output></label><input id="filterWave" type="range" min="400" max="680" value="530" step="1"><div class="spectrum" aria-hidden="true"></div><div class="quick" aria-label="Filter presets"><button type="button" data-filter="650">Red</button><button type="button" data-filter="530">Green</button><button type="button" data-filter="460">Blue</button><button type="button" data-filter="580">Other: yellow</button></div></div></fieldset>
+        <div class="data-strip" aria-label="Current observation"><div class="data-cell"><small>Before filter</small><strong id="beforeValue">Red</strong></div><div class="data-cell"><small>After filter</small><strong id="afterValue">Red</strong></div><div class="data-cell"><small>Perceived</small><strong id="perceivedValue">Red</strong></div></div>
+        <button type="button" class="primary" id="recordFilter" style="width:100%;margin-top:12px">Record this filter trial</button><p class="record-status" id="filterRecordStatus" role="status"></p>
+        <p class="callout">Photon dots represent groups of many photons. A displayed violet dot represents violet light, not a single “purple wavelength.”</p>
+      </aside>
+    </div>
+  </section>
+
+  <section class="panel" id="conesPanel" data-panel="cones">
+    <div class="guided"><span class="step-no" aria-hidden="true">λ</span><div><strong>Connect wavelength to color vision</strong><p>Move through the visible spectrum and compare how strongly the short-, medium-, and long-wavelength cones respond.</p></div></div>
+    <div class="cone-layout">
+      <div class="stage-card">
+        <div class="stage-head"><h2>Human cone response by wavelength</h2><span class="readout" id="coneChartReadout">650 nm red light</span></div>
+        <div class="cone-stage">
+          <svg id="coneChart" viewBox="0 0 920 480" role="img" aria-labelledby="coneChartTitle coneChartDesc">
+            <title id="coneChartTitle">Human cone response curves across visible wavelengths</title>
+            <desc id="coneChartDesc">Short, medium, and long wavelength cone response curves from 380 to 700 nanometers.</desc>
+            <defs>
+              <linearGradient id="visibleSpectrum" x1="0" x2="1" y1="0" y2="0">
+                <stop offset="0" stop-color="#5b008f"/><stop offset=".13" stop-color="#2416b8"/><stop offset=".27" stop-color="#075dff"/><stop offset=".38" stop-color="#00b5e8"/><stop offset=".49" stop-color="#00ae62"/><stop offset=".61" stop-color="#84bf00"/><stop offset=".72" stop-color="#ffe000"/><stop offset=".82" stop-color="#ff7a00"/><stop offset=".91" stop-color="#e20f18"/><stop offset="1" stop-color="#580010"/>
+              </linearGradient>
+              <linearGradient id="spectrumFade" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#06101c" stop-opacity=".16"/><stop offset="1" stop-color="#06101c" stop-opacity=".7"/></linearGradient>
+            </defs>
+            <rect x="82" y="42" width="798" height="348" rx="8" fill="url(#visibleSpectrum)"/>
+            <rect x="82" y="42" width="798" height="348" rx="8" fill="url(#spectrumFade)"/>
+            <g aria-hidden="true">
+              <path class="cone-grid" d="M82 310H880M82 230H880M82 150H880M82 70H880"/>
+              <path class="cone-axis" d="M82 42V390H880"/>
+              <g class="cone-tick"><text x="65" y="395">0</text><text x="52" y="315">.25</text><text x="52" y="235">.50</text><text x="52" y="155">.75</text><text x="48" y="75">1.0</text></g>
+              <g class="cone-tick" text-anchor="middle"><text x="132" y="420">400</text><text x="257" y="420">450</text><text x="381" y="420">500</text><text x="506" y="420">550</text><text x="631" y="420">600</text><text x="755" y="420">650</text><text x="880" y="420">700</text></g>
+              <text class="cone-tick" x="481" y="456" text-anchor="middle">Wavelength (nm)</text><text class="cone-tick" transform="translate(20 220) rotate(-90)" text-anchor="middle">Relative cone response</text>
+            </g>
+            <path id="sConeCurve" class="cone-curve s"/><path id="mConeCurve" class="cone-curve m"/><path id="lConeCurve" class="cone-curve l"/>
+            <g aria-hidden="true"><text class="cone-label" x="225" y="86" fill="#b8d3ff">S</text><text class="cone-label" x="466" y="86" fill="#a9f1c8">M</text><text class="cone-label" x="620" y="86" fill="#ffbcbc">L</text></g>
+            <line id="coneMarker" class="cone-marker" x1="755" x2="755" y1="42" y2="390"/>
+            <circle id="sConePoint" class="cone-point" r="7" fill="#71a7ff"/><circle id="mConePoint" class="cone-point" r="7" fill="#55db91"/><circle id="lConePoint" class="cone-point" r="7" fill="#ff7979"/>
+          </svg>
+        </div>
+      </div>
+      <aside class="controls-card cone-readout" aria-label="Wavelength and cone response controls">
+        <label class="range-label" for="coneWavelength"><span>Selected wavelength</span><output id="coneWaveOut">650 nm</output></label>
+        <input id="coneWavelength" type="range" min="380" max="700" value="650" step="1">
+        <div class="spectrum" aria-hidden="true"></div>
+        <div class="color-chip"><span class="color-preview" id="coneColorPreview" aria-hidden="true"></span><div><small>Approximate spectral color</small><strong id="coneColorName">Red</strong></div></div>
+        <h2>Cone activation</h2>
+        <div class="response-list" aria-label="Current relative cone responses">
+          <div class="response-row s"><strong>S</strong><div class="response-track"><span class="response-fill" id="sConeBar"></span></div><output class="response-value" id="sConeValue">0%</output></div>
+          <div class="response-row m"><strong>M</strong><div class="response-track"><span class="response-fill" id="mConeBar"></span></div><output class="response-value" id="mConeValue">0%</output></div>
+          <div class="response-row l"><strong>L</strong><div class="response-track"><span class="response-fill" id="lConeBar"></span></div><output class="response-value" id="lConeValue">0%</output></div>
+        </div>
+        <div class="cone-note"><p><strong>S, M, and L</strong> mean short-, medium-, and long-wavelength sensitive cones.</p><p>Perceived color comes from the pattern across all three cone types, not from one cone acting alone. These curves are a simplified relative-response model.</p></div>
+      </aside>
+    </div>
+  </section>
+
+  <section class="panel" id="rgbPanel" data-panel="rgb">
+    <div class="guided"><span class="step-no">5</span><div><strong>Parts 5–7: Add colors of light</strong><p>Test the seven on/off combinations, build each secondary color, then use intensity to match orange, purple, gray, and white.</p></div></div>
+    <div class="workspace">
+      <div class="stage-card"><div class="stage-head"><h2>Additive color mixer</h2><span class="readout" id="rgbReadout">R 100 • G 100 • B 100 = white</span></div>
+        <div class="rgb-stage">
+          <svg viewBox="0 0 760 430" role="img" aria-labelledby="rgbTitle rgbDesc"><title id="rgbTitle">RGB bulb color mixing simulation</title><desc id="rgbDesc">Red, green, and blue spotlights overlap and send their combined light to a viewer.</desc>
+            <polygon class="rgb-beam" id="redBeam" points="95,82 545,165 545,245 95,138" fill="#ff2020" opacity="1"/><polygon class="rgb-beam" id="greenBeam" points="92,186 545,166 545,246 92,242" fill="#19ff65" opacity="1"/><polygon class="rgb-beam" id="blueBeam" points="95,342 545,165 545,245 95,286" fill="#245cff" opacity="1"/>
+            <g aria-hidden="true"><circle cx="80" cy="110" r="34" fill="#e32f2f" stroke="#ddd" stroke-width="4"/><circle cx="80" cy="214" r="34" fill="#1ead5a" stroke="#ddd" stroke-width="4"/><circle cx="80" cy="314" r="34" fill="#2b65dd" stroke="#ddd" stroke-width="4"/><text x="74" y="117" fill="white" font-weight="900" font-size="20">R</text><text x="73" y="221" fill="white" font-weight="900" font-size="20">G</text><text x="74" y="321" fill="white" font-weight="900" font-size="20">B</text></g>
+            <circle id="mixDisc" cx="520" cy="205" r="82" fill="#fff" stroke="#ffffff88" stroke-width="5" style="filter:drop-shadow(0 0 30px #fff)"/>
+            <g aria-hidden="true"><path d="M651 150c40-22 79 1 88 55-9 54-48 80-88 51-22-16-22-89 0-106Z" fill="#d7a27d" stroke="#5c3a2b" stroke-width="4"/><ellipse cx="671" cy="205" rx="40" ry="27" fill="#eaf2f7" stroke="#273849" stroke-width="4"/><circle id="rgbIris" cx="671" cy="205" r="18" fill="#fff" stroke="#1a2733" stroke-width="3"/><circle cx="671" cy="205" r="8" fill="#101820"/></g>
+          </svg>
+          <div class="target-card"><div class="target-row"><div><small>Target</small><div class="target-dot" id="targetDot"></div></div><div><small>Your mix</small><div class="mix-dot" id="mixDot"></div></div><strong id="matchValue">100%</strong></div><div class="match-meter"><span id="matchFill"></span></div><small id="targetLabel">Target: white</small></div>
+        </div>
+        <section class="embedded-cones" aria-labelledby="rgbEmbeddedConeTitle">
+          <div class="embedded-cone-head"><h3 id="rgbEmbeddedConeTitle">Wavelength &amp; cone response</h3><button type="button" data-open-cones>Open full explorer</button></div>
+          <div class="embedded-cone-chart" data-cone-mount="rgb"></div>
+          <div class="rgb-cone-summary"><p id="rgbConeSpectrum">Live primaries: R 620 nm · G 530 nm · B 460 nm</p><div class="response-list" aria-label="Live RGB cone activation"><div class="response-row s"><strong>S</strong><div class="response-track"><span class="response-fill" id="rgbSConeBar"></span></div><output class="response-value" id="rgbSConeValue">0%</output></div><div class="response-row m"><strong>M</strong><div class="response-track"><span class="response-fill" id="rgbMConeBar"></span></div><output class="response-value" id="rgbMConeValue">0%</output></div><div class="response-row l"><strong>L</strong><div class="response-track"><span class="response-fill" id="rgbLConeBar"></span></div><output class="response-value" id="rgbLConeValue">0%</output></div></div></div>
+        </section>
+      </div>
+      <aside class="controls-card" aria-label="RGB light controls">
+        <div class="rgb-controls"><label class="channel r">Red<br><output id="redOut">100</output><input id="redRange" type="range" min="0" max="100" value="100"></label><label class="channel g">Green<br><output id="greenOut">100</output><input id="greenRange" type="range" min="0" max="100" value="100"></label><label class="channel b">Blue<br><output id="blueOut">100</output><input id="blueRange" type="range" min="0" max="100" value="100"></label></div>
+        <fieldset class="control-group"><legend>On/off combination tests</legend><div class="quick" id="rgbPresets"><button type="button" data-rgb="100,0,0">R</button><button type="button" data-rgb="0,100,0">G</button><button type="button" data-rgb="0,0,100">B</button><button type="button" data-rgb="100,100,0">R+G</button><button type="button" data-rgb="100,0,100">R+B</button><button type="button" data-rgb="0,100,100">G+B</button><button type="button" data-rgb="100,100,100">R+G+B</button></div><button type="button" class="primary" id="recordRgb" style="width:100%;margin-top:9px">Record current on/off test</button></fieldset>
+        <fieldset class="control-group"><legend>Secondary colors</legend><div class="quick" id="secondaryPresets"><button type="button" data-rgb="100,100,0" data-secondary="yellow">Yellow</button><button type="button" data-rgb="0,100,100" data-secondary="cyan">Cyan</button><button type="button" data-rgb="100,0,100" data-secondary="magenta">Magenta</button></div><button type="button" id="recordSecondary" style="width:100%;margin-top:9px">Record current secondary</button></fieldset>
+        <div class="challenge-box"><h3>Color-matching challenge</h3><div class="quick" id="targetPresets"><button type="button" data-target="orange">Orange</button><button type="button" data-target="purple">Purple</button><button type="button" data-target="gray">Gray</button><button type="button" data-target="white">White</button></div><p class="callout">Choose a target, adjust the sliders, then record your closest match.</p><button type="button" class="primary" id="recordChallenge" style="width:100%">Record match for <span id="recordTargetName">white</span></button></div>
+        <p class="record-status" id="rgbRecordStatus" role="status"></p>
+      </aside>
+    </div>
+  </section>
+
+  <section class="panel" id="notebookPanel" data-panel="notebook">
+    <div class="notebook-main">
+      <div class="notebook-intro"><h2>Evidence tables</h2><p>Your recorded trials save automatically on this device. Complete all 18 trials, then download the evidence image and upload it in Buzz Question 1.</p></div>
+
+      <section class="lab-part-static"><h3>Part 3: Filters and color subtraction</h3><p class="directions">Keep white light selected. Insert and record the red, green, blue, and yellow filters.</p><div data-table-slot="filters"></div></section>
+      <section class="lab-part-static"><h3>Part 5: RGB color addition</h3><p class="directions">Turn on the seven specified on/off combinations and record each result.</p><div data-table-slot="rgb"></div></section>
+      <section class="lab-part-static"><h3>Part 6: Build secondary colors</h3><p class="directions">Use the RGB controls to create and record yellow, cyan, and magenta.</p><div data-table-slot="secondary"></div></section>
+      <section class="lab-part-static"><h3>Part 7: Color-matching challenge</h3><p class="directions">Choose each target. Adjust the intensity sliders for the closest possible match, then record it.</p><div data-table-slot="challenges"></div></section>
+
+      <section class="submit-card" id="submitCard"><h2 style="margin:0">Build your evidence</h2><p id="evidenceMessage">Record all 18 evidence trials. The evidence image unlocks when every table is complete.</p><div class="checklist"><div class="check" id="evidenceCheck">○ Evidence trials: 0/18</div></div><button type="button" class="good" id="downloadEvidence" disabled>Download evidence image</button> <button type="button" class="danger" id="resetLab">Clear saved work</button><p class="submit-status" id="submitStatus" role="status" aria-live="polite"></p></section>
+    </div>
+  </section>
+
+  <section class="buzz-section" id="buzzQuestions">
+    <h2>Buzz assessment questions</h2>
+    <p>Upload your evidence image first, then answer each question from your own recorded trials. Buzz inserts the graded response controls into the ordered slots below.</p>
+    <div class="local-note" id="localNote" hidden>If you opened this template as a local file, the response controls will be blank. Import <strong>light_color_vision_buzz_questions.txt</strong> into Buzz and upload this HTML as the assessment template.</div>
+    <div class="buzz-slot"><p class="buzz-slot-label">Question 1 <span>Upload the completed evidence image</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="1">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 1</strong>
+        <span>UP - 3 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: UP</span><span class="buzz-preview-chip">Score: 3</span><span class="buzz-preview-chip">MaxFiles: 1</span><span class="buzz-preview-chip">FileTypes: png|jpg|pdf</span></div>
+      <div class="buzz-preview-prompt">1) Complete all 18 evidence trials in the embedded Light, Color, and Vision Lab. Select Download evidence image, then upload the completed evidence image here.</div>
+      <div class="buzz-preview-placeholder">Upload question or external response field.</div>
+    </div></div>
+    <div class="buzz-slot"><p class="buzz-slot-label">Question 2 <span>Match each pair of primaries to its result</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="2">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 2</strong>
+        <span>MT - 3 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: MT</span><span class="buzz-preview-chip">Score: 3</span></div>
+      <div class="buzz-preview-prompt">2) Use your Part 5 RGB table. Match each pair of primary colors to the color you perceived when only those two bulbs were on.</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>Red + Green = Yellow</p></div>
+<div class="buzz-preview-option"><span>B</span><p>Red + Blue = Magenta</p></div>
+<div class="buzz-preview-option"><span>C</span><p>Green + Blue = Cyan</p></div>
+<div class="buzz-preview-option"><span>D</span><p>= White</p></div></div>
+    </div></div>
+    <div class="buzz-slot"><p class="buzz-slot-label">Question 3 <span>Transmission through a filter, white source</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="3">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 3</strong>
+        <span>F, Number - 1 point</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: F, Number</span><span class="buzz-preview-chip">Score: 1</span></div>
+      <div class="buzz-preview-prompt">3) Select white light and insert any colored filter. What percentage of the light does the readout report as transmitted? ________ %</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>26..30</p></div></div>
+    </div></div>
+    <div class="buzz-slot"><p class="buzz-slot-label">Question 4 <span>Transmission through a matched filter</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="4">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 4</strong>
+        <span>F, Number - 1 point</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: F, Number</span><span class="buzz-preview-chip">Score: 1</span></div>
+      <div class="buzz-preview-prompt">4) Select monochromatic light at 530 nm and insert the 530 nm green filter. What percentage of the light does the readout report as transmitted? ________ %</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>95..100</p></div></div>
+    </div></div>
+    <div class="buzz-slot"><p class="buzz-slot-label">Question 5 <span>What a colored filter does</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="5">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 5</strong>
+        <span>MC - 1 point</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: MC</span><span class="buzz-preview-chip">Score: 1</span></div>
+      <div class="buzz-preview-prompt">5) Your Part 3 table records white light before and after each filter. Which statement describes what the filter does to the light?</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option correct"><span>A</span><p>The filter removes the wavelengths that do not match it and transmits the rest, so less light reaches the eye than before.</p></div>
+<div class="buzz-preview-option"><span>B</span><p>The filter adds its own color to the white light, so more light reaches the eye than before.</p></div>
+<div class="buzz-preview-option"><span>C</span><p>The filter converts every wavelength that strikes it into the filter&#39;s color, so the same amount of light reaches the eye.</p></div>
+<div class="buzz-preview-option"><span>D</span><p>The filter reflects the matching wavelengths back toward the bulb and transmits the rest.</p></div></div>
+    </div></div>
+    <div class="buzz-slot"><p class="buzz-slot-label">Question 6 <span>Composition of white light</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="6">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 6</strong>
+        <span>MC - 1 point</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: MC</span><span class="buzz-preview-chip">Score: 1</span></div>
+      <div class="buzz-preview-prompt">6) Compare the photon view for white light with the photon view for a single monochromatic setting. What does your evidence show about white light?</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option correct"><span>A</span><p>White light is a mixture of many visible wavelengths arriving together, not a single wavelength.</p></div>
+<div class="buzz-preview-option"><span>B</span><p>White light is one specific wavelength near the middle of the visible spectrum.</p></div>
+<div class="buzz-preview-option"><span>C</span><p>White light contains no wavelengths at all; it is the absence of color.</p></div>
+<div class="buzz-preview-option"><span>D</span><p>White light is a mixture of exactly three wavelengths and nothing else.</p></div></div>
+    </div></div>
+    <div class="buzz-slot"><p class="buzz-slot-label">Question 7 <span>Evidence from your filter table</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="7">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 7</strong>
+        <span>E - 2 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: E</span><span class="buzz-preview-chip">Score: 2</span><span class="buzz-preview-chip">Height: 220</span></div>
+      <div class="buzz-preview-prompt">7) Use at least two rows from your Part 3 filter table as evidence. Report the light before and after each filter, then explain what happened to the photons that did not match the filter.</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>Full credit: Reports the before and after entries for at least two filters from the student&#39;s own table; states that only the wavelengths matching the filter passed through; and explains that the remaining photons were absorbed by the filter rather than converted or reflected, so the light leaving the filter is a subset of the light that entered. Partial credit: Cites the table and states that the filter blocked some light, but does not identify absorption or does not use two rows. No credit: Cites no data, or claims the filter added light or changed one wavelength into another.</p></div></div>
+    </div></div>
+    <div class="buzz-slot"><p class="buzz-slot-label">Question 8 <span>Your gray and white matches</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="8">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 8</strong>
+        <span>E - 3 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: E</span><span class="buzz-preview-chip">Score: 3</span><span class="buzz-preview-chip">Height: 240</span></div>
+      <div class="buzz-preview-prompt">8) Report the red, green, and blue values you recorded for your gray match and for your white match in Part 7. Explain what was the same and what was different about the two settings, and what that shows about how a perceived color is produced.</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>Full credit: Reports both sets of recorded RGB values; identifies that the three channels were at or near equal intensities in both matches while the overall intensity was lower for gray; and concludes that perceived color depends on the relative proportions of the wavelengths reaching the eye, with overall brightness controlling how light or dark it appears. Partial credit: Reports both settings and notices they are related, but explains the relationship only in general terms. No credit: Reports no recorded values, or claims gray required a different set of primaries than white.</p></div></div>
+    </div></div>
+    <div class="buzz-slot"><p class="buzz-slot-label">Question 9 <span>How light reaching the eye sets perceived color</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="9">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 9</strong>
+        <span>E - 3 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: E</span><span class="buzz-preview-chip">Score: 3</span><span class="buzz-preview-chip">Height: 260</span></div>
+      <div class="buzz-preview-prompt">9) A student claims: &quot;A red filter turns white light red by adding red light to it.&quot; Use evidence from both your filter table and your RGB table to evaluate this claim, then explain in your own words how the light that reaches the eye determines the color a person perceives.</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>Full credit: Judges the claim incorrect; uses the filter table to show that light decreased rather than increased, and that the filter removed non-matching wavelengths; contrasts this with the RGB table, where combining bulbs genuinely adds light and produces brighter results such as white from all three; and closes by stating that the mixture of wavelengths arriving at the eye determines which cone types are stimulated and therefore the perceived color. Partial credit: Judges the claim incorrect and gives evidence from one table only, or explains the filter correctly but does not connect the light reaching the eye to perceived color. No credit: Accepts the claim, cites no data, or reverses the roles of adding and removing light.</p></div></div>
+    </div></div>
+  </section>
+  <p class="sr-only" id="liveStatus" role="status" aria-live="polite"></p>
+</main>
+<script>
+(() => {
+  'use strict';
+  const STORAGE_KEY='lightColorVisionLab-v2';
+  const defaultData={answers:{},filters:{},rgb:{},secondary:{},challenges:{},submittedAt:''};
+  let data=loadData();
+  let currentTab='single',sourceType='mono',wavelength=650,viewMode='beam',filterOn=false,filterWave=530;
+  let rgb={r:100,g:100,b:100},target='white';
+  const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+
+  function loadData(){try{const saved=JSON.parse(localStorage.getItem(STORAGE_KEY));return Object.assign({},defaultData,saved||{}, {answers:Object.assign({},saved?.answers),filters:Object.assign({},saved?.filters),rgb:Object.assign({},saved?.rgb),secondary:Object.assign({},saved?.secondary),challenges:Object.assign({},saved?.challenges)});}catch(e){return JSON.parse(JSON.stringify(defaultData));}}
+  function saveData(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(data));}catch(e){} updateProgress();}
+  function wavelengthColor(nm){let r=0,g=0,b=0;if(nm<440){r=-(nm-440)/60;b=1}else if(nm<490){g=(nm-440)/50;b=1}else if(nm<510){g=1;b=-(nm-510)/20}else if(nm<580){r=(nm-510)/70;g=1}else if(nm<645){r=1;g=-(nm-645)/65}else{r=1}let f=nm<420?.3+.7*(nm-380)/40:nm>645?.3+.7*(700-nm)/55:1;const cv=v=>Math.round(255*Math.pow(Math.max(0,v*f),.8));return {r:cv(r),g:cv(g),b:cv(b)};}
+  function css(c,scale=1){return `rgb(${Math.round(c.r*scale)},${Math.round(c.g*scale)},${Math.round(c.b*scale)})`;}
+  function wavelengthName(nm){if(nm<435)return'violet';if(nm<485)return'blue';if(nm<500)return'cyan';if(nm<565)return'green';if(nm<590)return'yellow';if(nm<625)return'orange';return'red';}
+  function rgbName(r,g,b){const max=Math.max(r,g,b),min=Math.min(r,g,b);if(max<6)return'dark / nearly black';if(max-min<9)return max>82?'white':max>45?'gray':'dark gray';if(r>70&&g>70&&b<35)return'yellow';if(r>70&&b>70&&g<40)return'magenta';if(g>70&&b>70&&r<35)return'cyan';if(r>g*1.6&&r>b*1.4)return g>22?'orange':'red';if(b>r*1.25&&b>g*1.2)return r>28?'purple':'blue';if(g>r*1.3&&g>b*1.15)return'green';return'mixed color';}
+  function showTab(name){currentTab=name;$$('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));$$('.panel').forEach(p=>p.classList.toggle('active',p.dataset.panel===name));if(name==='notebook')renderTables();if(name==='cones')renderConeChart();window.scrollTo({top:0,behavior:'smooth'});}
+  $$('.tab').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
+
+  function mountEmbeddedConeCharts(){const source=$('#coneChart');$$('[data-cone-mount]').forEach((mount,index)=>{const clone=source.cloneNode(true),prefix='embeddedCone'+index,idMap={};clone.removeAttribute('id');clone.removeAttribute('aria-labelledby');clone.setAttribute('aria-label','Human cone response curves across visible wavelengths');clone.querySelectorAll('[id]').forEach(el=>{const oldId=el.id,newId=prefix+oldId.charAt(0).toUpperCase()+oldId.slice(1);idMap[oldId]=newId;el.id=newId;});clone.querySelectorAll('[fill]').forEach(el=>{let value=el.getAttribute('fill');Object.entries(idMap).forEach(([oldId,newId])=>{value=value.replace(`url(#${oldId})`,`url(#${newId})`);});el.setAttribute('fill',value);});mount.replaceChildren(clone);});}
+  function renderAllConeCharts(){renderConeChart();const source=$('#coneChart'),sourcePoints=[...source.querySelectorAll('.cone-point')],description=source.querySelector('desc').textContent;$$('[data-cone-mount] svg').forEach(chart=>{['s','m','l'].forEach(type=>chart.querySelector('.cone-curve.'+type).setAttribute('d',source.querySelector('.cone-curve.'+type).getAttribute('d')));const sourceMarker=source.querySelector('.cone-marker'),marker=chart.querySelector('.cone-marker');marker.setAttribute('x1',sourceMarker.getAttribute('x1'));marker.setAttribute('x2',sourceMarker.getAttribute('x2'));[...chart.querySelectorAll('.cone-point')].forEach((point,index)=>{point.setAttribute('cx',sourcePoints[index].getAttribute('cx'));point.setAttribute('cy',sourcePoints[index].getAttribute('cy'));});chart.querySelector('desc').textContent=description;chart.setAttribute('aria-label',description);});$$('[data-cone-range]').forEach(input=>input.value=wavelength);$$('[data-cone-output]').forEach(output=>output.textContent=`${wavelength} nm · ${wavelengthName(wavelength)}`);}
+  function renderRgbConeChart(){const chart=document.querySelector('[data-cone-mount="rgb"] svg');if(!chart)return;chart.querySelector('.cone-marker').style.display='none';chart.querySelectorAll('.cone-point').forEach(point=>point.style.display='none');const ns='http://www.w3.org/2000/svg',channels=[{key:'r',label:'R',nm:620,color:'#ff7979'},{key:'g',label:'G',nm:530,color:'#55db91'},{key:'b',label:'B',nm:460,color:'#71a7ff'}],x=nm=>82+(nm-380)/320*798;let overlay=chart.querySelector('.rgb-cone-overlay');if(!overlay){overlay=document.createElementNS(ns,'g');overlay.setAttribute('class','rgb-cone-overlay');chart.appendChild(overlay);}overlay.replaceChildren();channels.forEach(channel=>{const level=rgb[channel.key]/100,line=document.createElementNS(ns,'line'),label=document.createElementNS(ns,'text'),markerX=x(channel.nm);line.setAttribute('class','rgb-cone-marker');line.setAttribute('x1',markerX);line.setAttribute('x2',markerX);line.setAttribute('y1','42');line.setAttribute('y2','390');line.setAttribute('stroke',channel.color);line.setAttribute('opacity',String(.12+.88*level));label.setAttribute('class','rgb-cone-label');label.setAttribute('x',markerX);label.setAttribute('y','382');label.setAttribute('fill',channel.color);label.setAttribute('opacity',String(.28+.72*level));label.textContent=channel.label;overlay.append(line,label);});const raw={},full={};['s','m','l'].forEach(type=>{raw[type]=channels.reduce((sum,channel)=>sum+(rgb[channel.key]/100)*coneResponse(channel.nm,type),0);full[type]=channels.reduce((sum,channel)=>sum+coneResponse(channel.nm,type),0);});const ceiling=Math.max(full.s,full.m,full.l),percentages={};['s','m','l'].forEach(type=>{const percent=Math.round(raw[type]/ceiling*100);percentages[type]=percent;$('#rgb'+type.toUpperCase()+'ConeBar').style.width=percent+'%';$('#rgb'+type.toUpperCase()+'ConeValue').textContent=percent+'%';});$('#rgbConeSpectrum').textContent=`Live primaries: R 620 nm at ${rgb.r}% · G 530 nm at ${rgb.g}% · B 460 nm at ${rgb.b}%`;const description=`RGB mixture: red 620 nanometers at ${rgb.r} percent, green 530 nanometers at ${rgb.g} percent, and blue 460 nanometers at ${rgb.b} percent. Combined relative cone activation is S ${percentages.s} percent, M ${percentages.m} percent, and L ${percentages.l} percent.`;chart.querySelector('desc').textContent=description;chart.setAttribute('aria-label',description);}
+
+  function coneResponse(nm,type){const model={s:[445,27,36],m:[535,46,43],l:[570,50,45]}[type],sigma=nm<model[0]?model[1]:model[2];return Math.exp(-.5*Math.pow((nm-model[0])/sigma,2));}
+  function renderConeChart(){const x=nm=>82+(nm-380)/320*798,y=value=>390-value*320,path=type=>{let d='';for(let nm=380;nm<=700;nm+=4)d+=(nm===380?'M':'L')+x(nm).toFixed(1)+' '+y(coneResponse(nm,type)).toFixed(1)+' ';return d.trim();};['s','m','l'].forEach(type=>{$('#'+type+'ConeCurve').setAttribute('d',path(type));});const markerX=x(wavelength),color=css(wavelengthColor(wavelength)),name=wavelengthName(wavelength),responses={s:coneResponse(wavelength,'s'),m:coneResponse(wavelength,'m'),l:coneResponse(wavelength,'l')};$('#coneMarker').setAttribute('x1',markerX);$('#coneMarker').setAttribute('x2',markerX);['s','m','l'].forEach(type=>{const value=responses[type],percent=Math.round(value*100),point=$('#'+type+'ConePoint');point.setAttribute('cx',markerX);point.setAttribute('cy',y(value));$('#'+type+'ConeBar').style.width=percent+'%';$('#'+type+'ConeValue').textContent=percent+'%';});$('#coneWavelength').value=wavelength;$('#coneWaveOut').textContent=wavelength+' nm';$('#coneColorPreview').style.background=color;$('#coneColorPreview').style.boxShadow=`0 0 18px ${color},0 0 0 1px #7b8996`;$('#coneColorName').textContent=cap(name);$('#coneChartReadout').textContent=`${wavelength} nm ${name} light`;$('#coneChartDesc').textContent=`At ${wavelength} nanometers, relative cone responses are S ${Math.round(responses.s*100)} percent, M ${Math.round(responses.m*100)} percent, and L ${Math.round(responses.l*100)} percent.`;}
+
+  function singleResult(){const srcColor=sourceType==='white'?{r:255,g:255,b:255}:wavelengthColor(wavelength);let transmission=1,out=srcColor;if(filterOn){if(sourceType==='white'){transmission=.28;out=wavelengthColor(filterWave);}else{const d=wavelength-filterWave;transmission=Math.exp(-.5*Math.pow(d/34,2));out=srcColor;}}const before=sourceType==='white'?'white (many wavelengths)':wavelengthName(wavelength);const after=transmission<.04?'almost no light':sourceType==='white'?wavelengthName(filterWave):wavelengthName(wavelength);const perceived=transmission<.04?'dark / nearly black':sourceType==='white'&&filterOn?wavelengthName(filterWave):sourceType==='white'?'white':wavelengthName(wavelength);return{srcColor,out,transmission,before,after,perceived};}
+  function renderSingle(){const res=singleResult(),srcCss=css(res.srcColor),outCss=css(res.out,Math.max(.12,res.transmission));$('#bulbGlow').setAttribute('fill',srcCss);$('#bulbGlow').style.color=srcCss;$('#beamBefore').setAttribute('fill',srcCss);$('#beamBefore').setAttribute('opacity',viewMode==='beam'?.42:0);$('#beamAfter').setAttribute('fill',outCss);$('#beamAfter').setAttribute('opacity',viewMode==='beam'?Math.max(.02,.42*res.transmission):0);const fc=css(wavelengthColor(filterWave));$('#filterGlass').setAttribute('fill',fc);$('#filterGlass').style.color=fc;$('#filterGraphic').style.opacity=filterOn?'1':'.18';$('#iris').setAttribute('fill',outCss);$('#perceivedSwatch').style.background=outCss;$('#perceivedName').textContent=res.perceived;$('#beforeValue').textContent=res.before;$('#afterValue').textContent=res.after;$('#perceivedValue').textContent=res.perceived;$('#transmissionOut').textContent=`${Math.round(res.transmission*100)}% transmitted`;$('#wavelengthOut').textContent=`${wavelength} nm • ${wavelengthName(wavelength)}`;$('#filterOut').textContent=`${filterWave} nm • ${wavelengthName(filterWave)}`;$('#wavelengthGroup').hidden=sourceType==='white';$('#filterControls').style.opacity=filterOn?'1':'.45';$('#singleReadout').textContent=`${sourceType==='white'?'White light':wavelength+' nm '+wavelengthName(wavelength)+' light'} • filter ${filterOn?wavelengthName(filterWave):'off'}`;renderPhotons(res);updateSingleGuide();}
+  function renderPhotons(res){const layer=$('#photonLayer');layer.innerHTML='';if(viewMode!=='photons')return;const rainbow=[410,450,485,520,555,590,625,670];for(let i=0;i<16;i++){const dot=document.createElement('i'),c=sourceType==='white'?wavelengthColor(rainbow[i%rainbow.length]):res.srcColor;dot.className='photon';dot.style.color=css(c);dot.style.background=css(c);dot.style.top=(31+(i%6)*6)+'%';dot.style.animationDelay=(-i*.19)+'s';layer.appendChild(dot);}const postCount=Math.round(12*res.transmission);for(let i=0;i<postCount;i++){const dot=document.createElement('i');dot.className='photon post';dot.style.color=css(res.out);dot.style.background=css(res.out);dot.style.top=(34+(i%5)*7)+'%';dot.style.animationDelay=(-i*.23)+'s';layer.appendChild(dot);}if(filterOn&&res.transmission<.85)for(let i=0;i<5;i++){const x=document.createElement('b');x.className='absorbed';x.textContent='×';x.style.left=(51+i%2*2)+'%';x.style.top=(32+i*9)+'%';x.style.animationDelay=(-i*.2)+'s';layer.appendChild(x);}}
+  function updateSingleGuide(){let n=1,title='Part 1: Explore monochromatic light',text='Select Monochromatic, switch to Photons, and move the bulb wavelength through the spectrum. Compare photons with perceived color.';if(sourceType==='white'&&!filterOn){n=2;title='Part 2: Investigate white light';text='Switch to photon view and observe which wavelengths leave the bulb.';}else if(sourceType==='white'&&filterOn){n=3;title='Part 3: Test the filters';text='Try each filter preset and select Record this filter trial. Observe the photons at the filter.';}else if(sourceType==='mono'&&filterOn){n=4;title='Part 4: Match and mismatch';text='Compare similar bulb/filter wavelengths, then move them far apart. Watch the transmission percentage.';}$('#singleStepNo').textContent=n;$('#singleGuideTitle').textContent=title;$('#singleGuideText').textContent=text;}
+  $$('input[name=sourceType]').forEach(el=>el.addEventListener('change',e=>{sourceType=e.target.value;renderSingle()}));$$('input[name=viewMode]').forEach(el=>el.addEventListener('change',e=>{viewMode=e.target.value;renderSingle()}));$('#wavelength').addEventListener('input',e=>{wavelength=+e.target.value;renderSingle()});$('#filterWave').addEventListener('input',e=>{filterWave=+e.target.value;renderSingle()});$('#filterOn').addEventListener('change',e=>{filterOn=e.target.checked;renderSingle()});$$('[data-filter]').forEach(b=>b.addEventListener('click',()=>{filterWave=+b.dataset.filter;$('#filterWave').value=filterWave;filterOn=true;$('#filterOn').checked=true;renderSingle()}));
+  $('#wavelength').addEventListener('input',renderAllConeCharts);
+  $('#coneWavelength').addEventListener('input',e=>{wavelength=+e.target.value;$('#wavelength').value=wavelength;renderSingle();renderAllConeCharts();});
+  $$('[data-cone-range]').forEach(input=>input.addEventListener('input',e=>{wavelength=+e.target.value;$('#wavelength').value=wavelength;$('#coneWavelength').value=wavelength;renderSingle();renderAllConeCharts();}));
+  $$('[data-open-cones]').forEach(button=>button.addEventListener('click',()=>showTab('cones')));
+  ['wavelength','coneWavelength','singleConeWavelength'].forEach(id=>$('#'+id).addEventListener('input',renderRgbConeChart));
+  $('#recordFilter').addEventListener('click',()=>{if(!filterOn||sourceType!=='white'){sourceType='white';$$('input[name=sourceType]').forEach(x=>x.checked=x.value==='white');filterOn=true;$('#filterOn').checked=true;renderSingle();$('#filterRecordStatus').textContent='White light and the filter are now ready. Select Record again.';return;}const key=Math.abs(filterWave-650)<35?'red':Math.abs(filterWave-530)<35?'green':Math.abs(filterWave-460)<35?'blue':'other',res=singleResult();data.filters[key]={filter:wavelengthName(filterWave),before:'white',after:res.after,perceived:res.perceived,wavelength:filterWave};saveData();renderTables();$('#filterRecordStatus').textContent=`Recorded ${key==='other'?'other':key} filter evidence.`;});
+
+  const targets={orange:{r:100,g:45,b:0},purple:{r:62,g:18,b:100},gray:{r:46,g:46,b:46},white:{r:100,g:100,b:100}};
+  function setRgb(vals){[rgb.r,rgb.g,rgb.b]=vals;$('#redRange').value=rgb.r;$('#greenRange').value=rgb.g;$('#blueRange').value=rgb.b;renderRgb();}
+  function rgbCss(v=rgb){const gamma=x=>Math.round(255*Math.sqrt(x/100));return `rgb(${gamma(v.r)},${gamma(v.g)},${gamma(v.b)})`;}
+  function matchScore(){const t=targets[target],d=Math.sqrt((rgb.r-t.r)**2+(rgb.g-t.g)**2+(rgb.b-t.b)**2),max=173.2;return Math.max(0,Math.round(100*(1-d/max)));}
+  function renderRgb(){const color=rgbCss(),name=rgbName(rgb.r,rgb.g,rgb.b),score=matchScore();$('#redOut').textContent=rgb.r;$('#greenOut').textContent=rgb.g;$('#blueOut').textContent=rgb.b;$('#redBeam').setAttribute('opacity',rgb.r/100);$('#greenBeam').setAttribute('opacity',rgb.g/100);$('#blueBeam').setAttribute('opacity',rgb.b/100);$('#mixDisc').setAttribute('fill',color);$('#mixDisc').style.filter=`drop-shadow(0 0 28px ${color})`;$('#rgbIris').setAttribute('fill',color);$('#mixDot').style.background=color;$('#targetDot').style.background=rgbCss(targets[target]);$('#matchValue').textContent=score+'%';$('#matchFill').style.width=score+'%';$('#targetLabel').textContent=`Target: ${target}`;$('#recordTargetName').textContent=target;$('#rgbReadout').textContent=`R ${rgb.r} • G ${rgb.g} • B ${rgb.b} = ${name}`;}
+  ['red','green','blue'].forEach(name=>{$('#'+name+'Range').addEventListener('input',e=>{rgb[name==='red'?'r':name==='green'?'g':'b']=+e.target.value;renderRgb();});});$$('[data-rgb]').forEach(b=>b.addEventListener('click',()=>setRgb(b.dataset.rgb.split(',').map(Number))));$$('[data-target]').forEach(b=>b.addEventListener('click',()=>{target=b.dataset.target;renderRgb()}));
+  ['red','green','blue'].forEach(name=>$('#'+name+'Range').addEventListener('input',renderRgbConeChart));$$('[data-rgb]').forEach(button=>button.addEventListener('click',renderRgbConeChart));
+  $('#recordRgb').addEventListener('click',()=>{const vals=[rgb.r,rgb.g,rgb.b],key=vals.map(v=>v>=50?'1':'0').join('');if(!vals.every(v=>v===0||v===100)||key==='000'){$('#rgbRecordStatus').textContent='For this table, use one of the seven on/off preset buttons first.';return;}data.rgb[key]={r:rgb.r?'ON':'OFF',g:rgb.g?'ON':'OFF',b:rgb.b?'ON':'OFF',color:rgbName(...vals)};saveData();renderTables();$('#rgbRecordStatus').textContent='Recorded this RGB on/off combination.';});
+  $('#recordSecondary').addEventListener('click',()=>{let key;if(rgb.r===100&&rgb.g===100&&rgb.b===0)key='yellow';if(rgb.r===0&&rgb.g===100&&rgb.b===100)key='cyan';if(rgb.r===100&&rgb.g===0&&rgb.b===100)key='magenta';if(!key){$('#rgbRecordStatus').textContent='Use a Yellow, Cyan, or Magenta preset first.';return;}data.secondary[key]={r:rgb.r,g:rgb.g,b:rgb.b};saveData();renderTables();$('#rgbRecordStatus').textContent=`Recorded ${key}.`;});
+  $('#recordChallenge').addEventListener('click',()=>{data.challenges[target]={r:rgb.r,g:rgb.g,b:rgb.b,match:matchScore()};saveData();renderTables();$('#rgbRecordStatus').textContent=`Recorded your ${target} match at ${matchScore()}%.`;});
+
+  function tableHtml(type){if(type==='filters'){const rows=[['red','Red'],['green','Green'],['blue','Blue'],['other','Other']];return `<div class="evidence-table-wrap"><table class="evidence-table"><thead><tr><th>Filter Color</th><th>Light Before</th><th>Light After</th><th>Perceived Color</th></tr></thead><tbody>${rows.map(([k,l])=>{const d=data.filters[k];return `<tr><th>${l}</th><td>${d?.before||'<span class="empty">not recorded</span>'}</td><td>${d?.after||'—'}</td><td>${d?.perceived||'—'}</td></tr>`}).join('')}</tbody></table></div>`;}
+    if(type==='rgb'){const rows=[['100','ON','OFF','OFF'],['010','OFF','ON','OFF'],['001','OFF','OFF','ON'],['110','ON','ON','OFF'],['101','ON','OFF','ON'],['011','OFF','ON','ON'],['111','ON','ON','ON']];return `<div class="evidence-table-wrap"><table class="evidence-table"><thead><tr><th>Red</th><th>Green</th><th>Blue</th><th>Perceived Color</th></tr></thead><tbody>${rows.map(([k,r,g,b])=>`<tr><td>${r}</td><td>${g}</td><td>${b}</td><td>${data.rgb[k]?.color||'<span class="empty">not recorded</span>'}</td></tr>`).join('')}</tbody></table></div>`;}
+    if(type==='secondary'){return `<div class="evidence-table-wrap"><table class="evidence-table"><thead><tr><th>Target</th><th>Red</th><th>Green</th><th>Blue</th></tr></thead><tbody>${['yellow','cyan','magenta'].map(k=>{const d=data.secondary[k];return `<tr><th>${cap(k)}</th><td>${d?.r??'—'}</td><td>${d?.g??'—'}</td><td>${d?.b??'—'}</td></tr>`}).join('')}</tbody></table></div>`;}
+    if(type==='challenges'){return `<div class="evidence-table-wrap"><table class="evidence-table"><thead><tr><th>Target</th><th>Red</th><th>Green</th><th>Blue</th><th>Match</th></tr></thead><tbody>${['orange','purple','gray','white'].map(k=>{const d=data.challenges[k];return `<tr><th>${cap(k)}</th><td>${d?.r??'—'}</td><td>${d?.g??'—'}</td><td>${d?.b??'—'}</td><td>${d?d.match+'%':'—'}</td></tr>`}).join('')}</tbody></table></div>`;}return'';}
+  function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+  function renderTables(){[['filters','filters'],['rgb','rgb'],['secondary','secondary'],['challenges','challenges']].forEach(([slot,type])=>{const el=document.querySelector(`[data-table-slot="${slot}"]`);if(el)el.innerHTML=tableHtml(type);});}
+  function counts(){const evidence=Object.keys(data.filters).length+Object.keys(data.rgb).length+Object.keys(data.secondary).length+Object.keys(data.challenges).length;return{evidence};}
+  function evidenceReady(){return counts().evidence===18;}
+  function updateProgress(){const c=counts(),percent=Math.round(c.evidence/18*100),done=c.evidence===18;$('#progressText').textContent=`Evidence trials ${c.evidence}/18`;$('#progressPercent').textContent=percent+'%';$('#progressFill').style.width=percent+'%';$('#answerBadge').textContent=c.evidence+'/18';$('#evidenceCheck').textContent=`${done?'✓':'○'} Evidence trials: ${c.evidence}/18`;$('#evidenceCheck').classList.toggle('done',done);$('#evidenceMessage').textContent=done?'Every trial is recorded. Download the evidence image and upload it in Buzz Question 1.':'Record all 18 evidence trials. The evidence image unlocks when every table is complete.';$('#downloadEvidence').disabled=!done;}
+
+  function downloadBlob(blob,filename){const link=document.createElement('a'),url=URL.createObjectURL(blob);link.href=url;link.download=filename;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+
+  function drawEvidenceTable(ctx,x,y,widths,headers,rows,title){
+    const rowHeight=40,totalWidth=widths.reduce((s,v)=>s+v,0);
+    ctx.fillStyle='#22243a';ctx.font='800 22px system-ui';ctx.textAlign='left';ctx.fillText(title,x,y-12);
+    ctx.fillStyle='#ebe9f7';ctx.fillRect(x,y,totalWidth,rowHeight);
+    let cursor=x;
+    headers.forEach((header,i)=>{ctx.strokeStyle='#a9a6c4';ctx.lineWidth=1;ctx.strokeRect(cursor,y,widths[i],rowHeight);ctx.fillStyle='#3d3a63';ctx.font='800 15px system-ui';ctx.textAlign='center';ctx.fillText(header,cursor+widths[i]/2,y+26);cursor+=widths[i];});
+    rows.forEach((row,rowIndex)=>{
+      cursor=x;const rowY=y+rowHeight*(rowIndex+1);
+      ctx.fillStyle=rowIndex%2?'#f7f6fc':'#ffffff';ctx.fillRect(x,rowY,totalWidth,rowHeight);
+      row.forEach((value,i)=>{ctx.strokeStyle='#c6c3dd';ctx.strokeRect(cursor,rowY,widths[i],rowHeight);ctx.fillStyle='#22243a';ctx.font=i===0?'800 15px system-ui':'600 15px system-ui';ctx.textAlign='center';ctx.fillText(String(value==null||value===''?'—':value),cursor+widths[i]/2,rowY+26);cursor+=widths[i];});
+    });
+    return y+rowHeight*(rows.length+1);
+  }
+
+  function downloadEvidenceImage(){
+    if(!evidenceReady()){$('#submitStatus').textContent='Record all 18 evidence trials before downloading the evidence image.';return;}
+    const canvas=document.createElement('canvas');canvas.width=1180;canvas.height=1180;const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#f6f5fb';ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle='#22243a';ctx.fillRect(0,0,canvas.width,84);
+    ctx.fillStyle='#ffffff';ctx.font='900 30px system-ui';ctx.textAlign='left';ctx.fillText('Light, Color, and Vision Lab Evidence',56,53);
+    ctx.fillStyle='#5b5878';ctx.font='600 16px system-ui';ctx.fillText(`Generated ${new Date().toLocaleString()} · 18 of 18 trials recorded`,56,112);
+
+    const filterRows=[['red','Red'],['green','Green'],['blue','Blue'],['other','Other']].map(([k,l])=>{const d=data.filters[k]||{};return [l,d.before||'',d.after||'',d.perceived||''];});
+    let y=drawEvidenceTable(ctx,56,158,[200,300,280,290],['Filter color','Light before','Light after','Perceived color'],filterRows,'Part 3 · Filters and color subtraction');
+
+    const rgbKeys=[['100','ON','OFF','OFF'],['010','OFF','ON','OFF'],['001','OFF','OFF','ON'],['110','ON','ON','OFF'],['101','ON','OFF','ON'],['011','OFF','ON','ON'],['111','ON','ON','ON']];
+    const rgbRows=rgbKeys.map(([k,r,g,b])=>[r,g,b,(data.rgb[k]||{}).color||'']);
+    y=drawEvidenceTable(ctx,56,y+62,[180,180,180,530],['Red','Green','Blue','Perceived color'],rgbRows,'Part 5 · RGB color addition');
+
+    const secondaryRows=['yellow','cyan','magenta'].map(k=>{const d=data.secondary[k]||{};return [cap(k),d.r??'',d.g??'',d.b??''];});
+    y=drawEvidenceTable(ctx,56,y+62,[280,270,260,260],['Target','Red','Green','Blue'],secondaryRows,'Part 6 · Secondary colors');
+
+    const challengeRows=['orange','purple','gray','white'].map(k=>{const d=data.challenges[k]||{};return [cap(k),d.r??'',d.g??'',d.b??'',d.match==null?'':d.match+'%'];});
+    y=drawEvidenceTable(ctx,56,y+62,[230,215,215,215,195],['Target','Red','Green','Blue','Match'],challengeRows,'Part 7 · Color-matching challenge');
+
+    ctx.fillStyle='#5b5878';ctx.font='600 15px system-ui';ctx.textAlign='left';
+    ctx.fillText('Upload this complete image in Buzz Question 1, then cite specific rows in your written explanations.',56,Math.min(canvas.height-24,y+44));
+
+    function reportStarted(){$('#submitStatus').textContent='Evidence image download started. Upload that PNG in Buzz Question 1.';$('#liveStatus').textContent='Evidence image download started.';}
+    if(canvas.toBlob){canvas.toBlob(blob=>{if(blob){downloadBlob(blob,'light-color-vision-evidence.png');reportStarted();}else{$('#submitStatus').textContent='The evidence image could not be created. Try again.';}},'image/png');}
+    else{const link=document.createElement('a');link.href=canvas.toDataURL('image/png');link.download='light-color-vision-evidence.png';link.click();reportStarted();}
+  }
+
+  $('#downloadEvidence').addEventListener('click',downloadEvidenceImage);
+  $('#resetLab').addEventListener('click',()=>{if(!confirm('Clear all saved evidence for this lab?'))return;data=JSON.parse(JSON.stringify(defaultData));saveData();renderTables();$('#submitStatus').textContent='Saved work cleared.';});
+  if(window.location.protocol==='file:'&&document.getElementsByTagName('a:question').length)$('#localNote').hidden=false;
+  mountEmbeddedConeCharts();renderSingle();renderAllConeCharts();renderRgb();renderRgbConeChart();renderTables();updateProgress();
+})();
+</script>
+<script id="buzz-assessment-integrity-guard">
+(function () {
+  'use strict';
+  ['copy', 'cut', 'paste', 'contextmenu'].forEach(function (eventName) { document.addEventListener(eventName, function (event) { event.preventDefault(); }, true); });
+  document.addEventListener('keydown', function (event) { if ((event.ctrlKey || event.metaKey) && ['c', 'x', 'v'].indexOf(String(event.key).toLowerCase()) !== -1) event.preventDefault(); }, true);
+}());
+</script>
+</body>
+</html>

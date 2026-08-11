@@ -105,6 +105,12 @@ const lessons = [
     output: 'u3l5-impulse-jump-buzz-assessment-template-preview.html'
   },
   {
+    dir: 'unit-ApplicationFiles/unit-4/lesson-2',
+    template: 'u4l2-hookes-law-buzz-assessment-template.html',
+    questions: 'buzz-assessment-questions.txt',
+    output: 'u4l2-hookes-law-buzz-assessment-template-preview.html'
+  },
+  {
     dir: 'unit-ApplicationFiles/unit-4/lesson-5',
     template: 'u4l5-water-bottle-thermal-test-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
@@ -127,6 +133,42 @@ const lessons = [
     template: 'electromagnet_lab.html',
     questions: 'electromagnet_buzz_questions.txt',
     output: 'electromagnet_lab_preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-5',
+    template: 'thin_lens_refraction_investigation.html',
+    questions: 'thin_lens_refraction_buzz_questions.txt',
+    output: 'thin_lens_refraction_investigation_preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-5',
+    template: 'sound_waves_lab_simulation.html',
+    questions: 'sound_waves_resonance_buzz_questions.txt',
+    output: 'sound_waves_lab_simulation_preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-5/light-color-and-vision-lab',
+    template: 'index.html',
+    questions: '../light_color_vision_buzz_questions.txt',
+    output: 'index_preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-5/honors-relativity-timekeeping-lab',
+    template: 'index.html',
+    questions: '../honors_relativity_buzz_questions.txt',
+    output: 'index_preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-5/doppler-spectral-line-shift',
+    template: 'index.html',
+    questions: '../doppler_spectral_shift_buzz_questions.txt',
+    output: 'index_preview.html'
+  },
+  {
+    dir: 'unit-ApplicationFiles/unit-5/design-the-perfect-instrument',
+    template: 'index.html',
+    questions: '../design_perfect_instrument_buzz_questions.txt',
+    output: 'index_preview.html'
   }
 ];
 

@@ -8,43 +8,53 @@ const previewPath = path.join(root, 'u4l1-simple-machine-buzz-assessment-templat
 
 const questions = [
   {
-    title: 'Question 1 / 2 points / Essay',
-    prompt: 'Before Level 1, predict how the steep, medium, and shallow ramps will differ in force, time, and power.',
-    placeholder: 'Buzz essay response'
-  },
-  {
-    title: 'Question 2 / 3 points / Essay',
-    prompt: 'Level 1: What differs among the three inclined planes, how does the ramp help, and why do equal-work setups have different time and power?',
-    placeholder: 'Buzz inclined-plane comparison response'
-  },
-  {
-    title: 'Question 3 / 3 points / Essay',
-    prompt: 'Level 2: What differs among the three pulley systems, how do pulleys help, and why do equal-work setups have different time and power?',
-    placeholder: 'Buzz pulley comparison response'
-  },
-  {
-    title: 'Question 4 / 3 points / Essay',
-    prompt: 'Level 3: What differs among the three lever-arm setups, how does a lever help, and why do equal-work setups have different time and power?',
-    placeholder: 'Buzz lever comparison response'
-  },
-  {
-    title: 'Question 5 / 3 points / Essay',
-    prompt: 'Level 4: What differs among the three wheel-and-axle setups, how does the machine help, and why do equal-work setups have different time and power?',
-    placeholder: 'Buzz wheel-and-axle comparison response'
-  },
-  {
-    title: 'Question 6 / 1 point / Multiple choice',
-    prompt: 'Why can three setups have equal output work but different time and power?',
+    title: 'Question 1 / 1 point / Multiple choice',
+    prompt: 'Identify the correct IMA and AMA formulas for the acquired lab data.',
     placeholder: 'Buzz multiple-choice options'
   },
   {
-    title: 'Question 7 / 4 points / Essay',
-    prompt: 'Choose one level. Use all three setups to compare IMA, AMA, equal output work, actual work, time, and power.',
-    placeholder: 'Buzz calculation response'
+    title: 'Question 2 / 1 point / Number',
+    prompt: 'Calculate IMA for inclined-plane Setup B from its distance measurements.',
+    placeholder: 'Buzz numeric response'
   },
   {
-    title: 'Question 8 / 6 points / Essay',
-    prompt: 'Write a claim-evidence-reasoning conclusion about how configuration changes the way a machine helps, using the three setups in each level.',
+    title: 'Question 3 / 1 point / Number',
+    prompt: 'Calculate AMA for inclined-plane Setup B from its force measurements.',
+    placeholder: 'Buzz numeric response'
+  },
+  {
+    title: 'Question 4 / 1 point / Multiple choice',
+    prompt: 'Explain why friction makes AMA lower than IMA in this lab.',
+    placeholder: 'Buzz multiple-choice options'
+  },
+  {
+    title: 'Question 5 / 1 point / Number',
+    prompt: 'Calculate AMA for pulley Setup C from its force measurements.',
+    placeholder: 'Buzz numeric response'
+  },
+  {
+    title: 'Question 6 / 1 point / Number',
+    prompt: 'Calculate IMA for lever Setup C from its distance measurements.',
+    placeholder: 'Buzz numeric response'
+  },
+  {
+    title: 'Question 7 / 2 points / Number',
+    prompt: 'Calculate AMA for wheel-and-axle Setup C from its force measurements.',
+    placeholder: 'Buzz numeric response'
+  },
+  {
+    title: 'Question 8 / 2 points / Multiple choice',
+    prompt: 'Identify the force-distance pattern as IMA increases.',
+    placeholder: 'Buzz multiple-choice options'
+  },
+  {
+    title: 'Question 9 / 2 points / Essay',
+    prompt: 'Compare IMA, AMA, and input force for all three setups of one machine.',
+    placeholder: 'Buzz comparison response'
+  },
+  {
+    title: 'Question 10 / 3 points / Essay',
+    prompt: 'Write a CER conclusion comparing IMA with AMA using two machine types.',
     placeholder: 'Buzz conclusion response'
   }
 ];
@@ -77,7 +87,7 @@ const templateStyles = `
 const questionSlots = `
   <section class="buzz-assessment-section" aria-labelledby="buzz-questions-heading">
     <h2 id="buzz-questions-heading">Buzz Assessment Questions</h2>
-    <p>Animate all three setups in every level, then answer all eight questions. Explain what differs, how each machine helps, and why equal-work setups have different time and power.</p>
+    <p>Use the fixed 20 kg load and 1.5 m lift height. Acquire data and correctly calculate IMA and AMA for all four machines, then answer all ten questions.</p>
     ${questions.map((question, index) => `
     <div class="buzz-question-slot">
       <p class="buzz-slot-label">Question ${index + 1}</p>
@@ -88,7 +98,8 @@ const questionSlots = `
 let source = fs.readFileSync(sourcePath, 'utf8');
 source = source.replace('</head>', `${templateStyles}\n</head>`);
 source = source.replace('  <script>\n    (() => {', `${questionSlots}\n\n  <script>\n    (() => {`);
-source = source.replace('<title>Unit 4 Lesson 1 - Simple Machine Challenge</title>', '<title>Unit 4 Lesson 1 - Simple Machine Challenge Buzz Assessment</title>');
+source = source.replace('<title>Unit 4 Lesson 1 - IMA and AMA Lab</title>', '<title>Unit 4 Lesson 1 - IMA and AMA Lab Buzz Assessment</title>');
+source = source.replace('<main class="app" data-simple-machine-app>', '<main class="app" data-simple-machine-app data-assessment-mode="true">');
 fs.writeFileSync(templatePath, source, 'utf8');
 
 const previewStyles = `
@@ -102,8 +113,8 @@ const previewStyles = `
 
 let preview = source.replace('</head>', `${previewStyles}\n</head>`);
 preview = preview.replace(
-  '<p>Animate all three setups in every level, then answer all eight questions. Explain what differs, how each machine helps, and why equal-work setups have different time and power.</p>',
-  '<p>Animate all three setups in every level, then answer all eight questions. Explain what differs, how each machine helps, and why equal-work setups have different time and power.</p><p class="buzz-preview-note">Local preview: these cards show where Buzz inserts its native question controls.</p>'
+  '<p>Use the fixed 20 kg load and 1.5 m lift height. Acquire data and correctly calculate IMA and AMA for all four machines, then answer all ten questions.</p>',
+  '<p>Use the fixed 20 kg load and 1.5 m lift height. Acquire data and correctly calculate IMA and AMA for all four machines, then answer all ten questions.</p><p class="buzz-preview-note">Local preview: these cards show where Buzz inserts its native question controls.</p>'
 );
 
 let questionIndex = 0;
@@ -111,7 +122,7 @@ preview = preview.replace(/<a:question><\/a:question>/g, () => {
   const question = questions[questionIndex++];
   return `<div class="buzz-preview-card"><div class="buzz-preview-title">${question.title}</div><div class="buzz-preview-prompt">${question.prompt}</div><div class="buzz-preview-placeholder">${question.placeholder}</div></div>`;
 });
-preview = preview.replace('<title>Unit 4 Lesson 1 - Simple Machine Challenge Buzz Assessment</title>', '<title>Preview - Unit 4 Lesson 1 Simple Machine Challenge</title>');
+preview = preview.replace('<title>Unit 4 Lesson 1 - IMA and AMA Lab Buzz Assessment</title>', '<title>Preview - Unit 4 Lesson 1 IMA and AMA Lab</title>');
 fs.writeFileSync(previewPath, preview, 'utf8');
 
 console.log('Built Buzz template and local preview.');

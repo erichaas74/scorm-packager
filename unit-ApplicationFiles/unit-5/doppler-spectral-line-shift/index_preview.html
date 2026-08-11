@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Spectral Shift Investigation</title>
+<style>
+:root {
+  --blue: #285f9f;
+  --blue-dark: #17436f;
+  --ink: #172033;
+  --muted: #5c6678;
+  --line: #cfd8e6;
+  --soft: #eef5fb;
+  --panel: #fff;
+  --good: #17643b;
+  --good-soft: #e9f7ef;
+  --warn: #8a4b08;
+  --warn-soft: #fff5e8;
+  --overlay: #00a6b8;
+  --bg-main: #f3f7fa;
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-main);
+  font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+  color: var(--ink);
+}
+body { padding: 16px; }
+
+button, input { font: inherit; }
+button {
+  min-height: 44px;
+  border-radius: 10px;
+  border: 2px solid var(--blue);
+  background: #fff;
+  color: var(--blue-dark);
+  font-weight: 700;
+  padding: 9px 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+button:hover:not([disabled]) {
+  background: #f2f7fc;
+  box-shadow: 0 4px 6px rgba(40, 95, 159, 0.1);
+}
+button:focus-visible { outline: 4px solid #f2b705; outline-offset: 3px; }
+button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line); color: var(--muted); }
+
+.ssi-app {
+  max-width: 1000px;
+  margin: 0 auto;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(23, 32, 51, 0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.ssi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--line);
+  background: #f8fbfe;
+}
+.ssi-title { margin: 0; font-size: 1.25rem; color: var(--blue-dark); }
+.ssi-progress { font-size: 0.95rem; color: var(--muted); font-weight: 700; text-align: center; }
+
+.ssi-workspace {
+  padding: 24px;
+  background: linear-gradient(180deg, #f9fcff, #eef5fb);
+}
+
+.ssi-step-label {
+  margin: 0 0 4px;
+  color: var(--blue-dark);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.ssi-directions {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.ssi-reference-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.ssi-reference {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  text-align: left;
+  cursor: grab;
+  user-select: none;
+  transition: all 0.2s;
+}
+.ssi-reference:active { cursor: grabbing; }
+.ssi-reference:hover:not([disabled]) { 
+  border-color: #86a9ce; 
+  background: #f8fbfe; 
+  transform: translateY(-2px); 
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+}
+.ssi-reference.is-loaded {
+  border-color: var(--blue-dark);
+  background: #eef5fc;
+  box-shadow: 0 0 0 3px rgba(40, 95, 159, 0.15);
+}
+.ssi-reference[disabled] {
+  cursor: not-allowed; 
+  opacity: 0.5; 
+  filter: grayscale(1); 
+  transform: none; 
+  box-shadow: none; 
+}
+.ssi-reference-name {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.ssi-reference svg { display: block; width: 100%; height: auto; border-radius: 6px; }
+
+.ssi-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.ssi-observation-title {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+  color: var(--blue-dark);
+}
+
+.ssi-comparison-container {
+  position: relative;
+  width: 100%;
+  background: #101827;
+  border-radius: 16px;
+  border: 2px solid var(--blue-dark);
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+.ssi-comparison-container.is-dragging { cursor: grabbing; }
+.ssi-comparison-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+  touch-action: none;
+}
+
+.drag-target { cursor: grab; }
+.drag-target:active, .is-dragging .drag-target { cursor: grabbing; }
+.drop-zone { cursor: pointer; transition: all 0.2s; }
+.drop-zone.drag-over rect { fill: #285f9f !important; fill-opacity: 0.2 !important; stroke: #4ac1ff !important; }
+#refLayer.drag-over { opacity: 0.5; }
+
+.ssi-card {
+  padding: 24px;
+  border-top: 1px solid var(--line);
+  background: #fff;
+}
+.ssi-question { margin: 0 0 16px; font-weight: 700; font-size: 1.1rem; color: var(--ink); }
+.ssi-choice-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.ssi-choice-grid button { width: 100%; }
+
+.ssi-feedback-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+}
+.ssi-feedback {
+  flex-grow: 1;
+  min-height: 46px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #f5f7fa;
+  color: var(--ink);
+  font-size: 0.95rem;
+  line-height: 1.4;
+  font-weight: 600;
+}
+.ssi-feedback.good { background: var(--good-soft); color: var(--good); }
+.ssi-feedback.warn { background: var(--warn-soft); color: var(--warn); }
+
+.ssi-align-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--line);
+}
+.ssi-shift-readout {
+  font-family: monospace;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--blue-dark);
+  background: var(--soft);
+  padding: 8px 16px;
+  border-radius: 8px;
+}
+.ssi-shift-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #5d738f;
+}
+
+.ssi-motion {
+  display: none;
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: 12px;
+  background: #0c1730;
+  color: #fff;
+}
+.ssi-motion.visible { display: block; }
+.ssi-motion svg { display: block; width: 100%; max-width: 600px; margin: 0 auto; height: auto; }
+
+.ssi-hidden { display: none !important; }
+.ssi-status { position: absolute; left: -9999px; }
+
+.ssi-section-title { margin: 0 0 14px; font-size: 1.1rem; color: var(--blue-dark); }
+.ssi-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+.ssi-evidence-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.ssi-evidence-table th, .ssi-evidence-table td { padding: 9px 12px; border-bottom: 1px solid var(--line); text-align: right; font-variant-numeric: tabular-nums; }
+.ssi-evidence-table th:first-child, .ssi-evidence-table td:first-child { text-align: left; font-variant-numeric: normal; }
+.ssi-evidence-table thead th { background: var(--soft); color: var(--blue-dark); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.ssi-empty-row td { text-align: center; color: var(--muted); font-style: italic; }
+.ssi-evidence-message { margin: 12px 0; color: var(--muted); font-size: 0.92rem; }
+.ssi-evidence-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.ssi-evidence-status { margin: 12px 0 0; color: var(--good); font-size: 0.92rem; font-weight: 700; min-height: 1.2em; }
+
+.ssi-buzz-intro { margin: 0 0 14px; color: var(--muted); font-size: 0.92rem; }
+.ssi-local-note {
+  margin-bottom: 14px;
+  padding: 11px 14px;
+  border-left: 5px solid var(--warn);
+  border-radius: 0 10px 10px 0;
+  background: var(--warn-soft);
+  font-size: 0.9rem;
+}
+.ssi-slot {
+  margin-bottom: 14px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fbfdff;
+}
+.ssi-slot-label { margin: 0 0 8px; color: var(--blue-dark); font-size: 0.86rem; font-weight: 800; }
+.ssi-slot-label span { display: block; margin-top: 2px; color: var(--muted); font-weight: 600; }
+
+@media(max-width: 720px) {
+  .ssi-choice-grid, .ssi-reference-grid { grid-template-columns: 1fr; }
+  .ssi-top { flex-direction: column; align-items: flex-start; }
+  .ssi-progress { text-align: left; }
+  .ssi-align-actions { flex-direction: column; align-items: stretch; }
+  .ssi-align-actions button { width: 100%; }
+}
+</style>
+
+  <style id="buzz-preview-question-styles">
+    .buzz-preview-question {
+      border: 1px solid #c8d3e1;
+      border-left: 5px solid #2563a9;
+      border-radius: 8px;
+      padding: 12px;
+      margin: 8px 0;
+      background: #fff;
+      color: #172033;
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.45;
+      box-shadow: 0 6px 18px rgba(23, 32, 51, 0.08);
+    }
+    .buzz-preview-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+      color: #1f3b57;
+    }
+    .buzz-preview-head strong {
+      font-size: 0.95rem;
+    }
+    .buzz-preview-head span {
+      color: #5d687c;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+    .buzz-preview-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .buzz-preview-chip {
+      border: 1px solid #d8e0ec;
+      border-radius: 999px;
+      padding: 3px 8px;
+      background: #f3f7fc;
+      color: #334155;
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+    .buzz-preview-prompt {
+      margin: 0 0 10px;
+      color: #111827;
+      font-size: 0.98rem;
+      font-weight: 700;
+    }
+    .buzz-preview-details {
+      display: grid;
+      gap: 6px;
+    }
+    .buzz-preview-option {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr);
+      gap: 8px;
+      align-items: start;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 8px;
+      background: #f8fafc;
+    }
+    .buzz-preview-option span {
+      display: inline-flex;
+      width: 24px;
+      height: 24px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: #dbeafe;
+      color: #1e3a8a;
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+    .buzz-preview-option.correct {
+      border-color: #86efac;
+      background: #f0fdf4;
+    }
+    .buzz-preview-option.correct span {
+      background: #16a34a;
+      color: #fff;
+    }
+    .buzz-preview-option p,
+    .buzz-preview-detail {
+      margin: 0;
+      color: #1f2937;
+      font-size: 0.92rem;
+    }
+    .buzz-preview-feedback {
+      border-left: 3px solid #93c5fd;
+      padding: 6px 8px;
+      background: #eff6ff;
+      color: #1e3a8a;
+      font-size: 0.86rem;
+    }
+    .buzz-preview-placeholder {
+      border: 1px dashed #cbd5e1;
+      border-radius: 6px;
+      padding: 10px;
+      color: #64748b;
+      background: #f8fafc;
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+<main class="ssi-app">
+  <header class="ssi-top">
+    <h1 class="ssi-title">Spectral Shift Investigation</h1>
+    <div class="ssi-progress" id="progress">Case 1 of 3 &middot; Match the fingerprint</div>
+    <button id="resetBtn" type="button">Reset</button>
+  </header>
+
+  <section class="ssi-workspace" aria-label="Absorption spectrum workspace">
+    <div>
+      <p class="ssi-step-label" id="stepLabel">Step 1 &middot; Identify</p>
+      <p class="ssi-directions" id="directions">Drag the matching reference spectrum down into the top slot of the comparison tool.</p>
+    </div>
+
+    <div class="ssi-reference-grid" id="referenceGrid" aria-label="Reference absorption spectra">
+      <!-- Draggable reference cards injected here -->
+    </div>
+
+    <div class="ssi-stage">
+      <h2 class="ssi-observation-title" id="observationTitle">Observed spectrum</h2>
+      
+      <div class="ssi-comparison-container" id="comparisonContainer">
+        <svg class="ssi-comparison-svg" id="comparisonSvg" viewBox="0 0 760 288" role="img" aria-label="Interactive spectral comparison tool">
+          <defs>
+            <linearGradient id="refGradient" x1="0" x2="1"></linearGradient>
+            <linearGradient id="obsGradient" x1="0" x2="1"></linearGradient>
+            <clipPath id="refClip">
+              <rect x="54" y="0" width="652" height="60" rx="6" />
+            </clipPath>
+            <marker id="deltaArrowStart" markerWidth="9" markerHeight="8" refX="8" refY="3" orient="auto">
+              <path d="M8,0 L8,6 L0,3 z" fill="#dbe7f5" />
+            </marker>
+            <marker id="deltaArrowEnd" markerWidth="9" markerHeight="8" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L8,3 z" fill="#dbe7f5" />
+            </marker>
+          </defs>
+
+          <!-- Top Section: Reference Dropzone / Render -->
+          <g transform="translate(0, 20)">
+            <g id="dropZoneGroup" class="drop-zone">
+              <rect x="54" y="0" width="652" height="60" fill="#1b273d" stroke="#3b5278" stroke-width="2" stroke-dasharray="8 6" rx="6" id="dropZoneRect" />
+              <text x="380" y="35" text-anchor="middle" fill="#8b9ebf" font-size="14" font-weight="bold" font-family="Arial" pointer-events="none" id="dropZoneText">Drag and drop a reference spectrum here</text>
+            </g>
+            
+            <g id="refLayer" class="ssi-hidden">
+              <text x="54" y="-8" fill="#a0b4d4" font-size="12" font-weight="bold" font-family="Arial" id="refLabel">REFERENCE SPECTRUM</text>
+              <g clip-path="url(#refClip)">
+                <!-- Oversized rect matches the observed band so both gradients share one coordinate space -->
+                <rect x="-1000" y="0" width="3000" height="60" fill="url(#refGradient)" />
+                <g id="refLines"></g>
+              </g>
+            </g>
+          </g>
+
+          <!-- Middle Section: Wavelength axis -->
+          <g transform="translate(0, 80)">
+            <line x1="54" y1="20" x2="706" y2="20" stroke="#4a5d7c" stroke-width="1" />
+            <g id="axisTicks"></g>
+          </g>
+
+          <!-- Bottom Section: Observed Spectrum -->
+          <g transform="translate(0, 150)">
+            <text x="54" y="-8" fill="#a0b4d4" font-size="12" font-weight="bold" font-family="Arial" id="obsLabel">OBSERVED SPECTRUM</text>
+            
+            <!-- Clip path strictly bounds the visually shifting gradient so it doesn't bleed out of bounds -->
+            <clipPath id="obsClip">
+                <rect x="54" y="0" width="652" height="60" rx="6" />
+            </clipPath>
+            
+            <g clip-path="url(#obsClip)">
+                <!-- The continuum is fixed to the wavelength axis and never moves.
+                     Solid lines are the measurement; only the dashed markers are dragged. -->
+                <rect x="-1000" y="0" width="3000" height="60" fill="url(#obsGradient)" />
+                <g id="obsLines"></g>
+                <g id="obsRestMarkers"></g>
+            </g>
+            <rect x="54" y="0" width="652" height="60" fill="transparent" class="drag-target ssi-hidden" id="obsDragTarget" aria-label="Drag to move the dashed rest-wavelength markers" />
+          </g>
+          
+          <!-- Delta-lambda caliper: spans the measured line's rest and observed positions -->
+          <g transform="translate(0, 210)" id="deltaGroup" class="ssi-hidden"></g>
+
+          <!-- Shown on the canvas the moment every marker sits on its rest wavelength -->
+          <g id="alignBadge" class="ssi-hidden">
+            <rect x="530" y="1" width="176" height="22" rx="11" fill="#1c6b4a" stroke="#3ddc97" stroke-width="1.5" />
+            <text x="618" y="16" text-anchor="middle" fill="#9df5cd" font-size="13" font-weight="bold" font-family="Arial">✓ LINES ALIGNED</text>
+          </g>
+
+          <g transform="translate(0, 262)">
+            <text x="54" y="15" fill="#697f9e" font-size="12" font-family="Arial">Shorter wavelength (Blue)</text>
+            <text x="706" y="15" text-anchor="end" fill="#697f9e" font-size="12" font-family="Arial">Longer wavelength (Red)</text>
+          </g>
+        </svg>
+      </div>
+
+      <div id="alignActions" class="ssi-align-actions ssi-hidden">
+        <div class="ssi-shift-readout" id="shiftReadout">Δλ = 0.0 nm</div>
+      </div>
+
+      <div class="ssi-motion" id="motionPanel" aria-live="polite">
+        <svg viewBox="0 0 760 168" role="img" aria-labelledby="motionTitle motionDesc">
+          <title id="motionTitle">Object motion relative to Earth</title>
+          <desc id="motionDesc">Motion diagram.</desc>
+          <defs>
+            <marker id="motionArrowHead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L9,3 z" fill="#fff"/>
+            </marker>
+            <marker id="gapArrowStart" markerWidth="9" markerHeight="8" refX="8" refY="3" orient="auto">
+              <path d="M8,0 L8,6 L0,3 z" fill="#dbe7f5" />
+            </marker>
+            <marker id="gapArrowEnd" markerWidth="9" markerHeight="8" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L8,3 z" fill="#dbe7f5" />
+            </marker>
+          </defs>
+          <g id="motionDrawing"></g>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="ssi-card" aria-live="polite">
+    <p class="ssi-question" id="question">Which reference has the same absorption-line fingerprint?</p>
+    
+    <div class="ssi-choice-grid" id="choices"></div>
+    
+    <div class="ssi-feedback-bar">
+      <div class="ssi-feedback" id="feedback">Drag a reference to the dropzone above to compare.</div>
+      <button id="nextBtn" class="ssi-hidden" type="button">Next Case</button>
+    </div>
+  </section>
+
+  <p class="ssi-status" id="status" role="status" aria-live="polite"></p>
+
+  <section class="ssi-card" aria-labelledby="evidenceHeading">
+    <h2 class="ssi-section-title" id="evidenceHeading">Measured shifts</h2>
+    <div class="ssi-table-wrap">
+      <table class="ssi-evidence-table">
+        <thead><tr><th scope="col">Object</th><th scope="col">Element</th><th scope="col">&lambda;<sub>0</sub> of measured line (nm)</th><th scope="col">&Delta;&lambda; (nm)</th></tr></thead>
+        <tbody id="evidenceBody"><tr class="ssi-empty-row"><td colspan="4">No measurements recorded yet.</td></tr></tbody>
+      </table>
+    </div>
+    <p class="ssi-evidence-message" id="evidenceMessage">Align all three cases. The evidence image unlocks when every object has a recorded shift.</p>
+    <div class="ssi-evidence-actions">
+      <button type="button" id="downloadEvidence" disabled>Download evidence image</button>
+    </div>
+    <p class="ssi-evidence-status" id="evidenceStatus" role="status" aria-live="polite"></p>
+  </section>
+
+  <section class="ssi-card" id="buzzQuestions" aria-labelledby="buzzHeading">
+    <h2 class="ssi-section-title" id="buzzHeading">Buzz assessment questions</h2>
+    <p class="ssi-buzz-intro">Upload your evidence image first, then answer each question from your own recorded measurements. Buzz inserts the graded response controls into the ordered slots below.</p>
+    <div class="ssi-local-note" id="localNote" hidden>If you opened this template as a local file, the response controls will be blank. Import <strong>doppler_spectral_shift_buzz_questions.txt</strong> into Buzz and upload this HTML as the assessment template.</div>
+    <div class="ssi-slot"><p class="ssi-slot-label">Question 1 <span>Upload the completed measurement evidence image</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="1">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 1</strong>
+        <span>UP - 2 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: UP</span><span class="buzz-preview-chip">Score: 2</span><span class="buzz-preview-chip">MaxFiles: 1</span><span class="buzz-preview-chip">FileTypes: png|jpg|pdf</span></div>
+      <div class="buzz-preview-prompt">1) Identify and align all three objects in the embedded Spectral Shift Investigation. Select Download evidence image, then upload the completed evidence image here.</div>
+      <div class="buzz-preview-placeholder">Upload question or external response field.</div>
+    </div></div>
+    <div class="ssi-slot"><p class="ssi-slot-label">Question 2 <span>Object A measured shift</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="2">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 2</strong>
+        <span>F, Number - 1 point</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: F, Number</span><span class="buzz-preview-chip">Score: 1</span></div>
+      <div class="buzz-preview-prompt">2) Object A. What shift did you measure for the line the readout tracks? ________ nm</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>73..84</p></div></div>
+    </div></div>
+    <div class="ssi-slot"><p class="ssi-slot-label">Question 3 <span>Object B measured shift</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="3">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 3</strong>
+        <span>F, Number - 1 point</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: F, Number</span><span class="buzz-preview-chip">Score: 1</span></div>
+      <div class="buzz-preview-prompt">3) Object B. What shift did you measure for the line the readout tracks? ________ nm</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>-64..-52</p></div></div>
+    </div></div>
+    <div class="ssi-slot"><p class="ssi-slot-label">Question 4 <span>Object C measured shift</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="4">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 4</strong>
+        <span>F, Number - 1 point</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: F, Number</span><span class="buzz-preview-chip">Score: 1</span></div>
+      <div class="buzz-preview-prompt">4) Object C. What shift did you measure for the line the readout tracks? ________ nm</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>-5.5..5.5</p></div></div>
+    </div></div>
+    <div class="ssi-slot"><p class="ssi-slot-label">Question 5 <span>Classify Object A and Object B</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="5">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 5</strong>
+        <span>MC - 1 point</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: MC</span><span class="buzz-preview-chip">Score: 1</span></div>
+      <div class="buzz-preview-prompt">5) Compare the sign of your Object A shift with the sign of your Object B shift. Which statement matches your two measurements?</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option correct"><span>A</span><p>Object A is redshifted and moving away from Earth; Object B is blueshifted and moving toward Earth.</p></div>
+<div class="buzz-preview-option"><span>B</span><p>Object A is blueshifted and moving toward Earth; Object B is redshifted and moving away from Earth.</p></div>
+<div class="buzz-preview-option"><span>C</span><p>Both objects are redshifted, so both are moving away from Earth at different speeds.</p></div>
+<div class="buzz-preview-option"><span>D</span><p>Both objects are blueshifted, so both are moving toward Earth at different speeds.</p></div></div>
+    </div></div>
+    <div class="ssi-slot"><p class="ssi-slot-label">Question 6 <span>Recession speed of Object A</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="6">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 6</strong>
+        <span>F, Number - 2 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: F, Number</span><span class="buzz-preview-chip">Score: 2</span></div>
+      <div class="buzz-preview-prompt">6) Use your Object A measurement. Divide your shift by the rest wavelength shown in the readout to find z, then multiply by the speed of light, 3.00 x 10^5 km/s, to find how fast Object A is moving away from Earth. ________ km/s</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>33000..39000</p></div></div>
+    </div></div>
+    <div class="ssi-slot"><p class="ssi-slot-label">Question 7 <span>Pattern versus position</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="7">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 7</strong>
+        <span>E - 3 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: E</span><span class="buzz-preview-chip">Score: 3</span><span class="buzz-preview-chip">Height: 240</span></div>
+      <div class="buzz-preview-prompt">7) Explain why the spacing between the absorption lines told you which element you were looking at, while the position of those same lines told you how the object is moving. Use your own measurements from at least two of the three objects as evidence.</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>Full credit: States that each element produces a fixed pattern of lines whose relative spacing is set by the atom itself and does not change with motion, so matching the pattern identifies the element; states that motion shifts every line by the same fractional amount, so the whole pattern slides while keeping its shape, and the size of that slide gives the speed; and cites recorded rest wavelengths and shifts from at least two objects. Partial credit: Distinguishes pattern from position and cites some data, but does not explain that the shift is proportional and preserves the spacing. No credit: Reverses the two roles, cites no data, or claims motion changes which element is present.</p></div></div>
+    </div></div>
+    <div class="ssi-slot"><p class="ssi-slot-label">Question 8 <span>What Object C does and does not tell you</span></p>
+    <div class="buzz-preview-question" data-buzz-preview-question="8">
+      <div class="buzz-preview-head">
+        <strong>Buzz Question 8</strong>
+        <span>E - 3 points</span>
+      </div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: E</span><span class="buzz-preview-chip">Score: 3</span><span class="buzz-preview-chip">Height: 240</span></div>
+      <div class="buzz-preview-prompt">8) Object C produced a shift of essentially zero. State what that measurement does tell you about Object C&#39;s motion and what it does not tell you, and explain the difference.</div>
+      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>Full credit: States that a zero shift means there is no measurable motion along the line of sight, so Object C is neither approaching nor receding from Earth; states that it does NOT mean the object is stationary, because motion perpendicular to the line of sight produces no first-order Doppler shift; and explains that this method measures only the radial component of velocity. Partial credit: Correctly says there is no motion toward or away from Earth but does not recognize that transverse motion would be invisible to this measurement. No credit: Concludes that Object C is motionless, or that the measurement failed.</p></div></div>
+    </div></div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  // Window runs past the visible band on both sides so shifted lines stay on-screen
+  const WL_MIN = 350;
+  const WL_MAX = 750;
+  const X_START = 54;
+  const X_WIDTH = 652;
+  // The color scale is fixed to the wavelength axis; only the lines move. ANCHOR_LAM
+  // converts pointer travel into a redshift so dragging tracks the lines near mid-band.
+  const ANCHOR_LAM = 550;
+  const MAX_Z_DRAG = 0.35;
+  const ALIGN_TOLERANCE_Z = 0.008;
+
+  // Real spectral fingerprints (wavelengths in nm)
+  const references = [
+    { id: 'hydrogen', label: 'Hydrogen', lines: [410.2, 434.0, 486.1, 656.3] },
+    { id: 'helium', label: 'Helium', lines: [447.1, 501.6, 587.6, 667.8] },
+    { id: 'calcium', label: 'Calcium', lines: [393.4, 396.8, 422.7, 616.2, 643.9] }
+  ];
+
+  // The investigation cases
+  const cases = [
+    { object: 'Object A', element: 'hydrogen', z: 0.12, shift: 'redshift', motion: 'receding' },
+    { object: 'Object B', element: 'calcium', z: -0.09, shift: 'blueshift', motion: 'approaching' },
+    { object: 'Object C', element: 'helium', z: 0, shift: 'no shift', motion: 'no radial motion' }
+  ];
+
+  // Colors for continuous spectrum. Includes UV/IR so dragging doesn't reveal edges.
+  const baseColors = [
+    { lam: 120, color: '#2b1560' },
+    { lam: 250, color: '#3f1f8c' },
+    { lam: 330, color: '#5230ac' },
+    { lam: 390, color: '#6236b8' },
+    { lam: 440, color: '#315ed0' },
+    { lam: 495, color: '#1f9bbb' },
+    { lam: 540, color: '#35a853' },
+    { lam: 590, color: '#e2d53e' },
+    { lam: 640, color: '#ed8a32' },
+    { lam: 700, color: '#d43e39' },
+    { lam: 780, color: '#c22f2c' },
+    { lam: 900, color: '#a52220' },
+    { lam: 1200, color: '#7d1917' }
+  ];
+
+  let caseIndex = 0;
+  let phase = 'match'; 
+  let selectedReference = null;
+  let zUser = 0; // Correction applied by user dragging
+  let motionAnim = null;
+  let isDragging = false;
+  let dragStartX = 0;
+  let dragStartZ = 0;
+  let measuredCases = {};
+
+  const byId = id => document.getElementById(id);
+  
+  const referenceGrid = byId('referenceGrid');
+  const observationTitle = byId('observationTitle');
+  const progress = byId('progress');
+  const stepLabel = byId('stepLabel');
+  const directions = byId('directions');
+  const question = byId('question');
+  const choices = byId('choices');
+  const feedback = byId('feedback');
+  const nextBtn = byId('nextBtn');
+  const status = byId('status');
+
+  const dropZoneGroup = byId('dropZoneGroup');
+  const refLayer = byId('refLayer');
+  const refLinesGrp = byId('refLines');
+  const obsLinesGrp = byId('obsLines');
+  const obsRestMarkers = byId('obsRestMarkers');
+  const deltaGroup = byId('deltaGroup');
+  const obsDragTarget = byId('obsDragTarget');
+  const axisTicks = byId('axisTicks');
+  const obsLabel = byId('obsLabel');
+  const refLabel = byId('refLabel');
+
+  const alignActions = byId('alignActions');
+  const alignBadge = byId('alignBadge');
+  const shiftReadout = byId('shiftReadout');
+  const comparisonContainer = byId('comparisonContainer');
+  const comparisonSvg = byId('comparisonSvg');
+
+  const motionPanel = byId('motionPanel');
+  const motionDrawing = byId('motionDrawing');
+  const motionDesc = byId('motionDesc');
+
+  function xFor(wavelength) {
+    return X_START + ((wavelength - WL_MIN) / (WL_MAX - WL_MIN)) * X_WIDTH;
+  }
+
+  function svgNode(name, attributes = {}) {
+    const node = document.createElementNS(NS, name);
+    Object.entries(attributes).forEach(([key, value]) => node.setAttribute(key, value));
+    return node;
+  }
+
+  function updateGradient(gradientElementId, zDisplay) {
+    const grad = byId(gradientElementId);
+    if (!grad) return;
+    grad.innerHTML = '';
+    
+    // Oversize rect covers -1000 to 2000 in SVG space.
+    baseColors.forEach(stop => {
+      // Shifting wavelength naturally shifts the color
+      const shiftedLam = stop.lam * (1 + zDisplay);
+      const screenX = xFor(shiftedLam);
+      const pct = ((screenX - (-1000)) / 3000) * 100; 
+      
+      const el = svgNode('stop', {
+        offset: `${pct}%`,
+        'stop-color': stop.color
+      });
+      grad.appendChild(el);
+    });
+  }
+
+  function drawAxis() {
+    axisTicks.innerHTML = '';
+    [400, 500, 600, 700].forEach(val => {
+      const x = xFor(val);
+      axisTicks.appendChild(svgNode('line', { x1: x, y1: 20, x2: x, y2: 30, stroke: '#8b9ebf', 'stroke-width': 2 }));
+      const text = svgNode('text', { x, y: 45, 'text-anchor': 'middle', fill: '#8b9ebf', 'font-size': 13, 'font-family': 'Arial' });
+      text.textContent = val;
+      axisTicks.appendChild(text);
+    });
+    const unit = svgNode('text', { x: 718, y: 45, 'text-anchor': 'start', fill: '#8b9ebf', 'font-size': 13, 'font-family': 'Arial' });
+    unit.textContent = 'nm';
+    axisTicks.appendChild(unit);
+  }
+
+  function drawLines(group, lines, zDisplay, strokeWidth = 4) {
+    group.innerHTML = '';
+    lines.forEach(lam => {
+      const shiftedLam = lam * (1 + zDisplay);
+      const x = xFor(shiftedLam);
+      // Only draw lines if within a wide reasonable bound
+      if (x >= -200 && x <= X_START + X_WIDTH + 200) {
+        group.appendChild(svgNode('line', {
+          x1: x, y1: 0, x2: x, y2: 60,
+          stroke: '#101827', 'stroke-width': strokeWidth
+        }));
+      }
+    });
+  }
+
+  // Rest-wavelength markers that ride along with the shifting colors. A dark halo under
+  // the white dashes keeps them legible over both the violet and the yellow end.
+  function drawRestMarkers(group, lines, zDisplay, aligned = false) {
+    group.innerHTML = '';
+    lines.forEach(lam => {
+      const x = xFor(lam * (1 + zDisplay));
+      if (x < -200 || x > X_START + X_WIDTH + 200) return;
+      group.appendChild(svgNode('line', {
+        x1: x, y1: 0, x2: x, y2: 60,
+        stroke: '#101827', 'stroke-width': 6, opacity: 0.55
+      }));
+      group.appendChild(svgNode('line', {
+        x1: x, y1: 0, x2: x, y2: 60,
+        stroke: aligned ? '#3ddc97' : '#ffffff', 'stroke-width': 3, 'stroke-dasharray': '7 5'
+      }));
+    });
+  }
+
+  function currentCase() { return cases[caseIndex]; }
+  function currentReference() { return references.find(r => r.id === currentCase().element); }
+
+  function zForPx(px) { return (px / X_WIDTH) * (WL_MAX - WL_MIN) / ANCHOR_LAM; }
+
+  // The reddest line carries the largest displacement, so it is the one we caliper.
+  function measuredLine() { return Math.max(...currentReference().lines); }
+
+  // Caliper spanning the measured line's rest marker and its fixed observed position.
+  function drawDelta() {
+    deltaGroup.innerHTML = '';
+    const item = currentCase();
+    const lam0 = measuredLine();
+    const clamp = x => Math.max(40, Math.min(720, x));
+    const xRest = clamp(xFor(lam0 * (1 + item.z + zUser)));
+    const xObs = clamp(xFor(lam0 * (1 + item.z)));
+    const deltaLam = lam0 * -zUser;
+    const tone = deltaLam > 0.5 ? '#ff9a86' : (deltaLam < -0.5 ? '#7ab8ff' : '#a0b4d4');
+
+    [xRest, xObs].forEach(x => {
+      deltaGroup.appendChild(svgNode('line', {
+        x1: x, y1: 0, x2: x, y2: 22, stroke: '#8b9ebf', 'stroke-width': 1, 'stroke-dasharray': '3 3'
+      }));
+    });
+
+    if (Math.abs(xObs - xRest) > 2) {
+      deltaGroup.appendChild(svgNode('line', {
+        x1: xRest, y1: 22, x2: xObs, y2: 22,
+        stroke: '#dbe7f5', 'stroke-width': 2,
+        'marker-start': 'url(#deltaArrowStart)', 'marker-end': 'url(#deltaArrowEnd)'
+      }));
+    }
+
+    const label = svgNode('text', {
+      x: Math.max(90, Math.min(670, (xRest + xObs) / 2)), y: 42,
+      'text-anchor': 'middle', fill: tone, 'font-size': 16, 'font-weight': '700', 'font-family': 'Arial'
+    });
+    label.textContent = `Δλ = ${deltaLam > 0.05 ? '+' : ''}${deltaLam.toFixed(1)} nm`;
+    deltaGroup.appendChild(label);
+  }
+
+  function updateObservedRender() {
+    const item = currentCase();
+    const lines = currentReference().lines;
+
+    // The measurement: solid lines pinned at the wavelengths we actually observe.
+    drawLines(obsLinesGrp, lines, item.z, 4);
+
+    // Only the dashed markers move. The color scale stays pinned to the wavelength axis,
+    // so dragging them off the solid lines opens a gap that is the shift itself.
+    const zDisplay = item.z + zUser;
+    const aligned = isAligned();
+    drawRestMarkers(obsRestMarkers, lines, zDisplay, aligned);
+    alignBadge.classList.toggle('ssi-hidden', !aligned);
+
+    // Δλ is only meaningful once the fingerprint is identified — until then we do not
+    // know the rest wavelength to measure against, so nothing is quoted.
+    const matched = selectedReference && selectedReference.id === item.element;
+    deltaGroup.classList.toggle('ssi-hidden', phase === 'match' || !matched);
+
+    if (!matched) {
+      shiftReadout.innerHTML =
+        'Δλ = ?' +
+        '<span class="ssi-shift-sub">identify the element to know its rest wavelengths</span>';
+      return;
+    }
+
+    drawDelta();
+
+    const lam0 = measuredLine();
+    const measuredZ = -zUser;
+    const deltaLam = lam0 * measuredZ;
+    shiftReadout.innerHTML =
+      `Δλ = ${deltaLam > 0.05 ? '+' : ''}${deltaLam.toFixed(1)} nm` +
+      `<span class="ssi-shift-sub">rest wavelength of the measured line: λ₀ = ${lam0.toFixed(1)} nm</span>`;
+  }
+
+  function renderReferenceCards() {
+    referenceGrid.innerHTML = '';
+    references.forEach(ref => {
+      const canPick = phase === 'match' || phase === 'align';
+
+      const button = document.createElement('div');
+      button.className = 'ssi-reference';
+      button.draggable = canPick;
+      button.dataset.reference = ref.id;
+
+      if (!canPick) {
+        button.setAttribute('disabled', 'true');
+      }
+      if (selectedReference && selectedReference.id === ref.id) {
+        button.classList.add('is-loaded');
+      }
+
+      const name = document.createElement('span');
+      name.className = 'ssi-reference-name';
+      name.textContent = `${ref.label} reference`;
+      
+      const svg = svgNode('svg', { viewBox: '0 0 760 80', role: 'img' });
+      
+      const defs = svgNode('defs');
+      const gradId = `grad-${ref.id}`;
+      const grad = svgNode('linearGradient', { id: gradId, x1: '0', x2: '1' });
+      defs.appendChild(grad);
+      svg.appendChild(defs);
+      
+      svg.appendChild(svgNode('rect', { x: X_START, y: 10, width: X_WIDTH, height: 60, rx: 6, fill: `url(#${gradId})` }));
+      const g = svgNode('g', { transform: 'translate(0, 10)' });
+      svg.appendChild(g);
+
+      button.append(name, svg);
+      referenceGrid.appendChild(button);
+
+      // Mini card static gradient
+      const gradEl = byId(gradId);
+      gradEl.innerHTML = '';
+      baseColors.forEach(stop => {
+        const screenX = xFor(stop.lam);
+        const pct = ((screenX - X_START) / X_WIDTH) * 100;
+        gradEl.appendChild(svgNode('stop', { offset: `${pct}%`, 'stop-color': stop.color }));
+      });
+      drawLines(g, ref.lines, 0, 5);
+
+      button.addEventListener('dragstart', (e) => {
+        if (!canPick) { e.preventDefault(); return; }
+        e.dataTransfer.setData('text/plain', ref.id);
+        e.dataTransfer.effectAllowed = 'copy';
+      });
+
+      button.addEventListener('click', () => {
+        if (canPick) handleReferenceSelection(ref.id);
+      });
+    });
+  }
+
+  // Both the empty slot and an already-loaded reference accept a drop, so a mismatched
+  // reference can be swapped out without resetting the case.
+  [dropZoneGroup, refLayer].forEach(target => {
+    target.addEventListener('dragover', (e) => {
+      if (phase !== 'match' && phase !== 'align') return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      target.classList.add('drag-over');
+    });
+
+    target.addEventListener('dragleave', () => {
+      target.classList.remove('drag-over');
+    });
+
+    target.addEventListener('drop', (e) => {
+      if (phase !== 'match' && phase !== 'align') return;
+      e.preventDefault();
+      target.classList.remove('drag-over');
+      const refId = e.dataTransfer.getData('text/plain');
+      if (refId) handleReferenceSelection(refId);
+    });
+  });
+
+  dropZoneGroup.addEventListener('click', () => {
+    if (phase === 'match') setFeedback('Click or drag a reference from the grid into this slot.', 'warn');
+  });
+
+  // Any reference can be loaded, right or wrong, so students can slide it against the
+  // observation and see for themselves that a mismatched pattern never lines up.
+  function handleReferenceSelection(refId) {
+    const ref = references.find(r => r.id === refId);
+    if (!ref) return;
+
+    const isMatch = ref.id === currentCase().element;
+    selectedReference = ref;
+    phase = 'align';
+    zUser = 0;
+
+    dropZoneGroup.classList.add('ssi-hidden');
+    refLayer.classList.remove('ssi-hidden');
+    refLabel.textContent = `${ref.label.toUpperCase()} REFERENCE`;
+    
+    updateGradient('refGradient', 0);
+    drawLines(refLinesGrp, ref.lines, 0, 4);
+
+    obsDragTarget.classList.remove('ssi-hidden');
+    alignActions.classList.remove('ssi-hidden');
+
+    if (isMatch) {
+      setFeedback('Fingerprint matched! The dashed markers start on the solid observed lines. Drag them left or right until they reach the reference lines above.', 'good');
+    } else {
+      setFeedback(`${ref.label} loaded. Drag the observed spectrum and see whether every line can be made to match at once. If it cannot, drag a different reference into the slot.`);
+    }
+    renderUI();
+
+    // A case with no shift is already aligned on load, so there is no drag to release.
+    // Pause long enough to see the badge, then move on by itself.
+    if (isMatch && isAligned()) {
+      const atCase = caseIndex;
+      setTimeout(() => {
+        if (phase === 'align' && caseIndex === atCase && isAligned()) confirmAlignment();
+      }, 1100);
+    }
+  }
+
+  obsDragTarget.addEventListener('pointerdown', (e) => {
+    if (phase !== 'align') return;
+    isDragging = true;
+    dragStartX = e.clientX;
+    dragStartZ = zUser;
+    obsDragTarget.setPointerCapture(e.pointerId);
+    comparisonContainer.classList.add('is-dragging');
+  });
+
+  obsDragTarget.addEventListener('pointermove', (e) => {
+    if (!isDragging) return;
+    // Convert cursor travel into SVG units so the strip tracks the pointer 1:1
+    const rect = comparisonSvg.getBoundingClientRect();
+    const scale = rect.width ? 760 / rect.width : 1;
+    const dx = (e.clientX - dragStartX) * scale;
+    zUser = Math.max(-MAX_Z_DRAG, Math.min(MAX_Z_DRAG, dragStartZ + zForPx(dx)));
+    updateObservedRender();
+  });
+
+  // True only when the loaded reference is the right element AND every marker is on
+  // its rest wavelength. A wrong reference can reach this drag position too, so the
+  // element check is what keeps it honest.
+  function isAligned() {
+    const item = currentCase();
+    return !!selectedReference
+      && selectedReference.id === item.element
+      && Math.abs(-zUser - item.z) <= ALIGN_TOLERANCE_Z;
+  }
+
+  const stopDrag = (e) => {
+    if (!isDragging) return;
+    isDragging = false;
+    obsDragTarget.releasePointerCapture(e.pointerId);
+    comparisonContainer.classList.remove('is-dragging');
+
+    if (isAligned()) {
+      confirmAlignment();
+    } else if (selectedReference && selectedReference.id !== currentCase().element && Math.abs(zUser) > 0.01) {
+      setFeedback(`No single shift lines all of these up — the gaps between the ${selectedReference.label} lines are spaced differently from the observed ones. A Doppler shift slides a pattern; it never rearranges it. Drag a different reference into the slot.`, 'warn');
+    }
+  };
+  obsDragTarget.addEventListener('pointerup', stopDrag);
+  obsDragTarget.addEventListener('pointercancel', stopDrag);
+
+  // No button: landing on the alignment is itself the confirmation.
+  function confirmAlignment() {
+    zUser = -currentCase().z;
+    phase = 'result';
+    obsDragTarget.classList.add('ssi-hidden');
+    recordCase();
+    drawMotion();
+    motionPanel.classList.add('visible');
+    setFeedback('Lines aligned. Record the measured shift from the readout, then continue.', 'good');
+    renderUI();
+  }
+
+  // Each aligned case stores the wavelength the student actually measured.
+  function recordCase() {
+    const item = currentCase();
+    const lam0 = measuredLine();
+    measuredCases[item.object] = {
+      object: item.object,
+      element: currentReference().label,
+      lam0: lam0,
+      deltaLam: lam0 * -zUser
+    };
+    renderEvidencePanel();
+  }
+
+  function setFeedback(message, tone = '') {
+    feedback.textContent = message;
+    feedback.className = `ssi-feedback${tone ? ` ${tone}` : ''}`;
+    status.textContent = message;
+  }
+
+  function stopMotionAnim() {
+    if (motionAnim) { cancelAnimationFrame(motionAnim); motionAnim = null; }
+  }
+
+  // The point of this diagram is the separation between the two bodies, so the gap is
+  // drawn as a measured span that visibly grows or shrinks while the object travels.
+  function drawMotion() {
+    stopMotionAnim();
+    motionDrawing.innerHTML = '';
+
+    const item = currentCase();
+    const EARTH_X = 640, EARTH_R = 30;
+    const OBJ_R = 26, BASE_X = 210, TRAVEL = 96, CY = 62;
+
+    const dir = item.motion === 'receding' ? -1 : (item.motion === 'approaching' ? 1 : 0);
+    const tone = dir < 0 ? '#ff9a86' : (dir > 0 ? '#7ab8ff' : '#a0b4d4');
+    const headline = dir < 0
+      ? `${item.object} is moving AWAY from Earth`
+      : (dir > 0 ? `${item.object} is moving TOWARD Earth` : `${item.object} has no motion along our line of sight`);
+    const gapWord = dir < 0 ? 'distance increasing' : (dir > 0 ? 'distance decreasing' : 'distance unchanged');
+
+    const title = svgNode('text', {
+      x: 380, y: 18, 'text-anchor': 'middle', fill: tone,
+      'font-size': 17, 'font-weight': '700', 'font-family': 'Arial'
+    });
+    title.textContent = headline;
+    motionDrawing.appendChild(title);
+
+    // Where the object started, so the change in separation is visible even at a glance
+    motionDrawing.appendChild(svgNode('circle', {
+      cx: BASE_X, cy: CY, r: OBJ_R, fill: 'none',
+      stroke: '#6c7f9c', 'stroke-width': 2, 'stroke-dasharray': '5 4'
+    }));
+    const wasLabel = svgNode('text', {
+      x: BASE_X, y: CY - OBJ_R - 8, 'text-anchor': 'middle',
+      fill: '#6c7f9c', 'font-size': 11, 'font-family': 'Arial'
+    });
+    wasLabel.textContent = dir === 0 ? '' : 'was here';
+    motionDrawing.appendChild(wasLabel);
+
+    motionDrawing.appendChild(svgNode('circle', {
+      cx: EARTH_X, cy: CY, r: EARTH_R, fill: '#4c91d8', stroke: '#cce6ff', 'stroke-width': 3
+    }));
+    const earthLabel = svgNode('text', {
+      x: EARTH_X, y: CY + EARTH_R + 20, 'text-anchor': 'middle',
+      fill: '#fff', 'font-size': 15, 'font-family': 'Arial', 'font-weight': '700'
+    });
+    earthLabel.textContent = 'Earth';
+    motionDrawing.appendChild(earthLabel);
+
+    const objGroup = svgNode('g');
+    objGroup.appendChild(svgNode('circle', {
+      cx: BASE_X, cy: CY, r: OBJ_R, fill: '#f4c542', stroke: '#8b6c00', 'stroke-width': 3
+    }));
+    const objLabel = svgNode('text', {
+      x: BASE_X, y: CY + OBJ_R + 20, 'text-anchor': 'middle',
+      fill: '#fff', 'font-size': 15, 'font-family': 'Arial', 'font-weight': '700'
+    });
+    objLabel.textContent = item.object;
+    objGroup.appendChild(objLabel);
+    motionDrawing.appendChild(objGroup);
+
+    // Travel arrow, pinned to the object so it moves along with it. Drawn by hand rather
+    // than with a marker so the head takes the same tint as the shaft.
+    if (dir !== 0) {
+      const ax1 = BASE_X + dir * (OBJ_R + 8);
+      const ax2 = BASE_X + dir * (OBJ_R + 60);
+      objGroup.appendChild(svgNode('line', {
+        x1: ax1, y1: CY, x2: ax2 - dir * 13, y2: CY, stroke: tone, 'stroke-width': 5
+      }));
+      objGroup.appendChild(svgNode('polygon', {
+        points: `${ax2},${CY} ${ax2 - dir * 15},${CY - 9} ${ax2 - dir * 15},${CY + 9}`,
+        fill: tone
+      }));
+    }
+
+    // The measured gap: ticks at each body's edge, span between them, label underneath
+    const GAP_Y = 128;
+    const tick = x => svgNode('line', { x1: x, y1: CY + 34, x2: x, y2: GAP_Y + 8, stroke: '#8b9ebf', 'stroke-width': 1, 'stroke-dasharray': '3 3' });
+    const objTick = tick(BASE_X + OBJ_R);
+    const earthTick = tick(EARTH_X - EARTH_R);
+    motionDrawing.appendChild(objTick);
+    motionDrawing.appendChild(earthTick);
+
+    const gapLine = svgNode('line', {
+      x1: BASE_X + OBJ_R, y1: GAP_Y, x2: EARTH_X - EARTH_R, y2: GAP_Y,
+      stroke: '#dbe7f5', 'stroke-width': 2,
+      'marker-start': 'url(#gapArrowStart)', 'marker-end': 'url(#gapArrowEnd)'
+    });
+    motionDrawing.appendChild(gapLine);
+
+    const gapLabel = svgNode('text', {
+      x: 380, y: GAP_Y + 26, 'text-anchor': 'middle', fill: tone,
+      'font-size': 15, 'font-weight': '700', 'font-family': 'Arial'
+    });
+    gapLabel.textContent = gapWord.toUpperCase();
+    motionDrawing.appendChild(gapLabel);
+
+    motionDesc.textContent = `${headline}. The gap between them shows ${gapWord}.`;
+
+    if (dir === 0) return;
+
+    const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const place = offset => {
+      objGroup.setAttribute('transform', `translate(${offset}, 0)`);
+      gapLine.setAttribute('x1', BASE_X + OBJ_R + offset);
+      objTick.setAttribute('x1', BASE_X + OBJ_R + offset);
+      objTick.setAttribute('x2', BASE_X + OBJ_R + offset);
+    };
+
+    if (reduced) { place(dir * TRAVEL); return; }
+
+    // Sawtooth: drift outward, fade, restart — reads as continuing travel, not oscillation
+    const PERIOD = 2600;
+    const start = performance.now();
+    const tick2 = now => {
+      const t = ((now - start) % PERIOD) / PERIOD;
+      place(dir * TRAVEL * t);
+      objGroup.setAttribute('opacity', t > 0.78 ? String(1 - (t - 0.78) / 0.22 * 0.85) : '1');
+      motionAnim = requestAnimationFrame(tick2);
+    };
+    motionAnim = requestAnimationFrame(tick2);
+  }
+
+  function renderUI() {
+    const item = currentCase();
+    observationTitle.textContent = `Observed spectrum from ${item.object}`;
+    obsLabel.textContent = `OBSERVED SPECTRUM (${item.object.toUpperCase()})`;
+
+    if (phase === 'match') {
+      dropZoneGroup.classList.remove('ssi-hidden');
+      refLayer.classList.add('ssi-hidden');
+      obsDragTarget.classList.add('ssi-hidden');
+      alignActions.classList.add('ssi-hidden');
+      zUser = 0;
+    }
+
+    updateObservedRender();
+
+    renderReferenceCards();
+    choices.innerHTML = '';
+    nextBtn.classList.add('ssi-hidden');
+
+    const phaseData = {
+      match: ['Match the fingerprint', 'Step 1 · Identify', 'Drag a reference spectrum into the top slot. Try any of them — testing one that does not fit is a fair way to rule it out.', 'Which reference has the same absorption-line fingerprint?'],
+      align: ['Align the lines', 'Step 2 · Measure', 'Drag the dashed markers off the solid observed lines until they sit on the reference lines above. The colors stay fixed to the wavelength scale. If the markers never all line up at once, try a different reference.', 'How far must the lines shift to reach their rest wavelengths?'],
+      result: ['Measurement recorded', 'Step 3 · Record', 'Read Δλ and λ₀ from the readout and copy them into your notes. The motion diagram below shows how this object moves relative to Earth.', `Δλ has been measured for ${item.object}.`]
+    };
+
+    const [prog, step, dir, qText] = phaseData[phase];
+    progress.textContent = `Case ${caseIndex + 1} of ${cases.length} · ${prog}`;
+    stepLabel.textContent = step;
+    directions.textContent = dir;
+    question.textContent = qText;
+
+    if (phase === 'result') {
+      nextBtn.textContent = caseIndex === cases.length - 1 ? 'Finish' : 'Next Case';
+      nextBtn.classList.remove('ssi-hidden');
+    }
+  }
+
+  nextBtn.addEventListener('click', () => {
+    if (caseIndex === cases.length - 1) {
+      question.textContent = 'All three measurements recorded';
+      directions.textContent = 'Download your evidence image, then answer the Buzz questions below.';
+      feedback.textContent = 'Measurements complete for all three objects.';
+      feedback.className = 'ssi-feedback good';
+      nextBtn.classList.add('ssi-hidden');
+      progress.textContent = '3 of 3 cases measured';
+      return;
+    }
+    caseIndex++;
+    phase = 'match';
+    selectedReference = null;
+    motionPanel.classList.remove('visible');
+    stopMotionAnim();
+    setFeedback('Drag a reference to the dropzone above to compare.');
+    renderUI();
+  });
+
+  byId('resetBtn').addEventListener('click', () => {
+    caseIndex = 0;
+    phase = 'match';
+    selectedReference = null;
+    measuredCases = {};
+    renderEvidencePanel();
+    byId('evidenceStatus').textContent = '';
+    motionPanel.classList.remove('visible');
+    stopMotionAnim();
+    setFeedback('Drag a reference to the dropzone above to compare.');
+    renderUI();
+  });
+
+  /* ---------------- evidence export ---------------- */
+  const CASE_ORDER = ['Object A', 'Object B', 'Object C'];
+
+  function evidenceReady() {
+    return CASE_ORDER.every(name => measuredCases[name]);
+  }
+
+  function renderEvidencePanel() {
+    const body = byId('evidenceBody');
+    const recorded = CASE_ORDER.filter(name => measuredCases[name]);
+    if (!recorded.length) {
+      body.innerHTML = '<tr class="ssi-empty-row"><td colspan="4">No measurements recorded yet.</td></tr>';
+    } else {
+      body.innerHTML = CASE_ORDER.map(name => {
+        const row = measuredCases[name];
+        if (!row) return `<tr><th scope="row">${name}</th><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>`;
+        const sign = row.deltaLam > 0.05 ? '+' : '';
+        return `<tr><th scope="row">${row.object}</th><td>${row.element}</td><td>${row.lam0.toFixed(1)}</td><td>${sign}${row.deltaLam.toFixed(1)}</td></tr>`;
+      }).join('');
+    }
+    const ready = evidenceReady();
+    byId('downloadEvidence').disabled = !ready;
+    byId('evidenceMessage').textContent = ready
+      ? 'All three objects are measured. Download the evidence image and upload it in Buzz Question 1.'
+      : `Align all three cases. ${recorded.length} of 3 measured so far.`;
+  }
+
+  function downloadBlob(blob, filename) {
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function drawEvidenceTable(ctx, x, y, widths, headers, rows, title) {
+    const rowHeight = 46;
+    const totalWidth = widths.reduce((sum, v) => sum + v, 0);
+    ctx.fillStyle = '#101a2e';
+    ctx.font = '800 24px system-ui';
+    ctx.textAlign = 'left';
+    ctx.fillText(title, x, y - 14);
+    ctx.fillStyle = '#e6ecf7';
+    ctx.fillRect(x, y, totalWidth, rowHeight);
+    let cursor = x;
+    headers.forEach((header, i) => {
+      ctx.strokeStyle = '#9fadc6';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(cursor, y, widths[i], rowHeight);
+      ctx.fillStyle = '#2c3d5c';
+      ctx.font = '800 16px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText(header, cursor + widths[i] / 2, y + 29);
+      cursor += widths[i];
+    });
+    rows.forEach((row, rowIndex) => {
+      cursor = x;
+      const rowY = y + rowHeight * (rowIndex + 1);
+      ctx.fillStyle = rowIndex % 2 ? '#f5f7fc' : '#ffffff';
+      ctx.fillRect(x, rowY, totalWidth, rowHeight);
+      row.forEach((value, i) => {
+        ctx.strokeStyle = '#c0c9dc';
+        ctx.strokeRect(cursor, rowY, widths[i], rowHeight);
+        ctx.fillStyle = '#101a2e';
+        ctx.font = i === 0 ? '800 17px system-ui' : '600 17px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(String(value === '' || value == null ? '—' : value), cursor + widths[i] / 2, rowY + 29);
+        cursor += widths[i];
+      });
+    });
+    return y + rowHeight * (rows.length + 1);
+  }
+
+  function downloadEvidenceImage() {
+    if (!evidenceReady()) {
+      byId('evidenceStatus').textContent = 'Align all three cases before downloading the evidence image.';
+      return;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = 1180;
+    canvas.height = 460;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#f5f7fc';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#101a2e';
+    ctx.fillRect(0, 0, canvas.width, 88);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 31px system-ui';
+    ctx.textAlign = 'left';
+    ctx.fillText('Spectral Shift Investigation Evidence', 56, 55);
+    ctx.fillStyle = '#5a6684';
+    ctx.font = '600 16px system-ui';
+    ctx.fillText('Generated ' + new Date().toLocaleString() + ' · 3 of 3 objects measured', 56, 116);
+
+    const rows = CASE_ORDER.map(name => {
+      const row = measuredCases[name];
+      const sign = row.deltaLam > 0.05 ? '+' : '';
+      return [row.object, row.element, row.lam0.toFixed(1), sign + row.deltaLam.toFixed(1)];
+    });
+    const y = drawEvidenceTable(ctx, 56, 168, [260, 260, 300, 300], ['Object', 'Element', 'Rest wavelength λ₀ (nm)', 'Measured Δλ (nm)'], rows, 'Measured shifts');
+
+    ctx.fillStyle = '#5a6684';
+    ctx.font = '600 15px system-ui';
+    ctx.textAlign = 'left';
+    ctx.fillText('Upload this complete image in Buzz Question 1, then cite specific objects in your written explanations.', 56, y + 44);
+
+    function reportStarted() {
+      byId('evidenceStatus').textContent = 'Evidence image download started. Upload that PNG in Buzz Question 1.';
+      status.textContent = 'Evidence image download started.';
+    }
+    if (canvas.toBlob) {
+      canvas.toBlob(blob => {
+        if (blob) { downloadBlob(blob, 'spectral-shift-evidence.png'); reportStarted(); }
+        else { byId('evidenceStatus').textContent = 'The evidence image could not be created. Try again.'; }
+      }, 'image/png');
+    } else {
+      const link = document.createElement('a');
+      link.href = canvas.toDataURL('image/png');
+      link.download = 'spectral-shift-evidence.png';
+      link.click();
+      reportStarted();
+    }
+  }
+
+  byId('downloadEvidence').addEventListener('click', downloadEvidenceImage);
+  if (window.location.protocol === 'file:' && document.getElementsByTagName('a:question').length) byId('localNote').hidden = false;
+
+  drawAxis();
+  updateGradient('obsGradient', 0); // Static: the color scale is the wavelength axis
+  renderUI();
+  renderEvidencePanel();
+
+})();
+</script>
+<script id="buzz-assessment-integrity-guard">
+(function () {
+  'use strict';
+  ['copy', 'cut', 'paste', 'contextmenu'].forEach(function (eventName) { document.addEventListener(eventName, function (event) { event.preventDefault(); }, true); });
+  document.addEventListener('keydown', function (event) { if ((event.ctrlKey || event.metaKey) && ['c', 'x', 'v'].indexOf(String(event.key).toLowerCase()) !== -1) event.preventDefault(); }, true);
+}());
+</script>
+</body>
+</html>

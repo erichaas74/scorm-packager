@@ -12,6 +12,7 @@ function element(initial = {}) {
     value: '',
     dataset: {},
     classList: { toggle() {} },
+    setAttribute(name, value) { this[name] = value; },
     addEventListener(type, listener) { listeners[type] = listener; },
     click() { if (!this.disabled && listeners.click) listeners.click({ currentTarget: this }); },
     scrollIntoView() {}
@@ -52,7 +53,10 @@ const getNode = selector => {
 
 const machineOrder = ['incline', 'pulley', 'lever', 'wheel'];
 const tabs = machineOrder.map(machine => element({ dataset: { machineTab: machine } }));
-const globalInputs = ['mass', 'height', 'speed'].map(key => element({ dataset: { global: key } }));
+const globalInputs = ['mass', 'height'].map(key => element({ dataset: { global: key } }));
+const imaInputs = [0, 1, 2].map(index => element({ dataset: { calculationIma: String(index) } }));
+const amaInputs = [0, 1, 2].map(index => element({ dataset: { calculationAma: String(index) } }));
+const calculationCards = [0, 1, 2].map(index => element({ dataset: { calculationCard: String(index) } }));
 
 const root = element();
 root.querySelector = selector => getNode(selector);
@@ -61,6 +65,9 @@ root.querySelectorAll = selector => {
   if (selector === '[data-global]') return globalInputs;
   if (selector === '[data-canvas]') return canvases;
   if (selector === '[data-setup-card]') return setupCards;
+  if (selector === '[data-calculation-ima]') return imaInputs;
+  if (selector === '[data-calculation-ama]') return amaInputs;
+  if (selector === '[data-calculation-card]') return calculationCards;
   return [];
 };
 
@@ -76,6 +83,7 @@ const sandbox = {
   setTimeout(callback) { callback(); },
   Blob,
   URL: { createObjectURL: () => 'blob:test', revokeObjectURL() {} },
+  sessionStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
   console
 };
 
@@ -87,6 +95,7 @@ const runButton = getNode('[data-run]');
 const nextButton = getNode('[data-next-level]');
 const progress = getNode('[data-progress]');
 const tableBody = getNode('[data-table-body]');
+const checkButton = getNode('[data-check-calculations]');
 
 function tableRows() {
   return [...tableBody.innerHTML.matchAll(/<tr>([\s\S]*?)<\/tr>/g)].map(row =>
@@ -97,29 +106,35 @@ function tableRows() {
 function verifyThreeSetupLevel(expectedMachineText) {
   assert.strictEqual(canvases.length, 3, 'each level should keep three canvases visible');
   assert.strictEqual(setupCards.length, 3, 'each canvas should have its own setup card');
-  assert(setupCards.every(card => /Equal output work:/.test(card.innerHTML)), 'all three cards should state equal work');
+  assert(setupCards.every(card => /Output force:/.test(card.innerHTML)), 'all three cards should identify the shared output force');
   assert.match(setupCards[0].innerHTML, /Setup A/);
   assert.match(setupCards[1].innerHTML, /Setup B/);
   assert.match(setupCards[2].innerHTML, /Setup C/);
-  assert.match(getNode('[data-pre-difference]').textContent, /compare/i, 'each level should ask what differs before animation');
-  assert.match(getNode('[data-pre-help]').textContent, /help/i, 'each level should ask how the machine helps before animation');
-  const historyStart = setupCards[0].history.length;
   runButton.click();
   const rows = tableRows();
-  assert.strictEqual(rows.length, 3, 'animation should produce three comparison rows');
-  assert.deepStrictEqual(new Set(rows.map(row => row[6])).size, 1, 'output work must be equal in all three setups');
-  assert.strictEqual(new Set(rows.map(row => row[5])).size, 3, 'the three recorded times must differ');
-  assert.strictEqual(new Set(rows.map(row => row[11])).size, 3, 'the three recorded powers must differ');
+  assert.strictEqual(rows.length, 3, 'the lab should acquire three data rows');
+  assert.deepStrictEqual(new Set(rows.map(row => row[2])).size, 1, 'output force must be equal in all three setups');
+  assert.deepStrictEqual(new Set(rows.map(row => row[4])).size, 1, 'output distance must be equal in all three setups');
+  assert.strictEqual(new Set(rows.map(row => row[3])).size, 3, 'the measured input forces must differ');
+  assert.strictEqual(new Set(rows.map(row => row[5])).size, 3, 'the measured input distances must differ');
   assert(rows.every(row => row[0].startsWith('Setup ')), 'rows should be labeled Setup A, B, and C');
-  assert.match(getNode('[data-difference-question]').textContent, /compare/i);
-  assert.match(getNode('[data-help-question]').textContent, /help/i);
-  assert.match(getNode('[data-time-power-question]').textContent, /Setup A:.*Setup B:.*Setup C:/);
-  assert(setupCards.every(card => /Time .* s \/ Power .* W/.test(card.innerHTML)), 'each card should show its own time and power');
-  const runHistoryA = setupCards[0].history.slice(historyStart);
-  const runHistoryC = setupCards[2].history.slice(historyStart);
-  const separatedFinish = runHistoryA.some((markup, index) =>
-    /Animation: 100%/.test(markup) && runHistoryC[index] && !/Animation: 100%/.test(runHistoryC[index]));
-  assert.strictEqual(separatedFinish, true, 'side-by-side animation should show a faster setup finish while another is still moving');
+  assert(setupCards.every(card => /Measured input force:/.test(card.innerHTML)), 'each setup card should report its acquired input force');
+  assert.doesNotMatch(tableBody.innerHTML, /power|time|efficiency/i, 'the simplified data table should stay focused on force and distance');
+
+  imaInputs.forEach(input => { input.value = '99.00'; });
+  amaInputs.forEach(input => { input.value = '99.00'; });
+  checkButton.click();
+  assert.strictEqual(getNode('[data-discovery]').hidden, true, 'incorrect calculations must not complete the machine');
+  assert.match(getNode('[data-calculation-summary]').textContent, /0 of 3 setups verified/);
+
+  rows.forEach((row, index) => {
+    imaInputs[index].value = (Number(row[5]) / Number(row[4])).toFixed(2);
+    amaInputs[index].value = (Number(row[2]) / Number(row[3])).toFixed(2);
+  });
+  checkButton.click();
+  assert.strictEqual(getNode('[data-calculation]').hidden, false, 'calculation panel should remain visible after data acquisition');
+  assert.strictEqual(getNode('[data-discovery]').hidden, false, 'correct IMA and AMA calculations should reveal the comparison');
+  assert.match(getNode('[data-comparison-question]').textContent, /IMA .*AMA/);
   assert.match(getNode('[data-machine-title]').textContent, expectedMachineText);
 }
 
@@ -150,4 +165,4 @@ assert.strictEqual(progress.textContent, '4 of 4 levels complete');
 assert.strictEqual(nextButton.hidden, true, 'Level 4 should not show a next-level button');
 assert.strictEqual(scormStatus, 'completed');
 
-console.log('Free level switching, side-by-side canvases, card alignment, equal-work, distinct-duration/time/power, prompt, progression, and table checks passed.');
+console.log('Free level switching, three-trial data acquisition, IMA/AMA calculation checks, comparison feedback, progression, and focused table checks passed.');
