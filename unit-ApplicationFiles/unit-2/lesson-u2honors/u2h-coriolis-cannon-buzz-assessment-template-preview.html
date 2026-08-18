@@ -213,6 +213,29 @@
       right: 16px;
     }
 
+    .path-legend {
+      position: absolute;
+      left: 16px;
+      bottom: 14px;
+      z-index: 2;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      max-width: calc(100% - 32px);
+      border: 1px solid rgba(226, 232, 240, 0.18);
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.82);
+      color: var(--muted);
+      padding: 8px 10px;
+      font-size: 0.76rem;
+      font-weight: 800;
+      pointer-events: none;
+    }
+
+    .path-legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .path-swatch { width: 22px; height: 4px; border-radius: 999px; background: #f97316; }
+    .path-swatch.rotating { background: #d8b4fe; }
+
     .controls {
       border-radius: 18px;
       padding: 16px;
@@ -346,6 +369,22 @@
       color: var(--text);
     }
 
+    .goal[hidden] { display: none; }
+
+    .hint-toggle {
+      width: 100%;
+      border: 1px solid rgba(56, 189, 248, 0.55);
+      border-radius: 10px;
+      background: rgba(14, 116, 144, 0.2);
+      color: #bae6fd;
+      padding: 10px 12px;
+      font-weight: 800;
+      text-align: left;
+    }
+
+    .hint-toggle:hover { background: rgba(14, 116, 144, 0.34); }
+    .hint-toggle:focus-visible { outline: 3px solid #facc15; outline-offset: 2px; }
+
     .info-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -369,6 +408,11 @@
     .buzz-section h2 { margin-top: 0; }
     .evidence-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
     .evidence-actions button { border-radius: 10px; padding: 10px 14px; background: #0ea5e9; color: #082f49; font-weight: 800; }
+    .lab-progress { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 6px; }
+    .progress-item { border: 1px solid rgba(148, 163, 184, 0.45); border-radius: 999px; padding: 6px 10px; color: var(--muted); font-size: 0.8rem; font-weight: 800; }
+    .progress-item.complete { border-color: #4ade80; background: rgba(34, 197, 94, 0.14); color: #bbf7d0; }
+    .lab-ready-message { margin: 6px 0 12px; color: var(--muted); font-weight: 800; }
+    .lab-ready-message.complete { color: #86efac; }
     .trial-log { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
     .trial-log th, .trial-log td { border: 1px solid rgba(148, 163, 184, 0.35); padding: 7px; text-align: left; }
     .question-card { margin-top: 14px; border-left: 5px solid #a78bfa; border-radius: 10px; padding: 14px; background: #fff; color: #172033; }
@@ -513,8 +557,12 @@
     <section class="grid" aria-label="Coriolis cannon simulation">
       <div class="view-stack">
         <div class="canvas-card">
-          <div class="view-label align-right">Rotating top view</div>
+          <div class="view-label align-right">Inertial + rotating frame comparison</div>
           <canvas id="simCanvas" aria-label="Coriolis cannon top-view simulation canvas"></canvas>
+          <div class="path-legend" aria-hidden="true">
+            <span><i class="path-swatch"></i>Orange: straight inertial-frame path</span>
+            <span><i class="path-swatch rotating"></i>Purple: apparent rotating-frame path</span>
+          </div>
         </div>
 
         <div class="canvas-card side-view">
@@ -532,7 +580,7 @@
 
         <label class="control" for="aimCorrection">
           <div class="label-row"><span>Aim correction</span><strong><span id="aimValue">0</span> deg</strong></div>
-          <input id="aimCorrection" type="range" min="-25" max="25" step="1" value="0" />
+          <input id="aimCorrection" type="range" min="-35" max="35" step="1" value="0" />
           <div class="range-hints"><span>left</span><span>direct</span><span>right</span></div>
         </label>
 
@@ -559,7 +607,8 @@
           </div>
         </div>
 
-        <div class="goal" role="note" aria-label="East and west launch hints">
+        <button id="launchHintButton" class="hint-toggle" type="button" aria-expanded="false" aria-controls="launchHints">Show east-west launch hints</button>
+        <div id="launchHints" class="goal" role="note" aria-label="East and west launch hints" hidden>
           <strong>East-West launch hints:</strong>
           <div><strong>East:</strong> lighter, higher, and longer; curves right toward the south.</div>
           <div><strong>West:</strong> heavier, lower, and shorter; curves right toward the north.</div>
@@ -568,7 +617,7 @@
         </div>
 
         <div class="checks">
-          <label><input id="showEarthPath" type="checkbox" checked /> Show curved rotating-Earth path</label>
+          <label><input id="showEarthPath" type="checkbox" checked /> Show purple apparent path in the rotating frame</label>
         </div>
 
         <div class="goal">
@@ -585,16 +634,22 @@
 
     <section class="buzz-section" aria-labelledby="evidence-title">
       <h2 id="evidence-title">Lab Evidence</h2>
-      <p>Complete direct-aim and corrected-aim trials in all four launch directions. Each finished shot is recorded below.</p>
+      <p>Complete one direct-aim trial in each direction and at least one corrected-aim hit. The trial log stays available after a refresh in this browser tab.</p>
+      <div id="labProgress" class="lab-progress" aria-label="Lab completion progress">
+        <span class="progress-item" data-progress-launch="South to North">South to North direct</span>
+        <span class="progress-item" data-progress-launch="North to South">North to South direct</span>
+        <span class="progress-item" data-progress-launch="West to East">West to East direct</span>
+        <span class="progress-item" data-progress-launch="East to West">East to West direct</span>
+        <span id="correctedHitProgress" class="progress-item">Corrected-aim hit</span>
+      </div>
+      <p id="labReadyMessage" class="lab-ready-message" aria-live="polite">Complete the five evidence goals before answering the final two questions.</p>
       <div class="evidence-actions">
-        <button id="copyEvidenceBtn" type="button">Copy values for Buzz</button>
-        <button id="downloadEvidenceBtn" type="button">Download Evidence Image</button>
         <button id="clearEvidenceBtn" type="button">Clear Trial Log</button>
       </div>
       <div style="overflow-x:auto;">
         <table class="trial-log">
-          <thead><tr><th>Trial</th><th>Launch</th><th>Aim</th><th>Hemisphere</th><th>Result</th><th>Miss</th></tr></thead>
-          <tbody id="trialLogBody"><tr><td colspan="6">No completed shots yet.</td></tr></tbody>
+          <thead><tr><th>Trial</th><th>Launch</th><th>Aim</th><th>Hemisphere</th><th>Speed</th><th>Distance</th><th>Rotation</th><th>Result</th><th>Miss direction</th><th>Miss</th></tr></thead>
+          <tbody id="trialLogBody"><tr><td colspan="10">No completed shots yet.</td></tr></tbody>
         </table>
       </div>
       <p id="evidenceMessage" aria-live="polite"></p>
@@ -602,8 +657,7 @@
 
     <section class="buzz-section" aria-labelledby="questions-title">
       <h2 id="questions-title">Buzz Assessment Questions</h2>
-      <div class="question-card">
-    <div class="buzz-preview-question" data-buzz-preview-question="1">
+      <div class="question-card"><div class="buzz-preview-question" data-buzz-preview-question="1">
       <div class="buzz-preview-head">
         <strong>Buzz Question 1</strong>
         <span>MC - 1 point</span>
@@ -613,10 +667,10 @@
       <div class="buzz-preview-details"><div class="buzz-preview-option correct"><span>A</span><p>East of the target</p></div>
 <div class="buzz-preview-option"><span>B</span><p>West of the target</p></div>
 <div class="buzz-preview-option"><span>C</span><p>It hits the center with no sideways deflection</p></div>
-<div class="buzz-preview-option"><span>D</span><p>It reverses direction before reaching the target</p></div></div>
+<div class="buzz-preview-option"><span>D</span><p>It reverses direction before reaching the target</p></div>
+<div class="buzz-preview-feedback"><strong>Always</strong> Feedback: In this Northern Hemisphere model, a northbound shell deflects to the right of its motion, which places it east of the target.</div></div>
     </div></div>
-      <div class="question-card">
-    <div class="buzz-preview-question" data-buzz-preview-question="2">
+      <div class="question-card"><div class="buzz-preview-question" data-buzz-preview-question="2">
       <div class="buzz-preview-head">
         <strong>Buzz Question 2</strong>
         <span>MC - 1 point</span>
@@ -626,10 +680,10 @@
       <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>East of the target</p></div>
 <div class="buzz-preview-option correct"><span>B</span><p>West of the target</p></div>
 <div class="buzz-preview-option"><span>C</span><p>North of the target</p></div>
-<div class="buzz-preview-option"><span>D</span><p>It hits the center with no deflection</p></div></div>
+<div class="buzz-preview-option"><span>D</span><p>It hits the center with no deflection</p></div>
+<div class="buzz-preview-feedback"><strong>Always</strong> Feedback: A southbound shell still deflects to the right of its motion; when facing south, right is west.</div></div>
     </div></div>
-      <div class="question-card">
-    <div class="buzz-preview-question" data-buzz-preview-question="3">
+      <div class="question-card"><div class="buzz-preview-question" data-buzz-preview-question="3">
       <div class="buzz-preview-head">
         <strong>Buzz Question 3</strong>
         <span>MC - 1 point</span>
@@ -639,10 +693,10 @@
       <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>North of the target</p></div>
 <div class="buzz-preview-option"><span>B</span><p>East of the target</p></div>
 <div class="buzz-preview-option correct"><span>C</span><p>South of the target</p></div>
-<div class="buzz-preview-option"><span>D</span><p>It hits the center with no deflection</p></div></div>
+<div class="buzz-preview-option"><span>D</span><p>It hits the center with no deflection</p></div>
+<div class="buzz-preview-feedback"><strong>Always</strong> Feedback: For an eastbound launch, the right-hand side of the motion points south, so the apparent deflection is southward.</div></div>
     </div></div>
-      <div class="question-card">
-    <div class="buzz-preview-question" data-buzz-preview-question="4">
+      <div class="question-card"><div class="buzz-preview-question" data-buzz-preview-question="4">
       <div class="buzz-preview-head">
         <strong>Buzz Question 4</strong>
         <span>MC - 1 point</span>
@@ -652,10 +706,10 @@
       <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>South of the target</p></div>
 <div class="buzz-preview-option"><span>B</span><p>East of the target</p></div>
 <div class="buzz-preview-option"><span>C</span><p>It hits the center with no deflection</p></div>
-<div class="buzz-preview-option correct"><span>D</span><p>North of the target</p></div></div>
+<div class="buzz-preview-option correct"><span>D</span><p>North of the target</p></div>
+<div class="buzz-preview-feedback"><strong>Always</strong> Feedback: For a westbound launch, the right-hand side of the motion points north, so the apparent deflection is northward.</div></div>
     </div></div>
-      <div class="question-card">
-    <div class="buzz-preview-question" data-buzz-preview-question="5">
+      <div class="question-card"><div class="buzz-preview-question" data-buzz-preview-question="5">
       <div class="buzz-preview-head">
         <strong>Buzz Question 5</strong>
         <span>MC - 2 points</span>
@@ -665,10 +719,10 @@
       <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>Both observers see a real sideways force bend the shell through the same curve.</p></div>
 <div class="buzz-preview-option correct"><span>B</span><p>The inertial observer sees a straight horizontal path while the rotating observer describes an apparent curved path.</p></div>
 <div class="buzz-preview-option"><span>C</span><p>The rotating observer sees a straight path while the inertial observer sees a curve.</p></div>
-<div class="buzz-preview-option"><span>D</span><p>Both observers see the shell remain fixed while Earth rotates.</p></div></div>
+<div class="buzz-preview-option"><span>D</span><p>Both observers see the shell remain fixed while Earth rotates.</p></div>
+<div class="buzz-preview-feedback"><strong>Always</strong> Feedback: The inertial-frame path remains straight after launch, while the rotating cannon, target, and observer make that same motion appear curved relative to the surface.</div></div>
     </div></div>
-      <div class="question-card">
-    <div class="buzz-preview-question" data-buzz-preview-question="6">
+      <div class="question-card"><div class="buzz-preview-question" data-buzz-preview-question="6">
       <div class="buzz-preview-head">
         <strong>Buzz Question 6</strong>
         <span>MC - 2 points</span>
@@ -678,44 +732,30 @@
       <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>The deflection keeps the same direction and magnitude for every launch.</p></div>
 <div class="buzz-preview-option correct"><span>B</span><p>The apparent sideways direction reverses with the projectile velocity direction.</p></div>
 <div class="buzz-preview-option"><span>C</span><p>The deflection disappears because the target is stationary.</p></div>
-<div class="buzz-preview-option"><span>D</span><p>The shell begins accelerating backward along its launch path.</p></div></div>
+<div class="buzz-preview-option"><span>D</span><p>The shell begins accelerating backward along its launch path.</p></div>
+<div class="buzz-preview-feedback"><strong>Always</strong> Feedback: Apparent Coriolis deflection depends on projectile velocity, so reversing the velocity reverses the sideways direction.</div></div>
     </div></div>
-      <div class="question-card">
-    <div class="buzz-preview-question" data-buzz-preview-question="7">
+      <div class="question-card"><div class="buzz-preview-question" data-buzz-preview-question="7">
       <div class="buzz-preview-head">
         <strong>Buzz Question 7</strong>
-        <span>MC - 2 points</span>
+        <span>E - 3 points</span>
       </div>
-      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: MC</span><span class="buzz-preview-chip">Score: 2</span></div>
-      <div class="buzz-preview-prompt">7) After a direct-aim trial misses to one side, which adjustment is most likely to produce a hit?</div>
-      <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>Aim farther toward the observed miss.</p></div>
-<div class="buzz-preview-option correct"><span>B</span><p>Aim opposite the observed deflection and refine the correction with another trial.</p></div>
-<div class="buzz-preview-option"><span>C</span><p>Keep direct aim and reduce the target size.</p></div>
-<div class="buzz-preview-option"><span>D</span><p>Reverse Earth&#39;s rotation without changing the aim.</p></div></div>
-    </div></div>
-      <div class="question-card">
-    <div class="buzz-preview-question" data-buzz-preview-question="8">
-      <div class="buzz-preview-head">
-        <strong>Buzz Question 8</strong>
-        <span>E - 2 points</span>
-      </div>
-      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: E</span><span class="buzz-preview-chip">Score: 2</span><span class="buzz-preview-chip">Height: 260</span><span class="buzz-preview-chip">MinWords: 60</span></div>
-      <div class="buzz-preview-prompt">8) Compare your direct-aim trials in all four launch directions. Cite the observed miss direction for each trial and explain how reversing north-south or east-west motion changed the apparent deflection.</div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: E</span><span class="buzz-preview-chip">Score: 3</span><span class="buzz-preview-chip">Height: 260</span><span class="buzz-preview-chip">MinWords: 60</span></div>
+      <div class="buzz-preview-prompt">7) Compare your direct-aim trials in all four launch directions. Cite the observed miss direction for each trial and explain how reversing north-south or east-west motion changed the apparent deflection.</div>
       <div class="buzz-preview-details"><div class="buzz-preview-feedback"><strong>Always</strong> Grading feedback: Grade the four-direction evidence and the relationship between projectile velocity direction and apparent Coriolis deflection.</div>
 <div class="buzz-preview-option"><span>A</span><p>Full credit: Cites accurate outcomes for all four directions and explains that reversing velocity reverses the sideways apparent deflection in the rotating frame. Partial credit: Gives the correct reversal pattern with incomplete trial evidence. No credit: Claims every direction deflects the same way or provides no usable trial results.</p></div></div>
     </div></div>
-      <div class="question-card">
-    <div class="buzz-preview-question" data-buzz-preview-question="9">
+      <div class="question-card"><div class="buzz-preview-question" data-buzz-preview-question="8">
       <div class="buzz-preview-head">
-        <strong>Buzz Question 9</strong>
-        <span>E - 3 points</span>
+        <strong>Buzz Question 8</strong>
+        <span>E - 4 points</span>
       </div>
-      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: E</span><span class="buzz-preview-chip">Score: 3</span><span class="buzz-preview-chip">Height: 320</span><span class="buzz-preview-chip">MinWords: 90</span></div>
-      <div class="buzz-preview-prompt">9) Write a claim-evidence-reasoning conclusion explaining the Coriolis effect. Cite one direct-aim miss and one corrected-aim hit, then explain why the shell can move straight in an inertial frame while appearing curved to the rotating observer.</div>
+      <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: E</span><span class="buzz-preview-chip">Score: 4</span><span class="buzz-preview-chip">Height: 320</span><span class="buzz-preview-chip">MinWords: 90</span></div>
+      <div class="buzz-preview-prompt">8) Write a claim-evidence-reasoning conclusion explaining the Coriolis effect. Cite one direct-aim miss and one corrected-aim hit, then explain why the shell can move straight in an inertial frame while appearing curved to the rotating observer.</div>
       <div class="buzz-preview-details"><div class="buzz-preview-feedback"><strong>Always</strong> Grading feedback: Grade the frame-based claim, trial evidence, and explanation of the apparent deflection.</div>
 <div class="buzz-preview-option"><span>A</span><p>Full credit: Cites a valid miss and corrected hit, distinguishes the inertial and rotating observations, and explains that the ground, cannon, target, and observer rotate beneath an inertially moving shell. Partial credit: Gives a mostly correct frame explanation with incomplete evidence or weak correction reasoning. No credit: Treats the Coriolis effect as an unexplained physical sideways push or provides no relevant evidence.</p></div></div>
     </div></div>
-      <p><strong>Return to Buzz:</strong> finish every question and submit your evidence image.</p>
+      <p><strong>Before submitting:</strong> keep the completed trial log visible, answer all eight questions, and cite its values directly in Questions 7 and 8. No evidence upload is required.</p>
     </section>
   </main>
 
@@ -1063,6 +1103,13 @@
       var targetSouthBtn = document.getElementById("targetSouthBtn");
       var targetEastBtn = document.getElementById("targetEastBtn");
       var targetWestBtn = document.getElementById("targetWestBtn");
+      var launchHintButton = document.getElementById("launchHintButton");
+      var launchHints = document.getElementById("launchHints");
+      var TARGET_RADIUS = 15;
+      var SHELL_RADIUS = 7;
+      var HIT_RADIUS = TARGET_RADIUS + SHELL_RADIUS;
+      var RESULT_DISPLAY_MS = 3000;
+      var STORAGE_KEY = "u2h-coriolis-trial-log-v2";
 
       var projectile = null;
       var launchPlan = null;
@@ -1070,15 +1117,18 @@
       var lastTime = 0;
       var status = "Ready";
       var missDistance = null;
+      var missDirection = "Center";
+      var resultOverlay = null;
+      var resultResetTimer = null;
       var hemisphere = "North";
       var targetDirection = "North";
-      var scormCompleted = false;
-      var trialLog = [];
+      var trialLog = loadTrialLog();
       var trialLogBody = document.getElementById("trialLogBody");
       var evidenceMessage = document.getElementById("evidenceMessage");
-      var copyEvidenceBtn = document.getElementById("copyEvidenceBtn");
-      var downloadEvidenceBtn = document.getElementById("downloadEvidenceBtn");
       var clearEvidenceBtn = document.getElementById("clearEvidenceBtn");
+      var progressItems = Array.prototype.slice.call(document.querySelectorAll("[data-progress-launch]"));
+      var correctedHitProgress = document.getElementById("correctedHitProgress");
+      var labReadyMessage = document.getElementById("labReadyMessage");
 
       function params() {
         return {
@@ -1264,11 +1314,67 @@
         };
       }
 
-      function setStatus(nextStatus, nextMissDistance) {
+      function setFlightControlsLocked(locked) {
+        fireBtn.disabled = locked;
+        inputs.aimCorrection.disabled = locked;
+        [targetNorthBtn, targetSouthBtn, targetEastBtn, targetWestBtn].forEach(function(button) {
+          button.disabled = locked;
+        });
+      }
+
+      function setStatus(nextStatus, nextMissDistance, nextMissDirection) {
         status = nextStatus;
         missDistance = nextMissDistance == null ? null : nextMissDistance;
+        missDirection = nextMissDirection || "Center";
+        setFlightControlsLocked(status === "Flying");
         statusNode.className = "status " + status.toLowerCase();
-        statusNode.textContent = "Status: " + status + (missDistance && missDistance > 0 ? " - Missed by " + missDistance + " px" : "");
+        statusNode.textContent = "Status: " + status + (missDistance && missDistance > 0 ? " - Missed " + missDistance + " px " + missDirection.toLowerCase() : "");
+      }
+
+      function clearResultOverlay() {
+        if (resultResetTimer !== null) window.clearTimeout(resultResetTimer);
+        resultResetTimer = null;
+        resultOverlay = null;
+      }
+
+      function showResultOverlay(result, detail) {
+        clearResultOverlay();
+        resultOverlay = { result: result, detail: detail };
+        resultResetTimer = window.setTimeout(function() {
+          resultResetTimer = null;
+          resultOverlay = null;
+          if (status === "Hit" || status === "Miss") {
+            projectile = null;
+            launchPlan = null;
+            setStatus("Ready");
+            syncGlobeScenario();
+            if (window.coriolisGlobe) window.coriolisGlobe.resetProjectile();
+          }
+        }, RESULT_DISPLAY_MS);
+      }
+
+      function drawResultOverlay(drawCtx, width, height) {
+        if (!resultOverlay) return;
+        var boxWidth = Math.min(360, width - 32);
+        var boxHeight = 104;
+        var left = (width - boxWidth) / 2;
+        var top = (height - boxHeight) / 2;
+        var isHit = resultOverlay.result === "Hit";
+
+        drawCtx.save();
+        drawCtx.fillStyle = isHit ? "rgba(21, 128, 61, 0.94)" : "rgba(185, 28, 28, 0.94)";
+        drawCtx.strokeStyle = isHit ? "#bbf7d0" : "#fecaca";
+        drawCtx.lineWidth = 4;
+        drawCtx.fillRect(left, top, boxWidth, boxHeight);
+        drawCtx.strokeRect(left, top, boxWidth, boxHeight);
+        drawCtx.textAlign = "center";
+        drawCtx.textBaseline = "middle";
+        drawCtx.fillStyle = "#ffffff";
+        drawCtx.font = "900 34px system-ui, sans-serif";
+        drawCtx.fillText(resultOverlay.result.toUpperCase(), width / 2, top + 38);
+        drawCtx.font = "800 15px system-ui, sans-serif";
+        drawCtx.fillText(resultOverlay.detail, width / 2, top + 76);
+        drawCtx.restore();
       }
 
       function launchDirectionLabel() {
@@ -1278,100 +1384,91 @@
         return "East to West";
       }
 
-      function evidenceText() {
-        var header = "Trial | Launch | Aim | Hemisphere | Result | Miss";
-        return [header].concat(trialLog.map(function(trial) {
-          return [trial.number, trial.launch, trial.aim + " deg", trial.hemisphere, trial.result, trial.miss].join(" | ");
-        })).join("\n");
+      function missDirectionLabel(localOffset) {
+        if (Math.abs(localOffset.x) >= Math.abs(localOffset.y)) return localOffset.x >= 0 ? "East" : "West";
+        return localOffset.y >= 0 ? "South" : "North";
+      }
+
+      function loadTrialLog() {
+        try {
+          var stored = window.sessionStorage.getItem(STORAGE_KEY);
+          var parsed = stored ? JSON.parse(stored) : [];
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+          return [];
+        }
+      }
+
+      function saveTrialLog() {
+        try {
+          window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(trialLog));
+        } catch (error) {
+          evidenceMessage.textContent = "Trials are recorded, but this browser blocked refresh persistence.";
+        }
+      }
+
+      function renderProgress() {
+        var directLaunches = {};
+        var correctedHit = false;
+        trialLog.forEach(function(trial) {
+          if (Number(trial.aim) === 0) directLaunches[trial.launch] = true;
+          if (Number(trial.aim) !== 0 && trial.result === "Hit") correctedHit = true;
+        });
+        progressItems.forEach(function(item) {
+          item.classList.toggle("complete", Boolean(directLaunches[item.getAttribute("data-progress-launch")]));
+        });
+        correctedHitProgress.classList.toggle("complete", correctedHit);
+        var directCount = Object.keys(directLaunches).length;
+        var complete = directCount === 4 && correctedHit;
+        labReadyMessage.classList.toggle("complete", complete);
+        labReadyMessage.textContent = complete
+          ? "Evidence complete: use this trial log in Questions 7 and 8."
+          : directCount + " of 4 direct-aim directions complete; corrected-aim hit " + (correctedHit ? "complete." : "still needed.");
       }
 
       function renderTrialLog() {
         trialLogBody.innerHTML = "";
         if (!trialLog.length) {
-          trialLogBody.innerHTML = '<tr><td colspan="6">No completed shots yet.</td></tr>';
+          trialLogBody.innerHTML = '<tr><td colspan="10">No completed shots yet.</td></tr>';
+          renderProgress();
           return;
         }
         trialLog.forEach(function(trial) {
           var row = document.createElement("tr");
-          [trial.number, trial.launch, trial.aim + " deg", trial.hemisphere, trial.result, trial.miss].forEach(function(value) {
+          [trial.number, trial.launch, trial.aim + " deg", trial.hemisphere, trial.speed + " m/s", trial.distance + " m", trial.rotation + " deg/s", trial.result, trial.missDirection, trial.miss].forEach(function(value) {
             var cell = document.createElement("td");
             cell.textContent = value;
             row.appendChild(cell);
           });
           trialLogBody.appendChild(row);
         });
+        renderProgress();
       }
 
       function recordTrial() {
         if (!projectile || projectile.recorded) return;
         projectile.recorded = true;
+        var launch = projectile.launchData;
         trialLog.push({
           number: trialLog.length + 1,
-          launch: launchDirectionLabel(),
-          aim: Number(inputs.aimCorrection.value),
-          hemisphere: hemisphere,
+          launch: launch.launch,
+          aim: launch.aim,
+          hemisphere: launch.hemisphere,
+          speed: launch.speed,
+          distance: launch.distance,
+          rotation: launch.rotation,
           result: status,
+          missDirection: status === "Hit" ? "Center" : missDirection,
           miss: status === "Hit" ? "0 px" : Math.round(missDistance || 0) + " px"
         });
+        saveTrialLog();
         renderTrialLog();
         evidenceMessage.textContent = "Trial " + trialLog.length + " recorded.";
       }
 
-      function copyEvidence() {
-        if (!trialLog.length) {
-          evidenceMessage.textContent = "Complete at least one shot before copying evidence.";
-          return;
-        }
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(evidenceText()).then(function() {
-            evidenceMessage.textContent = "Trial values copied. Paste them into your Buzz response.";
-          });
-        } else {
-          evidenceMessage.textContent = evidenceText();
-        }
-      }
-
-      function downloadEvidence() {
-        if (!trialLog.length) {
-          evidenceMessage.textContent = "Complete at least one shot before downloading evidence.";
-          return;
-        }
-        var evidenceCanvas = document.createElement("canvas");
-        evidenceCanvas.width = 1200;
-        evidenceCanvas.height = 170 + trialLog.length * 42;
-        var evidenceCtx = evidenceCanvas.getContext("2d");
-        evidenceCtx.fillStyle = "#ffffff";
-        evidenceCtx.fillRect(0, 0, evidenceCanvas.width, evidenceCanvas.height);
-        evidenceCtx.fillStyle = "#172033";
-        evidenceCtx.font = "bold 30px Arial";
-        evidenceCtx.fillText("Unit 2 Honors - Coriolis Cannon Evidence", 40, 52);
-        evidenceCtx.font = "18px Arial";
-        evidenceCtx.fillText("Trial     Launch                         Aim       Hemisphere       Result       Miss", 40, 100);
-        trialLog.forEach(function(trial, index) {
-          evidenceCtx.fillText([trial.number, trial.launch, trial.aim + " deg", trial.hemisphere, trial.result, trial.miss].join("     "), 40, 145 + index * 42);
-        });
-        var link = document.createElement("a");
-        link.download = "u2h-coriolis-evidence.png";
-        link.href = evidenceCanvas.toDataURL("image/png");
-        link.click();
-        evidenceMessage.textContent = "Evidence image downloaded. Upload it to Question 9.";
-      }
-
-      function markSCORMComplete() {
-        if (scormCompleted || !window.SCORM) return;
-        scormCompleted = true;
-        window.SCORM.setScore(100, 0, 100);
-        window.SCORM.setStatus("completed");
-        window.SCORM.commit();
-      }
-
-      function loadSCORMState() {
-        if (!window.SCORM) return;
-        var lessonStatus = window.SCORM.getValue("cmi.core.lesson_status");
-        scormCompleted = lessonStatus === "completed" || lessonStatus === "passed";
-      }
-
       function fire() {
+        if (status === "Flying") return;
+        clearResultOverlay();
         var p = params();
         var points = getLocalPoints();
         var cannonWorld = rotate(points.cannon, theta);
@@ -1386,7 +1483,16 @@
           velocity: launchPlan.worldVelocity,
           t: 0,
           history: [{ time: 0, world: cannonWorld }],
-          maxTime: launchPlan.flightTime
+          maxTime: launchPlan.flightTime,
+          targetLocal: { x: points.target.x, y: points.target.y },
+          launchData: {
+            launch: launchDirectionLabel(),
+            aim: p.aimCorrection,
+            hemisphere: p.hemisphere,
+            speed: p.shellSpeed,
+            distance: p.targetDistance,
+            rotation: p.rotationRate
+          }
         };
 
         setStatus("Flying");
@@ -1398,6 +1504,7 @@
       }
 
       function reset() {
+        clearResultOverlay();
         projectile = null;
         launchPlan = null;
         theta = 0;
@@ -1527,7 +1634,7 @@
 
         ctx.fillStyle = "#ef4444";
         ctx.beginPath();
-        ctx.arc(targetWorld.x, targetWorld.y, 15, 0, Math.PI * 2);
+        ctx.arc(targetWorld.x, targetWorld.y, TARGET_RADIUS, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = "white";
         ctx.lineWidth = 3;
@@ -1569,7 +1676,7 @@
         var current = projectile.history[projectile.history.length - 1].world;
         var flightProgress = Math.max(0, Math.min(1, projectile.t / Math.max(0.01, projectile.maxTime)));
         var altitudeFactor = Math.sin(Math.PI * flightProgress);
-        var topViewRadius = 7 + altitudeFactor * 9;
+        var topViewRadius = SHELL_RADIUS + altitudeFactor * 9;
 
         ctx.save();
         ctx.translate(centerX, centerY);
@@ -1899,20 +2006,22 @@
         projectile.history.push({ time: projectile.t, world: currentWorld });
         if (projectile.history.length > 500) projectile.history.shift();
 
-        var target = getLocalPoints().target;
-        var targetWorld = rotate(target, theta);
-        var distance = mag(sub(currentWorld, targetWorld));
+        var targetWorld = rotate(projectile.targetLocal, theta);
+        var missOffsetLocal = rotate(sub(currentWorld, targetWorld), -theta);
+        var distance = mag(missOffsetLocal);
+        var direction = missDirectionLabel(missOffsetLocal);
         var globeStatus = "Flying";
 
-        if (distance < 18) {
-          setStatus("Hit", 0);
+        if (distance <= HIT_RADIUS) {
+          setStatus("Hit", 0, "Center");
           globeStatus = "Hit";
-          markSCORMComplete();
           recordTrial();
+          showResultOverlay("Hit", "Target hit - trial recorded");
         } else if (projectile.t >= projectile.maxTime || mag(currentWorld) > 420) {
-          setStatus("Miss", Math.round(distance));
+          setStatus("Miss", Math.round(distance), direction);
           globeStatus = "Miss";
           recordTrial();
+          showResultOverlay("Miss", Math.round(distance) + " px " + direction.toLowerCase() + " - trial recorded");
         }
 
         syncGlobeProjectile(currentWorld, globeStatus);
@@ -1944,6 +2053,8 @@
         drawCannonAndTarget(centerX, centerY);
         drawProjectile(centerX, centerY);
         drawSideView(sideCanvas.clientWidth, sideCanvas.clientHeight);
+        drawResultOverlay(ctx, width, height);
+        drawResultOverlay(sideCtx, sideCanvas.clientWidth, sideCanvas.clientHeight);
         window.requestAnimationFrame(drawFrame);
       }
 
@@ -1964,6 +2075,7 @@
       }
 
       function setTargetDirection(nextDirection) {
+        clearResultOverlay();
         targetDirection = nextDirection;
         targetNorthBtn.classList.toggle("active", targetDirection === "North");
         targetSouthBtn.classList.toggle("active", targetDirection === "South");
@@ -1993,10 +2105,15 @@
       targetSouthBtn.addEventListener("click", function() { setTargetDirection("South"); });
       targetEastBtn.addEventListener("click", function() { setTargetDirection("East"); });
       targetWestBtn.addEventListener("click", function() { setTargetDirection("West"); });
-      copyEvidenceBtn.addEventListener("click", copyEvidence);
-      downloadEvidenceBtn.addEventListener("click", downloadEvidence);
+      launchHintButton.addEventListener("click", function() {
+        var showHints = launchHints.hidden;
+        launchHints.hidden = !showHints;
+        launchHintButton.setAttribute("aria-expanded", String(showHints));
+        launchHintButton.textContent = showHints ? "Hide east-west launch hints" : "Show east-west launch hints";
+      });
       clearEvidenceBtn.addEventListener("click", function() {
         trialLog = [];
+        saveTrialLog();
         renderTrialLog();
         evidenceMessage.textContent = "Trial log cleared.";
       });
@@ -2005,7 +2122,7 @@
       syncControls();
       syncGlobeScenario();
       resize();
-      loadSCORMState();
+      renderTrialLog();
       window.requestAnimationFrame(drawFrame);
     }());
   </script>

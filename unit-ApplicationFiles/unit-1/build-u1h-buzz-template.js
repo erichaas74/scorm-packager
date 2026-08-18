@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const lessonDir = __dirname;
+const lessonDir = path.join(__dirname, 'lesson-honors');
 
 /* Sources vary between CRLF/BOM and LF; every match below assumes plain LF. */
 function readSource(name) {
@@ -59,9 +59,9 @@ const SECTIONS = [
     name: 'Powered Burn',
     flightTitle: 'Flight View — Powered Burn',
     chip: 'Stage 1 · Burn',
-    blurb: 'The rocket lifts off from rest and holds a constant engine acceleration until cutoff, then the flight freezes. '
-      + 'The grid lists only what the flight computer measures: the starting velocity, the burn acceleration, and the burn time. '
-      + 'Displacement and burnout velocity stay blank — read the givens off the simulation and calculate them yourself.',
+    blurb: '<strong>Flight engineers, begin the launch sequence!</strong> The rocket blasts off from rest under constant acceleration and freezes at engine cutoff. '
+      + 'Mission Control gives you only the starting velocity, burn acceleration, and burn time. The displacement and burnout velocity displays stay dark — '
+      + 'use the live givens to calculate both values and clear the first stage.',
     launchLabel: 'Run Burn',
     runningLabel: 'Burning...',
     replayLabel: 'Replay Burn',
@@ -91,9 +91,9 @@ const SECTIONS = [
     name: 'Coast to Apex',
     flightTitle: 'Flight View — Coast to Apex',
     chip: 'Stage 2 · Coast',
-    blurb: 'The same burn runs again, but this time the flight continues after cutoff. With the engine off, gravity alone acts on the rocket '
-      + 'until it stops climbing, and the flight freezes at the apex. The mission clock is switched off for this run: the coast duration is '
-      + 'one of the values you calculate.',
+    blurb: '<strong>Cut the engine and track the climb!</strong> Replay the same launch, then watch gravity take command after burnout. '
+      + 'The rocket coasts upward until its velocity reaches zero and the view freezes at the apex. The mission clock is intentionally offline — '
+      + 'carry your Stage 1 velocity forward and calculate the coast height and duration.',
     launchLabel: 'Run Ascent',
     runningLabel: 'Climbing...',
     replayLabel: 'Replay Ascent',
@@ -127,9 +127,9 @@ const SECTIONS = [
     name: 'Apex Verification',
     flightTitle: 'Flight View — Full Ascent',
     chip: 'Stage 3 · Apex',
-    blurb: 'The whole ascent again, burn and coast as one flight. Nothing new is measured here — this section is where the two phases get '
-      + 'stacked together. The altitude rail, the altitude readout, and the apex marker are all blank, so the maximum height has to come '
-      + 'from your Section 1 and Section 2 results rather than from the screen.',
+    blurb: '<strong>Now predict the mission’s highest point!</strong> Run the powered burn and coast as one continuous ascent, then combine your first two stage results. '
+      + 'The altitude rail, altitude readout, and apex marker are blacked out, so the rocket cannot reveal the answer. Use your calculations to determine '
+      + 'the maximum height and total time to apex.',
     launchLabel: 'Run Full Ascent',
     runningLabel: 'Climbing...',
     replayLabel: 'Replay Ascent',
@@ -167,10 +167,10 @@ const SECTIONS = [
     name: 'Full Mission',
     flightTitle: 'Flight View — Full Mission',
     chip: 'Stage 4 · Full mission',
-    blurb: 'One uninterrupted flight: burn, coast, free fall, retro burn, touchdown. Every numeric readout is switched off for this run — '
-      + 'no clock, no altitude, no velocity, no markers. <strong>Mission rule: the retro engine ignites at one third of the apex height, '
-      + 'and the Retro row lists the net acceleration it produces, gravity already included.</strong> These questions are about the flight '
-      + 'as a whole, so work out the free-fall and retro phases from that rule and then combine all four phases with your Section 1–3 answers.',
+    blurb: '<strong>Final mission: bring the rocket home!</strong> Watch one uninterrupted flight through powered burn, coast, free fall, retro burn, and touchdown. '
+      + 'Every numeric readout is now dark — no clock, altitude, velocity, or marker will rescue the crew. <strong>Mission rule: the retro engine ignites at one third '
+      + 'of the apex height, and the Retro row shows its net acceleration with gravity already included.</strong> Solve the free-fall and retro phases, then combine '
+      + 'all four stages to complete the mission debrief.',
     launchLabel: 'Run Full Mission',
     runningLabel: 'Flying...',
     replayLabel: 'Replay Mission',
@@ -201,8 +201,12 @@ const SECTIONS = [
     },
     questions: {
       title: 'Stage 4 Questions',
-      note: 'Nothing on this screen reports a number. These ask about the complete flight, not a single phase.',
+      note: 'Nothing on this screen reports a number. Use the complete flight for the two numeric questions beside the simulation.',
       count: 4,
+      inlineCount: 2,
+      fullWidthCount: 2,
+      fullWidthTitle: 'Final Analysis Questions',
+      fullWidthNote: '<strong>Mission debrief:</strong> use evidence from the complete flight above to defend your answers to Questions 9 and 10. Each response spans the full assessment width.',
     },
   },
 ];
@@ -633,7 +637,14 @@ function buildSectionMarkup(section) {
     `stage tabs (section ${section.key})`
   );
 
-  const slots = Array.from({ length: section.questions.count }, () => '              <div class="buzz-slot"><a:question></a:question></div>').join('\n');
+  const inlineCount = section.questions.inlineCount == null
+    ? section.questions.count
+    : section.questions.inlineCount;
+  const fullWidthCount = section.questions.fullWidthCount || 0;
+  if (inlineCount + fullWidthCount !== section.questions.count) {
+    throw new Error(`Section ${section.key} question layout does not match its question count.`);
+  }
+  const slots = Array.from({ length: inlineCount }, () => '              <div class="buzz-slot"><a:question></a:question></div>').join('\n');
   markup = replaceOnce(
     markup,
     QUESTION_CARD_BLOCK,
@@ -644,6 +655,14 @@ ${slots}
             </div>`,
     `question card (section ${section.key})`
   );
+
+  const fullWidthQuestions = fullWidthCount
+    ? `<div class="buzz-block ${section.tone} full-width">
+        <div class="buzz-block-title">${section.questions.fullWidthTitle || section.questions.title}</div>
+        <p class="buzz-block-note">${section.questions.fullWidthNote || section.questions.note}</p>
+${Array.from({ length: fullWidthCount }, () => '        <div class="buzz-slot"><a:question></a:question></div>').join('\n')}
+      </div>`
+    : '';
 
   /* Relabel the kinematics rows for this section's phases. */
   TONE_ORDER.forEach((tone, index) => {
@@ -677,7 +696,8 @@ ${slots}
         <h2>${section.name}</h2>
         <p>${section.blurb}</p>
       </div>
-${markup.split('\n').map((line) => (line.trim() ? `    ${line}` : line)).join('\n')}
+${markup.split('\n').map((line) => (line.trim() ? `    ${line}` : line)).join('\n')}${fullWidthQuestions ? `
+      ${fullWidthQuestions}` : ''}
     </section>`;
 }
 
@@ -716,7 +736,8 @@ const templateStyles = `
         margin: 0 0 8px;
         color: #cbd5e1;
         line-height: 1.6;
-        max-width: 90ch;
+        width: 100%;
+        max-width: none;
       }
 
       .lab-section {
@@ -757,7 +778,8 @@ const templateStyles = `
         margin: 0;
         color: #cbd5e1;
         line-height: 1.6;
-        max-width: 95ch;
+        width: 100%;
+        max-width: none;
       }
 
       .lab-stage-chip {
@@ -808,6 +830,12 @@ const templateStyles = `
       .buzz-block.red { border-left-color: #dc2626; }
       .buzz-block.emerald { border-left-color: #059669; }
 
+      .buzz-block.full-width {
+        width: min(1400px, 100%);
+        margin: 24px auto 0;
+        padding: 20px;
+      }
+
       .buzz-block-title {
         margin-bottom: 6px;
         font-size: 1rem;
@@ -832,9 +860,10 @@ const templateStyles = `
  * ------------------------------------------------------------------ */
 const intro = `    <header class="lab-intro">
       <h1>Unit 1 Honors: Rocket Launch Lab Assessment</h1>
-      <p>Four flights of the same mission, one per section. Each simulation shows only the values its flight computer can measure &mdash;
-      every quantity you are asked for has been switched off on screen, so the answers have to be calculated, not read.</p>
-      <p>Work the sections in order. Section 4 flies the whole mission end to end with every readout dark.</p>
+      <p><strong>Welcome to Mission Control.</strong> Your challenge is to launch a rocket, predict its apex, and guide it through a precision retro-burn landing.
+      You will replay the same mission across four connected flight stages, using each stage&rsquo;s evidence to unlock the next calculation.</p>
+      <p>Work in order from powered burn to touchdown. Read the instruments that remain online, calculate every blacked-out value, and prepare a final mission debrief
+      that proves you understand the rocket&rsquo;s velocity, acceleration, distance, and displacement.</p>
     </header>`;
 
 const bootstrap = `  <script>

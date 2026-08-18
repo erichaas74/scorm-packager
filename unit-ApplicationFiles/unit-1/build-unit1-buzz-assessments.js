@@ -205,7 +205,7 @@ const assessments = [
       'The numeric keys reproduce 62.5 m, 50 m/s, 187.5 m, about 15 s, and about 375 m.',
       'All 10 questions render and the document-wide integrity guard is present.'
     ],
-    note: 'Run build-buzz-template.js whenever the rocket source changes; the Unit 1 builder invokes it automatically.'
+    note: 'Run build-u1h-buzz-template.js from the Unit 1 folder whenever the rocket source changes; the Unit 1 builder invokes it automatically.'
   }
 ];
 
@@ -371,7 +371,7 @@ function verifyTemplate(item) {
   }
 }
 
-require('./lesson-honors/build-buzz-template.js');
+require('./build-u1h-buzz-template.js');
 assessments.forEach(verifyTemplate);
 assessments.forEach(buildSetup);
 assessments.forEach(buildMetadata);

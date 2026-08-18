@@ -9,7 +9,7 @@ const assessments = [
   { lesson: 'U2L3', dir: 'lesson-u2l3', setup: 'u2l3_circus_launch_buzz_setup.txt', template: 'u2l3-circus-launch-buzz-assessment-template.html', preview: 'u2l3-circus-launch-buzz-assessment-template-preview.html', simulation: 'newer-circus-launches.html', count: 10 },
   { lesson: 'U2L4', dir: 'lesson-u2l4', setup: 'u2l4_river_rescue_buzz_setup.txt', template: 'u2l4-river-rescue-buzz-assessment-template.html', preview: 'u2l4-river-rescue-buzz-assessment-template-preview.html', simulation: 'Riverboat-crossing.html', count: 12 },
   { lesson: 'U2L5', dir: 'lesson-u2l5', setup: 'u2l5_inertia_tension_buzz_setup.txt', template: 'u2l5-inertia-tension-buzz-assessment-template.html', preview: 'u2l5-inertia-tension-buzz-assessment-template-preview.html', simulation: 'inertia-tension-demo.html', count: 10 },
-  { lesson: 'U2H', dir: 'lesson-u2honors', setup: 'u2h_coriolis_cannon_buzz_setup.txt', template: 'u2h-coriolis-cannon-buzz-assessment-template.html', preview: 'u2h-coriolis-cannon-buzz-assessment-template-preview.html', simulation: 'coriolis-effect.html', count: 9 }
+  { lesson: 'U2H', dir: 'lesson-u2honors', setup: 'u2h_coriolis_cannon_buzz_setup.txt', template: 'u2h-coriolis-cannon-buzz-assessment-template.html', preview: 'u2h-coriolis-cannon-buzz-assessment-template-preview.html', simulation: 'coriolis-effect.html', metadata: 'busybee-rubric-metadata.json', count: 8, automaticPoints: 8, busybeePoints: 7, finalEssayPoints: [3, 4] }
 ];
 
 function fail(message) {
@@ -64,13 +64,19 @@ for (const item of assessments) {
       }
     } else {
       automatic += score;
+      if (item.lesson === 'U2H' && index < 6 && !/^@\[Always\]\s+Feedback:/m.test(block)) {
+        fail(`${item.lesson} Q${index + 1}: multiple-choice explanation feedback is missing`);
+      }
     }
   });
 
-  if (automatic !== 10 || busybee !== 5) fail(`${item.lesson}: score split is ${automatic} auto + ${busybee} BusyBee`);
+  const expectedAutomatic = item.automaticPoints ?? 10;
+  const expectedBusybee = item.busybeePoints ?? 5;
+  const expectedFinalEssayPoints = item.finalEssayPoints ?? [2, 3];
+  if (automatic !== expectedAutomatic || busybee !== expectedBusybee) fail(`${item.lesson}: score split is ${automatic} auto + ${busybee} BusyBee`);
   const finalTwo = blocks.slice(-2);
-  if (!finalTwo.every((block) => /^E\b/.test(property(block, 'Type'))) || Number(property(finalTwo[0], 'Score')) !== 2 || Number(property(finalTwo[1], 'Score')) !== 3) {
-    fail(`${item.lesson}: final two questions must be 2- and 3-point BusyBee essays`);
+  if (!finalTwo.every((block) => /^E\b/.test(property(block, 'Type'))) || Number(property(finalTwo[0], 'Score')) !== expectedFinalEssayPoints[0] || Number(property(finalTwo[1], 'Score')) !== expectedFinalEssayPoints[1]) {
+    fail(`${item.lesson}: final two questions must be ${expectedFinalEssayPoints[0]}- and ${expectedFinalEssayPoints[1]}-point BusyBee essays`);
   }
 
   const template = read(templatePath);
@@ -105,7 +111,7 @@ for (const item of assessments) {
     }
   });
 
-  if (!setup.includes(`Import the ${item.count} questions`) || !setup.includes('10 auto-graded points plus 5 BusyBee points')) {
+  if (!setup.includes(`Import the ${item.count} questions`) || !setup.includes(`${expectedAutomatic} auto-graded points plus ${expectedBusybee} BusyBee points`)) {
     fail(`${item.lesson}: TXT setup guide has stale count or scoring directions`);
   }
   const mission = setup.indexOf('YOUR MISSION');
@@ -118,7 +124,30 @@ for (const item of assessments) {
   if (/<(?:html|body|h[1-6]|p|li|strong|code)\b/i.test(setup)) fail(`${item.lesson}: setup guide contains HTML markup`);
   if (!setup.includes('intentionally blocked by the assessment integrity guard')) fail(`${item.lesson}: setup guide does not document the required integrity block`);
 
-  console.log(`${item.lesson}: ${item.count} questions, 10 auto + 5 BusyBee, integrity guard, template, preview, and TXT setup valid`);
+  if (item.metadata) {
+    const metadataPath = path.join(dir, item.metadata);
+    if (!fs.existsSync(metadataPath)) fail(`${item.lesson}: missing ${item.metadata}`);
+    const metadata = JSON.parse(read(metadataPath));
+    const settings = metadata.assessmentSettings || {};
+    const questions = metadata.questions || [];
+    const automaticQuestions = questions.filter((question) => question.grading === 'auto');
+    const busybeeQuestions = questions.filter((question) => question.grading === 'busybee');
+    if (metadata.schema !== 'busybee-rubric/v1' || metadata.lesson?.unit !== 'U2' || metadata.lesson?.lesson !== item.lesson) {
+      fail(`${item.lesson}: metadata identity or schema is incorrect`);
+    }
+    if (questions.length !== item.count || settings.totalPoints !== expectedAutomatic + expectedBusybee || settings.automaticPoints !== expectedAutomatic || settings.busybeePoints !== expectedBusybee) {
+      fail(`${item.lesson}: metadata question count or score settings are incorrect`);
+    }
+    if (automaticQuestions.reduce((sum, question) => sum + question.points, 0) !== expectedAutomatic || busybeeQuestions.reduce((sum, question) => sum + question.points, 0) !== expectedBusybee) {
+      fail(`${item.lesson}: metadata question scoring does not match the assessment`);
+    }
+    if (busybeeQuestions.length !== 2 || busybeeQuestions[0].points !== expectedFinalEssayPoints[0] || busybeeQuestions[1].points !== expectedFinalEssayPoints[1]) {
+      fail(`${item.lesson}: metadata has the wrong final BusyBee point values`);
+    }
+    if (!Array.isArray(settings.requiredUploads) || settings.requiredUploads.length) fail(`${item.lesson}: metadata must not require uploads`);
+  }
+
+  console.log(`${item.lesson}: ${item.count} questions, ${expectedAutomatic} auto + ${expectedBusybee} BusyBee, integrity guard, template, preview, and TXT setup valid`);
 }
 
 const forbidden = walk(root).filter((file) => {
@@ -145,6 +174,83 @@ for (const match of launcher.matchAll(/href="([^"]+)"/g)) {
 
 const honorsSource = read(path.join(root, 'lesson-u2honors', 'coriolis-effect.html'));
 if (/scorm-wrapper\.js|REPLACE_WITH_HOSTED_SIMULATION_URL/.test(honorsSource)) fail('Honors source still references obsolete packaging or hosted placeholders');
+const honorsTemplate = read(path.join(root, 'lesson-u2honors', 'u2h-coriolis-cannon-buzz-assessment-template.html'));
+for (const [label, source] of [['source', honorsSource], ['template', honorsTemplate]]) {
+  for (const required of ['HIT_RADIUS = TARGET_RADIUS + SHELL_RADIUS', 'RESULT_DISPLAY_MS = 3000', 'sessionStorage', 'missDirection', 'launchData', 'labReadyMessage', 'drawResultOverlay(ctx', 'drawResultOverlay(sideCtx', 'showResultOverlay("Hit"', 'showResultOverlay("Miss"']) {
+    if (!source.includes(required)) fail(`U2H ${label}: missing ${required} evidence or collision behavior`);
+  }
+  if (!/id="launchHintButton"[^>]*aria-expanded="false"/.test(source)
+      || !/id="launchHints"[^>]*hidden/.test(source)
+      || !source.includes('launchHints.hidden = !showHints')) {
+    fail(`U2H ${label}: east-west hints are not hidden behind the hint toggle`);
+  }
+  if (/window\.SCORM|markSCORMComplete|loadSCORMState/.test(source)) fail(`U2H ${label}: obsolete SCORM scoring remains`);
+}
+if (/copyEvidenceBtn|downloadEvidenceBtn|submit your evidence image|Upload it to Question (?:8|9)/i.test(honorsTemplate)) {
+  fail('U2H template: obsolete copy/download/upload evidence flow remains');
+}
+
+function rotatePoint(point, angle) {
+  return {
+    x: point.x * Math.cos(angle) - point.y * Math.sin(angle),
+    y: point.x * Math.sin(angle) + point.y * Math.cos(angle)
+  };
+}
+
+function pointDistance(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+const honorsDirections = {
+  North: { cannon: { x: 0, y: 205 }, target: { x: 0, y: 55 }, expectedMiss: 'East' },
+  South: { cannon: { x: 0, y: 55 }, target: { x: 0, y: 205 }, expectedMiss: 'West' },
+  East: { cannon: { x: -75, y: 155 }, target: { x: 75, y: 155 }, expectedMiss: 'South' },
+  West: { cannon: { x: 75, y: 155 }, target: { x: -75, y: 155 }, expectedMiss: 'North' }
+};
+const honorsAngularSpeed = -8 * Math.PI / 180;
+const honorsFlightTime = 520 / 160;
+const honorsDisplaySpeed = 150 / honorsFlightTime;
+const honorsHitRadius = 15 + 7;
+
+for (const [direction, points] of Object.entries(honorsDirections)) {
+  const base = {
+    x: (points.target.x - points.cannon.x) / 150,
+    y: (points.target.y - points.cannon.y) / 150
+  };
+  let reachable = false;
+  for (let aim = -35; aim <= 35 && !reachable; aim += 1) {
+    const aimVector = rotatePoint(base, aim * Math.PI / 180);
+    const velocity = {
+      x: aimVector.x * honorsDisplaySpeed - honorsAngularSpeed * points.cannon.y,
+      y: aimVector.y * honorsDisplaySpeed + honorsAngularSpeed * points.cannon.x
+    };
+    for (let step = 0; step <= 650; step += 1) {
+      const time = honorsFlightTime * step / 650;
+      const shell = { x: points.cannon.x + velocity.x * time, y: points.cannon.y + velocity.y * time };
+      const target = rotatePoint(points.target, honorsAngularSpeed * time);
+      if (pointDistance(shell, target) <= honorsHitRadius) {
+        reachable = true;
+        break;
+      }
+    }
+  }
+  if (!reachable) fail(`U2H: ${direction} target is unreachable within the authored aim range`);
+
+  const directVelocity = {
+    x: base.x * honorsDisplaySpeed - honorsAngularSpeed * points.cannon.y,
+    y: base.y * honorsDisplaySpeed + honorsAngularSpeed * points.cannon.x
+  };
+  const shell = {
+    x: points.cannon.x + directVelocity.x * honorsFlightTime,
+    y: points.cannon.y + directVelocity.y * honorsFlightTime
+  };
+  const target = rotatePoint(points.target, honorsAngularSpeed * honorsFlightTime);
+  const localOffset = rotatePoint({ x: shell.x - target.x, y: shell.y - target.y }, -honorsAngularSpeed * honorsFlightTime);
+  const actualMiss = Math.abs(localOffset.x) >= Math.abs(localOffset.y)
+    ? (localOffset.x >= 0 ? 'East' : 'West')
+    : (localOffset.y >= 0 ? 'South' : 'North');
+  if (actualMiss !== points.expectedMiss) fail(`U2H: ${direction} direct miss is ${actualMiss}, expected ${points.expectedMiss}`);
+}
 const previewBuilder = read(path.join(workspace, 'unit-buzz-template-conversion-files', 'build-buzz-template-previews.js'));
 if (/u2h-coriolis-cannon-hosted/.test(previewBuilder)) fail('Preview builder still contains the obsolete Honors hosted template');
 const riseBuilder = read(path.join(workspace, 'unit-ApplicationFiles', 'build-rise-directions.js'));

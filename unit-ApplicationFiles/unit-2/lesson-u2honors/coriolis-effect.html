@@ -299,6 +299,29 @@
       right: 16px;
     }
 
+    .path-legend {
+      position: absolute;
+      left: 16px;
+      bottom: 14px;
+      z-index: 2;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      max-width: calc(100% - 32px);
+      border: 1px solid rgba(226, 232, 240, 0.18);
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.82);
+      color: var(--muted);
+      padding: 8px 10px;
+      font-size: 0.76rem;
+      font-weight: 800;
+      pointer-events: none;
+    }
+
+    .path-legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .path-swatch { width: 22px; height: 4px; border-radius: 999px; background: #f97316; }
+    .path-swatch.rotating { background: #d8b4fe; }
+
     .controls {
       border-radius: 18px;
       padding: 16px;
@@ -432,6 +455,22 @@
       color: var(--text);
     }
 
+    .goal[hidden] { display: none; }
+
+    .hint-toggle {
+      width: 100%;
+      border: 1px solid rgba(56, 189, 248, 0.55);
+      border-radius: 10px;
+      background: rgba(14, 116, 144, 0.2);
+      color: #bae6fd;
+      padding: 10px 12px;
+      font-weight: 800;
+      text-align: left;
+    }
+
+    .hint-toggle:hover { background: rgba(14, 116, 144, 0.34); }
+    .hint-toggle:focus-visible { outline: 3px solid #facc15; outline-offset: 2px; }
+
     .motion-tests {
       display: grid;
       gap: 10px;
@@ -501,6 +540,11 @@
     .evidence-panel h2 { margin-top: 0; color: var(--text); }
     .evidence-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
     .evidence-actions button { border-radius: 10px; padding: 10px 14px; background: var(--sky); color: #082f49; font-weight: 800; }
+    .lab-progress { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 6px; }
+    .progress-item { border: 1px solid rgba(148, 163, 184, 0.45); border-radius: 999px; padding: 6px 10px; color: var(--muted); font-size: 0.8rem; font-weight: 800; }
+    .progress-item.complete { border-color: #4ade80; background: rgba(34, 197, 94, 0.14); color: #bbf7d0; }
+    .lab-ready-message { margin: 6px 0 12px; color: var(--muted); font-weight: 800; }
+    .lab-ready-message.complete { color: #86efac; }
     .trial-log { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
     .trial-log th, .trial-log td { border: 1px solid rgba(148, 163, 184, 0.35); padding: 7px; text-align: left; }
 
@@ -567,8 +611,12 @@
     <section id="coriolis-lab" class="grid" aria-label="Coriolis cannon simulation">
       <div class="view-stack">
         <div class="canvas-card">
-          <div class="view-label align-right">Rotating top view</div>
+          <div class="view-label align-right">Inertial + rotating frame comparison</div>
           <canvas id="simCanvas" aria-label="Coriolis cannon top-view simulation canvas"></canvas>
+          <div class="path-legend" aria-hidden="true">
+            <span><i class="path-swatch"></i>Orange: straight inertial-frame path</span>
+            <span><i class="path-swatch rotating"></i>Purple: apparent rotating-frame path</span>
+          </div>
         </div>
 
         <div class="canvas-card side-view">
@@ -601,7 +649,7 @@
 
         <label class="control" for="aimCorrection">
           <div class="label-row"><span>Aim correction</span><strong><span id="aimValue">0</span> deg</strong></div>
-          <input id="aimCorrection" type="range" min="-25" max="25" step="1" value="0" />
+          <input id="aimCorrection" type="range" min="-35" max="35" step="1" value="0" />
           <div class="range-hints"><span>left</span><span>direct</span><span>right</span></div>
         </label>
 
@@ -628,7 +676,8 @@
           </div>
         </div>
 
-        <div class="goal" role="note" aria-label="East and west launch hints">
+        <button id="launchHintButton" class="hint-toggle" type="button" aria-expanded="false" aria-controls="launchHints">Show east-west launch hints</button>
+        <div id="launchHints" class="goal" role="note" aria-label="East and west launch hints" hidden>
           <strong>East-West launch hints:</strong>
           <div><strong>East:</strong> lighter, higher, and longer; curves right toward the south.</div>
           <div><strong>West:</strong> heavier, lower, and shorter; curves right toward the north.</div>
@@ -648,7 +697,7 @@
         </section>
 
         <div class="checks">
-          <label><input id="showEarthPath" type="checkbox" checked /> Show curved rotating-Earth path</label>
+          <label><input id="showEarthPath" type="checkbox" checked /> Show purple apparent path in the rotating frame</label>
         </div>
 
         <div class="goal">
@@ -665,16 +714,24 @@
 
     <section class="evidence-panel" aria-labelledby="evidence-title">
       <h2 id="evidence-title">Lab Evidence</h2>
-      <p>Each completed shot is recorded here. Complete all four launch directions and at least one corrected-aim hit.</p>
+      <p>Complete one direct-aim trial in each direction and at least one corrected-aim hit. The trial log stays available after a refresh in this browser tab.</p>
+      <div id="labProgress" class="lab-progress" aria-label="Lab completion progress">
+        <span class="progress-item" data-progress-launch="South to North">South to North direct</span>
+        <span class="progress-item" data-progress-launch="North to South">North to South direct</span>
+        <span class="progress-item" data-progress-launch="West to East">West to East direct</span>
+        <span class="progress-item" data-progress-launch="East to West">East to West direct</span>
+        <span id="correctedHitProgress" class="progress-item">Corrected-aim hit</span>
+      </div>
+      <p id="labReadyMessage" class="lab-ready-message" aria-live="polite">Complete the five evidence goals before answering the final two questions.</p>
       <div class="evidence-actions">
-        <button id="copyEvidenceBtn" type="button">Copy values for Buzz</button>
-        <button id="downloadEvidenceBtn" type="button">Download Evidence Image</button>
+        <button id="copyEvidenceBtn" type="button">Copy Trial Log</button>
+        <button id="downloadEvidenceBtn" type="button">Download Trial Log Image</button>
         <button id="clearEvidenceBtn" type="button">Clear Trial Log</button>
       </div>
       <div style="overflow-x:auto;">
         <table class="trial-log">
-          <thead><tr><th>Trial</th><th>Launch</th><th>Aim</th><th>Hemisphere</th><th>Result</th><th>Miss</th></tr></thead>
-          <tbody id="trialLogBody"><tr><td colspan="6">No completed shots yet.</td></tr></tbody>
+          <thead><tr><th>Trial</th><th>Launch</th><th>Aim</th><th>Hemisphere</th><th>Speed</th><th>Distance</th><th>Rotation</th><th>Result</th><th>Miss direction</th><th>Miss</th></tr></thead>
+          <tbody id="trialLogBody"><tr><td colspan="10">No completed shots yet.</td></tr></tbody>
         </table>
       </div>
       <p id="evidenceMessage" aria-live="polite"></p>
@@ -1165,6 +1222,13 @@
       var targetWestBtn = document.getElementById("targetWestBtn");
       var motionTestButtons = Array.prototype.slice.call(document.querySelectorAll("[data-motion-test]"));
       var motionTestStatus = document.getElementById("motionTestStatus");
+      var launchHintButton = document.getElementById("launchHintButton");
+      var launchHints = document.getElementById("launchHints");
+      var TARGET_RADIUS = 15;
+      var SHELL_RADIUS = 7;
+      var HIT_RADIUS = TARGET_RADIUS + SHELL_RADIUS;
+      var RESULT_DISPLAY_MS = 3000;
+      var STORAGE_KEY = "u2h-coriolis-trial-log-v2";
 
       var projectile = null;
       var launchPlan = null;
@@ -1172,15 +1236,20 @@
       var lastTime = 0;
       var status = "Ready";
       var missDistance = null;
+      var missDirection = "Center";
+      var resultOverlay = null;
+      var resultResetTimer = null;
       var hemisphere = "North";
       var targetDirection = "North";
-      var scormCompleted = false;
-      var trialLog = [];
+      var trialLog = loadTrialLog();
       var trialLogBody = document.getElementById("trialLogBody");
       var evidenceMessage = document.getElementById("evidenceMessage");
       var copyEvidenceBtn = document.getElementById("copyEvidenceBtn");
       var downloadEvidenceBtn = document.getElementById("downloadEvidenceBtn");
       var clearEvidenceBtn = document.getElementById("clearEvidenceBtn");
+      var progressItems = Array.prototype.slice.call(document.querySelectorAll("[data-progress-launch]"));
+      var correctedHitProgress = document.getElementById("correctedHitProgress");
+      var labReadyMessage = document.getElementById("labReadyMessage");
 
       function params() {
         return {
@@ -1386,11 +1455,67 @@
         };
       }
 
-      function setStatus(nextStatus, nextMissDistance) {
+      function setFlightControlsLocked(locked) {
+        fireBtn.disabled = locked;
+        inputs.aimCorrection.disabled = locked;
+        [northBtn, southBtn, targetNorthBtn, targetSouthBtn, targetEastBtn, targetWestBtn].concat(motionTestButtons).forEach(function(button) {
+          button.disabled = locked;
+        });
+      }
+
+      function setStatus(nextStatus, nextMissDistance, nextMissDirection) {
         status = nextStatus;
         missDistance = nextMissDistance == null ? null : nextMissDistance;
+        missDirection = nextMissDirection || "Center";
+        setFlightControlsLocked(status === "Flying");
         statusNode.className = "status " + status.toLowerCase();
-        statusNode.textContent = "Status: " + status + (missDistance && missDistance > 0 ? " - Missed by " + missDistance + " px" : "");
+        statusNode.textContent = "Status: " + status + (missDistance && missDistance > 0 ? " - Missed " + missDistance + " px " + missDirection.toLowerCase() : "");
+      }
+
+      function clearResultOverlay() {
+        if (resultResetTimer !== null) window.clearTimeout(resultResetTimer);
+        resultResetTimer = null;
+        resultOverlay = null;
+      }
+
+      function showResultOverlay(result, detail) {
+        clearResultOverlay();
+        resultOverlay = { result: result, detail: detail };
+        resultResetTimer = window.setTimeout(function() {
+          resultResetTimer = null;
+          resultOverlay = null;
+          if (status === "Hit" || status === "Miss") {
+            projectile = null;
+            launchPlan = null;
+            setStatus("Ready");
+            syncGlobeScenario();
+            if (window.coriolisGlobe) window.coriolisGlobe.resetProjectile();
+          }
+        }, RESULT_DISPLAY_MS);
+      }
+
+      function drawResultOverlay(drawCtx, width, height) {
+        if (!resultOverlay) return;
+        var boxWidth = Math.min(360, width - 32);
+        var boxHeight = 104;
+        var left = (width - boxWidth) / 2;
+        var top = (height - boxHeight) / 2;
+        var isHit = resultOverlay.result === "Hit";
+
+        drawCtx.save();
+        drawCtx.fillStyle = isHit ? "rgba(21, 128, 61, 0.94)" : "rgba(185, 28, 28, 0.94)";
+        drawCtx.strokeStyle = isHit ? "#bbf7d0" : "#fecaca";
+        drawCtx.lineWidth = 4;
+        drawCtx.fillRect(left, top, boxWidth, boxHeight);
+        drawCtx.strokeRect(left, top, boxWidth, boxHeight);
+        drawCtx.textAlign = "center";
+        drawCtx.textBaseline = "middle";
+        drawCtx.fillStyle = "#ffffff";
+        drawCtx.font = "900 34px system-ui, sans-serif";
+        drawCtx.fillText(resultOverlay.result.toUpperCase(), width / 2, top + 38);
+        drawCtx.font = "800 15px system-ui, sans-serif";
+        drawCtx.fillText(resultOverlay.detail, width / 2, top + 76);
+        drawCtx.restore();
       }
 
       function launchDirectionLabel() {
@@ -1400,27 +1525,79 @@
         return "East to West";
       }
 
+      function missDirectionLabel(localOffset) {
+        if (Math.abs(localOffset.x) >= Math.abs(localOffset.y)) return localOffset.x >= 0 ? "East" : "West";
+        return localOffset.y >= 0 ? "South" : "North";
+      }
+
+      function loadTrialLog() {
+        try {
+          var stored = window.sessionStorage.getItem(STORAGE_KEY);
+          var parsed = stored ? JSON.parse(stored) : [];
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+          return [];
+        }
+      }
+
+      function saveTrialLog() {
+        try {
+          window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(trialLog));
+        } catch (error) {
+          evidenceMessage.textContent = "Trials are recorded, but this browser blocked refresh persistence.";
+        }
+      }
+
+      function evidenceValues(trial) {
+        return [trial.number, trial.launch, trial.aim + " deg", trial.hemisphere, trial.speed + " m/s", trial.distance + " m", trial.rotation + " deg/s", trial.result, trial.missDirection, trial.miss];
+      }
+
       function evidenceText() {
-        return ["Trial | Launch | Aim | Hemisphere | Result | Miss"].concat(trialLog.map(function(trial) {
-          return [trial.number, trial.launch, trial.aim + " deg", trial.hemisphere, trial.result, trial.miss].join(" | ");
+        return ["Trial | Launch | Aim | Hemisphere | Speed | Distance | Rotation | Result | Miss direction | Miss"].concat(trialLog.map(function(trial) {
+          return evidenceValues(trial).join(" | ");
         })).join("\n");
+      }
+
+      function renderProgress() {
+        var directLaunches = {};
+        var correctedHit = false;
+        trialLog.forEach(function(trial) {
+          if (Number(trial.aim) === 0) directLaunches[trial.launch] = true;
+          if (Number(trial.aim) !== 0 && trial.result === "Hit") correctedHit = true;
+        });
+        progressItems.forEach(function(item) {
+          item.classList.toggle("complete", Boolean(directLaunches[item.getAttribute("data-progress-launch")]));
+        });
+        correctedHitProgress.classList.toggle("complete", correctedHit);
+        var directionMap = { North: "South to North", South: "North to South", East: "West to East", West: "East to West" };
+        motionTestButtons.forEach(function(button) {
+          button.classList.toggle("complete", Boolean(directLaunches[directionMap[button.getAttribute("data-motion-test")]]));
+        });
+        var directCount = Object.keys(directLaunches).length;
+        var complete = directCount === 4 && correctedHit;
+        labReadyMessage.classList.toggle("complete", complete);
+        labReadyMessage.textContent = complete
+          ? "Evidence complete: use this trial log in Questions 7 and 8."
+          : directCount + " of 4 direct-aim directions complete; corrected-aim hit " + (correctedHit ? "complete." : "still needed.");
       }
 
       function renderTrialLog() {
         trialLogBody.innerHTML = "";
         if (!trialLog.length) {
-          trialLogBody.innerHTML = '<tr><td colspan="6">No completed shots yet.</td></tr>';
+          trialLogBody.innerHTML = '<tr><td colspan="10">No completed shots yet.</td></tr>';
+          renderProgress();
           return;
         }
         trialLog.forEach(function(trial) {
           var row = document.createElement("tr");
-          [trial.number, trial.launch, trial.aim + " deg", trial.hemisphere, trial.result, trial.miss].forEach(function(value) {
+          evidenceValues(trial).forEach(function(value) {
             var cell = document.createElement("td");
             cell.textContent = value;
             row.appendChild(cell);
           });
           trialLogBody.appendChild(row);
         });
+        renderProgress();
       }
 
       var motionTestExplanations = {
@@ -1431,7 +1608,7 @@
       };
 
       function markMotionTestComplete() {
-        if (Number(inputs.aimCorrection.value) !== 0) return;
+        if (!projectile || Number(projectile.launchData.aim) !== 0) return;
 
         motionTestButtons.forEach(function(button) {
           if (button.getAttribute("data-motion-test") === targetDirection) {
@@ -1442,14 +1619,27 @@
         if (motionTestStatus) {
           motionTestStatus.innerHTML = motionTestExplanations[targetDirection] +
             " <strong>Observed result:</strong> " + status +
-            (missDistance ? " by " + Math.round(missDistance) + " px." : ".");
+            (missDistance ? " " + Math.round(missDistance) + " px " + missDirection.toLowerCase() + "." : ".");
         }
       }
 
       function recordTrial() {
         if (!projectile || projectile.recorded) return;
         projectile.recorded = true;
-        trialLog.push({ number: trialLog.length + 1, launch: launchDirectionLabel(), aim: Number(inputs.aimCorrection.value), hemisphere: hemisphere, result: status, miss: status === "Hit" ? "0 px" : Math.round(missDistance || 0) + " px" });
+        var launch = projectile.launchData;
+        trialLog.push({
+          number: trialLog.length + 1,
+          launch: launch.launch,
+          aim: launch.aim,
+          hemisphere: launch.hemisphere,
+          speed: launch.speed,
+          distance: launch.distance,
+          rotation: launch.rotation,
+          result: status,
+          missDirection: status === "Hit" ? "Center" : missDirection,
+          miss: status === "Hit" ? "0 px" : Math.round(missDistance || 0) + " px"
+        });
+        saveTrialLog();
         renderTrialLog();
         markMotionTestComplete();
         evidenceMessage.textContent = "Trial " + trialLog.length + " recorded.";
@@ -1458,14 +1648,14 @@
       function copyEvidence() {
         if (!trialLog.length) { evidenceMessage.textContent = "Complete at least one shot before copying evidence."; return; }
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(evidenceText()).then(function() { evidenceMessage.textContent = "Trial values copied for Buzz."; });
+          navigator.clipboard.writeText(evidenceText()).then(function() { evidenceMessage.textContent = "Trial log copied."; });
         } else { evidenceMessage.textContent = evidenceText(); }
       }
 
       function downloadEvidence() {
         if (!trialLog.length) { evidenceMessage.textContent = "Complete at least one shot before downloading evidence."; return; }
         var evidenceCanvas = document.createElement("canvas");
-        evidenceCanvas.width = 1200;
+        evidenceCanvas.width = 1900;
         evidenceCanvas.height = 170 + trialLog.length * 42;
         var evidenceCtx = evidenceCanvas.getContext("2d");
         evidenceCtx.fillStyle = "#fff";
@@ -1474,30 +1664,19 @@
         evidenceCtx.font = "bold 30px Arial";
         evidenceCtx.fillText("Unit 2 Honors - Coriolis Cannon Evidence", 40, 52);
         evidenceCtx.font = "18px Arial";
-        evidenceCtx.fillText("Trial     Launch                         Aim       Hemisphere       Result       Miss", 40, 100);
-        trialLog.forEach(function(trial, index) { evidenceCtx.fillText([trial.number, trial.launch, trial.aim + " deg", trial.hemisphere, trial.result, trial.miss].join("     "), 40, 145 + index * 42); });
+        evidenceCtx.font = "15px Arial";
+        evidenceCtx.fillText("Trial     Launch                    Aim       Hemisphere     Speed     Distance     Rotation     Result     Miss direction     Miss", 40, 100);
+        trialLog.forEach(function(trial, index) { evidenceCtx.fillText(evidenceValues(trial).join("     "), 40, 145 + index * 42); });
         var link = document.createElement("a");
         link.download = "u2h-coriolis-evidence.png";
         link.href = evidenceCanvas.toDataURL("image/png");
         link.click();
-        evidenceMessage.textContent = "Evidence image downloaded.";
-      }
-
-      function markSCORMComplete() {
-        if (scormCompleted || !window.SCORM) return;
-        scormCompleted = true;
-        window.SCORM.setScore(100, 0, 100);
-        window.SCORM.setStatus("completed");
-        window.SCORM.commit();
-      }
-
-      function loadSCORMState() {
-        if (!window.SCORM) return;
-        var lessonStatus = window.SCORM.getValue("cmi.core.lesson_status");
-        scormCompleted = lessonStatus === "completed" || lessonStatus === "passed";
+        evidenceMessage.textContent = "Trial log image downloaded for optional reference.";
       }
 
       function fire() {
+        if (status === "Flying") return;
+        clearResultOverlay();
         var p = params();
         var points = getLocalPoints();
         var cannonWorld = rotate(points.cannon, theta);
@@ -1512,7 +1691,16 @@
           velocity: launchPlan.worldVelocity,
           t: 0,
           history: [{ time: 0, world: cannonWorld }],
-          maxTime: launchPlan.flightTime
+          maxTime: launchPlan.flightTime,
+          targetLocal: { x: points.target.x, y: points.target.y },
+          launchData: {
+            launch: launchDirectionLabel(),
+            aim: p.aimCorrection,
+            hemisphere: p.hemisphere,
+            speed: p.shellSpeed,
+            distance: p.targetDistance,
+            rotation: p.rotationRate
+          }
         };
 
         setStatus("Flying");
@@ -1524,6 +1712,7 @@
       }
 
       function reset() {
+        clearResultOverlay();
         projectile = null;
         launchPlan = null;
         theta = 0;
@@ -1664,7 +1853,7 @@
 
         ctx.fillStyle = "#ef4444";
         ctx.beginPath();
-        ctx.arc(points.target.x, points.target.y, 15, 0, Math.PI * 2);
+        ctx.arc(points.target.x, points.target.y, TARGET_RADIUS, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = "white";
         ctx.lineWidth = 3;
@@ -1710,7 +1899,7 @@
         var current = projectile.history[projectile.history.length - 1].world;
         var flightProgress = Math.max(0, Math.min(1, projectile.t / Math.max(0.01, projectile.maxTime)));
         var altitudeFactor = Math.sin(Math.PI * flightProgress);
-        var topViewRadius = 7 + altitudeFactor * 9;
+        var topViewRadius = SHELL_RADIUS + altitudeFactor * 9;
 
         ctx.save();
         ctx.translate(centerX, centerY);
@@ -2040,20 +2229,22 @@
         projectile.history.push({ time: projectile.t, world: currentWorld });
         if (projectile.history.length > 500) projectile.history.shift();
 
-        var target = getLocalPoints().target;
-        var targetWorld = rotate(target, theta);
-        var distance = mag(sub(currentWorld, targetWorld));
+        var targetWorld = rotate(projectile.targetLocal, theta);
+        var missOffsetLocal = rotate(sub(currentWorld, targetWorld), -theta);
+        var distance = mag(missOffsetLocal);
+        var direction = missDirectionLabel(missOffsetLocal);
         var globeStatus = "Flying";
 
-        if (distance < 18) {
-          setStatus("Hit", 0);
+        if (distance <= HIT_RADIUS) {
+          setStatus("Hit", 0, "Center");
           globeStatus = "Hit";
-          markSCORMComplete();
           recordTrial();
+          showResultOverlay("Hit", "Target hit - trial recorded");
         } else if (projectile.t >= projectile.maxTime || mag(currentWorld) > 420) {
-          setStatus("Miss", Math.round(distance));
+          setStatus("Miss", Math.round(distance), direction);
           globeStatus = "Miss";
           recordTrial();
+          showResultOverlay("Miss", Math.round(distance) + " px " + direction.toLowerCase() + " - trial recorded");
         }
 
         syncGlobeProjectile(currentWorld, globeStatus);
@@ -2085,6 +2276,8 @@
         drawCannonAndTarget(centerX, centerY);
         drawProjectile(centerX, centerY);
         drawSideView(sideCanvas.clientWidth, sideCanvas.clientHeight);
+        drawResultOverlay(ctx, width, height);
+        drawResultOverlay(sideCtx, sideCanvas.clientWidth, sideCanvas.clientHeight);
         window.requestAnimationFrame(drawFrame);
       }
 
@@ -2105,6 +2298,7 @@
       }
 
       function setTargetDirection(nextDirection) {
+        clearResultOverlay();
         targetDirection = nextDirection;
         targetNorthBtn.classList.toggle("active", targetDirection === "North");
         targetSouthBtn.classList.toggle("active", targetDirection === "South");
@@ -2146,6 +2340,12 @@
       targetSouthBtn.addEventListener("click", function() { setTargetDirection("South"); });
       targetEastBtn.addEventListener("click", function() { setTargetDirection("East"); });
       targetWestBtn.addEventListener("click", function() { setTargetDirection("West"); });
+      launchHintButton.addEventListener("click", function() {
+        var showHints = launchHints.hidden;
+        launchHints.hidden = !showHints;
+        launchHintButton.setAttribute("aria-expanded", String(showHints));
+        launchHintButton.textContent = showHints ? "Hide east-west launch hints" : "Show east-west launch hints";
+      });
       motionTestButtons.forEach(function(button) {
         button.addEventListener("click", function() {
           runMotionTest(button.getAttribute("data-motion-test"));
@@ -2155,8 +2355,8 @@
       downloadEvidenceBtn.addEventListener("click", downloadEvidence);
       clearEvidenceBtn.addEventListener("click", function() {
         trialLog = [];
+        saveTrialLog();
         renderTrialLog();
-        motionTestButtons.forEach(function(button) { button.classList.remove("complete"); });
         if (motionTestStatus) motionTestStatus.textContent = "Choose a test. Direct aim will be set automatically; compare the top, side, and globe views.";
         evidenceMessage.textContent = "Trial log cleared.";
       });
@@ -2165,7 +2365,7 @@
       syncControls();
       syncGlobeScenario();
       resize();
-      loadSCORMState();
+      renderTrialLog();
       window.requestAnimationFrame(drawFrame);
     }());
   </script>

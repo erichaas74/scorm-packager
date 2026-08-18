@@ -173,7 +173,7 @@ for (const script of [
   path.join(root, 'lesson-3', 'sim.js'),
   path.join(root, 'lesson-4', 'sim.js'),
   path.join(root, 'lesson-honors', 'sim.js'),
-  path.join(root, 'lesson-honors', 'build-buzz-template.js'),
+  path.join(root, 'build-u1h-buzz-template.js'),
   path.join(root, 'build-unit1-buzz-assessments.js')
 ]) {
   try { new Function(read(script)); } catch (error) { fail(`${path.relative(workspace, script)} does not compile: ${error.message}`); }

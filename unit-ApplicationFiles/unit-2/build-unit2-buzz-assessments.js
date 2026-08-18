@@ -163,8 +163,11 @@ const assessments = [
     buzzTitle: 'Unit 2 Honors: Coriolis Cannon Challenge',
     template: 'u2h-coriolis-cannon-buzz-assessment-template.html',
     preview: 'u2h-coriolis-cannon-buzz-assessment-template-preview.html',
-    count: 9,
-    mix: 'seven multiple-choice and two essay questions',
+    count: 8,
+    mix: 'six multiple-choice and two essay questions',
+    automaticPoints: 8,
+    busybeePoints: 7,
+    finalEssayPoints: [3, 4],
     mission: 'Aim a cannon from a rotating world and outsmart an apparent sideways deflection! You will compare four launch directions, correct your aim, and reconcile what inertial and rotating observers see.',
     goals: [
       'Predict Northern Hemisphere Coriolis deflection for four launch directions.',
@@ -172,18 +175,19 @@ const assessments = [
       'Explain why inertial and rotating observers describe different paths.'
     ],
     steps: [
-      'Run direct-aim trials in all four launch directions and record each miss direction.',
+      'Run direct-aim trials in all four launch directions and confirm each compass miss direction in the persisted trial log.',
       'Choose at least one direction and adjust aim opposite the observed deflection until you hit.',
-      'Review the two frame views and the completed trial log.',
-      'Answer all nine Buzz questions in order.',
+      'Use the orange inertial path and purple rotating-frame path to compare what the two observers report.',
+      'Answer all eight Buzz questions in order.',
       'Cite the four-direction pattern and a corrected hit in the final two responses.'
     ],
     checks: [
-      'All four directions, both frame views, aim correction, and trial logging work.',
+      'All four directions can record compass miss directions, and corrected aim can hit the target.',
+      'The five-part evidence tracker and same-tab trial-log restoration work after a refresh.',
       'The self-contained two-dimensional model loads without a hosted-globe placeholder.',
-      'All nine questions render and no required file-upload question remains.'
+      'All eight questions render and no required file-upload question remains.'
     ],
-    note: 'The standalone coriolis-effect.html remains the full practice source; the Buzz assessment uses the self-contained model and requires no hosted alternative.'
+    note: 'The standalone coriolis-effect.html remains the full practice source; Buzz records the 15-point question score, and no evidence upload or SCORM score is used.'
   }
 ];
 
@@ -219,6 +223,9 @@ function numbered(items) {
 function buildSetup(item) {
   const dir = path.join(root, item.dir);
   const setupPath = path.join(dir, `${item.slug}_buzz_setup.txt`);
+  const automaticPoints = item.automaticPoints ?? 10;
+  const busybeePoints = item.busybeePoints ?? 5;
+  const finalEssayPoints = item.finalEssayPoints ?? [2, 3];
   const output = [
     item.title.toUpperCase(),
     'UNIT 2 BUZZ LAB GUIDE',
@@ -234,8 +241,8 @@ function buildSetup(item) {
     `6. Before submitting, confirm that all ${item.count} questions are answered and the final two responses cite recorded evidence.`,
     '',
     'SUCCESS AND SCORING',
-    '- The assessment is worth 15 points: 10 auto-graded points plus 5 BusyBee points.',
-    '- The final two evidence responses are worth 2 points and 3 points.',
+    `- The assessment is worth ${automaticPoints + busybeePoints} points: ${automaticPoints} auto-graded points plus ${busybeePoints} BusyBee points.`,
+    `- The final two evidence responses are worth ${finalEssayPoints[0]} points and ${finalEssayPoints[1]} points.`,
     '- No file upload earns or replaces points.',
     '',
     'TEACHER BUZZ SETUP',
@@ -256,6 +263,7 @@ function buildSetup(item) {
     '',
     'AUTHORITATIVE FILES',
     '- Questions, answer feedback, and BusyBee rubrics: buzz-assessment-questions.txt',
+    ...(item.lesson === 'U2H' ? ['- BusyBee grading metadata: busybee-rubric-metadata.json'] : []),
     `- Buzz assessment template: ${item.template}`,
     `- Generated local preview: ${item.preview}`,
     ''
