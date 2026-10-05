@@ -13,7 +13,7 @@ const sourceCss = readSource('style.css');
 const sourceScript = readSource('sim.js');
 const outputPath = path.join(lessonDir, 'u1h-rocket-launch-buzz-assessment-template.html');
 
-const EXPECTED_SLOTS = 10;
+const EXPECTED_SLOTS = 9;
 
 const integrityGuard = `  <script id="buzz-assessment-integrity-guard">
     (function () {
@@ -55,7 +55,7 @@ const SECTIONS = [
     stage: 1,
     tone: 'sky',
     prefix: 's1-',
-    eyebrow: 'Section 1 of 4',
+    eyebrow: 'Section 1 of 5',
     name: 'Powered Burn',
     flightTitle: 'Flight View — Powered Burn',
     chip: 'Stage 1 · Burn',
@@ -87,7 +87,7 @@ const SECTIONS = [
     stage: 2,
     tone: 'violet',
     prefix: 's2-',
-    eyebrow: 'Section 2 of 4',
+    eyebrow: 'Section 2 of 5',
     name: 'Coast to Apex',
     flightTitle: 'Flight View — Coast to Apex',
     chip: 'Stage 2 · Coast',
@@ -97,6 +97,17 @@ const SECTIONS = [
     launchLabel: 'Run Ascent',
     runningLabel: 'Climbing...',
     replayLabel: 'Replay Ascent',
+    doneStatus: 'APEX REACHED',
+    showTimer: false,
+    briefChip: 'Burn + coast',
+    rowTitles: { 1: 'Burn', 2: 'Coast' },
+    rows: { 1: BURN_ROW, 2: COAST_ROW },
+    equations: {
+      ready: { label: 'Stage 2', body: 'Press <span class="eq">Run Ascent</span> to fly the burn and the coast together.' },
+      powered: { label: 'Burn Phase', body: 'Engine on. Watch for cutoff.' },
+      coast: { label: 'Coast Phase', body: 'Engine off. Gravity alone acts on the rocket.' },
+      default: { label: 'Apex Reached', body: 'The rocket has stopped climbing. Answer the Stage 2 questions in the Mission Brief.' },
+    },
     doneStatus: 'APEX REACHED',
     showTimer: false,
     briefChip: 'Burn + coast',
@@ -123,7 +134,7 @@ const SECTIONS = [
     stage: 3,
     tone: 'red',
     prefix: 's3-',
-    eyebrow: 'Section 3 of 4',
+    eyebrow: 'Section 3 of 5',
     name: 'Apex Verification',
     flightTitle: 'Flight View — Full Ascent',
     chip: 'Stage 3 · Apex',
@@ -163,25 +174,22 @@ const SECTIONS = [
     stage: 4,
     tone: 'emerald',
     prefix: 's4-',
-    eyebrow: 'Section 4 of 4',
-    name: 'Full Mission',
-    flightTitle: 'Flight View — Full Mission',
-    chip: 'Stage 4 · Full mission',
-    blurb: '<strong>Final mission: bring the rocket home!</strong> Watch one uninterrupted flight through powered burn, coast, free fall, retro burn, and touchdown. '
-      + 'Every numeric readout is now dark — no clock, altitude, velocity, or marker will rescue the crew. <strong>Mission rule: the retro engine ignites at one third '
-      + 'of the apex height, and the Retro row shows its net acceleration with gravity already included.</strong> Solve the free-fall and retro phases, then combine '
-      + 'all four stages to complete the mission debrief.',
+    eyebrow: 'Section 4 of 5',
+    name: 'Retro-Burn Landing',
+    flightTitle: 'Flight View — Return and Retro Burn',
+    chip: 'Stage 4 · Retro burn',
+    blurb: '<strong>Bring the same rocket home.</strong> Replay the flight from Sections 1–3 and focus on the retro burn. '
+      + 'After the apex, the rocket falls freely with acceleration −10 m/s² until the retro engine ignites at one third of the apex height. '
+      + 'The retro burn has a net upward acceleration of +20 m/s², including gravity, and ends at rest on the launch pad. '
+      + 'Take upward as positive. Calculate only the displacement and duration of the retro burn.',
     launchLabel: 'Run Full Mission',
     runningLabel: 'Flying...',
     replayLabel: 'Replay Mission',
     doneStatus: null,
     showTimer: false,
-    briefChip: 'All four phases',
-    rowTitles: { 1: 'Burn', 2: 'Coast', 3: 'Free fall', 4: 'Retro burn' },
+    briefChip: 'Retro-burn calculations',
+    rowTitles: { 4: 'Retro burn' },
     rows: {
-      1: BURN_ROW,
-      2: COAST_ROW,
-      3: ['?', '0.0 m/s', '?', '{g}', '?'],
       4: ['?', '?', '0.0 m/s', '{retro} net', '?'],
     },
     equations: {
@@ -190,7 +198,7 @@ const SECTIONS = [
       coast: { label: 'Coast Phase', body: 'Engine off, still climbing.' },
       descent: { label: 'Free Fall', body: 'Falling from apex toward the retro ignition height.' },
       retro: { label: 'Retro Burn', body: 'Retro engine on, slowing the rocket for touchdown.' },
-      default: { label: 'Touchdown', body: 'The mission is complete. Answer the Stage 4 questions in the Mission Brief.' },
+      default: { label: 'Touchdown', body: 'Answer the retro-burn questions in the Mission Brief.' },
     },
     freezeSubs: {
       cutoff: 'Engine cutoff.',
@@ -200,13 +208,9 @@ const SECTIONS = [
       crashed: 'Vehicle destroyed.',
     },
     questions: {
-      title: 'Stage 4 Questions',
-      note: 'Nothing on this screen reports a number. Use the complete flight for the two numeric questions beside the simulation.',
-      count: 4,
-      inlineCount: 2,
-      fullWidthCount: 2,
-      fullWidthTitle: 'Final Analysis Questions',
-      fullWidthNote: '<strong>Mission debrief:</strong> use evidence from the complete flight above to defend your answers to Questions 9 and 10. Each response spans the full assessment width.',
+      title: 'Retro-Burn Questions',
+      note: 'Use the apex height from Section 3 and the retro-burn givens above. Both answers describe only the retro burn, from ignition to touchdown.',
+      count: 2,
     },
   },
 ];
@@ -547,6 +551,11 @@ function labRuntime() {
       var settled = fv.hasStarted && !fv.isRunning;
       var clock = LAB.showTimer ? fv.time.toFixed(2) + ' s' : '--';
 
+      [1, 2, 3, 4].forEach(function(stage) {
+        var row = labById('stage-val-row-' + stage);
+        if (row) row.classList.toggle('hidden', !LAB.rows[stage]);
+      });
+
       if (settled) {
         if (LAB.doneStatus && el.flightStageText) el.flightStageText.textContent = LAB.doneStatus;
         labBlank('flightDragSub', 'Run complete');
@@ -703,11 +712,28 @@ ${markup.split('\n').map((line) => (line.trim() ? `    ${line}` : line)).join('\
 
 const sectionsMarkup = SECTIONS.map(buildSectionMarkup).join('\n\n');
 
+/* Student-controlled flight, embedded with its model and controls. */
+const independentMarkup = readSource('parachute-challenge.html');
+
 /* ------------------------------------------------------------------ *
  * 4. Template styles
  * ------------------------------------------------------------------ */
 const templateStyles = `
     <style>
+      body.u1h-assessment {
+        background: #eef2f7;
+        color: #172033;
+        color-scheme: light;
+      }
+
+      /* Pair every dark simulation surface with its own foreground color.
+         The surrounding assessment and native Buzz questions use light surfaces. */
+      .u1h-assessment .card {
+        background: #0f172a;
+        color: #e2e8f0;
+        color-scheme: dark;
+      }
+
       [id$="score-badge"],
       [id$="badge-target"],
       [id$="toggle-coach-btn"],
@@ -723,7 +749,7 @@ const templateStyles = `
       .lab-intro {
         width: min(1400px, 100%);
         margin: 0 auto 28px;
-        color: #e2e8f0;
+        color: #172033;
       }
 
       .lab-intro h1 {
@@ -734,7 +760,7 @@ const templateStyles = `
 
       .lab-intro p {
         margin: 0 0 8px;
-        color: #cbd5e1;
+        color: #334155;
         line-height: 1.6;
         width: 100%;
         max-width: none;
@@ -748,11 +774,12 @@ const templateStyles = `
         width: min(1400px, 100%);
         margin: 0 auto 18px;
         padding: 16px 20px;
-        border: 1px solid #1e293b;
+        border: 1px solid #c8d3e1;
         border-left-width: 6px;
         border-radius: 14px;
-        background: #0f172a;
-        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
+        background: #ffffff;
+        color: #172033;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
       }
 
       .lab-section-head.sky { border-left-color: #38bdf8; }
@@ -765,18 +792,18 @@ const templateStyles = `
         font-weight: 800;
         letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: #94a3b8;
+        color: #475569;
       }
 
       .lab-section-head h2 {
         margin: 4px 0 8px;
         font-size: 1.3rem;
-        color: #f1f5f9;
+        color: #172033;
       }
 
       .lab-section-head p {
         margin: 0;
-        color: #cbd5e1;
+        color: #334155;
         line-height: 1.6;
         width: 100%;
         max-width: none;
@@ -823,6 +850,7 @@ const templateStyles = `
         border-radius: 12px;
         background: #f8fafc;
         color: #172033;
+        color-scheme: light;
       }
 
       .buzz-block.sky { border-left-color: #0284c7; }
@@ -853,6 +881,38 @@ const templateStyles = `
       .buzz-slot + .buzz-slot {
         margin-top: 10px;
       }
+
+      /* Buzz replaces each a:question placeholder with native form markup.
+         Keep that injected content in an explicit light color scheme so it
+         cannot inherit the surrounding lab's light-on-dark text palette. */
+      .buzz-slot {
+        background: #ffffff;
+        color: #172033;
+        color-scheme: light;
+        padding: 12px;
+        border: 1px solid #c8d3e1;
+        border-radius: 8px;
+      }
+
+      .buzz-slot :where(h1, h2, h3, h4, h5, h6, p, li, label, legend, span, strong, em, small, td, th) {
+        color: #172033 !important;
+      }
+
+      .buzz-slot :where(input, textarea, select) {
+        background: #ffffff !important;
+        color: #111827 !important;
+        border-color: #64748b !important;
+      }
+
+      .buzz-slot :where(input, textarea)::placeholder {
+        color: #475569 !important;
+        opacity: 1;
+      }
+
+      .buzz-slot a {
+        color: #075985 !important;
+        text-decoration-thickness: 2px;
+      }
     </style>`;
 
 /* ------------------------------------------------------------------ *
@@ -861,9 +921,8 @@ const templateStyles = `
 const intro = `    <header class="lab-intro">
       <h1>Unit 1 Honors: Rocket Launch Lab Assessment</h1>
       <p><strong>Welcome to Mission Control.</strong> Your challenge is to launch a rocket, predict its apex, and guide it through a precision retro-burn landing.
-      You will replay the same mission across four connected flight stages, using each stage&rsquo;s evidence to unlock the next calculation.</p>
-      <p>Work in order from powered burn to touchdown. Read the instruments that remain online, calculate every blacked-out value, and prepare a final mission debrief
-      that proves you understand the rocket&rsquo;s velocity, acceleration, distance, and displacement.</p>
+      Sections 1–4 follow the same rocket from powered burn through retro-burn landing.</p>
+      <p>Complete those calculations in order, then launch and land your own parachute-equipped rocket in Section 5. Use your flight record to calculate time in the air.</p>
     </header>`;
 
 const bootstrap = `  <script>
@@ -890,15 +949,29 @@ const bootstrap = `  <script>
     });
   </script>`;
 
-const body = `<body>
+const body = `<body class="u1h-assessment">
 ${intro}
 
 ${sectionsMarkup}
+
+${independentMarkup}
 
   <script>
 ${buildLabFactory(sourceScript)}
   </script>
 ${bootstrap}
+  <script>
+${readSource('parachute-flight.js')}
+  </script>
+  <script>
+${readSource('parachute-grading.js')}
+  </script>
+  <script>
+${readSource('parachute-challenge.js')}
+  </script>
+  <script>
+${readSource('parachute-buzz-response.js')}
+  </script>
 ${integrityGuard}
 </body>`;
 
@@ -910,6 +983,7 @@ const template = `<!DOCTYPE html>
   <title>Unit 1 Honors: Rocket Launch Lab Assessment</title>
   <style>
 ${sourceCss}
+${readSource('parachute-challenge.css')}
   </style>${templateStyles}
 </head>
 ${body}
@@ -922,4 +996,4 @@ if (slotCount !== EXPECTED_SLOTS) {
 }
 
 fs.writeFileSync(outputPath, template, 'utf8');
-console.log(`Built ${path.relative(process.cwd(), outputPath)} (${slotCount} question slots, ${SECTIONS.length} simulations)`);
+console.log(`Built ${path.relative(process.cwd(), outputPath)} (${slotCount} question slots, ${SECTIONS.length} staged simulations + 1 independent flight)`);

@@ -21,92 +21,111 @@
   var MUZZLE_FLASH_DURATION = 250; // ms
   var opponentDelay = 0;           // randomized each race
 
+  // Sound is optional: unavailable/blocked audio must never stop a trial.
   function warmAudioCtx() {
-    if (!gunAudioCtx) gunAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (gunAudioCtx.state === 'suspended') gunAudioCtx.resume();
+    try {
+      var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return false;
+      if (!gunAudioCtx) gunAudioCtx = new AudioContextClass();
+      if (gunAudioCtx.state === 'suspended') {
+        var resumed = gunAudioCtx.resume();
+        if (resumed && resumed.catch) resumed.catch(function() {});
+      }
+      return gunAudioCtx.state !== 'closed';
+    } catch (err) {
+      return false;
+    }
   }
 
   function playGunshot() {
-    warmAudioCtx();
-    var ctx = gunAudioCtx;
-    var t = ctx.currentTime;
-    // White-noise burst (the bang)
-    var dur = 0.12;
-    var buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
-    var data = buf.getChannelData(0);
-    for (var i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.02));
-    var src = ctx.createBufferSource();
-    src.buffer = buf;
-    // Bandpass for punch
-    var bp = ctx.createBiquadFilter();
-    bp.type = 'bandpass'; bp.frequency.value = 800; bp.Q.value = 0.6;
-    // Compressor for loudness
-    var comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -20; comp.ratio.value = 12;
-    // Gain
-    var gain = ctx.createGain();
-    gain.gain.setValueAtTime(1.0, t);
-    gain.gain.exponentialRampToValueAtTime(0.01, t + dur);
-    src.connect(bp); bp.connect(comp); comp.connect(gain); gain.connect(ctx.destination);
-    src.start(t); src.stop(t + dur);
-    // Low thud overlay
-    var osc = ctx.createOscillator();
-    osc.type = 'sine'; osc.frequency.setValueAtTime(80, t); osc.frequency.exponentialRampToValueAtTime(30, t + 0.15);
-    var oscGain = ctx.createGain();
-    oscGain.gain.setValueAtTime(0.6, t); oscGain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
-    osc.connect(oscGain); oscGain.connect(ctx.destination);
-    osc.start(t); osc.stop(t + 0.15);
+    if (!warmAudioCtx()) return;
+    try {
+      var ctx = gunAudioCtx;
+      var t = ctx.currentTime;
+      // White-noise burst (the bang)
+      var dur = 0.12;
+      var buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
+      var data = buf.getChannelData(0);
+      for (var i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.02));
+      var src = ctx.createBufferSource();
+      src.buffer = buf;
+      // Bandpass for punch
+      var bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass'; bp.frequency.value = 800; bp.Q.value = 0.6;
+      // Compressor for loudness
+      var comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -20; comp.ratio.value = 12;
+      // Gain
+      var gain = ctx.createGain();
+      gain.gain.setValueAtTime(1.0, t);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + dur);
+      src.connect(bp); bp.connect(comp); comp.connect(gain); gain.connect(ctx.destination);
+      src.start(t); src.stop(t + dur);
+      // Low thud overlay
+      var osc = ctx.createOscillator();
+      osc.type = 'sine'; osc.frequency.setValueAtTime(80, t); osc.frequency.exponentialRampToValueAtTime(30, t + 0.15);
+      var oscGain = ctx.createGain();
+      oscGain.gain.setValueAtTime(0.6, t); oscGain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+      osc.connect(oscGain); oscGain.connect(ctx.destination);
+      osc.start(t); osc.stop(t + 0.15);
+    } catch (err) { /* Continue with the visual cue if audio fails. */ }
   }
 
   function playStarterTone(freq, duration) {
-    warmAudioCtx();
-    var ctx = gunAudioCtx;
-    var t = ctx.currentTime;
-    var osc = ctx.createOscillator();
-    var gain = ctx.createGain();
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(freq, t);
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.16, t + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(t);
-    osc.stop(t + duration + 0.02);
+    if (!warmAudioCtx()) return;
+    try {
+      var ctx = gunAudioCtx;
+      var t = ctx.currentTime;
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(0.16, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + duration + 0.02);
+    } catch (err) { /* Continue with the visual cue if audio fails. */ }
+  }
+
+  var speechFallbackId = null;
+  var speechGeneration = 0;
+
+  function cancelSpeechCue() {
+    // Invalidate callbacks before cancel(), which may synchronously emit onend.
+    speechGeneration += 1;
+    clearTimeout(speechFallbackId);
+    speechFallbackId = null;
+    try {
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+    } catch (err) { /* Speech is optional. */ }
   }
 
   function speakCue(text, options, onDone) {
     options = options || {};
-    var fallbackDelay = options.fallbackDelay || 1000;
-    var speechFallbackId = null;
-    if (!('speechSynthesis' in window)) {
-      if (onDone) timerId = setTimeout(onDone, fallbackDelay);
-      return;
+    cancelSpeechCue();
+    var generation = speechGeneration;
+    var completed = false;
+    function finish() {
+      if (completed || generation !== speechGeneration) return;
+      completed = true;
+      clearTimeout(speechFallbackId);
+      speechFallbackId = null;
+      if (onDone) onDone();
     }
+    // Register the fallback first, including for synchronous speech errors.
+    if (onDone) speechFallbackId = setTimeout(finish, options.fallbackDelay || 1000);
     try {
-      window.speechSynthesis.cancel();
-      var completed = false;
-      var utterance = new SpeechSynthesisUtterance(text);
+      if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+      var utterance = new window.SpeechSynthesisUtterance(text);
       utterance.rate = options.rate || 1;
       utterance.pitch = options.pitch || 1;
       utterance.volume = options.volume || 1;
-      utterance.onend = utterance.onerror = function() {
-        if (completed) return;
-        completed = true;
-        if (speechFallbackId) clearTimeout(speechFallbackId);
-        if (onDone) onDone();
-      };
+      utterance.onend = utterance.onerror = finish;
       window.speechSynthesis.speak(utterance);
-      if (onDone) {
-        speechFallbackId = setTimeout(function() {
-          if (completed) return;
-          completed = true;
-          if (onDone) onDone();
-        }, fallbackDelay);
-      }
-    } catch (err) {
-      if (onDone) timerId = setTimeout(onDone, fallbackDelay);
-    }
+    } catch (err) { /* The fallback advances the visual countdown. */ }
   }
 
   function playStarterCue(text) {
@@ -121,50 +140,54 @@
   }
 
   function playEngineRev() {
-    warmAudioCtx();
-    var ctx = gunAudioCtx;
-    var t = ctx.currentTime;
-    var duration = 2.2;
-    var master = ctx.createGain();
-    master.gain.setValueAtTime(0.0001, t);
-    master.gain.exponentialRampToValueAtTime(0.42, t + 0.08);
-    master.gain.exponentialRampToValueAtTime(0.0001, t + duration);
-    master.connect(ctx.destination);
+    if (!warmAudioCtx()) return;
+    try {
+      var ctx = gunAudioCtx;
+      var t = ctx.currentTime;
+      var duration = 2.2;
+      var master = ctx.createGain();
+      master.gain.setValueAtTime(0.0001, t);
+      master.gain.exponentialRampToValueAtTime(0.42, t + 0.08);
+      master.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+      master.connect(ctx.destination);
 
-    for (var i = 0; i < 3; i++) {
-      var osc = ctx.createOscillator();
-      osc.type = i === 0 ? 'sawtooth' : 'square';
-      osc.frequency.setValueAtTime(55 + i * 11, t);
-      osc.frequency.exponentialRampToValueAtTime(150 + i * 28, t + duration * 0.82);
-      osc.connect(master);
-      osc.start(t);
-      osc.stop(t + duration);
-    }
+      for (var i = 0; i < 3; i++) {
+        var osc = ctx.createOscillator();
+        osc.type = i === 0 ? 'sawtooth' : 'square';
+        osc.frequency.setValueAtTime(55 + i * 11, t);
+        osc.frequency.exponentialRampToValueAtTime(150 + i * 28, t + duration * 0.82);
+        osc.connect(master);
+        osc.start(t);
+        osc.stop(t + duration);
+      }
 
-    var thump = ctx.createOscillator();
-    thump.type = 'sine';
-    thump.frequency.setValueAtTime(42, t);
-    thump.frequency.exponentialRampToValueAtTime(88, t + duration * 0.75);
-    thump.connect(master);
-    thump.start(t);
-    thump.stop(t + duration);
+      var thump = ctx.createOscillator();
+      thump.type = 'sine';
+      thump.frequency.setValueAtTime(42, t);
+      thump.frequency.exponentialRampToValueAtTime(88, t + duration * 0.75);
+      thump.connect(master);
+      thump.start(t);
+      thump.stop(t + duration);
+    } catch (err) { /* Continue with the visual cue if audio fails. */ }
   }
 
   function playLightBeep(isGreen) {
-    warmAudioCtx();
-    var ctx = gunAudioCtx;
-    var t = ctx.currentTime;
-    var osc = ctx.createOscillator();
-    var gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(isGreen ? 880 : 520, t);
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(isGreen ? 0.34 : 0.24, t + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + (isGreen ? 0.22 : 0.14));
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(t);
-    osc.stop(t + (isGreen ? 0.24 : 0.16));
+    if (!warmAudioCtx()) return;
+    try {
+      var ctx = gunAudioCtx;
+      var t = ctx.currentTime;
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(isGreen ? 880 : 520, t);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(isGreen ? 0.34 : 0.24, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + (isGreen ? 0.22 : 0.14));
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + (isGreen ? 0.24 : 0.16));
+    } catch (err) { /* Continue with the visual cue if audio fails. */ }
   }
 
   function playDragRaceIntroCue(onDone) {
@@ -186,7 +209,7 @@
       clearInterval(lightIntervalId);
       lightIntervalId = null;
     }
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    cancelSpeechCue();
   }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -293,17 +316,7 @@
     ctx.restore();
   }
 
-  function drawFire(ctx, x, y, pitch, xSide) {
-    ctx.save(); ctx.translate(x, y); ctx.rotate(xSide * 0.4);
-    var fireH = 20 + Math.random() * 25;
-    var fireGrad = ctx.createLinearGradient(0, 0, 0, -fireH);
-    fireGrad.addColorStop(0, 'rgba(255, 255, 0, 0.9)'); fireGrad.addColorStop(0.5, 'rgba(255, 120, 0, 0.7)'); fireGrad.addColorStop(1, 'rgba(255, 0, 0, 0)');
-    ctx.fillStyle = fireGrad;
-    ctx.beginPath(); ctx.moveTo(-4, 0); ctx.quadraticCurveTo(0, -fireH * 1.1, 4, 0); ctx.fill();
-    ctx.restore();
-  }
-
-  function drawRocketJet(ctx, x, y, pitch, showFire) {
+  function drawRocketJet(ctx, x, y, pitch) {
     ctx.save(); ctx.translate(x, y);
     var nozzleGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, 15);
     nozzleGrad.addColorStop(0, '#1e293b'); nozzleGrad.addColorStop(1, '#020617');
@@ -311,19 +324,10 @@
     ctx.beginPath(); ctx.ellipse(0, 0, 16, 12 * (1 - pitch * 0.5), 0, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#ef4444';
     ctx.beginPath(); ctx.ellipse(0, 0, 6, 4 * (1 - pitch * 0.5), 0, 0, Math.PI * 2); ctx.fill();
-    if (showFire) {
-      var flameSize = 40 + Math.random() * 30;
-      var flameGrad = ctx.createRadialGradient(0, 0, 5, 0, 0, flameSize);
-      flameGrad.addColorStop(0, 'rgba(255, 255, 200, 1)'); flameGrad.addColorStop(0.4, 'rgba(255, 150, 0, 0.8)'); flameGrad.addColorStop(1, 'rgba(255, 0, 0, 0)');
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = flameGrad;
-      ctx.beginPath(); ctx.ellipse(0, 15, flameSize * 0.6, flameSize * 1.2, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.globalCompositeOperation = 'source-over';
-    }
     ctx.restore();
   }
 
-  function drawExhaustPipes(ctx, xSide, yBase, pitch, showFire) {
+  function drawExhaustPipes(ctx, xSide, yBase, pitch) {
     var pipeCount = 5;
     ctx.save(); ctx.translate(xSide * 16, yBase);
     for (var i = 0; i < pipeCount; i++) {
@@ -335,7 +339,6 @@
         ctx.fillStyle = '#475569'; ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1;
         roundRect(ctx, -3, -12, 6, 24, 3, true); ctx.stroke();
         ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.ellipse(0, -12, 3, 1.5, 0, 0, Math.PI * 2); ctx.fill();
-        if (showFire) drawFire(ctx, 0, -12, pitch, xSide);
         ctx.restore();
     }
     ctx.restore();
@@ -369,7 +372,7 @@
     ctx.restore();
   }
 
-  function drawDragster(ctx, bodyColor, stripeColor, showFire) {
+  function drawDragster(ctx, bodyColor, stripeColor) {
     var pitch = DRAG_PITCH;
     var rearY = 110; 
     var noseY = rearY - (DRAG_NOSE_OFFSET * (1 - pitch * 0.3));
@@ -391,14 +394,14 @@
     ctx.beginPath(); var halfW = DRAG_BODY_WIDTH / 2; var halfFrontW = 7; 
     ctx.moveTo(-halfW, bodyRearY); ctx.lineTo(halfW, bodyRearY); ctx.lineTo(halfW, cockpitTopY); ctx.lineTo(halfFrontW, noseY); ctx.lineTo(halfFrontW * 0.7, noseExtend); ctx.lineTo(-halfFrontW * 0.7, noseExtend); ctx.lineTo(-halfFrontW, noseY); ctx.lineTo(-halfW, cockpitTopY); ctx.closePath(); ctx.fill();
 
-    drawRocketJet(ctx, 0, bodyRearY, pitch, showFire);
+    drawRocketJet(ctx, 0, bodyRearY, pitch);
 
     // Details
     ctx.fillStyle = stripeColor; ctx.beginPath(); ctx.moveTo(-2, cockpitTopY); ctx.lineTo(2, cockpitTopY); ctx.lineTo(1.5, noseExtend); ctx.lineTo(-1.5, noseExtend); ctx.closePath(); ctx.fill();
     drawChromeEngine(ctx, 0, cockpitTopY - 35, DRAG_BODY_WIDTH * 0.85, pitch);
     drawDriverHelmet(ctx, 0, cockpitTopY + 22, 32, pitch); 
-    drawExhaustPipes(ctx, -1, cockpitTopY - 10, pitch, showFire);
-    drawExhaustPipes(ctx, 1, cockpitTopY - 10, pitch, showFire);
+    drawExhaustPipes(ctx, -1, cockpitTopY - 10, pitch);
+    drawExhaustPipes(ctx, 1, cockpitTopY - 10, pitch);
     ctx.fillStyle = 'rgba(186, 230, 253, 0.4)'; var canopyW = DRAG_BODY_WIDTH - 12; var canopyH = 35 * (1-pitch*0.5);
     roundRect(ctx, -canopyW/2, cockpitTopY + 10, canopyW, canopyH, 10, true);
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)'; ctx.lineWidth = 1; ctx.stroke();
@@ -411,6 +414,21 @@
     ctx.fillStyle = bodyColor; var epH = 45; roundRect(ctx, -DRAG_WING_WIDTH/2 - 2, wingY - epH/3, 6, epH, 2, true); roundRect(ctx, DRAG_WING_WIDTH/2 - 4, wingY - epH/3, 6, epH, 2, true);
   }
 
+  var carSprites = {};
+  function getCarSprite(bodyColor, stripeColor) {
+    var key = bodyColor + stripeColor;
+    if (!carSprites[key]) {
+      var sprite = document.createElement('canvas');
+      sprite.width = 220;
+      sprite.height = 360;
+      var ctx = sprite.getContext('2d');
+      ctx.translate(110, 170);
+      drawDragster(ctx, bodyColor, stripeColor);
+      carSprites[key] = sprite;
+    }
+    return carSprites[key];
+  }
+
   function drawCar(ctx, car, w, h, bodyColor, stripeColor) {
     var y = projectYFromDistance(car.distance, h);
     var scale = projectScaleFromY(y, h) * 1.0625;
@@ -421,7 +439,7 @@
     ctx.save();
     ctx.translate(x, y - (110 * scale)); 
     ctx.scale(scale, scale); 
-    drawDragster(ctx, bodyColor, stripeColor, car.speed > 0);
+    ctx.drawImage(getCarSprite(bodyColor, stripeColor), -110, -170);
     ctx.restore();
   }
   
@@ -564,8 +582,6 @@
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fillStyle = color;
-    ctx.shadowColor = color;
-    ctx.shadowBlur = (color === '#404047' || color === '#3a3a3f') ? 0 : 14;
     ctx.fill();
     ctx.shadowBlur = 0;
   }
@@ -839,7 +855,7 @@
   }
 
   // â”€â”€ Composite runner draw â”€â”€
-  function drawRunner(ctx, x, groundY, localT, cfg) {
+  function drawRunnerPose(ctx, x, groundY, localT, cfg) {
     var runPose = calcPose(localT, cfg);
     var blend = smoothstep(clamp(localT / cfg.blendDur, 0, 1));
     var pose = mixPose(getSetPose(cfg), runPose, blend);
@@ -863,386 +879,70 @@
     ctx.restore();
   }
 
-  // â”€â”€ Scrolling track constants â”€â”€
+  // Fixed sprint overview and cached scenery.
+  // Small, bounded pose atlas: one set pose, four launch poses, eight running poses.
+  function drawRunner(ctx, x, groundY, localT, cfg) {
+    var cycle = Math.PI * 2 / (cfg.phaseBase + cfg.phaseGain);
+    if (!cfg.sprites) {
+      cfg.sprites = [];
+      for (var i = 0; i < 13; i++) {
+        var sprite = document.createElement('canvas');
+        sprite.width = 260;
+        sprite.height = 280;
+        var sampleTime = i === 0 ? 0 : (i < 5 ? i * 0.25 : 3 + (i - 5) * cycle / 8);
+        drawRunnerPose(sprite.getContext('2d'), 195, 245, sampleTime, cfg);
+        cfg.sprites.push(sprite);
+      }
+    }
+    var frame = localT <= 0 ? 0 : (localT < 1 ? Math.min(4, 1 + Math.floor(localT * 4)) : 5 + Math.floor(((localT - 1) % cycle) / cycle * 8));
+    ctx.drawImage(cfg.sprites[frame], x - 195 * 0.65, groundY - 245 * 0.65, 260 * 0.65, 280 * 0.65);
+  }
+
   var TRACK_DISTANCE = 50;       // meters
-  var VIEWPORT_METERS = 20;      // meters visible at once
   var VIRT_W = 800, VIRT_H = 400;
-  var TRACK_PPM_VIEW = VIRT_W / VIEWPORT_METERS;  // 40 px per meter
+  var TRACK_PPM_VIEW = (VIRT_W - 140) / TRACK_DISTANCE;  // fixed 50 m overview
   var TRACK_TOP_Y = 285;         // where track surface starts (virtual coords)
   var LANE1_Y = 315;
   var LANE2_Y = 355;
 
-  // â”€â”€ Draw scrolling track background each frame â”€â”€
-  function drawScrollingTrack(ctx, cameraM) {
-    // Sky (static â€” doesn't scroll)
-    var sky = ctx.createLinearGradient(0, 0, 0, 280);
-    sky.addColorStop(0, '#4a90d9');
-    sky.addColorStop(0.6, '#87CEEB');
-    sky.addColorStop(1, '#b8dff5');
-    ctx.fillStyle = sky; ctx.fillRect(0, 0, VIRT_W, 280);
-
-    // Clouds scroll at 10% parallax
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
-    var cx = -(cameraM * TRACK_PPM_VIEW * 0.10) % (VIRT_W + 200);
-    ctx.beginPath(); ctx.ellipse(130 + cx, 60, 70, 22, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(160 + cx, 55, 50, 18, 0.1, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(520 + cx, 90, 60, 20, -0.05, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(550 + cx, 85, 45, 16, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(720 + cx, 45, 55, 18, 0, 0, Math.PI * 2); ctx.fill();
-
-    // Treeline at 30% parallax
-    var tx = -(cameraM * TRACK_PPM_VIEW * 0.30);
-    ctx.fillStyle = '#3a6e3a';
-    ctx.beginPath(); ctx.moveTo(0, 270);
-    for (var i = 0; i <= VIRT_W; i += 12) {
-      var worldI = i - tx;
-      ctx.lineTo(i, 262 + Math.sin(worldI * 0.03) * 6 + Math.sin(worldI * 0.08) * 3);
-    }
-    ctx.lineTo(VIRT_W, 280); ctx.lineTo(0, 280); ctx.closePath(); ctx.fill();
-
-    // Grass infield
-    var grass = ctx.createLinearGradient(0, 270, 0, TRACK_TOP_Y);
-    grass.addColorStop(0, '#4a8c3f'); grass.addColorStop(1, '#3d7a34');
-    ctx.fillStyle = grass; ctx.fillRect(0, 270, VIRT_W, TRACK_TOP_Y - 270);
-
-    // Track surface
-    var tg = ctx.createLinearGradient(0, TRACK_TOP_Y, 0, VIRT_H);
-    tg.addColorStop(0, '#c75a28'); tg.addColorStop(0.5, '#b7410e'); tg.addColorStop(1, '#9a3610');
-    ctx.fillStyle = tg; ctx.fillRect(0, TRACK_TOP_Y, VIRT_W, VIRT_H - TRACK_TOP_Y);
-
-    // Track texture grain
-    ctx.strokeStyle = 'rgba(0,0,0,0.06)'; ctx.lineWidth = 1;
-    for (var ty = TRACK_TOP_Y + 3; ty < VIRT_H; ty += 4) {
-      ctx.beginPath(); ctx.moveTo(0, ty); ctx.lineTo(VIRT_W, ty); ctx.stroke();
-    }
-
-    // Lane lines
-    ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, 300); ctx.lineTo(VIRT_W, 300);
-    ctx.moveTo(0, 335); ctx.lineTo(VIRT_W, 335);
-    ctx.moveTo(0, 370); ctx.lineTo(VIRT_W, 370);
-    ctx.stroke();
-
-    // Track edge
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(0, TRACK_TOP_Y); ctx.lineTo(VIRT_W, TRACK_TOP_Y); ctx.stroke();
-
-    // â”€â”€ World-positioned features (scroll with camera) â”€â”€
-    var camPx = cameraM * TRACK_PPM_VIEW; // camera offset in pixels
-
-    // Distance markers every 10m
-    ctx.font = '700 11px Segoe UI, sans-serif'; ctx.textAlign = 'center';
-    for (var dm = 0; dm <= TRACK_DISTANCE; dm += 10) {
-      var mx = dm * TRACK_PPM_VIEW - camPx;
-      if (mx < -40 || mx > VIRT_W + 40) continue;
-      // Tick on track edge
-      ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(mx, TRACK_TOP_Y); ctx.lineTo(mx, TRACK_TOP_Y + 8); ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,0.35)';
-      ctx.fillText(dm + 'm', mx, TRACK_TOP_Y - 4);
-    }
-
-    // Start line (at 0m)
-    var startPx = 0 - camPx;
-    if (startPx > -20 && startPx < VIRT_W + 20) {
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 4;
-      ctx.setLineDash([8, 6]);
-      ctx.beginPath(); ctx.moveTo(startPx, TRACK_TOP_Y); ctx.lineTo(startPx, VIRT_H); ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle = '#fff'; ctx.font = '700 11px Segoe UI, sans-serif';
-      ctx.fillText('START', startPx, TRACK_TOP_Y - 4);
-    }
-
-    // Finish line â€” checkerboard
-    var finPx = TRACK_DISTANCE * TRACK_PPM_VIEW - camPx;
-    if (finPx > -20 && finPx < VIRT_W + 20) {
-      var flX = finPx - 8, flW = 16, sqS = 8;
-      for (var fy = TRACK_TOP_Y; fy < VIRT_H; fy += sqS) {
-        for (var fx = flX; fx < flX + flW; fx += sqS) {
-          var ci = Math.floor((fx - flX) / sqS) + Math.floor((fy - TRACK_TOP_Y) / sqS);
-          ctx.fillStyle = ci % 2 === 0 ? '#fff' : '#111';
-          ctx.fillRect(fx, fy, sqS, Math.min(sqS, VIRT_H - fy));
-        }
+  // Fixed sprint overview and cached scenery.
+  var sprintBackground = null;
+  function drawSprintBackground(ctx) {
+    if (!sprintBackground) {
+      sprintBackground = document.createElement('canvas');
+      sprintBackground.width = VIRT_W;
+      sprintBackground.height = VIRT_H;
+      var bg = sprintBackground.getContext('2d');
+      bg.fillStyle = '#b8dff5'; bg.fillRect(0, 0, VIRT_W, VIRT_H);
+      bg.fillStyle = '#4a8c3f'; bg.fillRect(0, 230, VIRT_W, 55);
+      bg.fillStyle = '#b7410e'; bg.fillRect(0, TRACK_TOP_Y, VIRT_W, VIRT_H - TRACK_TOP_Y);
+      bg.strokeStyle = '#ffffff'; bg.lineWidth = 2;
+      bg.beginPath();
+      [TRACK_TOP_Y, 335, 390].forEach(function(y) { bg.moveTo(0, y); bg.lineTo(VIRT_W, y); });
+      bg.stroke();
+      bg.font = '700 13px Segoe UI, sans-serif'; bg.textAlign = 'center';
+      for (var m = 0; m <= TRACK_DISTANCE; m += 10) {
+        var x = 70 + m * TRACK_PPM_VIEW;
+        bg.fillStyle = '#17351b'; bg.fillText(m + ' m', x, 275);
+        bg.fillStyle = '#ffffff'; bg.fillRect(x, TRACK_TOP_Y, m === 0 || m === TRACK_DISTANCE ? 4 : 1, VIRT_H - TRACK_TOP_Y);
       }
-      ctx.fillStyle = '#fff'; ctx.font = '700 12px Segoe UI, sans-serif';
-      ctx.fillText('FINISH', finPx, TRACK_TOP_Y - 4);
+      bg.fillStyle = '#17351b';
+      bg.fillText('START', 70, 254); bg.fillText('FINISH', 730, 254);
+      // Static starter silhouette. Only the high-contrast gun flash changes.
+      bg.fillStyle = '#172033';
+      bg.beginPath(); bg.arc(42, 176, 10, 0, Math.PI * 2); bg.fill();
+      bg.strokeStyle = '#172033'; bg.lineWidth = 8; bg.lineCap = 'round';
+      bg.beginPath();
+      bg.moveTo(42, 190); bg.lineTo(42, 218);
+      bg.moveTo(42, 218); bg.lineTo(30, 242);
+      bg.moveTo(42, 218); bg.lineTo(54, 242);
+      bg.moveTo(42, 196); bg.lineTo(63, 173); bg.lineTo(63, 149);
+      bg.moveTo(42, 196); bg.lineTo(23, 210);
+      bg.stroke();
     }
+    ctx.drawImage(sprintBackground, 0, 0);
   }
 
-  /// ── Starter official figure ──
-function drawStarter(ctx, gunFired, flashAlpha) {
-  var sx = 0, sy = 84;
-
-  ctx.save();
-  ctx.translate(sx, sy);
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  // Helper for rounded rectangles
-  function roundRect(x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
-  }
-
-  // Ground shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.22)';
-  ctx.beginPath();
-  ctx.ellipse(0, 36, 18, 4, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // ======================
-  // Legs - thicker pants
-  // ======================
-  ctx.fillStyle = '#172033';
-
-  // Left leg
-  ctx.beginPath();
-  ctx.moveTo(-5, 0);
-  ctx.lineTo(-11, 20);
-  ctx.lineTo(-10, 34);
-  ctx.lineTo(-4, 34);
-  ctx.lineTo(-2, 20);
-  ctx.lineTo(2, 0);
-  ctx.closePath();
-  ctx.fill();
-
-  // Right leg
-  ctx.beginPath();
-  ctx.moveTo(4, 0);
-  ctx.lineTo(8, 20);
-  ctx.lineTo(9, 34);
-  ctx.lineTo(15, 34);
-  ctx.lineTo(14, 20);
-  ctx.lineTo(8, 0);
-  ctx.closePath();
-  ctx.fill();
-
-  // Pants highlight
-  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(-7, 4);
-  ctx.lineTo(-9, 31);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(7, 4);
-  ctx.lineTo(12, 31);
-  ctx.stroke();
-
-  // Shoes
-  ctx.fillStyle = '#111';
-  roundRect(-14, 31, 13, 5, 2);
-  ctx.fill();
-
-  roundRect(5, 31, 14, 5, 2);
-  ctx.fill();
-
-  // ======================
-  // Torso / official shirt
-  // ======================
-  ctx.fillStyle = '#f3f3f3';
-  ctx.beginPath();
-  ctx.moveTo(-9, -2);
-  ctx.lineTo(9, -2);
-  ctx.lineTo(8, -23);
-  ctx.quadraticCurveTo(0, -27, -8, -23);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.strokeStyle = '#c9c9c9';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  // Shirt center line
-  ctx.strokeStyle = '#d4d4d4';
-  ctx.lineWidth = 0.8;
-  ctx.beginPath();
-  ctx.moveTo(0, -23);
-  ctx.lineTo(0, -3);
-  ctx.stroke();
-
-  // Belt
-  ctx.fillStyle = '#222';
-  ctx.fillRect(-9, -3, 18, 3);
-
-  // Small badge
-  ctx.fillStyle = '#e3c24b';
-  ctx.beginPath();
-  ctx.arc(4, -17, 1.6, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Neck
-  ctx.fillStyle = '#c98a63';
-  roundRect(-3, -27, 6, 6, 2);
-  ctx.fill();
-
-  // ======================
-  // Head and cap
-  // ======================
-  ctx.fillStyle = '#c98a63';
-  ctx.beginPath();
-  ctx.ellipse(0, -33, 7, 8, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Simple nose/face detail
-  ctx.strokeStyle = 'rgba(80,45,30,0.35)';
-  ctx.lineWidth = 0.8;
-  ctx.beginPath();
-  ctx.moveTo(2, -33);
-  ctx.lineTo(3, -30);
-  ctx.stroke();
-
-  // Cap
-  ctx.fillStyle = '#151526';
-  ctx.beginPath();
-  ctx.ellipse(0, -39, 8, 4, 0, Math.PI, 0);
-  ctx.fill();
-
-  ctx.fillRect(-8, -39, 16, 3);
-
-  // Cap brim
-  ctx.beginPath();
-  ctx.ellipse(5, -38, 6, 2, 0.1, 0, Math.PI * 2);
-  ctx.fill();
-
-  // ======================
-  // Arm at side
-  // ======================
-  ctx.strokeStyle = '#c98a63';
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.moveTo(-8, -19);
-  ctx.quadraticCurveTo(-14, -10, -12, 2);
-  ctx.stroke();
-
-  // Hand at side
-  ctx.fillStyle = '#c98a63';
-  ctx.beginPath();
-  ctx.arc(-12, 2, 2.4, 0, Math.PI * 2);
-  ctx.fill();
-
-  // ======================
-  // Raised arm holding starter pistol
-  // ======================
-  var shoulderX = 8;
-  var shoulderY = -19;
-  var elbowX = 15;
-  var elbowY = -27;
-  var handX = 18;
-  var handY = -38;
-
-  // Upper/lower arm
-  ctx.strokeStyle = '#c98a63';
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.moveTo(shoulderX, shoulderY);
-  ctx.quadraticCurveTo(elbowX, elbowY, handX, handY);
-  ctx.stroke();
-
-  // Hand
-  ctx.fillStyle = '#c98a63';
-  ctx.beginPath();
-  ctx.arc(handX, handY, 2.8, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Starter pistol
-  ctx.save();
-  ctx.translate(handX + 1, handY - 2);
-  ctx.rotate(-0.22);
-
-  ctx.fillStyle = '#2b2b2b';
-
-  // Barrel
-  roundRect(-1, -13, 4, 13, 1);
-  ctx.fill();
-
-  // Grip
-  ctx.save();
-  ctx.rotate(0.28);
-  roundRect(-3, -1, 6, 8, 1.5);
-  ctx.fill();
-  ctx.restore();
-
-  // Trigger guard
-  ctx.strokeStyle = '#111';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.arc(1, 1, 3, 0.1, Math.PI * 1.3);
-  ctx.stroke();
-
-  ctx.restore();
-
-  // ======================
-  // Muzzle flash / smoke
-  // ======================
-  if (gunFired && flashAlpha > 0) {
-    ctx.save();
-
-    ctx.translate(handX + 3, handY - 16);
-    ctx.rotate(-0.22);
-    ctx.globalAlpha = flashAlpha;
-
-    // Outer flash
-    ctx.fillStyle = '#ffdd44';
-    ctx.beginPath();
-    ctx.moveTo(0, -2);
-    ctx.lineTo(-6, -18);
-    ctx.lineTo(-1, -9);
-    ctx.lineTo(0, -24);
-    ctx.lineTo(2, -9);
-    ctx.lineTo(7, -18);
-    ctx.closePath();
-    ctx.fill();
-
-    // Inner flash
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.moveTo(0, -4);
-    ctx.lineTo(-3, -14);
-    ctx.lineTo(0, -10);
-    ctx.lineTo(3, -14);
-    ctx.closePath();
-    ctx.fill();
-
-    // Orange center
-    ctx.fillStyle = '#ff7a22';
-    ctx.beginPath();
-    ctx.arc(0, -4, 4, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Smoke puff
-    ctx.globalAlpha = flashAlpha * 0.55;
-    ctx.fillStyle = '#d8d8d8';
-    ctx.beginPath();
-    ctx.ellipse(
-      -3,
-      -21,
-      8 + (1 - flashAlpha) * 12,
-      5 + (1 - flashAlpha) * 6,
-      0,
-      0,
-      Math.PI * 2
-    );
-    ctx.fill();
-
-    ctx.restore();
-  }
-
-  ctx.restore();
-}
-
-  // â”€â”€ Signal text overlay â”€â”€
   function drawTrackSignalText(ctx, signal) {
     // Signal text handled by HTML #track-signal overlay
   }
@@ -1255,29 +955,14 @@ function drawStarter(ctx, gunFired, flashAlpha) {
 
     var timeSinceGreen = rc.greenTime > 0 ? (rc.now - rc.greenTime) / 1000 : 0;
 
-    // Camera follows the lead runner, keeping runners ~30% from left
-    var leadDist = Math.max(rc.opponentDist, rc.playerDist);
-    var camTarget = leadDist - VIEWPORT_METERS * 0.30;
-    var cameraM = Math.max(-3, Math.min(camTarget, TRACK_DISTANCE - VIEWPORT_METERS + 3));
-
-    // Draw scrolling track (sky, surface, markers, start/finish)
-    drawScrollingTrack(ctx, cameraM);
-
-    var camPx = cameraM * TRACK_PPM_VIEW;
-
-    // Starter official (world pos = 10m, standing on the track)
-    var starterWorldPx = 10 * TRACK_PPM_VIEW - camPx;
-    if (starterWorldPx > -120 && starterWorldPx < VIRT_W + 120) {
-      ctx.save(); ctx.translate(starterWorldPx, 0);
-      ctx.scale(2.5, 2.5);
-      var gunFired = rc.greenTime > 0;
-      var flashAlpha = 0;
-      if (muzzleFlashStart > 0 && rc.now > 0) {
-        var elapsed = rc.now - muzzleFlashStart;
-        if (elapsed < MUZZLE_FLASH_DURATION) flashAlpha = 1 - (elapsed / MUZZLE_FLASH_DURATION);
-      }
-      drawStarter(ctx, gunFired, flashAlpha);
-      ctx.restore();
+    // Fixed overview keeps the entire 50 m race and finish line visible.
+    drawSprintBackground(ctx);
+    var camPx = -70;
+    if (muzzleFlashStart > 0 && rc.now >= muzzleFlashStart && rc.now - muzzleFlashStart < MUZZLE_FLASH_DURATION) {
+      ctx.fillStyle = '#fff200';
+      ctx.beginPath(); ctx.arc(63, 141, 14, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(63, 141, 6, 0, Math.PI * 2); ctx.fill();
     }
 
     // Opponent (lane 1) world position in meters -> screen px
@@ -1933,15 +1618,14 @@ function drawStarter(ctx, gunFired, flashAlpha) {
         animId = requestAnimationFrame(animate);
         return;
       }
-      var dt = Math.min(0.033, (now - race.lastTime) / 1000);
       race.lastTime = now;
 
       if (state.gameState === 'dropping') {
-        if (!race.greenTime) race.greenTime = now;
+        if (!race.greenTime) race.greenTime = state.startTime;
         var tSinceGreen = (now - race.greenTime) / 1000;
         if (!race.opponentLaunched && tSinceGreen >= opponentDelay) {
           race.opponentLaunched = true;
-          race.opponentLaunchTime = tSinceGreen;
+          race.opponentLaunchTime = opponentDelay;
           race.opponentSpeed = getScenarioMotionSpeed(state.currentLevel);
         }
         if (race.opponentLaunched) {
@@ -1949,17 +1633,17 @@ function drawStarter(ctx, gunFired, flashAlpha) {
             var oppT = tSinceGreen - race.opponentLaunchTime;
             race.opponentDist = Math.min(getScenarioRaceDistance(state.currentLevel), 0.5 * DRAG_ACCEL * oppT * oppT);
           } else {
-            race.opponentDist = Math.min(getScenarioRaceDistance(state.currentLevel), race.opponentDist + race.opponentSpeed * dt);
+            race.opponentDist = Math.min(getScenarioRaceDistance(state.currentLevel), race.opponentSpeed * Math.max(0, tSinceGreen - race.opponentLaunchTime));
           }
         }
         if (race.playerLaunched) {
           if (state.currentLevel === 2) {
-            if (!race.playerLaunchTime) race.playerLaunchTime = tSinceGreen;
+            race.playerLaunchTime = race.playerReactionTime;
             var plyT = tSinceGreen - race.playerLaunchTime;
             race.playerDist = Math.min(getScenarioRaceDistance(state.currentLevel), 0.5 * DRAG_ACCEL * plyT * plyT);
           } else {
             race.playerSpeed = getScenarioMotionSpeed(state.currentLevel);
-            race.playerDist = Math.min(getScenarioRaceDistance(state.currentLevel), race.playerDist + race.playerSpeed * dt);
+            race.playerDist = Math.min(getScenarioRaceDistance(state.currentLevel), race.playerSpeed * Math.max(0, tSinceGreen - race.playerReactionTime));
           }
         }
 
@@ -1985,12 +1669,7 @@ function drawStarter(ctx, gunFired, flashAlpha) {
         }
       }
 
-      var ctx = el.canvas.getContext('2d');
-      if (state.currentLevel === 2) {
-        drawDragRaceScene(ctx, el.canvas.width, el.canvas.height, race, state.lightIndex, state.gameState === 'dropping');
-      } else if (state.currentLevel === 3) {
-        drawTrackScene(ctx, el.canvas.width, el.canvas.height, race, state.trackSignal);
-      }
+      drawCanvasScene();
       animId = requestAnimationFrame(animate);
     }
     animId = requestAnimationFrame(animate);
@@ -2015,7 +1694,6 @@ function drawStarter(ctx, gunFired, flashAlpha) {
     resetRace();
     resetCaptureState();
     sizeCanvas();
-    if (isCanvasLevel(level)) startAnimLoop();
     render();
   }
 
@@ -2140,7 +1818,7 @@ function drawStarter(ctx, gunFired, flashAlpha) {
         state.startTime = performance.now();
         muzzleFlashStart = performance.now();
         opponentDelay = 0.15 + Math.random() * 0.10; // 0.15â€“0.25s
-        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        cancelSpeechCue();
         playGunshot();
         render();
       }, wait);
@@ -2531,7 +2209,19 @@ function drawStarter(ctx, gunFired, flashAlpha) {
     el.submitBtn.textContent = state.submitted ? 'Submitted' : 'Submit Lab';
   }
 
+  function drawCanvasScene() {
+    if (!isCanvasLevel(state.currentLevel) || !el.canvas.width || !el.canvas.height) return;
+    var ctx = el.canvas.getContext('2d');
+    if (!ctx) return;
+    if (state.currentLevel === 2) {
+      drawDragRaceScene(ctx, el.canvas.width, el.canvas.height, race, state.lightIndex, state.gameState === 'dropping');
+    } else {
+      drawTrackScene(ctx, el.canvas.width, el.canvas.height, race, state.trackSignal);
+    }
+  }
+
   function render() {
+    if (state.gameState === 'idle') drawCanvasScene();
     renderScenarioInfo();
     renderSceneVisibility();
     renderOverlays();
@@ -2597,6 +2287,7 @@ function drawStarter(ctx, gunFired, flashAlpha) {
 
     el.gameArea.addEventListener('keydown', function(evt) {
       if (evt.key !== ' ' && evt.key !== 'Enter') return;
+      if (evt.repeat) return;
       evt.preventDefault();
       if (state.gameState === 'dropping' || state.gameState === 'waiting') catchReaction(evt);
       else startTest();
@@ -2610,6 +2301,12 @@ function drawStarter(ctx, gunFired, flashAlpha) {
     el.calcInput.addEventListener('input', function() {
       state.tempCalculation = el.calcInput.value;
       renderPendingTrial();
+    });
+
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden && (state.gameState === 'waiting' || state.gameState === 'dropping')) {
+        markMissedReaction();
+      }
     });
 
     var resizeTimer = null;

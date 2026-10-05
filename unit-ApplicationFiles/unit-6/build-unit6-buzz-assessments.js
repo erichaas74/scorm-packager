@@ -57,7 +57,7 @@ const setupGuides = [
     template: 'u6l2-dynamic-electric-field-buzz-assessment-template.html',
     preview: 'u6l2-dynamic-electric-field-buzz-assessment-template-preview.html',
     count: 8,
-    mix: 'two numeric, four multiple-choice, and two essay questions',
+    mix: 'two numeric, four image-based multiple-choice, and two essay questions',
     mission: 'Become an electric-field navigator! You will arrange source charges, launch a positive test charge, and reshape its path using invisible fields and vector addition until it reaches each target.',
     goals: [
       'Predict electric-field direction around positive and negative source charges.',
@@ -65,16 +65,16 @@ const setupGuides = [
       'Use vector addition to explain a curved path created by multiple charges.'
     ],
     steps: [
-      'Complete the field-direction warm-up and inspect the vectors acting on the positive test charge.',
+      'Choose a challenge. Click + or minus on the arena to add a source, then drag it into place. Use [ and ] to select sources and arrow keys to move them with the keyboard.',
       'Solve the first two one-charge challenges by choosing the correct source-charge sign and location.',
       'Complete Challenge 3 by combining fields to guide the test charge around the barrier.',
-      'Review the three successful runs in the evidence table and answer all eight Buzz questions in order.',
-      'Use the saved charge arrangements in the final two responses. The evidence PNG is optional and not graded.'
+      'Use the force-arrow images to identify the mystery charge signs in Questions 1-2. Predict initial motion from rest in Questions 3 and 6, calculate in Questions 4-5, and explain your lab evidence in Questions 7-8.',
+      'Use the saved signs and positions beside Questions 7-8 in your final responses. Positions are percentages measured from the left and top of the arena.'
     ],
     checks: [
-      'All three core challenges can be completed and record their source-charge arrangements.',
+      'All three core challenges record source signs, positions, and launch/target context. Working arrangements survive challenge changes and same-tab refreshes.',
       'Field, force, acceleration, and velocity vectors update during a run.',
-      'The optional evidence PNG unlocks only after all core evidence is complete.'
+      'Completed challenge buttons turn green below the arena. Completing challenges in any order gives an accurate handoff to questions. Start over clears saved progress.'
     ],
     note: 'Confirm drag, keyboard, and touch controls all allow students to place and adjust charges.'
   },
@@ -118,23 +118,23 @@ const setupGuides = [
     preview: 'u6l4-electromagnet-design-buzz-assessment-template-preview.html',
     count: 10,
     mix: 'five numeric, three multiple-choice, and two essay questions',
-    mission: 'Build an electromagnet strong enough to win an engineering challenge! You will control coil turns, core material, diameter, cells, and wiring while balancing magnetic strength against wire and budget limits.',
+    mission: 'Find the highest lifting strength per unit of cost. Calculate ratios, compare designs, and justify the best value using measured data.',
     goals: [
       'Explain how current, coil turns, and core material affect an electromagnet.',
       'Design controlled-variable trials and interpret current and lifting data.',
-      'Optimize a device while explaining resource and performance tradeoffs.'
+      'Calculate strength-to-cost ratios and percentage improvement, then optimize value.'
     ],
     steps: [
-      'Predict the result of each required change before running the trial.',
-      'Complete and record fixed Trials 1-5 without changing extra variables.',
-      'Use the remaining controls to create an optimized design within the 250 cm wire and 50.00 budget limits.',
-      'Complete the optimization goal, then answer all 10 Buzz questions using the trial table.',
-      'Cite measured values in the final two responses. The evidence PNG is optional and not graded.'
+      'Open Trials 1-5; each required setup loads automatically. Run the test, calculate clips divided by displayed cost to 2 decimals, then select Check calculation.',
+      'Correct calculations turn the trial tabs green and unlock the optimization challenge after all five are complete.',
+      'Test at least three different designs in Trial 6, within 250 cm wire and the 50.00 budget. For each, calculate clips / cost and percentage improvement over baseline.',
+      'Use displayed costs to 2 decimals and unrounded ratios for percentage improvement: (new score / (49 / 14.14) - 1) x 100. Round percentage to 1 decimal. Match the maximum ratio of 6.38 rounded to 2 decimals.',
+      'Review saved results and checked design comparisons, then answer the 10 Buzz questions. No evidence upload is required.'
     ],
     checks: [
       'All five fixed trials reproduce the intended current and paperclip results.',
       'The wire-length, cost, current, and lifting readouts respond to every design control.',
-      'The optional evidence PNG unlocks only after the fixed trials and optimization are complete.'
+      'Runs alone do not turn tabs green. Wrong calculations, repeat designs, and high-strength but low-value designs cannot bypass the optimization requirements.'
     ],
     note: 'Paperclip count is a classroom strength index, not a manufacturer performance prediction.'
   },
@@ -283,7 +283,7 @@ function buildSetup(guide) {
     'SUCCESS AND SCORING',
     '- The assessment is worth 15 points: 10 auto-graded points plus 5 BusyBee points.',
     '- The final two evidence responses are worth 2 points and 3 points.',
-    '- Evidence downloads are optional records. No file upload earns or replaces points.',
+    guide.slug === 'electromagnet' ? '- Green tabs require checked calculations. The challenge requires three distinct checked designs and a best ratio of 6.38 rounded to 2 decimals. No evidence download or upload is required.' : guide.slug === 'dynamic_electric_field' ? '- Saved arrangements appear beside Questions 7-8. No evidence download or upload is required.' : '- Evidence downloads are optional records. No file upload earns or replaces points.',
     '',
     'TEACHER BUZZ SETUP',
     `1. Create a Buzz Assessment titled "${guide.buzzTitle}".`,
@@ -300,6 +300,7 @@ function buildSetup(guide) {
     '',
     'AUTHORITATIVE FILES',
     `- Questions, answer feedback, and BusyBee rubrics: ${guide.questions}`,
+    '- BusyBee rubric fallback: busybee-rubric-metadata.json (regenerate with node unit-ApplicationFiles/sync-application-setup.js after changing questions).',
     `- Buzz assessment template: ${guide.template}`,
     `- Generated local preview: ${guide.preview}`,
     ''
@@ -341,6 +342,7 @@ function buildMillikan() {
 }
 
 function buildDynamicElectricField() {
+  require('./dynamic-electric-field-lab/build-question-diagrams.js').build();
   write(
     'dynamic-electric-field-lab/u6l2-dynamic-electric-field-buzz-assessment-template.html',
     read('dynamic-electric-field-lab/dynamic_electric_field_lab.html')
@@ -449,10 +451,11 @@ function buildElectromagnet() {
   );
 }
 
-buildMillikan();
-buildDynamicElectricField();
-buildCircuit();
-buildElectromagnet();
-buildGenerator();
-buildHonorsMotor();
-setupGuides.forEach(buildSetup);
+const builders = [buildMillikan, buildDynamicElectricField, buildCircuit, buildElectromagnet, buildGenerator, buildHonorsMotor];
+const requested = process.argv.slice(2);
+const selected = setupGuides.map((guide, index) => ({ guide, build: builders[index] }))
+  .filter(({ guide }) => !requested.length || requested.includes(guide.dir) || requested.includes(guide.slug));
+if (!selected.length) throw new Error(`No Unit 6 lab matched: ${requested.join(', ')}`);
+selected.forEach(({ guide, build }) => { build(); buildSetup(guide); });
+
+require('../application-scoring-policy.js').applyUnits([6]);

@@ -294,19 +294,22 @@ const MotionGraphsLab = (function() {
       ] 
     },
     { id:9, duration:16, deliveryHouse:6, porchPirateMode:true, guiltySuspect:'Suspect A', title:'Case 10: The Decoy Drop (2 Vans)',
-      mission:'Two vans, one pirate. Watch the Gray Express van. Who steals its package?',
-      clues:['The Express van delivers at House 6.', 'Suspect A arrives after the drop.'],
-      successExplanation:'Suspect A reached House 6 after the Express van dropped the package.',
-      wrongExplanation:'Watch the timing. The thief arrives AFTER the delivery.',
-      dropTime:8, theftTime:11,
+      mission:'Two vans make stops. Follow the Gray Express van and identify its delivery house.',
+      practicePrompt:'Watch the Gray Express van. Click the house where it makes its delivery.',
+      clues:['Follow the gray position line, not the blue mail-van line.', 'The Express van stays at 60 m from t = 8 s to t = 12 s.'],
+      successExplanation:'House 6 is correct. The Express van stops there from t = 8 s to t = 12 s; Suspect A arrives at t = 12 s, while Suspect B passed earlier.',
+      wrongExplanation:'Follow the gray position line and find its long flat segment. Match 60 m to a house.',
+      dropTime:8, theftTime:12,
       entities: [
         { id:'truck', isMain:true, color:'#2563eb', keyframes:[{t:0,x:0},{t:4,x:20},{t:7,x:20},{t:16,x:70}] }, 
         { id:'truck2', isMain:false, color:'#475569', keyframes:[{t:0,x:0},{t:3,x:40},{t:4,x:40},{t:8,x:60},{t:12,x:60},{t:16,x:0}] },
-        { id:'suspectA', isMain:false, color:'#10b981', keyframes:[{t:0,x:0},{t:10,x:50},{t:16,x:80}] }
+        { id:'suspectA', isMain:false, color:'#10b981', keyframes:[{t:0,x:0},{t:10,x:50},{t:12,x:60},{t:16,x:70}] },
+        { id:'suspectB', isMain:false, color:'#a855f7', keyframes:[{t:0,x:70},{t:4,x:60},{t:16,x:0}] }
       ] 
     },
     { id:10, duration:12, deliveryHouse:3, title:'Case 11: The Getaway Car',
       mission:'The mail van drops a package, and a fast getaway car steals it! Click the house where the theft happened.',
+      practicePrompt:'Click the house where the getaway car stopped to steal the package.',
       clues:['The mail van stops for 3 seconds.', 'The getaway car is much faster (steeper slope) and stops briefly at the same house.'],
       successExplanation:'House 3 is correct. The getaway car stopped there exactly when the package was waiting.',
       wrongExplanation:'Find where the fast red line stops at the same position the blue line stopped earlier.',
@@ -316,11 +319,12 @@ const MotionGraphsLab = (function() {
       ] 
     },
     { id:11, duration:15, deliveryHouse:4, porchPirateMode:true, guiltySuspect:'Suspect B', title:'Case 12: Intersection Hand-off',
-      mission:'The vans meet to transfer a package. Who steals it after they leave?',
+      mission:'The vans meet to transfer a package. Identify the house where the hand-off occurs.',
+      practicePrompt:'Click the house where the blue and gray vans meet for the hand-off.',
       clues:['The intersection of the blue and gray lines is the hand-off location.', 'Find who visits that house AFTER the vans leave.'],
-      successExplanation:'Suspect B reached House 4 at t=11s, after the vans left the package at t=9s.',
-      wrongExplanation:'Suspect A passed by too early. The thief arrives after the hand-off is complete.',
-      dropTime:8, theftTime:11,
+      successExplanation:'House 4 is correct. The vans meet there from t = 6 s to t = 9 s, and Suspect B reaches it at t = 10 s.',
+      wrongExplanation:'Find where the blue and gray position lines overlap and remain flat, then match 40 m to a house.',
+      dropTime:8, theftTime:10,
       entities: [
         { id:'truck', isMain:true, color:'#2563eb', keyframes:[{t:0,x:0},{t:6,x:40},{t:9,x:40},{t:15,x:70}] },
         { id:'truck2', isMain:false, color:'#475569', keyframes:[{t:0,x:70},{t:6,x:40},{t:9,x:40},{t:15,x:0}] },
@@ -328,16 +332,18 @@ const MotionGraphsLab = (function() {
         { id:'suspectB', isMain:false, color:'#a855f7', keyframes:[{t:4,x:10},{t:13,x:55},{t:15,x:55}] }
       ] 
     },
-    { id:12, duration:16, deliveryHouse:5, porchPirateMode:true, guiltySuspect:'Suspect B', title:'Case 13: Double Heist Chaos',
-      mission:'Both vans make drops, both packages are stolen! Who stole the EXPRESS van\'s package at House 5?',
-      clues:['Focus ONLY on the Gray Express van\'s delivery.', 'Suspect B arrives at House 5 after the Express van drops.'],
-      successExplanation:'Suspect B stole the Express package at House 5. (Suspect A stole the Mail package at House 2).',
-      wrongExplanation:'Trace the Gray line to find its drop, then see which suspect crosses that position later.',
+    { id:12, duration:16, deliveryHouse:5, porchPirateMode:true, hidePorchPackage:true, guiltySuspect:'Suspect B', title:'Case 13: Double Heist Chaos',
+      mission:'Both vans make drops. Determine which suspect stole the Gray Express package at House 5.',
+      practicePrompt:'Which suspect stole the Gray Express package at House 5?',
+      practiceAnswerType:'suspect', practiceAnswer:'B',
+      clues:['Suspect A crosses 50 m at t = 3 s, before the Express van arrives there at t = 4 s.', 'Suspect B reaches 50 m at t = 12 s, after the delivery.'],
+      successExplanation:'Suspect B is correct. Suspect A passed House 5 before the delivery, while Suspect B reaches the package afterward at t = 12 s.',
+      wrongExplanation:'Suspect A passed House 5 before the Express delivery. Look for the suspect who reaches 50 m after t = 7 s.',
       dropTime:7, theftTime:12,
       entities: [
         { id:'truck', isMain:true, color:'#2563eb', keyframes:[{t:0,x:0},{t:4,x:20},{t:7,x:20},{t:16,x:60}] },
         { id:'truck2', isMain:false, color:'#475569', keyframes:[{t:0,x:10},{t:4,x:50},{t:7,x:50},{t:12,x:70},{t:16,x:70}] },
-        { id:'suspectA', isMain:false, color:'#10b981', keyframes:[{t:0,x:0},{t:12,x:40},{t:16,x:40}] },
+        { id:'suspectA', isMain:false, color:'#10b981', keyframes:[{t:0,x:70},{t:3,x:50},{t:10,x:20},{t:16,x:0}] },
         { id:'suspectB', isMain:false, color:'#a855f7', keyframes:[{t:0,x:20},{t:6,x:20},{t:14,x:60},{t:16,x:60}] }
       ] 
     }
@@ -660,7 +666,8 @@ const MotionGraphsLab = (function() {
       entities: [
         { id:'truck', isMain:true, color:'#2563eb', keyframes:[{t:0,x:0},{t:4,x:20},{t:7,x:20},{t:16,x:70}] },
         { id:'truck2', isMain:false, color:'#475569', keyframes:[{t:0,x:0},{t:3,x:40},{t:4,x:40},{t:8,x:60},{t:12,x:60},{t:16,x:0}] },
-        { id:'suspectA', isMain:false, color:'#10b981', keyframes:[{t:0,x:0},{t:10,x:50},{t:16,x:80}] }
+        { id:'suspectA', isMain:false, color:'#10b981', keyframes:[{t:0,x:0},{t:10,x:50},{t:12,x:60},{t:16,x:70}] },
+        { id:'suspectB', isMain:false, color:'#a855f7', keyframes:[{t:0,x:70},{t:4,x:60},{t:16,x:0}] }
       ],
       duration:16,
       prompt:'BONUS: Case 10 shows two vans. Who steals the Gray Express van package after its delivery at House 6?',
@@ -707,7 +714,7 @@ const MotionGraphsLab = (function() {
       entities: [
         { id:'truck', isMain:true, color:'#2563eb', keyframes:[{t:0,x:0},{t:4,x:20},{t:7,x:20},{t:16,x:60}] },
         { id:'truck2', isMain:false, color:'#475569', keyframes:[{t:0,x:10},{t:4,x:50},{t:7,x:50},{t:12,x:70},{t:16,x:70}] },
-        { id:'suspectA', isMain:false, color:'#10b981', keyframes:[{t:0,x:0},{t:12,x:40},{t:16,x:40}] },
+        { id:'suspectA', isMain:false, color:'#10b981', keyframes:[{t:0,x:70},{t:3,x:50},{t:10,x:20},{t:16,x:0}] },
         { id:'suspectB', isMain:false, color:'#a855f7', keyframes:[{t:0,x:20},{t:6,x:20},{t:14,x:60},{t:16,x:60}] }
       ],
       duration:16,
@@ -721,7 +728,7 @@ const MotionGraphsLab = (function() {
 
   const CORE_QUESTION_COUNT = 15;
   const BONUS_QUESTION_COUNT = 5;
-  const LOG_STORAGE_KEY = 'motion_graphs_bonus_assessment_v1';
+  const LOG_STORAGE_KEY = 'motion_graphs_assignment_completion_v2';
 
   function loadAssessmentLogs() {
     try { return JSON.parse(localStorage.getItem(LOG_STORAGE_KEY) || '{}'); }
@@ -732,13 +739,32 @@ const MotionGraphsLab = (function() {
     return Object.keys(logs || {}).reduce((answers, id) => {
       const entries = Array.isArray(logs[id]) ? logs[id] : [];
       if (entries.length) {
-        answers[id] = entries.some(entry => Number(entry.score) >= 100) ? 1 : 0;
+        answers[id] = entries.some(entry => Number(entry.score) >= 100) ? 2 : 1;
       }
       return answers;
     }, {});
   }
 
   function restoreAssessmentLogsFromScorm() {
+    if (window.SCORM && window.SCORM.initialize()) {
+      try {
+        const payload = JSON.parse(window.SCORM.getValue('cmi.suspend_data') || '{}');
+        const restoredAnswers = payload && payload.answers && typeof payload.answers === 'object' ? payload.answers : {};
+        Object.keys(restoredAnswers).forEach(id => {
+          const status = Number(restoredAnswers[id]);
+          if (status >= 1 && !(state.logs[id] || []).length) {
+            state.logs[id] = [{
+              score: status >= 2 ? 100 : 0,
+              response: 'Restored from Buzz',
+              timestamp: 0
+            }];
+          }
+        });
+        saveAssessmentLogs();
+      } catch (error) {
+        console.warn('[SCORM] Could not restore saved Lesson 1 progress.', error);
+      }
+    }
     updateAssessmentProgress();
   }
 
@@ -750,8 +776,7 @@ const MotionGraphsLab = (function() {
     return entries.length ? Math.max(...entries.map(entry => Number(entry.score) || 0)) : 0;
   }
   function assessmentEarnedPoints() {
-    const earnedQuestionEquivalents = state.assessQuestions.reduce((sum, q) => sum + bestAssessmentScore(q.def.id) / 100, 0);
-    return Math.min(CORE_QUESTION_COUNT, earnedQuestionEquivalents);
+    return attemptedCount(0, CORE_QUESTION_COUNT);
   }
   function assessmentScorePercent() {
     return Math.round((assessmentEarnedPoints() / CORE_QUESTION_COUNT) * 100);
@@ -764,27 +789,47 @@ const MotionGraphsLab = (function() {
   }
   function syncAssessmentScore() {
     saveAssessmentLogs();
-    return { submitted: true, standalone: true };
+    const points = assessmentEarnedPoints();
+    const completed = coreAssessmentComplete();
+    const result = { submitted: true, standalone: true, completed, points };
+    if (!window.SCORM || !window.SCORM.initialize()) return result;
+
+    result.standalone = false;
+    window.SCORM.setValue('cmi.core.score.raw', points);
+    window.SCORM.setValue('cmi.core.score.min', 0);
+    window.SCORM.setValue('cmi.core.score.max', CORE_QUESTION_COUNT);
+    window.SCORM.setValue('cmi.core.lesson_status', completed ? 'completed' : 'incomplete');
+    window.SCORM.setValue('cmi.suspend_data', JSON.stringify({
+      version: 2,
+      scoreRule: 'one-point-per-required-answer',
+      answers: compactAssessmentLogs(state.logs)
+    }));
+    result.submitted = window.SCORM.commit();
+    return result;
   }
 
   function submitScoreToBuzz() {
     const result = syncAssessmentScore();
     if (!els.submitScoreBtn) return;
-    els.submitScoreBtn.textContent = 'Practice Progress Saved';
+    els.submitScoreBtn.textContent = 'Assignment Completion Confirmed';
     if (!els.submissionStatus) return;
     els.submissionStatus.classList.toggle('success', result.submitted);
     els.submissionStatus.classList.toggle('error', !result.submitted);
-    els.submissionStatus.textContent = 'Your optional practice progress is saved on this device. Complete the graded assessment in Buzz.';
+    els.submissionStatus.textContent = result.standalone
+      ? 'Completion is saved locally. Launch this SCO from Buzz to send the 15-point score.'
+      : result.submitted
+        ? 'Score sent to the Buzz Assignment: 15 / 15.'
+        : 'Buzz did not confirm the score. Keep this window open and try again.';
   }
   function updateAssessmentProgress() {
     const points = assessmentEarnedPoints();
     const score = assessmentScorePercent();
     const coreDone = attemptedCount(0, CORE_QUESTION_COUNT);
     const bonusDone = attemptedCount(CORE_QUESTION_COUNT, CORE_QUESTION_COUNT + BONUS_QUESTION_COUNT);
-    if (els.topScore) els.topScore.textContent = 'Score: ' + points + ' / ' + CORE_QUESTION_COUNT;
-    if (els.overallScore) els.overallScore.textContent = '15 core + 5 bonus';
-    if (els.statusSummary) els.statusSummary.textContent = coreDone + ' / 15 core • ' + bonusDone + ' / 5 bonus';
-    if (els.finalScore) els.finalScore.textContent = points + ' / ' + CORE_QUESTION_COUNT + ' (' + score + '%)';
+    if (els.topScore) els.topScore.textContent = 'Completion: ' + points + ' / ' + CORE_QUESTION_COUNT;
+    if (els.overallScore) els.overallScore.textContent = '15 required + 5 optional';
+    if (els.statusSummary) els.statusSummary.textContent = coreDone + ' / 15 required • ' + bonusDone + ' / 5 optional';
+    if (els.finalScore) els.finalScore.textContent = points + ' / ' + CORE_QUESTION_COUNT + ' completed (' + score + '%)';
     if (els.completionCard) els.completionCard.classList.toggle('hidden', !coreAssessmentComplete());
     if (els.qSelect) {
       [...els.qSelect.options].forEach((option, i) => {
@@ -980,7 +1025,7 @@ const MotionGraphsLab = (function() {
       els.housesWrap.style.pointerEvents = state.scenario.inputType === 'house' ? '' : 'none';
       setPlaybackLock(state.scenario.inputType !== 'graph-choice');
     } else {
-      els.housesWrap.style.pointerEvents = isGraphChoice ? 'none' : '';
+      els.housesWrap.style.pointerEvents = (isGraphChoice || state.scenario.practiceAnswerType === 'suspect') ? 'none' : '';
       updatePracticeBanner();
       setPlaybackLock(false);
     }
@@ -1072,7 +1117,7 @@ function setPlaybackLock(isLocked) {
     }
     
     // Porch Pirate Logic (Shared)
-    if (state.scenario.porchPirateMode && state.isPlaying) {
+    if (state.scenario.porchPirateMode && !state.scenario.hidePorchPackage && state.isPlaying) {
       if (state.time >= state.scenario.dropTime && !state.pkgDropped) {
         showPackageDrop(els.standalonePackage, state.scenario.deliveryHouse);
         state.pkgDropped = true;
@@ -1155,7 +1200,11 @@ function setPlaybackLock(isLocked) {
     if (sc.inputType === 'number') {
       els.responseArea.innerHTML = '<input id="quiz-numeric-input" class="response-input" type="number" step="0.1" placeholder="Your answer" />';
     } else if (sc.inputType === 'choice') {
-      els.responseArea.innerHTML = `<div class="choice-list">${sc.choices.map(c => `<label class="choice-item"><input type="radio" name="quiz-choice" value="${c.value}"><span>${c.label}</span></label>`).join('')}</div>`;
+      let choiceMarkup = sc.choices.map(c => {
+        let suspectClass = c.label === 'Suspect A' ? ' suspect-a-choice' : c.label === 'Suspect B' ? ' suspect-b-choice' : '';
+        return `<label class="choice-item${suspectClass}"><input type="radio" name="quiz-choice" value="${c.value}"><span>${c.label}</span></label>`;
+      }).join('');
+      els.responseArea.innerHTML = `<div class="choice-list">${choiceMarkup}</div>`;
     } else if (sc.inputType === 'graph-choice') {
       els.responseArea.innerHTML = '<p class="text-slate-500 text-sm font-semibold">Choose the matching graph below.</p>';
       els.graphChoiceGrid.innerHTML = sc.graphChoices.map((c, i) => `<label class="graph-choice-item"><span class="graph-choice-label"><input type="radio" name="quiz-graph-choice" value="${c.value}"><span>${c.label}</span></span><span class="graph-choice-canvas-wrap"><canvas id="graph-choice-canvas-${i}"></canvas></span></label>`).join('');
@@ -1164,6 +1213,18 @@ function setPlaybackLock(isLocked) {
       els.responseArea.innerHTML = '<p id="house-selection" class="text-slate-500 text-sm italic">Click a house on the street.</p>';
       state.selectedHouse = null;
     }
+  }
+
+  function assessmentAnswerLabel(sc) {
+    let answer = String(sc.answer);
+    let choices = sc.inputType === 'graph-choice' ? sc.graphChoices : sc.choices;
+    if (Array.isArray(choices)) {
+      let matchingChoice = choices.find(choice => String(choice.value) === answer);
+      if (matchingChoice) return matchingChoice.label;
+    }
+    if (sc.inputType === 'house') return 'House ' + answer;
+    if (sc.inputType === 'number' && sc.unit) return answer + ' ' + sc.unit;
+    return answer;
   }
   
   function drawGraphChoices() {
@@ -1195,8 +1256,8 @@ function setPlaybackLock(isLocked) {
     state.logs[id].push({ score: isCorrect ? 100 : 0, response: String(response), timestamp: Date.now() });
     saveAssessmentLogs();
     els.assessFeedback.textContent = isCorrect
-      ? (currentQuestion.def.bonus ? 'Correct! Bonus credit added.' : 'Correct! 100%')
-      : 'Not quite. The correct answer was ' + sc.answer;
+      ? (currentQuestion.def.bonus ? 'Correct! Optional question completed.' : 'Correct! Completion credit recorded.')
+      : (currentQuestion.def.bonus ? 'Not quite. The correct answer was ' + assessmentAnswerLabel(sc) + '.' : 'Completion credit recorded. Review: the correct answer was ' + assessmentAnswerLabel(sc) + '.');
     els.assessFeedback.className = 'feedback-summary ' + (isCorrect ? 'good' : 'bad');
     updateAssessmentProgress();
     
@@ -1281,7 +1342,7 @@ function setPlaybackLock(isLocked) {
       state.isPlaying = false; cancelAnimationFrame(state.animReq); updateStage();
       els.feedbackBanner.innerHTML = '<b>Correct!</b> ' + state.scenario.successExplanation;
       els.feedbackWrapper.className = 'bg-green-500 py-3 transition-colors';
-      showPackageDrop(els.standalonePackage, houseNum);
+      if (!state.scenario.hidePorchPackage) showPackageDrop(els.standalonePackage, houseNum);
       state.advanceTimer = setTimeout(() => { state.practiceIdx = Math.min(PracticeCases.length - 1, state.practiceIdx + 1); els.scenarioSelect.value = state.practiceIdx; loadScenario(); }, 1500);
     } else {
       els.feedbackBanner.innerHTML = '<b>Incorrect.</b> ' + state.scenario.wrongExplanation;
@@ -1300,12 +1361,44 @@ function checkPracticeGraphAnswer(val) {
     }
   }
   function updatePracticeBanner() {
-    els.feedbackBanner.innerHTML = state.scenario.hidePosition ? '<b>Broken GPS!</b> Watch the Velocity graph.' : 'Watch the animation. Click the delivery house.';
+    if (state.scenario.practiceAnswerType === 'suspect') {
+      renderPracticeSuspectChoices(state.scenario.practicePrompt);
+    } else {
+      els.feedbackBanner.innerHTML = state.scenario.practicePrompt || (state.scenario.hidePosition ? '<b>Broken GPS!</b> Watch the Velocity graph.' : 'Watch the animation. Click the delivery house.');
+    }
     els.feedbackWrapper.className = 'bg-blue-100 py-2 border-b border-blue-300';
   }
 
+  function renderPracticeSuspectChoices(message) {
+    els.feedbackBanner.innerHTML =
+      '<span>' + message + '</span>' +
+      '<span class="practice-suspect-choices">' +
+        '<button type="button" class="practice-suspect-choice" data-suspect="A">Suspect A</button>' +
+        '<button type="button" class="practice-suspect-choice" data-suspect="B">Suspect B</button>' +
+      '</span>';
+    els.feedbackBanner.querySelectorAll('.practice-suspect-choice').forEach(button => {
+      button.addEventListener('click', () => checkPracticeSuspectAnswer(button.dataset.suspect));
+    });
+  }
+
+  function checkPracticeSuspectAnswer(suspect) {
+    if (suspect === state.scenario.practiceAnswer) {
+      state.isPlaying = false; cancelAnimationFrame(state.animReq); updateStage();
+      els.feedbackBanner.innerHTML = '<b>Correct!</b> ' + state.scenario.successExplanation;
+      els.feedbackWrapper.className = 'bg-green-500 py-3 transition-colors';
+      state.advanceTimer = setTimeout(() => { state.practiceIdx = Math.min(PracticeCases.length - 1, state.practiceIdx + 1); els.scenarioSelect.value = state.practiceIdx; loadScenario(); }, 1500);
+    } else {
+      renderPracticeSuspectChoices('<b>Incorrect.</b> ' + state.scenario.wrongExplanation);
+      els.feedbackWrapper.className = 'bg-red-500 py-2 transition-colors';
+    }
+  }
+
   function updatePracticeBannerEnd() {
-    els.feedbackBanner.innerText = state.scenario.graphMatchMode ? 'Which graph matches?' : 'Which house got the delivery?';
+    if (state.scenario.practiceAnswerType === 'suspect') {
+      renderPracticeSuspectChoices(state.scenario.practicePrompt);
+    } else {
+      els.feedbackBanner.innerText = state.scenario.graphMatchMode ? 'Which graph matches?' : (state.scenario.practicePrompt || 'Which house got the delivery?');
+    }
     els.feedbackWrapper.className = 'bg-green-100 py-2 border-b border-green-200';
   }
 

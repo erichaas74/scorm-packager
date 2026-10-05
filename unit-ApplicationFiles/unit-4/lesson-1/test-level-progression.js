@@ -1,168 +1,129 @@
+'use strict';
+
 const assert = require('assert');
 const fs = require('fs');
+const path = require('path');
 const vm = require('vm');
 
-function element(initial = {}) {
-  const listeners = {};
-  return Object.assign({
-    textContent: '',
-    innerHTML: '',
-    hidden: false,
-    disabled: false,
-    value: '',
-    dataset: {},
-    classList: { toggle() {} },
-    setAttribute(name, value) { this[name] = value; },
-    addEventListener(type, listener) { listeners[type] = listener; },
-    click() { if (!this.disabled && listeners.click) listeners.click({ currentTarget: this }); },
-    scrollIntoView() {}
-  }, initial);
+const root = __dirname;
+const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const template = fs.readFileSync(path.join(root, 'u4l1-simple-machine-buzz-assessment-template.html'), 'utf8');
+const preview = fs.readFileSync(path.join(root, 'u4l1-simple-machine-buzz-assessment-template-preview.html'), 'utf8');
+const questionText = fs.readFileSync(path.join(root, 'buzz-assessment-questions.txt'), 'utf8');
+const walkthrough = fs.readFileSync(path.resolve(root, '..', '..', '..', 'problem-walkthoughs', 'unit 4', 'simple-machines.html'), 'utf8');
+
+const machines = [
+  ['inclined-plane', 'Inclined Plane', 0],
+  ['lever', 'Lever', 1],
+  ['wedge', 'Wedge', 2],
+  ['wheel-and-axle', 'Wheel & Axle', 3],
+  ['pulley', 'Pulley', 4],
+  ['screw', 'Screw', 5]
+];
+
+function decodeAttribute(value) {
+  return value
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
 }
 
-const context2d = new Proxy({}, {
-  get(target, key) {
-    if (key === 'createLinearGradient') return () => ({ addColorStop() {} });
-    if (!(key in target)) target[key] = () => {};
-    return target[key];
-  },
-  set(target, key, value) { target[key] = value; return true; }
+function sectionFragment(html, id, nextId) {
+  const start = html.indexOf(`data-machine-section="${id}"`);
+  const end = nextId ? html.indexOf(`data-machine-section="${nextId}"`, start) : html.indexOf('</main>', start);
+  assert(start >= 0 && end > start, `missing outer section for ${id}`);
+  return html.slice(start, end);
+}
+
+[['standalone', index], ['Buzz template', template], ['preview', preview]].forEach(([label, html]) => {
+  assert.strictEqual((html.match(/data-machine-simulation=/g) || []).length, 6, `${label} should contain six simulations`);
+  assert.doesNotMatch(html, /metric-ma|metric-force|metric-distance|metric-work|metric-speed|record-test|test-table-body/, `${label} must not contain the old calculated-results dashboard`);
+
+  const frameMatches = [...html.matchAll(/srcdoc="([\s\S]*?)" loading="lazy"/g)];
+  assert.strictEqual(frameMatches.length, 6, `${label} should contain six self-contained simulation frames`);
+  frameMatches.forEach((match, frameIndex) => {
+    const frame = decodeAttribute(match[1]);
+    assert(frame.includes(`let activeMachine = ${frameIndex};`), `${label} frame ${frameIndex + 1} should be locked to its matching machine`);
+    assert(frame.includes('header, #button-container, .hud, .ask, .result-bindings { display: none !important; }'), `${label} frame ${frameIndex + 1} should hide navigation, calculated HUDs, and built-in questions`);
+    assert.doesNotMatch(frame, /<section class="hud hud-(?:left|right)"/, `${label} frame ${frameIndex + 1} must remove calculated HUD markup`);
+    assert.doesNotMatch(frame, /m of ramp|`\$\{ma\.toFixed\(2\)\} m down|`\$\{ma\.toFixed\(0\)\} m`|Strike \$\{|Turn \$\{/, `${label} frame ${frameIndex + 1} must not draw calculated answer labels`);
+    [...frame.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].forEach((scriptMatch, scriptIndex) => {
+      assert.doesNotThrow(() => new Function(scriptMatch[1]), `${label} frame ${frameIndex + 1} script ${scriptIndex + 1} should parse`);
+    });
+  });
 });
 
-const canvases = [0, 1, 2].map(index => element({
-  getContext: () => context2d,
-  width: 900,
-  height: 470,
-  dataset: { setupCanvas: String(index) }
-}));
+assert.strictEqual((index.match(/<!-- BUZZ_QUESTIONS:/g) || []).length, 6, 'standalone should retain six build markers');
+assert.strictEqual((template.match(/<a:question><\/a:question>/g) || []).length, 12, 'Buzz template should contain 12 native question slots');
+assert.strictEqual((template.match(/class="machine-question-block"/g) || []).length, 6, 'Buzz template should contain six machine question blocks');
+assert.strictEqual((preview.match(/class="buzz-preview-card"/g) || []).length, 12, 'preview should render all 12 question cards');
 
-function trackedSetupCard(index) {
-  const card = element({ dataset: { setupCard: String(index) }, history: [] });
-  Object.defineProperty(card, 'innerHTML', {
-    get() { return this.markup || ''; },
-    set(markup) { this.markup = markup; this.history.push(markup); }
+machines.forEach(([id], machineIndex) => {
+  const nextId = machines[machineIndex + 1]?.[0];
+  const fragment = sectionFragment(template, id, nextId);
+  const simulationPosition = fragment.indexOf(`data-machine-simulation="${id}"`);
+  const questionPosition = fragment.indexOf(`data-question-block="${id}"`);
+  assert(simulationPosition >= 0 && questionPosition > simulationPosition, `${id} simulation must appear above its question block`);
+  assert.strictEqual((fragment.match(/data-machine-simulation=/g) || []).length, 1, `${id} section should contain only its own simulation`);
+  assert.strictEqual((fragment.match(/<a:question><\/a:question>/g) || []).length, 2, `${id} section should contain exactly two questions`);
+});
+
+['Output force: <strong>120 N</strong>', 'Output distance: <strong>1.0 m</strong>', 'Input speed for comparisons: <strong>1.0 m/s</strong>', 'd<sub>in</sub> = IMA', 'F<sub>in</sub> = F<sub>out</sub>', 'W = F &times; d', 'v<sub>out</sub> = v<sub>in</sub>'].forEach((required) => {
+  assert(index.includes(required), `missing required calculation information: ${required}`);
+});
+assert.doesNotMatch(index, /Setup A|Run all 3 trials|three configurations/i, 'old three-setup workflow must be removed');
+
+// Verify the unchanged underlying ideal-machine model independently of the student display.
+const machinesBlock = walkthrough.match(/const machinesData = (\[[\s\S]*?\n        \]);/);
+const paramsBlock = walkthrough.match(/function machineParams\([\s\S]*?\n        }\n\n        function getMachineMetrics/);
+const metricsBlock = walkthrough.match(/function getMachineMetrics\(\) \{[\s\S]*?\n        }\n\n        \/\/ One lift cycle/);
+assert(machinesBlock && paramsBlock && metricsBlock, 'physics definitions should be extractable');
+
+const sandbox = { result: null };
+vm.runInNewContext(`
+  const machinesData = ${machinesBlock[1]};
+  let activeMachine = 0;
+  let controlSetting = 50;
+  const idealWork = 120;
+  const LOAD_FORCE = 120;
+  const LOAD_DISTANCE = 1.0;
+  ${paramsBlock[0].replace(/\n\n        function getMachineMetrics$/, '')}
+  ${metricsBlock[0].replace(/\n\n        \/\/ One lift cycle$/, '')}
+  result = machinesData.map((machine, index) => {
+    activeMachine = index;
+    return [machine.choices[0], machine.choices[machine.choices.length - 1]].map((setting) => {
+      controlSetting = setting;
+      const metrics = getMachineMetrics();
+      return {
+        ...metrics,
+        inputWork: metrics.effortForce * metrics.effortDistance,
+        relativeLoadSpeed: 1 / metrics.mechanicalAdvantage
+      };
+    });
   });
-  return card;
-}
-const setupCards = [0, 1, 2].map(trackedSetupCard);
+`, sandbox);
 
-const nodes = new Map();
-const getNode = selector => {
-  if (!nodes.has(selector)) nodes.set(selector, element());
-  return nodes.get(selector);
-};
-
-const machineOrder = ['incline', 'pulley', 'lever', 'wheel'];
-const tabs = machineOrder.map(machine => element({ dataset: { machineTab: machine } }));
-const globalInputs = ['mass', 'height'].map(key => element({ dataset: { global: key } }));
-const imaInputs = [0, 1, 2].map(index => element({ dataset: { calculationIma: String(index) } }));
-const amaInputs = [0, 1, 2].map(index => element({ dataset: { calculationAma: String(index) } }));
-const calculationCards = [0, 1, 2].map(index => element({ dataset: { calculationCard: String(index) } }));
-
-const root = element();
-root.querySelector = selector => getNode(selector);
-root.querySelectorAll = selector => {
-  if (selector === '[data-machine-tab]') return tabs;
-  if (selector === '[data-global]') return globalInputs;
-  if (selector === '[data-canvas]') return canvases;
-  if (selector === '[data-setup-card]') return setupCards;
-  if (selector === '[data-calculation-ima]') return imaInputs;
-  if (selector === '[data-calculation-ama]') return amaInputs;
-  if (selector === '[data-calculation-card]') return calculationCards;
-  return [];
-};
-
-let animationTime = 0;
-let scormStatus = '';
-const sandbox = {
-  document: { querySelector: selector => selector === '[data-simple-machine-app]' ? root : null },
-  window: { SCORM: { setScore() {}, setStatus(value) { scormStatus = value; } } },
-  navigator: { clipboard: { writeText: async () => {} } },
-  matchMedia: () => ({ matches: false }),
-  requestAnimationFrame(callback) { animationTime += 1000; callback(animationTime); return animationTime; },
-  cancelAnimationFrame() {},
-  setTimeout(callback) { callback(); },
-  Blob,
-  URL: { createObjectURL: () => 'blob:test', revokeObjectURL() {} },
-  sessionStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
-  console
-};
-
-const html = fs.readFileSync(__dirname + '/index.html', 'utf8');
-const script = html.match(/<script>\s*([\s\S]*?)<\/script>/)[1];
-vm.runInNewContext(script, sandbox, { filename: 'index.html' });
-
-const runButton = getNode('[data-run]');
-const nextButton = getNode('[data-next-level]');
-const progress = getNode('[data-progress]');
-const tableBody = getNode('[data-table-body]');
-const checkButton = getNode('[data-check-calculations]');
-
-function tableRows() {
-  return [...tableBody.innerHTML.matchAll(/<tr>([\s\S]*?)<\/tr>/g)].map(row =>
-    [...row[1].matchAll(/<td>([\s\S]*?)<\/td>/g)].map(cell => cell[1].trim())
-  );
-}
-
-function verifyThreeSetupLevel(expectedMachineText) {
-  assert.strictEqual(canvases.length, 3, 'each level should keep three canvases visible');
-  assert.strictEqual(setupCards.length, 3, 'each canvas should have its own setup card');
-  assert(setupCards.every(card => /Output force:/.test(card.innerHTML)), 'all three cards should identify the shared output force');
-  assert.match(setupCards[0].innerHTML, /Setup A/);
-  assert.match(setupCards[1].innerHTML, /Setup B/);
-  assert.match(setupCards[2].innerHTML, /Setup C/);
-  runButton.click();
-  const rows = tableRows();
-  assert.strictEqual(rows.length, 3, 'the lab should acquire three data rows');
-  assert.deepStrictEqual(new Set(rows.map(row => row[2])).size, 1, 'output force must be equal in all three setups');
-  assert.deepStrictEqual(new Set(rows.map(row => row[4])).size, 1, 'output distance must be equal in all three setups');
-  assert.strictEqual(new Set(rows.map(row => row[3])).size, 3, 'the measured input forces must differ');
-  assert.strictEqual(new Set(rows.map(row => row[5])).size, 3, 'the measured input distances must differ');
-  assert(rows.every(row => row[0].startsWith('Setup ')), 'rows should be labeled Setup A, B, and C');
-  assert(setupCards.every(card => /Measured input force:/.test(card.innerHTML)), 'each setup card should report its acquired input force');
-  assert.doesNotMatch(tableBody.innerHTML, /power|time|efficiency/i, 'the simplified data table should stay focused on force and distance');
-
-  imaInputs.forEach(input => { input.value = '99.00'; });
-  amaInputs.forEach(input => { input.value = '99.00'; });
-  checkButton.click();
-  assert.strictEqual(getNode('[data-discovery]').hidden, true, 'incorrect calculations must not complete the machine');
-  assert.match(getNode('[data-calculation-summary]').textContent, /0 of 3 setups verified/);
-
-  rows.forEach((row, index) => {
-    imaInputs[index].value = (Number(row[5]) / Number(row[4])).toFixed(2);
-    amaInputs[index].value = (Number(row[2]) / Number(row[3])).toFixed(2);
+assert.strictEqual(sandbox.result.length, 6, 'six machine models should run');
+sandbox.result.forEach((pair, indexNumber) => {
+  pair.forEach((metrics) => {
+    assert(Math.abs(metrics.inputWork - 120) < 1e-8, `${machines[indexNumber][1]} should preserve 120 J ideal work`);
+    assert(Math.abs(metrics.effortForce * metrics.effortDistance - 120) < 1e-8, `${machines[indexNumber][1]} force-distance product should be 120 J`);
   });
-  checkButton.click();
-  assert.strictEqual(getNode('[data-calculation]').hidden, false, 'calculation panel should remain visible after data acquisition');
-  assert.strictEqual(getNode('[data-discovery]').hidden, false, 'correct IMA and AMA calculations should reveal the comparison');
-  assert.match(getNode('[data-comparison-question]').textContent, /IMA .*AMA/);
-  assert.match(getNode('[data-machine-title]').textContent, expectedMachineText);
-}
+  const [lower, higher] = pair.sort((left, right) => left.mechanicalAdvantage - right.mechanicalAdvantage);
+  assert(higher.effortForce < lower.effortForce, `${machines[indexNumber][1]} higher IMA should lower force`);
+  assert(higher.effortDistance > lower.effortDistance, `${machines[indexNumber][1]} higher IMA should increase distance`);
+  assert(higher.relativeLoadSpeed < lower.relativeLoadSpeed, `${machines[indexNumber][1]} higher IMA should lower output speed`);
+});
 
-assert.strictEqual(progress.textContent, '0 of 4 levels complete');
-assert.deepStrictEqual(tabs.map(tab => tab.disabled), [false, false, false, false], 'all level tabs should be available immediately');
-assert.strictEqual(globalInputs.every(input => input.disabled === false), true);
-tabs[3].click();
-assert.match(getNode('[data-machine-title]').textContent, /Wheel and axle/, 'students should be able to jump directly to Level 4');
-tabs[0].click();
-assert.match(getNode('[data-machine-title]').textContent, /Inclined plane/, 'students should be able to switch back at any time');
+const blocks = questionText.trim().split(/\n\s*\n(?=Type:\s*)/);
+assert.strictEqual(blocks.length, 12, 'question import should contain 12 questions');
+const scores = blocks.map((block) => Number((block.match(/^Score:\s*(\d+)/m) || [])[1]));
+assert.strictEqual(scores.reduce((sum, score) => sum + score, 0), 15, 'question scores should total 15');
+assert(blocks.slice(0, 10).every((block) => /^Type: MC$/m.test(block)), 'Questions 1-10 should be auto-graded multiple choice');
+assert(blocks.slice(10).every((block) => /^Type: E$/m.test(block) && /Meta-grading: busybee/.test(block)), 'Questions 11-12 should be BusyBee essays');
+assert.strictEqual(scores.slice(0, 10).reduce((sum, score) => sum + score, 0), 10, 'automatic questions should total 10 points');
+assert.strictEqual(scores.slice(10).reduce((sum, score) => sum + score, 0), 5, 'BusyBee questions should total 5 points');
+assert.doesNotMatch(questionText, /on-screen test table|recorded IMA|recorded tests/i, 'questions should require student calculations rather than displayed results');
 
-verifyThreeSetupLevel(/Inclined plane/);
-assert.strictEqual(progress.textContent, '1 of 4 levels complete');
-assert.strictEqual(globalInputs.every(input => input.disabled), true, 'shared task controls should lock after animation begins');
-
-nextButton.click();
-assert.doesNotMatch(tableBody.innerHTML, /deg ramp/, 'Level 2 table should not mix Level 1 rows');
-verifyThreeSetupLevel(/Pulleys/);
-assert.strictEqual(progress.textContent, '2 of 4 levels complete');
-
-nextButton.click();
-verifyThreeSetupLevel(/Levers/);
-assert.strictEqual(progress.textContent, '3 of 4 levels complete');
-
-nextButton.click();
-verifyThreeSetupLevel(/Wheel and axle/);
-assert.strictEqual(progress.textContent, '4 of 4 levels complete');
-assert.strictEqual(nextButton.hidden, true, 'Level 4 should not show a next-level button');
-assert.strictEqual(scormStatus, 'completed');
-
-console.log('Free level switching, three-trial data acquisition, IMA/AMA calculation checks, comparison feedback, progression, and focused table checks passed.');
+console.log('Six isolated simulations, no displayed calculated answers, per-machine question placement, physics tradeoffs, and 15-point scoring passed.');

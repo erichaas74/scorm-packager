@@ -6,7 +6,7 @@ const root = __dirname;
 const assessments = [
   { lesson: 'U5L2 Resonance', slug: 'sound_waves_resonance', dir: 'sound-waves-resonance-lab', source: 'sound_waves_lab_simulation.html', template: 'u5l2-resonance-tube-buzz-assessment-template.html', preview: 'u5l2-resonance-tube-buzz-assessment-template-preview.html', count: 10 },
   { lesson: 'U5L2 Instrument', slug: 'design_perfect_instrument', dir: 'design-the-perfect-instrument', source: 'index.html', template: 'u5l2-perfect-instrument-buzz-assessment-template.html', preview: 'u5l2-perfect-instrument-buzz-assessment-template-preview.html', count: 8 },
-  { lesson: 'U5L3 Thin Lens', slug: 'thin_lens_refraction', dir: 'thin-lens-refraction-lab', source: 'thin_lens_refraction_investigation.html', template: 'u5l3-thin-lens-buzz-assessment-template.html', preview: 'u5l3-thin-lens-buzz-assessment-template-preview.html', count: 8 },
+  { lesson: 'U5L3 Thin Lens', slug: 'thin_lens_refraction', dir: 'thin-lens-refraction-lab', source: 'thin_lens_refraction_investigation.html', template: 'u5l3-thin-lens-buzz-assessment-template.html', preview: 'u5l3-thin-lens-buzz-assessment-template-preview.html', count: 21, automatic: 10, total: 15, essays: 1 },
   { lesson: 'U5L3 Color Vision', slug: 'light_color_vision', dir: 'light-color-and-vision-lab', source: 'index.html', template: 'u5l3-light-color-vision-buzz-assessment-template.html', preview: 'u5l3-light-color-vision-buzz-assessment-template-preview.html', count: 8 },
   { lesson: 'U5L5 Spectral Shift', slug: 'doppler_spectral_shift', dir: 'doppler-spectral-line-shift', source: 'index.html', template: 'u5l5-spectral-shift-buzz-assessment-template.html', preview: 'u5l5-spectral-shift-buzz-assessment-template-preview.html', count: 8 },
   { lesson: 'U5H Timekeeping', slug: 'honors_relativity', dir: 'honors-relativity-timekeeping-lab', source: 'index.html', template: 'u5h-relativity-timekeeping-buzz-assessment-template.html', preview: 'u5h-relativity-timekeeping-buzz-assessment-template-preview.html', count: 8 },
@@ -43,7 +43,7 @@ for (const item of assessments) {
     const type = property(block, 'Type');
     const score = Number(property(block, 'Score'));
     const promptNumber = Number((block.match(/^(\d+)\)\s/m) || [])[1]);
-    if (!type || !Number.isInteger(score)) fail(`${item.lesson} Q${index + 1}: missing Type or integer Score`);
+    if (!type || !(score > 0 && Number.isInteger(score * 2))) fail(`${item.lesson} Q${index + 1}: missing Type or positive half-point Score`);
     if (promptNumber !== index + 1) fail(`${item.lesson}: expected prompt ${index + 1}, received ${promptNumber}`);
     if (/^UP\b/.test(type)) fail(`${item.lesson} Q${index + 1}: graded uploads are not part of the Unit 5 standard`);
     if (/^E\b/.test(type)) {
@@ -65,9 +65,10 @@ for (const item of assessments) {
       }
     }
   });
-  if (automatic !== 10 || busybee !== 5) fail(`${item.lesson}: score split is ${automatic} auto + ${busybee} BusyBee`);
-  const lastTwo = blocks.slice(-2);
-  if (!lastTwo.every((block) => /^E\b/.test(property(block, 'Type'))) || Number(property(lastTwo[0], 'Score')) !== 2 || Number(property(lastTwo[1], 'Score')) !== 3) {
+  if (automatic !== (item.automatic || 10) || busybee !== 5) fail(`${item.lesson}: score split is ${automatic} auto + ${busybee} BusyBee`);
+  const essayCount = item.essays || 2;
+  const lastTwo = blocks.slice(-essayCount);
+  if (!lastTwo.every((block) => /^E\b/.test(property(block, 'Type'))) || (essayCount === 1 ? Number(property(lastTwo[0], 'Score')) !== 5 : Number(property(lastTwo[0], 'Score')) !== 2 || Number(property(lastTwo[1], 'Score')) !== 3)) {
     fail(`${item.lesson}: final two questions must be 2- and 3-point BusyBee essays`);
   }
 
@@ -97,13 +98,13 @@ for (const item of assessments) {
   });
 
   const metadata = JSON.parse(read(metadataPath));
-  if (metadata.assessmentSettings.totalPoints !== 15 || metadata.assessmentSettings.automaticPoints !== 10 || metadata.assessmentSettings.busybeePoints !== 5) {
+  if (metadata.assessmentSettings.totalPoints !== (item.total || 15) || metadata.assessmentSettings.automaticPoints !== (item.automatic || 10) || metadata.assessmentSettings.busybeePoints !== 5) {
     fail(`${item.lesson}: BusyBee assessment totals are stale`);
   }
   if (metadata.evidenceRequirements.requiredUploads.length !== 0) fail(`${item.lesson}: metadata still requires an evidence upload`);
-  if (metadata.questions.length !== 2) fail(`${item.lesson}: metadata must contain exactly two BusyBee rubrics`);
+  if (metadata.questions.length !== essayCount) fail(`${item.lesson}: metadata must contain exactly two BusyBee rubrics`);
   lastTwo.forEach((block, essayIndex) => {
-    const expectedIndex = item.count - 1 + essayIndex;
+    const expectedIndex = item.count - essayCount + 1 + essayIndex;
     const metadataQuestion = metadata.questions[essayIndex];
     if (metadataQuestion.buzzIndex !== expectedIndex || metadataQuestion.points !== Number(property(block, 'Score')) || metadataQuestion.metadata['Meta-skill'] !== property(block, 'Meta-skill')) {
       fail(`${item.lesson}: BusyBee metadata does not match question ${expectedIndex}`);
@@ -112,7 +113,7 @@ for (const item of assessments) {
 
   const setupText = read(setupPath);
   if (fs.existsSync(legacySetupPath)) fail(`${item.lesson}: legacy HTML setup guide still exists`);
-  if (!setupText.includes(`Import the ${item.count} questions`) || !setupText.includes('10 auto-graded points plus 5 BusyBee points')) {
+  if (!setupText.includes(`Import the ${item.count} questions`) || !setupText.includes(`${item.automatic || 10} auto-graded points plus 5 BusyBee points`)) {
     fail(`${item.lesson}: setup guide has stale question-count or scoring directions`);
   }
   const missionIndex = setupText.indexOf('YOUR MISSION');
@@ -127,7 +128,7 @@ for (const item of assessments) {
     fail(`${item.lesson}: setup guide retains obsolete upload or accessibility directions`);
   }
 
-  console.log(`${item.lesson}: ${item.count} questions, 10 auto + 5 BusyBee, template, preview, and metadata valid`);
+  console.log(`${item.lesson}: ${item.count} questions, ${item.automatic || 10} auto + 5 BusyBee, template, preview, and metadata valid`);
 }
 
 // Fixed answer checks for every model-backed numeric question family.

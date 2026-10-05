@@ -379,6 +379,12 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line)
       </div>
 
       <div id="alignActions" class="ssi-align-actions ssi-hidden">
+        <div>
+          <label for="markerPosition">Move the dashed markers</label>
+          <input id="markerPosition" type="range" min="-350" max="350" step="1" value="0" aria-describedby="markerHelp" style="display:block;width:100%;min-height:44px">
+          <p id="markerHelp">Use the arrow keys or drag the slider to align the dashed markers with the reference lines. Then select Check alignment.</p>
+          <button id="checkAlignment" type="button">Check alignment</button>
+        </div>
         <div class="ssi-shift-readout" id="shiftReadout">Δλ = 0.0 nm</div>
       </div>
 
@@ -409,7 +415,7 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line)
     <div class="ssi-choice-grid" id="choices"></div>
     
     <div class="ssi-feedback-bar">
-      <div class="ssi-feedback" id="feedback">Drag a reference to the dropzone above to compare.</div>
+      <div class="ssi-feedback" id="feedback">Select or drag a reference to compare.</div>
       <button id="nextBtn" class="ssi-hidden" type="button">Next Case</button>
     </div>
   </section>
@@ -432,7 +438,7 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line)
   </section>
 
   <section class="ssi-card" id="buzzQuestions" aria-labelledby="buzzHeading">
-    <h2 class="ssi-section-title" id="buzzHeading">Buzz assessment questions</h2>
+    <h2 class="ssi-section-title" id="buzzHeading" tabindex="-1">Buzz assessment questions</h2>
     <p class="ssi-buzz-intro">Use your measured-shift table while answering. The evidence image is an optional record; all 15 points come from the native Buzz questions below.</p>
     <div class="ssi-local-note" id="localNote" hidden>If you opened this template as a local file, the response controls will be blank. Import <strong>doppler_spectral_shift_buzz_questions.txt</strong> into Buzz and upload this HTML as the assessment template.</div>
     <div class="ssi-slot"><p class="ssi-slot-label">Question 1 <span>Object A measured shift</span></p><a:question /></div>
@@ -656,6 +662,14 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line)
   function updateObservedRender() {
     const item = currentCase();
     const lines = currentReference().lines;
+    const markerPosition = byId('markerPosition');
+    markerPosition.value = String(Math.round(zUser * 1000));
+    markerPosition.disabled = phase !== 'align';
+    byId('checkAlignment').disabled = phase !== 'align';
+    const displacement = measuredLine() * zUser;
+    markerPosition.setAttribute('aria-valuetext', Math.abs(displacement) < 0.05
+      ? 'Markers at the observed lines'
+      : `${Math.abs(displacement).toFixed(1)} nanometers toward ${displacement < 0 ? 'shorter' : 'longer'} wavelengths`);
 
     // The measurement: solid lines pinned at the wavelengths we actually observe.
     drawLines(obsLinesGrp, lines, item.z, 4);
@@ -694,10 +708,12 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line)
     references.forEach(ref => {
       const canPick = phase === 'match' || phase === 'align';
 
-      const button = document.createElement('div');
+      const button = document.createElement('button');
+      button.type = 'button';
       button.className = 'ssi-reference';
       button.draggable = canPick;
       button.dataset.reference = ref.id;
+      button.setAttribute('aria-pressed', String(!!selectedReference && selectedReference.id === ref.id));
 
       if (!canPick) {
         button.setAttribute('disabled', 'true');
@@ -710,7 +726,7 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line)
       name.className = 'ssi-reference-name';
       name.textContent = `${ref.label} reference`;
       
-      const svg = svgNode('svg', { viewBox: '0 0 760 80', role: 'img' });
+      const svg = svgNode('svg', { viewBox: '0 0 760 80', 'aria-hidden': 'true', focusable: 'false' });
       
       const defs = svgNode('defs');
       const gradId = `grad-${ref.id}`;
@@ -771,7 +787,7 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line)
   });
 
   dropZoneGroup.addEventListener('click', () => {
-    if (phase === 'match') setFeedback('Click or drag a reference from the grid into this slot.', 'warn');
+    if (phase === 'match') setFeedback('Select or drag a reference from the grid into this slot.', 'warn');
   });
 
   // Any reference can be loaded, right or wrong, so students can slide it against the
@@ -796,11 +812,13 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line)
     alignActions.classList.remove('ssi-hidden');
 
     if (isMatch) {
-      setFeedback('Fingerprint matched! The dashed markers start on the solid observed lines. Drag them left or right until they reach the reference lines above.', 'good');
+      setFeedback('Fingerprint matched! Move the dashed markers with the slider or drag them until they reach the reference lines above.', 'good');
     } else {
-      setFeedback(`${ref.label} loaded. Drag the observed spectrum and see whether every line can be made to match at once. If it cannot, drag a different reference into the slot.`);
+      setFeedback(`${ref.label} loaded. Move the dashed markers with the slider or drag them to see whether every line can match at once. If not, select a different reference.`);
     }
     renderUI();
+
+    byId('markerPosition').focus();
 
     // A case with no shift is already aligned on load, so there is no drag to release.
     // Pause long enough to see the badge, then move on by itself.
@@ -856,8 +874,21 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line)
   obsDragTarget.addEventListener('pointerup', stopDrag);
   obsDragTarget.addEventListener('pointercancel', stopDrag);
 
-  // No button: landing on the alignment is itself the confirmation.
+  byId('markerPosition').addEventListener('input', (event) => {
+    if (phase !== 'align') return;
+    zUser = Math.max(-MAX_Z_DRAG, Math.min(MAX_Z_DRAG, Number(event.target.value) / 1000));
+    updateObservedRender();
+  });
+
+  byId('checkAlignment').addEventListener('click', () => {
+    if (phase !== 'align') return;
+    if (isAligned()) confirmAlignment();
+    else setFeedback('The markers are not all aligned. Adjust their position, or try another reference if the pattern does not fit.', 'warn');
+  });
+
   function confirmAlignment() {
+    const moveFocus = byId('alignActions').contains(document.activeElement)
+      || referenceGrid.contains(document.activeElement);
     zUser = -currentCase().z;
     phase = 'result';
     obsDragTarget.classList.add('ssi-hidden');
@@ -866,6 +897,7 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line)
     motionPanel.classList.add('visible');
     setFeedback('Lines aligned. Record the measured shift from the readout, then continue.', 'good');
     renderUI();
+    if (moveFocus) nextBtn.focus();
   }
 
   // Each aligned case stores the wavelength the student actually measured.
@@ -1031,8 +1063,8 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line)
     nextBtn.classList.add('ssi-hidden');
 
     const phaseData = {
-      match: ['Match the fingerprint', 'Step 1 · Identify', 'Drag a reference spectrum into the top slot. Try any of them — testing one that does not fit is a fair way to rule it out.', 'Which reference has the same absorption-line fingerprint?'],
-      align: ['Align the lines', 'Step 2 · Measure', 'Drag the dashed markers off the solid observed lines until they sit on the reference lines above. The colors stay fixed to the wavelength scale. If the markers never all line up at once, try a different reference.', 'How far must the lines shift to reach their rest wavelengths?'],
+      match: ['Match the fingerprint', 'Step 1 · Identify', 'Select a reference spectrum or drag it into the top slot. Try any of them — testing one that does not fit is a fair way to rule it out.', 'Which reference has the same absorption-line fingerprint?'],
+      align: ['Align the lines', 'Step 2 · Measure', 'Use the marker slider and Check alignment, or drag the dashed markers onto the reference lines above. The slider works with arrow keys. If the markers never all line up at once, try a different reference.', 'How far must the lines shift to reach their rest wavelengths?'],
       result: ['Measurement recorded', 'Step 3 · Record', 'Read Δλ and λ₀ from the readout and copy them into your notes. The motion diagram below shows how this object moves relative to Earth.', `Δλ has been measured for ${item.object}.`]
     };
 
@@ -1051,11 +1083,12 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line)
   nextBtn.addEventListener('click', () => {
     if (caseIndex === cases.length - 1) {
       question.textContent = 'All three measurements recorded';
-      directions.textContent = 'Download your evidence image, then answer the Buzz questions below.';
+      directions.textContent = 'Use your recorded measurements to answer the Buzz questions below. You may also download an evidence image for your records.';
       feedback.textContent = 'Measurements complete for all three objects.';
       feedback.className = 'ssi-feedback good';
       nextBtn.classList.add('ssi-hidden');
       progress.textContent = '3 of 3 cases measured';
+      byId('buzzHeading').focus();
       return;
     }
     caseIndex++;
@@ -1063,8 +1096,9 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line)
     selectedReference = null;
     motionPanel.classList.remove('visible');
     stopMotionAnim();
-    setFeedback('Drag a reference to the dropzone above to compare.');
+    setFeedback('Select or drag a reference to compare.');
     renderUI();
+    referenceGrid.querySelector('button').focus();
   });
 
   byId('resetBtn').addEventListener('click', () => {
@@ -1076,8 +1110,9 @@ button[disabled] { opacity: 0.55; cursor: not-allowed; border-color: var(--line)
     byId('evidenceStatus').textContent = '';
     motionPanel.classList.remove('visible');
     stopMotionAnim();
-    setFeedback('Drag a reference to the dropzone above to compare.');
+    setFeedback('Select or drag a reference to compare.');
     renderUI();
+    referenceGrid.querySelector('button').focus();
   });
 
   /* ---------------- evidence export ---------------- */

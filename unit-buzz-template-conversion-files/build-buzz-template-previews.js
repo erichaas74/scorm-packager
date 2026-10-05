@@ -6,7 +6,8 @@ const lessons = [
     dir: 'unit-ApplicationFiles/unit-1/lesson-1',
     template: 'u1l1-motion-graphs-buzz-assessment-template.html',
     questions: 'buzz-assessment-questions.txt',
-    output: 'u1l1-motion-graphs-buzz-assessment-template-preview.html'
+    output: 'u1l1-motion-graphs-buzz-assessment-template-preview.html',
+    allowNoQuestions: true
   },
   {
     dir: 'unit-ApplicationFiles/unit-1/lesson-2',
@@ -478,7 +479,7 @@ function buildPreview(lesson) {
   const outputPath = path.join(lessonDir, lesson.output);
 
   const template = fs.readFileSync(templatePath, 'utf8');
-  const questions = parseQuestions(fs.readFileSync(questionsPath, 'utf8'));
+  const questions = lesson.allowNoQuestions ? [] : parseQuestions(fs.readFileSync(questionsPath, 'utf8'));
   let slotIndex = 0;
 
   const withQuestions = template.replace(slotPattern, () => {
@@ -494,6 +495,15 @@ function buildPreview(lesson) {
   });
 
   if (slotIndex === 0) {
+    if (lesson.allowNoQuestions && questions.length === 0) {
+      fs.writeFileSync(outputPath, template, 'utf8');
+      return {
+        lesson: lesson.dir,
+        slots: 0,
+        questions: 0,
+        output: path.relative(process.cwd(), outputPath)
+      };
+    }
     throw new Error(`${lesson.dir}: template did not contain any Buzz question slots.`);
   }
 
@@ -518,6 +528,9 @@ const selectedLessons = requestedLessons.length
 if (!selectedLessons.length) {
   throw new Error(`No preview targets matched: ${requestedLessons.join(', ')}`);
 }
+
+const scoringUnits = [...new Set(selectedLessons.map(lesson => Number((lesson.dir.match(/unit-ApplicationFiles\/unit-(\d+)/) || [])[1])).filter(Boolean))];
+require('../unit-ApplicationFiles/application-scoring-policy.js').applyUnits(scoringUnits);
 
 const results = selectedLessons.map(buildPreview);
 for (const result of results) {

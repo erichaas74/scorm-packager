@@ -7,13 +7,13 @@ Each preserves its interactive model and on-screen evidence, uses ordered questi
 and has a generated local preview. Buzz owns every score.
 
 COMMON ASSESSMENT STANDARD
-  15 points per application
+  15 points per application (10 automatic + 5 BusyBee)
   10 points from native auto-graded numeric, matching, or multiple-choice questions
-   5 points from the final two BusyBee evidence responses (2 + 3)
+   5 points from BusyBee responses (2 + 3; Thin Lens has one 5-point conclusion)
    0 points from files: evidence downloads are optional records, not graded uploads
 
-  Total: 59 questions / 105 points across seven assessments.
-  BusyBee: 14 essays / 35 points across the unit.
+  Total: 72 questions / 105 points across seven assessments.
+  BusyBee: 13 essays / 35 points across the unit.
 
 FILE SET PER APPLICATION
   Each application's source, Buzz support files, and preview live in its lab folder.
@@ -28,7 +28,7 @@ FILE SET PER APPLICATION
 THE SEVEN APPLICATIONS
   Resonance Tube Lab                 U5L2   10 questions   15 points
   Design the Perfect Instrument      U5L2    8 questions   15 points
-  Thin Lens Investigation            U5L3    8 questions   15 points
+  Thin Lens Investigation            U5L3   21 questions   15 points
   Light, Color, and Vision Lab       U5L3    8 questions   15 points
   Spectral Shift Investigation       U5L5    8 questions   15 points
   Honors Relativity Timekeeping      U5H     8 questions   15 points

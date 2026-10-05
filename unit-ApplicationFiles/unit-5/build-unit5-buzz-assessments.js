@@ -4,9 +4,9 @@ const path = require('path');
 const root = __dirname;
 
 const assessments = [
-  { slug: 'sound_waves_resonance', dir: 'sound-waves-resonance-lab', sourceTemplate: 'sound_waves_lab_simulation.html', buzzTemplate: 'u5l2-resonance-tube-buzz-assessment-template.html', optionalEvidence: 'resonance-tube-evidence.png — 12-row data table plus the verified final result' },
+  { slug: 'sound_waves_resonance', dir: 'sound-waves-resonance-lab', sourceTemplate: 'sound_waves_lab_simulation.html', buzzTemplate: 'u5l2-resonance-tube-buzz-assessment-template.html', optionalEvidence: null },
   { slug: 'design_perfect_instrument', dir: 'design-the-perfect-instrument', sourceTemplate: 'index.html', buzzTemplate: 'u5l2-perfect-instrument-buzz-assessment-template.html', optionalEvidence: 'instrument-build-evidence.png — all seven recorded challenge builds' },
-  { slug: 'thin_lens_refraction', dir: 'thin-lens-refraction-lab', sourceTemplate: 'thin_lens_refraction_investigation.html', buzzTemplate: 'u5l3-thin-lens-buzz-assessment-template.html', optionalEvidence: 'thin-lens-evidence.png — four observations plus three verified calculations' },
+  { slug: 'thin_lens_refraction', dir: 'thin-lens-refraction-lab', sourceTemplate: 'thin_lens_refraction_investigation.html', buzzTemplate: 'u5l3-thin-lens-buzz-assessment-template.html', optionalEvidence: null },
   { slug: 'light_color_vision', dir: 'light-color-and-vision-lab', sourceTemplate: 'index.html', buzzTemplate: 'u5l3-light-color-vision-buzz-assessment-template.html', optionalEvidence: 'light-color-vision-evidence.png — all 18 recorded evidence trials' },
   { slug: 'doppler_spectral_shift', dir: 'doppler-spectral-line-shift', sourceTemplate: 'index.html', buzzTemplate: 'u5l5-spectral-shift-buzz-assessment-template.html', optionalEvidence: 'spectral-shift-evidence.png — three recorded spectral matches and shifts' },
   { slug: 'honors_relativity', dir: 'honors-relativity-timekeeping-lab', sourceTemplate: 'index.html', buzzTemplate: 'u5h-relativity-timekeeping-buzz-assessment-template.html', optionalEvidence: 'relativity-timekeeping-evidence.png — the student trial table' },
@@ -28,14 +28,14 @@ const setupGuides = {
     studentSteps: [
       'Strike a tuning fork and scan the tube length until the intensity trace reaches a resonance peak.',
       'Record the required resonance lengths for 2048 Hz, 1024 Hz, 512 Hz, and 256 Hz until all 12 rows are complete.',
-      'Verify every measurement and complete the final speed-of-sound result in the lab.',
-      'Answer the Buzz questions in order. Use the values in your on-screen evidence table for the final two written responses.',
-      'Download the evidence image only if you want a personal record; it is not submitted or graded.'
+      'Use Questions 1-4 to convert the three lengths for each frequency, calculate wavelengths and speeds, and report each frequency average.',
+      'Use Questions 5-6 for the overall average and percent difference, then answer the remaining questions using your recorded lengths and calculated speeds.',
+      'The progress bar tracks the 12 measurements; submit all calculations and explanations in Buzz.'
     ],
     previewChecks: [
       'The apparatus draws, the tube moves, and striking a fork produces an intensity trace.',
-      'Record measurement unlocks only at a resonance peak, and all 12 rows can be verified.',
-      'The optional evidence download unlocks only after the three completion checks turn green.'
+      'The selected frequency row accepts manual lengths, and the recording button captures resonance peaks.',
+      'All 12 lengths bring measurement progress to 100%; there is no calculation panel, tab navigation, or export gate.'
     ],
     technicalNote: 'Confirm audio is allowed, while remembering that every audio cue also has a visual equivalent.'
   },
@@ -67,25 +67,25 @@ const setupGuides = {
   thin_lens_refraction: {
     title: 'Thin Lens Investigation',
     buzzTitle: 'Unit 5 Application: Thin Lens Investigation',
-    questionCount: 8,
-    questionMix: 'five numeric, one multiple-choice, and two essay questions',
-    mission: 'Make light rays reveal an invisible rule! You will move an object and screen around a converging lens, capture real and virtual images, and test whether the thin-lens equation predicts what the simulation shows.',
+    questionCount: 21,
+    questionMix: '16 numeric, four multiple-choice, and one conclusion question',
+    mission: 'Make light rays reveal an invisible rule! With the object fixed for each trial, move the screen around a converging lens, observe real and virtual images, and test whether the thin-lens equation predicts what the simulation shows.',
     learningGoals: [
       'Distinguish real images from virtual images using ray behavior and screen evidence.',
       'Apply the thin-lens equation and magnification relationship with correct signs.',
       'Use multiple trials to explain how object distance changes image position, size, and orientation.'
     ],
     studentSteps: [
-      'Record three focused real-image trials using the required object distances.',
-      'Complete the p = 10.0 cm virtual-image trial and explain why no screen measurement exists for it.',
-      'Calculate and verify the three required application rows before moving to the assessment questions.',
-      'Answer the Buzz questions in order and cite values from the observation and calculation tables in the final responses.',
-      'Download the evidence image only if you want a personal record; it is not submitted or graded.'
+      'Work through the four separate canvases. Each fixes the object at a different distance; drag its screen or use its own slider.',
+      'Answer image height, signed image distance, focal length, magnification, and orientation directly below each canvas. For L4 infer virtual-image values using the focal length found from L1-L3.',
+      'Write the final conclusion about the common focal length and real versus virtual images.',
+      'Use the four trials as numerical and operational evidence in your conclusion.',
+      'Submit all chart entries and written responses through Buzz; no downloads or separate notebook are required.'
     ],
     previewChecks: [
-      'Three real-image trials and the p = 10.0 cm virtual-image trial record correctly.',
-      'The virtual row does not invent a screen measurement, and all three calculation rows verify.',
-      'Saved evidence survives a reload and Reset entire lab clears it.'
+      'The progress card tracks four observed simulation trials; Buzz saves and grades responses.',
+      'Each canvas is followed by five native questions. L4 uses inferred signed values rather than a screen measurement.',
+      'All 21 questions appear in order; the single final conclusion is worth 5 points.'
     ],
     technicalNote: 'Keep the fixed assessment lens and required trial values unchanged.'
   },
@@ -126,18 +126,18 @@ const setupGuides = {
       'Calculate fractional wavelength shift and approximate radial speed from measured data.'
     ],
     studentSteps: [
-      'Drag a reference spectrum into the comparison area and identify the matching elemental fingerprint.',
-      'Move the dashed spectral markers until the observed and reference lines align.',
+      'Select a reference spectrum with Enter or Space, click it, or drag it into the comparison area to identify the matching elemental fingerprint.',
+      'Use the marker slider with arrow keys and select Check alignment, or drag the dashed markers until the observed and reference lines align.',
       'Record the measured wavelength shift for all three objects and note each direction of motion.',
       'Answer the Buzz questions in order, calculating from the displayed rest wavelength and measured shift rather than a displayed z value.',
       'Download the evidence image only if you want a personal record; it is not submitted or graded.'
     ],
     previewChecks: [
-      'Reference cards and spectral markers work with pointer and touch input.',
+      'Reference buttons and the marker slider allow all three cases to be completed with the keyboard; pointer and touch dragging also work.',
       'Alignment records a row, reveals the motion diagram, and preserves delta-lambda without displaying z.',
       'All three objects can be completed and the optional evidence image unlocks at 3 of 3.'
     ],
-    technicalNote: 'Verify the drag interactions on a touch device as well as with a mouse.'
+    technicalNote: 'Verify keyboard-only completion, focus after each case, and the drag interactions on touch and mouse devices.'
   },
   honors_relativity: {
     title: 'Honors Relativity Timekeeping Lab',
@@ -278,7 +278,7 @@ function buildMetadata(item) {
       requiredEvidence: evidence.replace(/_/g, ' '),
       rubric: {
         fullCredit: { score: points, criteria: [rubricPart(block, 'Full credit')] },
-        partialCredit: { scoreRange: points === 2 ? '1' : '1-2', criteria: [rubricPart(block, 'Partial credit')] },
+        partialCredit: { scoreRange: points === 2 ? '1' : points === 5 ? '1-4' : '1-2', criteria: [rubricPart(block, 'Partial credit')] },
         noCredit: { score: 0, criteria: [rubricPart(block, 'No credit')] }
       },
       commonMisconceptions,
@@ -303,7 +303,7 @@ function buildMetadata(item) {
     },
     evidenceRequirements: {
       requiredUploads: [],
-      optionalDownloads: [item.optionalEvidence],
+      optionalDownloads: item.optionalEvidence ? [item.optionalEvidence] : [],
       requiredCopiedValues: ['Students read values from the on-screen evidence tables while answering the native Buzz questions.'],
       acceptedFileTypes: [],
       missingEvidenceAction: 'Use the on-screen evidence table and route contradictory or unverifiable written responses to human review.'
@@ -334,11 +334,11 @@ function buildSetup(item) {
   const legacyHtml = path.join(root, item.dir, `${item.slug}_buzz_setup.html`);
   const studentSteps = [
     ...guide.studentSteps,
-    `Before submitting, confirm that you answered all ${guide.questionCount} questions and that the final two responses cite your recorded evidence.`
+    `Before submitting, confirm that you answered all ${guide.questionCount} questions and that ${item.slug === 'thin_lens_refraction' ? 'your conclusion cites your trial evidence' : 'the final two responses cite your recorded evidence'}.`
   ];
   const teacherChecks = [
     ...guide.previewChecks,
-    `Questions 1-${guide.questionCount} appear in their matching labeled slots and the final two essay questions remain last.`,
+    `Questions 1-${guide.questionCount} appear in their matching labeled slots and ${item.slug === 'thin_lens_refraction' ? 'the single conclusion remains last' : 'the final two essay questions remain last'}.`,
     'Keyboard navigation, copy/paste, text selection, and the context menu remain available.',
     'Teacher-test data is reset before students open the assessment.'
   ];
@@ -357,14 +357,14 @@ function buildSetup(item) {
     ...numbered(studentSteps),
     '',
     'SUCCESS AND SCORING',
-    '- The assessment is worth 15 points: 10 auto-graded points plus 5 BusyBee points.',
-    '- The final two evidence responses are worth 2 points and 3 points.',
-    '- Evidence downloads are optional records. No file upload earns or replaces points.',
+    `- The assessment is worth ${15} points: ${10} auto-graded points plus 5 BusyBee points.`,
+    item.slug === 'thin_lens_refraction' ? '- Questions 1-20 are worth 0.5 points each (10 points); the final conclusion is worth 5 points.' : '- The final two evidence responses are worth 2 points and 3 points.',
+    item.optionalEvidence ? '- Evidence downloads are optional records. No file upload earns or replaces points.' : '- Enter and submit every response in Buzz. No evidence download or upload is required.',
     '',
     'TEACHER BUZZ SETUP',
     `1. Create a Buzz Assessment titled "${guide.buzzTitle}".`,
     `2. Import the ${guide.questionCount} questions from ${questionFile}.`,
-    `3. Confirm the import creates ${guide.questionCount} questions worth 15 points: ${guide.questionMix}.`,
+    `3. Confirm the import creates ${guide.questionCount} questions worth ${15} points: ${guide.questionMix}.`,
     `4. Upload ${item.buzzTemplate} from this folder as the assessment template.`,
     '5. Turn question randomization/shuffling OFF and one-question-per-page OFF.',
     `6. Confirm the template contains ${guide.questionCount} ordered Buzz question slots.`,
@@ -380,7 +380,7 @@ function buildSetup(item) {
     `- Buzz assessment template: ${item.buzzTemplate}`,
     `- Generated local preview: ${item.buzzTemplate.replace(/\.html$/, '-preview.html')}`,
     '',
-    `Optional evidence record: ${item.optionalEvidence}`,
+    item.optionalEvidence ? `Optional evidence record: ${item.optionalEvidence}` : 'All responses are native Buzz questions; no evidence export is required.',
     ''
   ].join('\n');
 
@@ -402,3 +402,5 @@ assessments.forEach((item) => {
   buildMetadata(item);
   buildSetup(item);
 });
+
+require('../application-scoring-policy.js').applyUnits([5]);

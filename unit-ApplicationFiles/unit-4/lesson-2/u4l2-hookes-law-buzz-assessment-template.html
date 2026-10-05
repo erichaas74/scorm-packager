@@ -1126,7 +1126,7 @@
         const count = samples.length;
         progressBar.style.width = `${Math.min(100, count / 5 * 100)}%`;
         trialCount.textContent = `${count} / 5 trial${count === 1 ? "" : "s"}`;
-        fitButton.disabled = count < 5;
+        fitButton.disabled = count < 5 || !hasSpringEstimate();
         clearButton.disabled = count === 0;
         copyButton.disabled = count === 0;
         csvButton.disabled = count === 0;
@@ -1570,9 +1570,19 @@
         setStatus(`Trial ${id} deleted.`, "neutral");
       }
 
+      function hasSpringEstimate() {
+        const estimate = Number(studentK.value);
+        return Number.isFinite(estimate) && estimate > 0;
+      }
+
       function calculateFit() {
         if (samples.length < 5) {
           setStatus("Record all five known masses before fitting a line.", "error");
+          return;
+        }
+        if (!hasSpringEstimate()) {
+          setStatus("Calculate and enter a positive spring constant in N/m before displaying the best-fit line.", "error");
+          studentK.focus();
           return;
         }
         const count = samples.length;
@@ -1853,6 +1863,7 @@
       copyButton.addEventListener("click", copyData);
       csvButton.addEventListener("click", downloadCsv);
       revealButton.addEventListener("click", revealAnswer);
+      studentK.addEventListener("input", updateProgress);
       studentK.addEventListener("keydown", (event) => {
         if (event.key === "Enter") checkResult();
       });
