@@ -1,0 +1,49 @@
+<div id="unit3-forces">
+  <h2>Interaction forces versus time</h2>
+  <div class="text-small">Illustrative values • positive and negative indicate opposite directions</div>
+  <div id="unit3-plots"></div>
+</div>
+<style>
+#unit3-forces .force-panel {margin-top:24px}
+#unit3-forces svg {display:block;width:100%}
+#unit3-forces svg text {fill:var(--foreground);font-size:12px}
+#unit3-forces .force-key {display:flex;gap:16px;flex-wrap:wrap}
+#unit3-forces .force-key span {display:inline-flex;align-items:center;gap:6px}
+#unit3-forces .swatch {width:24px;border-top:3px solid var(--viz-series-1)}
+#unit3-forces .swatch.second {border-color:var(--viz-series-2);border-top-style:dashed}
+</style>
+<script>
+(() => {
+const root=document.getElementById('unit3-forces');
+const sets=[
+ {title:'1. Two carts collide',a:'Heavy cart on light cart',b:'Light cart on heavy cart',unit:'N',v:[[0,0],[1,0],[1.5,20],[2,40],[2.5,20],[3,0],[4,0]]},
+ {title:'2. A car hits a truck',a:'Truck on car',b:'Car on truck',unit:'kN',v:[[0,0],[0.1,0],[0.15,30],[0.2,60],[0.25,30],[0.3,0],[0.4,0]]},
+ {title:'3. Students push off on skateboards',a:'Student B on student A',b:'Student A on student B',unit:'N',v:[[0,0],[0.5,0],[1,60],[1.5,120],[2,60],[2.5,0],[4,0]]},
+ {title:'4. A hand pushes against a wall',a:'Hand on wall',b:'Wall on hand',unit:'N',v:[[0,0],[1,50],[3,50],[4,0],[5,0]]},
+ {title:'5. A book rests on a table',a:'Table on book',b:'Book on table',unit:'N',v:[[0,10],[1,10],[2,10],[3,10],[4,10]]},
+ {title:'6. Students pull connected force sensors',a:'Sensor B on sensor A',b:'Sensor A on sensor B',unit:'N',v:[[0,0],[0.5,5],[1,15],[1.5,10],[2,20],[2.5,15],[3,5],[3.5,0],[4,0]]}
+];
+const ns='http://www.w3.org/2000/svg';
+function el(name,attrs,parent,text){const n=document.createElementNS(ns,name);Object.entries(attrs).forEach(([k,v])=>n.setAttribute(k,v));if(text!==undefined)n.textContent=text;parent.appendChild(n);return n;}
+sets.forEach(s=>{
+const panel=document.createElement('section');panel.className='force-panel';
+const heading=document.createElement('h3');heading.textContent=s.title;panel.appendChild(heading);
+const key=document.createElement('div');key.className='force-key text-small';
+[s.a,s.b].forEach((label,i)=>{const span=document.createElement('span');const sw=document.createElement('i');sw.className='swatch'+(i?' second':'');span.appendChild(sw);span.appendChild(document.createTextNode(label));key.appendChild(span);});panel.appendChild(key);
+const svg=el('svg',{role:'img','aria-label':s.title+'. Equal and opposite forces at every instant; solid positive curve and dashed negative curve.'},panel);root.querySelector('#unit3-plots').appendChild(panel);
+function draw(){
+svg.replaceChildren();const w=panel.clientWidth,h=228,left=66,right=w-18,top=24,bottom=183;
+svg.setAttribute('viewBox',`0 0 ${w} ${h}`);
+const max=Math.max(...s.v.map(d=>Math.abs(d[1]))),end=Math.max(...s.v.map(d=>d[0]));
+const x=t=>left+t/end*(right-left),y=f=>(top+bottom)/2-f/(max*1.2)*(bottom-top)/2;
+el('rect',{x:left,y:top,width:right-left,height:bottom-top-top,fill:'none',stroke:'var(--border)','data-chart-frame':''},svg).setAttribute('height',bottom-top);
+[-max,0,max].forEach(f=>{el('line',{x1:left,y1:y(f),x2:right,y2:y(f),stroke:f===0?'var(--foreground)':'var(--border)','stroke-width':1},svg);el('text',{x:left-9,y:y(f)+4,'text-anchor':'end'},svg,f);});
+[0,end/2,end].forEach(t=>el('text',{x:x(t),y:bottom+19,'text-anchor':t===0?'start':t===end?'end':'middle'},svg,Number(t.toFixed(2))));
+el('text',{x:(left+right)/2,y:222,'text-anchor':'middle',class:'axis-title','data-axis':'x'},svg,'Time (s)');
+el('text',{x:left,y:14,class:'axis-title','data-axis':'y'},svg,`Force (${s.unit})`);
+[1,-1].forEach((sign,i)=>el('path',{d:s.v.map((p,j)=>(j?'L':'M')+x(p[0])+','+y(sign*p[1])).join(' '),fill:'none',stroke:`var(--viz-series-${i+1})`,'stroke-width':3,'stroke-dasharray':i?'7 4':'none'},svg));
+}
+new ResizeObserver(draw).observe(panel);draw();
+});
+})();
+</script>

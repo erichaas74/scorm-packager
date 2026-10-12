@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Weightless does not mean no gravity</title>
+<style>
+[hidden]{display:none!important}*{box-sizing:border-box}html,body{background:transparent;margin:0}body{padding:12px;font:16px system-ui,sans-serif;color:#17334d}.app{max-width:1100px;margin:auto;border:5px solid #285f9f;border-radius:20px;background:#fff;overflow:hidden}header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px}h1{font-size:clamp(20px,3vw,27px);margin:0}h2{font-size:23px;margin:8px 0 12px}.layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(260px,1fr)}.scene{background:#091a30;min-width:0}canvas{width:100%;display:block;aspect-ratio:1/1}.legend{color:#e3edf9;font-size:13px;padding:0 18px 16px;line-height:1.7}.panel{padding:22px;background:#f2f6fa}.phase{font-size:12px;font-weight:800;letter-spacing:1px;color:#285f9f}p{line-height:1.6;margin:0 0 18px}button{font:inherit;font-weight:700;min-height:44px;padding:10px 15px;border:1px solid #285f9f;border-radius:9px;background:white;color:#234f83;cursor:pointer}button:focus-visible{outline:3px solid #b36c00;outline-offset:3px}button:disabled{opacity:.5;cursor:default}.actions{display:grid;gap:10px}.primary{background:#285f9f;color:white}.danger{background:#b4232c;color:white;border-color:#b4232c}.secondary{display:flex;gap:10px;margin-top:10px}.secondary button{flex:1}dl{margin:24px 0 0;border-top:1px solid #c3d0df}dl div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #c3d0df;padding:12px 0}dt{font-size:14px}dd{margin:0;font-weight:750;font-variant-numeric:tabular-nums}.note{font-size:12px;color:#506278;margin:16px 0 0}#status{font-size:14px;margin:12px 0 0;min-height:24px}@media(max-width:720px){.layout{grid-template-columns:1fr}.panel{padding:18px}header{padding:14px}body{padding:6px}}
+.scale-panel{padding:14px;background:#fff;border:1px solid #bbcddd;border-radius:12px;margin-bottom:18px}.scale-panel h3{font-size:16px;margin:0 0 10px}.scale-options{display:flex;gap:8px}.scale-options button{flex:1;font-size:13px;padding:8px}.scale-options button[aria-pressed="true"]{background:#285f9f;color:#fff}.scale-panel p{font-size:14px;margin:12px 0}.scale-panel output{font-size:14px;font-weight:750}.secondary{flex-wrap:wrap}</style></head><body><main class="app">
+<header><h1>Weightless &ne; no gravity</h1></header>
+<div class="layout"><section class="scene" aria-label="Orbital simulation"><canvas id="space" width="640" height="640" role="img" aria-label="Earth at the center. An astronaut orbits with velocity tangent to the orbit and gravity directed inward."></canvas><div class="legend" id="legend">Inside the capsule: astronaut and ball share the same motion.</div></section>
+<section class="panel" aria-label="Walkthrough and telemetry"><div id="lesson" aria-live="polite"><span class="phase" id="phase">PHASE 1 / 3</span><h2 id="heading">Try the scale.</h2><p id="explanation">Compare orbiting and fixed at the same altitude.</p></div>
+<section id="scalePanel" class="scale-panel" aria-label="Compare scale readings at 400 kilometers">
+<h3>What would a scale read?</h3>
+<div class="scale-options"><button id="fallingScale" aria-pressed="false">Orbiting scale</button><button id="fixedScale" aria-pressed="false">Fixed scale</button></div>
+<p id="scaleExplanation" aria-live="polite">A scale measures the support force under your feet. Compare both cases at the same altitude.</p>
+<output id="scaleReading">80 kg astronaut: mass stays the same.</output>
+</section><div class="actions"><button class="primary" id="next">Next: enter capsule</button><button class="primary" id="drop" hidden>Drop the ball</button><button class="danger" id="off" hidden>No Gravity</button></div><div class="secondary"><button id="view" hidden>View orbit</button><button id="pause">Pause</button><button id="reset">Reset</button></div>
+<p id="status" hidden>Drop a ball to compare their motion.</p>
+<dl hidden><div><dt>Gravity, g</dt><dd id="g">8.69 m/s&sup2;</dd></div><div><dt>Speed, v</dt><dd id="v">7.67 km/s</dd></div><div><dt>Trajectory</dt><dd id="trajectory">Curved</dd></div></dl>
+<p class="note" hidden>Ideal model at 400 km altitude; no drag or other forces. Motion is sped up. Earth and objects are drawn out of scale. The ball is drawn beside the astronaut for visibility; their simulated positions coincide.</p></section></div>
+<script>
+'use strict';
+// All physics uses SI units: position in meters, velocity in m/s, time in seconds.
+// The canvas is only a view of these vectors, never the source of physics state.
+const MU = 3.986004418e14; // Earth's gravitational parameter, G * Earth mass.
+const EARTH_RADIUS = 6371000, RADIUS = EARTH_RADIUS + 400000;
+const STEP = 2; // Fixed two-second physics step: stable even at varying display rates.
+const TIME_SCALE = 220; // Simulated seconds per real second.
+const $ = id => document.getElementById(id);
+const canvas = $('space'), ctx = canvas.getContext('2d');
+let astronaut, ball, gravityScale, paused, lastTime, accumulator, trail, escapePoint;
+const ASTRONAUT_MASS=80;
+const SURFACE_G=MU/EARTH_RADIUS**2, ALTITUDE_G=MU/RADIUS**2;
+const WEIGHT_PERCENT=100*ALTITUDE_G/SURFACE_G;
+let scaleMode='falling', scaleOrbitAngle=-Math.PI/2;
+let camera = 'scale', phase = 1;
+let completionSent = false; // Keep once-only LMS reporting across Reset clicks.
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// a = -MU * r / |r|^3. Dividing r by its length supplies the inward unit vector;
+// MU / |r|^2 supplies acceleration magnitude. Both vector components matter.
+function acceleration(position) {
+  const radius = Math.hypot(position.x, position.y);
+  const factor = -gravityScale * MU / (radius * radius * radius);
+  return {x: factor * position.x, y: factor * position.y};
+}
+// Velocity Verlet: half-kick, drift, half-kick. This symplectic method prevents
+// the rapid inward/outward spiraling caused by a simple forward Euler loop.
+// With acceleration zero, both kicks vanish: position += velocity * dt exactly.
+function integrate(body, dt) {
+  const a = acceleration(body.position);
+  body.velocity.x += a.x * dt / 2;
+  body.velocity.y += a.y * dt / 2;
+  body.position.x += body.velocity.x * dt;
+  body.position.y += body.velocity.y * dt;
+  const nextA = acceleration(body.position);
+  body.velocity.x += nextA.x * dt / 2;
+  body.velocity.y += nextA.y * dt / 2;
+}
+function setPhase(number, heading, explanation) {
+  phase = number;
+  $('phase').textContent = `STEP ${number} / 3`;
+  $('heading').textContent = heading;
+  $('explanation').textContent = explanation;
+}
+function reset() {
+  // Circular initial condition: velocity perpendicular to radius, v = sqrt(MU/r).
+  astronaut = {position:{x:0,y:-RADIUS}, velocity:{x:Math.sqrt(MU/RADIUS),y:0}};
+  ball = {position:{...astronaut.position},velocity:{...astronaut.velocity}}; camera = 'cabin'; $('view').textContent = 'View orbit'; gravityScale = 1; paused = reducedMotion;
+  lastTime = null; accumulator = 0; trail = []; escapePoint = null; scaleOrbitAngle=-Math.PI/2;
+  $('scalePanel').hidden = false; $('next').hidden = false;
+  $('drop').hidden = true; $('off').hidden = true; $('view').hidden = true;
+  $('drop').dataset.released = 'false'; $('drop').disabled = false; $('off').disabled = false;
+  $('pause').textContent = paused ? 'Resume' : 'Pause';
+  setPhase(1,'Try the scale.','Compare orbiting and fixed at the same altitude.');
+  chooseScale('falling');
+  render();
+}
+$('next').addEventListener('click', () => {
+  if (phase !== 1) return;
+  camera = 'cabin'; lastTime = null;
+  $('scalePanel').hidden = true; $('next').hidden = true; $('drop').hidden = false;
+  setPhase(2,'Drop the ball.','Release it inside the orbiting capsule.');
+  render();
+});
+$('drop').addEventListener('click', () => {
+  if (phase !== 2 || !gravityScale || $('drop').dataset.released === 'true') return;
+  camera='cabin';$('view').textContent='View orbit';
+  // CRITICAL: copy the EXACT instantaneous position AND velocity. No push,
+  // no reset to zero velocity, no physical offset. Separate objects, same values.
+  ball = {position:{...astronaut.position}, velocity:{...astronaut.velocity}};
+  $('drop').disabled = true; $('drop').dataset.released = 'true';
+  setPhase(2,'They fall together.','The ball floats because both are falling around Earth. Try No Gravity.');
+  $('drop').hidden = true; $('off').hidden = false;
+  $('status').textContent = 'They stay together. Now turn off gravity.';
+  render();
+});
+$('off').addEventListener('click', () => {
+  if (phase !== 2 || $('drop').dataset.released !== 'true') return;
+  // CRITICAL: zero gravity immediately, without changing either velocity vector.
+  // Subsequent integration steps have a = (0,0), so direction never changes.
+  gravityScale = 0;
+  camera = 'orbit'; $('view').textContent = 'View capsule';
+  escapePoint = {...astronaut.position};
+  $('off').disabled = true; $('drop').disabled = true; $('drop').dataset.released = 'true';
+  setPhase(3,'No gravity. No orbit.','Without gravity, they keep moving in a straight line.');
+  $('off').hidden = true; $('view').hidden = false;
+  $('status').textContent = ball ? 'Both follow the same straight path.' : 'The astronaut follows a straight path. Reset to try dropping the ball first.';
+  if ($('drop').dataset.released === 'true' && !completionSent) {
+    completionSent = true;
+    document.documentElement.dataset.riseComplete = 'true';
+    window.parent.postMessage({ type: 'complete' }, '*');
+  }
+  render();
+});
+$('view').addEventListener('click',()=>{camera=camera==='cabin'?'orbit':'cabin'; $('fallingScale').setAttribute('aria-pressed','false');$('fixedScale').setAttribute('aria-pressed','false');$('view').textContent=camera==='cabin'?'View orbit':'View capsule';render();});
+$('reset').addEventListener('click',reset);
+$('pause').addEventListener('click',()=>{
+  paused = !paused; lastTime = null;
+  $('pause').textContent = paused ? 'Resume' : 'Pause';
+  $('status').textContent = paused ? 'Animation paused.' : 'Animation running.';
+});
+// Background tabs do not accrue simulated time or leap ahead on return.
+document.addEventListener('visibilitychange',()=>{lastTime=null;});
+
+function arrow(x,y,dx,dy,color,label) {
+  const endX=x+dx,endY=y+dy,angle=Math.atan2(dy,dx);
+  ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(endX,endY);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(endX,endY);ctx.lineTo(endX-10*Math.cos(angle-.4),endY-10*Math.sin(angle-.4));ctx.lineTo(endX-10*Math.cos(angle+.4),endY-10*Math.sin(angle+.4));ctx.fill();
+  ctx.font='bold 16px system-ui';ctx.textAlign='left';ctx.fillText(label,endX+7,endY+5);
+}
+// The cabin is a co-moving camera: shared orbital velocity is invisible inside.
+// Rendering offsets separate the illustrations without altering physics vectors.
+function rounded(x,y,w,h,r,fill,stroke){ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=2;ctx.stroke();}}
+function earth(x,y,r){
+  ctx.save();ctx.translate(x,y);
+  ctx.shadowColor='#56bfff';ctx.shadowBlur=22;
+  const ocean=ctx.createRadialGradient(-r*.4,-r*.45,r*.05,0,0,r);
+  ocean.addColorStop(0,'#62cef1');ocean.addColorStop(.5,'#197ec2');ocean.addColorStop(1,'#052b5c');
+  ctx.fillStyle=ocean;ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.clip();
+  ctx.fillStyle='#65b9a3';
+  for(const [x,y,w,h,a] of [[-.35,-.4,.34,.22,.4],[.1,.05,.23,.42,-.3],[.65,.4,.28,.19,.2]]){ctx.beginPath();ctx.ellipse(x*r,y*r,w*r,h*r,a,0,Math.PI*2);ctx.fill();}
+  ctx.strokeStyle='#ffffff88';ctx.lineWidth=r*.055;
+  for(let i=0;i<4;i++){ctx.beginPath();ctx.ellipse(-r*.2+i*r*.16,-r*.5+i*r*.34,r*.8,r*.15,-.3,0,Math.PI);ctx.stroke();}
+  ctx.restore();
+}
+function person(x,y,size,standing=false){
+  ctx.save();ctx.translate(x,y);ctx.scale(size,size);ctx.rotate(standing?0:-.12);
+  rounded(-42,-15,84,115,20,'#849bb2','#c3d4df');
+  // Jointed limbs, layered suit, cuffs, boots and reflective helmet.
+  ctx.lineCap='round';ctx.lineJoin='round';
+  const limb=(points)=>{ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.strokeStyle='#7f98ae';ctx.lineWidth=28;ctx.stroke();ctx.strokeStyle='#e3edf5';ctx.lineWidth=21;ctx.stroke();};
+  limb([[-25,20],[-57,39],[-75,13]]);limb([[27,20],[61,35],[89,14]]);
+  if(standing){limb([[-17,84],[-17,120],[-17,144]]);limb([[18,84],[18,120],[18,144]]);}else{limb([[-17,84],[-26,120],[-51,144]]);limb([[18,84],[36,118],[65,121]]);}
+  rounded(-33,-1,66,96,23,'#e7f0f5','#8da7bc');
+  rounded(-22,30,44,31,6,'#365b77','#b5cbdc');
+  for(let i=0;i<3;i++){ctx.fillStyle=['#79e5d7','#ffc76b','#eff8ff'][i];ctx.fillRect(-14+i*11,39,6,5);}
+  rounded(-27,73,54,9,3,'#55738d');
+  const helmet=ctx.createLinearGradient(-40,-65,35,10);helmet.addColorStop(0,'#fff');helmet.addColorStop(1,'#9cb4c8');
+  ctx.fillStyle=helmet;ctx.beginPath();ctx.ellipse(0,-33,43,45,0,0,Math.PI*2);ctx.fill();
+  const visor=ctx.createLinearGradient(-25,-65,22,-10);visor.addColorStop(0,'#b4e3ec');visor.addColorStop(.35,'#284f72');visor.addColorStop(1,'#10283e');
+  rounded(-33,-61,66,51,22,visor,'#54738e');ctx.strokeStyle='#d1f4ff';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-20,-50);ctx.quadraticCurveTo(0,-60,17,-50);ctx.stroke();
+  ctx.restore();
+}
+function sphere(x,y,r){const fill=ctx.createRadialGradient(x-r*.35,y-r*.4,1,x,y,r);fill.addColorStop(0,'#fff3c4');fill.addColorStop(.4,'#ffc35b');fill.addColorStop(1,'#b56217');ctx.fillStyle=fill;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();}
+function cabin(){
+  const wall=ctx.createLinearGradient(0,0,640,640);wall.addColorStop(0,'#698599');wall.addColorStop(.5,'#d3dee3');wall.addColorStop(1,'#657f92');ctx.fillStyle=wall;ctx.fillRect(0,0,640,640);
+  rounded(28,25,584,590,95,'#253e54','#8ca9ba');rounded(47,43,546,552,80,'#bbcbd4','#e4edf1');
+  for(const x of [72,548]){rounded(x,120,20,376,10,'#698596');rounded(x+5,126,6,362,3,'#deebed');}
+  rounded(126,75,388,247,54,'#4a657b','#eff7fb');rounded(143,91,354,215,43,'#071b31','#172e45');
+  ctx.save();ctx.beginPath();ctx.roundRect(150,98,340,201,38);ctx.clip();
+  for(let i=0;i<34;i++){ctx.fillStyle='#c2dbeb';ctx.fillRect(150+(i*73)%340,98+(i*41)%201,2,2);}
+  earth(367,299,158);ctx.restore();
+  for(const [x,y] of [[135,92],[504,92],[135,299],[504,299]]){ctx.fillStyle='#e3edf0';ctx.beginPath();ctx.arc(x,y,5,0,7);ctx.fill();}
+  rounded(105,481,430,81,13,'#385269','#8ea9ba');rounded(123,495,125,50,7,'#102e45');
+  ctx.fillStyle='#8ae6e0';ctx.font='12px monospace';ctx.textAlign='left';ctx.fillText(gravityScale?'ORBIT / FREE FALL':'COAST / NO FORCE',131,514);ctx.fillText('CABIN CAMERA',131,533);
+  for(let i=0;i<7;i++){rounded(273+i*33,499,21,10,3,i<4?'#86cddd':'#d1ae73');rounded(273+i*33,522,21,18,3,'#8da3b2');}
+  // No independent bobbing: identical motion means a fixed relative separation.
+  person(294,340,1.04);sphere($('drop').dataset.released==='true'?420:389,365,21);
+  ctx.fillStyle='#14354d';ctx.font='bold 17px system-ui';ctx.textAlign='center';ctx.fillText($('drop').dataset.released==='true'?'FALLING TOGETHER':'READY TO RELEASE',320,587);
+}
+// Separate comparison at a fixed 400 km altitude. It does not teleport or
+// modify the orbital simulation. Earth rotation is neglected in this ideal model.
+// N - mg = ma: in free fall a=-g => N=0; held stationary a=0 => N=mg.
+function chooseScale(mode){
+  if (phase !== 1) return;
+  scaleMode=mode;camera='scale';$('view').textContent='Return to capsule';
+  $('fallingScale').setAttribute('aria-pressed',String(mode==='falling'));
+  $('fixedScale').setAttribute('aria-pressed',String(mode==='fixed'));
+  const fixed=mode==='fixed',force=fixed?ASTRONAUT_MASS*ALTITUDE_G:0;
+  $('scaleExplanation').textContent=fixed
+    ? 'An imagined Earth-attached tower holds you up. The scale pushes on your feet.'
+    : 'You and the scale fall together. It reads zero, but gravity still pulls.';
+  $('scaleReading').textContent=`Scale: ${force.toFixed(0)} N (${fixed?WEIGHT_PERCENT.toFixed(1):'0'}% of surface weight). Mass: 80 kg.`;
+  render();
+}
+$('fallingScale').addEventListener('click',()=>chooseScale('falling'));
+$('fixedScale').addEventListener('click',()=>chooseScale('fixed'));
+// This comparison is a circular free-fall orbit at the stated fixed altitude.
+// Its angular speed v/r matches the gravitational circular-orbit solution.
+// Astronaut and scale share the same orbital translation: normal force is zero.
+function drawOrbitingScale(){
+  const bg=ctx.createRadialGradient(320,330,40,320,330,450);
+  bg.addColorStop(0,'#244d70');bg.addColorStop(1,'#061224');ctx.fillStyle=bg;ctx.fillRect(0,0,640,640);
+  for(let i=0;i<70;i++){ctx.fillStyle='#b6cbdf';ctx.fillRect((i*137+19)%640,(i*83+31)%640,1.5,1.5);}
+  ctx.textAlign='center';ctx.fillStyle='#edf6ff';ctx.font='bold 24px system-ui';ctx.fillText('ASTRONAUT + SCALE IN ORBIT',320,39);
+  ctx.font='16px system-ui';ctx.fillText('400 km altitude | Gravity still pulls inward',320,67);
+  const cx=320,cy=327,r=190;
+  earth(cx,cy,96);
+  ctx.strokeStyle='#92adc7';ctx.lineWidth=2;ctx.setLineDash([6,7]);ctx.beginPath();ctx.arc(cx,cy,r,0,2*Math.PI);ctx.stroke();ctx.setLineDash([]);
+  const x=cx+r*Math.cos(scaleOrbitAngle),y=cy+r*Math.sin(scaleOrbitAngle);
+  // Rotate the illustration as one unit: local +y (feet) points inward.
+  // This Earth-facing attitude is a display assumption, not a gravity torque.
+  ctx.save();ctx.translate(x,y);ctx.rotate(scaleOrbitAngle+Math.PI/2);
+  person(0,-46,.38,true);
+  rounded(-48,14,96,33,8,'#d7e3ea','#8aa6bb');rounded(-32,19,64,23,4,'#0e2d40');
+  ctx.fillStyle='#8cf1d8';ctx.font='bold 19px monospace';ctx.textAlign='center';ctx.fillText('0 N',0,37);
+  ctx.restore();
+  arrow(x,y,-Math.cos(scaleOrbitAngle)*65,-Math.sin(scaleOrbitAngle)*65,'#ffd16c','g');
+  ctx.fillStyle='#edf6ff';ctx.textAlign='center';ctx.font='bold 21px system-ui';ctx.fillText('Falling together. Scale reads 0 N.',320,568);
+  ctx.font='16px system-ui';
+}
+function drawScaleComparison(){
+  const fixed=scaleMode==='fixed';
+  if(!fixed){drawOrbitingScale();return;}
+  const bg=ctx.createLinearGradient(0,0,0,640);bg.addColorStop(0,'#0b2039');bg.addColorStop(1,'#2d5670');ctx.fillStyle=bg;ctx.fillRect(0,0,640,640);
+  ctx.fillStyle='#e6f1f9';ctx.textAlign='center';ctx.font='bold 24px system-ui';ctx.fillText(fixed?'HELD UP BY EARTH':'FALLING TOGETHER',320,46);ctx.font='16px system-ui';ctx.fillText('Same altitude: 400 km | Same gravity: 8.69 m/s\u00b2',320,76);
+  if(fixed){
+    // Tower is schematic, not a proposed real structure. It supplies support.
+    ctx.fillStyle='#557c93';ctx.fillRect(289,434,62,161);
+    ctx.strokeStyle='#adc8d9';ctx.lineWidth=5;
+    for(let y=443;y<580;y+=35){ctx.beginPath();ctx.moveTo(293,y);ctx.lineTo(347,y+32);ctx.moveTo(347,y);ctx.lineTo(293,y+32);ctx.stroke();}
+    earth(320,773,210);
+  }else{rounded(119,111,402,370,60,'#58758a','#acc6d8');rounded(135,127,370,340,45,'#bfd0db');}
+  // Upright boots just touch the scale in free fall; no imposed downward push.
+  person(320,273,.85,true);
+  rounded(232,406,176,46,10,'#d7e3ea','#8aa6bb');rounded(264,415,112,28,5,'#0e2d40');
+  ctx.fillStyle='#8cf1d8';ctx.textAlign='center';ctx.font='bold 23px monospace';ctx.fillText(fixed?`${(ASTRONAUT_MASS*ALTITUDE_G).toFixed(0)} N`:'0 N',320,438);
+  arrow(427,285,0,85,'#ffd16c','mg');
+  if(fixed)arrow(215,395,0,-85,'#70e1ef','N');
+  ctx.fillStyle='#edf6ff';ctx.font='bold 19px system-ui';ctx.textAlign='center';
+  ctx.fillText(fixed?`Support force = ${WEIGHT_PERCENT.toFixed(1)}% of surface weight`:'No support force. Zero apparent weight.',320,506);
+  ctx.font='16px system-ui';
+  
+  if(fixed)ctx.fillText('Ideal Earth-attached tower (not to scale)',320,614);
+  else ctx.fillText('Feet touching does not mean pressing down.',320,577);
+}
+function render() {
+  if(camera==='scale')drawScaleComparison();
+  else if(camera==='cabin')cabin();
+  else {
+    const extent=Math.max(RADIUS*1.35,Math.hypot(astronaut.position.x,astronaut.position.y)*1.22);
+    const scale=260/extent,view=p=>({x:320+p.x*scale,y:320+p.y*scale});
+    const bg=ctx.createRadialGradient(310,320,30,320,320,450);bg.addColorStop(0,'#193e60');bg.addColorStop(1,'#050e20');ctx.fillStyle=bg;ctx.fillRect(0,0,640,640);
+    for(let i=0;i<95;i++){ctx.fillStyle=i%3?'#849fbd':'#fff';ctx.fillRect((i*137+19)%640,(i*83+31)%640,i%3?1:2,i%3?1:2);}
+    ctx.setLineDash([7,7]);ctx.strokeStyle='#8299b7';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(320,320,RADIUS*scale,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+    earth(320,320,EARTH_RADIUS*scale*.55);
+    ctx.strokeStyle='#e0f5ff';ctx.lineWidth=2;ctx.beginPath();trail.forEach((p,i)=>{const q=view(p);i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y);});ctx.stroke();
+    if(escapePoint){const q=view(escapePoint);ctx.strokeStyle='#ffaaaa';ctx.beginPath();ctx.arc(q.x,q.y,6,0,Math.PI*2);ctx.stroke();}
+    const p=view(astronaut.position),speed=Math.hypot(astronaut.velocity.x,astronaut.velocity.y);
+    // Cutaway capsule travels with the astronaut; the same camera-relative
+    // interior is shown at a smaller scale in the orbital view.
+    ctx.save();ctx.translate(p.x,p.y);ctx.rotate(Math.atan2(astronaut.position.y,astronaut.position.x)+Math.PI/2);rounded(-30,-30,60,84,24,'#25465d','#bacfdf');person(-4,-1,.27);if(ball)sphere(18,12,5);ctx.restore();
+    arrow(p.x+32,p.y,astronaut.velocity.x/speed*66,astronaut.velocity.y/speed*66,'#70e1ef','v');
+    if(gravityScale){const a=acceleration(astronaut.position),g=Math.hypot(a.x,a.y);arrow(p.x,p.y,a.x/g*77,a.y/g*77,'#ffd16c','g');}
+  }
+  const g=Math.hypot(...Object.values(acceleration(astronaut.position))),speed=Math.hypot(astronaut.velocity.x,astronaut.velocity.y);
+  $('g').textContent=`${g.toFixed(2)} m/s\u00b2`;$('v').textContent=camera==='scale'&&scaleMode==='fixed'?'0.00 km/s':`${(speed/1000).toFixed(2)} km/s`;$('trajectory').textContent=camera==='scale'?(scaleMode==='fixed'?'Stationary':'Curved'):(gravityScale?'Curved':'Straight');
+  if(camera==='scale'){$('g').textContent=`${ALTITUDE_G.toFixed(2)} m/s\u00b2`;if(scaleMode==='falling')$('v').textContent=`${(Math.sqrt(MU/RADIUS)/1000).toFixed(2)} km/s`;}
+  $('legend').textContent=camera==='scale'?'Scale reading = support force, not gravitational pull.':camera==='cabin'?'Inside the capsule: astronaut and ball share the same motion.':'Cyan arrow: velocity. Gold arrow: gravity. Dashed circle: original orbit.';
+  canvas.setAttribute('aria-label',camera==='scale'?$('scaleReading').textContent+' '+$('scaleExplanation').textContent:camera==='cabin'?'Close-up inside a capsule. An astronaut and a golden ball float beside one another, with Earth through the window.':`Astronaut, capsule and ball ${gravityScale?'orbit Earth together under inward gravity':'travel on a straight tangent with zero gravity'}.`);
+}
+function frame(timestamp) {
+  if(lastTime===null)lastTime=timestamp;
+  const elapsed=Math.min((timestamp-lastTime)/1000,.05);lastTime=timestamp;
+  if(!paused&&!document.hidden&&camera==='scale'&&scaleMode==='falling'){
+    scaleOrbitAngle+=Math.sqrt(MU/RADIUS)/RADIUS*elapsed*TIME_SCALE;
+    render();
+  }
+  if(!paused&&!document.hidden&&camera!=='scale'){
+    accumulator+=elapsed*TIME_SCALE;
+    while(accumulator>=STEP){
+      integrate(astronaut,STEP);
+      if(ball)integrate(ball,STEP); // Same law + identical initial state = identical path.
+      accumulator-=STEP;
+    }
+    trail.push({...astronaut.position});if(trail.length>1200)trail.shift();
+    render();
+  }
+  requestAnimationFrame(frame);
+}
+reset();requestAnimationFrame(frame);
+</script></main></body></html>

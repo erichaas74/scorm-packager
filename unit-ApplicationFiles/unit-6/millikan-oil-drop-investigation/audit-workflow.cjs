@@ -51,13 +51,16 @@ for (const file of ['u6l1-millikan-buzz-assessment-template.html','u6l1-millikan
   assert(lab.html.includes('aria-orientation="horizontal"'));
   assert(!lab.html.includes('>HV Supply</text>'));
   const progress = JSON.parse(lab.run('JSON.stringify(progressState())'));
-  assert.equal(progress.score,50); assert.equal(progress.responses,0); assert.equal(progress.ready,false);
+  assert.equal(progress.score,100); assert.equal(progress.responses,0); assert.equal(progress.ready,true);
   assert.match(lab.html,/\.u6-buzz-assessment \.finish-card\{display:none!important\}/);
-  assert.match(lab.html,/<section class="card finish-card">[\s\S]*?id="clearBtn"/);
+  assert(lab.html.indexOf('id="clearBtn"') < lab.html.indexOf('<section class="card finish-card">'));
+  assert(!lab.html.includes('<th>Relative |q|/e</th>'));
+  assert(lab.elements.get("dataTable").children.every(row => (row.innerHTML.match(/<td>/g) || []).length === 2));
   const records=JSON.parse(lab.run('JSON.stringify(state.records)'));
-  console.log(JSON.stringify({file,progress,records,hiddenResetAndExport:true}));
+  console.log(JSON.stringify({file,progress,records,hiddenResetAndExport:false}));
   lab=mount(file,storage);assert.equal(lab.run('state.records.length'),6);
-  assert.equal(lab.run('progressState().score'),50);
+  assert.equal(lab.run('progressState().score'),100);
   lab.elements.get('clearBtn').events.click();assert.equal(storage.size,0);
-  console.log('PASS: six legal balances, off-balance rejection, duplicate rejection, saved-record restore, reset handler (hidden in UI).');
+  lab = mount(file, storage); assert.equal(lab.run('progressState().score'), 0);
+  console.log('PASS: six legal balances, off-balance rejection, duplicate rejection, saved-record restore, reset handler, measurements-only progress and evidence.');
 }

@@ -1,3 +1,15 @@
+## Repair ? October 12, 2026
+
+- Retained the existing checked calculation practice and optimization workflow.
+- Questions 2?6 now assess transfer using new supplied measurements, rather than copying locally checked trial answers. Their numeric keys were recalculated; the 10 automatic + 5 BusyBee score split is unchanged.
+- Question 10 now asks learners to reason about a new minimum lift of 190 clips, using their tested designs as evidence. The rubric and metadata match; practice ratios remain supporting evidence.
+- Enlarged the coil/core display without changing physical model values, and increased copper and magnetic-field contrast.
+- Regenerated the upload template, question preview, and setup guide. Unit 6 structural validation passed. Live Buzz import/grading has not been tested.
+
+The audit below is historical.
+
+---
+
 # Electromagnet lab audit - prior 150-clip version
 
 Historical audit, superseded by the calculation and strength-to-cost redesign. See electromagnet_lab-format-suggestions.txt and test-ratio-workflow.cjs for the current workflow and verification.

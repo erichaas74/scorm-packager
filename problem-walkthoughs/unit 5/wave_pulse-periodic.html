@@ -396,6 +396,7 @@
         </div>
     </section>
 
+<button id="toggle-animation" type="button" style="display:block;margin:12px auto;padding:10px 24px;border:0;border-radius:8px;background:#224d6a;color:white;font:600 17px Arial;cursor:pointer">Pause animation</button>
 <div id="canvas-container">
         <canvas role="img" aria-label="Interactive visualization for Periodic Wave and Pulse Simulation" id="waveCanvas"></canvas>
         <label class="highlight-control" for="check-highlight">
@@ -421,11 +422,11 @@
                     <svg viewBox="0 0 32 24" aria-hidden="true">
                         <path d="M2 12c3-9 5-9 8 0s5 9 8 0 5-9 8 0 3 9 4 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                     </svg>
-                    <span class="property-copy">Frequency<small id="frequency-caption">cycles each second</small></span>
+                    <span class="property-copy"><span id="frequency-name">Frequency</span><small id="frequency-caption">cycles each second</small></span>
                     <output class="property-value" id="val-frequency" for="slider-frequency">2.0 Hz</output>
                 </label>
                 <input type="range" id="slider-frequency" min="0.5" max="5" step="0.1" value="2.0" aria-describedby="frequency-help">
-                <span id="frequency-help" hidden>Controls how quickly periodic waves repeat.</span>
+                <span id="frequency-help" hidden>In periodic mode, sets cycles per second. In pulse mode, sets travel speed.</span>
             </div>
 
             <div class="property-control" data-property="wavelength">
@@ -433,7 +434,7 @@
                     <svg viewBox="0 0 32 24" aria-hidden="true">
                         <path d="M2 9c4-7 8-7 12 0s8 7 12 0M5 18h22M5 18l4-3M5 18l4 3M27 18l-4-3M27 18l-4 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
-                    <span class="property-copy">Wavelength<small id="wavelength-caption">crest spacing</small></span>
+                    <span class="property-copy"><span id="wavelength-name">Wavelength</span><small id="wavelength-caption">crest spacing</small></span>
                     <output class="property-value" id="val-wavelength" for="slider-wavelength">150 px</output>
                 </label>
                 <input type="range" id="slider-wavelength" min="50" max="300" value="150" aria-describedby="wavelength-help">
@@ -455,6 +456,8 @@
         let highlightParticles = true;
 
         let time = 0;
+        let lastFrame = 0;
+        let animationPaused = false;
 
         // Rope state
         const segments = [];
@@ -559,12 +562,14 @@
             }
         }
 
-        function animate() {
+        function animate(timestamp = performance.now()) {
             ctx.fillStyle = colorBg;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             // Update overall wave time
-            time += (frequency * 0.05);
+            const elapsed = lastFrame ? Math.min((timestamp - lastFrame) / 1000, 0.1) : 0;
+            lastFrame = timestamp;
+            if (!animationPaused) time += elapsed;
             const k = (2 * Math.PI) / wavelength;
 
             // Calculate properties for the single traveling pulse
@@ -572,7 +577,7 @@
             const pulsePeriod = (canvas.width + 600) / pulseSpeed;
             const localTime = time % pulsePeriod;
             const pulseX = -300 + localTime * pulseSpeed;
-            const pulseWidth = wavelength / 3; // Use wavelength slider to control pulse width
+            const pulseWidth = wavelength / 2.355; // Use wavelength slider to control pulse width
 
             // Update rope segment positions
             for (let i = 0; i < segments.length; i++) {
@@ -589,7 +594,7 @@
 
                 if (waveMode === 'periodic') {
                     // Continuous sine wave
-                    const phase = k * s.baseX - time;
+                    const phase = k * s.baseX - 2 * Math.PI * frequency * time;
                     s.y = s.baseY + (amplitude * env) * Math.sin(phase);
                 } else if (waveMode === 'pulse') {
                     // Single traveling Gaussian pulse
@@ -679,6 +684,7 @@
 
             btnPeriodic.addEventListener('click', () => {
                 waveMode = 'periodic';
+                time = 0;
                 btnPeriodic.classList.add('active');
                 btnPulse.classList.remove('active');
                 btnPeriodic.setAttribute('aria-pressed', 'true');
@@ -687,25 +693,32 @@
                 descText.textContent = 'A continuous disturbance creates a repeating pattern as particles oscillate continuously.';
                 frequencyCaption.textContent = 'cycles each second';
                 wavelengthCaption.textContent = 'crest spacing';
+                document.getElementById('frequency-name').textContent = 'Frequency';
+                document.getElementById('wavelength-name').textContent = 'Wavelength';
+                document.getElementById('val-frequency').textContent = frequency.toFixed(1) + ' Hz';
             });
 
             btnPulse.addEventListener('click', () => {
                 waveMode = 'pulse';
+                time = 0;
                 btnPulse.classList.add('active');
                 btnPeriodic.classList.remove('active');
                 btnPulse.setAttribute('aria-pressed', 'true');
                 btnPeriodic.setAttribute('aria-pressed', 'false');
                 descTitle.textContent = 'Single pulse';
-                descText.textContent = 'A single disturbance travels along the rope. Each particle moves up and down once as the energy passes.';
+                descText.textContent = 'One isolated disturbance crosses the rope. Each marked point moves up and returns to rest. The demonstration replays after the pulse exits.';
                 frequencyCaption.textContent = 'pulse travel speed';
-                wavelengthCaption.textContent = 'pulse width';
+                wavelengthCaption.textContent = 'width at half height';
+                document.getElementById('frequency-name').textContent = 'Travel speed';
+                document.getElementById('wavelength-name').textContent = 'Pulse width';
+                document.getElementById('val-frequency').textContent = (frequency * 50).toFixed(0) + ' px/s';
             });
 
             // Sliders
             const setupSlider = (id, stateVar, displayId) => {
                 const slider = document.getElementById(id);
                 const display = document.getElementById(displayId);
-                const formatValue = (value) => stateVar === 'frequency' ? `${value.toFixed(1)} Hz` : `${value} px`;
+                const formatValue = (value) => stateVar === 'frequency' ? (waveMode === 'periodic' ? `${value.toFixed(1)} Hz` : `${(value * 50).toFixed(0)} px/s`) : `${value} px`;
                 const updateVisual = (value) => {
                     const minimum = parseFloat(slider.min);
                     const maximum = parseFloat(slider.max);
@@ -732,6 +745,8 @@
                 highlightParticles = e.target.checked;
             });
         }
+
+        document.getElementById('toggle-animation').addEventListener('click', function() { animationPaused = !animationPaused; this.textContent = animationPaused ? 'Play animation' : 'Pause animation'; });
 
         // Initialize
         resizeCanvas();

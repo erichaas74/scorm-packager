@@ -37,12 +37,12 @@ const setupGuides = [
     steps: [
       'Adjust the plate voltage until the balance indicator confirms that the electric and gravitational forces are balanced.',
       'Record the balance voltage, atomize a new drop, and repeat until the evidence table contains six drops.',
-      'Compare the calculated q/e values and look for the whole-number pattern across the trials.',
+      'Calculate charge magnitudes |q|/e = 200 V / balance voltage from your measurements and look for the whole-number pattern.',
       'Answer all 10 Buzz questions in order and cite at least three evidence-table rows in the final responses.',
       'Export the evidence CSV only if you want a personal record; it is not submitted or graded.'
     ],
     checks: [
-      'All six drops can be balanced and recorded, and the relative-charge values populate correctly.',
+      'All six drops can be balanced and recorded; measurement progress reaches 100%, and reset and CSV export are visible.',
       'The force vectors, evidence table, and scaled-model note remain visible and usable.',
       'The optional CSV export works after evidence is recorded.'
     ],
@@ -201,7 +201,7 @@ const setupGuides = [
 ];
 
 function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), 'utf8');
+  return fs.readFileSync(path.join(root, relativePath), 'utf8').replace(/\r\n/g, '\n');
 }
 
 function write(relativePath, value) {
@@ -314,6 +314,10 @@ function buildSetup(guide) {
 function buildMillikan() {
   let html = read('millikan-oil-drop-investigation/millikan_oil_drop_simulation.html');
   html = addBodyClass(html);
+  html = html.replace('const NATIVE_ASSESSMENT = false;', 'const NATIVE_ASSESSMENT = true;');
+  html = html.replace('<th>Relative |q|/e</th><th>Charge magnitude |q|</th>', '');
+  html = html.replace('Evidence 0/6 \u00b7 Responses 0/6', 'Measurements 0/6');
+  html = html.replace('Collect six balanced drops and compare the relative-charge values.', 'Collect six balanced drops. Use their measured voltages to calculate and compare charge magnitudes in the questions below.');
   html = addHeadContent(html, `${sharedCss}\n<style>
     .u6-buzz-assessment .u6-legacy-analysis,.u6-buzz-assessment .finish-card{display:none!important}
   </style>`);
@@ -326,8 +330,8 @@ function buildMillikan() {
     [
       'Identify the force-balance condition',
       'Select the model relative-charge formula',
-      'Calculate q/e for a 100 V balance',
-      'Calculate q/e for a 50 V balance',
+      'Calculate |q|/e for a 100 V balance',
+      'Calculate |q|/e for a 50 V balance',
       'Reason about charge and balance voltage',
       'Identify the quantization pattern',
       'Calculate charge in coulombs',

@@ -1,0 +1,1 @@
+const fs=require('fs'),path=require('path'),sharp=require('C:/Users/erich/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/sharp');(async()=>{let d=path.join(__dirname,'images');for(let f of fs.readdirSync(d).filter(x=>x.endsWith('.svg')))await sharp(path.join(d,f)).png().toFile(path.join(d,f.replace('.svg','.png')));console.log('Rendered images');})();

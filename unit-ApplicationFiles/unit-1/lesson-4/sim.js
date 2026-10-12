@@ -535,6 +535,16 @@
     ctx.restore();
   }
 
+  // Spectators are baked into each background, never regenerated during a race.
+  function drawSpectator(ctx, x, y, scale, variant) {
+    var shirts = ['#dc2626', '#2563eb', '#facc15', '#f8fafc', '#16a34a', '#a855f7'];
+    var skin = ['#d89c6e', '#8d5d3d', '#f1c6a2'];
+    ctx.fillStyle = shirts[variant % shirts.length];
+    ctx.fillRect(x - 3 * scale, y - 7 * scale, 6 * scale, 7 * scale);
+    ctx.fillStyle = skin[variant % skin.length];
+    ctx.beginPath(); ctx.arc(x, y - 9 * scale, 2.5 * scale, 0, Math.PI * 2); ctx.fill();
+  }
+
   function drawBleachers(ctx, w, h) {
     var center = w / 2;
     var horizon = getHorizonY(h);
@@ -573,6 +583,12 @@
         ctx.moveTo(lineInX, rY);
         ctx.lineTo(lineOutX, rY - 12*(1-t));
         ctx.stroke();
+        for (var fan = 0; fan < 12; fan++) {
+          var seat = (fan + 0.5) / 12;
+          var fanX = lerp(lineInX, lineOutX, seat);
+          var fanY = rY - seat * 12 * (1 - t) - 2;
+          drawSpectator(ctx, fanX, fanY, 0.45 + t * 0.65, fan + r * 3);
+        }
       }
     }
     ctx.restore();
@@ -906,6 +922,277 @@
   var LANE2_Y = 355;
 
   // Fixed sprint overview and cached scenery.
+function drawStarter(ctx, gunFired, flashAlpha) {
+  var sx = 0, sy = 84;
+
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Helper for rounded rectangles
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  // Ground shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.beginPath();
+  ctx.ellipse(0, 36, 18, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ======================
+  // Legs - thicker pants
+  // ======================
+  ctx.fillStyle = '#172033';
+
+  // Left leg
+  ctx.beginPath();
+  ctx.moveTo(-5, 0);
+  ctx.lineTo(-11, 20);
+  ctx.lineTo(-10, 34);
+  ctx.lineTo(-4, 34);
+  ctx.lineTo(-2, 20);
+  ctx.lineTo(2, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  // Right leg
+  ctx.beginPath();
+  ctx.moveTo(4, 0);
+  ctx.lineTo(8, 20);
+  ctx.lineTo(9, 34);
+  ctx.lineTo(15, 34);
+  ctx.lineTo(14, 20);
+  ctx.lineTo(8, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  // Pants highlight
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-7, 4);
+  ctx.lineTo(-9, 31);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(7, 4);
+  ctx.lineTo(12, 31);
+  ctx.stroke();
+
+  // Shoes
+  ctx.fillStyle = '#111';
+  roundRect(-14, 31, 13, 5, 2);
+  ctx.fill();
+
+  roundRect(5, 31, 14, 5, 2);
+  ctx.fill();
+
+  // ======================
+  // Torso / official shirt
+  // ======================
+  ctx.fillStyle = '#f3f3f3';
+  ctx.beginPath();
+  ctx.moveTo(-9, -2);
+  ctx.lineTo(9, -2);
+  ctx.lineTo(8, -23);
+  ctx.quadraticCurveTo(0, -27, -8, -23);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.strokeStyle = '#c9c9c9';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Shirt center line
+  ctx.strokeStyle = '#d4d4d4';
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(0, -23);
+  ctx.lineTo(0, -3);
+  ctx.stroke();
+
+  // Belt
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-9, -3, 18, 3);
+
+  // Small badge
+  ctx.fillStyle = '#e3c24b';
+  ctx.beginPath();
+  ctx.arc(4, -17, 1.6, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Neck
+  ctx.fillStyle = '#c98a63';
+  roundRect(-3, -27, 6, 6, 2);
+  ctx.fill();
+
+  // ======================
+  // Head and cap
+  // ======================
+  ctx.fillStyle = '#c98a63';
+  ctx.beginPath();
+  ctx.ellipse(0, -33, 7, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Simple nose/face detail
+  ctx.strokeStyle = 'rgba(80,45,30,0.35)';
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(2, -33);
+  ctx.lineTo(3, -30);
+  ctx.stroke();
+
+  // Cap
+  ctx.fillStyle = '#151526';
+  ctx.beginPath();
+  ctx.ellipse(0, -39, 8, 4, 0, Math.PI, 0);
+  ctx.fill();
+
+  ctx.fillRect(-8, -39, 16, 3);
+
+  // Cap brim
+  ctx.beginPath();
+  ctx.ellipse(5, -38, 6, 2, 0.1, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ======================
+  // Arm at side
+  // ======================
+  ctx.strokeStyle = '#c98a63';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(-8, -19);
+  ctx.quadraticCurveTo(-14, -10, -12, 2);
+  ctx.stroke();
+
+  // Hand at side
+  ctx.fillStyle = '#c98a63';
+  ctx.beginPath();
+  ctx.arc(-12, 2, 2.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ======================
+  // Raised arm holding starter pistol
+  // ======================
+  var shoulderX = 8;
+  var shoulderY = -19;
+  var elbowX = 15;
+  var elbowY = -27;
+  var handX = 18;
+  var handY = -38;
+
+  // Upper/lower arm
+  ctx.strokeStyle = '#c98a63';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(shoulderX, shoulderY);
+  ctx.quadraticCurveTo(elbowX, elbowY, handX, handY);
+  ctx.stroke();
+
+  // Hand
+  ctx.fillStyle = '#c98a63';
+  ctx.beginPath();
+  ctx.arc(handX, handY, 2.8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Starter pistol
+  ctx.save();
+  ctx.translate(handX + 1, handY - 2);
+  ctx.rotate(-0.22);
+
+  ctx.fillStyle = '#2b2b2b';
+
+  // Barrel
+  roundRect(-1, -13, 4, 13, 1);
+  ctx.fill();
+
+  // Grip
+  ctx.save();
+  ctx.rotate(0.28);
+  roundRect(-3, -1, 6, 8, 1.5);
+  ctx.fill();
+  ctx.restore();
+
+  // Trigger guard
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(1, 1, 3, 0.1, Math.PI * 1.3);
+  ctx.stroke();
+
+  ctx.restore();
+
+  // ======================
+  // Muzzle flash / smoke
+  // ======================
+  if (gunFired && flashAlpha > 0) {
+    ctx.save();
+
+    ctx.translate(handX + 3, handY - 16);
+    ctx.rotate(-0.22);
+    ctx.globalAlpha = flashAlpha;
+
+    // Outer flash
+    ctx.fillStyle = '#ffdd44';
+    ctx.beginPath();
+    ctx.moveTo(0, -2);
+    ctx.lineTo(-6, -18);
+    ctx.lineTo(-1, -9);
+    ctx.lineTo(0, -24);
+    ctx.lineTo(2, -9);
+    ctx.lineTo(7, -18);
+    ctx.closePath();
+    ctx.fill();
+
+    // Inner flash
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(0, -4);
+    ctx.lineTo(-3, -14);
+    ctx.lineTo(0, -10);
+    ctx.lineTo(3, -14);
+    ctx.closePath();
+    ctx.fill();
+
+    // Orange center
+    ctx.fillStyle = '#ff7a22';
+    ctx.beginPath();
+    ctx.arc(0, -4, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Smoke puff
+    ctx.globalAlpha = flashAlpha * 0.55;
+    ctx.fillStyle = '#d8d8d8';
+    ctx.beginPath();
+    ctx.ellipse(
+      -3,
+      -21,
+      8 + (1 - flashAlpha) * 12,
+      5 + (1 - flashAlpha) * 6,
+      0,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
   var sprintBackground = null;
   function drawSprintBackground(ctx) {
     if (!sprintBackground) {
@@ -914,6 +1201,16 @@
       sprintBackground.height = VIRT_H;
       var bg = sprintBackground.getContext('2d');
       bg.fillStyle = '#b8dff5'; bg.fillRect(0, 0, VIRT_W, VIRT_H);
+      // Small grandstand behind the sprint track, with seated spectators.
+      bg.fillStyle = '#475569'; bg.fillRect(170, 110, 600, 115);
+      for (var row = 0; row < 5; row++) {
+        var seatY = 128 + row * 22;
+        bg.fillStyle = row % 2 ? '#94a3b8' : '#cbd5e1';
+        bg.fillRect(170, seatY, 600, 4);
+        for (var seat = 0; seat < 30; seat++) {
+          drawSpectator(bg, 180 + seat * 20, seatY, 1, seat + row * 7);
+        }
+      }
       bg.fillStyle = '#4a8c3f'; bg.fillRect(0, 230, VIRT_W, 55);
       bg.fillStyle = '#b7410e'; bg.fillRect(0, TRACK_TOP_Y, VIRT_W, VIRT_H - TRACK_TOP_Y);
       bg.strokeStyle = '#ffffff'; bg.lineWidth = 2;
@@ -928,17 +1225,10 @@
       }
       bg.fillStyle = '#17351b';
       bg.fillText('START', 70, 254); bg.fillText('FINISH', 730, 254);
-      // Static starter silhouette. Only the high-contrast gun flash changes.
-      bg.fillStyle = '#172033';
-      bg.beginPath(); bg.arc(42, 176, 10, 0, Math.PI * 2); bg.fill();
-      bg.strokeStyle = '#172033'; bg.lineWidth = 8; bg.lineCap = 'round';
-      bg.beginPath();
-      bg.moveTo(42, 190); bg.lineTo(42, 218);
-      bg.moveTo(42, 218); bg.lineTo(30, 242);
-      bg.moveTo(42, 218); bg.lineTo(54, 242);
-      bg.moveTo(42, 196); bg.lineTo(63, 173); bg.lineTo(63, 149);
-      bg.moveTo(42, 196); bg.lineTo(23, 210);
-      bg.stroke();
+      // Preserve the original official and pistol, drawn only into the background cache.
+      bg.save(); bg.translate(42, 60); bg.scale(1.5, 1.5);
+      drawStarter(bg, false, 0);
+      bg.restore();
     }
     ctx.drawImage(sprintBackground, 0, 0);
   }
@@ -960,9 +1250,9 @@
     var camPx = -70;
     if (muzzleFlashStart > 0 && rc.now >= muzzleFlashStart && rc.now - muzzleFlashStart < MUZZLE_FLASH_DURATION) {
       ctx.fillStyle = '#fff200';
-      ctx.beginPath(); ctx.arc(63, 141, 14, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(73.5, 105, 14, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#ffffff';
-      ctx.beginPath(); ctx.arc(63, 141, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(73.5, 105, 6, 0, Math.PI * 2); ctx.fill();
     }
 
     // Opponent (lane 1) world position in meters -> screen px

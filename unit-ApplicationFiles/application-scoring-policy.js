@@ -4,11 +4,45 @@ const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
 const root = __dirname;
+const { getFeedbackPolicy, prepareFeedbackMetadata } = require('./assessment-feedback');
+const reviewGuidance = require('./physics-review-guidance');
 const POLICY = 'BusyBee scoring: Award points only in 0.5-point increments, including whole points, from 0 to the question maximum. Select a rubric-supported allowed score; never report hundredths such as 2.85/3. Do not average or percentage-scale rubric criteria into an off-grid score. A binary completion rubric still permits only 0 or full credit.';
 const read = file => fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
 const prop = (block, name) => (block.match(new RegExp(`^${name}:\\s*(.+)$`, 'm')) || [, ''])[1].trim();
 const parse = text => text.trim().split(/\n\s*\n(?=Type:)/).filter(block => /^Type:/m.test(block));
 const allowedScores = (maximum, binary = false) => binary ? [0, maximum] : Array.from({ length: maximum * 2 + 1 }, (_, index) => index / 2);
+
+const QUESTION_NUMBERING = "Use each question's explicit feedbackLabel and questionNumber for student-facing feedback. These are one-based numbers in the full assessment. Internal answer identifiers such as A4 are not question numbers. Do not infer a number from an internal identifier or renumber a subset of questions. Match the response to questionId and its prompt; if they conflict, flag the mismatch rather than guess.";
+
+function applyQuestionLabels(metadata, blocks = []) {
+  if (!['U1', 'U2', 'U3'].includes(metadata.lesson?.unit) || metadata.schema !== 'busybee-rubric/v1') return metadata;
+  metadata.assessmentSettings ||= {};
+  metadata.assessmentSettings.questionNumberingInstructions = QUESTION_NUMBERING;
+  prepareFeedbackMetadata(metadata, blocks);
+  for (const question of metadata.questions || []) {
+    const number = question.buzzIndex;
+    assert(Number.isInteger(number) && number > 0, `${question.id}: invalid assessment question number`);
+    assert(question.id?.endsWith(`-Q${String(number).padStart(2, '0')}`), `${question.id}: question ID/index mismatch`);
+    question.questionNumber = number;
+    question.questionId = question.id;
+    question.feedbackLabel = `Question ${number}`;
+    question.metadata = {
+      ...question.metadata,
+      'Meta-question-number': String(number),
+      'Meta-question-id': question.id,
+      'Meta-feedback-label': question.feedbackLabel
+    };
+    // Replace earlier numbering-only directions so correct answers do not get paragraphs.
+    if (question.rubricText && question.feedbackInstructions) {
+      question.rubricText = question.rubricText.replace(question.feedbackInstructions, '').replace('@[Always]  ', '@[Always] ');
+    }
+    question.feedbackInstructions = `For a missed answer, begin with "${question.feedbackLabel}:". ${getFeedbackPolicy(metadata.lesson.lesson)}`;
+    if (question.rubricText) {
+      question.rubricText = question.rubricText.replace('@[Always]', `@[Always] ${question.feedbackInstructions}`);
+    }
+  }
+  return metadata;
+}
 
 function applyUnits(units = [1, 2, 3, 4, 5, 6], check = false) {
   let applications = 0;
@@ -82,12 +116,17 @@ function applyUnits(units = [1, 2, 3, 4, 5, 6], check = false) {
       save(path.join(dir, bank), updated.join('\n\n') + '\n');
       metadata.lesson ||= { unit: `U${unit}`, lesson, title: setupText.split('\n')[0], activityType: 'buzz-native', simulationFile: template };
       metadata.assessmentSettings = { ...metadata.assessmentSettings, totalPoints: 15, automaticPoints: 15 - busybee, busybeePoints: busybee, questionOrderLocked: true, randomizeQuestions: false, oneQuestionPerPage: false, busybeeScoreIncrement: 0.5, busybeeScoringInstructions: POLICY };
+      applyQuestionLabels(metadata, updated);
       save(metadataPath, JSON.stringify(metadata, null, 2) + '\n');
       assert(setupText.includes(`15 points: ${15 - busybee} auto-graded points plus ${busybee} BusyBee points`), `${lesson}: setup score mismatch`);
       assert(setupText.includes(`Import the ${blocks.length} questions`), `${lesson}: setup question-count mismatch`);
       if (!setupText.includes(POLICY)) setupText = setupText.replace('TEACHER BUZZ SETUP', `- ${POLICY}\n\nTEACHER BUZZ SETUP`);
       if (!setupText.includes(metadataFile)) setupText += `\nBUSYBEE RUBRIC FALLBACK\nUse ${metadataFile} if Buzz does not retain custom Meta- fields.\n`;
+      setupText = reviewGuidance.addGuide(setupText, lesson);
       save(path.join(dir, setup), setupText);
+      if (template && reviewGuidance.hasReviewGuidance(lesson)) {
+        save(path.join(dir, template), reviewGuidance.addTemplate(read(path.join(dir, template)), lesson));
+      }
       const legacyDirections = path.join(dir, 'rise-before-you-begin.txt');
       if (fs.existsSync(legacyDirections)) save(legacyDirections, setupText.split('TEACHER BUZZ SETUP')[0].trim() + '\n');
       const legacySetup = path.join(dir, 'setup-instructions.html');
@@ -126,7 +165,7 @@ function applyUnits(units = [1, 2, 3, 4, 5, 6], check = false) {
   return { applications, essayCount };
 }
 
-module.exports = { POLICY, applyUnits, allowedScores };
+module.exports = { POLICY, applyUnits, allowedScores, applyQuestionLabels };
 if (require.main === module) {
   const check = process.argv.includes('--check');
   const result = applyUnits(undefined, check);

@@ -1,0 +1,28 @@
+const fs=require('fs'),path=require('path');
+let p=path.join(__dirname,'build-revisions.cjs'),s=fs.readFileSync(p,'utf8');
+s=s.replace('text(x-65,y+85,label,23)','text(x-65,y+112,label,23)');
+s=s.replace("if(stage>=2)b+=[70,135,200,265,330].map", "if(stage>=2)b+='<defs><clipPath id=\"waves\"><rect x=\"504\" y=\"135\" width=\"420\" height=\"350\"/></clipPath></defs><g clip-path=\"url(#waves)\">'+[70,135,200,265,330].map");
+s=s.replace("stroke-width=\"2\"/>`).join('');if(stage===3)","stroke-width=\"2\"/>`).join('')+'</g>';if(stage===3)");
+s=s.replace("let row=i%5,x=953+(i*23%120),y=170+row*67+(i*13%22)","let row=i%5,x=957+((Math.sin(i*127.1)*43758.5453)%1+1)%1*120,y=177+row*67+Math.sin(i*73.3)*9");
+s=s.replace('A steady chain averages one continuing fission per event.','Only some emitted neutrons trigger another fission.');
+s=s.replace("rect(x+(r?stage===3?-40:40:0),150+r*180,9,100,C.ink,0)","rect(x+(r?(stage===3?-1:1)*(28+(x-420)/470*24):0),150+r*180,9,100,C.ink,0)");
+s=s.replace("function sun(stage){", "function oldSun(stage){");
+s=s.replace("function power(stage){", "function oldPower(stage){");
+let extra=String.raw`
+function sun(stage){let b=text(70,80,'Energy and evidence from the Sun',27);
+ if(stage===1){b+=circle(330,300,165,'#f8dc8b')+circle(330,300,125,'#f1b956')+circle(330,300,62,C.orange)+text(298,310,'core',25)+line(395,290,650,210,C.ink,2)+text(670,205,'Hydrogen → helium',27)+text(670,250,'through intermediate nuclei',23)+arrow(485,350,665,405,C.orange)+text(690,414,'energy released',26)+text(105,535,'Cross-section: nuclear reactions occur in the core.',24);}
+ if(stage===2){b+=rect(100,150,720,325,'#f6eee4');for(let i=0;i<12;i++){let x=165+(i%4)*180,y=215+Math.floor(i/4)*95;b+=circle(x,y,15,i%2?C.red:C.teal);}b+=wave(200,280,200,16,4,C.orange)+wave(410,370,215,16,5,C.orange)+arrow(650,215,1025,215,C.blue)+text(875,170,'neutrinos',25)+text(880,255,'escape',23)+text(115,530,'Particles and radiation exchange energy within hot plasma.',25);}
+ if(stage===3){b+=circle(355,300,170,'#f8dc8b')+circle(355,300,125,'#f1b956')+circle(355,300,50,C.orange);b+='<path d="M355 300L390 270L375 225L420 245L445 210" stroke="#485ba2" stroke-width="5" fill="none"/>';for(let y of [215,355])b+='<path d="M490 '+y+'q60 40 0 80q-35-30 0-80" stroke="#25878a" stroke-width="5" fill="none"/>';b+=line(420,230,665,185,C.blue,3)+text(690,190,'Radiative interior',26)+text(690,228,'repeated photon interactions',22)+line(505,385,670,395,C.teal,3)+text(690,400,'Convection zone',26)+text(690,438,'bulk motion of hot plasma',22)+text(170,540,'Schematic cross-section; layers are not to scale.',22);}
+ if(stage===4){b+=rect(90,190,140,225,'#f1b956')+text(86,460,'hot surface',23)+arrow(250,300,450,300,C.orange)+rect(475,175,190,250,'#d5e8e7')+text(480,465,'cooler gas',23)+arrow(690,300,800,300,C.orange)+rect(830,200,265,175,'#ecc271');for(let x of [875,947,1040])b+=rect(x,200,9,175,C.ink,0);b+=text(820,425,'absorption lines',24)+text(120,540,'Selected photon energies are absorbed by atoms in the gas.',24);}
+ if(stage===5){b+=circle(180,295,85,'#f1b956')+text(150,420,'Sun',25)+wave(330,295,370,20,7,C.orange)+arrow(335,345,705,345,C.orange)+rect(750,235,190,115,C.blue)+line(845,350,800,460,C.ink,8)+line(845,350,900,460,C.ink,8)+text(735,505,'telescope + detector',25)+rect(990,185,130,210,'#edf2f7');for(let i=0;i<20;i++)b+=circle(1010+(i*17%95),215+(i*23%150),4,C.orange);b+=text(985,435,'individual',22)+text(985,465,'detections',22);}
+ return b;
+}
+function power(stage){if(stage===1)return oldPower(1);let b=text(70,80,'Energy transfer in a simplified power station',27);
+if(stage===2){b+=rect(125,165,270,305,'#e1e7ee');for(let i=0;i<5;i++)b+=rect(170+i*38,210,18,205,C.orange,4);b+=text(180,510,'reactor fuel',24)+line(410,215,930,215,C.red,14)+line(930,215,930,425,C.red,14)+line(930,425,410,425,C.blue,14)+arrow(520,190,680,190,C.red)+arrow(720,455,550,455,C.blue)+text(590,160,'hot coolant',24)+text(565,505,'cooler return flow',24)+rect(820,285,220,65,'#d5e8e7')+text(850,328,'heat delivery',23);}
+if(stage===3){b+=rect(460,150,270,330,'#e7edf3');b+=line(100,235,460,235,C.red,14)+line(100,405,460,405,C.blue,14)+'<path d="M460 235h180v55H520v55h120v60H460" fill="none" stroke="#b55764" stroke-width="12"/>';b+=line(730,200,1090,200,C.orange,14)+line(730,440,1090,440,C.teal,14)+arrow(850,175,1030,175,C.orange)+arrow(1025,470,850,470,C.teal)+text(100,185,'hot primary coolant',23)+text(100,455,'primary return',23)+text(825,145,'steam to turbine',23)+text(810,520,'water returns',23)+text(485,535,'heat exchanger',22)+text(110,555,'Separate loops transfer energy without mixing.',22);}
+if(stage===4){b+=rect(290,190,550,250,'#e2e9ef')+line(230,315,990,315,C.ink,12);for(let x of [405,535,665]){b+=line(x,220,x,410,C.blue,18)+line(x,220,x+40,255,C.blue,12)+line(x,410,x-40,375,C.blue,12);}b+=arrow(80,255,265,255,C.orange)+text(80,190,'steam in',25)+arrow(825,390,1080,390,C.teal)+text(900,445,'steam out',25)+text(875,265,'rotating shaft',23)+text(240,535,'Expanding steam does work on the turbine blades.',25);}
+if(stage===5){b+=rect(340,160,440,300,'#e1e8ef')+line(100,310,385,310,C.ink,14)+arrow(100,245,280,245,C.blue)+text(90,400,'shaft motion',25)+rect(430,205,75,200,C.red,5)+rect(630,205,75,200,C.blue,5)+text(447,315,'N',36,'white')+text(648,315,'S',36,'white')+'<ellipse cx="570" cy="310" rx="50" ry="100" fill="none" stroke="#dc9438" stroke-width="9"/>'+line(780,245,1050,245,C.teal,5)+line(780,390,1050,390,C.teal,5)+circle(1050,315,70,'#f9df9e')+text(1016,323,'load',24)+text(425,510,'generator',27)+text(80,560,'Mechanical energy → electrical energy in the circuit',25);}
+return b;}
+`;
+s=s.replace('const configs=',extra+'\nconst configs=');
+fs.writeFileSync(p,s);

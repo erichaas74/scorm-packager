@@ -327,6 +327,19 @@
   .buzz-submit-note { margin: 18px 0 0; padding: 10px; border-radius: 7px; background: #eff6ff; font-weight: 700; }
   @media (max-width: 760px) { .buzz-four-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 520px) { .buzz-two-grid, .buzz-four-grid { grid-template-columns: 1fr; } }
+/* phone-input-sizing: avoid double-tap zoom and focus zoom on controls. */
+button, select, input, textarea { touch-action: manipulation; }
+@media (max-width: 600px) {
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px; }
+}
+@media (max-width: 600px) {
+  body { padding: 8px; }
+  .container { padding: 12px; min-width: 0; }
+  .canvas-container { aspect-ratio: auto; height: 390px; }
+  .mat-rack { width: calc(100% - 16px); grid-template-columns: repeat(3, minmax(0, 1fr)); bottom: 8px; }
+  .mat-btn { min-height: 44px; }
+  .table-section { max-width: 100%; overflow-x: auto; }
+}
 </style>
 
   <style id="buzz-preview-question-styles">
@@ -794,7 +807,7 @@
 
     function resizeCanvas() {
         const rect = simWrapper.getBoundingClientRect();
-        const dpr = window.devicePixelRatio || 1;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
         simCanvas.width = rect.width * dpr;
         simCanvas.height = rect.height * dpr;
@@ -828,13 +841,30 @@
             state.angularVelocity = 0;
             state.impactData = [];
             updateMaterialButtons();
+            lastPhysicsTime = null;
+            physicsRemainder = 0;
             requestAnimationFrame(physicsLoop);
         }
     });
 
     const visualDt = 0.016;
 
-    function physicsLoop() {
+    let lastPhysicsTime = null;
+    let physicsRemainder = 0;
+    function physicsLoop(timestamp) {
+        if (state.phase === 'ready' || state.phase === 'complete') return;
+        physicsRemainder += lastPhysicsTime === null ? visualDt : Math.min(0.25, (timestamp - lastPhysicsTime) / 1000);
+        lastPhysicsTime = timestamp;
+        while (physicsRemainder >= visualDt && state.phase !== 'complete' && state.phase !== 'ready') {
+            advancePendulum();
+            physicsRemainder -= visualDt;
+        }
+        drawScene();
+        if (state.impactData.length > 0) drawGraph();
+        if (state.phase !== 'complete' && state.phase !== 'ready') requestAnimationFrame(physicsLoop);
+    }
+
+    function advancePendulum() {
         if (state.phase === 'ready' || state.phase === 'complete') return;
 
         if (state.phase === 'swinging') {
@@ -889,9 +919,6 @@
             }
         }
 
-        drawScene();
-        if (state.impactData.length > 0) drawGraph();
-        if (state.phase !== 'complete') requestAnimationFrame(physicsLoop);
     }
 
     // ---------- lab scene ----------
@@ -1406,12 +1433,17 @@
         }
     }
 
-    graphCanvas.addEventListener('mousemove', (e) => {
+    graphCanvas.addEventListener('pointerdown', (e) => {
         const r = graphCanvas.getBoundingClientRect();
         graphCursor = { x: e.clientX - r.left, y: e.clientY - r.top };
         if (state.impactData.length > 0) drawGraph();
     });
-    graphCanvas.addEventListener('mouseleave', () => {
+    graphCanvas.addEventListener('pointermove', (e) => {
+        const r = graphCanvas.getBoundingClientRect();
+        graphCursor = { x: e.clientX - r.left, y: e.clientY - r.top };
+        if (state.impactData.length > 0) drawGraph();
+    });
+    graphCanvas.addEventListener('pointerleave', () => {
         graphCursor = null;
         if (state.impactData.length > 0) drawGraph();
     });

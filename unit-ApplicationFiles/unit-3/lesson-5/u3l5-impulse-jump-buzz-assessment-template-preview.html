@@ -273,7 +273,12 @@
       .run-message { width: 100%; }
       #button-container { width: calc(100% - 20px); left: 10px; }
     }
-  </style>
+  /* phone-input-sizing: avoid double-tap zoom and focus zoom on controls. */
+button, select, input, textarea { touch-action: manipulation; }
+@media (max-width: 600px) {
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px; }
+}
+</style>
 
   <style id="buzz-preview-question-styles">
     .buzz-preview-question {
@@ -1009,7 +1014,7 @@
       function resize() {
         width = shell.clientWidth;
         height = shell.clientHeight;
-        var dpr = window.devicePixelRatio || 1;
+        var dpr = Math.min(window.devicePixelRatio || 1, 2);
         canvas.width = Math.max(1, Math.floor(width * dpr));
         canvas.height = Math.max(1, Math.floor(height * dpr));
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1171,7 +1176,12 @@
         dragDepth = 0;
       }
       canvas.addEventListener("pointerup", releaseCharge);
-      canvas.addEventListener("pointercancel", releaseCharge);
+      canvas.addEventListener('pointercancel', function() {
+            isCharging = false;
+            dragDepth = 0;
+            if (state === 'charging') state = 'idle';
+            canvas.style.cursor = 'default';
+        });
 
       function clearHistory() {
         jumpHistory = [];
@@ -1233,14 +1243,32 @@
         return area;
       }
 
+
+    function createPaintGate() {
+      var dirty = true;
+      function invalidate() { dirty = true; }
+      ['input', 'change', 'click', 'pointerdown', 'pointermove', 'pointerup', 'pointercancel'].forEach(function(type) {
+        document.addEventListener(type, invalidate, { capture: true, passive: true });
+      });
+      window.addEventListener('resize', invalidate);
+      document.addEventListener('visibilitychange', invalidate);
+      return function(active) {
+        var paint = dirty || active;
+        dirty = false;
+        return paint && !document.hidden;
+      };
+    }
+    var needsPaint = createPaintGate();
       var lastTime = performance.now();
       function animate(currentTime) {
         var dt = (currentTime - lastTime) / 1000;
         if (dt > 0.1) dt = 0.1;
         lastTime = currentTime;
 
-        updatePhysics(dt);
-        drawScene();
+        if (needsPaint(isCharging || state === "pushing" || state === "flight")) {
+          updatePhysics(dt);
+          drawScene();
+        }
 
         requestAnimationFrame(animate);
       }

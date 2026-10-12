@@ -118,11 +118,12 @@
 
     .scenarios-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 24px;
     }
 
     .scenario-card {
+      min-width: 0;
       background: #fff;
       border: 1px solid var(--line);
       border-radius: 24px;
@@ -133,6 +134,9 @@
     }
 
     .scenario-header {
+      min-height: 76px;
+      display: grid;
+      place-items: center;
       padding: 16px;
       text-align: center;
       background: #f8fafc;
@@ -166,6 +170,9 @@
       left: 50%;
       transform: translateX(-50%);
       z-index: 2;
+      max-width: calc(100% - 12px);
+      white-space: normal;
+      overflow-wrap: anywhere;
     }
 
     .canvas-container .drag-item:active { transform: translateX(-50%) scale(0.95); }
@@ -187,7 +194,22 @@
     }
 
     @media (max-width: 900px) {
-      .scenarios-grid { grid-template-columns: 1fr; }
+      body { padding: 8px; }
+      .app-container { gap: 12px; }
+      header { padding: 14px; gap: 12px; }
+      .drag-bank { width: 100%; min-width: 0; gap: 8px; padding: 8px; }
+      .drag-item { padding: 10px 8px; min-height: 44px; font-size: 16px; letter-spacing: 0; }
+      .drag-bank .drag-item { flex: 1; min-width: 0; white-space: normal; }
+      .scenarios-grid { gap: 8px; }
+      .scenario-card { border-radius: 10px; }
+      .scenario-header { padding: 8px 4px; min-height: 88px; }
+      .scenario-header h2 { font-size: 14px; overflow-wrap: anywhere; }
+      .canvas-container .drag-item { top: 6px; width: calc(100% - 12px); padding: 6px 3px; font-size: 12px; }
+      .drop-zone-container { padding: 8px 4px; }
+      .feedback { font-size: 12px; overflow-wrap: anywhere; }
+    }
+    @media (max-width: 480px) {
+      .scenario-header h2 { font-size: 12px; }
     }
   </style>
 
@@ -289,6 +311,7 @@
     }
 
     document.addEventListener('keydown', (event) => {
+      if (event.target.closest?.('button')) return;
       const control = event.target.closest?.('[role="button"]');
       if (!control || (event.key !== 'Enter' && event.key !== ' ')) return;
       event.preventDefault();
@@ -799,6 +822,10 @@
         item.addEventListener('click', (e) => {
           if (state !== 'setup') return;
           e.stopPropagation();
+          if (selectedItem && selectedItem !== item && item.parentElement.classList.contains('drop-zone')) {
+            item.parentElement.click();
+            return;
+          }
           
           // Clear any existing outlines
           document.querySelectorAll('.drag-item').forEach(el => el.style.outline = 'none');

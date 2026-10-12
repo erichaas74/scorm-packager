@@ -436,7 +436,12 @@
         text-align: left;
       }
     }
-  </style>
+  /* phone-input-sizing: avoid double-tap zoom and focus zoom on controls. */
+button, select, input, textarea { touch-action: manipulation; }
+@media (max-width: 600px) {
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px; }
+}
+</style>
 </head>
 <body>
   <main class="app">
@@ -1321,7 +1326,7 @@
         var parent = canvas.parentElement;
         var width = parent.clientWidth;
         var height = Math.min(620, Math.max(470, Math.floor(width * 0.62)));
-        var dpr = window.devicePixelRatio || 1;
+        var dpr = Math.min(window.devicePixelRatio || 1, 2);
         canvas.width = width * dpr;
         canvas.height = height * dpr;
         canvas.style.width = width + "px";
@@ -1831,9 +1836,25 @@
         syncGlobeProjectile(currentWorld, globeStatus);
       }
 
+      var sceneVisible = true;
+      if ('IntersectionObserver' in window) {
+        var visibleScenes = new Set();
+        var sceneObserver = new IntersectionObserver(function(entries) {
+          entries.forEach(function(entry) {
+            if (entry.isIntersecting) visibleScenes.add(entry.target);
+            else visibleScenes.delete(entry.target);
+          });
+          sceneVisible = visibleScenes.size > 0;
+        });
+        sceneObserver.observe(canvas);
+        sceneObserver.observe(sideCanvas);
+      }
       function drawFrame(time) {
+        window.requestAnimationFrame(drawFrame);
+        if (document.hidden || !sceneVisible) { lastTime = time; return; }
+        if (lastTime && time - lastTime < 1000 / 30) return;
         if (!lastTime) lastTime = time;
-        var dt = Math.min(0.035, (time - lastTime) / 1000);
+        var dt = Math.min(0.1, (time - lastTime) / 1000);
         lastTime = time;
 
         var p = params();
@@ -1859,7 +1880,6 @@
         drawSideView(sideCanvas.clientWidth, sideCanvas.clientHeight);
         drawResultOverlay(ctx, width, height);
         drawResultOverlay(sideCtx, sideCanvas.clientWidth, sideCanvas.clientHeight);
-        window.requestAnimationFrame(drawFrame);
       }
 
       function syncControls() {

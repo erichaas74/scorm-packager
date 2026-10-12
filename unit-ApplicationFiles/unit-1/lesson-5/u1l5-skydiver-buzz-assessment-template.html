@@ -212,11 +212,17 @@
       .fall-canvas { max-width: 280px; margin: 0 auto; }
       .facts, .challenge-readout { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
-  </style>
+  /* phone-input-sizing: avoid double-tap zoom and focus zoom on controls. */
+button, select, input, textarea { touch-action: manipulation; }
+@media (max-width: 600px) {
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px; }
+}
+</style>
 </head>
 <body>
   <header>
     <h1>Unit 1 Lesson 5: Skydiver Graphs and Formation Dive</h1>
+<section id="physics-answer-checklist" class="directions-card" aria-labelledby="physics-checklist-heading"><h2 id="physics-checklist-heading">Before you answer</h2><ul><li>Record one body-position change and what happened before and after it. A clear graph description counts as evidence; exact readings are optional.</li><li>For your strategy, cover body position and drag, parachute timing relative to your partner, a feature of each graph, and apparent upward motion.</li><li>Downward is positive in these graphs. Distinguish the direction of acceleration from the direction the diver is moving.</li></ul></section>
     <p>First study a fixed scripted jump and answer the graph questions. Then use a tracking camera to catch a partner who changes body position, hold formation, and observe relative motion when the parachutes open.</p>
   </header>
 
@@ -412,6 +418,7 @@
       }
 
       function resetChallenge() {
+        challengeRemainder = 0;
         challenge = {
           running: false,
           landed: false,
@@ -523,6 +530,7 @@
       }
 
       function startChallenge() {
+        challengeRemainder = 0;
         if (challenge.running) return;
         if (challenge.landed) resetChallenge();
         challenge.running = true;
@@ -1140,13 +1148,32 @@
         document.getElementById('scriptedStatus').textContent = 'Scripted jump playing. Watch how graph shape changes with the motion.';
       }
 
+
+    function createPaintGate() {
+      var dirty = true;
+      function invalidate() { dirty = true; }
+      ['input', 'change', 'click', 'pointerdown', 'pointermove', 'pointerup', 'pointercancel'].forEach(function(type) {
+        document.addEventListener(type, invalidate, { capture: true, passive: true });
+      });
+      window.addEventListener('resize', invalidate);
+      document.addEventListener('visibilitychange', invalidate);
+      return function(active) {
+        var paint = dirty || active;
+        dirty = false;
+        return paint && !document.hidden;
+      };
+    }
+      var needsPaint = createPaintGate();
+      var challengeRemainder = 0;
       function loop(now) {
         if (!rafId) rafId = now;
         if (lastFrame === null) lastFrame = now;
-        var frameDt = Math.min(0.05, (now - lastFrame) / 1000);
+        var frameDt = Math.min(0.25, (now - lastFrame) / 1000);
         lastFrame = now;
+        if (document.hidden) { scripted.last = now; requestAnimationFrame(loop); return; }
+        var paint = needsPaint(scripted.playing || challenge.running);
         if (scripted.playing) {
-          var elapsed = Math.min(16, scripted.t + (now - scripted.last) / 1000 * 2.2);
+          var elapsed = Math.min(16, scripted.t + frameDt * 2.2);
           scripted.t = elapsed;
           scripted.last = now;
           if (scripted.t >= 16) {
@@ -1154,8 +1181,14 @@
             document.getElementById('scriptedStatus').textContent = 'Scripted jump complete. Use the two graph shapes to answer the Buzz questions.';
           }
         }
-        if (challenge.running) stepChallenge(1 / 60 * 2);
-        drawAll();
+        if (challenge.running) {
+          challengeRemainder += frameDt * 2;
+          while (challengeRemainder + 1e-9 >= 1 / 30 && challenge.running) {
+            stepChallenge(1 / 30);
+            challengeRemainder -= 1 / 30;
+          }
+        } else challengeRemainder = 0;
+        if (paint) drawAll();
         requestAnimationFrame(loop);
       }
 

@@ -195,7 +195,12 @@
       .fall-canvas { max-width: 280px; margin: 0 auto; }
       .facts, .challenge-readout { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
-  </style>
+  /* phone-input-sizing: avoid double-tap zoom and focus zoom on controls. */
+button, select, input, textarea { touch-action: manipulation; }
+@media (max-width: 600px) {
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px; }
+}
+</style>
 </head>
 <body>
   <header>
@@ -349,6 +354,7 @@
       }
 
       function resetChallenge() {
+        challengeRemainder = 0;
         var mission = MISSIONS[missionIndex];
         challenge = {
           running: false,
@@ -469,6 +475,7 @@
       }
 
       function startChallenge() {
+        challengeRemainder = 0;
         if (challenge.running) return;
         if (challenge.landed) resetChallenge();
         challenge.running = true;
@@ -865,13 +872,32 @@
         document.getElementById('scriptedStatus').textContent = 'Scripted jump playing. Watch how graph shape changes with the motion.';
       }
 
+
+    function createPaintGate() {
+      var dirty = true;
+      function invalidate() { dirty = true; }
+      ['input', 'change', 'click', 'pointerdown', 'pointermove', 'pointerup', 'pointercancel'].forEach(function(type) {
+        document.addEventListener(type, invalidate, { capture: true, passive: true });
+      });
+      window.addEventListener('resize', invalidate);
+      document.addEventListener('visibilitychange', invalidate);
+      return function(active) {
+        var paint = dirty || active;
+        dirty = false;
+        return paint && !document.hidden;
+      };
+    }
+      var needsPaint = createPaintGate();
+      var challengeRemainder = 0;
       function loop(now) {
         if (!rafId) rafId = now;
         if (lastFrame === null) lastFrame = now;
-        var frameDt = Math.min(0.05, (now - lastFrame) / 1000);
+        var frameDt = Math.min(0.25, (now - lastFrame) / 1000);
         lastFrame = now;
+        if (document.hidden) { scripted.last = now; requestAnimationFrame(loop); return; }
+        var paint = needsPaint(scripted.playing || challenge.running);
         if (scripted.playing) {
-          var elapsed = Math.min(16, scripted.t + (now - scripted.last) / 1000 * 2.2);
+          var elapsed = Math.min(16, scripted.t + frameDt * 2.2);
           scripted.t = elapsed;
           scripted.last = now;
           if (scripted.t >= 16) {
@@ -879,8 +905,14 @@
             document.getElementById('scriptedStatus').textContent = 'Scripted jump complete. Use the two graph shapes to answer the Buzz questions.';
           }
         }
-        if (challenge.running) stepChallenge(1 / 60 * 2);
-        drawAll();
+        if (challenge.running) {
+          challengeRemainder += frameDt * 2;
+          while (challengeRemainder + 1e-9 >= 1 / 30 && challenge.running) {
+            stepChallenge(1 / 30);
+            challengeRemainder -= 1 / 30;
+          }
+        } else challengeRemainder = 0;
+        if (paint) drawAll();
         requestAnimationFrame(loop);
       }
 

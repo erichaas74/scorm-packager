@@ -371,6 +371,13 @@
     state.meterLocation = state.meter === "ammeter" ? "battery" : "battery-voltage";
     saveState();
     renderBench();
+    const list = $("#missionList");
+    const active = $(".mission-button.active", list);
+    if (active && list.scrollWidth > list.clientWidth) {
+      const item = active.getBoundingClientRect();
+      const bounds = list.getBoundingClientRect();
+      list.scrollLeft += item.left - bounds.left - (list.clientWidth - item.width) / 2;
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
     $("#briefTitle").focus?.({ preventScroll: true });
   }
@@ -472,6 +479,9 @@
       button.classList.toggle("active", active);
       button.setAttribute("aria-pressed", String(active));
     });
+    $("#meterHint").textContent = state.meter === "ammeter"
+      ? "Current through the selected wire or branch. Connect a real ammeter in series."
+      : "Potential difference across the selected component. Connect a real voltmeter in parallel.";
     const options = meterOptions();
     if (!options.some(([value]) => value === state.meterLocation)) state.meterLocation = options[0][0];
     $("#meterLocation").innerHTML = options.map(([value, label]) => `<option value="${value}" ${value === state.meterLocation ? "selected" : ""}>${label}</option>`).join("");
@@ -513,10 +523,10 @@
     $("#canvasReadout").textContent = `${topologyLabel(result.topology)} · ${descriptions.join(" · ")}`;
     const canvas = $("#circuitCanvas");
     canvas.setAttribute("aria-label", `${topologyLabel(result.topology)} circuit with ${missions[state.mission].bulbs} bulbs. ${descriptions.join(". ")}. Total current ${format(result.totalCurrent)} amperes.`);
-    drawCircuit(canvas, result, true);
+    drawCircuit(canvas, result);
   }
 
-  function drawCircuit(canvas, result, showMeter) {
+  function drawCircuit(canvas, result) {
     const context = canvas.getContext("2d");
     const width = canvas.width;
     const height = canvas.height;
@@ -651,8 +661,12 @@
       text(label, x + (vertical ? 28 : 0), y + (vertical ? 1 : -28), 12, vertical ? "left" : "center", colors.muted, 800);
     }
 
-    function arrow(x, y, direction = 1) {
+    function arrow(x, y, direction = 1, vertical = false) {
       context.save();
+      context.translate(x, y);
+      if (vertical) context.rotate(Math.PI / 2);
+      x = 0;
+      y = 0;
       context.fillStyle = colors.orange;
       context.beginPath();
       if (direction > 0) {
@@ -665,19 +679,13 @@
       context.restore();
     }
 
-    function meter(x, y) {
-      const value = getMeterValue();
+    function junction(x, y) {
       context.save();
-      context.fillStyle = "#f6f2e8";
-      context.strokeStyle = colors.orange;
-      context.lineWidth = 5;
+      context.fillStyle = colors.label;
       context.beginPath();
-      context.arc(x, y, 45, 0, Math.PI * 2);
+      context.arc(x, y, 7, 0, Math.PI * 2);
       context.fill();
-      context.stroke();
       context.restore();
-      text(state.meter === "ammeter" ? "A" : "V", x, y - 11, 22, "center", colors.dark, 950);
-      text(`${format(value.value)} ${value.unit}`, x, y + 15, 12, "center", colors.dark, 900);
     }
 
     const left = 150;
@@ -709,7 +717,8 @@
         line([[x, top], [x, bottom]], hot);
         if (missions[state.mission].switches) circuitSwitch(x, 160, result.switches[index], `S${index + 1}`);
         bulb(x, 270, index);
-        if (hot) arrow(x, 210, 1);
+        [top, bottom].forEach(y => junction(x, y));
+        if (hot) arrow(x, 210, 1, true);
       });
       if (result.closed) {
         arrow(width * 0.29, top, 1);
@@ -726,6 +735,10 @@
       const branchTwoX = width * 0.72;
       line([[branchOneX, top], [branchOneX, bottom]], result.currents[0] > 0);
       line([[branchTwoX, top], [branchTwoX, bottom]], result.currents[1] > 0);
+      [branchOneX, branchTwoX].forEach(x => [top, bottom].forEach(y => junction(x, y)));
+      if (result.currents[0] > 0) arrow(branchOneX, 205, 1, true);
+      if (result.currents[1] > 0) arrow(branchTwoX, 195, 1, true);
+      if (result.closed) arrow(width * 0.27, bottom, -1);
       circuitSwitch(branchOneX, 150, result.switches[0], "S1");
       circuitSwitch(branchTwoX, 150, result.switches[1], "S2");
       bulb(branchOneX, 270, 0);
@@ -735,7 +748,7 @@
       if (result.closed) arrow(width * 0.27, top, 1);
     }
 
-    if (showMeter) meter(width - 115, height - 62);
+
   }
 
   function liveEvidence() {
@@ -948,7 +961,7 @@
   function renderReport() {
     const finalResult = calculate(7, { connected: [true, true, true], switches: [true, true, true] });
     const requirements = finalRequirements(finalResult.topology);
-    drawCircuit($("#reportCanvas"), finalResult, false);
+    drawCircuit($("#reportCanvas"), finalResult);
     $("#summaryList").innerHTML = [
       ["Arrangement", topologyLabel(finalResult.topology)],
       ["Source", `${format(finalResult.voltage, 1)} V battery`],
@@ -995,6 +1008,13 @@
     });
     if (view === "notebook") renderNotebook();
     if (view === "report") renderReport();
+    const list = $("#missionList");
+    const active = $(".mission-button.active", list);
+    if (active && list.scrollWidth > list.clientWidth) {
+      const item = active.getBoundingClientRect();
+      const bounds = list.getBoundingClientRect();
+      list.scrollLeft += item.left - bounds.left - (list.clientWidth - item.width) / 2;
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 

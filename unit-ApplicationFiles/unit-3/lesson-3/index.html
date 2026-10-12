@@ -475,11 +475,11 @@
 
     @media (max-width: 1120px) {
       .topbar {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
       }
 
       .main-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
       }
 
       #graphCanvas,
@@ -506,7 +506,19 @@
         padding: 10px;
       }
     }
-  </style>
+  /* phone-input-sizing: avoid double-tap zoom and focus zoom on controls. */
+button, select, input, textarea { touch-action: manipulation; }
+@media (max-width: 600px) {
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px; }
+}
+.main-grid > *, .part-layout > *, .part-canvas-wrap { min-width: 0; }
+@media (max-width: 600px) {
+  .part-controls input { max-width: 100%; }
+  .part-controls label { min-width: 0; max-width: 100%; }
+  .part-graph-row { flex-wrap: wrap; }
+  .part-graph-canvas { flex-basis: 100%; }
+}
+</style>
 </head>
 <body>
   <!-- Start overlay -->
@@ -719,7 +731,7 @@
 
     function resizeCanvasToDisplay(canvasEl, context) {
       const rect = canvasEl.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const width = Math.max(1, Math.floor(rect.width * dpr));
       const height = Math.max(1, Math.floor(rect.height * dpr));
       if (canvasEl.width !== width || canvasEl.height !== height) {
@@ -1509,14 +1521,33 @@
     }
 
     /* ── Main loop ─────────────────────────────────────────── */
+
+    function createPaintGate() {
+      var dirty = true;
+      function invalidate() { dirty = true; }
+      ['input', 'change', 'click', 'pointerdown', 'pointermove', 'pointerup', 'pointercancel'].forEach(function(type) {
+        document.addEventListener(type, invalidate, { capture: true, passive: true });
+      });
+      window.addEventListener('resize', invalidate);
+      document.addEventListener('visibilitychange', invalidate);
+      return function(active) {
+        var paint = dirty || active;
+        dirty = false;
+        return paint && !document.hidden;
+      };
+    }
+    const needsPaint = createPaintGate();
     let lastFrame = performance.now();
     function loop(now) {
       const dt = Math.min(0.05, (now - lastFrame) / 1000);
       lastFrame = now;
-      updatePhysics(now, dt);
-      drawScene();
-      drawGraph();
-      drawVelMeter();
+      const paint = needsPaint(state.sim.mode !== 'idle' || state.sim.velocity > 0);
+      if (paint) {
+        updatePhysics(now, dt);
+        drawScene();
+        drawGraph();
+        drawVelMeter();
+      }
       requestAnimationFrame(loop);
     }
 

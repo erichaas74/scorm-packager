@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>River Rescue: Relative Velocity Lab</title>
     <style>
         * {
@@ -75,7 +75,12 @@
             opacity: 0.6;
             cursor: not-allowed;
         }
-    </style>
+    /* phone-input-sizing: avoid double-tap zoom and focus zoom on controls. */
+button, select, input, textarea { touch-action: manipulation; }
+@media (max-width: 600px) {
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px; }
+}
+</style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
@@ -205,7 +210,7 @@
             update() {
                 if (this.disabled) { this.isHovered = false; return; }
                 this.isHovered = input.x >= this.x && input.x <= this.x + this.w && input.y >= this.y && input.y <= this.y + this.h;
-                if (this.isHovered && input.justReleased) this.onClick();
+                // Activation is handled by pointerup, including taps between frames.
             }
             draw(ctx) {
                 ctx.fillStyle = this.disabled ? '#334155' : this.isActive ? this.activeBgColor : this.isHovered ? this.hoverColor : this.bgColor;
@@ -536,7 +541,7 @@
         }
 
         function layout() {
-            const dpr = window.devicePixelRatio || 1;
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
             canvas.width = window.innerWidth * dpr;
             canvas.height = window.innerHeight * dpr;
             ctx.scale(dpr, dpr);
@@ -553,7 +558,7 @@
             const headingW = Math.min(w - pad * 2, showHud ? 312 : 430);
 
             if (showHud) {
-                bounds.header = { x: pad, y: pad, w: headerW, h: 116 };
+                bounds.header = { x: pad, y: pad, w: headerW, h: bounds.isMobile ? 158 : 116 };
                 bounds.controls = { x: pad, y: pad + bounds.header.h + 10, w: headingW, h: controlsH };
             } else {
                 // Assessment embeds draw no HUD panel, so the heading input leads at the top.
@@ -565,7 +570,7 @@
                 const bw = 36, bh = 28, gap = 6;
                 const rowW = bw * levelButtons.length + gap * (levelButtons.length - 1);
                 const x0 = showHud ? bounds.header.x + bounds.header.w - rowW - 12 : Math.max(pad, w - pad - rowW);
-                const y0 = showHud ? bounds.header.y + 10 : pad;
+                const y0 = showHud ? bounds.header.y + (bounds.isMobile ? 42 : 10) : pad;
                 levelButtons.forEach((b, i) => b.setBounds(x0 + i * (bw + gap), y0, bw, bh));
             }
 
@@ -573,20 +578,23 @@
             headingControl.setBounds(bounds.controls.x + 14, bounds.controls.y + 6, bounds.controls.w - 28, controlH);
 
             const actionY = Math.max(12, h - 62);
-            const availableActionW = Math.max(280, w - pad * 2);
-            const resetW = bounds.isMobile ? 66 : 88;
-            const hintW = bounds.isMobile ? 64 : 80;
-            const dataW = bounds.isMobile ? 58 : 72;
-            const playW = Math.max(100, Math.min(bounds.isMobile ? 120 : 150, availableActionW - resetW - hintW - dataW - 30));
-            bounds.actions = { x: pad, y: actionY, w: playW + resetW + hintW + dataW + 30, h: 44 };
-            btnPlay.setBounds(bounds.actions.x, actionY, playW, 44);
-            btnReset.setBounds(bounds.actions.x + playW + 10, actionY, resetW, 44);
-            btnHint.setBounds(bounds.actions.x + playW + resetW + 20, actionY, hintW, 44);
-            btnData.setBounds(bounds.actions.x + playW + resetW + hintW + 30, actionY, dataW, 44);
+            const availableActionW = w - pad * 2;
+            const gap = bounds.isMobile ? 6 : 10;
+            const smallW = bounds.isMobile ? (availableActionW - gap * 3) * 0.21 : 80;
+            const playW = Math.min(150, availableActionW - smallW * 3 - gap * 3);
+            bounds.actions = { x: pad, y: actionY, w: availableActionW, h: 44 };
+            btnPlay.setBounds(pad, actionY, playW, 44);
+            btnReset.setBounds(pad + playW + gap, actionY, smallW, 44);
+            btnHint.setBounds(pad + playW + smallW + gap * 2, actionY, smallW, 44);
+            btnData.setBounds(pad + playW + smallW * 2 + gap * 3, actionY, smallW, 44);
+            [btnPlay, btnReset, btnHint, btnData].forEach(b => b.fontSize = bounds.isMobile ? 11 : 14);
 
             scale = (bounds.sim.w * 0.5) / params.width;
             originX = bounds.sim.x + bounds.sim.w * 0.15;
             originY = bounds.sim.y + bounds.sim.h * 0.2;
+            if (showHud && bounds.isMobile) {
+                originY = Math.max(originY, bounds.controls.y + bounds.controls.h + 50 - LEVEL_CONFIGS[mission.level].start(params).y * scale);
+            }
 
             waterParticles = [];
             for (let i = 0; i < 100; i++) {
@@ -820,16 +828,17 @@
             ctx.font = `800 ${bounds.isMobile ? 17 : 19}px Inter`;
             ctx.textAlign = 'left';
             ctx.textBaseline = 'middle';
-            ctx.fillText(LEVEL_CONFIGS[mission.level].title, padX, header.y + 26);
+            ctx.fillText(LEVEL_CONFIGS[mission.level].title, padX, header.y + 26, header.w - 32);
 
             if (levelButtons.length) {
                 ctx.fillStyle = '#64748b';
                 ctx.font = '700 9px Inter';
                 ctx.textAlign = 'right';
-                ctx.fillText('LEVEL', levelButtons[0].x - 8, header.y + 24);
+                ctx.fillText('LEVEL', levelButtons[0].x - 8, levelButtons[0].y + 14);
             }
 
-            const chipY = header.y + 58;
+            const headerShift = bounds.isMobile ? 42 : 0;
+            const chipY = header.y + 58 + headerShift;
             const cw = Math.min(116, Math.floor((header.w - 48) / 3));
             drawSpeedChip('Swim', params.vBoat.toFixed(1) + ' m/s', padX, chipY, '#fed7aa', cw);
             drawSpeedChip('Current', params.vRiver.toFixed(1) + ' m/s', padX + cw + 8, chipY, '#bae6fd', cw);
@@ -843,7 +852,7 @@
             ctx.font = '500 12px Inter';
             ctx.textAlign = 'left';
             ctx.textBaseline = 'middle';
-            wrapCanvasText(mission.message, padX, header.y + 86, header.w - 32, 15, 2);
+            wrapCanvasText(mission.message, padX, header.y + 86 + headerShift, header.w - 32, 15, 2);
             ctx.restore();
         }
 
@@ -2105,7 +2114,7 @@
             const isRescue = mission.level === 3 || mission.level === 4;
             const w = 250, h = isRescue ? 202 : 142;
             const x = Math.max(18, bounds.sim.x + bounds.sim.w - w - 18);
-            const y = Math.max(18, bounds.sim.y + bounds.sim.h - h - 18);
+            const y = Math.max(18, bounds.actions.y - h - 10);
             bounds.teleRect = { x, y, w, h };
 
             ctx.fillStyle = 'rgba(15, 23, 42, 0.88)'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
@@ -2216,13 +2225,26 @@
             rightLegRotor.setAttribute('transform', `rotate(${rightKick.toFixed(2)} 0 0)`);
         }
 
+        let sceneVisible = true;
+        if ('IntersectionObserver' in window) {
+            new IntersectionObserver(entries => { sceneVisible = entries[0].isIntersecting; }).observe(canvas);
+        }
         function engineLoop(timestamp) {
+            requestAnimationFrame(engineLoop);
+            if (document.hidden || !sceneVisible) { lastTime = timestamp; return; }
+            // Limit decorative rendering to 30 fps; physics still uses elapsed time.
+            if (timestamp - lastTime < 1000 / 30) return;
             const dt = lastTime ? (timestamp - lastTime) / 1000 : 0.016; lastTime = timestamp;
             ambientTime += Math.min(dt, 0.1);
             input.justPressed = input.isDown && !input.wasDown; input.justReleased = !input.isDown && input.wasDown; input.wasDown = input.isDown;
             uiElements.forEach(el => el.update());
             updateHeadingArrowInteraction();
-            if (dt < 0.1) updatePhysics(dt);
+            let remaining = Math.min(dt, 0.25);
+            while (remaining > 0) {
+                const step = Math.min(remaining, 1 / 60);
+                updatePhysics(step);
+                remaining -= step;
+            }
             updateSwimmerOverlay();
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -2234,7 +2256,6 @@
             drawTelemetry();
             drawResultBanner();
 
-            requestAnimationFrame(engineLoop);
         }
 
         // --- EVENTS ---
@@ -2252,17 +2273,45 @@
         headingInput.addEventListener('keydown', e => {
             if (e.key === 'Enter') headingInput.blur();
         });
+        let activePointer = null;
+        let pressedButton = null;
         const handlePtr = e => {
             const r = canvas.getBoundingClientRect();
-            input.x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
-            input.y = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
+            input.x = (e.clientX - r.left) * window.innerWidth / r.width;
+            input.y = (e.clientY - r.top) * window.innerHeight / r.height;
         };
-        canvas.addEventListener('mousedown', e => { input.isDown = true; handlePtr(e); });
-        canvas.addEventListener('mousemove', handlePtr);
-        window.addEventListener('mouseup', () => input.isDown = false);
-        canvas.addEventListener('touchstart', e => { e.preventDefault(); input.isDown = true; handlePtr(e); }, {passive: false});
-        canvas.addEventListener('touchmove', e => { e.preventDefault(); handlePtr(e); }, {passive: false});
-        window.addEventListener('touchend', () => input.isDown = false);
+        canvas.addEventListener('pointerdown', e => {
+            if (!e.isPrimary || activePointer !== null) return;
+            activePointer = e.pointerId;
+            handlePtr(e);
+            input.isDown = true;
+            input.justPressed = true;
+            pressedButton = uiElements.find(b => b instanceof Button && !b.disabled && pointInRect(input, b)) || null;
+            canvas.setPointerCapture(e.pointerId);
+            updateHeadingArrowInteraction();
+            e.preventDefault();
+        });
+        canvas.addEventListener('pointermove', e => {
+            if (activePointer !== null && activePointer !== e.pointerId) return;
+            handlePtr(e);
+            if (input.isDown) updateHeadingArrowInteraction();
+        });
+        function finishPointer(e) {
+            if (e.pointerId !== activePointer) return;
+            handlePtr(e);
+            const button = pressedButton;
+            input.isDown = false;
+            input.wasDown = false;
+            input.justPressed = false;
+            headingArrow.isDragging = false;
+            activePointer = null;
+            pressedButton = null;
+            if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+            if (e.type === 'pointerup' && button && !button.disabled && pointInRect(input, button)) button.onClick();
+        }
+        canvas.addEventListener('pointerup', finishPointer);
+        canvas.addEventListener('pointercancel', finishPointer);
+        canvas.addEventListener('lostpointercapture', finishPointer);
 
         // Level 4 locks the heading but not the speed, so the drag stays live there — it just sets a
         // different property of the same vector.

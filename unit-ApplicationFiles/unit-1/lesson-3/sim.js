@@ -92,7 +92,7 @@
 
     /* ── Canvas ───────────────────────────────────────────────────────── */
     function setupCanvas() {
-        var dpr     = window.devicePixelRatio || 1;
+        var dpr     = Math.min(window.devicePixelRatio || 1, 2);
         var wrapper = document.getElementById('canvas-wrapper');
         var targetH = isZoomed ? 2000 : wrapper.clientHeight;
 

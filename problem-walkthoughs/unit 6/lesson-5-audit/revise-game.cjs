@@ -1,0 +1,15 @@
+const fs=require('fs');
+const dir=__dirname;
+let h=fs.readFileSync(dir+'/../magnetic-exploration-files/u6-l5-p3-generator-optimization.html','utf8');
+h=h.replace('.app button{min-height:48px}', '.app button{min-height:48px}}').replace('scroll-behavior:auto!important}', 'scroll-behavior:auto!important}}');
+h=h.replace('<section class="card" aria-live="polite">','<section class="card" aria-live="polite"><p class="subtle">Practice model: compare peak emf at a controlled rotation rate. Costs are arbitrary design scores, not prices. Mechanical input maintains the selected speed; loading and real-world losses are not calculated here. The animation is a schematic, not a scale model.</p>');
+h=h.replace('<p class="feedback" id="feedback"></p>','<p class="feedback" id="feedback"></p><h2>Trial evidence</h2><p>Predict, test, and compare at least two settings in each round. Change only the displayed variable. Copy your results before resetting.</p><table style="width:100%;text-align:left;border-collapse:collapse"><thead><tr><th>Variable</th><th>Setting</th><th>Peak emf</th><th>Cost</th><th>Result</th></tr></thead><tbody id="trials"></tbody></table>');
+h=h.replaceAll('Output voltage:', 'Peak emf:').replace('cost units.', 'model cost units.').replace('if(done)return;done=true;', 'done=true;');
+h=h.replace('target:8,maxCost:70','target:8,maxCost:50').replace('target:9,maxCost:85','target:9,maxCost:60').replace('target:10,maxCost:82','target:10,maxCost:55').replace('target:11,maxCost:90','target:11,maxCost:65');
+h=h.replace("$('#run').classList.add('hidden');$('#next').classList.remove('hidden');", "$('#run').textContent='Test another setting';$('#trials').insertAdjacentHTML('beforeend',`<tr><td>${r.label}</td><td>${val} ${r.unit}</td><td>${V.toFixed(1)} V</td><td>${cost.toFixed(0)}</td><td>${success?'Meets both':'Does not meet both'}</td></tr>`);$('#next').classList.toggle('hidden',!success);");
+h=h.replace("$('#run').classList.remove('hidden');", "$('#run').classList.remove('hidden');$('#run').textContent='Run generator';$('#next').textContent='Next round';");
+h=h.replace("idx=0;completed=false;render()", "idx=0;completed=false;$('#trials').innerHTML='';render()");
+h=h.replace("$('#app').classList.add('running');setTimeout", "$('#app').classList.remove('lit');$('#app').classList.add('running');setTimeout");
+new Function(h.match(/<script>([\s\S]*?)<\/script>/)[1]);
+fs.writeFileSync(dir+'/generator-practice/index.html',h);
+console.log('Revised game JavaScript parses.');

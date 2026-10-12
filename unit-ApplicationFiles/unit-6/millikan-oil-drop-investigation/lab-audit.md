@@ -1,3 +1,17 @@
+## Repair verification ? October 12, 2026
+
+Findings 1?4 below are now addressed. The earlier audit is retained as history.
+
+- Native Buzz measurement progress depends only on six recorded drops; it reaches 100% without hidden responses and does not submit or grade the Buzz assessment.
+- Reset and CSV export are visible beside the evidence table. Reset retains its confirmation.
+- The native table and CSV contain measured voltages only. Learners calculate charge magnitudes in the questions; numerical keys remain unchanged.
+- The model explains negative drops, plate polarity, and upward electric force. Formulas, questions, and rubric metadata use charge magnitude |q|/e.
+- The standalone version retains its visible analysis workflow and calculated table, with corrected magnitude labels.
+
+Validation: the updated audit-workflow.cjs passes six legal balances, off-balance and duplicate rejection, persistence, 100% measurement progress, and reset to zero for template and preview. Chrome checks passed at 320, 390, and 1200 px for source and preview, including visible reset/export and recording. Unit 6 structural validation passes. Live Buzz import and grading were not tested.
+
+---
+
 # Unit 6 Lesson 1 audit: Millikan Oil Drop
 
 Reviewed September 22, 2026 using the [Unit 6 review guide](../unit-6-lab-review-guide.md). This is the first individual lab audit. Findings below concern the student-facing Buzz template and preview, not merely the older standalone source. The original audit made no implementation changes. The subsequent apparatus revision is documented below; line references describe the originally audited version.

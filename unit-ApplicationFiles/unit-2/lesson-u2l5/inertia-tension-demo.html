@@ -459,7 +459,12 @@
       .actions, .readout-grid { grid-template-columns: 1fr; }
       .level2-actions { grid-template-columns: 1fr; }
     }
-  </style>
+  /* phone-input-sizing: avoid double-tap zoom and focus zoom on controls. */
+button, select, input, textarea { touch-action: manipulation; }
+@media (max-width: 600px) {
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px; }
+}
+</style>
 </head>
 <body>
   <main class="page">
@@ -527,6 +532,7 @@
     const resetButton = document.getElementById('reset-lab');
 
     const particles = [];
+    let particleLastTime = performance.now();
 
     const model = {
       weight: 9.8,
@@ -794,6 +800,7 @@
     }
 
     function spawnParticles(x, y) {
+      particleLastTime = performance.now();
       particles.length = 0; 
       for (let i = 0; i < 25; i++) {
         particles.push({
@@ -812,13 +819,16 @@
     }
 
     function drawParticles() {
+      const now = performance.now();
+      const frames = Math.min(0.1, Math.max(0, (now - particleLastTime) / 1000)) * 60;
+      particleLastTime = now;
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vy += 0.4;
-        p.angle += p.spin;
-        p.life -= p.decay;
+        p.x += p.vx * frames;
+        p.y += p.vy * frames + 0.2 * frames * frames;
+        p.vy += 0.4 * frames;
+        p.angle += p.spin * frames;
+        p.life -= p.decay * frames;
 
         if (p.life <= 0) {
           particles.splice(i, 1);
@@ -883,6 +893,7 @@
     }
 
     function resetLab() {
+      lastFallTime = null;
       if (state.animationFrame) {
         cancelAnimationFrame(state.animationFrame);
       }
@@ -902,6 +913,7 @@
       state.massY = 220;
       state.velocity = 0;
       state.animationFrame = null;
+      particleLastTime = performance.now();
       particles.length = 0; // Clear stray particles
 
       setButtonsDisabled(false);
@@ -977,6 +989,7 @@
         state.topBroken = true;
         spawnParticles(layout.centerX, (layout.topStringStartY + state.massY) / 2);
         
+        lastFallTime = null;
         setStatus('Top string breaks', 'Top tension = 9.8 N weight + 15.0 N pull = <span class="danger">24.8 N</span>. That is above the 22.0 N break point, while the bottom string only carries 15.0 N.', 'danger');
         state.animationFrame = requestAnimationFrame(stepFall);
       } else {
@@ -1000,9 +1013,13 @@
       }
     }
 
-    function stepFall() {
-      state.velocity += 0.55;
-      state.massY += state.velocity;
+    var lastFallTime = null;
+    function stepFall(timestamp) {
+      const dt = lastFallTime === null ? 1 / 60 : Math.min(0.1, (timestamp - lastFallTime) / 1000);
+      lastFallTime = timestamp;
+      const frames = dt * 60;
+      state.massY += state.velocity * frames + 0.275 * frames * frames;
+      state.velocity += 0.55 * frames;
       draw();
 
       if (state.massY < 520 || particles.length > 0) {
@@ -1059,6 +1076,7 @@
         }
         state.manualPointerId = null;
         spawnParticles(layout.centerX, layout.topStringStartY + layout.topStringLength * 0.5);
+        lastFallTime = null;
         setStatus('Top string breaks', 'Your drag distance reached ' + Math.round(state.dragDistance) + ' px, which becomes <span class="danger">' + formatForce(pullForce) + '</span> of pull. The top string must carry that plus the 9.8 N weight, so it passes the 22.0 N break point.', 'danger');
         state.animationFrame = requestAnimationFrame(stepFall);
         return;

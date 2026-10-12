@@ -74,7 +74,7 @@ const MotionGraphsLab = (function() {
     fixDPI: function(canvas) {
       let rect = canvas.parentElement.getBoundingClientRect();
       if (rect.width === 0) return { w: 0, h: 0 };
-      let dpr = window.devicePixelRatio || 1;
+      let dpr = Math.min(window.devicePixelRatio || 1, 2);
       
       let targetW = Math.round(rect.width * dpr);
       let targetH = Math.round(rect.height * dpr);

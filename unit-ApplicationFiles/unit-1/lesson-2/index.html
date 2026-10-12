@@ -530,7 +530,39 @@
       .hud-key { margin-top: 0; }
       canvas { max-width: 100%; }
     }
-  </style>
+
+    /* Keep the map and controls usable inside narrow phone/Buzz viewports. */
+    button, select { touch-action: manipulation; }
+    .topbar > div:first-child { flex-wrap: wrap; min-width: 0; }
+    .topbar strong { overflow-wrap: anywhere; }
+    .start-overlay { padding: 20px; text-align: center; overflow-y: auto; }
+    .walkthrough-panel { max-height: 100%; overflow-y: auto; }
+    @media (max-width: 600px) {
+      .app { padding: 8px; }
+      .topbar { padding: 10px; gap: 8px; }
+      .topbar strong { font-size: 0.9rem; }
+      .resource-link { white-space: normal; }
+      .secondary-row { min-width: 0; max-width: 100%; }
+      .secondary-row select { min-width: 0; width: 100%; }
+      .canvas-wrap { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+      .hud-column { gap: 8px; }
+      .canvas-dpad { order: -1; padding: 8px; }
+      .dpad-grid { grid-template-columns: repeat(3, 48px); grid-template-rows: repeat(3, 44px); }
+      .hud-dashboard { padding: 10px; }
+      .hud-body { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .hud-value { overflow-wrap: anywhere; }
+      .start-overlay h1 { font-size: 28px; }
+      .walkthrough-overlay { padding: 10px; }
+      .walkthrough-panel { padding: 16px; }
+      .walk-nav { flex-wrap: wrap; }
+      .evidence-readout { grid-template-columns: 1fr; }
+    }
+  /* phone-input-sizing: avoid double-tap zoom and focus zoom on controls. */
+button, select, input, textarea { touch-action: manipulation; }
+@media (max-width: 600px) {
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px; }
+}
+</style>
 </head>
 <body>
   <div id="startOverlay" class="start-overlay">
@@ -1031,7 +1063,7 @@
 
       if (immediate) {
         applyVals(targetVals);
-        draw();
+        updateHud();
         return;
       }
 
@@ -1046,14 +1078,14 @@
           current[key] = startVals[key] + (targetVals[key] - startVals[key]) * eased;
         }
         applyVals(current);
-        draw();
+        updateHud();
 
         if (progress < 1) {
           GameState.animationFrame = requestAnimationFrame(step);
         } else {
           applyVals(targetVals);
           GameState.animationFrame = null;
-          draw();
+          updateHud();
         }
       }
       GameState.animationFrame = requestAnimationFrame(step);
@@ -1083,6 +1115,11 @@
       var success = check.success;
 
       GameState.levelJustCompleted = success;
+      // Undo or another move can invalidate success before the delayed advance.
+      if (!success && GameState.levelAdvanceTimer) {
+        clearTimeout(GameState.levelAdvanceTimer);
+        GameState.levelAdvanceTimer = null;
+      }
 
       if (success && progressState.passed.indexOf(idx) === -1) {
         progressState.passed.push(idx);
@@ -2027,8 +2064,10 @@
         currentRows.push({ cls: 'velocity', label: 'Avg Velocity', value: formatRate(GameState.displayedVelocity) + ' blk/min' + velSuffix });
       }
 
-      hudTargets.innerHTML = hudRowsHtml(targetRows);
-      hudCurrent.innerHTML = hudRowsHtml(currentRows);
+      var targetsHtml = hudRowsHtml(targetRows);
+      var currentHtml = hudRowsHtml(currentRows);
+      if (hudTargets.innerHTML !== targetsHtml) hudTargets.innerHTML = targetsHtml;
+      if (hudCurrent.innerHTML !== currentHtml) hudCurrent.innerHTML = currentHtml;
     }
 
     function drawCompletionBanner() {
@@ -2208,6 +2247,10 @@
     });
 
     document.addEventListener('keydown', function(e) {
+      if (!startOverlay.classList.contains('hidden') || !walkthroughOverlay.classList.contains('hidden')) return;
+      if (e.target.closest('input, textarea, select, button, [contenteditable]')) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].indexOf(e.key) !== -1) e.preventDefault();
       if (e.key === 'ArrowUp') move('N');
       if (e.key === 'ArrowDown') move('S');
       if (e.key === 'ArrowLeft') move('W');

@@ -396,6 +396,7 @@
         </div>
     </section>
 
+<button id="toggle-animation" type="button" style="display:block;margin:12px auto;padding:10px 24px;border:0;border-radius:8px;background:#224d6a;color:white;font:600 17px Arial;cursor:pointer">Pause animation</button>
 <div id="canvas-container">
         <canvas role="img" aria-label="Interactive visualization for Transverse and Longitudinal Wave Simulation" id="waveCanvas"></canvas>
         <label class="highlight-control" for="check-highlight">
@@ -409,7 +410,7 @@
                     <svg viewBox="0 0 32 24" aria-hidden="true">
                         <path d="M7 3v18M3 7l4-4 4 4M3 17l4 4 4-4M14 12h15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
-                    <span class="property-copy">Amplitude<small>wave height</small></span>
+                    <span class="property-copy">Amplitude<small>particle displacement</small></span>
                     <output class="property-value" id="val-amplitude" for="slider-amplitude">20 px</output>
                 </label>
                 <input type="range" id="slider-amplitude" min="10" max="100" value="20" aria-describedby="amplitude-help">
@@ -433,7 +434,7 @@
                     <svg viewBox="0 0 32 24" aria-hidden="true">
                         <path d="M2 9c4-7 8-7 12 0s8 7 12 0M5 18h22M5 18l4-3M5 18l4 3M27 18l-4-3M27 18l-4 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
-                    <span class="property-copy">Wavelength<small>crest spacing</small></span>
+                    <span class="property-copy">Wavelength<small>spacing of repeated pattern</small></span>
                     <output class="property-value" id="val-wavelength" for="slider-wavelength">200 px</output>
                 </label>
                 <input type="range" id="slider-wavelength" min="50" max="300" value="200" aria-describedby="wavelength-help">
@@ -455,6 +456,8 @@
         let highlightParticles = true;
 
         let time = 0;
+        let lastFrame = 0;
+        let animationPaused = false;
         const particles = [];
         const numRows = 7;
         const particlesPerRow = 60;
@@ -508,14 +511,16 @@
             }
         }
 
-        function animate() {
+        function animate(timestamp = performance.now()) {
             ctx.fillStyle = colorBg;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             // Update time
             // Speed of wave = frequency * wavelength
             // We adjust time increment based on frequency to make it visually pleasing
-            time += (frequency * 0.05);
+            const elapsed = lastFrame ? Math.min((timestamp - lastFrame) / 1000, 0.1) : 0;
+            lastFrame = timestamp;
+            if (!animationPaused) time += elapsed;
 
             // Calculate k (wave number) and omega (angular frequency)
             const k = (2 * Math.PI) / wavelength;
@@ -526,7 +531,7 @@
                 const p = particles[i];
 
                 // The phase of the wave at this particle's base position
-                const phase = k * p.baseX - time;
+                const phase = k * p.baseX - 2 * Math.PI * frequency * time;
 
                 if (waveType === 'transverse') {
                     // Transverse: displacement is perpendicular to propagation (y-axis)
@@ -711,6 +716,8 @@
                 highlightParticles = e.target.checked;
             });
         }
+
+        document.getElementById('toggle-animation').addEventListener('click', function() { animationPaused = !animationPaused; this.textContent = animationPaused ? 'Play animation' : 'Pause animation'; });
 
         // Initialize
         resizeCanvas();

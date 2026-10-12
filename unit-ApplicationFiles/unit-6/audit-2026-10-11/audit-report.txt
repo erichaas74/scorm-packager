@@ -1,0 +1,74 @@
+UNIT 6 APPLICATIONS: GRAPHICS AND QUESTIONS AUDIT
+Date: October 11, 2026
+Scope: All six linked assessment previews/templates, 58 imported questions, source model logic, and the Unit 6 launcher. Review only; application and assessment files were not changed.
+
+SUMMARY
+Structural validation passes, but the applications are not ready for an unqualified visual/usability pass. Prioritize Circuit Design's narrow-screen overflow and false warning, Millikan's unreachable progress, and question-answer leakage in Electromagnet. The current Electric-Field application has the cleanest initial layout.
+
+CONFIRMED FINDINGS
+
+1. P2 ? Circuit Design: phone layout expands far beyond the viewport.
+At a 390-pixel viewport, document scroll width was 1,037 pixels; circuitCanvas was approximately 1,001 pixels wide. The apparatus, mission description, and controls extend off screen. Reproduce by opening the linked assessment preview at 390 pixels. This is whole-page overflow, not merely a deliberately scrolling table.
+Source: circuit-design-challenge/u6l3-circuit-design-buzz-assessment-template.html:1134 (responsive mission rail) and :424 (work grid). Inspect grid intrinsic minimum sizing and constrain horizontal scrolling to the mission list.
+Evidence: u6-circuit-design-challenge-390.png; u6-browser-audit.json.
+Recommendation: repair responsive grid sizing, then test wiring/controls and evidence tables at 320?430 pixels.
+
+2. P2 ? Circuit Design: false short-circuit warning is visibly overlaid on the circuit.
+The initial warning element has hidden=true but computed display=flex. The stylesheet's .short-warning display rule overrides the native hidden behavior. Students see a warning even though the model is not reporting a short circuit.
+Source: circuit-design-challenge/u6l3-circuit-design-buzz-assessment-template.html:521 (.short-warning); preview element #shortWarning.
+Evidence: u6-interaction-audit.json (hidden true, display flex), mobile screenshot.
+Recommendation: enforce hidden behavior for this warning and verify a normal closed circuit, open circuit, and any supported short-circuit state independently.
+
+3. P2 ? Millikan: collecting all six drops only completes half the displayed progress.
+Using the actual atomize, voltage, and record controls recorded six distinct drops. Progress remained 'Evidence 6/6 ? Responses 0/6'; the old progress formula produces 50%. All six old response fields have zero rendered width inside a display:none section. The legacy submit button remains disabled. These are not the ten native Buzz questions, and completing native questions does not populate these fields.
+Source: millikan-oil-drop-investigation/u6l1-millikan-buzz-assessment-template.html:189, :397, :633?652.
+Evidence: u6-interaction-audit.json. Refresh retained all six recorded rows.
+Recommendation: make lab progress measure six observations only and hand off explicitly to native Buzz questions. Do not describe this as a verified failure of native Buzz submission; that was not tested.
+
+4. P2 ? Electromagnet: assessed numerical answers are already checked/revealed in the lab.
+Questions 2?6 ask for the same strength/cost ratios the application requires students to calculate before completing each trial. The local checker reports the numerical ratio on success. Question 10 also repeats the locally checked optimization calculation. This is a design/alignment issue if these questions are meant to independently assess calculation, rather than intentionally re-record previously checked work.
+Source: electromagnet-lab/electromagnet_lab.html:839?861 and :942; electromagnet_buzz_questions.txt:20?57 and :112 onward.
+Recommendation: decide where calculation is assessed. Prefer keeping observation collection in the apparatus and placing the calculation check in the native question. Preserve the approved score split.
+
+5. P2 ? Millikan: charge sign is ambiguous between the graphic and assessed notation.
+The apparatus shows a positive top plate and negative bottom plate, while the modeled electric force is upward. That combination requires a negative drop. The table and questions report positive q/e and positive charge values without consistently calling them charge magnitudes. The scaled calibration is disclosed, but that does not resolve the sign convention.
+Source: millikan-oil-drop-investigation/u6l1-millikan-buzz-assessment-template.html:469?475, :525?533, :708?714; buzz-assessment-questions.txt Q2?4 and Q7.
+Recommendation: explicitly use |q| and |q|/e for magnitude, label the drop negative, and align the table and question wording. Alternatively choose a consistently signed model.
+
+6. P2 ? Generator and Honors Motor: the apparatus is buried on phones.
+At 390 pixels, the Generator apparatus starts at y?1,266 and the Motor canvas at y?1,957. The Generator puts the full control card before the apparatus; the Motor places a long introduction, learning cards, and task choices before the simulator. Students cannot see the resulting visual while adjusting controls without repeated scrolling.
+Source: generator-design-challenge/u6l5-generator-buzz-assessment-template.html:133 (controls order:-1); honors-electric-motor-engineering-challenge/u6h-motor-buzz-assessment-template.html initial page structure.
+Evidence: corresponding 390-pixel screenshots and u6-browser-audit.json.
+Recommendation: put apparatus first, collapse optional explanations, and keep active controls next to or immediately below the apparatus.
+
+7. P3 ? Honors Motor: status overlay hides graphic annotations.
+The fixed upper-left 'Live motor state' card covers the canvas's Task and Performance text during operation. This is visible in the running screenshot and follows from drawing those labels beneath a positioned DOM overlay.
+Source: honors-electric-motor-engineering-challenge/u6h-motor-buzz-assessment-template.html:74 (overlay), :754?756 (canvas labels).
+Evidence: u6-motor-running.png.
+Recommendation: remove duplicate canvas labels or reserve a separate area for status, outside the apparatus drawing.
+
+8. P2 ? Generator: every multiple-choice answer is A with fixed order.
+All six MC questions have correct answer A and Options: MaintainOrder. Honors Motor also places six of seven MC answers at A. The Generator pattern is especially easy to exploit without understanding induction.
+Source: generator-design-challenge/buzz-assessment-questions.txt Q1?5 and Q7; honors-electric-motor-engineering-challenge/buzz-assessment-questions.txt Q1?3, Q5?8.
+Recommendation: distribute correct answer positions and strengthen distractors. Many existing distractors are obviously impossible rather than common student misconceptions. Regenerate templates/previews only after changing the authoritative question inputs.
+
+OTHER OBSERVATIONS
+- Electric-Field: desktop and phone initial layouts fit; the source includes pointer support, arrow-key movement, source cycling, and question diagrams. The four diagram-based question answer directions agree with the stated charge arrangements. This is not a certification that every challenge can be completed by keyboard.
+- Electromagnet: apparatus occupies a large canvas but the coil is small on phones; dark blue field curves have weak contrast. Improve drawing scale/contrast, especially terminal labels and field direction. Five required trial setups and native questions are identifiable.
+- Millikan: phone instrument labels are very small. Six recorded values were 200, 100, 50, 67, 40, and 33 V; rounded inferred charges appropriately cluster near integers. Evidence persistence survived refresh.
+- Generator: specified Q6 settings displayed 3.2 V and recorded 3.2 V, within the accepted 3.10?3.25 range. The legacy response badge and progress machinery remain in source but are hidden in the assessment template; unlike Millikan, no visible blocked progress was established here.
+- Questions: reviewed all 58 prompts and keys. No other clear arithmetic/key error was identified. Field Q4 is 0.006 N, Q5 is 5 N/C; circuit answers follow 9 V and 10-ohm assumptions; electromagnet ratio ranges agree with supplied rounded costs; generator numerical ranges include displayed values; motor default resistance is 1.71 ohms.
+- Avoid treating Windows console mojibake as a content defect: rendered previews showed normal minus signs and mathematical symbols.
+
+VERIFICATION
+PASS: node unit-ApplicationFiles/unit-6/validate-unit6-buzz-assessments.js (all six; 58 questions; 10 automatic + 5 BusyBee points each; scripts, links, template/preview structure).
+PASS: initial browser inspection/screenshots at 1200 and 390 pixels for all six previews.
+PASS: six-drop Millikan recording and refresh persistence; generator specified-setting readout and a recorded speed trial; circuit evidence-record button and notebook view; electromagnet test launch; motor run/baseline/trial controls.
+LIMITS: not a full end-to-end completion, keyboard, touch, reset, or persistence audit of every lab. No live Buzz import, native numeric grading, BusyBee grading, LMS submission, or screen-reader certification was performed. Preview-rendered question metadata/answer ranges were not treated as proof that native learner-facing Buzz exposes answers.
+
+RECOMMENDED ORDER
+1. Circuit overflow and false warning.
+2. Millikan progress and charge-sign wording.
+3. Electromagnet calculation/assessment alignment and Generator answer-position pattern.
+4. Generator/Motor mobile layout and Motor overlay.
+5. Remaining visual polish, followed by full keyboard/touch and live Buzz verification.

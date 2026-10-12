@@ -303,6 +303,11 @@ h3 { font-size: 1.1rem; }
 .app-view { min-height: calc(100vh - 208px); }
 .app-view[hidden] { display: none; }
 
+.bench-layout > *,
+.work-grid > *,
+.notebook-layout > *,
+.report-grid > * { min-width: 0; }
+
 .bench-layout {
   display: grid;
   grid-template-columns: 250px minmax(0, 1fr);
@@ -517,6 +522,8 @@ h3 { font-size: 1.1rem; }
   border-radius: 9px;
   font-size: 0.75rem;
 }
+
+.short-warning[hidden] { display: none; }
 
 .short-warning {
   position: absolute;
@@ -1145,6 +1152,10 @@ select {
 }
 
 @media (max-width: 650px) {
+  .card-heading { flex-wrap: wrap; }
+  .mission-brief > * { min-width: 0; }
+  .mission-list { max-width: 100%; }
+  .data-table-wrap { max-width: 100%; overflow-x: auto; }
   .site-header { grid-template-columns: 1fr; gap: 16px; }
   .header-actions { display: grid; grid-template-columns: 1fr 1fr; }
   .button-quiet-on-dark { min-height: 44px; }
@@ -1193,6 +1204,13 @@ select {
   .report-card { break-inside: avoid; box-shadow: none; }
   .summary-diagram { print-color-adjust: exact; }
 }
+
+/* Keep circuit annotations readable without covering wires or components. */
+.circuit-stage { min-height: 0; }
+.canvas-readout { position: static; max-width: none; margin: 8px 6px 6px; }
+.current-key { color: #d9e7eb; font-size: 0.75rem; padding: 0 6px; }
+.current-key span { color: #ed6d37; font-size: 1.15rem; margin-right: 5px; }
+.meter-hint { color: var(--muted); font-size: 0.78rem; line-height: 1.5; margin: 8px 0; }
 
 </style>
 
@@ -1298,6 +1316,7 @@ select {
 
                 <div class="circuit-stage">
                   <canvas id="circuitCanvas" width="920" height="500" aria-label="Interactive circuit diagram"></canvas>
+                  <div class="current-key"><span aria-hidden="true">&#10140;</span> Conventional current: + to &minus; through the circuit</div>
                   <div class="canvas-readout" id="canvasReadout" aria-live="polite">One 10 Ω bulb connected to a 9 V battery.</div>
                   <div class="short-warning" id="shortWarning" hidden>
                     <span aria-hidden="true">!</span>
@@ -1358,7 +1377,8 @@ select {
                       <button class="meter-button" type="button" data-meter="voltmeter" aria-pressed="false">V <span>Voltmeter</span></button>
                     </div>
                     <label class="select-label" for="meterLocation">Measurement location</label>
-                    <select id="meterLocation"></select>
+                    <select id="meterLocation" aria-describedby="meterHint"></select>
+                    <p class="meter-hint" id="meterHint"></p>
                     <div class="meter-readout">
                       <span id="meterLabel">Current near battery</span>
                       <strong id="meterReading">0.90 A</strong>
@@ -1893,6 +1913,13 @@ select {
     state.meterLocation = state.meter === "ammeter" ? "battery" : "battery-voltage";
     saveState();
     renderBench();
+    const list = $("#missionList");
+    const active = $(".mission-button.active", list);
+    if (active && list.scrollWidth > list.clientWidth) {
+      const item = active.getBoundingClientRect();
+      const bounds = list.getBoundingClientRect();
+      list.scrollLeft += item.left - bounds.left - (list.clientWidth - item.width) / 2;
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
     $("#briefTitle").focus?.({ preventScroll: true });
   }
@@ -1994,6 +2021,9 @@ select {
       button.classList.toggle("active", active);
       button.setAttribute("aria-pressed", String(active));
     });
+    $("#meterHint").textContent = state.meter === "ammeter"
+      ? "Current through the selected wire or branch. Connect a real ammeter in series."
+      : "Potential difference across the selected component. Connect a real voltmeter in parallel.";
     const options = meterOptions();
     if (!options.some(([value]) => value === state.meterLocation)) state.meterLocation = options[0][0];
     $("#meterLocation").innerHTML = options.map(([value, label]) => `<option value="${value}" ${value === state.meterLocation ? "selected" : ""}>${label}</option>`).join("");
@@ -2035,10 +2065,10 @@ select {
     $("#canvasReadout").textContent = `${topologyLabel(result.topology)} · ${descriptions.join(" · ")}`;
     const canvas = $("#circuitCanvas");
     canvas.setAttribute("aria-label", `${topologyLabel(result.topology)} circuit with ${missions[state.mission].bulbs} bulbs. ${descriptions.join(". ")}. Total current ${format(result.totalCurrent)} amperes.`);
-    drawCircuit(canvas, result, true);
+    drawCircuit(canvas, result);
   }
 
-  function drawCircuit(canvas, result, showMeter) {
+  function drawCircuit(canvas, result) {
     const context = canvas.getContext("2d");
     const width = canvas.width;
     const height = canvas.height;
@@ -2173,8 +2203,12 @@ select {
       text(label, x + (vertical ? 28 : 0), y + (vertical ? 1 : -28), 12, vertical ? "left" : "center", colors.muted, 800);
     }
 
-    function arrow(x, y, direction = 1) {
+    function arrow(x, y, direction = 1, vertical = false) {
       context.save();
+      context.translate(x, y);
+      if (vertical) context.rotate(Math.PI / 2);
+      x = 0;
+      y = 0;
       context.fillStyle = colors.orange;
       context.beginPath();
       if (direction > 0) {
@@ -2187,19 +2221,13 @@ select {
       context.restore();
     }
 
-    function meter(x, y) {
-      const value = getMeterValue();
+    function junction(x, y) {
       context.save();
-      context.fillStyle = "#f6f2e8";
-      context.strokeStyle = colors.orange;
-      context.lineWidth = 5;
+      context.fillStyle = colors.label;
       context.beginPath();
-      context.arc(x, y, 45, 0, Math.PI * 2);
+      context.arc(x, y, 7, 0, Math.PI * 2);
       context.fill();
-      context.stroke();
       context.restore();
-      text(state.meter === "ammeter" ? "A" : "V", x, y - 11, 22, "center", colors.dark, 950);
-      text(`${format(value.value)} ${value.unit}`, x, y + 15, 12, "center", colors.dark, 900);
     }
 
     const left = 150;
@@ -2231,7 +2259,8 @@ select {
         line([[x, top], [x, bottom]], hot);
         if (missions[state.mission].switches) circuitSwitch(x, 160, result.switches[index], `S${index + 1}`);
         bulb(x, 270, index);
-        if (hot) arrow(x, 210, 1);
+        [top, bottom].forEach(y => junction(x, y));
+        if (hot) arrow(x, 210, 1, true);
       });
       if (result.closed) {
         arrow(width * 0.29, top, 1);
@@ -2248,6 +2277,10 @@ select {
       const branchTwoX = width * 0.72;
       line([[branchOneX, top], [branchOneX, bottom]], result.currents[0] > 0);
       line([[branchTwoX, top], [branchTwoX, bottom]], result.currents[1] > 0);
+      [branchOneX, branchTwoX].forEach(x => [top, bottom].forEach(y => junction(x, y)));
+      if (result.currents[0] > 0) arrow(branchOneX, 205, 1, true);
+      if (result.currents[1] > 0) arrow(branchTwoX, 195, 1, true);
+      if (result.closed) arrow(width * 0.27, bottom, -1);
       circuitSwitch(branchOneX, 150, result.switches[0], "S1");
       circuitSwitch(branchTwoX, 150, result.switches[1], "S2");
       bulb(branchOneX, 270, 0);
@@ -2257,7 +2290,7 @@ select {
       if (result.closed) arrow(width * 0.27, top, 1);
     }
 
-    if (showMeter) meter(width - 115, height - 62);
+
   }
 
   function liveEvidence() {
@@ -2470,7 +2503,7 @@ select {
   function renderReport() {
     const finalResult = calculate(7, { connected: [true, true, true], switches: [true, true, true] });
     const requirements = finalRequirements(finalResult.topology);
-    drawCircuit($("#reportCanvas"), finalResult, false);
+    drawCircuit($("#reportCanvas"), finalResult);
     $("#summaryList").innerHTML = [
       ["Arrangement", topologyLabel(finalResult.topology)],
       ["Source", `${format(finalResult.voltage, 1)} V battery`],
@@ -2517,6 +2550,13 @@ select {
     });
     if (view === "notebook") renderNotebook();
     if (view === "report") renderReport();
+    const list = $("#missionList");
+    const active = $(".mission-button.active", list);
+    if (active && list.scrollWidth > list.clientWidth) {
+      const item = active.getBoundingClientRect();
+      const bounds = list.getBoundingClientRect();
+      list.scrollLeft += item.left - bounds.left - (list.clientWidth - item.width) / 2;
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 

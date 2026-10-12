@@ -626,7 +626,7 @@
 
     @media (max-width: 820px) {
       .part-layout {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
       }
     }
 
@@ -667,11 +667,11 @@
 
     @media (max-width: 1120px) {
       .topbar {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
       }
 
       .main-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
       }
 
       #graphCanvas,
@@ -698,7 +698,23 @@
         padding: 10px;
       }
     }
-  </style>
+  /* phone-input-sizing: avoid double-tap zoom and focus zoom on controls. */
+button, select, input, textarea { touch-action: manipulation; }
+@media (max-width: 600px) {
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px; }
+}
+.main-grid > *, .part-layout > *, .part-canvas-wrap { min-width: 0; }
+@media (max-width: 600px) {
+  .part-controls input { max-width: 100%; }
+  .part-controls label { min-width: 0; max-width: 100%; }
+  .part-graph-row, .graph-row { flex-wrap: wrap; }
+  .part-sim-canvas { height: auto !important; aspect-ratio: 900 / 520; }
+  .part-stage .canvas-controls { position: static; margin-top: 8px; }
+  .part-graph-canvas { height: 250px !important; }
+  .part-vel-canvas { height: 250px !important; }
+  .part-graph-canvas { flex-basis: 100%; }
+}
+</style>
 </head>
 <body>
   <!-- Start overlay -->
@@ -978,7 +994,7 @@
 
     function resizeCanvasToDisplay(canvasEl, context) {
       const rect = canvasEl.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const width = Math.max(1, Math.floor(rect.width * dpr));
       const height = Math.max(1, Math.floor(rect.height * dpr));
       if (canvasEl.width !== width || canvasEl.height !== height) {
@@ -1711,14 +1727,33 @@
     }
 
     /* ── Main loop ─────────────────────────────────────────── */
+
+    function createPaintGate() {
+      var dirty = true;
+      function invalidate() { dirty = true; }
+      ['input', 'change', 'click', 'pointerdown', 'pointermove', 'pointerup', 'pointercancel'].forEach(function(type) {
+        document.addEventListener(type, invalidate, { capture: true, passive: true });
+      });
+      window.addEventListener('resize', invalidate);
+      document.addEventListener('visibilitychange', invalidate);
+      return function(active) {
+        var paint = dirty || active;
+        dirty = false;
+        return paint && !document.hidden;
+      };
+    }
+    const needsPaint = createPaintGate();
     let lastFrame = performance.now();
     function loop(now) {
       const dt = Math.min(0.05, (now - lastFrame) / 1000);
       lastFrame = now;
-      updatePhysics(now, dt);
-      drawScene();
-      drawGraph();
-      drawVelMeter();
+      const paint = needsPaint(state.sim.mode !== 'idle' || state.sim.velocity > 0);
+      if (paint) {
+        updatePhysics(now, dt);
+        drawScene();
+        drawGraph();
+        drawVelMeter();
+      }
       requestAnimationFrame(loop);
     }
 
@@ -2084,14 +2119,16 @@
           state.position = 0;
         }
 
+        const needsFocusedPaint = createPaintGate();
         function frame(now) {
+          if (!needsFocusedPaint(state.running)) { requestAnimationFrame(frame); return; }
           let force = 0;
           if (state.running) {
             const elapsed = (now - state.startedAt) / 1000;
             const data = metrics();
             force = elapsed < 2.6 ? (elapsed / 2.6) * data.peak * 1.04 : data.kinetic;
             if (elapsed > 5.8) state.running = false;
-            if (elapsed > 2.6) state.position = Math.min(330, state.position + 1.2);
+            if (elapsed > 2.6) state.position = Math.min(330, (elapsed - 2.6) * 72);
             const previous = state.points[state.points.length - 1];
             if (!previous || elapsed - previous.time > 0.06) {
               const motion = elapsed < 2.6 ? 'stuck' : (Math.abs(force - data.kinetic) < 0.8 ? 'constant' : 'speeding');
