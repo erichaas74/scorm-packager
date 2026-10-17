@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wireless Communications Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        :root {
+            --ink: #18324a;
+            --muted: #5f7284;
+            --panel: #ffffff;
+            --line: #d7e2ea;
+            --sky: #eef7fc;
+            --soft: #f7fbfe;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: manipulation;
+            background: linear-gradient(180deg, #f8fcff 0%, #eaf4fa 100%);
+            color: var(--ink);
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.35s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .dropzone {
+            min-height: 120px;
+            transition: all 0.25s ease;
+        }
+        .dropzone.dragover {
+            background-color: rgba(14, 165, 233, 0.09);
+            border-color: #38bdf8 !important;
+            transform: scale(1.01);
+        }
+        .tech-item {
+            cursor: grab;
+            user-select: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 10px rgba(66, 96, 117, 0.12);
+        }
+        .tech-item:active { cursor: grabbing; }
+        .tech-btn {
+            border: 1px solid #cbdce7;
+            background: #fff;
+            color: #23435c;
+            box-shadow: 0 3px 8px rgba(48,83,105,.08);
+            transition: all 0.2s ease;
+        }
+        .tech-btn:hover {
+            background: #f1f8fc;
+            border-color: #82b6d7;
+            transform: translateY(-2px);
+        }
+        .tech-btn:disabled {
+            opacity: 0.5;
+            transform: none;
+            cursor: not-allowed;
+        }
+        .metric {
+            background: #f7fbfd;
+            border: 1px solid #d9e7ef;
+        }
+        .stage-dot.done {
+            background-color: #0ea5e9;
+        }
+        .spectrum-bar {
+            background: linear-gradient(90deg,
+                #ef4444 0%,
+                #f97316 18%,
+                #facc15 38%,
+                #22c55e 55%,
+                #3b82f6 75%,
+                #8b5cf6 100%
+            );
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4 sm:p-8">
+
+    <div id="app-container" class="w-full max-w-6xl bg-white rounded-3xl shadow-xl p-5 sm:p-7 border border-slate-200 relative overflow-hidden">
+
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 border-b border-slate-200 pb-4 mb-6">
+            <div>
+                <div class="text-xs font-bold tracking-[.18em] uppercase text-sky-600">Wireless Communications Lab</div>
+                <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-800">Connection Protocol Lab</h2>
+                <p class="text-slate-500 mt-1">Explore electromagnetic communication methods, sort them on the spectrum, and choose the best connection for each situation.</p>
+            </div>
+            <div class="flex items-center gap-3 sm:gap-4">
+                <div id="score-container" class="hidden text-lg font-bold bg-sky-50 text-slate-700 px-4 py-2 rounded-xl border border-sky-100">
+                    Score: <span id="score" class="text-emerald-600">0</span> / <span id="score-total">6</span>
+                </div>
+                <div id="progress-container" class="flex gap-2 items-center">
+                    <div class="w-3 h-3 rounded-full bg-slate-300 stage-dot done" id="dot-0"></div>
+                    <div class="w-3 h-3 rounded-full bg-slate-300 stage-dot" id="dot-1"></div>
+                    <div class="w-3 h-3 rounded-full bg-slate-300 stage-dot" id="dot-2"></div>
+                    <div class="w-3 h-3 rounded-full bg-slate-300 stage-dot" id="dot-3"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STAGE 0 -->
+        <div id="stage-0" class="stage-view animate-fade-in">
+            <div class="bg-sky-50 border border-sky-100 p-6 rounded-2xl text-center shadow-sm mb-6">
+                <h3 class="text-xl sm:text-2xl font-semibold mb-4 text-slate-800">Before the scenarios...</h3>
+                <p class="text-lg text-slate-600 mb-6">Which of these communication technologies uses <strong>electromagnetic waves</strong> to transmit information?</p>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+                    <button onclick="checkInitialAnswer('Bluetooth')" class="tech-btn font-semibold py-3 px-4 rounded-xl">Bluetooth</button>
+                    <button onclick="checkInitialAnswer('Wi-Fi')" class="tech-btn font-semibold py-3 px-4 rounded-xl">Wi-Fi</button>
+                    <button onclick="checkInitialAnswer('Cellular')" class="tech-btn font-semibold py-3 px-4 rounded-xl">Cellular</button>
+                    <button onclick="checkInitialAnswer('Satellite')" class="tech-btn font-semibold py-3 px-4 rounded-xl">Satellite</button>
+                    <button onclick="checkInitialAnswer('Fiber Optic')" class="tech-btn font-semibold py-3 px-4 rounded-xl">Fiber Optic</button>
+                    <button onclick="checkInitialAnswer('TV Remote')" class="tech-btn font-semibold py-3 px-4 rounded-xl">TV Remote</button>
+                </div>
+                <button onclick="checkInitialAnswer('All')" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-4 px-4 rounded-xl transition shadow-sm text-lg border border-sky-500">All of them!</button>
+            </div>
+
+            <div id="stage-0-feedback" class="hidden bg-emerald-50 border border-emerald-300 p-6 rounded-2xl text-center">
+                <h4 class="text-xl font-bold text-emerald-700 mb-2">Correct!</h4>
+                <p class="text-lg text-slate-700 mb-6">Bluetooth, Wi-Fi, cellular, satellite, fiber optic, and TV remotes all use electromagnetic waves. Some move through air, and some travel through materials like glass fiber.</p>
+                <button onclick="nextStage(1)" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-xl transition">Learn How They Differ &rarr;</button>
+            </div>
+
+            <div id="stage-0-hint" class="hidden bg-amber-50 border border-amber-300 p-4 rounded-2xl text-center text-amber-800 mt-4">
+                That technology does use EM waves, but is it the only one? Try again.
+            </div>
+        </div>
+
+        <!-- STAGE 1 -->
+        <div id="stage-1" class="stage-view hidden animate-fade-in">
+            <h3 class="text-2xl font-bold text-center mb-4 text-slate-800">How are they different?</h3>
+            <p class="text-lg text-center text-slate-600 mb-6 max-w-4xl mx-auto">
+                Electromagnetic communication systems differ mainly in <strong>frequency</strong> and <strong>wavelength</strong>. Lower frequencies often travel farther, while higher frequencies can carry more information but are easier to block.
+            </p>
+
+            <div class="w-full h-56 sm:h-72 bg-[#f5fafc] rounded-2xl overflow-hidden mb-6 border border-slate-200 relative shadow-inner">
+                <canvas id="waveCanvas" class="absolute top-0 left-0 w-full h-full"></canvas>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+                <div class="bg-red-50 border border-red-200 p-4 rounded-xl border-l-4 border-red-400">
+                    <h4 class="font-bold text-red-500 mb-1">Lower Frequency • Longer Wavelength</h4>
+                    <p class="text-sm text-slate-600">These waves tend to travel farther and pass through obstacles better, but usually carry less data per second.</p>
+                </div>
+                <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl border-l-4 border-blue-400">
+                    <h4 class="font-bold text-blue-500 mb-1">Higher Frequency • Shorter Wavelength</h4>
+                    <p class="text-sm text-slate-600">These waves can carry lots of data quickly, but they usually have shorter range and are blocked more easily.</p>
+                </div>
+            </div>
+
+            <button onclick="nextStage(2)" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-4 rounded-xl transition text-lg">See the Spectrum &rarr;</button>
+        </div>
+
+        <!-- STAGE 2 -->
+        <div id="stage-2" class="stage-view hidden animate-fade-in flex flex-col h-full">
+            <h3 class="text-2xl font-bold text-center mb-2 text-slate-800">The Electromagnetic Spectrum</h3>
+            <p class="text-center text-slate-600 mb-6 max-w-4xl mx-auto">
+                Drag and drop, or tap and place, each communication technology into the spectrum band it uses most directly.
+            </p>
+
+            <div id="tech-bank" class="bg-slate-50 p-4 rounded-2xl min-h-[88px] flex flex-wrap gap-3 justify-center mb-6 border-2 border-dashed border-slate-300 items-center dropzone" ondragover="allowDrop(event)" ondrop="drop(event)">
+                <div id="tech-bt" class="tech-item bg-indigo-500 text-white font-bold py-2 px-4 rounded-full" draggable="true" ondragstart="drag(event)" onclick="selectItem(this)">📱 Bluetooth</div>
+                <div id="tech-wifi" class="tech-item bg-sky-500 text-white font-bold py-2 px-4 rounded-full" draggable="true" ondragstart="drag(event)" onclick="selectItem(this)">💻 Wi-Fi</div>
+                <div id="tech-cell" class="tech-item bg-purple-500 text-white font-bold py-2 px-4 rounded-full" draggable="true" ondragstart="drag(event)" onclick="selectItem(this)">🗼 Cellular</div>
+                <div id="tech-sat" class="tech-item bg-amber-500 text-white font-bold py-2 px-4 rounded-full" draggable="true" ondragstart="drag(event)" onclick="selectItem(this)">🛰️ Satellite</div>
+                <div id="tech-fiber" class="tech-item bg-cyan-500 text-white font-bold py-2 px-4 rounded-full" draggable="true" ondragstart="drag(event)" onclick="selectItem(this)">🔦 Fiber Optic</div>
+                <div id="tech-ir" class="tech-item bg-rose-500 text-white font-bold py-2 px-4 rounded-full" draggable="true" ondragstart="drag(event)" onclick="selectItem(this)">📺 TV Remote</div>
+            </div>
+
+            <div class="spectrum-bar rounded-2xl p-1 shadow-lg mb-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-1 bg-white rounded-xl p-2 h-full">
+                    <div id="zone-radio" class="dropzone flex flex-col items-center p-3 rounded-xl border-2 border-slate-200 hover:border-slate-400 bg-slate-50/90" ondragover="allowDrop(event)" ondrop="drop(event)" onclick="handleZoneClick(this)">
+                        <span class="text-red-500 font-bold mb-1 text-center">Radio Waves</span>
+                        <span class="text-xs text-slate-500 mb-3 text-center">Lower-frequency wireless communication</span>
+                        <div class="flex-grow w-full flex flex-wrap gap-2 justify-center items-start content-start min-h-[60px]"></div>
+                    </div>
+
+                    <div id="zone-micro" class="dropzone flex flex-col items-center p-3 rounded-xl border-2 border-slate-200 hover:border-slate-400 bg-slate-50/90" ondragover="allowDrop(event)" ondrop="drop(event)" onclick="handleZoneClick(this)">
+                        <span class="text-orange-500 font-bold mb-1 text-center">Microwaves</span>
+                        <span class="text-xs text-slate-500 mb-3 text-center">Higher-frequency radio used for many wireless links</span>
+                        <div class="flex-grow w-full flex flex-wrap gap-2 justify-center items-start content-start min-h-[60px]"></div>
+                    </div>
+
+                    <div id="zone-ir" class="dropzone flex flex-col items-center p-3 rounded-xl border-2 border-slate-200 hover:border-slate-400 bg-slate-50/90" ondragover="allowDrop(event)" ondrop="drop(event)" onclick="handleZoneClick(this)">
+                        <span class="text-yellow-600 font-bold mb-1 text-center">Infrared</span>
+                        <span class="text-xs text-slate-500 mb-3 text-center">Short-range light just beyond red</span>
+                        <div class="flex-grow w-full flex flex-wrap gap-2 justify-center items-start content-start min-h-[60px]"></div>
+                    </div>
+
+                    <div id="zone-visible" class="dropzone flex flex-col items-center p-3 rounded-xl border-2 border-slate-200 hover:border-slate-400 bg-slate-50/90" ondragover="allowDrop(event)" ondrop="drop(event)" onclick="handleZoneClick(this)">
+                        <span class="text-green-500 font-bold mb-1 text-center">Visible Light</span>
+                        <span class="text-xs text-slate-500 mb-3 text-center">The light band humans can see</span>
+                        <div class="flex-grow w-full flex flex-wrap gap-2 justify-center items-start content-start min-h-[60px]"></div>
+                    </div>
+
+                    <div id="zone-xray" class="dropzone flex flex-col items-center p-3 rounded-xl border-2 border-slate-200 hover:border-slate-400 bg-slate-50/90" ondragover="allowDrop(event)" ondrop="drop(event)" onclick="handleZoneClick(this)">
+                        <span class="text-purple-500 font-bold mb-1 text-center">X-Rays & Gamma Rays</span>
+                        <span class="text-xs text-slate-500 mb-3 text-center">Very high energy • not used for everyday communication</span>
+                        <div class="flex-grow w-full flex flex-wrap gap-2 justify-center items-start content-start min-h-[60px]"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="dnd-feedback" class="text-center min-h-[40px] text-slate-600 font-medium mb-4"></div>
+
+            <div id="dnd-success" class="hidden text-center mt-auto">
+                <div class="bg-emerald-50 border border-emerald-300 p-4 rounded-2xl mb-4">
+                    <p class="text-emerald-700 font-bold">Great job!</p>
+                    <p class="text-sm text-slate-700">Cellular is placed in radio waves. Bluetooth, Wi-Fi, and satellite are placed in the microwave region. TV remotes use infrared light, and fiber-optic systems are placed in the visible-light band for this activity.</p>
+                </div>
+                <button onclick="nextStage(3)" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl transition text-lg shadow-sm">Start the Scenarios Lab &rarr;</button>
+            </div>
+        </div>
+
+        <!-- STAGE 3 -->
+        <div id="stage-3" class="stage-view hidden animate-fade-in">
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-4 text-sm">
+                <div class="metric rounded-xl p-3"><div class="font-bold text-indigo-700">Bluetooth</div><div class="text-slate-600 mt-1">Best within about 10 m. Nearby personal devices.</div></div>
+                <div class="metric rounded-xl p-3"><div class="font-bold text-sky-700">Wi-Fi</div><div class="text-slate-600 mt-1">Best across a room, home, or building near a router.</div></div>
+                <div class="metric rounded-xl p-3"><div class="font-bold text-purple-700">Cellular</div><div class="text-slate-600 mt-1">Best across kilometers while moving through tower coverage.</div></div>
+                <div class="metric rounded-xl p-3"><div class="font-bold text-amber-700">Satellite</div><div class="text-slate-600 mt-1">Best for remote locations with no nearby ground network.</div></div>
+                <div class="metric rounded-xl p-3"><div class="font-bold text-cyan-700">Fiber Optic</div><div class="text-slate-600 mt-1">Best for huge amounts of data over long distances through cable.</div></div>
+                <div class="metric rounded-xl p-3"><div class="font-bold text-rose-700">TV Remote</div><div class="text-slate-600 mt-1">Best over a few meters with a clear line of sight.</div></div>
+            </div>
+
+            <div class="text-center text-slate-600 font-medium mb-3">Use the distance and situation to choose the connection that would work best.</div>
+            <div id="scenario-box" class="bg-sky-50 border border-sky-100 p-5 rounded-2xl text-lg sm:text-xl font-semibold text-center min-h-[96px] flex items-center justify-center mb-5">Loading scenario...</div>
+
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-5" id="btn-group">
+                <button onclick="checkScenarioAnswer('Bluetooth')" class="tech-btn rounded-xl py-3 px-3 font-bold transition">Bluetooth</button>
+                <button onclick="checkScenarioAnswer('Wi-Fi')" class="tech-btn rounded-xl py-3 px-3 font-bold transition">Wi-Fi</button>
+                <button onclick="checkScenarioAnswer('Cellular')" class="tech-btn rounded-xl py-3 px-3 font-bold transition">Cellular</button>
+                <button onclick="checkScenarioAnswer('Satellite')" class="tech-btn rounded-xl py-3 px-3 font-bold transition">Satellite</button>
+                <button onclick="checkScenarioAnswer('Fiber Optic')" class="tech-btn rounded-xl py-3 px-3 font-bold transition">Fiber Optic</button>
+                <button onclick="checkScenarioAnswer('TV Remote')" class="tech-btn rounded-xl py-3 px-3 font-bold transition">TV Remote</button>
+            </div>
+
+            <div id="canvas-container" class="w-full h-[330px] sm:h-[390px] bg-[#f5fafc] rounded-2xl overflow-hidden mb-5 border border-slate-200 relative shadow-inner">
+                <canvas id="simCanvas" class="absolute inset-0 w-full h-full"></canvas>
+            </div>
+
+            <div id="feedback-panel" class="hidden p-5 rounded-2xl border shadow-sm bg-white">
+                <h3 id="feedback-title" class="text-xl font-extrabold mb-2"></h3>
+                <p id="feedback-text" class="text-slate-600 mb-4"></p>
+                <div id="metrics-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5"></div>
+                <button id="next-scenario-btn" onclick="nextScenario()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-4 rounded-xl transition">
+                    Next Scenario
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global State
+        let currentStage = 0;
+
+        // Navigation
+        function nextStage(stageIndex) {
+            document.querySelectorAll('.stage-view').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`stage-${stageIndex}`).classList.remove('hidden');
+
+            document.querySelectorAll('.stage-dot').forEach((dot, index) => {
+                if (index <= stageIndex) dot.classList.add('done');
+            });
+
+            currentStage = stageIndex;
+
+            if (stageIndex === 1) {
+                initWaveCanvas();
+            } else {
+                cancelAnimationFrame(waveAnimId);
+            }
+
+            if (stageIndex === 3) {
+                document.getElementById('score-container').classList.remove('hidden');
+                document.getElementById('progress-container').classList.add('hidden');
+                initScenarioLab();
+            }
+        }
+
+        // Stage 0
+        function checkInitialAnswer(choice) {
+            const hint = document.getElementById('stage-0-hint');
+            const feedback = document.getElementById('stage-0-feedback');
+            if (choice === 'All') {
+                hint.classList.add('hidden');
+                feedback.classList.remove('hidden');
+            } else {
+                hint.classList.remove('hidden');
+                feedback.classList.add('hidden');
+            }
+        }
+
+        // Stage 1 wave canvas
+        const waveCanvas = document.getElementById('waveCanvas');
+        const waveCtx = waveCanvas.getContext('2d');
+        let waveAnimId;
+        let waveTime = 0;
+
+        function initWaveCanvas() {
+            resizeWaveCanvas();
+            drawWaves();
+        }
+
+        function resizeWaveCanvas() {
+            if (currentStage !== 1) return;
+            const dpr = window.devicePixelRatio || 1;
+            const container = waveCanvas.parentElement;
+            waveCanvas.width = container.clientWidth * dpr;
+            waveCanvas.height = container.clientHeight * dpr;
+            waveCanvas.style.width = container.clientWidth + 'px';
+            waveCanvas.style.height = container.clientHeight + 'px';
+            waveCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+
+        function drawWaveGrid(ctx, w, h) {
+            ctx.fillStyle = '#f6fbfd';
+            ctx.fillRect(0, 0, w, h);
+            ctx.strokeStyle = '#dcebf2';
+            ctx.lineWidth = 1;
+            for (let x = 25; x < w; x += 40) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+            }
+            for (let y = 25; y < h; y += 40) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+            }
+        }
+
+        function drawWaves() {
+            if (currentStage !== 1) return;
+            waveTime += 0.05;
+            const w = waveCanvas.parentElement.clientWidth;
+            const h = waveCanvas.parentElement.clientHeight;
+            waveCtx.clearRect(0, 0, w, h);
+            drawWaveGrid(waveCtx, w, h);
+
+            waveCtx.strokeStyle = '#ef4444';
+            waveCtx.lineWidth = 4;
+            waveCtx.beginPath();
+            for (let x = 0; x < w; x++) {
+                const y = Math.sin((x * 0.018) - waveTime) * 28 + h * 0.28;
+                x === 0 ? waveCtx.moveTo(x, y) : waveCtx.lineTo(x, y);
+            }
+            waveCtx.stroke();
+
+            waveCtx.strokeStyle = '#0ea5e9';
+            waveCtx.lineWidth = 4;
+            waveCtx.beginPath();
+            for (let x = 0; x < w; x++) {
+                const y = Math.sin((x * 0.075) - (waveTime * 3)) * 28 + h * 0.72;
+                x === 0 ? waveCtx.moveTo(x, y) : waveCtx.lineTo(x, y);
+            }
+            waveCtx.stroke();
+
+            waveCtx.fillStyle = '#ef4444';
+            waveCtx.font = '700 16px Inter';
+            waveCtx.fillText('Low frequency / long wavelength', 20, 28);
+            waveCtx.fillStyle = '#0ea5e9';
+            waveCtx.fillText('High frequency / short wavelength', 20, h * 0.52 + 20);
+
+            waveCtx.strokeStyle = '#64748b';
+            waveCtx.lineWidth = 2;
+            waveCtx.beginPath();
+            waveCtx.moveTo(w * 0.12, h * 0.42);
+            waveCtx.lineTo(w * 0.4, h * 0.42);
+            waveCtx.stroke();
+            waveCtx.fillStyle = '#475569';
+            waveCtx.font = '600 13px Inter';
+            waveCtx.fillText('longer wavelength', w * 0.26, h * 0.42 - 10);
+
+            waveCtx.beginPath();
+            waveCtx.moveTo(w * 0.12, h * 0.86);
+            waveCtx.lineTo(w * 0.22, h * 0.86);
+            waveCtx.stroke();
+            waveCtx.fillText('shorter wavelength', w * 0.19, h * 0.86 - 10);
+
+            waveAnimId = requestAnimationFrame(drawWaves);
+        }
+
+        window.addEventListener('resize', () => {
+            resizeWaveCanvas();
+            resizeSimCanvas();
+        });
+
+        // Stage 2 drag drop
+        let selectedTechElement = null;
+        const correctZones = {
+            'tech-bt': 'zone-micro',
+            'tech-wifi': 'zone-micro',
+            'tech-cell': 'zone-radio',
+            'tech-sat': 'zone-micro',
+            'tech-fiber': 'zone-visible',
+            'tech-ir': 'zone-ir'
+        };
+
+        function drag(ev) {
+            ev.dataTransfer.setData('text', ev.target.id);
+            ev.target.classList.add('opacity-50');
+        }
+
+        function allowDrop(ev) {
+            ev.preventDefault();
+            const zone = ev.target.closest('.dropzone');
+            if (zone) zone.classList.add('dragover');
+        }
+
+        function drop(ev) {
+            ev.preventDefault();
+            document.querySelectorAll('.dropzone').forEach(el => el.classList.remove('dragover'));
+            const data = ev.dataTransfer.getData('text');
+            const draggedElement = document.getElementById(data);
+            if (draggedElement) draggedElement.classList.remove('opacity-50');
+            const dropZone = ev.target.closest('.dropzone');
+            if (draggedElement && dropZone) processItemPlacement(draggedElement, dropZone);
+        }
+
+        function selectItem(element) {
+            if (selectedTechElement) selectedTechElement.classList.remove('ring-4', 'ring-sky-400', 'scale-110');
+            selectedTechElement = element;
+            selectedTechElement.classList.add('ring-4', 'ring-sky-400', 'scale-110');
+            document.getElementById('dnd-feedback').innerText = 'Now tap a spectrum section to place it.';
+        }
+
+        function handleZoneClick(zoneElement) {
+            if (!selectedTechElement) return;
+            processItemPlacement(selectedTechElement, zoneElement);
+            selectedTechElement.classList.remove('ring-4', 'ring-sky-400', 'scale-110');
+            selectedTechElement = null;
+        }
+
+        function processItemPlacement(item, zone) {
+            const feedback = document.getElementById('dnd-feedback');
+            const itemId = item.id;
+            const correctZone = correctZones[itemId];
+
+            if (zone.id === 'tech-bank') {
+                zone.appendChild(item);
+                feedback.innerText = '';
+                return;
+            }
+
+            if (zone.id === correctZone) {
+                zone.querySelector('div').appendChild(item);
+                feedback.innerText = 'Placed correctly.';
+                feedback.className = 'text-center min-h-[40px] text-emerald-600 font-medium mb-4';
+                checkDragSuccess();
+            } else {
+                feedback.innerText = 'Not quite. Decide whether it fits radio waves, microwaves, infrared, visible light, or the X-ray/gamma region.';
+                feedback.className = 'text-center min-h-[40px] text-amber-600 font-medium mb-4';
+            }
+        }
+
+        function checkDragSuccess() {
+            let placedCount = 0;
+            Object.keys(correctZones).forEach(id => {
+                const item = document.getElementById(id);
+                if (item && item.parentElement && item.parentElement.parentElement) {
+                    const zone = item.parentElement.parentElement.id;
+                    if (zone === correctZones[id]) placedCount++;
+                }
+            });
+            if (placedCount === Object.keys(correctZones).length) {
+                document.getElementById('dnd-success').classList.remove('hidden');
+                document.getElementById('dnd-feedback').innerText = '';
+            } else {
+                document.getElementById('dnd-success').classList.add('hidden');
+            }
+        }
+
+        document.addEventListener('dragend', (e) => {
+            if (e.target.classList) e.target.classList.remove('opacity-50');
+            document.querySelectorAll('.dropzone').forEach(el => el.classList.remove('dragover'));
+        });
+        document.addEventListener('dragleave', (e) => {
+            const zone = e.target.closest('.dropzone');
+            if (zone) zone.classList.remove('dragover');
+        });
+
+        // Stage 3 scenario lab
+        const simCanvas = document.getElementById('simCanvas');
+        const simCtx = simCanvas.getContext('2d');
+        const simContainer = document.getElementById('canvas-container');
+        let simAnimId;
+        let simTime = 0;
+        let currentScenarioIndex = 0;
+        let score = 0;
+        let simState = 'idle';
+        let currentTech = '';
+
+        const scenarios = [
+            {
+                text: 'Situation 1: Two portable devices need to exchange audio data while they stay about 1 meter apart. The connection should use very little power and should not require a router or cable.',
+                bestFit: 'Bluetooth',
+                metrics: { range: 'Short', signal: 'Radio waves', infrastructure: 'Direct device-to-device', bestUse: 'Low-power nearby devices' },
+                explanation: 'Bluetooth is designed for short-range, low-power connections such as phones, earbuds, keyboards, and controllers.'
+            },
+            {
+                text: 'Situation 2: A device is about 12 meters from a network connection inside a house. It needs fast internet access and can connect through equipment already installed in the building.',
+                bestFit: 'Wi-Fi',
+                metrics: { range: 'Room / building', signal: 'Radio waves', infrastructure: 'Wireless router', bestUse: 'High-data local networking' },
+                explanation: 'Wi-Fi is a strong choice for high-data wireless communication inside a home, school, or other local network.'
+            },
+            {
+                text: 'Situation 3: A device needs continuous internet while traveling 100 kilometers down a highway. It will move far beyond the range of any single home or school network.',
+                bestFit: 'Cellular',
+                metrics: { range: 'Many kilometers', signal: 'Radio / microwaves', infrastructure: 'Cell towers + network', bestUse: 'Mobile wide-area coverage' },
+                explanation: 'Cellular networks keep mobile devices connected by passing the connection from one cell tower coverage area to another.'
+            },
+            {
+                text: 'Situation 4: A research station is more than 1,000 kilometers from the nearest city and has no nearby cables, routers, or cell towers. It still needs to send data to another part of the world.',
+                bestFit: 'Satellite',
+                metrics: { range: 'Global', signal: 'Microwaves / radio', infrastructure: 'Satellite + ground station', bestUse: 'Remote long-distance links' },
+                explanation: 'Satellite communication is useful when ground-based infrastructure is unavailable, such as far offshore or in very remote locations.'
+            },
+            {
+                text: 'Situation 5: Two network centers 300 kilometers apart must exchange extremely large amounts of data with very high speed and low signal loss. A physical connection can be installed between them.',
+                bestFit: 'Fiber Optic',
+                metrics: { range: 'Long distance', signal: 'Pulses of light', infrastructure: 'Glass/plastic fiber cable', bestUse: 'Very high-speed data links' },
+                explanation: 'Fiber-optic cables carry encoded pulses of light through thin transparent fibers. They can move huge amounts of information quickly over long distances.'
+            },
+            {
+                text: 'Situation 6: A handheld controller is 4 meters from a receiver. It only needs to send small commands, works best when pointed toward the receiver, and does not need to pass through walls.',
+                bestFit: 'TV Remote',
+                metrics: { range: 'Short / line-of-sight', signal: 'Infrared light', infrastructure: 'IR LED + receiver', bestUse: 'Simple remote controls' },
+                explanation: 'Most TV remotes send coded pulses of infrared light. The receiver on the television detects the changing light pattern and interprets the command.'
+            }
+        ];
+        document.getElementById('score-total').textContent = scenarios.length;
+
+        function initScenarioLab() {
+            resizeSimCanvas();
+            loadScenario();
+        }
+
+        function resizeSimCanvas() {
+            if (currentStage !== 3) return;
+            const dpr = window.devicePixelRatio || 1;
+            simCanvas.width = simContainer.clientWidth * dpr;
+            simCanvas.height = simContainer.clientHeight * dpr;
+            simCanvas.style.width = simContainer.clientWidth + 'px';
+            simCanvas.style.height = simContainer.clientHeight + 'px';
+            simCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            drawScene();
+        }
+
+        function loadScenario() {
+            if (currentScenarioIndex >= scenarios.length) {
+                document.getElementById('scenario-box').innerHTML = `<span class="text-emerald-700 text-2xl font-extrabold">Lab Complete! Final Score: ${score}/${scenarios.length}</span>`;
+                document.getElementById('btn-group').style.display = 'none';
+                document.getElementById('feedback-panel').classList.add('hidden');
+                simState = 'end';
+                drawScene();
+                return;
+            }
+            document.getElementById('scenario-box').textContent = scenarios[currentScenarioIndex].text;
+            document.getElementById('feedback-panel').classList.add('hidden');
+            document.querySelectorAll('.tech-btn').forEach(b => b.disabled = false);
+            document.getElementById('btn-group').style.display = 'grid';
+            simState = 'idle';
+            currentTech = '';
+            drawScene();
+        }
+
+        function checkScenarioAnswer(selectedTech) {
+            document.querySelectorAll('.tech-btn').forEach(btn => btn.disabled = true);
+            const scenario = scenarios[currentScenarioIndex];
+            const isCorrect = selectedTech === scenario.bestFit;
+            if (isCorrect) {
+                score++;
+                document.getElementById('score').textContent = score;
+            }
+
+            simState = 'animating';
+            currentTech = selectedTech;
+            simTime = 0;
+
+            const panel = document.getElementById('feedback-panel');
+            const title = document.getElementById('feedback-title');
+            panel.classList.remove('hidden');
+            panel.style.borderColor = isCorrect ? '#86efac' : '#fecaca';
+            title.textContent = isCorrect ? `Correct! ${selectedTech} is the best fit for this range and situation.` : `Not the best fit. ${scenario.bestFit} works better here.`;
+            title.className = 'text-xl font-extrabold mb-2 ' + (isCorrect ? 'text-emerald-700' : 'text-rose-700');
+            document.getElementById('feedback-text').textContent = scenario.explanation;
+            document.getElementById('metrics-grid').innerHTML = Object.entries(scenario.metrics).map(([k, v]) => `
+                <div class="metric rounded-xl p-3">
+                    <div class="text-[11px] uppercase tracking-wider font-extrabold text-sky-700">${k}</div>
+                    <div class="font-semibold text-slate-700 mt-1">${v}</div>
+                </div>
+            `).join('');
+
+            cancelAnimationFrame(simAnimId);
+            animate();
+        }
+
+        function nextScenario() {
+            currentScenarioIndex++;
+            loadScenario();
+        }
+
+        // Canvas drawing helpers
+        function bg() {
+            const w = simContainer.clientWidth, h = simContainer.clientHeight;
+            simCtx.clearRect(0, 0, w, h);
+            simCtx.fillStyle = '#f6fbfd';
+            simCtx.fillRect(0, 0, w, h);
+            simCtx.strokeStyle = '#dcebf2';
+            simCtx.lineWidth = 1;
+            for (let x = 30; x < w; x += 45) {
+                simCtx.beginPath(); simCtx.moveTo(x, 0); simCtx.lineTo(x, h); simCtx.stroke();
+            }
+            for (let y = 30; y < h; y += 45) {
+                simCtx.beginPath(); simCtx.moveTo(0, y); simCtx.lineTo(w, y); simCtx.stroke();
+            }
+            simCtx.fillStyle = '#e6f2f8';
+            simCtx.fillRect(0, h - 58, w, 58);
+        }
+
+        function roundRect(ctx, x, y, w, h, r, fill, stroke = '#94a3b8') {
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, r);
+            ctx.fillStyle = fill;
+            ctx.fill();
+            ctx.strokeStyle = stroke;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+        function drawLabel(txt, x, y, size = 14, weight = 600, color = '#475569') {
+            simCtx.fillStyle = color;
+            simCtx.font = `${weight} ${size}px Inter`;
+            simCtx.textAlign = 'center';
+            simCtx.textBaseline = 'middle';
+            simCtx.fillText(txt, x, y);
+        }
+        function phone(x, y) {
+            roundRect(simCtx, x - 24, y - 42, 48, 84, 9, '#243b53', '#102a43');
+            roundRect(simCtx, x - 18, y - 33, 36, 63, 4, '#bde9fa', '#7dd3fc');
+            simCtx.fillStyle = '#0f172a'; simCtx.beginPath(); simCtx.arc(x, y + 35, 3, 0, Math.PI * 2); simCtx.fill();
+        }
+        function laptop(x, y) {
+            roundRect(simCtx, x - 55, y - 42, 110, 68, 7, '#d9edf7', '#5b7c91');
+            roundRect(simCtx, x - 46, y - 33, 92, 50, 3, '#eaf8ff', '#8bc8e8');
+            simCtx.fillStyle = '#7895a6';
+            simCtx.beginPath(); simCtx.moveTo(x - 68, y + 30); simCtx.lineTo(x + 68, y + 30); simCtx.lineTo(x + 50, y + 42); simCtx.lineTo(x - 50, y + 42); simCtx.closePath(); simCtx.fill();
+        }
+        function earbuds(x, y) {
+            simCtx.strokeStyle = '#334155'; simCtx.lineWidth = 7;
+            simCtx.beginPath(); simCtx.arc(x, y, 28, Math.PI * 1.05, Math.PI * 1.95); simCtx.stroke();
+            simCtx.fillStyle = '#e2e8f0';
+            for (const dx of [-34, 34]) {
+                roundRect(simCtx, x + dx - 9, y - 3, 18, 36, 8, '#e2e8f0', '#64748b');
+            }
+        }
+        function router(x, y) {
+            roundRect(simCtx, x - 45, y - 20, 90, 40, 10, '#ffffff', '#5b7c91');
+            simCtx.strokeStyle = '#5b7c91'; simCtx.lineWidth = 3;
+            for (const dx of [-23, 23]) {
+                simCtx.beginPath(); simCtx.moveTo(x + dx, y - 20); simCtx.lineTo(x + dx - 8, y - 47); simCtx.stroke();
+            }
+            for (let i = -1; i <= 1; i++) {
+                simCtx.fillStyle = i === 0 ? '#22c55e' : '#38bdf8';
+                simCtx.beginPath(); simCtx.arc(x + i * 15, y + 7, 3, 0, Math.PI * 2); simCtx.fill();
+            }
+        }
+        function tower(x, y) {
+            simCtx.strokeStyle = '#526b7a'; simCtx.lineWidth = 4;
+            simCtx.beginPath();
+            simCtx.moveTo(x, y - 58); simCtx.lineTo(x - 34, y + 48);
+            simCtx.moveTo(x, y - 58); simCtx.lineTo(x + 34, y + 48);
+            simCtx.moveTo(x - 24, y + 12); simCtx.lineTo(x + 24, y + 12);
+            simCtx.moveTo(x - 17, y - 12); simCtx.lineTo(x + 17, y - 12);
+            simCtx.stroke();
+            simCtx.fillStyle = '#ef4444'; simCtx.beginPath(); simCtx.arc(x, y - 62, 5, 0, Math.PI * 2); simCtx.fill();
+        }
+        function satellite(x, y) {
+            simCtx.save(); simCtx.translate(x, y); simCtx.rotate(-0.35);
+            simCtx.fillStyle = '#64748b'; simCtx.fillRect(-8, -25, 16, 50);
+            simCtx.fillStyle = '#3b82f6'; simCtx.fillRect(-42, -16, 28, 32); simCtx.fillRect(14, -16, 28, 32);
+            simCtx.strokeStyle = '#475569'; simCtx.lineWidth = 4; simCtx.beginPath(); simCtx.arc(0, -2, 25, 0.25 * Math.PI, 0.75 * Math.PI); simCtx.stroke();
+            simCtx.restore();
+        }
+        function ship(x, y) {
+            simCtx.fillStyle = '#ffffff'; simCtx.strokeStyle = '#475569'; simCtx.lineWidth = 2;
+            simCtx.beginPath(); simCtx.moveTo(x - 55, y); simCtx.lineTo(x + 55, y); simCtx.lineTo(x + 35, y + 28); simCtx.lineTo(x - 38, y + 28); simCtx.closePath(); simCtx.fill(); simCtx.stroke();
+            simCtx.fillStyle = '#ef4444'; simCtx.fillRect(x - 22, y - 34, 44, 34);
+            simCtx.fillStyle = '#64748b'; simCtx.fillRect(x - 4, y - 52, 8, 18);
+        }
+        function tv(x, y) {
+            roundRect(simCtx, x - 70, y - 46, 140, 92, 8, '#27374a', '#111827');
+            roundRect(simCtx, x - 60, y - 36, 120, 70, 3, '#c9efff', '#78c8e7');
+            simCtx.fillStyle = '#475569'; simCtx.fillRect(x - 6, y + 46, 12, 24); simCtx.fillRect(x - 38, y + 68, 76, 7);
+        }
+        function remote(x, y) {
+            simCtx.save(); simCtx.translate(x, y); simCtx.rotate(-0.15);
+            roundRect(simCtx, -20, -62, 40, 124, 15, '#334155', '#0f172a');
+            simCtx.fillStyle = '#ef4444'; simCtx.beginPath(); simCtx.arc(0, -42, 5, 0, Math.PI * 2); simCtx.fill();
+            simCtx.fillStyle = '#cbd5e1';
+            for (let r = 0; r < 4; r++) for (let c = -1; c <= 1; c++) { simCtx.beginPath(); simCtx.arc(c * 10, -15 + r * 18, 3, 0, Math.PI * 2); simCtx.fill(); }
+            simCtx.restore();
+        }
+        function fiberCable(x1, y1, x2, y2) {
+            simCtx.lineCap = 'round';
+            simCtx.strokeStyle = '#3f4f5f'; simCtx.lineWidth = 20;
+            simCtx.beginPath(); simCtx.moveTo(x1, y1); simCtx.bezierCurveTo((x1 + x2) / 2, y1 - 80, (x1 + x2) / 2, y2 + 80, x2, y2); simCtx.stroke();
+            simCtx.strokeStyle = '#ecfeff'; simCtx.lineWidth = 10; simCtx.stroke();
+            simCtx.strokeStyle = '#7dd3fc'; simCtx.lineWidth = 4; simCtx.stroke();
+        }
+        function wave(x1, y1, x2, y2, color = '#38bdf8', amp = 8, freq = 0.055, speed = 4) {
+            const d = Math.hypot(x2 - x1, y2 - y1), a = Math.atan2(y2 - y1, x2 - x1);
+            simCtx.save(); simCtx.translate(x1, y1); simCtx.rotate(a);
+            simCtx.strokeStyle = color; simCtx.lineWidth = 4; simCtx.beginPath();
+            for (let i = 0; i <= d; i += 2) {
+                const yy = Math.sin(i * freq - simTime * speed) * amp;
+                i ? simCtx.lineTo(i, yy) : simCtx.moveTo(i, yy);
+            }
+            simCtx.stroke(); simCtx.restore();
+        }
+        function pulseBeam(x1, y1, x2, y2, color = '#ef4444', width = 5) {
+            simCtx.save();
+            simCtx.strokeStyle = color; simCtx.lineWidth = width; simCtx.lineCap = 'round'; simCtx.setLineDash([18, 14]); simCtx.lineDashOffset = -simTime * 55;
+            simCtx.beginPath(); simCtx.moveTo(x1, y1); simCtx.lineTo(x2, y2); simCtx.stroke(); simCtx.setLineDash([]); simCtx.restore();
+        }
+        function wifiArcs(x, y, color = '#38bdf8') {
+            simCtx.strokeStyle = color; simCtx.lineWidth = 3;
+            for (let r = 18; r <= 50; r += 16) { simCtx.beginPath(); simCtx.arc(x, y, r, Math.PI * 1.15, Math.PI * 1.85); simCtx.stroke(); }
+        }
+
+        function drawScene() {
+            const w = simContainer.clientWidth, h = simContainer.clientHeight;
+            bg();
+            if (simState === 'end') {
+                drawLabel('Communication Lab Complete', w / 2, h / 2 - 8, 28, 800, '#047857');
+                drawLabel('Signals can travel by radio waves, infrared light, and pulses of light in fiber.', w / 2, h / 2 + 32, 14, 600, '#526b7a');
+                return;
+            }
+            if (simState === 'idle') {
+                drawLabel('Compare the distance and conditions, then choose the best method.', w / 2, h * 0.43, 20, 700, '#47687b');
+                drawLabel('Think about range, infrastructure, line of sight, and data needs.', w / 2, h * 0.54, 14, 500, '#78909f');
+                return;
+            }
+
+            const cy = h * 0.53;
+            if (currentTech === 'Bluetooth') {
+                phone(w * 0.23, cy); earbuds(w * 0.77, cy);
+                wave(w * 0.29, cy, w * 0.69, cy, '#6366f1', 8, 0.065, 5);
+                drawLabel('Phone', w * 0.23, cy + 75); drawLabel('Wireless Earbuds', w * 0.77, cy + 75);
+                drawLabel('short-range radio signal', w * 0.5, cy - 55, 14, 700, '#4f46e5');
+            } else if (currentTech === 'Wi-Fi') {
+                laptop(w * 0.24, cy); router(w * 0.76, cy);
+                wave(w * 0.34, cy, w * 0.69, cy, '#0ea5e9', 9, 0.06, 5); wifiArcs(w * 0.76, cy - 25);
+                drawLabel('Laptop', w * 0.24, cy + 75); drawLabel('Wi-Fi Router', w * 0.76, cy + 75);
+                drawLabel('radio waves carry encoded data', w * 0.5, cy - 60, 14, 700, '#0284c7');
+            } else if (currentTech === 'Cellular') {
+                phone(w * 0.17, cy + 24); tower(w * 0.5, cy); roundRect(simCtx, w * 0.78 - 46, cy - 34, 92, 68, 13, '#ffffff', '#8aa2b2');
+                drawLabel('NETWORK', w * 0.78, cy - 2, 13, 800, '#536b7a');
+                wave(w * 0.23, cy + 10, w * 0.44, cy - 5, '#8b5cf6', 7, 0.06, 5); wave(w * 0.56, cy - 5, w * 0.71, cy, '#8b5cf6', 7, 0.06, 5);
+                drawLabel('Mobile Phone', w * 0.17, cy + 90); drawLabel('Cell Tower', w * 0.5, cy + 90); drawLabel('Cellular Network', w * 0.78, cy + 90);
+            } else if (currentTech === 'Satellite') {
+                ship(w * 0.18, cy + 35); satellite(w * 0.5, h * 0.25); roundRect(simCtx, w * 0.82 - 35, cy, 70, 60, 6, '#eef2f7', '#64748b');
+                simCtx.strokeStyle = '#64748b'; simCtx.lineWidth = 3; simCtx.beginPath(); simCtx.moveTo(w * 0.82, cy); simCtx.lineTo(w * 0.82, cy - 30); simCtx.stroke(); simCtx.beginPath(); simCtx.arc(w * 0.82, cy - 34, 17, Math.PI, 2 * Math.PI); simCtx.stroke();
+                pulseBeam(w * 0.23, cy + 5, w * 0.46, h * 0.29, '#f59e0b', 4); pulseBeam(w * 0.54, h * 0.29, w * 0.79, cy - 5, '#f59e0b', 4);
+                drawLabel('Research Ship', w * 0.18, cy + 100); drawLabel('Satellite', w * 0.5, h * 0.25 + 62); drawLabel('Ground Station', w * 0.82, cy + 86);
+            } else if (currentTech === 'Fiber Optic') {
+                roundRect(simCtx, w * 0.12, cy - 45, 120, 90, 12, '#ffffff', '#6c8799'); drawLabel('CITY A', w * 0.12 + 60, cy - 8, 17, 800);
+                roundRect(simCtx, w * 0.77, cy - 45, 120, 90, 12, '#ffffff', '#6c8799'); drawLabel('CITY B', w * 0.77 + 60, cy - 8, 17, 800);
+                fiberCable(w * 0.25, cy, w * 0.77, cy);
+                for (let i = 0; i < 5; i++) {
+                    const p = (simTime * 0.17 + i * 0.2) % 1;
+                    const x = w * 0.25 + (w * 0.52) * p;
+                    const y = cy - 34 * Math.sin(p * Math.PI * 2);
+                    simCtx.fillStyle = i % 2 ? '#22d3ee' : '#fde047';
+                    simCtx.shadowColor = simCtx.fillStyle; simCtx.shadowBlur = 10;
+                    simCtx.beginPath(); simCtx.arc(x, y, 6, 0, Math.PI * 2); simCtx.fill(); simCtx.shadowBlur = 0;
+                }
+                drawLabel('pulses of light carry digital information through the fiber', w * 0.5, cy - 82, 14, 700, '#0891b2');
+                drawLabel('Fiber-optic cable', w * 0.5, cy + 78, 15, 700);
+            } else if (currentTech === 'TV Remote') {
+                remote(w * 0.21, cy + 10); tv(w * 0.77, cy);
+                pulseBeam(w * 0.27, cy - 28, w * 0.68, cy - 8, '#ef4444', 6);
+                simCtx.fillStyle = 'rgba(239,68,68,.08)'; simCtx.beginPath(); simCtx.moveTo(w * 0.27, cy - 28); simCtx.lineTo(w * 0.69, cy - 36); simCtx.lineTo(w * 0.69, cy + 20); simCtx.closePath(); simCtx.fill();
+                drawLabel('TV Remote', w * 0.21, cy + 100); drawLabel('Television IR Receiver', w * 0.77, cy + 82);
+                drawLabel('coded infrared light pulses • line of sight', w * 0.5, cy - 78, 14, 700, '#dc2626');
+            }
+        }
+
+        function animate() {
+            if (simState !== 'animating') return;
+            simTime += 0.035;
+            drawScene();
+            simAnimId = requestAnimationFrame(animate);
+        }
+
+        window.onload = () => nextStage(0);
+    </script>
+</body>
+</html>

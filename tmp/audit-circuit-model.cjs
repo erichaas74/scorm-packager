@@ -1,0 +1,47 @@
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const file = 'unit-ApplicationFiles/unit-6/circuit-design-challenge/app.js';
+const source = fs.readFileSync(file, 'utf8').replace(/  bindEvents\(\);\s+renderAll\(\);/, '  globalThis.audit = { state, calculate, drawCircuit, missionComplete };');
+const sandbox = { localStorage: { getItem: () => null } };
+vm.runInNewContext(source, sandbox);
+const { state, calculate, drawCircuit, missionComplete } = sandbox.audit;
+assert.equal(calculate(0).totalCurrent, .9);
+assert.equal(calculate(3).totalCurrent, .45);
+assert.equal(calculate(4).totalCurrent, 1.8);
+assert.equal(calculate(7).totalCurrent, 1.35);
+assert.equal(calculate(3, {connected:[false,true]}).totalCurrent, 0);
+assert.equal(calculate(4, {connected:[false,true]}).totalCurrent, .9);
+console.log('PASS: default single, series, parallel, combination, and failure currents');
+function drawing(result) {
+  const labels = [];
+  const context = new Proxy({}, { get: (_, name) => name === 'fillText' ? (...args) => labels.push(args) : () => {} });
+  drawCircuit({width:920,height:500,getContext:()=>context}, result);
+  return labels;
+}
+state.missionStates[7].topology = 'parallel';
+state.mission = 0;
+const early = drawing(calculate(7)).filter(x => /^S\d$/.test(x[0]));
+state.mission = 7;
+const final = drawing(calculate(7)).filter(x => /^S\d$/.test(x[0]));
+assert.equal(early.length, 0); assert.equal(final.length, 3);
+console.log('CONFIRMED: identical final report circuit draws 0 switches from mission 1, 3 from mission 8');
+state.missionStates[7].topology = 'series';
+const series = drawing(calculate(7));
+assert.equal(series.filter(x => /^S\d$/.test(x[0])).length, 1);
+assert.equal(calculate(7, {switches:[true,false,true]}).totalCurrent, 0);
+const b3 = series.find(x => x[0] === 'B3');
+assert(b3[1] > 920-90);
+console.log('CONFIRMED: series draws only S1 although S2 opens the circuit; B3 center = '+b3[1]+', wire ends at 830');
+state.missionStates[7].topology = 'parallel';
+state.voltage = 9;
+state.evidence.p8_bulb1_voltage = state.evidence.p8_bulb2_voltage = state.evidence.p8_bulb3_voltage = '9.00';
+state.evidence.p8_total_current = '2.70';
+state.evidence.p8_disconnect_bulb1 = 'Stay lit';
+state.evidence.p8_open_switch1 = 'B1 OFF, B2 ON, B3 ON';
+state.evidence.p8_open_switch2 = 'B1 ON, B2 OFF, B3 ON';
+state.voltage = 12;
+assert(missionComplete(7));
+assert.equal(calculate(7).totalCurrent, 3.5999999999999996);
+console.log('CONFIRMED: final evidence stays complete at 9 V / 2.70 A after live source changes to 12 V / 3.60 A');
+

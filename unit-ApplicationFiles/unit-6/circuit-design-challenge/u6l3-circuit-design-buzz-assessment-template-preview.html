@@ -1212,6 +1212,42 @@ select {
 .current-key span { color: #ed6d37; font-size: 1.15rem; margin-right: 5px; }
 .meter-hint { color: var(--muted); font-size: 0.78rem; line-height: 1.5; margin: 8px 0; }
 
+/* PhET construction challenges and student-entered evidence. */
+.phet-card { background: var(--paper); border: 1px solid var(--line); border-radius: 18px; padding: clamp(16px, 3vw, 28px); min-width: 0; }
+.phet-card h2, .phet-card h3 { margin: 0 0 12px; }
+.phet-card h3 { margin-top: 24px; }
+.phet-card p, .build-steps { line-height: 1.65; }
+.build-steps { padding-left: 24px; }
+.build-steps li { padding: 6px 0 10px 6px; }
+.phet-card textarea { display: block; width: 100%; min-height: 100px; margin: 10px 0 20px; padding: 12px; border: 1px solid var(--line-dark); border-radius: 9px; font: inherit; resize: vertical; }
+.phet-card .button { white-space: normal; text-align: center; }
+.storage-status { margin: 0; padding: 12px 24px; background: var(--teal-soft); color: var(--ink); font-size: .88rem; line-height: 1.5; }
+.data-table { table-layout: fixed; width: 100%; }
+.data-table caption { text-align: left; padding: 10px 0; font-weight: 800; }
+.data-table th, .data-table td { overflow-wrap: anywhere; }
+.data-table th:first-child { width: 43%; }
+.data-table th:last-child { width: 12%; }
+.data-table input, .data-table select { width: 100%; min-width: 0; }
+.data-table [aria-invalid="true"] { outline: 2px solid #b43522; }
+.report-shell > .phet-card { margin-bottom: 20px; }
+#circuitPreview { display: block; max-width: 100%; max-height: 650px; object-fit: contain; margin: 20px auto; }
+#circuitPreview[hidden], [hidden] { display: none !important; }
+#circuitImage { display: block; max-width: 100%; margin: 14px 0; }
+#reportEvidence p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.lab-part summary { padding: 18px; }
+@media (max-width: 600px) {
+  .data-table th, .data-table td { padding: 8px 5px; font-size: .82rem; }
+  .data-table th:first-child { width: 38%; }
+  .data-table input, .data-table select { padding: 8px 3px; font-size: 16px; }
+  .phet-card { border-radius: 12px; }
+}
+@media print {
+  .storage-status, #circuitImage, label[for="circuitImage"], #removeImage, .u6-buzz-section { display: none !important; }
+  #reportView[hidden] { display: block !important; }
+  #reportEvidence section { break-inside: avoid; }
+  .report-shell > .phet-card { border: 0; padding: 0; }
+}
+
 </style>
 
 <style id="u6-buzz-assessment-styles">
@@ -1227,7 +1263,7 @@ select {
   @media(max-width:700px){.u6-buzz-section{padding:15px;border-radius:12px}.u6-question-slot{padding:11px}}
 </style>
 <style>
-    .u6-buzz-assessment .view-tabs [data-view="report"],.u6-buzz-assessment #reportView,.u6-buzz-assessment .progress-summary,.u6-buzz-assessment #notebookView .question-block,.u6-buzz-assessment #notebookCount{display:none!important}
+    .u6-buzz-assessment .u6-buzz-section{scroll-margin-top:20px}
   </style>
 
   <style id="buzz-preview-question-styles">
@@ -1362,29 +1398,30 @@ select {
 
       <div class="progress-summary" aria-label="Lab completion progress">
         <div class="progress-copy">
-          <span id="progressLabel">Lab progress</span>
+          <span id="progressLabel">Evidence recorded</span>
           <strong id="progressPercent">0%</strong>
         </div>
         <div class="progress-track" role="progressbar" aria-labelledby="progressLabel" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <span id="progressFill"></span>
         </div>
-        <p id="progressDetail">0 of 8 investigations · 0 of 27 responses</p>
+        <p id="progressDetail">0 of 8 evidence tables complete</p>
       </div>
     </header>
 
     <nav class="view-tabs" aria-label="Application views">
       <button class="view-tab active" type="button" data-view="bench" aria-controls="benchView" aria-selected="true">
-        <span aria-hidden="true">01</span> Lab bench
+        <span aria-hidden="true">01</span> Build challenges
       </button>
       <button class="view-tab" type="button" data-view="notebook" aria-controls="notebookView" aria-selected="false">
         <span aria-hidden="true">02</span> Evidence notebook
-        <span class="tab-count" id="notebookCount">0/27</span>
+        <span class="tab-count" id="notebookCount">0/8</span>
       </button>
       <button class="view-tab" type="button" data-view="report" aria-controls="reportView" aria-selected="false">
         <span aria-hidden="true">03</span> Design report
       </button>
     </nav>
 
+    <p id="saveStatus" class="storage-status" role="status">Your notebook saves in this browser. Your PhET circuit is separate.</p>
     <main id="mainContent">
       <section class="app-view active" id="benchView" data-view-panel="bench">
         <div class="bench-layout">
@@ -1410,116 +1447,29 @@ select {
               </div>
             </section>
 
-            <div class="work-grid">
-              <section class="circuit-card" aria-labelledby="workbenchHeading">
-                <div class="card-heading dark-heading">
-                  <div>
-                    <p class="kicker">Live model</p>
-                    <h2 id="workbenchHeading">Circuit workbench</h2>
-                  </div>
-                  <div class="circuit-status" id="circuitStatus" role="status">
-                    <span class="status-dot"></span>
-                    <strong>Closed circuit</strong>
-                  </div>
-                </div>
-
-                <div class="circuit-stage">
-                  <canvas id="circuitCanvas" width="920" height="500" aria-label="Interactive circuit diagram"></canvas>
-                  <div class="current-key"><span aria-hidden="true">&#10140;</span> Conventional current: + to &minus; through the circuit</div>
-                  <div class="canvas-readout" id="canvasReadout" aria-live="polite">One 10 Ω bulb connected to a 9 V battery.</div>
-                  <div class="short-warning" id="shortWarning" hidden>
-                    <span aria-hidden="true">!</span>
-                    Short circuit: a wire-only branch would create dangerously high current.
-                  </div>
-                </div>
-
-                <div class="model-strip" aria-label="Live circuit values">
-                  <div class="model-metric">
-                    <span>Battery</span>
-                    <strong id="batteryMetric">9.0 V</strong>
-                  </div>
-                  <div class="model-metric">
-                    <span>Total resistance</span>
-                    <strong id="resistanceMetric">10.0 Ω</strong>
-                  </div>
-                  <div class="model-metric accent-metric">
-                    <span>Total current</span>
-                    <strong id="currentMetric">0.90 A</strong>
-                  </div>
-                  <div class="model-metric">
-                    <span>Active bulbs</span>
-                    <strong id="bulbsMetric">1 of 1</strong>
-                  </div>
-                </div>
-              </section>
-
-              <aside class="control-card" aria-labelledby="controlsHeading">
-                <div class="card-heading">
-                  <div>
-                    <p class="kicker">Configure + test</p>
-                    <h2 id="controlsHeading">Bench controls</h2>
-                  </div>
-                </div>
-
-                <div class="control-body">
-                  <label class="field-label" for="batteryVoltage">
-                    <span>Battery voltage</span>
-                    <output id="batteryOutput" for="batteryVoltage">9 V</output>
-                  </label>
-                  <input id="batteryVoltage" type="range" min="3" max="12" step="1" value="9">
-                  <div class="range-scale" aria-hidden="true"><span>3 V</span><span>12 V</span></div>
-
-                  <fieldset class="control-group" id="topologyControl">
-                    <legend>Circuit arrangement</legend>
-                    <div class="segmented-control" id="topologyOptions"></div>
-                  </fieldset>
-
-                  <fieldset class="control-group" id="componentControl">
-                    <legend>Components</legend>
-                    <div class="component-controls" id="componentControls"></div>
-                  </fieldset>
-
-                  <fieldset class="control-group meter-tools">
-                    <legend>Meter</legend>
-                    <div class="meter-toggle" role="group" aria-label="Choose meter type">
-                      <button class="meter-button active" type="button" data-meter="ammeter" aria-pressed="true">A <span>Ammeter</span></button>
-                      <button class="meter-button" type="button" data-meter="voltmeter" aria-pressed="false">V <span>Voltmeter</span></button>
-                    </div>
-                    <label class="select-label" for="meterLocation">Measurement location</label>
-                    <select id="meterLocation" aria-describedby="meterHint"></select>
-                    <p class="meter-hint" id="meterHint"></p>
-                    <div class="meter-readout">
-                      <span id="meterLabel">Current near battery</span>
-                      <strong id="meterReading">0.90 A</strong>
-                    </div>
-                  </fieldset>
-
-                  <div class="control-actions">
-                    <button class="button button-primary" id="recordEvidence" type="button">Record model evidence</button>
-                    <button class="button button-secondary" id="openNotebook" type="button">Review evidence</button>
-                  </div>
-                  <p class="save-note" id="recordStatus" aria-live="polite">Your work saves on this device.</p>
-                </div>
-              </aside>
-            </div>
-
-            <section class="evidence-card" aria-labelledby="evidenceHeading">
-              <div class="evidence-intro">
-                <p class="kicker">Mission evidence</p>
-                <h2 id="evidenceHeading">What to observe</h2>
-                <p id="evidencePrompt">Confirm that the bulb is lit, then open the circuit once to compare.</p>
-              </div>
-              <div class="evidence-readings" id="missionEvidence"></div>
-              <div class="requirement-checks" id="requirementChecks" hidden></div>
+            <section class="phet-card" aria-labelledby="buildHeading">
+              <p class="kicker">Build in PhET · Record here</p>
+              <h2 id="buildHeading">Your circuit, your evidence</h2>
+              <p>Open PhET in another tab or put the two windows side by side. Build and test there, then return here to enter your readings. This notebook does not read or save your PhET circuit.</p>
+              <a class="button button-primary" href="https://phet.colorado.edu/sims/html/circuit-construction-kit-dc/latest/circuit-construction-kit-dc_all.html" target="_blank" rel="noopener">Open PhET Circuit Construction Kit ↗</a>
+              <p class="save-note">Keep the PhET tab open between missions. Use the same 9.0 V battery and identical 10 Ω bulbs for comparisons. Record actual readings; do not substitute calculated answers for measurements.</p>
+              <h3>Before you build</h3>
+              <label id="predictionLabel" for="prediction"></label>
+              <textarea id="prediction" maxlength="800" placeholder="Write your prediction before testing."></textarea>
+              <h3>Build → measure → test</h3>
+              <ol class="build-steps" id="buildSteps"></ol>
+              <p><strong>Meter reminder:</strong> Measure current through a path and voltage across two points. Use meter readings, not animation speed, as numerical evidence. Avoid a wire-only path across the battery.</p>
             </section>
-
-            <div class="safety-note">
-              <span class="safety-icon" aria-hidden="true">!</span>
-              <div>
-                <strong>Protect the battery.</strong>
-                <p>Never place a wire-only path directly across the battery. In PhET, the fire symbol means the current is above 15 A. Use meter readings—not electron animation speed—as quantitative evidence.</p>
-              </div>
-            </div>
+            <section class="phet-card" aria-labelledby="evidenceHeading">
+              <p class="kicker">Your measurements</p>
+              <h2 id="evidenceHeading">Record this mission</h2>
+              <p>Enter your observations from PhET. A completed table means evidence is recorded, not that your answers have been graded.</p>
+              <div id="missionEvidence"></div>
+              <label for="observation"><strong>Explain what happened or what you repaired</strong></label>
+              <textarea id="observation" maxlength="1500" placeholder="Compare your prediction with the result. Describe any wiring changes."></textarea>
+              <p id="missionStatus" role="status"></p>
+              <button class="button button-secondary" id="openNotebook" type="button">Review all evidence</button>
+            </section>
           </div>
         </div>
       </section>
@@ -1530,9 +1480,9 @@ select {
             <div>
               <p class="kicker">Autosaved lab record</p>
               <h2>Evidence notebook</h2>
-              <p>Review and correct the measurements saved from each mission. Use these evidence tables in the native Buzz questions.</p>
+              <p>Review the measurements and observations you entered from PhET. Use these tables when answering the Buzz questions.</p>
             </div>
-            <button class="button button-secondary" id="returnToBench" type="button">Return to bench</button>
+            <button class="button button-secondary" id="returnToBench" type="button">Return to challenges</button>
           </header>
 
           <div class="notebook-layout">
@@ -1548,7 +1498,7 @@ select {
             <div>
               <p class="kicker">Engineering handoff</p>
               <h2>Three-room design report</h2>
-              <p>Review the final circuit against every requirement before submitting your work.</p>
+              <p>Review your recorded measurements and tests before answering the Buzz questions.</p>
             </div>
             <div class="report-actions">
               <button class="button button-secondary" id="printReport" type="button">Print report</button>
@@ -1556,50 +1506,22 @@ select {
             </div>
           </header>
 
-          <div class="report-grid">
-            <section class="report-card design-summary" aria-labelledby="designSummaryHeading">
-              <p class="kicker">Final configuration</p>
-              <h3 id="designSummaryHeading">Design summary</h3>
-              <div class="summary-diagram">
-                <canvas id="reportCanvas" width="820" height="500" aria-label="Final three-room circuit schematic"></canvas>
-              </div>
-              <dl class="summary-list" id="summaryList"></dl>
-            </section>
-
-            <section class="report-card" aria-labelledby="validationHeading">
-              <p class="kicker">Requirement test</p>
-              <h3 id="validationHeading">Does the design pass?</h3>
-              <div class="final-checks" id="finalChecks"></div>
-            </section>
-
-            <section class="report-card report-evidence" aria-labelledby="reportEvidenceHeading">
-              <p class="kicker">Recorded data</p>
-              <h3 id="reportEvidenceHeading">Evidence snapshot</h3>
-              <div id="reportEvidence"></div>
-            </section>
-
-            <section class="report-card response-review" aria-labelledby="responseReviewHeading">
-              <p class="kicker">Written reasoning</p>
-              <h3 id="responseReviewHeading">Response status</h3>
-              <div class="response-meter"><span id="responseMeterFill"></span></div>
-              <p id="responseReviewText">0 of 27 questions answered.</p>
-              <button class="button button-secondary" id="reviewResponses" type="button">Review notebook</button>
-            </section>
-          </div>
-
-          <section class="submission-card">
-            <div>
-              <p class="kicker">Before you finish</p>
-              <h2>Submit your circuit design</h2>
-              <p id="submissionMessage">Complete each investigation and answer all 27 questions.</p>
-            </div>
-            <button class="button button-submit" id="submitLab" type="button">Check readiness</button>
+          <section class="phet-card">
+            <h3>Your final circuit</h3>
+            <p>The report uses only what you enter. It cannot verify your PhET wiring. Describe your final arrangement in mission 8; an optional screenshot can supplement the description.</p>
+            <label for="circuitImage">Attach a screenshot for your local report (PNG, JPEG, or WebP; maximum 1 MB)</label>
+            <input id="circuitImage" type="file" accept="image/png,image/jpeg,image/webp">
+            <button id="removeImage" type="button" class="button button-secondary" hidden>Remove screenshot</button>
+            <img id="circuitPreview" alt="Student-provided final circuit screenshot" hidden>
+            <p class="save-note">The screenshot stays in this browser notebook and appears when printing. The text download contains your written evidence only. Nothing here submits a response or attachment to Buzz.</p>
           </section>
+          <section class="phet-card"><h3>Evidence review</h3><p id="readiness" role="status"></p><div id="reportEvidence"></div></section>
+          <section class="phet-card"><h3>Finish in Buzz</h3><p>Use your recorded evidence to answer the 10 assessment questions. Submit through Buzz when finished. The notebook and optional downloads are personal records, not a graded submission.</p></section>
         </div>
       </section>
     <section class="u6-buzz-section" aria-labelledby="u6-buzz-heading">
   <h2 id="u6-buzz-heading">Buzz assessment: Circuit Design Challenge</h2>
-  <p>Record the model evidence for the circuit missions before answering. Use 9.0 V and the model's 10 ohm bulbs for the fixed calculations.</p>
+  <p>Build and measure in PhET, then enter your own evidence in the notebook. Questions 2–6 and 8 use the stated ideal-circuit values; use your actual recorded measurements and tests in Questions 9–10. Submit your answers through Buzz. Notebook progress and optional reports are not graded.</p>
   <div class="u6-score-strip" aria-label="Assessment scoring"><span>15 points total</span><span>10 auto-graded</span><span>5 BusyBee rubric-graded</span></div>
   <p class="u6-local-note" hidden data-u6-local-note>When opened outside Buzz, question controls are blank. Import <strong>buzz-assessment-questions.txt</strong> and upload this file as the assessment template.</p>
     <div class="u6-question-slot">
@@ -1625,7 +1547,7 @@ select {
         <span>F, Number - 1 point</span>
       </div>
       <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: F, Number</span><span class="buzz-preview-chip">Score: 1</span><span class="buzz-preview-chip">Figures: 3</span></div>
-      <div class="buzz-preview-prompt">2) The model uses one 10 ohm bulb on a 9.0 V battery. Use I = V/R to calculate the circuit current. ________ A</div>
+      <div class="buzz-preview-prompt">2) For this ideal-circuit calculation, use one 10 ohm bulb on a 9.0 V battery. Use I = V/R to calculate the circuit current. ________ A</div>
       <div class="buzz-preview-details"><div class="buzz-preview-option"><span>A</span><p>0.85..0.95</p></div></div>
     </div>
     </div>
@@ -1673,7 +1595,7 @@ select {
         <span>MC - 1 point</span>
       </div>
       <div class="buzz-preview-chips"><span class="buzz-preview-chip">Type: MC</span><span class="buzz-preview-chip">Score: 1</span></div>
-      <div class="buzz-preview-prompt">6) In the model&#39;s two-bulb parallel circuit, what voltage is measured across each working branch?</div>
+      <div class="buzz-preview-prompt">6) In an ideal two-bulb parallel circuit powered by a 9.0 V battery, what voltage is measured across each working branch?</div>
       <div class="buzz-preview-details"><div class="buzz-preview-option correct"><span>A</span><p>9.0 V, the full battery voltage</p></div>
 <div class="buzz-preview-option"><span>B</span><p>4.5 V because the voltage is divided between branches</p></div>
 <div class="buzz-preview-option"><span>C</span><p>18 V because branch voltages add</p></div>
@@ -1745,87 +1667,18 @@ select {
   <script>
 (() => {
   "use strict";
-
-  const STORAGE_KEY = "u6l3-circuit-design-challenge-v1";
-  const BULB_RESISTANCE = 10;
-
+  const STORAGE_KEY = "u6l3-phet-notebook-v2";
+  const PHET_URL = "https://phet.colorado.edu/sims/html/circuit-construction-kit-dc/latest/circuit-construction-kit-dc_all.html";
   const missions = [
-    {
-      part: "Part 1 · Build your first circuit",
-      title: "Light one bulb",
-      short: "First circuit",
-      text: "Create one complete path from one battery terminal, through the bulb, and back to the other terminal.",
-      prompt: "Confirm that the bulb is lit, then open the circuit once to compare.",
-      topology: "one",
-      bulbs: 1
-    },
-    {
-      part: "Part 2 · Measure your circuit",
-      title: "Trace the current",
-      short: "Ammeter",
-      text: "Move the ammeter around the single loop. Compare the current before the bulb, after the bulb, and near the battery.",
-      prompt: "Record three current readings. A one-loop circuit should reveal a clear pattern.",
-      topology: "one",
-      bulbs: 1
-    },
-    {
-      part: "Part 2 · Measure your circuit",
-      title: "Map the voltage",
-      short: "Voltmeter",
-      text: "Measure potential difference across the battery, the bulb, and a section of ideal wire.",
-      prompt: "Compare where the circuit gains voltage with where it transfers electrical energy.",
-      topology: "one",
-      bulbs: 1
-    },
-    {
-      part: "Part 3 · Two-bulb series circuit",
-      title: "Build one path",
-      short: "Series circuit",
-      text: "Place two identical bulbs in one loop, then disconnect either bulb to test the whole path.",
-      prompt: "Compare current, voltage division, brightness, and the effect of one failed bulb.",
-      topology: "series",
-      bulbs: 2
-    },
-    {
-      part: "Part 4 · Two-bulb parallel circuit",
-      title: "Build two branches",
-      short: "Parallel circuit",
-      text: "Give each identical bulb its own branch between the same two battery terminals.",
-      prompt: "Measure the branch voltages and currents, then compare their sum with battery current.",
-      topology: "parallel",
-      bulbs: 2
-    },
-    {
-      part: "Part 5 · Circuit failure challenge",
-      title: "Design for reliability",
-      short: "Failure test",
-      text: "Choose a series or parallel design, then test whether one room stays lit when the other bulb fails.",
-      prompt: "A successful design keeps both bulbs at full voltage and isolates a single-bulb failure.",
-      topology: "choice-two",
-      bulbs: 2
-    },
-    {
-      part: "Part 6 · Add control",
-      title: "Control each room",
-      short: "Independent switches",
-      text: "Place a switch in each bulb branch so either room can be controlled without changing the other.",
-      prompt: "Run all four switch combinations and record whether the observed bulb states match the commands.",
-      topology: "parallel",
-      bulbs: 2,
-      switches: true
-    },
-    {
-      part: "Part 7 · Final circuit design challenge",
-      title: "Wire three rooms",
-      short: "Final design",
-      text: "Choose a three-bulb arrangement with multiple branches and at least two switches, then prove it meets every requirement.",
-      prompt: "Use voltage, current, switch, and failure evidence to defend your final design.",
-      topology: "choice-three",
-      bulbs: 3,
-      switches: true
-    }
+    {short:"First circuit", title:"Make a bulb light", prediction:"What connections will the bulb need to light?", steps:["In PhET, choose the Lab screen. Add one battery, one bulb, and wires. Select the battery and set it to 9.0 V; select the bulb and set its resistance to 10 Ω. Keep these settings for all comparisons.","Connect both battery terminals through the bulb to make a complete loop. If it does not light, inspect each connection and repair the path.","Disconnect one wire, observe the bulb, then reconnect it. Record both the working circuit and the open-circuit observation."]},
+    {short:"Current", title:"Follow current around a loop", prediction:"Will current be smaller after it passes through the bulb?", steps:["Keep the one-bulb loop closed at the same settings.","Use PhET’s current meter to measure before the bulb, after it, and near the battery. If using a connecting ammeter, insert it in series; never connect it directly across the battery.","Read each location separately and enter all three readings in amperes. Explain any differences in your notes."]},
+    {short:"Voltage", title:"Compare two points", prediction:"Where will you find the largest voltage difference?", steps:["Keep the one-bulb circuit connected. Bring the voltmeter into the workspace.","Place the probes across the battery, then across the bulb, then at two points on one uninterrupted wire. A voltmeter compares two points; it does not replace a wire in the loop.","Record voltage magnitudes in volts. If the display is negative, reverse the probes and note why the sign changed."]},
+    {short:"Series", title:"Build one path for two bulbs", prediction:"How will adding a second bulb change current and brightness?", steps:["Add a second identical 10 Ω bulb in the same loop, with no branches. Keep the battery at 9.0 V.","Measure battery voltage, loop current, and voltage across each bulb. Calculate total resistance using measured battery voltage divided by total current. Compare brightness with your one-bulb circuit.","Disconnect Bulb 1 and observe Bulb 2. Reconnect it, then disconnect Bulb 2 and observe Bulb 1. Record the failure observation and restore both bulbs."]},
+    {short:"Parallel", title:"Build a second path", prediction:"Will each bulb receive half the battery voltage or all of it?", steps:["Rewire the same two bulbs so each has its own path between the battery terminals. Keep the same source voltage and bulb resistance as mission 4.","Measure total current before the junction, current in each branch, and voltage across each bulb. Calculate total resistance using V/I. Compare brightness with the single-bulb reference.","Disconnect each bulb in turn and observe the other. Record the result, then restore both branches. Compare total current with the sum of branch currents."]},
+    {short:"Reliability", title:"Keep the second room lit", prediction:"Which arrangement will keep one room lit if the other bulb fails?", steps:["Build your own two-room layout. Both bulbs must light normally, receive the full battery voltage, and have paths to the battery; one bulb must be able to fail while the other stays lit.","Test your design by disconnecting Bulb 1. Observe Bulb 2, then restore Bulb 1 and test the reverse failure.","Revise the wiring if needed. Record the arrangement you actually built, the observed failure result, and whether all four requirements were met."]},
+    {short:"Switches", title:"Control two rooms independently", prediction:"Where must each switch go to control only one room?", steps:["Add two switches to your two-room circuit. Decide where they belong so either room can be controlled independently.","Test ON/OFF, OFF/ON, ON/ON, and OFF/OFF. In each row, Pass means the observed bulb states match that row’s requested states.","If a switch changes both rooms, trace the shared path, move the switch, and test again. Record what you changed and why."]},
+    {short:"Final design", title:"Build and defend three rooms", prediction:"How will a third working room affect the battery’s total current?", steps:["Build a three-bulb circuit with multiple branches and at least two switches. Every bulb must receive approximately the full battery voltage, and at least one bulb must switch independently. Use identical bulbs and your original source settings.","With all bulbs connected and switches closed, record battery voltage, each bulb’s voltage, and total battery current. Describe the arrangement and switch locations you actually built.","Disconnect each bulb in turn, restoring it before the next test. Then open Switch 1 alone and Switch 2 alone, restoring each afterward. Record exactly which bulbs remain lit. Check that there is no wire-only path across the battery.","Revise and repeat any failed tests. Capture a screenshot for your own record if useful, or describe the wiring in enough detail to reconstruct it. Use your measurements and tests in the final Buzz explanations."]}
   ];
-
   const evidenceParts = [
     [
       { key: "p1_path", label: "Path from terminal to terminal", type: "select", options: ["Closed", "Open"] },
@@ -1877,1013 +1730,197 @@ select {
     ]
   ];
 
-  const questions = [
-    [1, "What must be true about the path from one side of the battery to the other for current to flow?"],
-    [1, "Disconnect one wire. What happens to the bulb?"],
-    [1, "Explain the difference between an open circuit and a closed circuit."],
-    [2, "How does current compare at different locations in this one-loop circuit?"],
-    [2, "What does your evidence suggest happens to current as it travels through a series circuit?"],
-    [3, "Where did you measure the largest voltage difference?"],
-    [3, "How does the voltage across the bulb compare with the voltage supplied by the battery?"],
-    [4, "How does the brightness of each bulb compare with the original one-bulb circuit?"],
-    [4, "How is the battery's voltage divided between the two bulbs?"],
-    [4, "Disconnect Bulb 1. What happens to Bulb 2?"],
-    [4, "Why does this happen?"],
-    [5, "How does the voltage across each bulb compare with the battery voltage?"],
-    [5, "What happens to current when it reaches the junction?"],
-    [5, "How does the current in the two branches relate to the total current leaving the battery?"],
-    [5, "Disconnect Bulb 1. What happens to Bulb 2?"],
-    [5, "Why is this different from the series circuit?"],
-    [6, "Did the second bulb remain lit?"],
-    [6, "Is your final circuit series or parallel?"],
-    [6, "Explain why your circuit satisfies the four design requirements."],
-    [7, "Where did you have to place each switch?"],
-    [7, "Why would one switch placed before the branches control both bulbs instead?"],
-    [8, "Why did you choose a series, parallel, or combination circuit?"],
-    [8, "Use your voltage measurements to explain why your bulbs have their observed brightness."],
-    [8, "Use your current measurements to explain what happens to current at a junction."],
-    [8, "Why are household electrical circuits generally designed with parallel branches instead of putting every device in one series loop?"],
-    [8, "Draw a simple schematic of your final circuit. The workbench and report preserve your selected layout; use this space for labels or notes."],
-    [8, "In 3–4 sentences, explain how current, voltage, resistance, and circuit arrangement work together to determine the behavior of your circuit."]
-  ];
-
-  const partDirections = [
-    "Build one battery–bulb loop. Test both a complete path and a disconnected path.",
-    "Place the ammeter at three positions in the same loop. An ammeter belongs in series with the path.",
-    "Place the voltmeter across each target. A voltmeter compares two points and belongs in parallel with the target.",
-    "Add an identical bulb without creating a branch. Test what happens when either bulb is removed.",
-    "Reconnect the two bulbs on separate branches. Compare branch current with total current.",
-    "Choose a design for two room lights, then run a one-bulb failure test.",
-    "Put a switch inside each bulb branch and test all four ON/OFF combinations.",
-    "Choose and prove a three-room design. Your selected workbench layout becomes the schematic in the design report."
-  ];
-
-  const $ = (selector, root = document) => root.querySelector(selector);
-  const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-
-  function freshMissionState(index) {
-    const bulbCount = missions[index].bulbs;
-    return {
-      connected: Array(bulbCount).fill(true),
-      switches: Array(bulbCount).fill(true),
-      topology: index === 5 ? "series" : index === 7 ? "combination" : missions[index].topology
-    };
-  }
-
-  function defaultState() {
-    return {
-      mission: 0,
-      voltage: 9,
-      meter: "ammeter",
-      meterLocation: "battery",
-      missionStates: missions.map((_, index) => freshMissionState(index)),
-      evidence: {},
-      answers: {},
-      submittedAt: ""
-    };
-  }
-
-  function loadState() {
-    const base = defaultState();
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      if (!saved || typeof saved !== "object") return base;
-      base.mission = Number.isInteger(saved.mission) ? Math.min(7, Math.max(0, saved.mission)) : 0;
-      base.voltage = Number(saved.voltage) || 9;
-      base.meter = saved.meter === "voltmeter" ? "voltmeter" : "ammeter";
-      base.meterLocation = saved.meterLocation || "battery";
-      base.evidence = saved.evidence && typeof saved.evidence === "object" ? saved.evidence : {};
-      base.answers = saved.answers && typeof saved.answers === "object" ? saved.answers : {};
-      base.submittedAt = saved.submittedAt || "";
-      if (Array.isArray(saved.missionStates)) {
-        base.missionStates = base.missionStates.map((fallback, index) => {
-          const candidate = saved.missionStates[index] || {};
-          return {
-            topology: ["one", "series", "parallel", "combination"].includes(candidate.topology) ? candidate.topology : fallback.topology,
-            connected: fallback.connected.map((value, bulb) => candidate.connected?.[bulb] !== false),
-            switches: fallback.switches.map((value, bulb) => candidate.switches?.[bulb] !== false)
-          };
-        });
+  const numberField = (key, label, unit) => ({ key, label, unit, type: "number" });
+  const textField = (key, label) => ({ key, label, type: "text" });
+  const choiceField = (key, label, options) => ({ key, label, options, type: "select" });
+  evidenceParts[0].push(textField("p1_open", "What happened when you disconnected a wire?"));
+  [0, 1, 5, 6].forEach(i => evidenceParts[i].unshift(numberField(`m${i}_source`, "Measured battery voltage", "V")));
+  [3, 4].forEach((i) => {
+    evidenceParts[i].push(numberField(`m${i}_resistance`, "Total resistance (calculate measured V ÷ total I)", "Ω"));
+    evidenceParts[i].push(choiceField(`m${i}_brightness`, "Each bulb compared with the original single bulb", ["Brighter", "Same brightness", "Dimmer"]));
+    evidenceParts[i].push(textField(`m${i}_failure`, "Disconnect each bulb in turn: what happens to the other?"));
+  });
+  evidenceParts[7].unshift(numberField("p8_source", "Measured battery voltage", "V"), textField("p8_layout", "Describe your wiring and switch locations"));
+  evidenceParts[7].push(
+    choiceField("p8_disconnect_bulb2", "Disconnect Bulb 2 · other bulbs", ["Stay lit", "Turn off", "Only one stays lit"]),
+    choiceField("p8_disconnect_bulb3", "Disconnect Bulb 3 · other bulbs", ["Stay lit", "Turn off", "Only one stays lit"]),
+    choiceField("p8_branches", "Does your circuit have multiple branches?", ["Yes", "No"]),
+    choiceField("p8_independent", "Can at least one bulb switch off without changing the others?", ["Yes", "No"]),
+    choiceField("p8_no_short", "Did you trace every path and rule out a wire-only short?", ["Yes", "No"])
+  );
+  evidenceParts[7].find(f => f.key === "p8_disconnect_bulb1").options.push("Only one stays lit");
+  const $ = s => document.querySelector(s);
+  const $$ = s => [...document.querySelectorAll(s)];
+  const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"})[c]);
+  const emptyState = () => ({ mission:0, evidence:{}, predictions:{}, observations:{}, image:"" });
+  const validImage = value => typeof value === "string" && value.length <= 1500000 && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value);
+  let state = emptyState();
+  let storageAvailable = true;
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (saved && typeof saved === "object") {
+      if (Number.isInteger(saved.mission)) state.mission = Math.max(0, Math.min(7, saved.mission));
+      for (const key of ["evidence", "predictions", "observations"]) {
+        if (saved[key] && typeof saved[key] === "object" && !Array.isArray(saved[key])) {
+          for (const [name, value] of Object.entries(saved[key])) if (typeof value === "string") state[key][name] = value.slice(0, 1500);
+        }
       }
-      return base;
-    } catch (error) {
-      return base;
+      if (validImage(saved.image)) state.image = saved.image;
     }
+  } catch { storageAvailable = false; }
+
+  function storageMessage() {
+    $("#saveStatus").textContent = storageAvailable
+      ? "Notebook saved in this browser. Keep your PhET tab open; its circuit is separate."
+      : "Your latest changes could not be saved in this browser. Keep this tab open and download or print your report before leaving.";
   }
-
-  let state = loadState();
-  let toastTimer = 0;
-
-  function saveState() {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch (error) {
-      // The app remains usable when storage is unavailable.
-    }
+  function save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); storageAvailable = true; }
+    catch { storageAvailable = false; }
+    storageMessage();
     updateProgress();
   }
-
-  function format(value, digits = 2) {
-    if (!Number.isFinite(value)) return "∞";
-    return Number(value).toFixed(digits);
+  function fieldComplete(field) {
+    const value = String(state.evidence[field.key] ?? "").trim();
+    if (!value) return false;
+    if (field.type === "number") return Number.isFinite(Number(value)) && Number(value) >= 0;
+    if (field.type === "select") return field.options.includes(value);
+    return true;
   }
-
-  function topologyFor(index = state.mission) {
-    const mission = missions[index];
-    if (mission.topology === "choice-two" || mission.topology === "choice-three") {
-      return state.missionStates[index].topology;
-    }
-    return mission.topology;
-  }
-
-  function calculate(index = state.mission, overrides = {}) {
-    const mission = missions[index];
-    const topology = overrides.topology || topologyFor(index);
-    const source = state.missionStates[index];
-    const connected = overrides.connected || [...source.connected];
-    const switches = overrides.switches || [...source.switches];
-    const voltage = Number(overrides.voltage ?? state.voltage);
-    const bulbCount = mission.bulbs;
-    let currents = Array(bulbCount).fill(0);
-    let voltages = Array(bulbCount).fill(0);
-    let powers = Array(bulbCount).fill(0);
-    let totalCurrent = 0;
-    let equivalentResistance = Infinity;
-
-    if (topology === "one" || topology === "series") {
-      const closed = connected.every(Boolean) && (!mission.switches || switches.every(Boolean));
-      if (closed) {
-        equivalentResistance = BULB_RESISTANCE * bulbCount;
-        totalCurrent = voltage / equivalentResistance;
-        currents = currents.map(() => totalCurrent);
-        voltages = voltages.map(() => voltage / bulbCount);
-        powers = voltages.map((drop) => (drop * drop) / BULB_RESISTANCE);
-      }
-    } else if (topology === "parallel") {
-      const active = connected.map((isConnected, bulb) => isConnected && (!mission.switches || switches[bulb]));
-      currents = active.map((isActive) => isActive ? voltage / BULB_RESISTANCE : 0);
-      voltages = active.map((isActive) => isActive ? voltage : 0);
-      powers = active.map((isActive) => isActive ? (voltage * voltage) / BULB_RESISTANCE : 0);
-      totalCurrent = currents.reduce((sum, value) => sum + value, 0);
-      const activeCount = active.filter(Boolean).length;
-      equivalentResistance = activeCount ? BULB_RESISTANCE / activeCount : Infinity;
-    } else if (topology === "combination") {
-      const branchOne = connected[0] && switches[0];
-      const branchTwo = connected[1] && connected[2] && switches[1];
-      if (branchOne) {
-        currents[0] = voltage / BULB_RESISTANCE;
-        voltages[0] = voltage;
-        powers[0] = (voltage * voltage) / BULB_RESISTANCE;
-      }
-      if (branchTwo) {
-        currents[1] = voltage / (BULB_RESISTANCE * 2);
-        currents[2] = currents[1];
-        voltages[1] = voltage / 2;
-        voltages[2] = voltage / 2;
-        powers[1] = (voltages[1] * voltages[1]) / BULB_RESISTANCE;
-        powers[2] = powers[1];
-      }
-      totalCurrent = currents[0] + currents[1];
-      const reciprocal = (branchOne ? 1 / BULB_RESISTANCE : 0) + (branchTwo ? 1 / (BULB_RESISTANCE * 2) : 0);
-      equivalentResistance = reciprocal ? 1 / reciprocal : Infinity;
-    }
-
-    const fullPower = (voltage * voltage) / BULB_RESISTANCE;
-    const brightness = powers.map((power) => fullPower ? power / fullPower : 0);
-    return {
-      topology,
-      voltage,
-      connected,
-      switches,
-      currents,
-      voltages,
-      powers,
-      brightness,
-      totalCurrent,
-      equivalentResistance,
-      activeBulbs: brightness.filter((value) => value > 0.001).length,
-      closed: totalCurrent > 0
-    };
-  }
-
-  function topologyLabel(topology) {
-    return ({ one: "Single loop", series: "Series", parallel: "Parallel", combination: "Combination" })[topology] || topology;
-  }
-
-  function brightnessLabel(value) {
-    if (value >= 0.85) return "normal brightness";
-    if (value >= 0.2) return "dim";
-    if (value > 0) return "very dim";
-    return "off";
-  }
-
-  function finalRequirements(topology = topologyFor(7)) {
-    return [
-      { label: "All three bulbs can light", pass: true },
-      { label: "At least one bulb can switch off independently", pass: topology === "parallel" || topology === "combination" },
-      { label: "Any one bulb can fail without turning off the others", pass: topology === "parallel" },
-      { label: "Every bulb receives approximately full battery voltage", pass: topology === "parallel" },
-      { label: "The circuit uses multiple branches", pass: topology === "parallel" || topology === "combination" },
-      { label: "No wire-only short-circuit path", pass: true }
-    ];
-  }
-
-  function twoRoomRequirements(topology = topologyFor(5)) {
-    return [
-      { label: "Both lights operate normally", pass: topology === "parallel" },
-      { label: "Each light receives full battery voltage", pass: topology === "parallel" },
-      { label: "One bulb can fail while the other stays on", pass: topology === "parallel" },
-      { label: "Each bulb has a complete path to the battery", pass: topology === "parallel" }
-    ];
-  }
-
-  function renderMissionList() {
-    const root = $("#missionList");
-    root.innerHTML = missions.map((mission, index) => {
-      const complete = missionComplete(index);
-      return `<li><button class="mission-button ${index === state.mission ? "active" : ""} ${complete ? "complete" : ""}" type="button" data-mission="${index}" ${index === state.mission ? 'aria-current="step"' : ""}><span class="mission-number">${String(index + 1).padStart(2, "0")}</span><span class="mission-name">${mission.short}</span><span class="mission-complete" aria-label="${complete ? "Evidence recorded" : "Evidence not recorded"}">✓</span></button></li>`;
-    }).join("");
-    $$('[data-mission]', root).forEach((button) => {
-      button.addEventListener("click", () => setMission(Number(button.dataset.mission)));
-    });
-  }
-
-  function setMission(index) {
-    state.mission = Math.min(7, Math.max(0, index));
-    const mission = missions[state.mission];
-    if (state.mission === 2) state.meter = "voltmeter";
-    if (state.mission === 1) state.meter = "ammeter";
-    state.meterLocation = state.meter === "ammeter" ? "battery" : "battery-voltage";
-    saveState();
-    renderBench();
-    const list = $("#missionList");
-    const active = $(".mission-button.active", list);
-    if (active && list.scrollWidth > list.clientWidth) {
-      const item = active.getBoundingClientRect();
-      const bounds = list.getBoundingClientRect();
-      list.scrollLeft += item.left - bounds.left - (list.clientWidth - item.width) / 2;
-    }
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    $("#briefTitle").focus?.({ preventScroll: true });
-  }
-
-  function renderBench() {
-    const mission = missions[state.mission];
-    $("#briefNumber").textContent = String(state.mission + 1).padStart(2, "0");
-    $("#briefPart").textContent = mission.part;
-    $("#briefTitle").textContent = mission.title;
-    $("#briefText").textContent = mission.text;
-    $("#evidencePrompt").textContent = mission.prompt;
-    $("#previousMission").disabled = state.mission === 0;
-    $("#nextMission").disabled = state.mission === 7;
-    $("#batteryVoltage").value = String(state.voltage);
-    $("#batteryOutput").textContent = `${state.voltage} V`;
-    renderMissionList();
-    renderTopologyControls();
-    renderComponentControls();
-    renderMeterControls();
-    renderCircuitMetrics();
-    renderMissionEvidence();
-  }
-
-  function renderTopologyControls() {
-    const mission = missions[state.mission];
-    let options;
-    if (mission.topology === "choice-two") options = [["series", "Series"], ["parallel", "Parallel"]];
-    else if (mission.topology === "choice-three") options = [["series", "Series"], ["parallel", "Parallel"], ["combination", "Combination"]];
-    else options = [[mission.topology, topologyLabel(mission.topology)]];
-    const chosen = topologyFor();
-    $("#topologyOptions").innerHTML = options.map(([value, label]) => `<label class="segment-label"><input type="radio" name="topology" value="${value}" ${value === chosen ? "checked" : ""} ${options.length === 1 ? "disabled" : ""}><span>${label}</span></label>`).join("");
-    $$('input[name="topology"]').forEach((input) => {
-      input.addEventListener("change", () => {
-        state.missionStates[state.mission].topology = input.value;
-        state.missionStates[state.mission].connected.fill(true);
-        state.missionStates[state.mission].switches.fill(true);
-        saveState();
-        renderBench();
-        renderReport();
-        showToast(`${topologyLabel(input.value)} arrangement selected. Test it against the requirements.`);
-      });
-    });
-  }
-
-  function switchIndexForBulb(index) {
-    if (state.mission === 7 && topologyFor() === "combination") return index === 0 ? 0 : 1;
-    return index;
-  }
-
-  function renderComponentControls() {
-    const mission = missions[state.mission];
-    const missionState = state.missionStates[state.mission];
-    const topology = topologyFor();
-    $("#componentControls").innerHTML = missionState.connected.map((connected, index) => {
-      const switchIndex = switchIndexForBulb(index);
-      const showSwitch = mission.switches && !(topology === "combination" && index === 2);
-      const switchName = topology === "combination" && index === 1 ? "Switch 2 · bulbs 2 + 3" : `Switch ${switchIndex + 1}`;
-      const switchButton = showSwitch ? `<button class="mini-switch ${missionState.switches[switchIndex] ? "" : "off"}" type="button" data-switch="${switchIndex}" aria-pressed="${missionState.switches[switchIndex]}">${switchName}: ${missionState.switches[switchIndex] ? "closed" : "open"}</button>` : `<span></span>`;
-      return `<div class="component-row"><strong>Bulb ${index + 1} · ${BULB_RESISTANCE} Ω</strong>${switchButton}<button class="disconnect-button ${connected ? "" : "disconnected"}" type="button" data-bulb="${index}" aria-pressed="${!connected}">${connected ? "Disconnect" : "Reconnect"}</button></div>`;
-    }).join("");
-    $$('[data-switch]').forEach((button) => {
-      button.addEventListener("click", () => {
-        const index = Number(button.dataset.switch);
-        missionState.switches[index] = !missionState.switches[index];
-        saveState();
-        renderBench();
-      });
-    });
-    $$('[data-bulb]').forEach((button) => {
-      button.addEventListener("click", () => {
-        const index = Number(button.dataset.bulb);
-        missionState.connected[index] = !missionState.connected[index];
-        saveState();
-        renderBench();
-      });
-    });
-  }
-
-  function meterOptions() {
-    const count = missions[state.mission].bulbs;
-    if (state.meter === "ammeter") {
-      const options = [["battery", "Total current near battery"]];
-      if (topologyFor() === "one" || topologyFor() === "series") {
-        options.push(["before", "Current before first bulb"], ["after", "Current after last bulb"]);
-      } else {
-        for (let index = 0; index < count; index += 1) options.push([`branch-${index}`, `Current in Bulb ${index + 1} branch`]);
-      }
-      return options;
-    }
-    const options = [["battery-voltage", "Voltage across battery"]];
-    for (let index = 0; index < count; index += 1) options.push([`bulb-${index}`, `Voltage across Bulb ${index + 1}`]);
-    options.push(["wire", "Voltage across ideal wire"]);
-    return options;
-  }
-
-  function renderMeterControls() {
-    $$('.meter-button').forEach((button) => {
-      const active = button.dataset.meter === state.meter;
-      button.classList.toggle("active", active);
-      button.setAttribute("aria-pressed", String(active));
-    });
-    $("#meterHint").textContent = state.meter === "ammeter"
-      ? "Current through the selected wire or branch. Connect a real ammeter in series."
-      : "Potential difference across the selected component. Connect a real voltmeter in parallel.";
-    const options = meterOptions();
-    if (!options.some(([value]) => value === state.meterLocation)) state.meterLocation = options[0][0];
-    $("#meterLocation").innerHTML = options.map(([value, label]) => `<option value="${value}" ${value === state.meterLocation ? "selected" : ""}>${label}</option>`).join("");
-    updateMeterReadout();
-  }
-
-  function getMeterValue() {
-    const result = calculate();
-    if (state.meter === "ammeter") {
-      if (state.meterLocation.startsWith("branch-")) {
-        const index = Number(state.meterLocation.split("-")[1]);
-        return { value: result.currents[index] || 0, unit: "A" };
-      }
-      return { value: result.totalCurrent, unit: "A" };
-    }
-    if (state.meterLocation === "battery-voltage") return { value: result.voltage, unit: "V" };
-    if (state.meterLocation === "wire") return { value: 0, unit: "V" };
-    const index = Number(state.meterLocation.split("-")[1]);
-    return { value: result.voltages[index] || 0, unit: "V" };
-  }
-
-  function updateMeterReadout() {
-    const selected = $("#meterLocation");
-    const reading = getMeterValue();
-    $("#meterLabel").textContent = selected.options[selected.selectedIndex]?.textContent || "Meter reading";
-    $("#meterReading").textContent = `${format(reading.value)} ${reading.unit}`;
-  }
-
-  function renderCircuitMetrics() {
-    const result = calculate();
-    $("#batteryMetric").textContent = `${format(result.voltage, 1)} V`;
-    $("#resistanceMetric").textContent = Number.isFinite(result.equivalentResistance) ? `${format(result.equivalentResistance, 1)} Ω` : "Open";
-    $("#currentMetric").textContent = `${format(result.totalCurrent)} A`;
-    $("#bulbsMetric").textContent = `${result.activeBulbs} of ${missions[state.mission].bulbs}`;
-    const status = $("#circuitStatus");
-    status.classList.toggle("open", !result.closed);
-    $("strong", status).textContent = result.closed ? "Current flowing" : "Open circuit";
-    const descriptions = result.brightness.map((brightness, index) => `Bulb ${index + 1} ${brightnessLabel(brightness)}`);
-    $("#canvasReadout").textContent = `${topologyLabel(result.topology)} · ${descriptions.join(" · ")}`;
-    const canvas = $("#circuitCanvas");
-    canvas.setAttribute("aria-label", `${topologyLabel(result.topology)} circuit with ${missions[state.mission].bulbs} bulbs. ${descriptions.join(". ")}. Total current ${format(result.totalCurrent)} amperes.`);
-    drawCircuit(canvas, result);
-  }
-
-  function drawCircuit(canvas, result) {
-    const context = canvas.getContext("2d");
-    const width = canvas.width;
-    const height = canvas.height;
-    context.clearRect(0, 0, width, height);
-    context.lineCap = "round";
-    context.lineJoin = "round";
-
-    const colors = {
-      wire: "#a9bec8",
-      wireHot: "#62d6bd",
-      label: "#d9e7eb",
-      muted: "#86a0ad",
-      bulbOff: "#324d5d",
-      bulbOn: "#ffc94a",
-      orange: "#ed6d37",
-      dark: "#102a39"
-    };
-
-    function line(points, hot = false, dashed = false) {
-      context.save();
-      context.beginPath();
-      context.strokeStyle = hot ? colors.wireHot : colors.wire;
-      context.lineWidth = hot ? 7 : 6;
-      context.setLineDash(dashed ? [10, 10] : []);
-      points.forEach(([x, y], index) => index ? context.lineTo(x, y) : context.moveTo(x, y));
-      context.stroke();
-      context.restore();
-    }
-
-    function text(value, x, y, size = 17, align = "center", color = colors.label, weight = 700) {
-      context.save();
-      context.fillStyle = color;
-      context.font = `${weight} ${size}px Inter, Arial, sans-serif`;
-      context.textAlign = align;
-      context.textBaseline = "middle";
-      context.fillText(value, x, y);
-      context.restore();
-    }
-
-    function battery(x, centerY) {
-      line([[x, 88], [x, centerY - 47]], result.closed);
-      line([[x, centerY + 47], [x, height - 92]], result.closed);
-      context.save();
-      context.strokeStyle = "#f3f7f7";
-      context.lineWidth = 8;
-      context.beginPath();
-      context.moveTo(x - 34, centerY - 34);
-      context.lineTo(x + 34, centerY - 34);
-      context.stroke();
-      context.lineWidth = 4;
-      context.beginPath();
-      context.moveTo(x - 20, centerY + 34);
-      context.lineTo(x + 20, centerY + 34);
-      context.stroke();
-      context.restore();
-      text("+", x + 50, centerY - 34, 22, "left", "#ffad8b", 900);
-      text("−", x + 50, centerY + 34, 22, "left", colors.label, 900);
-      text(`${result.voltage} V`, x - 50, centerY, 17, "center", colors.label, 900);
-      text("BATTERY", x - 50, centerY + 23, 11, "center", colors.muted, 800);
-    }
-
-    function bulb(x, y, index) {
-      const brightness = result.brightness[index] || 0;
-      const active = brightness > 0;
-      context.save();
-      if (active) {
-        context.shadowColor = `rgba(255, 201, 74, ${Math.min(0.75, 0.25 + brightness * 0.5)})`;
-        context.shadowBlur = 28 + brightness * 25;
-      }
-      context.fillStyle = active ? colors.bulbOn : colors.bulbOff;
-      context.strokeStyle = active ? "#fff1ad" : "#718995";
-      context.lineWidth = 5;
-      context.beginPath();
-      context.arc(x, y, 36, 0, Math.PI * 2);
-      context.fill();
-      context.stroke();
-      context.restore();
-      context.save();
-      context.strokeStyle = active ? "#7f5813" : "#9cb0b8";
-      context.lineWidth = 3;
-      context.beginPath();
-      context.moveTo(x - 17, y + 4);
-      context.lineTo(x - 7, y - 10);
-      context.lineTo(x + 7, y + 10);
-      context.lineTo(x + 17, y - 4);
-      context.stroke();
-      context.restore();
-      if (!result.connected[index]) {
-        context.save();
-        context.strokeStyle = "#ff8c72";
-        context.lineWidth = 5;
-        context.beginPath();
-        context.moveTo(x - 23, y - 23);
-        context.lineTo(x + 23, y + 23);
-        context.moveTo(x + 23, y - 23);
-        context.lineTo(x - 23, y + 23);
-        context.stroke();
-        context.restore();
-      }
-      text(`B${index + 1}`, x, y + 60, 14, "center", colors.label, 900);
-      text(`${format(result.voltages[index], 1)} V`, x, y + 79, 12, "center", colors.muted, 700);
-    }
-
-    function circuitSwitch(x, y, closed, label, vertical = true) {
-      context.save();
-      context.fillStyle = colors.dark;
-      if (vertical) context.fillRect(x - 22, y - 28, 44, 56);
-      else context.fillRect(x - 28, y - 22, 56, 44);
-      context.strokeStyle = closed ? colors.wireHot : "#ff8c72";
-      context.fillStyle = closed ? colors.wireHot : "#ff8c72";
-      context.lineWidth = 6;
-      if (vertical) {
-        context.beginPath();
-        context.arc(x, y - 15, 5, 0, Math.PI * 2);
-        context.arc(x, y + 15, 5, 0, Math.PI * 2);
-        context.fill();
-        context.beginPath();
-        context.moveTo(x, y - 15);
-        context.lineTo(closed ? x : x + 25, closed ? y + 15 : y + 2);
-        context.stroke();
-      } else {
-        context.beginPath();
-        context.arc(x - 15, y, 5, 0, Math.PI * 2);
-        context.arc(x + 15, y, 5, 0, Math.PI * 2);
-        context.fill();
-        context.beginPath();
-        context.moveTo(x - 15, y);
-        context.lineTo(closed ? x + 15 : x + 4, closed ? y : y - 24);
-        context.stroke();
-      }
-      context.restore();
-      text(label, x + (vertical ? 28 : 0), y + (vertical ? 1 : -28), 12, vertical ? "left" : "center", colors.muted, 800);
-    }
-
-    function arrow(x, y, direction = 1, vertical = false) {
-      context.save();
-      context.translate(x, y);
-      if (vertical) context.rotate(Math.PI / 2);
-      x = 0;
-      y = 0;
-      context.fillStyle = colors.orange;
-      context.beginPath();
-      if (direction > 0) {
-        context.moveTo(x - 8, y - 6); context.lineTo(x + 8, y); context.lineTo(x - 8, y + 6);
-      } else {
-        context.moveTo(x + 8, y - 6); context.lineTo(x - 8, y); context.lineTo(x + 8, y + 6);
-      }
-      context.closePath();
-      context.fill();
-      context.restore();
-    }
-
-    function junction(x, y) {
-      context.save();
-      context.fillStyle = colors.label;
-      context.beginPath();
-      context.arc(x, y, 7, 0, Math.PI * 2);
-      context.fill();
-      context.restore();
-    }
-
-    const left = 150;
-    battery(left, height / 2);
-
-    if (result.topology === "one" || result.topology === "series") {
-      const top = 88;
-      const bottom = height - 92;
-      line([[left, 88], [width - 90, 88], [width - 90, bottom], [left, bottom]], result.closed);
-      const positions = result.currents.length === 1 ? [width * 0.61] : result.currents.map((_, index) => width * (0.45 + index * 0.25));
-      positions.forEach((x, index) => bulb(x, top, index));
-      if (result.closed) {
-        arrow(width * 0.34, 88, 1);
-        arrow(width * 0.72, bottom, -1);
-      }
-      if (missions[state.mission].switches) circuitSwitch(width * 0.29, 88, result.switches[0], "S1", false);
-    } else if (result.topology === "parallel") {
-      const top = 88;
-      const bottom = height - 92;
-      const right = width - 85;
-      line([[left, top], [right, top]], result.closed);
-      line([[left, bottom], [right, bottom]], result.closed);
-      const count = result.currents.length;
-      const start = count === 2 ? width * 0.46 : width * 0.38;
-      const spacing = count === 2 ? width * 0.3 : width * 0.23;
-      result.currents.forEach((current, index) => {
-        const x = start + index * spacing;
-        const hot = current > 0;
-        line([[x, top], [x, bottom]], hot);
-        if (missions[state.mission].switches) circuitSwitch(x, 160, result.switches[index], `S${index + 1}`);
-        bulb(x, 270, index);
-        [top, bottom].forEach(y => junction(x, y));
-        if (hot) arrow(x, 210, 1, true);
-      });
-      if (result.closed) {
-        arrow(width * 0.29, top, 1);
-        arrow(width * 0.29, bottom, -1);
-      }
-      text("JUNCTION", width * 0.27, top - 24, 11, "center", colors.muted, 800);
-    } else {
-      const top = 88;
-      const bottom = height - 92;
-      const right = width - 85;
-      line([[left, top], [right, top]], result.closed);
-      line([[left, bottom], [right, bottom]], result.closed);
-      const branchOneX = width * 0.44;
-      const branchTwoX = width * 0.72;
-      line([[branchOneX, top], [branchOneX, bottom]], result.currents[0] > 0);
-      line([[branchTwoX, top], [branchTwoX, bottom]], result.currents[1] > 0);
-      [branchOneX, branchTwoX].forEach(x => [top, bottom].forEach(y => junction(x, y)));
-      if (result.currents[0] > 0) arrow(branchOneX, 205, 1, true);
-      if (result.currents[1] > 0) arrow(branchTwoX, 195, 1, true);
-      if (result.closed) arrow(width * 0.27, bottom, -1);
-      circuitSwitch(branchOneX, 150, result.switches[0], "S1");
-      circuitSwitch(branchTwoX, 150, result.switches[1], "S2");
-      bulb(branchOneX, 270, 0);
-      bulb(branchTwoX, 245, 1);
-      bulb(branchTwoX, 345, 2);
-      text("B2 + B3 SHARE A SERIES BRANCH", branchTwoX, bottom + 30, 11, "center", colors.muted, 800);
-      if (result.closed) arrow(width * 0.27, top, 1);
-    }
-
-
-  }
-
-  function liveEvidence() {
-    const result = calculate();
-    const cards = [];
-    if (state.mission === 0) {
-      cards.push(["Path", result.closed ? "Closed" : "Open"], ["Bulb", result.activeBulbs ? "Lit" : "Not lit"]);
-    } else if (state.mission === 1) {
-      cards.push(["Before bulb", `${format(result.totalCurrent)} A`], ["After bulb", `${format(result.totalCurrent)} A`], ["Near battery", `${format(result.totalCurrent)} A`]);
-    } else if (state.mission === 2) {
-      cards.push(["Across battery", `${format(result.voltage)} V`], ["Across bulb", `${format(result.voltages[0])} V`], ["Across wire", "0.00 V"]);
-    } else if (state.mission === 3) {
-      cards.push(["Circuit current", `${format(result.totalCurrent)} A`], ["Bulb 1", `${format(result.voltages[0])} V`], ["Bulb 2", `${format(result.voltages[1])} V`], ["Brightness", brightnessLabel(result.brightness[0])]);
-    } else if (state.mission === 4) {
-      cards.push(["Total current", `${format(result.totalCurrent)} A`], ["Branch 1", `${format(result.currents[0])} A`], ["Branch 2", `${format(result.currents[1])} A`], ["Each bulb", `${format(result.voltages[0])} V`]);
-    } else if (state.mission === 5) {
-      const failure = calculate(5, { connected: [false, true] });
-      cards.push(["Arrangement", topologyLabel(result.topology)], ["Bulb 2 after B1 fails", failure.activeBulbs ? "Stays lit" : "Turns off"], ["Bulb voltage", `${format(result.voltages[0])} V`]);
-    } else if (state.mission === 6) {
-      cards.push(["Switch 1", result.switches[0] ? "Closed" : "Open"], ["Switch 2", result.switches[1] ? "Closed" : "Open"], ["Bulb 1", brightnessLabel(result.brightness[0])], ["Bulb 2", brightnessLabel(result.brightness[1])]);
-    } else {
-      cards.push(["Arrangement", topologyLabel(result.topology)], ["Total current", `${format(result.totalCurrent)} A`], ["Bulb voltages", result.voltages.map((value) => `${format(value, 1)} V`).join(" · ")], ["Active bulbs", `${result.activeBulbs} of 3`]);
-    }
-    return cards;
-  }
-
-  function renderMissionEvidence() {
-    $("#missionEvidence").innerHTML = liveEvidence().map(([label, value]) => `<div class="reading-card"><span>${label}</span><strong>${value}</strong></div>`).join("");
-    const requirements = state.mission === 5 ? twoRoomRequirements() : state.mission === 7 ? finalRequirements() : [];
-    const root = $("#requirementChecks");
-    root.hidden = !requirements.length;
-    root.innerHTML = requirements.map((item) => `<div class="requirement-chip ${item.pass ? "pass" : ""}"><span class="check-mark"><span>${item.pass ? "✓" : "×"}</span></span><span>${item.label}</span></div>`).join("");
-  }
-
-  function recordMissionEvidence() {
-    const index = state.mission;
-    const result = calculate(index);
-    const values = {};
-    if (index === 0) {
-      values.p1_path = result.closed ? "Closed" : "Open";
-      values.p1_bulb = result.activeBulbs ? "Lit" : "Not lit";
-    } else if (index === 1) {
-      values.p2_current_before = format(result.totalCurrent);
-      values.p2_current_after = format(result.totalCurrent);
-      values.p2_current_battery = format(result.totalCurrent);
-    } else if (index === 2) {
-      values.p3_voltage_battery = format(result.voltage);
-      values.p3_voltage_bulb = format(result.voltages[0]);
-      values.p3_voltage_wire = "0.00";
-    } else if (index === 3) {
-      values.p4_battery_voltage = format(result.voltage);
-      values.p4_circuit_current = format(result.totalCurrent);
-      values.p4_bulb1_voltage = format(result.voltages[0]);
-      values.p4_bulb2_voltage = format(result.voltages[1]);
-    } else if (index === 4) {
-      values.p5_battery_voltage = format(result.voltage);
-      values.p5_total_current = format(result.totalCurrent);
-      values.p5_bulb1_current = format(result.currents[0]);
-      values.p5_bulb2_current = format(result.currents[1]);
-      values.p5_bulb1_voltage = format(result.voltages[0]);
-      values.p5_bulb2_voltage = format(result.voltages[1]);
-    } else if (index === 5) {
-      const failed = calculate(5, { connected: [false, true] });
-      values.p6_second_bulb = failed.brightness[1] > 0 ? "Remained lit" : "Turned off";
-      values.p6_arrangement = topologyLabel(result.topology);
-      values.p6_requirements = twoRoomRequirements(result.topology).every((item) => item.pass) ? "Pass" : "Fail";
-    } else if (index === 6) {
-      values.p7_on_off = switchTest([true, false], [true, false]) ? "Pass" : "Fail";
-      values.p7_off_on = switchTest([false, true], [false, true]) ? "Pass" : "Fail";
-      values.p7_on_on = switchTest([true, true], [true, true]) ? "Pass" : "Fail";
-      values.p7_off_off = switchTest([false, false], [false, false]) ? "Pass" : "Fail";
-    } else {
-      const healthy = calculate(7, { connected: [true, true, true], switches: [true, true, true] });
-      const failure = calculate(7, { connected: [false, true, true], switches: [true, true, true] });
-      const switchOne = calculate(7, { connected: [true, true, true], switches: [false, true, true] });
-      const switchTwo = calculate(7, { connected: [true, true, true], switches: [true, false, true] });
-      values.p8_bulb1_voltage = format(healthy.voltages[0]);
-      values.p8_bulb2_voltage = format(healthy.voltages[1]);
-      values.p8_bulb3_voltage = format(healthy.voltages[2]);
-      values.p8_total_current = format(healthy.totalCurrent);
-      values.p8_disconnect_bulb1 = failure.brightness.slice(1).every((value) => value > 0) ? "Stay lit" : "Turn off";
-      values.p8_open_switch1 = describeBulbs(switchOne.brightness);
-      values.p8_open_switch2 = describeBulbs(switchTwo.brightness);
-    }
-    Object.assign(state.evidence, values);
-    saveState();
-    renderMissionList();
-    renderNotebook();
-    renderReport();
-    $("#recordStatus").textContent = `Mission ${index + 1} evidence recorded at ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`;
-    showToast(`Mission ${index + 1} evidence saved to the notebook.`);
-  }
-
-  function switchTest(switches, expectedOn) {
-    const result = calculate(6, { connected: [true, true], switches });
-    return expectedOn.every((shouldBeOn, index) => (result.brightness[index] > 0) === shouldBeOn);
-  }
-
-  function describeBulbs(brightness) {
-    return brightness.map((value, index) => `B${index + 1} ${value > 0 ? "ON" : "OFF"}`).join(", ");
-  }
-
-  function missionComplete(index) {
-    return evidenceParts[index].every((field) => String(state.evidence[field.key] ?? "").trim() !== "");
-  }
-
-  function answeredCount() {
-    return questions.filter((_, index) => String(state.answers[index + 1] ?? "").trim()).length;
-  }
-
+  function missionComplete(index) { return evidenceParts[index].every(fieldComplete); }
   function updateProgress() {
-    const missionCount = missions.filter((_, index) => missionComplete(index)).length;
-    const answers = answeredCount();
-    const totalItems = missions.length + questions.length;
-    const percent = Math.round(((missionCount + answers) / totalItems) * 100);
+    const count = missions.filter((_, i) => missionComplete(i)).length;
+    const percent = Math.round(count / 8 * 100);
     $("#progressPercent").textContent = `${percent}%`;
     $("#progressFill").style.width = `${percent}%`;
     $(".progress-track").setAttribute("aria-valuenow", String(percent));
-    $("#progressDetail").textContent = `${missionCount} of 8 investigations · ${answers} of 27 responses`;
-    $("#notebookCount").textContent = `${answers}/27`;
-    renderMissionList();
-  }
-
-  function renderNotebook() {
-    const nav = $("#notebookNav");
-    const root = $("#notebookParts");
-    nav.innerHTML = missions.map((mission, index) => {
-      const partQuestions = questions.map((q, questionIndex) => ({ part: q[0], number: questionIndex + 1 })).filter((q) => q.part === index + 1);
-      const complete = missionComplete(index) && partQuestions.every((q) => String(state.answers[q.number] || "").trim());
-      return `<button type="button" data-notebook-part="${index}" class="${complete ? "complete" : ""}">${index + 1}. ${mission.short}</button>`;
-    }).join("");
-
-    root.innerHTML = missions.map((mission, index) => {
-      const partQuestions = questions.map((q, questionIndex) => ({ part: q[0], text: q[1], number: questionIndex + 1 })).filter((q) => q.part === index + 1);
-      return `<details class="lab-part" id="notebookPart${index + 1}" ${index === state.mission ? "open" : ""}>
-        <summary><span class="part-number">${String(index + 1).padStart(2, "0")}</span><span>${mission.part}</span></summary>
-        <div class="part-content">
-          <div class="part-directions"><p>${partDirections[index]}</p><button class="small-link-button" type="button" data-go-bench="${index}">Open mission ${index + 1}</button></div>
-          ${evidenceTable(index)}
-          ${partQuestions.map((question) => questionHtml(question)).join("")}
-        </div>
-      </details>`;
-    }).join("");
-
-    $$('[data-notebook-part]', nav).forEach((button) => {
-      button.addEventListener("click", () => {
-        const detail = $(`#notebookPart${Number(button.dataset.notebookPart) + 1}`);
-        detail.open = true;
-        detail.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
+    $("#progressDetail").textContent = `${count} of 8 evidence tables complete`;
+    $("#notebookCount").textContent = `${count}/8`;
+    $$('[data-mission]').forEach(button => {
+      const complete = missionComplete(Number(button.dataset.mission));
+      button.classList.toggle("complete", complete);
+      button.querySelector(".mission-complete").setAttribute("aria-label", complete ? "Evidence recorded" : "Evidence not recorded");
     });
-    $$('[data-go-bench]', root).forEach((button) => button.addEventListener("click", () => {
-      state.mission = Number(button.dataset.goBench);
-      saveState();
-      showView("bench");
-      renderBench();
+    const recorded = evidenceParts[state.mission].filter(fieldComplete).length;
+    $("#missionStatus").textContent = `${recorded} of ${evidenceParts[state.mission].length} entries recorded. Measurements are self-reported, not automatically verified.`;
+  }
+  function evidenceTable(index, editable = true, prefix = "bench") {
+    return `<div class="data-table-wrap"><table class="data-table"><caption>Mission ${index + 1}: ${escapeHtml(missions[index].short)}</caption><thead><tr><th scope="col">Measurement or test</th><th scope="col">Your result</th><th scope="col">Unit</th></tr></thead><tbody>${evidenceParts[index].map(field => {
+      const value = state.evidence[field.key] || "";
+      const id = `${prefix}-${field.key}`;
+      let input;
+      if (!editable) input = escapeHtml(value || "Not recorded");
+      else if (field.type === "select") input = `<select id="${id}" data-evidence="${field.key}"><option value="">Choose observed result…</option>${field.options.map(o => `<option${o === value ? " selected" : ""}>${escapeHtml(o)}</option>`).join("")}</select>`;
+      else input = `<input id="${id}" data-evidence="${field.key}" type="${field.type === "number" ? "number" : "text"}" ${field.type === "number" ? 'min="0" step="any" inputmode="decimal"' : 'maxlength="800"'} value="${escapeHtml(value)}" placeholder="${field.type === "number" ? "Enter reading" : "Describe what you observed"}">`;
+      return `<tr><th scope="row">${editable ? `<label for="${id}">${escapeHtml(field.label)}</label>` : escapeHtml(field.label)}</th><td>${input}</td><td>${field.unit || "—"}</td></tr>`;
+    }).join("")}</tbody></table></div>`;
+  }
+  function bindEvidence(root) {
+    root.querySelectorAll('[data-evidence]').forEach(input => input.addEventListener("input", () => {
+      state.evidence[input.dataset.evidence] = input.value;
+      input.setAttribute("aria-invalid", String(!input.validity.valid));
+      save();
     }));
-    $$('[data-evidence-key]', root).forEach((input) => {
-      input.addEventListener("input", () => {
-        state.evidence[input.dataset.evidenceKey] = input.value;
-        saveState();
-        renderReport();
-      });
-      input.addEventListener("change", () => {
-        state.evidence[input.dataset.evidenceKey] = input.value;
-        saveState();
-        renderReport();
-      });
-    });
-    $$('[data-question]', root).forEach((textarea) => {
-      textarea.addEventListener("input", () => {
-        const number = textarea.dataset.question;
-        state.answers[number] = textarea.value;
-        const meta = textarea.nextElementSibling;
-        const answered = textarea.value.trim().length > 0;
-        $(".answer-state", meta).textContent = answered ? "✓ Answered" : "Response needed";
-        $(".answer-state", meta).classList.toggle("answered", answered);
-        $(".character-count", meta).textContent = `${textarea.value.length}/1500`;
-        saveState();
-        renderReport();
-      });
-    });
   }
-
-  function evidenceTable(partIndex) {
-    const fields = evidenceParts[partIndex];
-    return `<div class="data-table-wrap"><table class="data-table"><thead><tr><th scope="col">Evidence</th><th scope="col">Recorded value</th><th scope="col">Unit</th></tr></thead><tbody>${fields.map((field) => `<tr><th scope="row">${field.label}</th><td>${evidenceInput(field)}</td><td>${field.unit || "—"}</td></tr>`).join("")}</tbody></table></div>`;
-  }
-
-  function evidenceInput(field) {
-    const value = String(state.evidence[field.key] ?? "");
-    if (field.type === "select") {
-      return `<select data-evidence-key="${field.key}" aria-label="${field.label}"><option value="">Select…</option>${field.options.map((option) => `<option value="${option}" ${option === value ? "selected" : ""}>${option}</option>`).join("")}</select>`;
-    }
-    const type = field.type === "number" ? "number" : "text";
-    const extra = type === "number" ? 'step="0.01" inputmode="decimal"' : 'maxlength="140"';
-    return `<input type="${type}" ${extra} data-evidence-key="${field.key}" aria-label="${field.label}" value="${escapeHtml(value)}" placeholder="Record value">`;
-  }
-
-  function questionHtml(question) {
-    const answer = String(state.answers[question.number] ?? "");
-    const answered = answer.trim().length > 0;
-    return `<div class="question-block"><label for="question${question.number}"><span class="question-number">${question.number}.</span> ${question.text}</label><textarea id="question${question.number}" data-question="${question.number}" maxlength="1500" placeholder="Use observations and meter evidence in your explanation…">${escapeHtml(answer)}</textarea><div class="answer-meta"><span class="answer-state ${answered ? "answered" : ""}">${answered ? "✓ Answered" : "Response needed"}</span><span class="character-count">${answer.length}/1500</span></div></div>`;
-  }
-
-  function escapeHtml(value) {
-    return String(value).replace(/[&<>"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character]);
-  }
-
-  function renderReport() {
-    const finalResult = calculate(7, { connected: [true, true, true], switches: [true, true, true] });
-    const requirements = finalRequirements(finalResult.topology);
-    drawCircuit($("#reportCanvas"), finalResult);
-    $("#summaryList").innerHTML = [
-      ["Arrangement", topologyLabel(finalResult.topology)],
-      ["Source", `${format(finalResult.voltage, 1)} V battery`],
-      ["Bulbs", `3 × ${BULB_RESISTANCE} Ω`],
-      ["Equivalent resistance", `${format(finalResult.equivalentResistance, 1)} Ω`],
-      ["Total current", `${format(finalResult.totalCurrent)} A`],
-      ["Design status", requirements.every((item) => item.pass) ? "All requirements pass" : "Revision needed"]
-    ].map(([term, value]) => `<div><dt>${term}</dt><dd>${value}</dd></div>`).join("");
-    $("#finalChecks").innerHTML = requirements.map((item) => `<div class="final-check ${item.pass ? "pass" : ""}"><span class="check-mark"><span>${item.pass ? "✓" : "×"}</span></span><span>${item.label}</span></div>`).join("");
-
-    const finalFields = evidenceParts[7];
-    $("#reportEvidence").innerHTML = `<table><thead><tr><th>Measurement or test</th><th>Recorded result</th></tr></thead><tbody>${finalFields.map((field) => `<tr><td>${field.label}</td><td>${escapeHtml(state.evidence[field.key] || "Not recorded")}${field.unit && state.evidence[field.key] ? ` ${field.unit}` : ""}</td></tr>`).join("")}</tbody></table>`;
-    const answers = answeredCount();
-    $("#responseMeterFill").style.width = `${Math.round((answers / questions.length) * 100)}%`;
-    $("#responseReviewText").textContent = `${answers} of 27 questions answered.`;
-    const missionsDone = missions.filter((_, index) => missionComplete(index)).length;
-    const ready = missionsDone === 8 && answers === 27 && requirements.every((item) => item.pass);
-    if (state.submittedAt) {
-      $("#submissionMessage").textContent = `Submitted ${new Date(state.submittedAt).toLocaleString()}. You may revise and submit again.`;
-      $("#submitLab").textContent = "Resubmit lab";
-    } else if (ready) {
-      $("#submissionMessage").textContent = "Every investigation, response, and design requirement is complete.";
-      $("#submitLab").textContent = "Submit lab";
-    } else {
-      const needs = [];
-      if (missionsDone < 8) needs.push(`${8 - missionsDone} investigation${8 - missionsDone === 1 ? "" : "s"}`);
-      if (answers < 27) needs.push(`${27 - answers} response${27 - answers === 1 ? "" : "s"}`);
-      if (!requirements.every((item) => item.pass)) needs.push("a passing final layout");
-      $("#submissionMessage").textContent = `Still needed: ${needs.join(", ")}.`;
-      $("#submitLab").textContent = "Check readiness";
-    }
-  }
-
-  function showView(view) {
-    $$('[data-view-panel]').forEach((panel) => {
-      const active = panel.dataset.viewPanel === view;
-      panel.hidden = !active;
-      panel.classList.toggle("active", active);
-    });
-    $$('[data-view]').forEach((button) => {
-      const active = button.dataset.view === view;
-      button.classList.toggle("active", active);
-      button.setAttribute("aria-selected", String(active));
-    });
-    if (view === "notebook") renderNotebook();
-    if (view === "report") renderReport();
-    const list = $("#missionList");
-    const active = $(".mission-button.active", list);
-    if (active && list.scrollWidth > list.clientWidth) {
-      const item = active.getBoundingClientRect();
-      const bounds = list.getBoundingClientRect();
-      list.scrollLeft += item.left - bounds.left - (list.clientWidth - item.width) / 2;
-    }
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function showToast(message) {
-    const toast = $("#toast");
-    toast.textContent = message;
-    toast.classList.add("show");
-    window.clearTimeout(toastTimer);
-    toastTimer = window.setTimeout(() => toast.classList.remove("show"), 3400);
-  }
-
-  function reportText() {
-    const finalResult = calculate(7, { connected: [true, true, true], switches: [true, true, true] });
-    const lines = [
-      "UNIT 6 LESSON 3 — CIRCUIT DESIGN CHALLENGE",
-      "",
-      "FINAL DESIGN",
-      `Arrangement: ${topologyLabel(finalResult.topology)}`,
-      `Battery: ${format(finalResult.voltage, 1)} V`,
-      `Bulbs: 3 identical ${BULB_RESISTANCE} Ω bulbs`,
-      `Total current: ${format(finalResult.totalCurrent)} A`,
-      `Equivalent resistance: ${format(finalResult.equivalentResistance, 1)} Ω`,
-      "",
-      "FINAL REQUIREMENT TEST",
-      ...finalRequirements(finalResult.topology).map((item) => `${item.pass ? "PASS" : "FAIL"} — ${item.label}`),
-      "",
-      "RECORDED EVIDENCE"
-    ];
-    evidenceParts.forEach((fields, index) => {
-      lines.push(`Part ${index + 1}: ${missions[index].short}`);
-      fields.forEach((field) => lines.push(`- ${field.label}: ${state.evidence[field.key] || "Not recorded"}${field.unit && state.evidence[field.key] ? ` ${field.unit}` : ""}`));
-    });
-    lines.push("", "WRITTEN RESPONSES");
-    questions.forEach((question, index) => {
-      lines.push(`${index + 1}. ${question[1]}`, state.answers[index + 1] || "No response", "");
-    });
-    return lines.join("\r\n");
-  }
-
-  function downloadReport() {
-    const blob = new Blob([reportText()], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "circuit-design-challenge-report.txt";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-    showToast("Design report downloaded.");
-  }
-
-  function submitLab() {
-    const missionsDone = missions.filter((_, index) => missionComplete(index)).length;
-    const answers = answeredCount();
-    const requirementsPass = finalRequirements().every((item) => item.pass);
-    if (missionsDone < 8 || answers < 27 || !requirementsPass) {
-      renderReport();
-      showToast("The readiness summary shows what is still needed.");
-      return;
-    }
-    state.submittedAt = new Date().toISOString();
-    saveState();
-    renderReport();
-    try {
-      window.parent.postMessage({ type: "complete", activity: "u6l3-circuit-design-challenge" }, "*");
-    } catch (error) {
-      // Submission remains recorded locally when the activity is not embedded.
-    }
-    showToast("Circuit Design Challenge submitted successfully.");
-  }
-
-  function bindEvents() {
-    $$('[data-view]').forEach((button) => button.addEventListener("click", () => showView(button.dataset.view)));
-    $("#previousMission").addEventListener("click", () => setMission(state.mission - 1));
-    $("#nextMission").addEventListener("click", () => setMission(state.mission + 1));
-    $("#batteryVoltage").addEventListener("input", (event) => {
-      state.voltage = Number(event.target.value);
-      $("#batteryOutput").textContent = `${state.voltage} V`;
-      saveState();
-      renderCircuitMetrics();
-      renderMeterControls();
-      renderMissionEvidence();
-      renderReport();
-    });
-    $$('.meter-button').forEach((button) => button.addEventListener("click", () => {
-      state.meter = button.dataset.meter;
-      state.meterLocation = state.meter === "ammeter" ? "battery" : "battery-voltage";
-      saveState();
-      renderMeterControls();
-      renderCircuitMetrics();
-    }));
-    $("#meterLocation").addEventListener("change", (event) => {
-      state.meterLocation = event.target.value;
-      saveState();
-      updateMeterReadout();
-      renderCircuitMetrics();
-    });
-    $("#recordEvidence").addEventListener("click", recordMissionEvidence);
-    $("#openNotebook").addEventListener("click", () => showView("notebook"));
-    $("#returnToBench").addEventListener("click", () => showView("bench"));
-    $("#reviewResponses").addEventListener("click", () => showView("notebook"));
-    $("#printReport").addEventListener("click", () => window.print());
-    $("#downloadReport").addEventListener("click", downloadReport);
-    $("#submitLab").addEventListener("click", submitLab);
-    $("#resetLab").addEventListener("click", () => {
-      if (!window.confirm("Reset all measurements, circuit choices, and written responses for this lab?")) return;
-      state = defaultState();
-      try { localStorage.removeItem(STORAGE_KEY); } catch (error) { /* no-op */ }
-      renderAll();
-      showView("bench");
-      showToast("The lab has been reset.");
-    });
-  }
-
-  function renderAll() {
-    renderBench();
-    renderNotebook();
-    renderReport();
+  function renderBench() {
+    const mission = missions[state.mission];
+    $("#briefNumber").textContent = String(state.mission + 1).padStart(2, "0");
+    $("#briefPart").textContent = `Mission ${state.mission + 1} · Hands-on investigation`;
+    $("#briefTitle").textContent = mission.title;
+    $("#briefText").textContent = "Predict, build in PhET, and explain what your measurements show.";
+    $("#previousMission").disabled = state.mission === 0;
+    $("#nextMission").disabled = state.mission === 7;
+    $("#predictionLabel").textContent = mission.prediction;
+    $("#prediction").value = state.predictions[state.mission] || "";
+    $("#observation").value = state.observations[state.mission] || "";
+    $("#buildSteps").innerHTML = mission.steps.map(step => `<li>${escapeHtml(step)}</li>`).join("");
+    $("#missionEvidence").innerHTML = evidenceTable(state.mission);
+    bindEvidence($("#missionEvidence"));
+    $("#missionList").innerHTML = missions.map((m, i) => `<li><button type="button" class="mission-button ${i === state.mission ? "active" : ""}" data-mission="${i}" ${i === state.mission ? 'aria-current="step"' : ""}><span class="mission-number">${i + 1}</span><span class="mission-name">${escapeHtml(m.short)}</span><span class="mission-complete">✓</span></button></li>`).join("");
+    $$('[data-mission]').forEach(button => button.addEventListener("click", () => setMission(Number(button.dataset.mission))));
     updateProgress();
   }
-
-  bindEvents();
-  renderAll();
+  function setMission(index) {
+    state.mission = Math.max(0, Math.min(7, index));
+    save(); renderBench();
+    $("#briefTitle").setAttribute("tabindex", "-1");
+    $("#briefTitle").focus();
+  }
+  function renderNotebook() {
+    $("#notebookNav").innerHTML = missions.map((m,i) => `<button type="button" data-part="${i}">${i+1}. ${escapeHtml(m.short)}</button>`).join("");
+    $("#notebookParts").innerHTML = missions.map((m,i) => `<details class="lab-part" id="part${i}" ${i === state.mission ? "open" : ""}><summary>${i+1}. ${escapeHtml(m.title)}</summary><div class="part-content"><p><strong>Prediction:</strong> ${escapeHtml(state.predictions[i] || "Not recorded")}</p>${evidenceTable(i,true,"notebook")}<p><strong>Explanation / repairs:</strong> ${escapeHtml(state.observations[i] || "Not recorded")}</p><button type="button" class="button button-secondary" data-build="${i}">Return to this challenge</button></div></details>`).join("");
+    bindEvidence($("#notebookParts"));
+    $$('[data-part]').forEach(button => button.addEventListener("click", () => {
+      const panel = $(`#part${button.dataset.part}`); panel.open = true; panel.scrollIntoView({block:"start"}); panel.querySelector("summary").focus();
+    }));
+    $$('[data-build]').forEach(button => button.addEventListener("click", () => { state.mission = Number(button.dataset.build); save(); showView("bench"); }));
+  }
+  function reviewNotes() {
+    const notes = [];
+    const missing = missions.map((_,i) => i).filter(i => !missionComplete(i));
+    if (missing.length) notes.push(`Finish evidence for missions ${missing.map(i => i+1).join(", ")}.`);
+    const e = state.evidence;
+    if (e.p4_battery_voltage && e.p5_battery_voltage && Math.abs(Number(e.p4_battery_voltage)-Number(e.p5_battery_voltage)) > .1) notes.push("Your series and parallel source voltages differ. Repeat at the same voltage for a fair comparison.");
+    if (["p8_disconnect_bulb1","p8_disconnect_bulb2","p8_disconnect_bulb3"].some(k => e[k] && e[k] !== "Stay lit")) notes.push("A bulb-failure test did not keep both other rooms lit. Revise and retest.");
+    if (["p8_branches","p8_independent","p8_no_short"].some(k => e[k] === "No")) notes.push("Your final design has an unmet requirement. Revisit the branches, switches, and short-circuit check.");
+    const source = Number(e.p8_source);
+    if (source > 0 && ["p8_bulb1_voltage","p8_bulb2_voltage","p8_bulb3_voltage"].some(k => e[k] && Math.abs(Number(e[k])-source) > Math.max(.1,source*.05))) notes.push("A recorded bulb voltage differs from the source by more than about 5%. Inspect your wiring and repeat the measurement.");
+    return notes.length ? notes : ["All eight evidence tables are filled. Review your readings and explanations, then complete the Buzz assessment. This is a completeness check, not a grade or verification of your circuit."];
+  }
+  function renderReport() {
+    $("#readiness").textContent = reviewNotes().join(" ");
+    $("#reportEvidence").innerHTML = missions.map((m,i) => `<section><h4>${i+1}. ${escapeHtml(m.title)}</h4><p><strong>Prediction:</strong> ${escapeHtml(state.predictions[i] || "Not recorded")}</p>${evidenceTable(i,false)}<p><strong>Explanation / repairs:</strong> ${escapeHtml(state.observations[i] || "Not recorded")}</p></section>`).join("");
+    $("#circuitPreview").hidden = !state.image;
+    if (state.image) $("#circuitPreview").src = state.image;
+    else $("#circuitPreview").removeAttribute("src");
+    $("#removeImage").hidden = !state.image;
+  }
+  function showView(view) {
+    if (view === "bench") renderBench();
+    if (view === "notebook") renderNotebook();
+    if (view === "report") renderReport();
+    $$('[data-view-panel]').forEach(panel => { panel.hidden = panel.dataset.viewPanel !== view; panel.classList.toggle("active", !panel.hidden); });
+    $$('[data-view]').forEach(button => { const active = button.dataset.view === view; button.classList.toggle("active", active); button.setAttribute("aria-pressed", String(active)); button.removeAttribute("aria-selected"); });
+    const heading = $(`#${view}View h2`); heading.setAttribute("tabindex", "-1"); heading.focus();
+  }
+  function reportText() {
+    return ["CIRCUIT DESIGN CHALLENGE — PHET EVIDENCE NOTEBOOK", "Student-entered evidence; not automatically verified or submitted to Buzz.", PHET_URL, "", ...reviewNotes(), ...missions.flatMap((m,i) => ["", `${i+1}. ${m.title}`, `Prediction: ${state.predictions[i] || "Not recorded"}`, ...evidenceParts[i].map(f => `${f.label}: ${state.evidence[f.key] || "Not recorded"}${f.unit ? " " + f.unit : ""}`), `Explanation / repairs: ${state.observations[i] || "Not recorded"}`]), "", "Screenshots are included in printing only, not this text file."].join("\r\n");
+  }
+  $$('[data-view]').forEach(button => button.addEventListener("click", () => showView(button.dataset.view)));
+  $("#previousMission").addEventListener("click", () => setMission(state.mission-1));
+  $("#nextMission").addEventListener("click", () => setMission(state.mission+1));
+  $("#openNotebook").addEventListener("click", () => showView("notebook"));
+  $("#returnToBench").addEventListener("click", () => showView("bench"));
+  $("#prediction").addEventListener("input", e => { state.predictions[state.mission] = e.target.value; save(); });
+  $("#observation").addEventListener("input", e => { state.observations[state.mission] = e.target.value; save(); });
+  $("#printReport").addEventListener("click", () => { renderReport(); window.print(); });
+  window.addEventListener("beforeprint", renderReport);
+  $("#downloadReport").addEventListener("click", () => {
+    const url = URL.createObjectURL(new Blob([reportText()], {type:"text/plain;charset=utf-8"}));
+    const link = document.createElement("a"); link.href = url; link.download = "circuit-phet-evidence.txt"; document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  let imageVersion = 0;
+  $("#circuitImage").addEventListener("change", async event => {
+    const version = ++imageVersion;
+    const file = event.target.files[0]; if (!file) return;
+    if (!["image/png","image/jpeg","image/webp"].includes(file.type) || file.size > 1024*1024) {
+      $("#saveStatus").textContent = "Choose a PNG, JPEG, or WebP screenshot no larger than 1 MB."; event.target.value = ""; return;
+    }
+    try {
+      const data = await new Promise((resolve,reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file); });
+      const decoded = new Image(); decoded.src = data; await decoded.decode();
+      if (version !== imageVersion) return;
+      if (!validImage(data)) throw new Error("Invalid image");
+      state.image = data; save(); renderReport();
+    } catch { $("#saveStatus").textContent = "This screenshot could not be read. Choose a valid image file."; }
+  });
+  $("#removeImage").addEventListener("click", () => { imageVersion++; state.image = ""; $("#circuitImage").value = ""; save(); renderReport(); });
+  $("#resetLab").addEventListener("click", () => {
+    if (!confirm("Clear this PhET evidence notebook, including its screenshot? This will not reset your separate PhET circuit.")) return;
+    imageVersion++; state = emptyState(); $("#circuitImage").value = ""; save(); showView("bench");
+  });
+  renderBench(); storageMessage();
 })();
 
 </script>

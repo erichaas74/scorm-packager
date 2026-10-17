@@ -1,0 +1,2050 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unit 5 Application: Resonance Tube Lab</title>
+<style>
+:root {
+  color-scheme: light;
+  --navy: #0d2338;
+  --navy-2: #153b58;
+  --ink: #17283b;
+  --muted: #5f6f80;
+  --line: #cedbe4;
+  --paper: #ffffff;
+  --canvas: #091927;
+  --soft: #edf6fa;
+  --blue: #1174ad;
+  --blue-dark: #07547f;
+  --cyan: #25c7df;
+  --yellow: #ffd65a;
+  --green: #158358;
+  --green-soft: #e4f7ee;
+  --orange: #bd6500;
+  --red: #a63737;
+  --focus: #f5c400;
+  --shadow: 0 16px 38px rgb(13 35 56 / 12%);
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  min-width: 300px;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 8% 2%, #dff6fa 0, transparent 28rem),
+    radial-gradient(circle at 96% 22%, #e2ebfa 0, transparent 28rem),
+    #eaf1f5;
+  font: 16px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .48; }
+button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, [role="tab"]:focus-visible, canvas:focus-visible {
+  outline: 4px solid var(--focus);
+  outline-offset: 3px;
+}
+[hidden] { display: none !important; }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.app-shell {
+  width: min(1320px, 100%);
+  min-height: 100vh;
+  margin: 0 auto;
+  overflow: hidden;
+  background: #f8fbfc;
+  box-shadow: 0 0 48px rgb(13 35 56 / 15%);
+}
+.hero {
+  position: relative;
+  overflow: hidden;
+  padding: 16px clamp(18px, 4vw, 42px);
+  color: #fff;
+  background: linear-gradient(118deg, var(--navy), var(--navy-2));
+}
+.hero::after {
+  position: absolute;
+  right: -76px;
+  bottom: -122px;
+  width: 390px;
+  height: 270px;
+  border: 2px solid rgb(87 220 239 / 18%);
+  border-radius: 50%;
+  box-shadow: 0 0 0 28px rgb(87 220 239 / 7%), 0 0 0 58px rgb(87 220 239 / 4%);
+  content: "";
+}
+.hero-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 350px);
+  gap: 28px;
+  align-items: center;
+}
+.eyebrow {
+  margin: 0 0 4px;
+  color: #89e5f2;
+  font-size: .76rem;
+  font-weight: 900;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+h1 {
+  max-width: 800px;
+  margin: 0;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  letter-spacing: -.045em;
+  line-height: 1.02;
+}
+.hero-copy {
+  max-width: 780px;
+  margin: 10px 0 0;
+  color: #dbe8f0;
+  font-size: clamp(.92rem, 2vw, 1.05rem);
+}
+.progress-card { min-width: 0; }
+.progress-line, .save-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+.progress-line { font-size: .84rem; font-weight: 850; }
+.progress-line strong { color: #84ecbc; font-size: 1.05rem; }
+.progress-track {
+  height: 6px;
+  margin: 6px 0 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 18%);
+}
+.progress-fill {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #39d892, #79edb9);
+  transition: width .25s ease;
+}
+.save-line { color: #cbdce7; font-size: .74rem; }
+.lab-condition {
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: #fff;
+  background: rgb(255 255 255 / 12%);
+  font-weight: 800;
+}
+
+.lab-tabs {
+  position: sticky;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 9px clamp(12px, 3vw, 28px) 0;
+  border-bottom: 1px solid var(--line);
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 5px 14px rgb(13 35 56 / 6%);
+}
+.lab-tab {
+  min-height: 48px;
+  padding: 8px 16px 10px;
+  white-space: nowrap;
+  color: #5b6a79;
+  border: 0;
+  border-bottom: 4px solid transparent;
+  border-radius: 10px 10px 0 0;
+  background: transparent;
+  font-weight: 850;
+}
+.lab-tab[aria-selected="true"] {
+  color: var(--blue-dark);
+  border-bottom-color: var(--blue);
+  background: #eaf4fa;
+}
+.tab-count {
+  display: inline-block;
+  min-width: 34px;
+  margin-left: 5px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  color: var(--blue-dark);
+  background: #d5eaf5;
+  font-size: .72rem;
+}
+
+.lab-main { padding: clamp(14px, 3vw, 28px); }
+.panel { animation: panel-in .22s ease-out; }
+@keyframes panel-in { from { opacity: .25; transform: translateY(5px); } }
+.section-intro {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+.section-intro h2 { margin: 0; font-size: clamp(1.35rem, 3vw, 1.8rem); letter-spacing: -.025em; }
+.section-intro p { max-width: 760px; margin: 4px 0 0; color: var(--muted); }
+.model-tag {
+  flex: 0 0 auto;
+  padding: 7px 11px;
+  border: 1px solid #bcd9e7;
+  border-radius: 999px;
+  color: var(--blue-dark);
+  background: #eaf7fb;
+  font-size: .78rem;
+  font-weight: 850;
+}
+
+.procedure-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.procedure-step {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+}
+.procedure-step span {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--blue-dark);
+  font-weight: 900;
+}
+.procedure-step strong { display: block; font-size: .9rem; }
+.procedure-step p { margin: 2px 0 0; color: var(--muted); font-size: .8rem; line-height: 1.4; }
+
+.card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  min-height: 56px;
+  padding: 11px 15px;
+  border-bottom: 1px solid var(--line);
+  background: #f0f7fa;
+}
+.card-head h3 { margin: 0; font-size: 1rem; }
+.readout {
+  color: var(--blue-dark);
+  font-size: .82rem;
+  font-weight: 850;
+  text-align: right;
+}
+.apparatus-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(330px, .8fr);
+  gap: 16px;
+  align-items: start;
+}
+.canvas-fork-selector {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  width: 21%;
+  display: grid;
+  gap: 6px;
+}
+.canvas-fork-slot {
+  min-width: 0;
+  min-height: 34px;
+  border: 1px dashed #78909f;
+  border-radius: 7px;
+  background: rgb(255 255 255 / 30%);
+}
+.canvas-fork-slot .canvas-fork-button { margin: -1px; width: calc(100% + 2px); }
+.canvas-fork-slot .canvas-fork-button[hidden] {
+  display: flex !important;
+  visibility: hidden;
+}
+.canvas-fork-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  min-height: 34px;
+  padding: 5px;
+  color: #17283b;
+  border: 1px solid #78909f;
+  border-radius: 7px;
+  background: linear-gradient(#fff, #dce5eb);
+  font-size: clamp(.6rem, 1.3vw, .85rem);
+  font-weight: 800;
+  white-space: nowrap;
+}
+.canvas-fork-button:hover { background: #d3edf8; border-color: #1174ad; }
+.canvas-fork-button svg { width: 35%; max-width: 55px; flex-shrink: 0; }
+.canvas-fork-button path { fill: none; stroke: #59656d; stroke-width: 6; stroke-linejoin: round; }
+.recording-table tr.is-selected > * { background: #e1f1fc; }
+.recording-table tr.is-selected th { box-shadow: inset 4px 0 #1174ad; color: #07547f; }
+.recording-table input {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 3px;
+  border: 1px solid #7299b0;
+  border-radius: 5px;
+  background: #fff;
+  color: #17283b;
+  text-align: center;
+  font-size: .85rem;
+  appearance: textfield;
+}
+.recording-table input::-webkit-inner-spin-button { appearance: none; }
+.recording-table input:disabled { color: #425466; opacity: 1; background: transparent; border-color: transparent; }
+.recording-table { table-layout: fixed; }
+.recording-table th:first-child { width: 29%; }
+.canvas-tone-toggle {
+  position: absolute;
+  left: 12px;
+  bottom: 8%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  border: 1px solid #a0b5c2;
+  border-radius: 7px;
+  background: rgb(255 255 255 / 92%);
+  color: #17283b;
+  font-size: clamp(.65rem, 1.3vw, .85rem);
+  font-weight: 700;
+  cursor: pointer;
+}
+.canvas-tone-toggle input { margin: 0; accent-color: #1174ad; }
+.recording-table-wrap { overflow-x: auto; }
+.recording-table { width: 100%; border-collapse: collapse; font-size: .88rem; font-variant-numeric: tabular-nums; }
+.recording-table th, .recording-table td { padding: 16px 8px; text-align: center; border-bottom: 1px solid var(--line); }
+.recording-table thead { background: #edf6fa; }
+.recording-table tbody th { text-align: left; padding-left: 14px; }
+.recording-table small { display: block; color: var(--muted); font-size: .75rem; font-weight: 500; }
+.recording-table .recorded { color: var(--green); background: var(--green-soft); font-weight: 800; }
+.recording-actions { padding: 15px; }
+.recording-actions .record-button { width: 100%; }
+
+.canvas-stage { position: relative; background: #e1eef4; }
+canvas { display: block; width: 100%; height: auto; }
+#apparatusCanvas { touch-action: none; cursor: grab; }
+#apparatusCanvas.dragging { cursor: grabbing; }
+#apparatusCanvas.hammer-hover { cursor: pointer; }
+.decibel-meter {
+  position: absolute;
+  top: 10%;
+  right: 3%;
+  bottom: 12%;
+  width: 17%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  color: #17283b;
+  font-size: clamp(.6rem, 1.2vw, .85rem);
+  font-variant-numeric: tabular-nums;
+}
+.decibel-meter strong { font-size: clamp(.8rem, 1.7vw, 1.2rem); }
+.decibel-track {
+  position: relative;
+  flex: 1;
+  width: 30%;
+  min-height: 60px;
+  border: 1px solid #63859b;
+  border-radius: 6px;
+  background: #07131e;
+}
+.decibel-fill {
+  min-height: 2px;
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 0;
+  border-radius: 4px;
+  background: linear-gradient(to top, #25c7df, #79edb9);
+}
+.decibel-tick {
+  position: absolute;
+  left: 100%;
+  margin-left: 6px;
+  color: #17283b;
+  font-size: .65rem;
+  font-weight: 700;
+  line-height: 1;
+  transform: translateY(50%);
+}
+.decibel-tick::before {
+  content: "";
+  position: absolute;
+  right: calc(100% + 2px);
+  top: 50%;
+  width: 4px;
+  border-top: 1px solid #43677b;
+}
+.decibel-peak {
+  position: absolute;
+  left: -7px;
+  right: -7px;
+  bottom: 0;
+  height: 3px;
+  background: #ffd65a;
+  transform: translateY(50%);
+}
+#peakReadout { color: #704000; white-space: nowrap; }
+#resetPeak {
+  padding: 3px 5px;
+  border: 1px solid #63859b;
+  border-radius: 5px;
+  color: #e8f5fa;
+  background: #153b58;
+  font-size: inherit;
+}
+.control-group { padding: 14px 0; border-top: 1px solid var(--line); }
+.control-group:first-of-type { margin-top: 14px; }
+.control-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+  font-size: .88rem;
+  font-weight: 850;
+}
+.control-label output { color: var(--blue-dark); font-size: 1rem; }
+input[type="range"] { width: 100%; min-height: 34px; accent-color: var(--blue); }
+.nudge-row, .action-row { display: flex; flex-wrap: wrap; gap: 7px; }
+.nudge-row button, .secondary-button, .audio-button, .record-button, .check-button, .jump-button, .reset-button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 2px solid var(--blue);
+  border-radius: 11px;
+  color: var(--blue-dark);
+  background: #fff;
+  font-weight: 850;
+}
+.nudge-row button { flex: 1 1 64px; padding: 7px; font-size: .78rem; }
+.nudge-row button:hover, .secondary-button:hover, .jump-button:hover { background: #eaf5fa; }
+.audio-button { color: #fff; background: var(--blue); }
+.audio-button:hover { background: var(--blue-dark); }
+.record-button { flex: 1 1 180px; color: #fff; border-color: var(--green); background: var(--green); }
+.record-button:not(:disabled):hover { background: #0b6d47; }
+.audio-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 13px;
+  align-items: center;
+  margin-top: 9px;
+}
+.checkbox-label { display: inline-flex; gap: 7px; align-items: center; color: var(--muted); font-size: .78rem; font-weight: 750; }
+.checkbox-label input { width: 20px; height: 20px; accent-color: var(--blue); }
+.intensity-block {
+  padding: 12px;
+  border-radius: 14px;
+  background: #f0f6f8;
+}
+.intensity-top { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.intensity-top strong { font-size: .84rem; }
+.intensity-number { color: var(--blue-dark); font-size: 1.25rem; font-weight: 950; }
+.intensity-track {
+  height: 18px;
+  margin: 8px 0;
+  overflow: hidden;
+  border: 1px solid #9caeb8;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #cbd6dc 0 34%, #f2bf4e 65%, #3ed392 100%);
+}
+.intensity-fill {
+  width: 4%;
+  height: 100%;
+  border-right: 4px solid #fff;
+  background: rgb(10 39 59 / 70%);
+  box-shadow: 2px 0 0 var(--navy);
+  transition: width .08s linear;
+}
+.intensity-details { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.mini-stat { padding: 7px; border-radius: 9px; background: #fff; text-align: center; }
+.mini-stat small { display: block; color: var(--muted); font-size: .67rem; }
+.mini-stat strong { display: block; font-size: .82rem; }
+.resonance-message {
+  min-height: 50px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-left: 5px solid #93a6b2;
+  border-radius: 8px;
+  color: #455666;
+  background: #f1f5f7;
+  font-size: .8rem;
+  font-weight: 800;
+}
+.resonance-message.near { border-left-color: #e3a219; color: #744900; background: #fff6df; }
+.resonance-message.peak { border-left-color: var(--green); color: #08633e; background: var(--green-soft); }
+.status-line { min-height: 24px; margin: 8px 0 0; color: var(--muted); font-size: .79rem; font-weight: 750; }
+
+.graph-card { margin-top: 16px; }
+.graph-layout { display: grid; grid-template-columns: minmax(0, 1fr) 245px; }
+.graph-canvas-wrap { min-width: 0; padding: 10px; background: var(--canvas); }
+.graph-side { padding: 14px; }
+.graph-side h4 { margin: 0 0 8px; font-size: .9rem; }
+.graph-side p { margin: 0 0 11px; color: var(--muted); font-size: .8rem; }
+.graph-key { display: grid; gap: 8px; margin-bottom: 12px; }
+.key-row { display: grid; grid-template-columns: 12px 1fr; gap: 8px; align-items: center; color: var(--muted); font-size: .76rem; }
+.key-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--cyan); }
+.key-dot.current { background: var(--yellow); }
+.key-dot.recorded { background: #55df9e; }
+
+.measurement-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 16px;
+}
+.measurement-card {
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #fff;
+}
+.measurement-card.recorded { border-color: #85cfac; background: #effaf5; }
+.measurement-card small { display: block; color: var(--muted); font-size: .7rem; font-weight: 800; }
+.measurement-card strong { display: block; margin-top: 2px; font-size: 1rem; }
+.measurement-card span { display: block; margin-top: 4px; color: var(--muted); font-size: .72rem; line-height: 1.45; }
+
+.evidence-card { display: flex; flex-direction: column; gap: 12px; }
+.evidence-checklist { display: flex; flex-wrap: wrap; gap: 9px; }
+.evidence-check {
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #f4fafc;
+  font-size: .8rem;
+  font-weight: 800;
+}
+.evidence-check.done { border-color: #7fd0a8; color: #08633e; background: #dff6eb; }
+.evidence-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+
+.buzz-section {
+  margin: 18px 0 0;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: #fff;
+}
+.buzz-section h2 { margin: 0 0 5px; }
+.buzz-section > p { margin: 0 0 14px; color: var(--muted); font-size: .88rem; }
+.local-note {
+  margin-bottom: 14px;
+  padding: 11px 13px;
+  border-left: 5px solid #a85c00;
+  border-radius: 0 10px 10px 0;
+  background: #fff6e8;
+  font-size: .84rem;
+}
+.buzz-slot {
+  margin-bottom: 13px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: #f9fcfd;
+}
+.buzz-slot-label { margin: 0 0 8px; color: var(--blue-dark); font-size: .84rem; font-weight: 900; }
+.buzz-slot-label span { display: block; margin-top: 2px; color: var(--muted); font-weight: 700; }
+.table-card { overflow: visible; }
+.table-wrap { overflow-x: auto; border-radius: 18px 18px 0 0; }
+.data-table { width: 100%; min-width: 1040px; border-collapse: collapse; font-size: .84rem; }
+.data-table th, .data-table td { padding: 10px 8px; border: 1px solid var(--line); text-align: center; }
+.data-table thead th { color: #17364c; background: #e9f3f7; }
+.data-table tbody th { background: #f7fafb; font-size: .92rem; }
+.data-table input {
+  width: 105px;
+  min-height: 42px;
+  padding: 7px;
+  border: 2px solid #a9bbc7;
+  border-radius: 9px;
+  text-align: center;
+}
+.data-table input.is-correct { border-color: var(--green); background: #effaf5; }
+.data-table input.is-wrong { border-color: var(--red); background: #fff1f1; }
+.row-status {
+  display: inline-block;
+  min-width: 76px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: #596b78;
+  background: #e9eef1;
+  font-size: .7rem;
+  font-weight: 900;
+}
+.row-status.ready { color: var(--blue-dark); background: #dff1f8; }
+.row-status.correct { color: #08633e; background: #dff6eb; }
+.row-status.revise { color: #8a2d2d; background: #fbe3e3; }
+.table-actions { padding: 14px; border-top: 1px solid var(--line); }
+.check-button { color: #fff; background: var(--blue); }
+.check-button:hover { background: var(--blue-dark); }
+.feedback { min-height: 24px; margin: 8px 0 0; color: var(--muted); font-size: .82rem; font-weight: 800; }
+.feedback.good { color: var(--green); }
+.feedback.bad { color: var(--red); }
+
+.final-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, .9fr);
+  gap: 18px;
+  margin-top: 16px;
+  padding: 18px;
+}
+.final-card h3 { margin: 0 0 5px; }
+.final-card p { margin: 0; color: var(--muted); font-size: .86rem; }
+.final-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.field label { display: block; margin-bottom: 4px; font-size: .78rem; font-weight: 850; }
+.input-unit { position: relative; }
+.input-unit input {
+  width: 100%;
+  min-height: 46px;
+  padding: 8px 50px 8px 10px;
+  border: 2px solid #a9bbc7;
+  border-radius: 10px;
+}
+.input-unit span { position: absolute; right: 10px; top: 12px; color: var(--muted); font-size: .76rem; font-weight: 800; }
+.input-unit input.is-correct { border-color: var(--green); background: #effaf5; }
+.input-unit input.is-wrong { border-color: var(--red); background: #fff1f1; }
+.final-actions { grid-column: 1 / -1; }
+
+.results-hero {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  align-items: center;
+  padding: 19px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+.result-icon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: #8094a1;
+  font-size: 1.7rem;
+  font-weight: 950;
+}
+.results-hero.complete { border-color: #77cba4; background: linear-gradient(120deg, #fff, #eaf9f2); }
+.results-hero.complete .result-icon { background: var(--green); }
+.results-hero h2 { margin: 0; }
+.results-hero p { margin: 4px 0 0; color: var(--muted); }
+.results-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 11px; margin-top: 15px; }
+.result-stat { padding: 16px; border: 1px solid var(--line); border-radius: 15px; background: #fff; text-align: center; }
+.result-stat small { display: block; color: var(--muted); font-size: .75rem; font-weight: 800; }
+.result-stat strong { display: block; margin-top: 4px; color: var(--blue-dark); font-size: 1.55rem; }
+.results-table { margin-top: 15px; }
+
+.app-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 17px clamp(14px, 3vw, 28px) 24px;
+  color: var(--muted);
+  font-size: .76rem;
+}
+.app-footer p { max-width: 780px; margin: 0; }
+.reset-button { flex: 0 0 auto; color: #8e3030; border-color: #b96969; }
+.reset-button:hover { background: #fff1f1; }
+
+@media (max-width: 980px) {
+  .hero-grid { grid-template-columns: 1fr; }
+  .progress-card { max-width: 520px; }
+  .apparatus-grid { grid-template-columns: 1fr; }
+  .graph-layout { grid-template-columns: 1fr; }
+  .graph-side { border-top: 1px solid var(--line); }
+  .measurement-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .hero { padding: 18px 15px; }
+  .hero-grid { gap: 16px; }
+  .lab-main { padding: 12px; }
+  .procedure-grid, .results-grid { grid-template-columns: 1fr; }
+  .section-intro { display: block; }
+  .model-tag { display: inline-block; margin-top: 9px; }
+  .final-card { grid-template-columns: 1fr; padding: 14px; }
+  .final-fields { grid-template-columns: 1fr; }
+  .app-footer { align-items: flex-start; flex-direction: column; }
+}
+@media (max-width: 430px) {
+  .lab-tab { padding-inline: 11px; }
+  .action-row > * { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <header class="hero">
+    <div class="hero-grid">
+      <div>
+        <h1>Resonance Tube Lab</h1>
+      </div>
+      <aside class="progress-card" aria-label="Lab progress">
+        <div class="progress-line"><span id="progressLabel">Measurements</span><strong id="progressPercent">0%</strong></div>
+        <div class="progress-track" id="progressBar" role="progressbar" aria-label="Measurement progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="progress-fill" id="progressFill"></div></div>
+      </aside>
+    </div>
+  </header>
+
+  <main class="lab-main">
+    <section class="panel" id="experimentPanel" aria-label="Experiment">
+      <div class="apparatus-grid">
+        <section class="card apparatus-card" aria-label="Resonance tube apparatus">
+          <div class="canvas-stage">
+            <div class="canvas-fork-selector" role="group" aria-label="Available tuning forks">
+              <div class="canvas-fork-slot"><button class="canvas-fork-button" type="button" data-frequency="256" aria-label="Select 256 Hz tuning fork" hidden><svg viewBox="0 0 100 36" aria-hidden="true"><path d="M5 6 H42 Q51 6 58 18 Q51 30 42 30 H5 M58 18 H94" /></svg><span>256 Hz</span></button></div>
+              <div class="canvas-fork-slot"><button class="canvas-fork-button" type="button" data-frequency="512" aria-label="Select 512 Hz tuning fork"><svg viewBox="0 0 100 36" aria-hidden="true"><path d="M5 6 H42 Q51 6 58 18 Q51 30 42 30 H5 M58 18 H94" /></svg><span>512 Hz</span></button></div>
+              <div class="canvas-fork-slot"><button class="canvas-fork-button" type="button" data-frequency="1024" aria-label="Select 1024 Hz tuning fork"><svg viewBox="0 0 100 36" aria-hidden="true"><path d="M5 6 H42 Q51 6 58 18 Q51 30 42 30 H5 M58 18 H94" /></svg><span>1024 Hz</span></button></div>
+              <div class="canvas-fork-slot"><button class="canvas-fork-button" type="button" data-frequency="2048" aria-label="Select 2048 Hz tuning fork"><svg viewBox="0 0 100 36" aria-hidden="true"><path d="M5 6 H42 Q51 6 58 18 Q51 30 42 30 H5 M58 18 H94" /></svg><span>2048 Hz</span></button></div>
+            </div>
+            <canvas id="apparatusCanvas" width="900" height="620" role="slider" tabindex="0" aria-label="Resonance tube apparatus. Arrow keys move the tube; Enter or Space strikes the tuning fork." aria-keyshortcuts="Enter Space" aria-orientation="vertical" aria-valuemin="2" aria-valuemax="175" aria-valuenow="20" aria-valuetext="20.0 centimeters" aria-describedby="apparatusSummary">Interactive resonance tube apparatus.</canvas>
+            <label class="canvas-tone-toggle"><input id="continuousTone" type="checkbox"> Keep tone sounding</label>
+            <span class="sr-only" id="toneStatus" role="status" aria-live="polite">Audio is off. Click the hammer to strike.</span>
+            <div class="decibel-meter">
+              <strong id="decibelReadout">40 dB</strong>
+              <div class="decibel-track" id="decibelMeter" role="meter" aria-label="Simulated sound level" aria-valuemin="38" aria-valuemax="86" aria-valuenow="40">
+                <div class="decibel-fill" id="decibelFill"></div>
+                <div class="decibel-peak" id="decibelPeak" aria-hidden="true"></div>
+                <span class="decibel-tick" style="bottom:100%" aria-hidden="true">86</span>
+                <span class="decibel-tick" style="bottom:66.667%" aria-hidden="true">70</span>
+                <span class="decibel-tick" style="bottom:33.333%" aria-hidden="true">54</span>
+                <span class="decibel-tick" style="bottom:0" aria-hidden="true">38</span>
+              </div>
+              <span id="peakReadout">Peak 40 dB</span>
+              <button id="resetPeak" type="button" aria-label="Reset peak sound level">Reset peak</button>
+            </div>
+          </div>
+          <p class="sr-only" id="apparatusSummary">The 256 hertz tuning fork is above an air column 20.0 centimeters long. Intensity is low.</p>
+        </section>
+
+        <aside class="card recording-card" aria-labelledby="recordingHeading">
+          <div class="card-head"><h3 id="recordingHeading">Resonance lengths</h3><span class="readout">cm</span></div>
+          <div class="recording-table-wrap">
+            <table class="recording-table">
+              <thead><tr><th scope="col">Fork</th><th scope="col">1st</th><th scope="col">3rd</th><th scope="col">5th</th></tr></thead>
+              <tbody id="measurementRows"></tbody>
+            </table>
+          </div>
+          <div class="recording-actions">
+              <button class="record-button" id="recordMeasurement" type="button" disabled>Record measurement</button>
+            <p class="status-line" id="recordStatus" role="status" aria-live="polite">Move the tube toward the resonance peak to record.</p>
+          </div>
+        </aside>
+      </div>
+
+      <section class="card graph-card" aria-labelledby="graphHeading">
+        <div class="card-head"><h3 id="graphHeading">Intensity scan</h3><span class="readout" id="graphReadout">256 Hz · move the tube to reveal the trace</span></div>
+        <div class="graph-layout">
+          <div class="graph-canvas-wrap"><canvas id="intensityCanvas" width="900" height="330" role="img" aria-describedby="graphSummary">Graph of sound intensity versus air-column length.</canvas></div>
+          <aside class="graph-side">
+            <h4>Build the spike as you scan</h4>
+            <p>The horizontal axis is air-column length. Record all three narrow peaks: the 1st, 3rd, and 5th harmonics.</p>
+            <div class="graph-key" aria-hidden="true">
+              <div class="key-row"><span class="key-dot"></span><span>Lengths you have scanned</span></div>
+              <div class="key-row"><span class="key-dot current"></span><span>Your current position</span></div>
+              <div class="key-row"><span class="key-dot recorded"></span><span>Recorded measurement</span></div>
+            </div>
+            <button class="secondary-button" id="clearTrace" type="button">Clear this trace</button>
+            <p class="sr-only" id="graphSummary">Only the current length has been sampled. Relative intensity is 4 percent.</p>
+          </aside>
+        </div>
+      </section>
+
+    </section>
+
+  </main>
+
+  <section class="buzz-section" id="buzzQuestions">
+    <h2>Buzz assessment questions</h2>
+    <p>Use the resonance lengths in your table to complete the calculations below for each frequency. Convert L from centimeters to meters, then use wavelength = 4L/n and speed = frequency x wavelength, with n = 1, 3, or 5. All 15 points come from these Buzz questions.</p>
+    <div class="local-note" id="localNote" hidden>If you opened this template as a local file, the response controls will be blank. Import <strong>sound_waves_resonance_buzz_questions.txt</strong> into Buzz and upload this HTML as the assessment template.</div>
+    <div class="buzz-slot"><p class="buzz-slot-label">Question 1 <span>256 Hz calculations</span></p><a:question /></div>
+    <div class="buzz-slot"><p class="buzz-slot-label">Question 2 <span>512 Hz calculations</span></p><a:question /></div>
+    <div class="buzz-slot"><p class="buzz-slot-label">Question 3 <span>1024 Hz calculations</span></p><a:question /></div>
+    <div class="buzz-slot"><p class="buzz-slot-label">Question 4 <span>2048 Hz calculations</span></p><a:question /></div>
+    <div class="buzz-slot"><p class="buzz-slot-label">Question 5 <span>Average speed of sound</span></p><a:question /></div>
+    <div class="buzz-slot"><p class="buzz-slot-label">Question 6 <span>Percent difference</span></p><a:question /></div>
+    <div class="buzz-slot"><p class="buzz-slot-label">Question 7 <span>Which harmonics this pipe allows</span></p><a:question /></div>
+    <div class="buzz-slot"><p class="buzz-slot-label">Question 8 <span>Frequency and resonant length</span></p><a:question /></div>
+    <div class="buzz-slot"><p class="buzz-slot-label">Question 9 <span>Evidence for the harmonic pattern</span></p><a:question /></div>
+    <div class="buzz-slot"><p class="buzz-slot-label">Question 10 <span>Why every fork gave the same speed</span></p><a:question /></div>
+  </section>
+
+  <footer class="app-footer">
+    <span id="saveState" role="status">Saved on this device</span>
+    <p>Measure from the water surface to the open rim of the pipe. Your work is stored only in this browser and remains available after a refresh. Keep the completed table visible while answering the Buzz questions.</p>
+    <button class="reset-button" id="resetLab" type="button">Reset lab data</button>
+  </footer>
+  <p class="sr-only" id="liveStatus" role="status" aria-live="polite"></p>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const SPEED_OF_SOUND = 343;
+  const STORE_KEY = 'unit5-resonance-tube-lab-v4-multiharmonic';
+  const MIN_LENGTH_CM = 2;
+  const MAX_LENGTH_CM = 175;
+  const RECORD_THRESHOLD = 0.90;
+  const HARMONICS = [1, 3, 5];
+  const FORKS = [
+    { frequency: 256, name: '256 Hz' },
+    { frequency: 512, name: '512 Hz' },
+    { frequency: 1024, name: '1024 Hz' },
+    { frequency: 2048, name: '2048 Hz' }
+  ];
+  const TRIALS = FORKS.flatMap(fork => HARMONICS.map(harmonic => ({
+    frequency: fork.frequency,
+    name: fork.name,
+    harmonic,
+    key: `${fork.frequency}-${harmonic}`
+  }))); 
+  const TRIAL_COUNT = TRIALS.length;
+  const TRIAL_BY_KEY = Object.fromEntries(TRIALS.map(trial => [trial.key, trial]));
+  const SCAN_STEP = 0.1;
+  const SCAN_SIZE = Math.round((MAX_LENGTH_CM - MIN_LENGTH_CM) / SCAN_STEP) + 1;
+  const STRIKE_DURATION_MS = 7500;
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = selector => document.querySelector(selector);
+  const $$ = selector => [...document.querySelectorAll(selector)];
+
+  function trialKey(frequency, harmonic) {
+    return `${frequency}-${harmonic}`;
+  }
+
+  function harmonicLabel(harmonic) {
+    return harmonic === 1 ? '1st' : harmonic === 3 ? '3rd' : `${harmonic}th`;
+  }
+
+  function defaultState() {
+    return { selectedFrequency: FORKS[0].frequency, currentLengthCm: 20, measurements: {} };
+  }
+
+  let storageOkay = true;
+  let state = loadState();
+  let selectedFrequency = state.selectedFrequency;
+  let currentLengthCm = state.currentLengthCm;
+  let phase = 0;
+  let forkTransition = null;
+  let draggingTube = false;
+  let tubePointerId = null;
+  let tubeDragOffset = 0;
+  let hammerHovered = false;
+  let hammerPressed = false;
+  let hammerPointerId = null;
+  let hammerStrikeStartedAt = 0;
+  let continuousTone = false;
+  let strikeEndsAt = 0;
+  let strikeTimer = null;
+  let audio = null;
+  let traceData = createTraceData();
+  let lastTraceLength = {};
+  let peakDecibels = 38;
+
+  function createTraceData() {
+    const data = {};
+    FORKS.forEach(({ frequency }) => { data[frequency] = Array(SCAN_SIZE).fill(null); });
+    return data;
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function roundLength(value) {
+    return Math.round(clamp(Number(value), MIN_LENGTH_CM, MAX_LENGTH_CM) * 10) / 10;
+  }
+
+  function loadState() {
+    const base = defaultState();
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return base;
+      const parsed = JSON.parse(raw);
+      const validFrequencies = FORKS.map(fork => fork.frequency);
+      const selected = validFrequencies.includes(Number(parsed.selectedFrequency)) ? Number(parsed.selectedFrequency) : base.selectedFrequency;
+      const length = Number.isFinite(Number(parsed.currentLengthCm)) ? roundLength(parsed.currentLengthCm) : base.currentLengthCm;
+      const measurements = {};
+      TRIALS.forEach(({ key }) => {
+        const measured = Number(parsed.measurements?.[key]);
+        if (Number.isFinite(measured) && measured >= MIN_LENGTH_CM && measured <= MAX_LENGTH_CM) measurements[key] = roundLength(measured);
+      });
+      return {
+        selectedFrequency: selected,
+        currentLengthCm: length,
+        measurements
+      };
+    } catch (error) {
+      storageOkay = false;
+      return base;
+    }
+  }
+
+  function saveState() {
+    state.selectedFrequency = selectedFrequency;
+    state.currentLengthCm = currentLengthCm;
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(state));
+      storageOkay = true;
+      $('#saveState').textContent = 'Saved on this device';
+    } catch (error) {
+      storageOkay = false;
+      $('#saveState').textContent = 'Saving unavailable';
+    }
+  }
+
+  function resonanceAt(lengthCm, frequency = selectedFrequency) {
+    const peaks = HARMONICS.map(harmonic => {
+      const targetCm = harmonic * SPEED_OF_SOUND / (4 * frequency) * 100;
+      const gamma = clamp(targetCm / 80, 0.22, 1.25);
+      const delta = lengthCm - targetCm;
+      const response = 1 / (1 + Math.pow(delta / gamma, 2));
+      return { harmonic, targetCm, gamma, delta, response };
+    });
+    const nearest = peaks.reduce((best, peak) => peak.response > best.response ? peak : best);
+    return { ...nearest, peaks, intensity: Math.round(4 + 96 * nearest.response) };
+  }
+
+  function soundDescription(response, harmonic = 1) {
+    if (response >= .90) return { label: `${harmonicLabel(harmonic)} harmonic peak`, className: 'peak', message: `${harmonicLabel(harmonic)} harmonic resonance! The sound is loudest here. Record this length.` };
+    if (response >= .55) return { label: 'very loud', className: 'near', message: 'Very close. Fine-tune by 1 mm to find the maximum.' };
+    if (response >= .18) return { label: 'getting louder', className: 'near', message: 'The intensity is rising. Keep moving toward the spike.' };
+    return { label: 'quiet', className: '', message: 'Scan the pipe length. The meter will rise near resonance.' };
+  }
+
+  function toneVisualStrength(now = performance.now()) {
+    if (continuousTone && strikeEndsAt === Infinity) return 1;
+    if (!Number.isFinite(strikeEndsAt) || strikeEndsAt <= now) return 0;
+    return clamp((strikeEndsAt - now) / STRIKE_DURATION_MS, 0, 1);
+  }
+
+  function toneIsActive() {
+    return toneVisualStrength() > 0;
+  }
+
+  function audioVolumeLabel(response) {
+    if (response >= .90) return 'maximum volume at resonance';
+    if (response >= .55) return 'very loud';
+    if (response >= .18) return 'getting louder';
+    return 'quiet';
+  }
+
+  function updateActiveToneStatus(response = resonanceAt(currentLengthCm).response) {
+    if (!toneIsActive() || !audio || audio.context.state !== 'running') return;
+    const mode = continuousTone ? 'Continuous' : 'Playing';
+    const message = `${mode} ${selectedFrequency} Hz tone · ${audioVolumeLabel(response)}.`;
+    if ($('#toneStatus').textContent !== message) $('#toneStatus').textContent = message;
+  }
+
+  function pointInBox(point, box) {
+    return point.x >= box.x && point.x <= box.x + box.width && point.y >= box.y && point.y <= box.y + box.height;
+  }
+
+  function sampleTrace(frequency, fromLength, toLength) {
+    const start = Number.isFinite(fromLength) ? fromLength : toLength;
+    const distance = Math.abs(toLength - start);
+    const steps = Math.max(1, Math.ceil(distance / 0.05));
+    for (let step = 0; step <= steps; step += 1) {
+      const length = start + (toLength - start) * (step / steps);
+      const index = clamp(Math.round((length - MIN_LENGTH_CM) / SCAN_STEP), 0, SCAN_SIZE - 1);
+      const intensity = resonanceAt(MIN_LENGTH_CM + index * SCAN_STEP, frequency).intensity;
+      traceData[frequency][index] = Math.max(traceData[frequency][index] ?? 0, intensity);
+    }
+    lastTraceLength[frequency] = toLength;
+  }
+
+  function setLength(value, shouldSave = true) {
+    const previous = currentLengthCm;
+    currentLengthCm = roundLength(value);
+    sampleTrace(selectedFrequency, lastTraceLength[selectedFrequency] ?? previous, currentLengthCm);
+    $('#apparatusCanvas').setAttribute('aria-valuenow', String(currentLengthCm));
+    $('#apparatusCanvas').setAttribute('aria-valuetext', `${currentLengthCm.toFixed(1)} centimeters`);
+    updateExperimentReadouts();
+    drawApparatus();
+    drawIntensityGraph();
+    if (shouldSave) saveState();
+  }
+
+  function selectFork(frequency) {
+    if (!FORKS.some(fork => fork.frequency === frequency)) return;
+    if (frequency !== selectedFrequency) {
+      peakDecibels = 38;
+      if (!reduceMotion) {
+        const canvas = $('#apparatusCanvas');
+        const canvasRect = canvas.getBoundingClientRect();
+        const button = $$('.canvas-fork-button').find(item => Number(item.dataset.frequency) === frequency);
+        const slotRect = button?.getBoundingClientRect();
+        forkTransition = {
+          startedAt: performance.now(),
+          x: slotRect && canvasRect.width ? (slotRect.left + slotRect.width / 2 - canvasRect.left) * canvas.width / canvasRect.width : 100,
+          y: slotRect && canvasRect.height ? (slotRect.top + slotRect.height / 2 - canvasRect.top) * canvas.height / canvasRect.height : 60,
+          scale: slotRect && canvasRect.width ? clamp(slotRect.width * canvas.width / canvasRect.width / 238, .2, .8) : .4
+        };
+      }
+    }
+    selectedFrequency = frequency;
+    state.selectedFrequency = frequency;
+    sampleTrace(frequency, currentLengthCm, currentLengthCm);
+    if (audio) {
+      if (!continuousTone) muteEnvelope();
+      audio.oscillator.frequency.setTargetAtTime(frequency, audio.context.currentTime, .025);
+      if (continuousTone) $('#toneStatus').textContent = `Continuous ${frequency} Hz tone · ${audioVolumeLabel(resonanceAt(currentLengthCm, frequency).response)}.`;
+    }
+    renderForkRack();
+    renderMeasurementStrip();
+    updateExperimentReadouts();
+    drawApparatus();
+    drawIntensityGraph();
+    saveState();
+    $('#liveStatus').textContent = `Selected the ${frequency} hertz tuning fork.`;
+  }
+
+  function updateApparatusSummary(info, description) {
+    const forkMotion = toneIsActive() ? 'vibrating' : 'still';
+    const recorded = HARMONICS.filter(harmonic => state.measurements[trialKey(selectedFrequency, harmonic)] !== undefined).map(harmonicLabel);
+    $('#apparatusSummary').textContent = `The ${selectedFrequency} hertz tuning fork is ${forkMotion} above an air column ${currentLengthCm.toFixed(1)} centimeters long. The nearest resonance is the ${harmonicLabel(info.harmonic)} harmonic. The tube ruler starts at zero at the open rim and increases downward to the water surface. Relative intensity is ${info.intensity} percent, described as ${description.label}. Recorded harmonics for this fork: ${recorded.length ? recorded.join(', ') : 'none'}. Click the drawn hammer, or focus the apparatus and press Enter or Space, to sound the fork.`;
+  }
+
+  function updateExperimentReadouts() {
+    const info = resonanceAt(currentLengthCm);
+    const description = soundDescription(info.response, info.harmonic);
+    const db = Math.round(38 + 48 * info.response);
+    peakDecibels = Math.max(peakDecibels, db);
+    $('#decibelReadout').textContent = `${db} dB`;
+    $('#decibelFill').style.height = `${(db - 38) / 48 * 100}%`;
+    $('#decibelPeak').style.bottom = `${(peakDecibels - 38) / 48 * 100}%`;
+    $('#peakReadout').textContent = `Peak ${peakDecibels} dB`;
+    $('#decibelMeter').setAttribute('aria-valuenow', String(db));
+    $('#decibelMeter').setAttribute('aria-valuetext', `${db} decibels; peak ${peakDecibels} decibels`);
+    $('#recordMeasurement').disabled = info.response < RECORD_THRESHOLD;
+    const key = trialKey(selectedFrequency, info.harmonic);
+    $('#recordMeasurement').textContent = `${state.measurements[key] !== undefined ? 'Update' : 'Record'} ${harmonicLabel(info.harmonic)} harmonic`;
+    $('#graphReadout').textContent = `${selectedFrequency} Hz · nearest ${harmonicLabel(info.harmonic)} harmonic · intensity ${info.intensity}% at ${currentLengthCm.toFixed(1)} cm`;
+    updateApparatusSummary(info, description);
+    updateAudioResponse(info.response);
+    updateActiveToneStatus(info.response);
+  }
+
+  function renderForkRack() {
+    $$('.canvas-fork-button').forEach(button => {
+      button.hidden = Number(button.dataset.frequency) === selectedFrequency;
+    });
+  }
+
+  function renderMeasurementStrip() {
+    $('#measurementRows').innerHTML = FORKS.map(({ frequency }) => {
+      const selected = frequency === selectedFrequency;
+      const cells = HARMONICS.map(harmonic => {
+        const key = trialKey(frequency, harmonic);
+        const value = state.measurements[key];
+        return `<td class="${value === undefined ? '' : 'recorded'}"><input type="number" min="${MIN_LENGTH_CM}" max="${MAX_LENGTH_CM}" step="0.1" inputmode="decimal" data-measurement-key="${key}" value="${value === undefined ? '' : value.toFixed(1)}" placeholder="--" aria-label="${frequency} Hz ${harmonicLabel(harmonic)} harmonic length in centimeters" ${selected ? '' : 'disabled'}></td>`;
+      }).join('');
+      return `<tr class="${selected ? 'is-selected' : ''}" ${selected ? 'aria-current="true"' : ''}><th scope="row">${frequency} Hz</th>${cells}</tr>`;
+    }).join('');
+  }
+
+  function editMeasurement(input) {
+    const key = input.dataset.measurementKey;
+    const trial = TRIAL_BY_KEY[key];
+    if (!trial || trial.frequency !== selectedFrequency || input.disabled) return;
+    if (!input.checkValidity()) {
+      input.reportValidity();
+      return;
+    }
+    const value = input.value.trim() === '' ? undefined : roundLength(Number(input.value));
+    if (value === state.measurements[key]) return;
+    if (value === undefined) delete state.measurements[key];
+    else state.measurements[key] = value;
+    input.value = value === undefined ? '' : value.toFixed(1);
+    input.closest('td').classList.toggle('recorded', value !== undefined);
+    saveState();
+    updateProgress();
+    updateExperimentReadouts();
+    drawIntensityGraph();
+    $('#recordStatus').textContent = value === undefined
+      ? `Cleared the ${selectedFrequency} Hz ${harmonicLabel(trial.harmonic)} harmonic length.`
+      : `Saved ${value.toFixed(1)} cm for the ${selectedFrequency} Hz ${harmonicLabel(trial.harmonic)} harmonic.`;
+    $('#liveStatus').textContent = $('#recordStatus').textContent;
+  }
+
+  function recordMeasurement() {
+    const info = resonanceAt(currentLengthCm);
+    if (info.response < RECORD_THRESHOLD) {
+      $('#recordStatus').textContent = 'The sound is not at its peak yet. Fine-tune the pipe before recording.';
+      return;
+    }
+    const measured = roundLength(currentLengthCm);
+    const key = trialKey(selectedFrequency, info.harmonic);
+    state.measurements[key] = measured;
+    saveState();
+    renderAllData();
+    updateExperimentReadouts();
+    drawIntensityGraph();
+    $('#recordStatus').textContent = `Recorded ${measured.toFixed(1)} cm for the ${selectedFrequency} Hz ${harmonicLabel(info.harmonic)} harmonic.`;
+    $('#liveStatus').textContent = $('#recordStatus').textContent;
+
+    const next = TRIALS.find(trial => trial.frequency === selectedFrequency && state.measurements[trial.key] === undefined)
+      || TRIALS.find(trial => state.measurements[trial.key] === undefined);
+    if (next) {
+      if (next.frequency !== selectedFrequency) setTimeout(() => selectFork(next.frequency), 450);
+    } else {
+      $('#recordStatus').textContent += ' All 12 measurements are ready. Complete the frequency calculations in the questions below.';
+    }
+  }
+
+  function measurementCount() {
+    return TRIALS.filter(({ key }) => state.measurements[key] !== undefined).length;
+  }
+
+  function updateProgress() {
+    const trials = measurementCount();
+    const percent = Math.round(trials / TRIAL_COUNT * 100);
+    $('#progressBar').setAttribute('aria-valuetext', `${trials} of ${TRIAL_COUNT} measurements recorded. Complete calculations in the questions below.`);
+    $('#progressPercent').textContent = `${percent}%`;
+    $('#progressFill').style.width = `${percent}%`;
+    $('#progressBar').setAttribute('aria-valuenow', String(percent));
+  }
+
+  function renderAllData() {
+    renderForkRack();
+    renderMeasurementStrip();
+    updateProgress();
+  }
+
+  function clearCanvasInteraction() {
+    const canvas = $('#apparatusCanvas');
+    [hammerPointerId, tubePointerId].forEach(pointerId => {
+      if (pointerId !== null && canvas.hasPointerCapture(pointerId)) {
+        try { canvas.releasePointerCapture(pointerId); } catch (error) { /* Capture may already be gone. */ }
+      }
+    });
+    draggingTube = false;
+    tubePointerId = null;
+    hammerPressed = false;
+    hammerHovered = false;
+    hammerPointerId = null;
+    canvas.classList.remove('dragging', 'hammer-hover');
+  }
+
+  async function ensureAudio() {
+    if (audio?.context.state === 'closed') audio = null;
+    if (audio) {
+      try {
+        if (audio.context.state !== 'running') await audio.context.resume();
+        return true;
+      } catch (error) {
+        $('#toneStatus').textContent = 'Audio could not resume; use the visual meter.';
+        return false;
+      }
+    }
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      $('#toneStatus').textContent = 'Audio is unavailable; use the visual meter.';
+      return false;
+    }
+    try {
+      const context = new AudioContextClass();
+      const oscillator = context.createOscillator();
+      const envelope = context.createGain();
+      const resonanceGain = context.createGain();
+      const master = context.createGain();
+      oscillator.type = 'sine';
+      oscillator.frequency.value = selectedFrequency;
+      envelope.gain.value = 0;
+      resonanceGain.gain.value = .075;
+      master.gain.value = .09;
+      oscillator.connect(envelope);
+      envelope.connect(resonanceGain);
+      resonanceGain.connect(master);
+      master.connect(context.destination);
+      oscillator.start();
+      audio = { context, oscillator, envelope, resonanceGain, master };
+      if (context.state !== 'running') await context.resume();
+      return true;
+    } catch (error) {
+      $('#toneStatus').textContent = 'Audio could not start; use the visual meter.';
+      return false;
+    }
+  }
+
+  function holdAudioParam(param, now) {
+    if (typeof param.cancelAndHoldAtTime === 'function') {
+      param.cancelAndHoldAtTime(now);
+    } else {
+      const currentValue = param.value;
+      param.cancelScheduledValues(now);
+      param.setValueAtTime(currentValue, now);
+    }
+  }
+
+  function smoothAudioGain(param, target, seconds = .04) {
+    if (!audio) return;
+    const now = audio.context.currentTime;
+    holdAudioParam(param, now);
+    param.linearRampToValueAtTime(target, now + seconds);
+  }
+
+  function updateAudioResponse(response) {
+    if (!audio || audio.context.state === 'closed') return;
+    const resonanceAmplitude = .075 + .925 * Math.sqrt(response);
+    smoothAudioGain(audio.resonanceGain.gain, resonanceAmplitude, .035);
+  }
+
+  function muteEnvelope(message = 'Audio is off. Click the hammer to strike.') {
+    if (strikeTimer !== null) {
+      window.clearTimeout(strikeTimer);
+      strikeTimer = null;
+    }
+    strikeEndsAt = 0;
+    hammerStrikeStartedAt = 0;
+    if (audio && audio.context.state !== 'closed') smoothAudioGain(audio.envelope.gain, 0, .025);
+    $('#toneStatus').textContent = message;
+    updateExperimentReadouts();
+    drawApparatus();
+  }
+
+  function scheduleStrikeFade(plannedEnd) {
+    if (strikeTimer !== null) window.clearTimeout(strikeTimer);
+    strikeTimer = window.setTimeout(() => {
+      if (!continuousTone && strikeEndsAt === plannedEnd) {
+        strikeEndsAt = 0;
+        hammerStrikeStartedAt = 0;
+        $('#toneStatus').textContent = 'Tone faded. Click the hammer to strike again.';
+        updateExperimentReadouts();
+        drawApparatus();
+      }
+      strikeTimer = null;
+    }, Math.max(0, plannedEnd - performance.now() + 40));
+  }
+
+  async function strikeFork() {
+    const visualStart = performance.now();
+    hammerStrikeStartedAt = visualStart;
+    strikeEndsAt = continuousTone ? Infinity : visualStart + STRIKE_DURATION_MS;
+    if (!continuousTone) scheduleStrikeFade(strikeEndsAt);
+    const visualInfo = resonanceAt(currentLengthCm);
+    updateApparatusSummary(visualInfo, soundDescription(visualInfo.response, visualInfo.harmonic));
+    drawApparatus();
+
+    if (!await ensureAudio()) {
+      if (continuousTone) {
+        continuousTone = false;
+        $('#continuousTone').checked = false;
+        strikeEndsAt = visualStart + STRIKE_DURATION_MS;
+        scheduleStrikeFade(strikeEndsAt);
+      }
+      updateApparatusSummary(visualInfo, soundDescription(visualInfo.response, visualInfo.harmonic));
+      drawApparatus();
+      return false;
+    }
+    const now = audio.context.currentTime;
+    audio.oscillator.frequency.setTargetAtTime(selectedFrequency, now, .02);
+    holdAudioParam(audio.envelope.gain, now);
+    if (continuousTone) {
+      audio.envelope.gain.linearRampToValueAtTime(.42, now + .025);
+      strikeEndsAt = Infinity;
+    } else {
+      audio.envelope.gain.linearRampToValueAtTime(.42, now + .025);
+      audio.envelope.gain.exponentialRampToValueAtTime(.08, now + 6.5);
+      audio.envelope.gain.linearRampToValueAtTime(0, now + 7.5);
+    }
+    updateAudioResponse(resonanceAt(currentLengthCm).response);
+    updateExperimentReadouts();
+    drawApparatus();
+    return true;
+  }
+
+  function drawRoundedRect(context, x, y, width, height, radius) {
+    const r = Math.min(radius, width / 2, height / 2);
+    context.beginPath();
+    context.moveTo(x + r, y);
+    context.arcTo(x + width, y, x + width, y + height, r);
+    context.arcTo(x + width, y + height, x, y + height, r);
+    context.arcTo(x, y + height, x, y, r);
+    context.arcTo(x, y, x + width, y, r);
+    context.closePath();
+  }
+
+  function getApparatusGeometry(canvas = $('#apparatusCanvas')) {
+    const waterY = 500;
+    const pxPerCm = 2.25;
+    const tubeX = 420;
+    const tubeWidth = 88;
+    const tubeTop = waterY - currentLengthCm * pxPerCm;
+    const tubeBottom = tubeTop + 185 * pxPerCm;
+    const tubeVisibleBottom = Math.min(tubeBottom, 580);
+    const forkCenter = tubeX + tubeWidth / 2;
+    const forkTop = tubeTop - 80;
+    const hammerBox = { x: 225, y: 24, width: 165, height: 140 };
+    return {
+      waterY,
+      pxPerCm,
+      tubeX,
+      tubeWidth,
+      tubeTop,
+      tubeBottom,
+      tubeVisibleBottom,
+      forkCenter,
+      forkTop,
+      hammerBox,
+      hammerHitBox: { x: hammerBox.x - 10, y: hammerBox.y - 10, width: hammerBox.width + 20, height: hammerBox.height + 20 },
+      tubeHitBox: { x: tubeX - 55, y: Math.max(3, tubeTop - 92), width: tubeWidth + 110, height: tubeVisibleBottom - Math.max(3, tubeTop - 92) }
+    };
+  }
+
+  function drawHammerButton(context, geometry, sounding) {
+    const { hammerBox } = geometry;
+    const now = performance.now();
+    const swingElapsed = hammerStrikeStartedAt ? now - hammerStrikeStartedAt : Infinity;
+    const swing = !reduceMotion && swingElapsed >= 0 && swingElapsed < 440 ? Math.sin(swingElapsed / 440 * Math.PI) * .72 : 0;
+    const pressedOffset = hammerPressed ? 3 : 0;
+    context.save();
+    context.translate(0, pressedOffset);
+    drawRoundedRect(context, hammerBox.x, hammerBox.y, hammerBox.width, hammerBox.height, 18);
+    context.fillStyle = hammerPressed ? '#235b70' : hammerHovered ? '#1b5068' : '#12394f';
+    context.fill();
+    context.strokeStyle = sounding ? '#66efb0' : hammerHovered ? '#ffe06f' : '#d5e8f1';
+    context.lineWidth = hammerHovered || hammerPressed ? 5 : 3;
+    context.stroke();
+
+    context.save();
+    context.translate(hammerBox.x + 83, hammerBox.y + 59);
+    context.rotate(.42 + swing);
+    // Turned wooden handle with grain, a steel collar, and a rubber striking head.
+    const wood = context.createLinearGradient(-9, 0, 9, 0);
+    wood.addColorStop(0, '#70421f');
+    wood.addColorStop(.3, '#d6a467');
+    wood.addColorStop(.6, '#f0c88c');
+    wood.addColorStop(1, '#925728');
+    drawRoundedRect(context, -8, -20, 16, 65, 6);
+    context.fillStyle = wood;
+    context.fill();
+    context.strokeStyle = '#573822';
+    context.lineWidth = 1.5;
+    context.stroke();
+    context.strokeStyle = 'rgb(105 61 29 / 45%)';
+    context.lineWidth = 1;
+    for (let grain = -4; grain <= 4; grain += 4) {
+      context.beginPath();
+      context.moveTo(grain, -8);
+      context.bezierCurveTo(grain + 3, 8, grain - 2, 25, grain, 38);
+      context.stroke();
+    }
+    const collar = context.createLinearGradient(-11, 0, 11, 0);
+    collar.addColorStop(0, '#667078');
+    collar.addColorStop(.45, '#f4f5f6');
+    collar.addColorStop(1, '#7b858b');
+    context.fillStyle = collar;
+    context.fillRect(-11, -26, 22, 14);
+    const rubber = context.createLinearGradient(0, -53, 0, -23);
+    rubber.addColorStop(0, '#8b969c');
+    rubber.addColorStop(.2, '#59656d');
+    rubber.addColorStop(.65, '#29343c');
+    rubber.addColorStop(1, '#111d25');
+    drawRoundedRect(context, -38, -53, 76, 32, 8);
+    context.fillStyle = rubber;
+    context.fill();
+    context.strokeStyle = '#c2cbd0';
+    context.lineWidth = 1.5;
+    context.stroke();
+    for (const capX of [-38, 29]) {
+      drawRoundedRect(context, capX, -52, 9, 30, 4);
+      context.fillStyle = '#7c8991';
+      context.fill();
+      context.strokeStyle = '#d3dce1';
+      context.lineWidth = 1;
+      context.stroke();
+    }
+    context.strokeStyle = 'rgb(255 255 255 / 40%)';
+    context.beginPath();
+    context.moveTo(-25, -47);
+    context.lineTo(24, -47);
+    context.stroke();
+    context.restore();
+
+    context.fillStyle = sounding ? '#75f0b7' : '#ffffff';
+    context.font = '900 16px system-ui, sans-serif';
+    context.textAlign = 'center';
+    context.fillText(sounding ? 'STRIKE AGAIN' : 'STRIKE FORK', hammerBox.x + hammerBox.width / 2, hammerBox.y + 113);
+    context.fillStyle = '#c5dce7';
+    context.font = '750 11px system-ui, sans-serif';
+    context.fillText('click the hammer', hammerBox.x + hammerBox.width / 2, hammerBox.y + 130);
+    context.restore();
+  }
+
+  function drawApparatus() {
+    const canvas = $('#apparatusCanvas');
+    const context = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    const displayScale = clamp(canvas.width / Math.max(canvas.clientWidth || canvas.width, 1), 1, 3.5);
+    const geometry = getApparatusGeometry(canvas);
+    const { waterY, pxPerCm, tubeX, tubeWidth, tubeTop, tubeBottom, tubeVisibleBottom, forkCenter, forkTop } = geometry;
+    const info = resonanceAt(currentLengthCm);
+    const description = soundDescription(info.response, info.harmonic);
+    const visualStrength = toneVisualStrength();
+    const sounding = visualStrength > 0;
+    context.clearRect(0, 0, width, height);
+
+    const background = context.createLinearGradient(0, 0, 0, height);
+    background.addColorStop(0, '#f5fafc');
+    background.addColorStop(.68, '#e1eef4');
+    background.addColorStop(1, '#cedfe8');
+    context.fillStyle = background;
+    context.fillRect(0, 0, width, height);
+
+    const cylinderX = 280;
+    const cylinderTop = 82;
+    const cylinderWidth = 360;
+    const cylinderBottom = 580;
+    context.fillStyle = 'rgb(225 247 255 / 7%)';
+    context.fillRect(cylinderX, cylinderTop, cylinderWidth, cylinderBottom - cylinderTop);
+
+    const tubeGradient = context.createLinearGradient(tubeX, 0, tubeX + tubeWidth, 0);
+    tubeGradient.addColorStop(0, '#929292');
+    tubeGradient.addColorStop(.14, '#e5e5e5');
+    tubeGradient.addColorStop(.48, '#777777');
+    tubeGradient.addColorStop(.82, '#dedede');
+    tubeGradient.addColorStop(1, '#888888');
+    context.fillStyle = tubeGradient;
+    context.fillRect(tubeX, tubeTop, tubeWidth, tubeVisibleBottom - tubeTop);
+    const cylinderShade = context.createLinearGradient(tubeX + 13, 0, tubeX + tubeWidth - 13, 0);
+    cylinderShade.addColorStop(0, '#565656');
+    cylinderShade.addColorStop(.22, '#858585');
+    cylinderShade.addColorStop(.52, '#737373');
+    cylinderShade.addColorStop(1, '#424242');
+    context.fillStyle = cylinderShade;
+    context.fillRect(tubeX + 13, tubeTop + 8, tubeWidth - 26, Math.max(1, tubeVisibleBottom - tubeTop - 11));
+    context.fillStyle = `rgb(210 210 210 / ${.16 + info.response * .22})`;
+    context.fillRect(tubeX + 14, tubeTop + 9, tubeWidth - 28, Math.max(1, waterY - tubeTop - 9));
+
+    const waterGradient = context.createLinearGradient(0, waterY, 0, cylinderBottom);
+    waterGradient.addColorStop(0, 'rgb(82 199 236 / 73%)');
+    waterGradient.addColorStop(1, 'rgb(17 102 158 / 88%)');
+    context.fillStyle = waterGradient;
+    context.fillRect(cylinderX + 5, waterY, cylinderWidth - 10, cylinderBottom - waterY);
+    context.fillStyle = 'rgb(104 208 239 / 72%)';
+    context.fillRect(tubeX + 14, waterY, tubeWidth - 28, Math.max(0, tubeVisibleBottom - waterY));
+    context.strokeStyle = '#08749b';
+    context.lineWidth = 3;
+    context.beginPath();
+    context.moveTo(cylinderX + 5, waterY);
+    context.lineTo(cylinderX + cylinderWidth - 5, waterY);
+    context.stroke();
+
+    context.strokeStyle = '#43677b';
+    context.lineWidth = 4;
+    context.strokeRect(cylinderX, cylinderTop, cylinderWidth, cylinderBottom - cylinderTop);
+    context.strokeStyle = 'rgb(255 255 255 / 30%)';
+    context.lineWidth = 2;
+    context.beginPath();
+    context.moveTo(cylinderX + 20, cylinderTop + 16);
+    context.lineTo(cylinderX + 20, cylinderBottom - 16);
+    context.stroke();
+
+    if (tubeBottom > cylinderBottom) {
+      context.strokeStyle = '#d9e5eb';
+      context.lineWidth = 4;
+      context.beginPath();
+      context.moveTo(tubeX + 13, cylinderBottom - 18);
+      context.lineTo(tubeX + 31, cylinderBottom - 7);
+      context.moveTo(tubeX + 38, cylinderBottom - 18);
+      context.lineTo(tubeX + 56, cylinderBottom - 7);
+      context.stroke();
+    }
+
+    // Narrow reflections and a double lip give the gray tube a rounded wall.
+    context.save();
+    context.strokeStyle = 'rgb(255 255 255 / 52%)';
+    context.lineWidth = 2;
+    context.beginPath();
+    context.moveTo(tubeX + 5, tubeTop + 9);
+    context.lineTo(tubeX + 5, tubeVisibleBottom - 5);
+    context.stroke();
+    context.strokeStyle = 'rgb(0 0 0 / 28%)';
+    context.lineWidth = 3;
+    context.beginPath();
+    context.moveTo(tubeX + tubeWidth - 5, tubeTop + 9);
+    context.lineTo(tubeX + tubeWidth - 5, tubeVisibleBottom - 5);
+    context.stroke();
+    context.restore();
+    context.fillStyle = '#bdbdbd';
+    context.beginPath();
+    context.ellipse(forkCenter, tubeTop, tubeWidth / 2 + 2, 14, 0, 0, Math.PI * 2);
+    context.fill();
+    context.strokeStyle = '#555555';
+    context.lineWidth = 2;
+    context.stroke();
+    context.fillStyle = '#292929';
+    context.beginPath();
+    context.ellipse(tubeX + tubeWidth / 2, tubeTop, tubeWidth / 2 - 5, 9, 0, 0, Math.PI * 2);
+    context.fill();
+    context.strokeStyle = '#d9e5eb';
+    context.lineWidth = 4;
+    context.stroke();
+
+    const forkY = forkTop + 36;
+    const elapsedSeconds = hammerStrikeStartedAt ? Math.max(0, performance.now() - hammerStrikeStartedAt) / 1000 : 0;
+    const vibrationDecay = continuousTone ? .78 : Math.exp(-elapsedSeconds / 3.6);
+    const visualRate = 8 + (selectedFrequency - FORKS[0].frequency) / FORKS[0].frequency * 3;
+    const tineOffset = sounding && !reduceMotion ? 4.5 * vibrationDecay * Math.sin(performance.now() / 1000 * Math.PI * 2 * visualRate) : 0;
+    // Horizontal tines point left over the tube; the labeled handle extends right.
+    const tipX = forkCenter - 34;
+    const shoulderX = forkCenter + 40;
+    const jointX = forkCenter + 64;
+    const upperTineY = forkY - 18 - tineOffset;
+    const lowerTineY = forkY + 18 + tineOffset;
+    context.save();
+    if (forkTransition && !reduceMotion) {
+      const progress = clamp((performance.now() - forkTransition.startedAt) / 520, 0, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const anchorX = forkCenter + 85;
+      const scale = forkTransition.scale + (1 - forkTransition.scale) * eased;
+      const x = forkTransition.x + (anchorX - forkTransition.x) * eased;
+      const y = forkTransition.y + (forkY - forkTransition.y) * eased - 20 * Math.sin(Math.PI * progress);
+      context.translate(x, y);
+      context.scale(scale, scale);
+      context.translate(-anchorX, -forkY);
+      if (progress === 1) forkTransition = null;
+    }
+    context.lineCap = 'square';
+    context.lineJoin = 'round';
+    const drawTines = () => {
+      context.beginPath();
+      context.moveTo(tipX, upperTineY);
+      context.lineTo(shoulderX - 8, upperTineY);
+      context.quadraticCurveTo(shoulderX + 4, upperTineY, jointX, forkY);
+      context.quadraticCurveTo(shoulderX + 4, lowerTineY, shoulderX - 8, lowerTineY);
+      context.lineTo(tipX, lowerTineY);
+      context.stroke();
+    };
+    context.strokeStyle = '#091927';
+    context.lineWidth = 13;
+    drawTines();
+    const steel = context.createLinearGradient(0, upperTineY - 6, 0, lowerTineY + 6);
+    steel.addColorStop(0, '#fafafa');
+    steel.addColorStop(.2, '#a8adb0');
+    steel.addColorStop(.48, '#eeeeee');
+    steel.addColorStop(.8, '#7b8185');
+    steel.addColorStop(1, '#e5e7e8');
+    context.strokeStyle = steel;
+    context.lineWidth = 9;
+    drawTines();
+    context.save();
+    context.translate(0, -2);
+    context.strokeStyle = 'rgb(255 255 255 / 65%)';
+    context.lineWidth = 1.5;
+    drawTines();
+    context.restore();
+
+    const handleX = jointX;
+    const handleWidth = 140;
+    const handleHeight = 28;
+    drawRoundedRect(context, handleX, forkY - handleHeight / 2, handleWidth, handleHeight, 3);
+    const gripSteel = context.createLinearGradient(0, forkY - 14, 0, forkY + 14);
+    gripSteel.addColorStop(0, '#f0f0f0');
+    gripSteel.addColorStop(.25, '#d6d6d6');
+    gripSteel.addColorStop(.75, '#a7a7a7');
+    gripSteel.addColorStop(1, '#777777');
+    context.fillStyle = gripSteel;
+    context.fill();
+    context.strokeStyle = '#091927';
+    context.lineWidth = 3;
+    context.stroke();
+    context.strokeStyle = 'rgb(60 60 60 / 45%)';
+    context.lineWidth = 1;
+    for (let gripX = handleX + handleWidth - 15; gripX < handleX + handleWidth - 4; gripX += 3) {
+      context.beginPath();
+      context.moveTo(gripX, forkY - 9);
+      context.lineTo(gripX, forkY + 9);
+      context.stroke();
+    }
+    context.fillStyle = '#102332';
+    context.font = '900 21px system-ui, sans-serif';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(`${selectedFrequency} Hz`, handleX + handleWidth / 2, forkY);
+
+    if (sounding && !reduceMotion) {
+      context.strokeStyle = 'rgb(105 231 244 / 50%)';
+      context.lineWidth = 2;
+      context.beginPath();
+      context.moveTo(tipX, upperTineY - 10);
+      context.lineTo(shoulderX, upperTineY - 10);
+      context.moveTo(tipX, lowerTineY + 10);
+      context.lineTo(shoulderX, lowerTineY + 10);
+      context.stroke();
+    }
+    context.restore();
+
+    if (sounding && info.response > .07) {
+      const airHeight = Math.max(8, waterY - tubeTop - 9);
+      const standingAmplitude = (5 + 24 * info.response) * (reduceMotion ? 1 : (.82 + .18 * Math.sin(phase * 2.8)));
+      context.beginPath();
+      for (let y = tubeTop + 9; y <= waterY; y += 3) {
+        const position = (waterY - y) / airHeight;
+        const x = forkCenter + standingAmplitude * Math.sin(info.harmonic * position * Math.PI / 2) * (reduceMotion ? 1 : Math.sin(phase * 3.2));
+        if (y === tubeTop + 9) context.moveTo(x, y); else context.lineTo(x, y);
+      }
+      context.strokeStyle = `rgb(255 218 80 / ${.32 + info.response * .68})`;
+      context.lineWidth = 5;
+      context.stroke();
+    }
+
+    if (sounding && info.response > .12 && !reduceMotion) {
+      context.strokeStyle = `rgb(78 218 240 / ${.20 + .42 * info.response})`;
+      context.lineWidth = 3;
+      for (let ring = 0; ring < 3; ring += 1) {
+        const radius = 42 + ring * 29 + (reduceMotion ? 0 : (phase * 18) % 22);
+        context.beginPath();
+        context.arc(forkCenter, forkY, radius, Math.PI * 1.08, Math.PI * 1.92);
+        context.stroke();
+      }
+    }
+
+    const rulerX = tubeX + 7;
+    const rulerBottom = Math.min(tubeTop + 180 * pxPerCm, tubeVisibleBottom);
+    context.save();
+    // Etched graduations stay on the curved tube, without backing boxes.
+    context.shadowBlur = 0;
+    context.lineCap = 'butt';
+    context.strokeStyle = '#102332';
+    context.lineWidth = 3;
+    context.beginPath();
+    context.moveTo(rulerX, tubeTop);
+    context.lineTo(rulerX, rulerBottom);
+    context.stroke();
+    context.strokeStyle = '#f5fafc';
+    context.lineWidth = 1;
+    context.stroke();
+    for (let cm = 0; cm <= 180; cm += 1) {
+      const y = tubeTop + cm * pxPerCm;
+      if (y > rulerBottom + .1) break;
+      const major = cm % 20 === 0;
+      const medium = cm % 5 === 0;
+      context.beginPath();
+      context.moveTo(rulerX, y);
+      context.lineTo(rulerX + (major ? 26 : medium ? 18 : 10), y);
+      context.strokeStyle = '#102332';
+      context.lineWidth = major ? 3.5 : 2;
+      context.stroke();
+      context.strokeStyle = '#f5fafc';
+      context.lineWidth = major ? 1.8 : 1;
+      context.stroke();
+      if (major) {
+        context.font = `800 ${Math.round(clamp(16 * displayScale, 18, 22))}px system-ui, sans-serif`;
+        context.textAlign = 'left';
+        context.textBaseline = 'middle';
+        context.lineJoin = 'round';
+        context.strokeStyle = '#102332';
+        context.lineWidth = 3;
+        const labelY = cm === 0 ? y + 5 : y;
+        context.strokeText(String(cm), rulerX + 30, labelY);
+        context.fillStyle = '#ffffff';
+        context.fillText(String(cm), rulerX + 30, labelY);
+      }
+    }
+    context.strokeStyle = '#102332';
+    context.lineWidth = 3;
+    context.beginPath();
+    context.moveTo(rulerX - 3, waterY);
+    context.lineTo(tubeX + tubeWidth - 5, waterY);
+    context.stroke();
+    context.restore();
+
+    const bracketX = tubeX + tubeWidth + 45;
+    context.strokeStyle = '#855000';
+    context.lineWidth = 3;
+    context.beginPath();
+    context.moveTo(bracketX, tubeTop);
+    context.lineTo(bracketX, waterY);
+    context.moveTo(bracketX - 8, tubeTop + 10);
+    context.lineTo(bracketX, tubeTop);
+    context.lineTo(bracketX + 8, tubeTop + 10);
+    context.moveTo(bracketX - 8, waterY - 10);
+    context.lineTo(bracketX, waterY);
+    context.lineTo(bracketX + 8, waterY - 10);
+    context.stroke();
+    context.fillStyle = '#704000';
+    context.font = '800 16px system-ui, sans-serif';
+    context.textAlign = 'left';
+    context.fillText(`L = ${currentLengthCm.toFixed(1)} cm`, bracketX + 13, (tubeTop + waterY) / 2 + 5);
+
+    if (draggingTube) {
+      context.strokeStyle = '#855000';
+      context.lineWidth = 4;
+      context.setLineDash([8, 7]);
+      context.strokeRect(tubeX - 12, Math.max(5, tubeTop - 112), tubeWidth + 24, Math.min(height - Math.max(5, tubeTop - 112) - 8, tubeBottom - tubeTop + 120));
+      context.setLineDash([]);
+    }
+    drawHammerButton(context, geometry, sounding);
+  }
+
+  function graphRange(frequency) {
+    const highestHarmonic = Math.max(...HARMONICS);
+    const furthestTarget = resonanceAt(MIN_LENGTH_CM, frequency).peaks.find(peak => peak.harmonic === highestHarmonic).targetCm;
+    const max = clamp(Math.ceil((furthestTarget * 1.04 + 2) / 5) * 5, 25, MAX_LENGTH_CM);
+    return { min: MIN_LENGTH_CM, max };
+  }
+
+  function drawIntensityGraph() {
+    const canvas = $('#intensityCanvas');
+    const context = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    const margin = { left: 68, right: 24, top: 25, bottom: 55 };
+    const plotWidth = width - margin.left - margin.right;
+    const plotHeight = height - margin.top - margin.bottom;
+    const view = graphRange(selectedFrequency);
+    const xFor = length => margin.left + (length - view.min) / (view.max - view.min) * plotWidth;
+    const yFor = intensity => margin.top + (100 - intensity) / 100 * plotHeight;
+    const values = traceData[selectedFrequency];
+    const currentInfo = resonanceAt(currentLengthCm);
+    context.clearRect(0, 0, width, height);
+    context.fillStyle = '#091927';
+    context.fillRect(0, 0, width, height);
+
+    context.font = '700 12px system-ui, sans-serif';
+    context.textAlign = 'right';
+    for (let intensity = 0; intensity <= 100; intensity += 25) {
+      const y = yFor(intensity);
+      context.strokeStyle = 'rgb(255 255 255 / 12%)';
+      context.lineWidth = 1;
+      context.beginPath();
+      context.moveTo(margin.left, y);
+      context.lineTo(width - margin.right, y);
+      context.stroke();
+      context.fillStyle = '#afc3cf';
+      context.fillText(`${intensity}%`, margin.left - 10, y + 4);
+    }
+
+    const span = view.max - view.min;
+    const tickStep = [1, 2, 5, 10, 20, 25, 50].find(step => step >= span / 7) || 50;
+    const ticks = new Set([view.min, view.max]);
+    for (let length = Math.ceil(view.min / tickStep) * tickStep; length <= view.max; length += tickStep) ticks.add(length);
+    context.textAlign = 'center';
+    [...ticks].sort((a, b) => a - b).forEach(length => {
+      const x = xFor(length);
+      context.strokeStyle = 'rgb(255 255 255 / 9%)';
+      context.beginPath();
+      context.moveTo(x, margin.top);
+      context.lineTo(x, height - margin.bottom);
+      context.stroke();
+      context.fillStyle = '#afc3cf';
+      context.fillText(`${length}`, x, height - margin.bottom + 22);
+    });
+    context.fillStyle = '#d8e8f0';
+    context.font = '800 13px system-ui, sans-serif';
+    context.fillText(`Air-column length, L (cm) · ${view.min}–${view.max} cm fork view`, margin.left + plotWidth / 2, height - 11);
+    context.save();
+    context.translate(17, margin.top + plotHeight / 2);
+    context.rotate(-Math.PI / 2);
+    context.fillText('Relative intensity', 0, 0);
+    context.restore();
+
+    context.lineJoin = 'round';
+    context.lineCap = 'round';
+    let segmentOpen = false;
+    context.beginPath();
+    values.forEach((value, index) => {
+      const length = MIN_LENGTH_CM + index * SCAN_STEP;
+      if (length > view.max || value === null) {
+        if (segmentOpen) {
+          context.strokeStyle = '#25c7df';
+          context.lineWidth = 5;
+          context.stroke();
+          context.beginPath();
+          segmentOpen = false;
+        }
+        return;
+      }
+      const x = xFor(length);
+      const y = yFor(value);
+      if (!segmentOpen) { context.moveTo(x, y); segmentOpen = true; } else context.lineTo(x, y);
+    });
+    if (segmentOpen) {
+      context.strokeStyle = '#25c7df';
+      context.lineWidth = 5;
+      context.stroke();
+    }
+
+    HARMONICS.forEach(harmonic => {
+      const measured = state.measurements[trialKey(selectedFrequency, harmonic)];
+      if (measured === undefined) return;
+      const x = xFor(measured);
+      context.strokeStyle = '#55df9e';
+      context.lineWidth = 3;
+      context.setLineDash([7, 6]);
+      context.beginPath();
+      context.moveTo(x, margin.top);
+      context.lineTo(x, height - margin.bottom);
+      context.stroke();
+      context.setLineDash([]);
+      context.fillStyle = '#7af0b8';
+      context.font = '800 12px system-ui, sans-serif';
+      context.textAlign = 'center';
+      context.fillText(`${harmonicLabel(harmonic)} · ${measured.toFixed(1)} cm`, x, margin.top + 14);
+    });
+
+    if (currentLengthCm <= view.max) {
+      const currentX = xFor(currentLengthCm);
+      const currentY = yFor(currentInfo.intensity);
+      context.strokeStyle = 'rgb(255 222 105 / 45%)';
+      context.lineWidth = 2;
+      context.beginPath();
+      context.moveTo(currentX, margin.top);
+      context.lineTo(currentX, height - margin.bottom);
+      context.stroke();
+      context.fillStyle = '#ffe06f';
+      context.beginPath();
+      context.arc(currentX, currentY, 8, 0, Math.PI * 2);
+      context.fill();
+      context.strokeStyle = '#07131e';
+      context.lineWidth = 3;
+      context.stroke();
+    } else {
+      context.fillStyle = '#ffe06f';
+      context.font = '800 12px system-ui, sans-serif';
+      context.textAlign = 'right';
+      context.fillText(`Current L = ${currentLengthCm.toFixed(1)} cm is beyond this fork's peak view →`, width - margin.right, margin.top + 14);
+    }
+
+    let sampled = 0;
+    let maxValue = -1;
+    let maxIndex = 0;
+    values.forEach((value, index) => {
+      const length = MIN_LENGTH_CM + index * SCAN_STEP;
+      if (value !== null && length <= view.max) {
+        sampled += 1;
+        if (value > maxValue) { maxValue = value; maxIndex = index; }
+      }
+    });
+    const recordedText = HARMONICS.map(harmonic => {
+      const measured = state.measurements[trialKey(selectedFrequency, harmonic)];
+      return `${harmonicLabel(harmonic)} ${measured === undefined ? 'not recorded' : `${measured.toFixed(1)} centimeters`}`;
+    }).join(', ');
+    const maxText = sampled > 1 ? ` The strongest scanned value in this view is ${maxValue} percent at ${(MIN_LENGTH_CM + maxIndex * SCAN_STEP).toFixed(1)} centimeters.` : '';
+    const outsideText = currentLengthCm > view.max ? ` The current length is outside the ${view.min} to ${view.max} centimeter fork view.` : '';
+    $('#graphSummary').textContent = `${sampled} pipe positions have been sampled for the ${selectedFrequency} hertz fork. Current intensity is ${currentInfo.intensity} percent at ${currentLengthCm.toFixed(1)} centimeters, nearest the ${harmonicLabel(currentInfo.harmonic)} harmonic.${outsideText}${maxText} Recorded peaks: ${recordedText}.`;
+  }
+
+  function canvasPosition(event) {
+    const canvas = $('#apparatusCanvas');
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - rect.left) * canvas.width / rect.width,
+      y: (event.clientY - rect.top) * canvas.height / rect.height
+    };
+  }
+
+  function resetLab() {
+    if (!window.confirm('Clear all 12 resonance measurements for this lab?')) return;
+    clearCanvasInteraction();
+    muteEnvelope();
+    peakDecibels = 38;
+    forkTransition = null;
+    try { localStorage.removeItem(STORE_KEY); } catch (error) { storageOkay = false; }
+    state = defaultState();
+    selectedFrequency = state.selectedFrequency;
+    currentLengthCm = state.currentLengthCm;
+    traceData = createTraceData();
+    lastTraceLength = {};
+    continuousTone = false;
+    $('#continuousTone').checked = false;
+    $('#recordStatus').textContent = 'Lab data cleared. Choose a fork and begin a new scan.';
+    setLength(currentLengthCm, false);
+    renderAllData();
+    saveState();
+    $('#liveStatus').textContent = 'All lab data has been reset.';
+  }
+
+  $$('.canvas-fork-button').forEach(button => button.addEventListener('click', () => {
+    selectFork(Number(button.dataset.frequency));
+    $('#measurementRows').querySelector('input:not(:disabled)').focus({ preventScroll: true });
+  }));
+  $('#measurementRows').addEventListener('change', event => {
+    if (event.target.dataset.measurementKey) editMeasurement(event.target);
+  });
+  $('#recordMeasurement').addEventListener('click', recordMeasurement);
+  $('#continuousTone').addEventListener('change', async event => {
+    continuousTone = event.target.checked;
+    if (continuousTone) await strikeFork(); else muteEnvelope();
+  });
+  $('#resetPeak').addEventListener('click', () => {
+    peakDecibels = 38;
+    updateExperimentReadouts();
+  });
+  $('#clearTrace').addEventListener('click', () => {
+    peakDecibels = 38;
+    updateExperimentReadouts();
+    traceData[selectedFrequency] = Array(SCAN_SIZE).fill(null);
+    lastTraceLength[selectedFrequency] = currentLengthCm;
+    sampleTrace(selectedFrequency, currentLengthCm, currentLengthCm);
+    drawIntensityGraph();
+    $('#liveStatus').textContent = `Cleared the ${selectedFrequency} hertz intensity trace.`;
+  });
+  $('#resetLab').addEventListener('click', resetLab);
+  if (window.location.protocol === 'file:' && document.getElementsByTagName('a:question').length) $('#localNote').hidden = false;
+
+  const apparatusCanvas = $('#apparatusCanvas');
+  apparatusCanvas.addEventListener('pointerdown', event => {
+    if (!event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    const point = canvasPosition(event);
+    const geometry = getApparatusGeometry(apparatusCanvas);
+    if (pointInBox(point, geometry.hammerHitBox)) {
+      event.preventDefault();
+      hammerPressed = true;
+      hammerHovered = true;
+      hammerPointerId = event.pointerId;
+      apparatusCanvas.classList.add('hammer-hover');
+      apparatusCanvas.setPointerCapture(event.pointerId);
+      drawApparatus();
+      return;
+    }
+    if (!pointInBox(point, geometry.tubeHitBox)) return;
+    draggingTube = true;
+    tubePointerId = event.pointerId;
+    tubeDragOffset = point.y - geometry.tubeTop;
+    apparatusCanvas.classList.add('dragging');
+    apparatusCanvas.setPointerCapture(event.pointerId);
+    drawApparatus();
+  });
+  apparatusCanvas.addEventListener('pointermove', event => {
+    const point = canvasPosition(event);
+    if (hammerPressed) {
+      if (event.pointerId !== hammerPointerId) return;
+      const overHammer = pointInBox(point, getApparatusGeometry(apparatusCanvas).hammerHitBox);
+      if (hammerHovered !== overHammer) {
+        hammerHovered = overHammer;
+        apparatusCanvas.classList.toggle('hammer-hover', overHammer);
+        drawApparatus();
+      }
+      return;
+    }
+    if (draggingTube) {
+      if (event.pointerId !== tubePointerId) return;
+      const geometry = getApparatusGeometry(apparatusCanvas);
+      setLength((geometry.waterY - (point.y - tubeDragOffset)) / geometry.pxPerCm);
+      return;
+    }
+    const overHammer = pointInBox(point, getApparatusGeometry(apparatusCanvas).hammerHitBox);
+    if (hammerHovered !== overHammer) {
+      hammerHovered = overHammer;
+      apparatusCanvas.classList.toggle('hammer-hover', overHammer);
+      drawApparatus();
+    }
+  });
+  const endDrag = event => {
+    if (!draggingTube || event.pointerId !== tubePointerId) return;
+    draggingTube = false;
+    tubePointerId = null;
+    apparatusCanvas.classList.remove('dragging');
+    if (apparatusCanvas.hasPointerCapture(event.pointerId)) apparatusCanvas.releasePointerCapture(event.pointerId);
+    drawApparatus();
+  };
+  apparatusCanvas.addEventListener('pointerup', event => {
+    if (hammerPressed && event.pointerId === hammerPointerId) {
+      const activate = pointInBox(canvasPosition(event), getApparatusGeometry(apparatusCanvas).hammerHitBox);
+      hammerPressed = false;
+      hammerPointerId = null;
+      hammerHovered = activate && event.pointerType === 'mouse';
+      apparatusCanvas.classList.toggle('hammer-hover', hammerHovered);
+      if (apparatusCanvas.hasPointerCapture(event.pointerId)) apparatusCanvas.releasePointerCapture(event.pointerId);
+      if (activate) void strikeFork(); else drawApparatus();
+      return;
+    }
+    endDrag(event);
+  });
+  apparatusCanvas.addEventListener('pointercancel', event => {
+    if (hammerPressed && event.pointerId === hammerPointerId) {
+      hammerPressed = false;
+      hammerHovered = false;
+      hammerPointerId = null;
+      apparatusCanvas.classList.remove('hammer-hover');
+      if (apparatusCanvas.hasPointerCapture(event.pointerId)) apparatusCanvas.releasePointerCapture(event.pointerId);
+      drawApparatus();
+      return;
+    }
+    endDrag(event);
+  });
+  apparatusCanvas.addEventListener('pointerleave', () => {
+    if (hammerPressed || draggingTube || !hammerHovered) return;
+    hammerHovered = false;
+    apparatusCanvas.classList.remove('hammer-hover');
+    drawApparatus();
+  });
+  apparatusCanvas.addEventListener('keydown', event => {
+    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); void strikeFork(); }
+    if (event.key === 'ArrowUp' || event.key === 'ArrowRight') { event.preventDefault(); setLength(currentLengthCm + .1); }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowLeft') { event.preventDefault(); setLength(currentLengthCm - .1); }
+    if (event.key === 'PageUp') { event.preventDefault(); setLength(currentLengthCm + 1); }
+    if (event.key === 'PageDown') { event.preventDefault(); setLength(currentLengthCm - 1); }
+    if (event.key === 'Home') { event.preventDefault(); setLength(MIN_LENGTH_CM); }
+    if (event.key === 'End') { event.preventDefault(); setLength(MAX_LENGTH_CM); }
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      clearCanvasInteraction();
+      continuousTone = false;
+      $('#continuousTone').checked = false;
+      muteEnvelope();
+      if (audio?.context.state === 'running') audio.context.suspend();
+    }
+  });
+  window.addEventListener('pagehide', () => muteEnvelope());
+
+  function animate() {
+    phase += .025;
+    drawApparatus();
+    if (!reduceMotion) window.requestAnimationFrame(animate);
+  }
+
+  if (!storageOkay) $('#saveState').textContent = 'Saved work could not be loaded';
+  sampleTrace(selectedFrequency, currentLengthCm, currentLengthCm);
+  renderAllData();
+  updateExperimentReadouts();
+  drawApparatus();
+  drawIntensityGraph();
+  if (!reduceMotion) window.requestAnimationFrame(animate);
+})();
+</script>
+</body>
+</html>

@@ -1,658 +1,1414 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulation 1: EM Spectrum & Energy Explorer</title>
-    <style>
-        :root {
-            --bg-color: #0f172a;
-            --panel-bg: #1e293b;
-            --text-color: #f8fafc;
-            --accent: #f59e0b;
-            --accent-hover: #d97706;
-            --radio: #ef4444;
-            --gamma: #8b5cf6;
-            --success: #10b981;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive Electromagnetic Spectrum — Rise Block</title>
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .container {
-            max-width: 1000px;
-            width: 100%;
-            background-color: var(--panel-bg);
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .header {
-            padding: 20px;
-            text-align: center;
-            border-bottom: 1px solid #334155;
-        }
-
-        .header h1 {
-            margin: 0 0 10px 0;
-            font-size: 1.5rem;
-        }
-
-        .header p {
-            margin: 0;
-            color: #94a3b8;
-            font-size: 0.95rem;
-        }
-
-        .view-toggles {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            padding: 15px;
-            background: #0f172a;
-        }
-
-        .view-toggles button {
-            background-color: #334155;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: 0.2s;
-        }
-
-        .view-toggles button.active {
-            background-color: var(--accent);
-            color: #000;
-        }
-
-        .view-toggles button:hover:not(.active) {
-            background-color: #475569;
-        }
-
-        .canvas-container {
-            position: relative;
-            width: 100%;
-            height: 400px;
-            background-color: #000;
-            border-bottom: 1px solid #334155;
-        }
-
-        canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
-
-        .overlay-ui {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            pointer-events: none;
-        }
-
-        .readout-badge {
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            font-weight: bold;
-            background: rgba(0, 0, 0, 0.8);
-            border: 2px solid #334155;
-            margin-bottom: 10px;
-            display: inline-block;
-        }
-
-        .race-btn {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--success);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            font-size: 1.1rem;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-            box-shadow: 0 4px 10px rgba(16, 185, 129, 0.4);
-            display: none;
-        }
-
-        .race-btn:hover { background: #059669; }
-
-        .controls-wrapper {
-            padding: 20px;
-            background: var(--panel-bg);
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-
-        .control-group {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            background: #0f172a;
-            padding: 15px;
-            border-radius: 8px;
-        }
-
-        .control-group label {
-            font-weight: 600;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        input[type=range] {
-            width: 100%;
-            cursor: pointer;
-            accent-color: var(--accent);
-        }
-
-        .spectrum-bar {
-            height: 10px;
-            border-radius: 5px;
-            background: linear-gradient(to right, #ef4444, #f97316, #eab308, #22c55e, #3b82f6, #8b5cf6);
-            margin-top: -5px;
-        }
-
-        .info-panel {
-            grid-column: 1 / -1;
-            background: #334155;
-            padding: 15px;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            line-height: 1.5;
-            color: #cbd5e1;
-        }
-
-        .highlight { color: var(--accent); font-weight: bold; }
-
-    </style>
-
-  <style data-rise-unit-5>
-    html,
-    body {
-      background: transparent;
-    }
-
-    *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-    }
-
+  <style>
+    * { box-sizing: border-box; user-select: none; }
     body {
       margin: 0;
-      min-height: 0;
-      min-width: 0;
-      padding: 12px;
+      padding: 16px;
+      background: #ffffff;
+      color: #0f172a;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    .rise-wrapper {
+      max-width: 920px;
+      margin: 0 auto;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 20px;
+      padding: 20px 24px 26px;
+      box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.08);
     }
 
-    .rise-walkthrough {
-      width: min(100%, 1200px);
-      max-width: 1200px;
-      margin-inline: auto;
-      border: 5px solid #285f9f;
-      border-radius: 18px;
+    /* Textbook Top Energy Arrow */
+    .energy-line {
+      position: relative;
+      height: 2px;
+      background: #0f172a;
+      width: 100%;
+      margin: 6px 0 18px;
+    }
+    .energy-line::before, .energy-line::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: 0;
+      height: 0;
+      border-style: solid;
+      transform: translateY(-50%);
+    }
+    .energy-line::before {
+      left: -2px;
+      border-width: 6px 10px 6px 0;
+      border-color: transparent #0f172a transparent transparent;
+    }
+    .energy-line::after {
+      right: -2px;
+      border-width: 6px 0 6px 10px;
+      border-color: transparent transparent transparent #0f172a;
+    }
+
+    /* Spectrum Track */
+    .spectrum-bar {
+      display: grid;
+      grid-template-columns: 1.35fr 1.25fr 1.25fr 0.55fr 1.2fr 1.25fr 1.35fr;
+      height: 68px;
+      border-radius: 8px;
       overflow: hidden;
+      border: 1.5px solid #cbd5e1;
+    }
+    .spec-cell {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      border-right: 1px solid rgba(148, 163, 184, 0.35);
+      padding: 4px;
+    }
+    .spec-cell:last-child { border-right: none; }
+    .spec-cell:hover { filter: brightness(0.95); }
+    .spec-cell.active {
+      box-shadow: inset 0 0 0 3px #0f172a;
+      z-index: 2;
+    }
+    .visible-sliver {
+      background: linear-gradient(90deg, #ef4444 0%, #f97316 18%, #eab308 36%, #22c55e 55%, #3b82f6 76%, #8b5cf6 100%) !important;
     }
 
-    .rise-walkthrough.rise-shell {
-      padding: clamp(12px, 2vw, 24px);
-      background: #fff;
+    /* Spring Reveal Cards */
+    @keyframes springUp {
+      0% { opacity: 0; transform: translateY(28px) scale(0.94); }
+      70% { opacity: 1; transform: translateY(-4px) scale(1.01); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .spring-card {
+      animation: springUp 0.48s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
     }
 
-    .rise-walkthrough canvas,
-    .rise-walkthrough svg {
-      max-width: 100%;
+    /* Essential local layout also works when the optional Tailwind CDN is unavailable. */
+    #mainTitle { font-size:clamp(20px,4vw,30px); text-align:center; margin:8px 0 18px; }
+    #subTitle { display:none; }
+    #stageCanvas { display:block; width:100%; height:auto; }
+    #stageCanvas { border-radius:12px; }
+    .relative {position:relative;} .absolute {position:absolute;}
+    .top-2\.5 {top:10px;} .left-3 {left:12px;} .right-3 {right:12px;}
+    #stageBadge {color:#e2e8f0; font-size:11px; padding:5px 10px; background:#0f172add; border-radius:20px;}
+    #stageControls {display:flex;justify-content:center;padding:12px;}
+    button {font:inherit;cursor:pointer;}
+    #sceneActionBtn {border:0;border-radius:24px;color:white;font-size:13px;font-weight:700;padding:10px 20px;}
+    button:focus-visible,.spec-cell:focus-visible {outline:3px solid #f59e0b;outline-offset:3px;}
+    .flex {display:flex;} .justify-between {justify-content:space-between;} .grid {display:grid;}
+    .grid-cols-4 {grid-template-columns:repeat(4,minmax(0,1fr));}
+    .grid-cols-7 {grid-template-columns:repeat(7,minmax(0,1fr));}
+    .text-center {text-align:center;} .w-full {width:100%;} .h-9 {height:36px;} .h-full {height:100%;}
+    #topTicks {font-size:11px;margin-bottom:6px;}
+    .spec-cell {min-width:0;font-size:10px;gap:4px;}
+    #sizeRow {gap:5px;margin-top:12px;} #sizeRow button {font-size:11px;padding:8px 3px;border:1px solid #cbd5e1;border-radius:8px;}
+    #sizeRow span {display:block;}
+    #cardsContainer {grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:20px;}
+    #cardsContainer>div {padding:14px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;font-size:12px;line-height:1.6;}
+    #cardsContainer p {margin:12px 0;} #cardsContainer .flex {flex-wrap:wrap;gap:4px;}
+    #cardsContainer button {font-size:11px;text-align:left;border:1px solid #cbd5e1;padding:6px;border-radius:5px;}
+    .grid-cols-7 + .text-center {font-size:10px;overflow-wrap:anywhere;}
+    .grid-cols-7:not(#sizeRow) {font-size:10px;}
+    @media(max-width:600px){body{padding:8px}.rise-wrapper{padding:12px 8px}#cardsContainer{grid-template-columns:1fr}.spec-cell{font-size:8px}#sizeRow button{font-size:9px}#stageBadge{font-size:8px;padding:3px 6px}.top-2\.5{top:3px}.left-3{left:4px} .justify-between{font-size:9px;gap:8px}}
+
+    /* Self-contained presentation; no stylesheet request is required. */
+    .rise-wrapper{max-width:1040px;padding:20px 24px 26px}
+    #stageBadge{display:none}
+    #stageCanvas{border:1px solid #24324c;border-radius:14px;cursor:default}
+    #stageControls{min-height:64px;gap:16px;align-items:center;flex-wrap:wrap}
+    #stageControls:empty{min-height:64px;padding:0}
+    .scene-slider{display:flex;align-items:center;gap:14px;font-size:13px;font-weight:700;color:#334155}
+    .scene-slider input{width:220px;min-height:32px;accent-color:#6366f1}
+    #sceneActionBtn{min-height:44px}
+    .spec-cell{border:0;border-right:1px solid #b8c4d4;font-weight:800;font-size:11px;color:#172033}
+    .spec-cell:last-child{border-right:0}.spec-cell.active{box-shadow:inset 0 0 0 3px #0f172a}
+    .band-symbol svg{width:26px;height:20px;display:block}
+    .visible-sliver{color:white;text-shadow:0 1px 3px #000}
+    #topTicks{margin:10px 0;font-size:12px}.energy-line{margin-top:10px}
+    #cardsContainer ul{padding-left:18px}#cardsContainer button{background:#fff;color:#172033}
+    #cardsContainer .bg-emerald-600{background:#059669;color:white}#cardsContainer .bg-rose-700{background:#be123c;color:white}
+    @media(max-width:600px){.rise-wrapper{padding:12px 8px}#stageControls{gap:8px}.scene-slider{width:100%;justify-content:space-between;font-size:12px}.scene-slider input{width:46%}.spec-cell{font-size:9px}.band-symbol svg{width:22px}#topTicks{font-size:10px}.spectrum-bar{height:78px}}
+
+    .spectrum-bar{grid-template-columns:repeat(7,minmax(0,1fr))}
+    .spec-cell span:last-child{max-width:100%;overflow-wrap:anywhere;line-height:1.2}
+    @media(max-width:600px){.spec-cell{padding:3px 2px;font-size:8px}.band-symbol svg{width:20px}}
+
+    #sceneSummary{margin-top:16px}
+    .metrics-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0;border:1px solid #dce3ec;border-radius:10px;background:#f8fafc;overflow:hidden}
+    .metrics-strip>div{padding:12px 16px;min-width:0}
+    .metrics-strip>div+div{border-left:1px solid #dce3ec}
+    .metrics-strip dt{font-size:11px;font-weight:700;color:#64748b;letter-spacing:.035em}
+    .metrics-strip dt span{margin-left:3px}
+    .metrics-strip dd{margin:5px 0 0;color:#172033;font-size:14px;font-weight:650;line-height:1.45;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+    .scene-explanation{margin:12px 2px 0;font-size:14px;line-height:1.6;color:#475569}
+    @media(max-width:600px){.metrics-strip>div{padding:10px 8px}.metrics-strip dt{font-size:10px;letter-spacing:0}.metrics-strip dd{font-size:12px}.scene-explanation{font-size:13px;margin-top:10px}}
+
+    #spectrumBar{height:auto;min-height:84px;align-items:stretch;overflow:visible;border:0;gap:4px}
+    #spectrumBar .spec-cell{border:1px solid #cbd5e1;border-radius:10px;gap:7px;padding:12px 4px;overflow:hidden}
+    #spectrumBar .spec-cell.active{padding:12px 10px;box-shadow:inset 0 0 0 2px #0f172a}
+    #spectrumBar .comparison-detail{display:flex;flex-direction:column;align-items:center;width:100%;gap:4px;animation:comparisonReveal .3s ease-out}
+    .comparison-example{font-size:12px;font-weight:700}.comparison-wave{display:block;width:100%;height:auto;max-height:170px}
+    .comparison-object{font-size:11px}.comparison-note{font-size:10px;font-weight:400;opacity:.85}
+    #spectrumBar .visible-sliver .comparison-detail{background:#ffffffed;border-radius:7px;color:#172033;text-shadow:none;padding:7px 3px}
+    @keyframes comparisonReveal{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+    @media(max-width:600px){
+      #spectrumBar{display:flex;flex-direction:column;gap:5px;min-height:0}
+      #spectrumBar .spec-cell{flex-direction:row;justify-content:flex-start;min-height:42px;font-size:11px;padding:8px 12px;gap:12px}
+      #spectrumBar .spec-cell.active{flex-wrap:wrap;min-height:255px;padding:12px;justify-content:center}
+      #spectrumBar .comparison-detail{flex-basis:100%;max-width:360px}
+      .comparison-example{font-size:13px}.comparison-object{font-size:12px}.comparison-note{font-size:11px}
+      .relative.h-9{display:none}
     }
 
-    .rise-walkthrough button,
-    .rise-walkthrough input,
-    .rise-walkthrough select {
-      min-height: 32px;
-    }
-
-    .rise-walkthrough button:focus-visible,
-    .rise-walkthrough input:focus-visible,
-    .rise-walkthrough select:focus-visible {
-      outline: 3px solid #f59e0b;
-      outline-offset: 3px;
-    }
-
-    .rise-walkthrough > #canvas-container,
-    .rise-walkthrough > .controls-panel {
-      margin-inline: auto;
-    }
-
-    @media (max-width: 520px) {
-      body { padding: 4px; }
-      .rise-walkthrough { border-width: 5px; border-radius: 12px; }
-      .rise-walkthrough.rise-shell { padding: 10px; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .rise-walkthrough *,
-      .rise-walkthrough *::before,
-      .rise-walkthrough *::after {
-        scroll-behavior: auto !important;
-        transition-duration: 0.01ms !important;
-      }
-    }
+    .band-info{display:grid;gap:4px;margin-top:4px;font-size:10.5px;line-height:1.3;color:#334155}
+    .band-info>div{min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 3px;text-align:center;border-radius:8px;background:#f8fafc;border:1px solid #e2e8f0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+    .band-info>div.active{background:#eef2ff;border-color:#a5b4fc;font-weight:700}
+    .zoom-compare{display:flex;justify-content:center;margin-top:10px;color:#172033;font-size:12px}
+    .zoom-compare .comparison-detail{display:flex;flex-direction:column;align-items:center;width:100%;max-width:360px;gap:4px}
+    .zoom-strip{margin-top:0}
+    #zoomSvg{display:block;width:100%;height:34px}
+    .zoom-bar{height:18px;border-radius:4px;background:linear-gradient(90deg,#d9231c 0%,#f5611c 16.7%,#ffb400 33.3%,#7ddf3b 50%,#00d1c0 66.7%,#2848ff 83.3%,#6a1fd0 100%)}
+    .zoom-ticks{display:flex;justify-content:space-between;padding:3px 2px 0;font-size:10.5px;font-weight:700;color:#475569}
+    @media(max-width:600px){.band-info,#zoomSvg,.zoom-bar,.zoom-ticks{display:none}}
   </style>
 </head>
 <body>
-<main class="rise-walkthrough rise-shell" aria-label="Simulation 1: EM Spectrum & Energy Explorer">
-<div class="container">
-    <div class="header">
-        <h1>Simulation 1: EM Spectrum & Energy Explorer</h1>
-        <p>Explore the relationship between wave speed, frequency, intensity, and photon energy in a vacuum.</p>
+
+<div class="rise-wrapper">
+  <!-- DYNAMIC TEXTBOOK TITLE -->
+  <div class="text-center mb-2">
+    <h1 id="mainTitle" class="text-2xl md:text-3xl font-black tracking-wider uppercase text-slate-900">
+      VISIBLE SPECTRUM
+    </h1>
+    <p id="subTitle" class="text-xs font-medium text-slate-500 mt-0.5">
+      Click any region of the Electromagnetic Spectrum below to launch its live physics & interactive scene
+    </p>
+  </div>
+
+  <!-- LOW TO HIGH ENERGY ARROW -->
+  <div class="px-2">
+    <div class="flex justify-between text-[11px] font-extrabold tracking-wider uppercase text-slate-800">
+      <span>LOW ENERGY (Long λ · Low Frequency)</span>
+      <span>HIGH ENERGY (Short λ · High Frequency)</span>
+    </div>
+    <div class="energy-line"></div>
+  </div>
+
+  <!-- TOP WAVELENGTH TICKS FOR SELECTED BAND -->
+  <div id="topTicks" class="grid grid-cols-4 text-center text-xs font-mono font-bold text-slate-700 mb-1 px-4">
+    <div>7×10⁻⁷ m<br><span class="text-slate-400">│</span></div>
+    <div>6×10⁻⁷ m<br><span class="text-slate-400">│</span></div>
+    <div>5×10⁻⁷ m<br><span class="text-slate-400">│</span></div>
+    <div>4×10⁻⁷ m<br><span class="text-slate-400">│</span></div>
+  </div>
+
+  <!-- MAIN ZOOMED INTERACTIVE STAGE (CANVAS + CONTROLS) -->
+  <div class="relative rounded-xl overflow-hidden border-2 border-slate-800 shadow-md bg-slate-950">
+    <!-- Top Floating Action Bar inside Stage -->
+    <div class="absolute top-2.5 left-3 right-3 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+      <div id="stageBadge" class="pointer-events-auto px-3 py-1 rounded-full text-xs font-bold bg-slate-900/85 text-white border border-slate-700 backdrop-blur-sm">
+        🌈 Visible Light Window (400 nm – 700 nm)
+      </div>
+
     </div>
 
-    <div class="view-toggles">
-        <button type="button" class="active" onclick="setMode('race')" id="btn-race">Vacuum Race</button>
-        <button type="button" onclick="setMode('inspector')" id="btn-inspector">Photon Inspector</button>
-    </div>
+    <canvas role="img" aria-label="Animated electromagnetic wave demonstration" id="stageCanvas" width="880" height="250" class="w-full block cursor-pointer" style="height:auto"></canvas>
+  </div>
 
-    <div class="canvas-container">
-        <canvas role="img" aria-label="Interactive visualization for Simulation 1: EM Spectrum & Energy Explorer" id="simCanvas"></canvas>
-        <div class="overlay-ui">
-            <div id="readoutType" class="readout-badge" style="display: none;">Wave Type: Visible Light</div>
-            <br>
-            <div id="readoutEnergy" class="readout-badge" style="border-color: var(--accent); color: var(--accent); display: none;">
-                Photon Energy: 2.5 eV
-            </div>
-        </div>
-        <button type="button" id="raceBtn" class="race-btn" onclick="startRace()">Start Vacuum Race</button>
-    </div>
+  <div id="stageControls" class="flex items-center justify-center gap-2 py-3"></div>
 
-    <div class="controls-wrapper" id="inspectorControls" style="display: none;">
-        <div class="control-group">
-            <label>
-                <span>Frequency (EM Spectrum)</span>
-                <span id="freqDisplay">10^14 Hz</span>
-            </label>
-            <input type="range" id="freqSlider" min="0" max="100" value="50">
-            <div class="spectrum-bar"></div>
-            <span style="font-size: 0.8rem; color: #94a3b8; display: flex; justify-content: space-between;">
-                <span>Radio</span> <span>Microwave</span> <span>Visible</span> <span>X-Ray</span> <span>Gamma</span>
-            </span>
-        </div>
+  <!-- DYNAMIC BRACKET CONNECTOR (Just like textbook reference image) -->
+  <div class="relative h-9 w-full">
+    <svg class="w-full h-full overflow-visible" viewBox="0 0 880 36" preserveAspectRatio="none">
+      <!-- Top Wide Bracket Hugging Stage -->
+      <path d="M 4 0 L 4 10 L 876 10 L 876 0" fill="none" stroke="#0f172a" stroke-width="2.2" />
+      <!-- Sliding Stem + Small Bracket Locking Onto Active Band -->
+      <line id="bracketStem" x1="455" y1="10" x2="455" y2="24" stroke="#0f172a" stroke-width="2.2" class="transition-all duration-300" />
+      <path id="bracketFoot" d="M 428 35 L 428 24 L 482 24 L 482 35" fill="none" stroke="#0f172a" stroke-width="2.2" class="transition-all duration-300" />
+    </svg>
+  </div>
 
-        <div class="control-group">
-            <label>
-                <span>Intensity (Brightness)</span>
-                <span id="intensityDisplay">Medium</span>
-            </label>
-            <input type="range" id="intensitySlider" min="1" max="10" value="5">
-            <span style="font-size: 0.8rem; color: #94a3b8; margin-top: 15px;">
-                Controls the <em>number</em> of photons emitted per second, not their individual energy.
-            </span>
-        </div>
+  <!-- 7-BAND TEXTBOOK SPECTRUM BAR -->
+  <div id="spectrumBar" class="spectrum-bar">
+    <!-- Generated by JS -->
+  </div>
 
-        <div class="info-panel" id="dynamicInfo">
-            <strong>Photon Inspector:</strong> Notice how increasing the frequency changes the color and increases the individual photon energy. However, increasing the intensity only increases the quantity of photons, leaving their individual energy completely unchanged!
-        </div>
-    </div>
+  <!-- Size of a wavelength + frequency rows, aligned under each band -->
+  <div id="bandInfo" class="band-info"></div>
 
-    <div class="controls-wrapper" id="raceControls">
-        <div class="info-panel">
-            <strong>Vacuum Race:</strong> We are pitting a low-frequency, low-energy Radio Wave against a high-frequency, high-energy Gamma Ray in a vacuum tube. Click "Start Vacuum Race" to see which one reaches the target first.
-        </div>
-    </div>
+  <!-- Visible light zoom, as in the classic chart -->
+  <div id="zoomStrip" class="zoom-strip">
+    <svg id="zoomSvg" aria-hidden="true"></svg>
+    <div id="zoomBar" class="zoom-bar"></div>
+    <div id="zoomTicks" class="zoom-ticks"></div>
+    <div id="zoomCompare" class="zoom-compare"></div>
+  </div>
+
+  <section id="sceneSummary" aria-label="Selected spectrum band details"></section>
+
 </div>
 
 <script>
-    const canvas = document.getElementById('simCanvas');
-    const ctx = canvas.getContext('2d');
+const BANDS = [
+  {
+    id: 'radio',
+    name: 'RADIO WAVES',
+    title: 'RADIO SPECTRUM',
+    short: 'Radio',
+    icon: '📡',
+    accent: '#ef4444',
+    bgLight: '#fef2f2',
+    grayBg: '#e2e8f0',
+    ticks: ['1×10⁴ m', '1×10² m', '10 m', '1 m'],
+    wavelength: '1 m to 100 km',
+    frequency: '3 kHz – 300 MHz',
+    energy: '10⁻¹¹ – 10⁻⁶ eV (Non-Ionizing)',
+    sizeIcon: '🏟️',
+    sizeLabel: 'Football Field',
+    sizeDesc: '1 wavelength (λ) is as long as a soccer stadium or mountain ridge!',
+    badgeText: 'The Valley Blackout vs. The Bass Drop',
+    actionBtn: '🪩 Toggle Dance Party Boost!',
+    physicsText: 'Diffraction becomes more noticeable when wavelength is large relative to an obstacle. Compare the weak short-wavelength signal in the valley with the longer wave spreading beyond the ridge. The antenna receives a tiny electrical signal; a powered receiver and amplifier drive the music. Wave travel and party beats are slowed and exaggerated.',
+    uses: ['FM/AM Music Broadcasts', 'MRI Medical Scanners', 'Deep-Space Radio Telescopes'],
+    quizQ: 'Why does the radio wave reach the dance party behind the mountain?',
+    quizOpts: ['Long wavelengths diffract around large obstacles', 'Radio waves tunnel through solid rock'],
+    quizAns: 0
+  },
+  {
+    id: 'microwave',
+    name: 'MICROWAVES',
+    title: 'MICROWAVE SPECTRUM',
+    short: 'Microwave',
+    icon: '🍿',
+    accent: '#f97316',
+    bgLight: '#fff7ed',
+    grayBg: '#cbd5e1',
+    ticks: ['1×10⁻¹ m', '5×10⁻² m', '1×10⁻² m', '1×10⁻³ m'],
+    wavelength: '1 mm to 1 m',
+    frequency: '300 MHz – 300 GHz',
+    energy: '10⁻⁶ – 10⁻³ eV (Non-Ionizing)',
+    sizeIcon: '🐝',
+    sizeLabel: 'Baseball to Bee',
+    sizeDesc: '1 wavelength (λ ≈ 12 cm in ovens) is about the size of a baseball or honeybee.',
+    badgeText: 'Microwaves: satellite link to smart kitchen',
+    actionBtn: '🍿 Pop More Kernels!',
+    physicsText: 'Some microwave communication bands pass through clouds well, though rain can weaken a link, especially at higher frequencies. The dish receives data, not cooking power. Inside the separately powered oven, a 2.45 GHz electric field drives polar water molecules; energy transfers into thermal motion. Steam pressure builds inside kernels until they pop.',
+    uses: ['Microwave Ovens (2.45 GHz)', '5G Cellular & Wi-Fi Routers', 'Doppler Weather Radar'],
+    quizQ: 'What makes the popcorn kernel explode in a microwave?',
+    quizOpts: ['Nuclear radiation inside the oven', 'Microwave heating builds steam pressure inside kernels'],
+    quizAns: 1
+  },
+  {
+    id: 'infrared',
+    name: 'INFRARED',
+    title: 'INFRARED SPECTRUM',
+    short: 'Infrared',
+    icon: '🌡️',
+    accent: '#eab308',
+    bgLight: '#fefce8',
+    grayBg: '#b8c4d4',
+    ticks: ['1×10⁻³ m', '1×10⁻⁴ m', '1×10⁻⁵ m', '7×10⁻⁷ m'],
+    wavelength: '700 nm to 1 mm',
+    frequency: '300 GHz – 430 THz',
+    energy: '0.001 – 1.7 eV (Non-Ionizing)',
+    sizeIcon: '📍',
+    sizeLabel: 'Pinhead & Hair',
+    sizeDesc: '1 wavelength (λ) spans from a tiny pinhead down to the width of a human hair.',
+    badgeText: 'Infrared: hidden stars & a warm dog',
+    actionBtn: '🔍 Slide Thermal / Dust Lens',
+    physicsText: 'Slide the same infrared viewer across both scenes. Above, selected infrared wavelengths reveal stars through dust that obscures visible light; dense regions can remain hidden. Below, the dog breathes and periodically releases a stylized warm puff. The warm body emits infrared; air puffs are exaggerated illustrations, not a prediction of camera visibility. Astronomy colors are assigned to infrared data; thermal colors represent temperature. Cooling is illustrated, not measured.',
+    uses: ['Thermal Night-Vision Cameras', 'James Webb Space Telescope', 'TV Remotes & Fiber Optics'],
+    quizQ: 'Why does the James Webb Telescope use Infrared to see inside nebulae?',
+    quizOpts: ['IR passes through dust clouds with much less scattering', 'IR travels faster than visible light'],
+    quizAns: 0
+  },
+  {
+    id: 'visible',
+    name: 'VISIBLE',
+    title: 'VISIBLE SPECTRUM',
+    short: 'Visible',
+    icon: '🌈',
+    accent: '#22c55e',
+    bgLight: '#f0fdf4',
+    grayBg: 'rainbow',
+    ticks: ['7×10⁻⁷ m', '6×10⁻⁷ m', '5×10⁻⁷ m', '4×10⁻⁷ m'],
+    wavelength: '400 nm (Violet) – 700 nm (Red)',
+    frequency: '430 THz – 750 THz',
+    energy: '1.7 – 3.1 eV (Non-Ionizing)',
+    sizeIcon: '🦠',
+    sizeLabel: 'Bacteria Cell',
+    sizeDesc: '1 wavelength (λ ≈ 0.5 μm) is the size of a microscopic bacterium!',
+    badgeText: 'Newton’s prism workshop',
+    actionBtn: '💎 Toggle Prism & Eye View',
+    physicsText: 'Newton adjusts a glass prism in a beam of white sunlight, observes the spectrum, and records his findings. White light contains many visible wavelengths. Refraction at both glass surfaces separates them because the refractive index depends on wavelength: violet bends more than red in ordinary glass. The prism separates colors rather than creating them. The notebook contains paraphrased observations, not historical quotations.',
+    uses: ['Human Color Vision (Retinal Cones)', 'Plant Photosynthesis', 'Lasers & Optical Microscopes'],
+    quizQ: 'Which visible color has the shortest wavelength and highest energy?',
+    quizOpts: ['Red light (700 nm)', 'Violet light (400 nm)'],
+    quizAns: 1
+  },
+  {
+    id: 'uv',
+    name: 'UV',
+    title: 'ULTRAVIOLET SPECTRUM',
+    short: 'UV',
+    icon: '☀️',
+    accent: '#06b6d4',
+    bgLight: '#ecfeff',
+    grayBg: '#cbd5e1',
+    ticks: ['4×10⁻⁷ m', '1×10⁻⁷ m', '5×10⁻⁸ m', '1×10⁻⁸ m'],
+    wavelength: '10 nm to 400 nm',
+    frequency: '750 THz – 30 PHz',
+    energy: '3.1 – 124 eV (Ionizing above ~10 eV)',
+    sizeIcon: '🧬',
+    sizeLabel: 'Virus & DNA',
+    sizeDesc: '1 wavelength (λ) is as small as a virus particle or DNA molecule.',
+    badgeText: 'Sunlight shield: UV absorption & DNA damage',
+    actionBtn: '💵 Toggle Secret Blacklight Bill',
+    physicsText: 'This slowed UVB example shows one possible DNA lesion. After absorption, two neighboring thymine bases on the same strand can form two new covalent bonds, creating a cyclobutane thymine dimer that distorts DNA. The atom-level view highlights the new carbon-to-carbon bonds. The modeled opaque cover intercepts incident UV; it cannot undo damage already present. Each loop starts a fresh illustration, not biological repair. Photon events and timing are illustrative, not exposure or risk predictions.',
+    uses: ['Hospital UV-C Germ Sterilization', 'Blacklight Counterfeit Detection', 'Microchip Photolithography'],
+    quizQ: 'What changed in the damaged DNA shown here?',
+    quizOpts: ['New bonds joined neighboring thymine bases on one strand', 'The atoms melted because UV is hot'],
+    quizAns: 0
+  },
+  {
+    id: 'xray',
+    name: 'X-RAYS',
+    title: 'X-RAY SPECTRUM',
+    short: 'X-Rays',
+    icon: '💀',
+    accent: '#6366f1',
+    bgLight: '#eef2ff',
+    grayBg: '#dbe2ea',
+    ticks: ['1×10⁻⁸ m', '1×10⁻⁹ m', '1×10⁻¹⁰ m', '1×10⁻¹¹ m'],
+    wavelength: '0.01 nm to 10 nm',
+    frequency: '30 PHz – 30 EHz',
+    energy: '124 eV – 124 keV (Ionizing)',
+    sizeIcon: '⚛️',
+    sizeLabel: 'Single Atom',
+    sizeDesc: 'A wavelength of about 1 Å (0.1 nm) is comparable to atomic dimensions.',
+    badgeText: 'Skeleton dance: freeze, scan, reveal',
+    actionBtn: '🦴 Toggle Full Skeleton Dance!',
+    physicsText: 'The dancer automatically freezes for an exposure; compare the captured pose with its X-ray image. Bone attenuates more X-rays than soft tissue, so fewer reach the detector behind bone. In this conventional grayscale display, fewer detected photons are shown lighter. Soft tissue remains gray. The bright duck shape is a metal belt buckle outside the body. The next cycle resumes dancing; the captured exposure stays still during review. Geometry, anatomy, and transmission are schematic.',
+    uses: ['Medical Bone Radiography', 'Airport Security Baggage Scanners', 'X-Ray Protein Crystallography'],
+    quizQ: 'Why does the dancing skeleton show up bright white on an X-ray scan?',
+    quizOpts: ['Dense calcium atoms in bone block X-rays from hitting the detector', 'Bones glow in the dark naturally'],
+    quizAns: 0
+  },
+  {
+    id: 'gamma',
+    name: 'GAMMA RAYS',
+    title: 'GAMMA RAY SPECTRUM',
+    short: 'Gamma',
+    icon: '☢️',
+    accent: '#a855f7',
+    bgLight: '#faf5ff',
+    grayBg: '#eceff4',
+    ticks: ['1×10⁻¹¹ m', '1×10⁻¹² m', '1×10⁻¹³ m', '1×10⁻¹⁴ m'],
+    wavelength: '< 0.01 nm (Picometers)',
+    frequency: '> 30 EHz (3×10¹⁹ Hz)',
+    energy: '> 124 keV – MeV (Strongly Ionizing)',
+    sizeIcon: '🎯',
+    sizeLabel: 'Atomic Nucleus',
+    sizeDesc: 'Gamma wavelengths can approach nuclear dimensions at sufficiently high energies; the wavelength depends on photon energy.',
+    badgeText: 'Three little pigs: paper, aluminum & lead',
+    actionBtn: '🛡️ Swap Barrier (Paper / Al / Lead)',
+    physicsText: 'The fictional Gamma Wolf sends identical streams toward three houses. Thin paper transmits most photons; the illustrated aluminum wall reduces transmission somewhat; thick lead reduces it most. Photons that pass through trigger the detectors. The paper and aluminum pigs retreat while the lead pig celebrates. This is a comparison of shielding, not a survival calculation: lead does not guarantee zero transmission. Real attenuation depends on material, thickness, and photon energy. Gamma emission can occur when an excited nucleus transitions to a lower-energy state.',
+    uses: ['Gamma Knife Brain Tumor Surgery', 'PET Medical Imaging Scans', 'Detecting Supernovae & Pulsars'],
+    quizQ: 'Why is the lead pig best protected in this illustration?',
+    quizOpts: ['Lead guarantees every gamma photon is stopped', 'The thick lead wall greatly reduces transmitted photons'],
+    quizAns: 1
+  }
+];
 
-    // UI Elements
-    const raceBtn = document.getElementById('raceBtn');
-    const inspectorControls = document.getElementById('inspectorControls');
-    const raceControls = document.getElementById('raceControls');
+let currentIdx = 0; // Default start on Visible Spectrum like the textbook diagram
+let subMode = 0;    // Secondary toggle per scene
+let t = 0;
+let scannerX = 0.55; // Interactive X position for IR / X-Ray scanner
+let isDragging = false;
 
-    const freqSlider = document.getElementById('freqSlider');
-    const intensitySlider = document.getElementById('intensitySlider');
-    const freqDisplay = document.getElementById('freqDisplay');
-    const intensityDisplay = document.getElementById('intensityDisplay');
-    const readoutType = document.getElementById('readoutType');
-    const readoutEnergy = document.getElementById('readoutEnergy');
-    const dynamicInfo = document.getElementById('dynamicInfo');
+// Popcorn particle pool for Microwave scene
+let popParticles = [];
 
-    let width = canvas.width = canvas.parentElement.clientWidth;
-    let height = canvas.height = canvas.parentElement.clientHeight;
-
-    window.addEventListener('resize', () => {
-        width = canvas.width = canvas.parentElement.clientWidth;
-        height = canvas.height = canvas.parentElement.clientHeight;
+function spawnPopcornBurst() {
+  for (let i = 0; i < 16; i++) {
+    popParticles.push({
+      x: 560 + (Math.random() - 0.5) * 40,
+      y: 145 + (Math.random() - 0.5) * 20,
+      vx: (Math.random() - 0.5) * 7,
+      vy: -3.5 - Math.random() * 5.5,
+      rot: Math.random() * Math.PI * 2,
+      vRot: (Math.random() - 0.5) * 0.2,
+      size: 10 + Math.random() * 7,
+      life: 1.0
     });
+  }
+}
 
-    // State Variables
-    let mode = 'race';
-    let time = 0;
+const canvas = document.getElementById('stageCanvas');
+const sceneCanvas=document.createElement('canvas');
+let ctx=sceneCanvas.getContext('2d');
+const displayCtx=canvas.getContext('2d');
+let sceneHeight=650,renderDpr=1,displayRegions=[];
+let xrLoopStart=performance.now();
 
-    // Race State
-    let isRacing = false;
-    let raceProgress = 0; // 0 to 1
-    let raceWinner = false;
+function buildUI() {
+  const bar = document.getElementById('spectrumBar');
+  bar.innerHTML = '';
+  bar.style.gridTemplateColumns=BANDS.map((_,i)=>i===3?'.55fr':'1fr').join(' ');
 
-    // Inspector State
-    let particles = [];
-    const h = 4.1357e-15; // Planck's constant in eV*s (simplified for simulation scaling)
-
-    function setMode(newMode) {
-        mode = newMode;
-        document.getElementById('btn-race').classList.remove('active');
-        document.getElementById('btn-inspector').classList.remove('active');
-        document.getElementById(`btn-${newMode}`).classList.add('active');
-
-        if (mode === 'race') {
-            raceControls.style.display = 'grid';
-            inspectorControls.style.display = 'none';
-            raceBtn.style.display = 'block';
-            readoutType.style.display = 'none';
-            readoutEnergy.style.display = 'none';
-            resetRace();
-        } else {
-            raceControls.style.display = 'none';
-            inspectorControls.style.display = 'grid';
-            raceBtn.style.display = 'none';
-            readoutType.style.display = 'inline-block';
-            readoutEnergy.style.display = 'inline-block';
-            particles = []; // Clear particles
-        }
+  BANDS.forEach((b, i) => {
+    const active = i === currentIdx;
+    // Spectrum Cell
+    const cell = document.createElement('button');
+    cell.type = 'button';
+    cell.setAttribute('aria-label', b.name);
+    cell.setAttribute('aria-pressed', String(active));
+    cell.setAttribute('aria-expanded',String(active));
+    cell.className = `spec-cell ${b.id === 'visible' ? 'visible-sliver' : ''} ${active ? 'active' : ''}`;
+    if (b.id !== 'visible') {
+      cell.style.backgroundColor = b.accent + (active ? '66' : '33');
     }
+    cell.onclick = () => selectBand(i);
+    cell.innerHTML = `
+      <span class="band-symbol" aria-hidden="true">${bandSymbol(i)}</span>
+      <span class="text-[11px] md:text-xs font-extrabold tracking-tight ${b.id === 'visible' ? 'text-white drop-shadow' : 'text-slate-800'}">
+        ${b.name}
+      </span>
+    `;
+    bar.appendChild(cell);
 
-    // Initialize UI on load
-    setMode('race');
+  });
 
-    function resetRace() {
-        isRacing = false;
-        raceProgress = 0;
-        raceWinner = false;
-        raceBtn.innerText = "Start Vacuum Race";
-        raceBtn.style.background = "var(--success)";
+  updateHeaderAndCards();
+  syncSceneControl();
+  buildBandInfo();
+  requestAnimationFrame(alignSpectrumBracket);
+  requestAnimationFrame(alignZoom);
+}
+
+function selectBand(idx) {
+  const retainFocus=document.activeElement?.closest('#spectrumBar');
+  currentIdx = idx;
+  subMode = 0;
+  sceneStart = performance.now();
+  if (BANDS[idx].id === 'visible') newtonStart=performance.now();
+  if (BANDS[idx].id === 'gamma') restartPigStory();
+  if (BANDS[idx].id === 'xray') resetXray();
+  if (BANDS[idx].id === 'uv') {uvCover=.27;resetUV();}
+  if (BANDS[idx].id === 'infrared') { irTouchStart = performance.now(); scannerX = 0.5; }
+  if (BANDS[idx].id === 'microwave') {
+    popParticles = [];
+    spawnPopcornBurst();
+  }
+  buildUI();
+  if(retainFocus)document.querySelectorAll('#spectrumBar button')[idx].focus({preventScroll:true});
+}
+
+function updateHeaderAndCards() {
+  const b = BANDS[currentIdx];
+  document.getElementById('mainTitle').textContent = b.title;
+  document.getElementById('mainTitle').style.color = b.id === 'visible' ? '#0f172a' : b.accent;
+
+  // Update Top Ticks
+  document.getElementById('topTicks').innerHTML = b.ticks
+    .map(tk => `<div>${tk}<br><span class="text-slate-400">│</span></div>`)
+    .join('');
+
+  // Update Stage Badge & Action Button
+  document.getElementById('stageBadge').textContent = b.badgeText;
+  const ctrl = document.getElementById('stageControls');
+  ctrl.innerHTML = '';
+  if (['radio','microwave'].includes(b.id)) {
+    const button=document.createElement('button');button.id='sceneActionBtn';button.style.background=b.accent;
+    button.onclick=()=>{subMode=(subMode+1)%2;sceneStart=performance.now();syncSceneControl();};
+    ctrl.appendChild(button);
+  }
+
+  // Slide Bracket to Active Column
+  const colCenters = Array.from({length:7},(_,i)=>(i+.5)*880/7);
+  const cx = colCenters[currentIdx];
+  const halfW = currentIdx === 3 ? 22 : 45;
+  document.getElementById('bracketStem').setAttribute('x1', cx);
+  document.getElementById('bracketStem').setAttribute('x2', cx);
+  document.getElementById('bracketFoot').setAttribute('d', `M ${cx - halfW} 35 L ${cx - halfW} 24 L ${cx + halfW} 24 L ${cx + halfW} 35`);
+
+  const explanations = {
+    radio: 'Long radio waves spread beyond the ridge and reach the antenna, allowing the locally powered receiver to play music.',
+    microwave: 'The satellite sends data through clouds to the dish; the separately powered oven uses microwaves to heat water inside popcorn kernels.',
+    infrared: 'The infrared viewer reveals stars through dust and the dog’s warm body; animated air puffs illustrate cooling.',
+    visible: 'Newton’s prism separates white sunlight into its colors because different wavelengths bend by different amounts in glass.',
+    uv: 'Absorbed UV can join neighboring DNA bases into a damaging link; the fabric cover reduces the radiation reaching the cells.',
+    xray: 'Bone transmits fewer X-rays than soft tissue, creating lighter regions in the captured image.',
+    gamma: 'The pigs’ houses show how shielding reduces gamma-ray transmission: thick lead protects best here, but does not stop every photon.'
+  };
+  const compact = value => value.replace(/\s*\([^)]*\)/g, '').trim();
+  document.getElementById('sceneSummary').innerHTML = `
+    <dl class="metrics-strip">
+      <div><dt>Wavelength <span>λ</span></dt><dd>${compact(b.wavelength)}</dd></div>
+      <div><dt>Frequency <span>f</span></dt><dd>${b.frequency}</dd></div>
+      <div><dt>Photon energy</dt><dd>${compact(b.energy)}</dd></div>
+    </dl>
+    <p class="scene-explanation">${explanations[b.id]}</p>
+  `;
+}
+
+// Canvas Pointer / Dragging for X-Ray & Infrared Scanners
+canvas.addEventListener('pointerdown', e => {
+  isDragging = true;
+  canvas.setPointerCapture(e.pointerId);
+  updatePointer(e);
+  if (BANDS[currentIdx].id === 'microwave') spawnPopcornBurst();
+  if (BANDS[currentIdx].id === 'radio') { subMode = (subMode + 1) % 2; sceneStart = performance.now(); syncSceneControl(); }
+});
+canvas.addEventListener('pointermove', e => {
+  if (isDragging) updatePointer(e);
+});
+window.addEventListener('pointerup', () => { isDragging = false; });
+canvas.addEventListener('pointercancel', () => { isDragging = false; });
+
+function updatePointer(e) {
+  const rect = canvas.getBoundingClientRect();
+  const px=e.clientX-rect.left,py=e.clientY-rect.top;
+  const region=displayRegions.find(r=>px>=r.dx&&px<=r.dx+r.dw&&py>=r.dy&&py<=r.dy+r.dh);
+  if(!region)return;
+  const sceneX=region.sx+(px-region.dx)/region.dw*region.sw;
+  scannerX = Math.max(0.15, Math.min(0.85, sceneX/880));
+  if (BANDS[currentIdx].id === 'uv') {uvCover=Math.max(.16,Math.min(.84,scannerX));document.getElementById('uvSlider').value=String(uvCover*100);}
+  if (BANDS[currentIdx].id === 'xray' && xrState==='review') {xrReveal=Math.max(0,Math.min(1,(sceneX-290)/300));document.getElementById('xrSlider').value=String(xrReveal*100);}
+  const slider = document.getElementById('irSlider');
+  if (slider) slider.value = String(scannerX*100);
+}
+
+// ==========================================================
+// 60FPS CANVAS ANIMATION ENGINE (WITH HUMOROUS SCENES!)
+// ==========================================================
+function renderStage() {
+  t += 0.05;
+  prepareScene();
+  ctx.clearRect(0,0,880,sceneHeight);
+
+  const b = BANDS[currentIdx];
+
+  // Newton adjusts the prism, observes the spectrum, and records notes.
+  if (b.id === 'visible') drawNewton();
+
+  // Custom vector scenes share the same responsive canvas.
+  else if (b.id === 'radio') drawRadio();
+  else if (b.id === 'microwave') drawMicrowave();
+
+  // Stacked astronomy and thermal scenes share one draggable viewer.
+  else if (b.id === 'infrared') drawInfrared();
+
+  // UV absorption produces a persistent modeled thymine dimer.
+  else if (b.id === 'uv') drawUV();
+
+  // Shared articulation keeps the captured silhouette and radiograph aligned.
+  else if (b.id === 'xray') drawXray();
+
+  // Three parallel shielding comparisons tell the pigs' story.
+  else if (b.id === 'gamma') drawGammaPigs();
+
+  presentScene();
+  requestAnimationFrame(renderStage);
+}
+
+let sceneStart = performance.now();
+let irTouchStart = performance.now();
+function syncSceneControl() {
+  const id=BANDS[currentIdx].id;
+  sceneHeight={radio:360,microwave:360,infrared:570,visible:620,uv:650,xray:530,gamma:650}[id];
+  canvas.style.touchAction=['infrared','xray','uv'].includes(id)?'none':'auto';
+  const btn=document.getElementById('sceneActionBtn');
+  if(btn)btn.textContent=id==='radio'?(subMode?'Switch to AM (long λ, ~300 m)':'Switch to FM (short λ, ~3 m)'):(subMode?'Switch to Light Cloud':'Switch to Heavy Rain');
+  const defs={infrared:['irSlider','Slide the IR viewer',15,85,scannerX*100,v=>scannerX=v/100],uv:['uvSlider','Move the fabric cover',16,84,uvCover*100,v=>uvCover=v/100],xray:['xrSlider','Reveal the X-ray image',0,100,xrReveal*100,v=>xrReveal=v/100]};
+  if(defs[id]&&!document.getElementById(defs[id][0])){
+    const [key,title,min,max,value,update]=defs[id],wrap=document.createElement('label'),slider=document.createElement('input');
+    wrap.className='scene-slider';wrap.append(document.createTextNode(title));slider.type='range';slider.id=key;slider.min=min;slider.max=max;slider.value=value;slider.setAttribute('aria-label',title);slider.oninput=()=>update(Number(slider.value));wrap.append(slider);document.getElementById('stageControls').append(wrap);
+  }
+  canvas.setAttribute('aria-label',BANDS[currentIdx].badgeText);
+}
+function line(points, color, width=2) {
+  ctx.beginPath(); points.forEach(([x,y],i) => i ? ctx.lineTo(x,y) : ctx.moveTo(x,y));
+  ctx.strokeStyle=color; ctx.lineWidth=width; ctx.stroke();
+}
+function poly(points,color) {
+  ctx.beginPath(); points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y)); ctx.closePath(); ctx.fillStyle=color; ctx.fill();
+}
+function disk(x,y,r,color) { ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fillStyle=color; ctx.fill(); }
+function box(x,y,w,h,color,r=4) {ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fillStyle=color;ctx.fill();}
+function label(text,x,y,color='#cbd5e1',size=12) {ctx.fillStyle=color;ctx.font=`600 ${size}px system-ui`;ctx.fillText(text,x,y);}
+function night() {
+  const g=ctx.createLinearGradient(0,0,0,360);g.addColorStop(0,'#070c22');g.addColorStop(1,'#172e42');ctx.fillStyle=g;ctx.fillRect(0,0,880,360);
+  for(let i=0;i<45;i++) disk((i*137)%880,45+(i*37)%190,i%3===0?1.2:0.6,'#64748b');
+}
+function drawRadio() {
+  const time=(performance.now()-sceneStart)/1000, short=subMode===1;
+  const travel=3.2, period=1.6;
+  const arrival=time-travel;
+  const phase=((arrival%period)+period)%period;
+  const received=!short && arrival>=0;
+  const pulse=received && phase<0.38;
+  const beat=received ? Math.max(0,1-(phase-0.24)/0.65)*(phase>=0.24?1:0):0;
+  night();
+  label(short?'FM: SHORT λ (~3 m) / SIGNAL SHADOW':'AM: LONG λ (~300 m) / DIFFRACTION',24,64,short?'#fbbf24':'#fca5a5',14);
+  poly([[0,310],[190,295],[330,106],[485,309],[880,307],[880,360],[0,360]],'#172437');
+  poly([[190,309],[330,106],[415,309]],materialGradient(220,110,170,200,'#748397','#43536a','#1d2b40'));
+  line([[330,120],[304,194],[322,231],[287,299]],'#b2c0cc33',2);line([[306,167],[268,215],[252,282]],'#0b142744',2);
+  poly([[330,106],[485,309],[415,309]],'#26384d');
+  poly([[306,141],[330,106],[353,142],[331,132],[322,145]],'#becbd6');
+  line([[60,306],[90,118],[120,306]],'#94a3b8',4);
+  for(let y=165;y<300;y+=35) {const w=(y-118)*.16;line([[90-w,y],[90+w,y+30],[90-w-5,y+30],[90+w,y]],'#64748b');}
+  line([[90,118],[90,96]],'#cbd5e1',3);disk(90,97,4,Math.sin(time*4)>0?'#ff4c59':'#7f1d1d');
+  label('BROADCAST',40,330,'#94a3b8',11);
+  // A shared travel clock controls crest position, antenna arrival, cable pulse and bass response.
+  for(let n=0;n<5;n++) {
+    const age=time-n*period-Math.max(0,Math.floor((time-travel-period)/period))*period;
+    if(age<0||age>travel)continue;
+    const u=age/travel;
+    if(short) {
+      const x=90+u*510;
+      if(x<281) {
+        const pts=[];for(let k=0;k<45;k++)pts.push([x-k,176+Math.sin(k*.65-time*12)*7]);line(pts,'#fb7185',2);
+      } else if(x<330) {
+        for(let j=0;j<7;j++){const a=j*.8;line([[279,176],[279-Math.abs(Math.cos(a))*22,176+Math.sin(a)*24]],'#fbbf24',1.5);}
+      }
+    } else {
+      const x=90+510*u, y=175-105*Math.sin(Math.PI*u)-32*u;
+      ctx.beginPath();ctx.ellipse(x,y,19,34,Math.sin(Math.PI*u)*-.5, -1.1,1.1);ctx.strokeStyle='#f87171';ctx.lineWidth=3.5;ctx.stroke();
+      disk(x+19*Math.cos(0),y,3,'#fecaca');
     }
-
-    window.startRace = function() {
-        if(isRacing || raceWinner) {
-            resetRace();
-        } else {
-            isRacing = true;
-            raceBtn.innerText = "Racing...";
-            raceBtn.style.background = "#475569";
-        }
+  }
+  // Sweeping cones are powered only after the first received crest.
+  if(received) for(let i=0;i<2;i++) {
+    const x=565+i*110, sweep=Math.sin(time*1.2+i)*75;
+    poly([[x,234],[x-80+sweep,72],[x+25+sweep,72]],i?'#22d3ee22':'#e879f922');
+  }
+  if(received){softGlow(610,307,105,18,'#e879f947');softGlow(684,307,105,18,'#22d3ee32');}
+  box(550,237,142,72,materialGradient(550,237,142,72,'#445473','#243249','#111c2c'));
+  for(let y=243;y<309;y+=12)line([[551,y],[690,y]],'#91a4ba20',1);
+  for(let i=0;i<2;i++) {
+    const x=563+i*65;box(x,246,49,43,received?(i?'#22d3ee':'#e879f9'):'#101928');
+    if(received)for(let j=0;j<2;j++) {
+      const px=x+13+j*23,py=266-beat*(5+j*3);disk(px,py,4,'#172033');line([[px,py+5],[px,py+14],[px-6,py+23]],'#172033',4);line([[px,py+14],[px+7,py+23]],'#172033',3);line([[px-8,py+3],[px,py+9],[px+9,py]],'#172033',3);
     }
+  }
+  const roofY=235-beat*7;
+  poly([[540,roofY],[620,205-beat*7],[703,roofY]],materialGradient(540,205,163,30,'#d8e3ec','#8292a7','#334155'));
+  for(let x=560;x<695;x+=17)line([[620,207-beat*7],[x,roofY]],'#475569',1);
+  // Stationary aerial keeps the arrival coordinate exact as the roof thumps.
+  line([[600,211],[600,143]],'#cbd5e1',2);line([[577,143],[623,143]],'#e2e8f0',2);
+  for(let x=580;x<625;x+=10)line([[x,135],[x,151]],'#e2e8f0',2);
+  line([[600,150],[609,200],[691,230],[691,293]],'#64748b',2);
+  if(pulse) {
+    const q=phase/.38, pts=[[600,143],[609,200],[691,230],[691,293]],seg=Math.min(2,Math.floor(q*3)),f=q*3-seg;
+    const a=pts[seg],b=pts[seg+1];disk(a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f,5,'#fde047');
+    label('AC signal',625,174,'#fde047',11);
+  }
+  for(const x of [518,702]) {box(x,255,25,54,'#080f1d');for(const y of [270,292]){disk(x+12,y,9,'#475569');disk(x+12,y,6+beat*2,received?'#a855f7':'#192436');}}
+  // Tires stay on the road; the chassis lifts on drawn hydraulic struts.
+  for(const x of [766,830]) {disk(x,300,12,'#020617');disk(x,300,7,'#94a3b8');disk(x,300,3,'#334155');line([[x,298],[x,281-beat*13]],'#cbd5e1',3);}
+  const cy=278-beat*13;
+  poly([[742,cy],[760,cy-6],[777,cy-22],[814,cy-22],[834,cy-6],[854,cy],[854,cy+13],[742,cy+13]],'#0891b2');
+  poly([[778,cy-19],[793,cy-19],[793,cy-5],[766,cy-5]],'#0f172a');poly([[798,cy-19],[812,cy-19],[827,cy-5],[798,cy-5]],'#0f172a');
+  line([[747,cy-1],[760,cy-4],[833,cy-4],[850,cy+1]],'#a5f3fc80',1.4);
+  if(received)softGlow(856,cy+2,23,9,'#fde68a55');
+  line([[744,cy+9],[852,cy+9]],'#67e8f9',2);box(846,cy,7,4,'#fde68a',1);
+  if(short)label('*crickets*',731,246-(time*13%35),'#64748b',13);
+  label(short?'Valley blackout':received?'Signal received. Bass drop!':'Waiting for the first crest...',545,330,received?'#67e8f9':'#94a3b8',13);
+  label('Schematic: diffraction depends on wavelength relative to ridge size. Receiver uses local power.',24,351,'#94a3b8',10);
+}
+function drawMicrowave() {
+  const time=(performance.now()-sceneStart)/1000, rain=subMode===1;
+  night();label('SATELLITE DATA LINK',24,64,'#fdba74',13);
+  // Custom solar panels and satellite body.
+  ctx.save();ctx.translate(105,112);ctx.rotate(-.25);
+  for(const x of [-66,22]){box(x,-17,44,34,'#1e40af',1);for(let n=1;n<4;n++)line([[x+n*11,-17],[x+n*11,17]],'#60a5fa',1);line([[x,0],[x+44,0]],'#60a5fa',1);}
+  box(-19,-23,38,46,'#cbd5e1');line([[0,23],[15,38]],'#94a3b8',3);ctx.beginPath();ctx.arc(18,30,16,0,Math.PI);ctx.fillStyle='#f1f5f9';ctx.fill();ctx.restore();
+  for(let i=0;i<8;i++) {const u=((time*.24+i/8)%1);const x=146+225*u,y=135+112*u;ctx.globalAlpha=rain&&u>.5?.3:1;line([[x-7,y+8],[x+7,y-8]],'#fb923c',3);}ctx.globalAlpha=1;
+  for(let i=0;i<5;i++)disk(205+i*22,173+Math.sin(i)*9,25,rain?'#475569':'#94a3b8');
+  if(rain)for(let i=0;i<14;i++){const x=197+i*8,y=202+(time*70+i*9)%50;line([[x,y],[x-3,y+8]],'#38bdf8',1);}
+  label(rain?'Heavy rain: weaker link':'Cloud: microwave link passes',176,112,rain?'#7dd3fc':'#cbd5e1',11);
+  poly([[320,292],[383,225],[450,292]],'#64748b');box(337,286,96,42,'#334155');
+  ctx.save();ctx.translate(369,242);ctx.rotate(-.5);ctx.beginPath();ctx.arc(0,0,23,0,Math.PI);ctx.fillStyle='#e2e8f0';ctx.fill();line([[0,17],[0,-10],[12,-17]],'#94a3b8',3);ctx.restore();
+  line([[374,258],[374,283],[471,283],[471,150],[504,150]],rain?'#52717b':'#22d3ee',2);
+  const signalPhase=(time*.7)%1;disk(374+97*signalPhase,283,2.5,rain?'#52717b':'#67e8f9');
+  label('DATA',419,274,'#67e8f9',10);label('Home dish',337,346,'#cbd5e1',11);
+  // Smart kitchen receives information; a distinct mains cable supplies cooking energy.
+  label('SMART KITCHEN / 2.45 GHz OVEN',504,64,'#fdba74',13);
+  box(499,88,350,232,'#344459',16);box(507,96,334,214,materialGradient(507,96,334,214,'#eef2f6','#afbdcc','#6d7d92'),12);
+  for(let y=99;y<307;y+=4)line([[515,y],[835,y]],'#ffffff0c',.7);
+  for(const [x,y] of [[516,104],[832,104],[516,300],[832,300]])rivet(x,y);
+  box(519,109,242,183,'#0f172a',12);
+  const glow=ctx.createRadialGradient(638,174,15,638,193,135);glow.addColorStop(0,'#665334');glow.addColorStop(1,'#111b2b');ctx.fillStyle=glow;ctx.fillRect(530,120,220,160);
+  box(626,122,28,4,'#fff0bd',2);softGlow(640,136,75,30,'#fbbf2440');
+  ctx.beginPath();ctx.ellipse(640,263,92,12,0,0,Math.PI*2);ctx.fillStyle='#94a3b855';ctx.fill();ctx.strokeStyle='#94a3b8';ctx.stroke();
+  line([[640,263],[640+70*Math.cos(time),263+8*Math.sin(time)]],'#cbd5e177',1);disk(640,263,3,'#e2e8f0');
+  // Striped tub and vector popcorn puffs, contained behind reflective door glass.
+  poly([[602,209],[678,209],[666,261],[613,261]],'#fff7ed');
+  for(let i=0;i<4;i++)poly([[606+i*17,211],[614+i*17,211],[617+i*14,259],[611+i*14,259]],'#ef4444');
+  ctx.save();ctx.beginPath();ctx.rect(532,121,216,157);ctx.clip();
+  paintPopcorn(time);
+  poly([[536,125],[562,125],[675,279],[657,279]],'#ffffff0b');poly([[574,125],[582,125],[695,279],[687,279]],'#ffffff12');ctx.restore();
+  box(773,117,58,31,'#0f172a');label('00:'+String(30-Math.floor(time)%30).padStart(2,'0'),778,138,'#4ade80',13);
+  for(let i=0;i<9;i++)box(780+(i%3)*16,166+Math.floor(i/3)*17,10,9,'#64748b',2);
+  box(773,233,56,28,'#f97316');label('HEAT',782,251,'#fff7ed',11);
+  label(rain?'Link faded':'Connected',768,282,rain?'#92400e':'#166534',10);
+  line([[809,320],[809,336],[740,336]],'#fbbf24',3);box(720,328,20,16,'#e2e8f0');line([[724,332],[724,339]],'#334155');line([[733,332],[733,339]],'#334155');
+  label('Local electrical power',520,341,'#fde68a',11);
+  label('Cloud/rain effects depend on frequency. Dish receives data; oven heating builds steam pressure in kernels.',24,358,'#94a3b8',10);
+}
 
-    // Helper to map slider (0-100) to actual frequency exponent (e.g. 10^6 to 10^20)
-    function getFrequencyData(sliderVal) {
-        // Map 0-100 to 6 - 20 (exponents of Hz)
-        const exp = 6 + (sliderVal / 100) * 14;
-        const freq = Math.pow(10, exp);
 
-        let type = "Radio Waves";
-        let color = "#ef4444";
-        if (exp > 9 && exp <= 11) { type = "Microwaves"; color = "#f97316"; }
-        else if (exp > 11 && exp <= 14) { type = "Infrared"; color = "#eab308"; }
-        else if (exp > 14 && exp <= 15) { type = "Visible Light"; color = "#22c55e"; }
-        else if (exp > 15 && exp <= 16.5) { type = "Ultraviolet"; color = "#3b82f6"; }
-        else if (exp > 16.5 && exp <= 19) { type = "X-Rays"; color = "#8b5cf6"; }
-        else if (exp > 19) { type = "Gamma Rays"; color = "#d946ef"; }
-
-        // Energy E = hf
-        const energyEv = h * freq;
-
-        return { exp, freq, type, color, energyEv };
+// Both reveals use exactly the same clipping rectangle and scannerX.
+function irDog(time,thermal) {
+  const breath=Math.sin(time*2.8),cycle=time%12,fart=cycle>=7&&cycle<10;
+  const coat=thermal?'#f97316':'#b98553',light=thermal?'#fde68a':'#e7c99e',dark=thermal?'#dc4934':'#65432e';
+  function oval(x,y,rx,ry,color){ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();}
+  oval(450,484,104,7,'#00000033');
+  // The chest expands with each breath; all features share the same cycle.
+  ctx.save();ctx.lineCap='round';
+  line([[386,430],[369,413],[362+Math.sin(time*5)*5,393]],coat,13);
+  for(const x of [400,469]){box(x,441,15,38,dark,6);oval(x+11,480,17,5,dark);}
+  oval(442,433,66+breath*2,32+breath*2,coat);
+  oval(468,437,29+breath*2,29+breath*2,light);
+  for(const x of [414,488]){box(x,444,15,37,coat,6);oval(x+11,481,17,6,light);}
+  oval(500,405,29,31,coat);oval(518,419,25,14,light);
+  oval(482,411,12,25,dark);oval(539,414,7,5,'#192131');
+  const blink=time%4.5>4.3;
+  if(blink)line([[506,399],[514,399]],'#192131',2);else {disk(510,399,3,'#192131');disk(511,398,1,'#fff');}
+  line([[515,426],[531,426]],'#573227',2);
+  oval(524,431+breath,5,6+breath,'#fb7185');
+  line([[481,431],[499,440]],thermal?'#eab308':'#168b96',6);disk(490,440,4,'#fbbf24');
+  if(thermal){softGlow(467,432,22,20,'#fde68a');softGlow(520,418,12,8,'#fff5b3');}
+  // Stylized warm-air tracers fade as the puff mixes into cooler air.
+  if(thermal){
+    for(let i=0;i<3;i++){
+      const u=(time*.47+i/3)%1;
+      ctx.save();ctx.globalAlpha=(1-u)*.45;
+      softGlow(543+u*38,424-u*7,6+u*12,3+u*6,'#fbbf24');ctx.restore();
     }
-
-    function draw() {
-        time += 0.05;
-        ctx.clearRect(0, 0, width, height);
-
-        if (mode === 'race') {
-            drawRace();
-        } else {
-            drawInspector();
-        }
-
-        requestAnimationFrame(draw);
+    if(fart){const u=(cycle-7)/3;
+      for(let i=0;i<5;i++) {ctx.save();ctx.globalAlpha=Math.max(0,1-u)*.65;
+        softGlow(379-u*65-i*5,437-u*22+Math.sin(i*2)*9,10+u*25,8+u*13,u<.45?'#fbbf24':'#f97316');ctx.restore();}
     }
+  }
+  if(fart){label('pfft!',343-(cycle-7)*12,399-(cycle-7)*5,thermal?'#fde68a':'#cbd5e1',12);
+    // A brief sheepish eyebrow and backward glance after the puff.
+    line([[505,390],[514,392]],dark,2);}
+  ctx.restore();
+}
+function irStar(x,y,r,alpha=1) {
+  ctx.save();ctx.globalAlpha=alpha;
+  const glow=ctx.createRadialGradient(x,y,0,x,y,r*5);glow.addColorStop(0,'#fff4dc');glow.addColorStop(.15,'#ffc27bcc');glow.addColorStop(1,'#ff956600');ctx.fillStyle=glow;ctx.fillRect(x-r*5,y-r*5,r*10,r*10);
+  disk(x,y,r,'#fff6e3');line([[x-r*3,y],[x+r*3,y]],'#ffe2b5',1);line([[x,y-r*3],[x,y+r*3]],'#ffe2b5',1);ctx.restore();
+}
+function drawInfrared() {
+  const time=(performance.now()-sceneStart)/1000;
 
-    function drawRace() {
-        const startX = width * 0.1;
-        const endX = width * 0.9;
-        const trackLength = endX - startX;
-
-        // Draw Finish Line
-        ctx.beginPath();
-        ctx.strokeStyle = "#475569";
-        ctx.setLineDash([10, 10]);
-        ctx.lineWidth = 4;
-        ctx.moveTo(endX, 50);
-        ctx.lineTo(endX, height - 50);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        ctx.fillStyle = "#94a3b8";
-        ctx.font = "bold 16px Arial";
-        ctx.fillText("Finish Line", endX - 40, 40);
-
-        // Update race logic
-        if (isRacing) {
-            raceProgress += 0.008; // Constant speed c
-            if (raceProgress >= 1) {
-                raceProgress = 1;
-                isRacing = false;
-                raceWinner = true;
-                raceBtn.innerText = "Reset Race";
-                raceBtn.style.background = "var(--accent)";
-            }
-        }
-
-        const currentX = startX + (raceProgress * trackLength);
-
-        // Track 1: Low Freq (Radio)
-        const y1 = height * 0.35;
-        ctx.beginPath();
-        ctx.strokeStyle = "#ef4444"; // Red
-        ctx.lineWidth = 3;
-        for(let x=startX; x<=currentX; x+=2) {
-            // Low frequency wave
-            let waveY = y1 + Math.sin((x - startX) * 0.05 - time*2) * 20;
-            if(x===startX) ctx.moveTo(x, waveY);
-            else ctx.lineTo(x, waveY);
-        }
-        ctx.stroke();
-
-        // Photon head
-        ctx.beginPath();
-        ctx.arc(currentX, y1, 10, 0, Math.PI*2);
-        ctx.fillStyle = "#ef4444";
-        ctx.fill();
-        ctx.fillStyle = "#fff";
-        ctx.fillText("Radio Wave (Low Freq)", startX, y1 - 30);
-
-        // Track 2: High Freq (Gamma)
-        const y2 = height * 0.65;
-        ctx.beginPath();
-        ctx.strokeStyle = "#8b5cf6"; // Purple
-        ctx.lineWidth = 3;
-        for(let x=startX; x<=currentX; x+=2) {
-            // High frequency wave
-            let waveY = y2 + Math.sin((x - startX) * 0.4 - time*8) * 20;
-            if(x===startX) ctx.moveTo(x, waveY);
-            else ctx.lineTo(x, waveY);
-        }
-        ctx.stroke();
-
-        // Photon head
-        ctx.beginPath();
-        ctx.arc(currentX, y2, 10, 0, Math.PI*2);
-        ctx.fillStyle = "#8b5cf6";
-        ctx.fill();
-        ctx.fillStyle = "#fff";
-        ctx.fillText("Gamma Ray (High Freq)", startX, y2 - 30);
-
-        // Winner Text
-        if (raceWinner) {
-            ctx.fillStyle = "rgba(0,0,0,0.8)";
-            ctx.fillRect(width/2 - 250, height/2 - 40, 500, 80);
-            ctx.strokeStyle = varAccent = "#f59e0b";
-            ctx.strokeRect(width/2 - 250, height/2 - 40, 500, 80);
-
-            ctx.fillStyle = "#fff";
-            ctx.textAlign = "center";
-            ctx.font = "bold 18px Arial";
-            ctx.fillText("It's a TIE! All EM waves travel at the same speed (c)", width/2, height/2 - 5);
-            ctx.fillStyle = "#f59e0b";
-            ctx.font = "14px Arial";
-            ctx.fillText("Higher frequency does NOT mean faster vacuum speed.", width/2, height/2 + 20);
-            ctx.textAlign = "left"; // reset
-        }
+  const left=scannerX*880-125;
+  ctx.fillStyle='#080e21';ctx.fillRect(0,0,880,570);
+  label('Drag the gold viewer to reveal BOTH scenes',24,61,'#fde68a',16);
+  label('STELLAR NURSERY',28,91,'#e2e8f0',13);
+  label('Visible view: dust hides young stars',28,111,'#94a3b8',11);
+  // A procedural vector nebula retains its shape in both imaging modes.
+  function space(thermal) {
+    box(20,122,840,151,thermal?'#17152f':'#0b1428',12);
+    for(let i=0;i<50;i++)disk(35+(i*149)%795,132+(i*47)%130,.6,'#64748b');
+    for(let i=0;i<28;i++) {
+      const x=125+(i*77)%555,y=174+Math.sin(i*2.7)*34;
+      ctx.save();ctx.globalAlpha=thermal?.16:.75;
+      softGlow(x,y,48+(i%4)*8,30+(i%3)*7,thermal?'#b06d98':'#526078');ctx.restore();
     }
-
-    class Particle {
-        constructor(y, speed, color, amplitude, freqMultiplier) {
-            this.x = 0;
-            this.yBase = y;
-            this.speed = speed;
-            this.color = color;
-            this.amplitude = amplitude;
-            this.freqMultiplier = freqMultiplier;
-            this.birth = time;
-        }
-        update() {
-            this.x += this.speed;
-        }
-        draw(ctx) {
-            // Wavy path calculation
-            const y = this.yBase + Math.sin((this.x * this.freqMultiplier) - (time * 5)) * this.amplitude;
-
-            ctx.beginPath();
-            ctx.arc(this.x, y, 6, 0, Math.PI*2);
-            ctx.fillStyle = this.color;
-            ctx.fill();
-
-            // Glow effect
-            ctx.beginPath();
-            ctx.arc(this.x, y, 12, 0, Math.PI*2);
-            ctx.fillStyle = this.color;
-            ctx.globalAlpha = 0.3;
-            ctx.fill();
-            ctx.globalAlpha = 1.0;
-        }
+    if(thermal) {
+      for(let i=0;i<17;i++)irStar(130+(i*83)%495,144+(i*43)%103,1.8+(i%3),.8+.2*Math.sin(time+i));
+      // Dense core remains dark even in this infrared view.
+      ctx.save();ctx.globalAlpha=.92;ctx.beginPath();ctx.ellipse(515,209,43,24,-.4,0,Math.PI*2);ctx.fillStyle='#161829';ctx.fill();ctx.restore();
+      label('Dense core still obscured',438,258,'#c4b5fd',10);
+    } else {irStar(95,150,2);irStar(642,235,2);}
+    // Custom gold segmented mirror. Incoming signal marks move toward it.
+    for(const [dx,dy] of [[0,0],[-17,-10],[0,-20],[17,-10],[-17,10],[0,20],[17,10]]){
+      const pts=[];for(let k=0;k<6;k++){const a=k*Math.PI/3;pts.push([776+dx+10*Math.cos(a),184+dy+10*Math.sin(a)]);}poly(pts,materialGradient(766+dx,174+dy,20,20,thermal?'#fff0ba':'#e4c480','#b78c47','#76562b'));line([pts[1],pts[2],pts[3]],'#ffedb580',.7);
     }
+    line([[776,215],[757,236],[800,236],[776,215]],'#94a3b8',2);
+    poly([[740,240],[810,240],[794,250],[756,250]],'#475569');
+    if(thermal)for(let i=0;i<3;i++){const u=(time*.3+i/3)%1;line([[660+u*85,186],[668+u*85,186]],'#fbbf24',2);}
+    label('IR telescope',731,265,'#cbd5e1',10);
+  }
+  space(false);
+  ctx.save();ctx.beginPath();ctx.rect(left,122,250,151);ctx.clip();space(true);ctx.restore();
+  line([[20,290],[860,290]],'#334155',1);
+  label('THE WARM DOG',28,316,'#e2e8f0',13);
+  label('Watch the chest breathe. A surprise warm puff follows!',28,337,'#94a3b8',12);
+  function tabletop(thermal) {
+    box(20,350,840,157,thermal?'#211b42':'#293448',12);
+    for(let i=0;i<7;i++)line([[30,361+i*23],[850,361+i*23]],thermal?'#302548':'#303e53',1);
+    irDog(time,thermal);
+    // Thermal camera body and lens are vector shapes.
+    box(746,392,76,54,'#0b1220',8);box(736,403,16,28,'#64748b',4);box(766,446,17,29,'#64748b',3);
+    box(760,402,49,30,thermal?'#713b65':'#334155',4);disk(785,417,9,thermal?'#fbbf24':'#64748b');
+    disk(782,414,2,'#ffffff77');line([[750,394],[818,394]],'#64748b80',1);
+    label('Thermal camera',727,494,'#cbd5e1',10);
+  }
+  tabletop(false);
+  ctx.save();ctx.beginPath();ctx.rect(left,350,250,157);ctx.clip();tabletop(true);ctx.restore();
+  // One continuous frame visibly joins the two clipped regions.
+  ctx.strokeStyle='#fbbf24';ctx.lineWidth=2.5;ctx.strokeRect(left,118,250,393);
+  box(left+64,278,122,25,'#fbbf24',12);label('<  IR VIEWER  >',left+76,295,'#172033',12);
+  label('SPACE: assigned infrared colors',24,535,'#c4b5fd',11);
+  label('DOG: false-color temperature',452,535,'#fdba74',11);
+  const g=ctx.createLinearGradient(660,549,812,549);g.addColorStop(0,'#312e81');g.addColorStop(.5,'#f97316');g.addColorStop(1,'#fef08a');ctx.fillStyle=g;ctx.fillRect(660,544,152,9);
+  label('Cooler',610,553,'#94a3b8',10);label('Warmer',819,553,'#fde68a',10);
+  label('Warm-air puffs are exaggerated illustrations.',24,557,'#94a3b8',11);
+}
 
-    function drawInspector() {
-        const fVal = freqSlider.value;
-        const iVal = parseInt(intensitySlider.value);
 
-        const data = getFrequencyData(fVal);
-
-        // Update Displays
-        freqDisplay.innerText = `10^${data.exp.toFixed(1)} Hz`;
-        readoutType.innerText = `Wave Type: ${data.type}`;
-        readoutType.style.borderColor = data.color;
-
-        intensityDisplay.innerText = iVal === 1 ? "Dim" : iVal === 10 ? "Extremely Bright" : "Level " + iVal;
-
-        // Energy formatting
-        let energyStr = "";
-        if (data.energyEv < 0.001) energyStr = (data.energyEv * 1000).toFixed(2) + " meV";
-        else if (data.energyEv > 1000) energyStr = (data.energyEv / 1000).toFixed(2) + " keV";
-        else energyStr = data.energyEv.toFixed(2) + " eV";
-
-        readoutEnergy.innerText = `Photon Energy (E=hf): ${energyStr}`;
-
-        // Source Emitter block
-        ctx.fillStyle = "#334155";
-        ctx.fillRect(0, height/2 - 40, 40, 80);
-        ctx.fillStyle = data.color;
-        ctx.fillRect(35, height/2 - 30, 10, 60); // glowing tip
-
-        // Visual mapping for wave
-        const visualFreq = 0.01 + (fVal / 100) * 0.1;
-        const speed = 5; // Constant speed!
-
-        // Spawn particles based on INTENSITY
-        // Higher intensity = spawn more particles per frame
-        const spawnRate = iVal / 10; // 0.1 to 1.0 probability per frame
-
-        // To make intensity very obvious, spawn multiple in a burst if intensity is max
-        const particlesToSpawn = Math.floor(iVal / 3) + (Math.random() < (iVal % 3)*0.33 ? 1 : 0);
-
-        if (Math.random() < 0.8) { // General pacing
-            for(let p=0; p<particlesToSpawn; p++) {
-                // Spread them slightly on Y axis for "brightness" thickness
-                let ySpread = (Math.random() - 0.5) * (iVal * 4);
-                particles.push(new Particle(height/2 + ySpread, speed, data.color, 40, visualFreq));
-            }
-        }
-
-        // Draw and update particles
-        for (let i = particles.length - 1; i >= 0; i--) {
-            let p = particles[i];
-            p.update();
-            p.draw(ctx);
-
-            // Remove if off screen
-            if (p.x > width + 50) {
-                particles.splice(i, 1);
-            }
-        }
-
-        // Dynamic Warning if they crank intensity
-        if (iVal > 7) {
-            ctx.fillStyle = "rgba(0,0,0,0.6)";
-            ctx.fillRect(width/2 - 150, height - 60, 300, 40);
-            ctx.fillStyle = "#f8fafc";
-            ctx.font = "14px Arial";
-            ctx.textAlign = "center";
-            ctx.fillText("High Intensity = More Photons. Energy is unchanged.", width/2, height - 35);
-            ctx.textAlign = "left";
-        }
+let uvCover = 0.27;
+let uvStarted = performance.now();
+let uvLastTime = 0;
+let uvDamage = [false,false];
+let uvBlocked = [true,false];
+function resetUV() {uvStarted=performance.now();uvLastTime=0;uvDamage=[false,false];uvBlocked=[true,false];}
+function uvAtom(x,y,element) {
+  const colors={C:'#64748b',N:'#3b82f6',O:'#ef4444'};
+  shadedOrb(x,y,10,colors[element]||'#94a3b8');
+  ctx.save();ctx.textAlign='center';label(element,x,y+4,'#ffffff',11);ctx.restore();
+}
+function uvBase(cx,cy,flip,damaged) {
+  const pts=[[-34,0],[-17,-29],[17,-29],[34,0],[17,29],[-17,29]].map(([x,y])=>[cx+x,cy+y*flip]);
+  for(let i=0;i<6;i++)line([pts[i],pts[(i+1)%6]],'#94a3b8',3);
+  // The C5=C6 bond becomes single when the two new inter-base bonds form.
+  if(!damaged)line([[cx-14,cy+22*flip],[cx+14,cy+22*flip]],'#cbd5e1',2);
+  for(const [i,dx,dy] of [[1,-8,-25],[3,28,-8]]) {
+    const [x,y]=pts[i];line([[x,y],[x+dx,y+dy*flip]],'#cbd5e1',2);line([[x+4,y],[x+dx+4,y+dy*flip]],'#cbd5e1',1);uvAtom(x+dx,y+dy*flip,'O');
+  }
+  line([pts[4],[cx+58,cy+32*flip]],'#94a3b8',2);label('CH₃',cx+60,cy+36*flip,'#cbd5e1',11);
+  line([pts[0],[cx-73,cy]],'#67e8f9',2);
+  ['N','C','N','C','C','C'].forEach((e,i)=>uvAtom(...pts[i],e));
+}
+function drawUV() {
+  let time=(performance.now()-uvStarted)/1000;
+  if(time>=14){uvStarted=performance.now();uvLastTime=0;uvDamage=[false,false];uvBlocked=[true,false];time=0;}
+  // An incident packet reaches the cover at cycle+0.7 and the cell at cycle+1.9.
+  // Occlusion is remembered at crossing, so moving the cover cannot recall a photon.
+  for(let cycle=Math.floor(uvLastTime/3);cycle<=Math.floor(time/3);cycle++) {
+    const coverAt=cycle*3+.7, hitAt=cycle*3+1.9;
+    if(uvLastTime<coverAt && time>=coverAt)uvBlocked=[240,640].map(x=>Math.abs(x-uvCover*880)<115);
+    if(uvLastTime<hitAt && time>=hitAt)uvDamage=uvDamage.map((d,i)=>d||!uvBlocked[i]);
+  }
+  uvLastTime=time;
+  const phase=time%3,center=uvCover*880;
+  ctx.fillStyle='#0b1226';ctx.fillRect(0,0,880,650);
+  label('Slide the fabric cover. Compare the DNA underneath.',24,61,'#a5f3fc',16);
+  const sky=ctx.createLinearGradient(0,75,0,185);sky.addColorStop(0,'#172d50');sky.addColorStop(1,'#52728a');ctx.fillStyle=sky;ctx.fillRect(20,76,840,111);
+  disk(440,112,23,'#fde68a');for(let i=0;i<12;i++){const a=i*Math.PI/6;line([[440+29*Math.cos(a),112+29*Math.sin(a)],[440+35*Math.cos(a),112+35*Math.sin(a)]],'#fbbf24',2);}
+  label('SUNLIGHT / UVB example',351,161,'#fef3c7',11);
+  box(20,187,840,91,'#a96859',8);box(20,187,840,15,'#d49a7c',4);
+  for(let i=0;i<17;i++){ctx.beginPath();ctx.ellipse(45+i*49,240,22,25,0,0,Math.PI*2);ctx.strokeStyle='#d89480';ctx.lineWidth=1;ctx.stroke();}
+  for(let i=0;i<2;i++) {
+    const x=[240,640][i],blocked=Math.abs(x-center)<115;
+    disk(x,239,19,'#693957');disk(x,239,11,uvDamage[i]?'#fb7185':'#67e8f9');
+    label(blocked?'COVERED':'EXPOSED',x-40,94,blocked?'#a7f3d0':'#fde68a',11);
+    if(phase<1.9 && (!uvBlocked[i]||phase<.7)) {
+      const y=96+phase/1.9*143;
+      line([[x-4,y-12],[x+4,y-8],[x-4,y-4],[x+4,y]],'#c084fc',3);disk(x+4,y,3,'#e9d5ff');
     }
+    if(phase>.7&&phase<1.1&&uvBlocked[i])label('UV absorbed',x-40,130,'#a7f3d0',10);
+    if(phase>1.9&&phase<2.3&&!uvBlocked[i]){ctx.beginPath();ctx.arc(x,239,22+(phase-1.9)*20,0,Math.PI*2);ctx.strokeStyle='#fbbf24';ctx.stroke();}
+    line([[x,260],[x,290]],'#94a3b8',1);label('Cell nucleus',x-39,275,'#fce7df',10);
+  }
+  box(center-115,141,230,18,materialGradient(center-115,141,230,18,'#22d3ee','#0891b2','#155e75'),5);
+  line([[center-110,144],[center+110,144]],'#cffafe66',1);line([[center-110,157],[center+110,157]],'#083344',1);
+  for(let x=center-110;x<center+110;x+=12)line([[x,143],[x+8,157]],'#67e8f9',1);
+  label('<  DRAG FABRIC COVER  >',center-91,154,'#ecfeff',11);
+  for(let i=0;i<2;i++) {
+    const cx=[240,640][i],d=uvDamage[i];
+    box(cx-193,296,386,307,'#141e34',12);
+    label(d?'DAMAGED: adjacent thymines linked':'INTACT: two neighboring thymines',cx-175,321,d?'#fda4af':'#a7f3d0',14);
+    // Two adjacent bases on ONE strand, with N1 connections to a schematic backbone.
+    const bend=d?12:0;
+    line([[cx-95,363],[cx-85+bend,401],[cx-90+bend,514],[cx-96,551]],'#22d3ee',4);
+    label('Same DNA strand',cx-176,347,'#67e8f9',10);
+    line([[cx-85+bend,402],[cx-73,402]],'#67e8f9',2);line([[cx-90+bend,516],[cx-73,516]],'#67e8f9',2);
+    uvBase(cx,402,1,d);uvBase(cx,516,-1,d);
+    if(d) {
+      ctx.save();ctx.shadowColor='#fb7185';ctx.shadowBlur=8;
+      line([[cx-17,431],[cx-17,487]],'#fb7185',5);line([[cx+17,431],[cx+17,487]],'#fb7185',5);ctx.restore();
+      label('NEW BONDS',cx+42,458,'#fda4af',11);
+      line([[cx+38,454],[cx+20,450]],'#fda4af',1);
+      label('Thymine dimer: abnormal four-carbon ring',cx-175,594,'#fda4af',11);
+    } else label('No bonds between these neighboring bases',cx-175,594,'#a7f3d0',11);
+    // A small whole-strand diagram connects local bonding to the DNA distortion.
+    for(let k=0;k<9;k++){
+      const y=370+k*21,shift=d?Math.exp(-Math.pow((k-4)/1.7,2))*15:0;
+      const x=cx+143+Math.sin(k*.7)*11+shift;
+      line([[x-9,y],[x+9,y]],k===4&&d?'#fb7185':'#64748b',2);
+      if(k<8) {const nextShift=d?Math.exp(-Math.pow((k+1-4)/1.7,2))*15:0;const nx=cx+143+Math.sin((k+1)*.7)*11+nextShift;line([[x-9,y],[nx-9,y+21]],'#67e8f9',1);line([[x+9,y],[nx+9,y+21]],'#a78bfa',1);}
+      disk(x-9,y,2,'#67e8f9');disk(x+9,y,2,'#a78bfa');
+    }
+    label(d?'DNA bends':'DNA strand',cx+115,562,d?'#fda4af':'#94a3b8',10);
+  }
+  label('Atoms: C carbon   N nitrogen   O oxygen. Most H atoms omitted; molecular layout simplified.',24,624,'#cbd5e1',11);
+  label('UV can change bonds, not just break DNA apart. Moving the cover does not repair existing damage.',24,644,'#94a3b8',11);
+}
 
+
+let xrState='dance', xrPose=0, xrExposure=0, xrReveal=.5;
+function resetXray(){xrState='dance';xrReveal=.5;xrLoopStart=performance.now();}
+function xrayJoints(time){
+  const sway=Math.sin(time*2)*14,bounce=Math.sin(time*4)*5;
+  return {head:[440+sway,151+bounce],neck:[440+sway,185+bounce],hip:[440-sway*.3,302+bounce],
+    ls:[411+sway,204+bounce],rs:[469+sway,204+bounce],
+    le:[372+sway,232+Math.sin(time*2)*22],re:[507+sway,232-Math.sin(time*2)*22],
+    lh:[347+sway,204+Math.sin(time*2)*40],rh:[532+sway,204-Math.sin(time*2)*40],
+    lk:[411,353+Math.sin(time*2)*8],rk:[470,353-Math.sin(time*2)*8],lf:[391,413],rf:[491,413]};
+}
+function xrayFigure(p,bones){
+  ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
+  const limbs=[[p.ls,p.le,p.lh],[p.rs,p.re,p.rh],[p.hip,p.lk,p.lf],[p.hip,p.rk,p.rf]];
+  if(!bones){
+    limbs.forEach((a,i)=>line(a,i<2?'#d9a581':'#334d76',i<2?19:25));
+    poly([[p.ls[0]-6,p.ls[1]-7],[p.rs[0]+6,p.rs[1]-7],[p.hip[0]+30,p.hip[1]],[p.hip[0]-30,p.hip[1]]],'#0e7490');
+    line([p.neck,p.head],'#d9a581',18);disk(...p.head,28,'#d9a581');
+    box(p.head[0]-23,p.head[1]-7,20,11,'#0f172a');box(p.head[0]+3,p.head[1]-7,20,11,'#0f172a');line([[p.head[0]-3,p.head[1]-3],[p.head[0]+3,p.head[1]-3]],'#0f172a',2);line([[p.head[0]-20,p.head[1]-5],[p.head[0]-11,p.head[1]-5]],'#94a3b8',1.3);line([[p.head[0]+6,p.head[1]-5],[p.head[0]+15,p.head[1]-5]],'#94a3b8',1.3);
+    line([[p.head[0]-8,p.head[1]+14],[p.head[0]+8,p.head[1]+14]],'#7c4535',2);
+    line([[p.lf[0]-12,p.lf[1]+3],[p.lf[0]+9,p.lf[1]+3]],'#e2e8f0',13);line([[p.rf[0]-9,p.rf[1]+3],[p.rf[0]+12,p.rf[1]+3]],'#e2e8f0',13);
+    line([[p.hip[0]-29,p.hip[1]-7],[p.hip[0]+29,p.hip[1]-7]],'#172033',9);
+  }else{
+    // Soft tissue remains a faint attenuation shadow, not an empty cutout.
+    ctx.globalAlpha=.15;limbs.forEach(a=>line(a,'#cbd5e1',23));line([p.neck,p.hip],'#94a3b8',61);disk(...p.head,28,'#94a3b8');ctx.globalAlpha=1;
+    limbs.forEach((a,i)=>{line(a,'#dbe4ed',7);disk(...a[1],5,'#f8fafc');if(i<2)for(let f=0;f<4;f++)line([a[2],[a[2][0]+(i?1:-1)*(8+f*2),a[2][1]-9+f*6]],'#cbd5e1',2);});
+    line([p.neck,p.hip],'#cbd5e1',5);
+    for(let j=0;j<7;j++){const u=j/7,x=p.neck[0]*(1-u)+p.hip[0]*u,y=p.neck[1]*(1-u)+p.hip[1]*u;box(x-4,y,8,5,'#f1f5f9',1);}
+    for(let i=0;i<5;i++){
+      const y=p.ls[1]+8+i*13,x=p.neck[0]+(p.hip[0]-p.neck[0])*i/8;
+      ctx.beginPath();ctx.ellipse(x,y,28-i*2,10,0,0,Math.PI);ctx.strokeStyle='#e2e8f0';ctx.lineWidth=3;ctx.stroke();
+    }
+    line([p.ls,p.neck,p.rs],'#e2e8f0',4);
+    ctx.beginPath();ctx.ellipse(p.hip[0],p.hip[1]-2,24,16,0,0,Math.PI*2);ctx.strokeStyle='#e2e8f0';ctx.lineWidth=7;ctx.stroke();
+    disk(...p.head,23,'#e2e8f0');box(p.head[0]-12,p.head[1]+11,24,16,'#dbe4ed',3);
+    disk(p.head[0]-9,p.head[1]-3,6,'#1e293b');disk(p.head[0]+9,p.head[1]-3,6,'#1e293b');poly([[p.head[0],p.head[1]+3],[p.head[0]-4,p.head[1]+10],[p.head[0]+4,p.head[1]+10]],'#334155');
+    for(let x=-8;x<=8;x+=4)line([[p.head[0]+x,p.head[1]+18],[p.head[0]+x,p.head[1]+25]],'#64748b',1);
+    line([[p.lf[0]-8,p.lf[1]],[p.lf[0]+5,p.lf[1]]],'#e2e8f0',5);line([[p.rf[0]-5,p.rf[1]],[p.rf[0]+8,p.rf[1]]],'#e2e8f0',5);
+  }
+  // A metal duck-shaped buckle belongs outside the body, at the belt.
+  const x=p.hip[0],y=p.hip[1]-8;
+  ctx.fillStyle=bones?'#fff':'#fbbf24';ctx.beginPath();ctx.ellipse(x,y,10,6,0,0,Math.PI*2);ctx.fill();disk(x+6,y-7,5,bones?'#fff':'#fbbf24');poly([[x+10,y-8],[x+16,y-5],[x+10,y-3]],bones?'#fff':'#f97316');
+  ctx.restore();
+}
+function drawXray(){
+  const now=performance.now(),loop=((now-xrLoopStart)/1000)%15,base=now-loop*1000;
+  xrState=loop<4?'dance':loop<6.4?'exposure':'review';
+  xrPose=(base+4000)/1000;xrExposure=base+4000;const elapsed=loop-4;
+  const p=xrayJoints(xrState==='dance'?now/1000:xrPose),cut=290+xrReveal*300;
+  ctx.fillStyle='#090f23';ctx.fillRect(0,0,880,530);
+  label(xrState==='dance'?'The dancer strikes a pose, then holds still for an X-ray.':xrState==='exposure'?'Hold still: X-rays pass through to the detector.':'Captured image: slide the divider to compare skin and skeleton.',24,62,'#c7d2fe',15);
+  box(280,86,320,354,'#172337',12);
+  line([[260,436],[620,436]],'#475569',2);
+  // Source and a separately drawn detector make the imaging geometry explicit.
+  box(40,196,79,71,materialGradient(40,196,79,71,'#9aabc1','#475569','#28354b'),12);rivet(49,207);rivet(109,256);box(110,216,27,30,'#94a3b8');disk(79,231,18,'#1e293b');disk(79,231,8,'#818cf8');line([[79,268],[79,419],[145,419]],'#64748b',8);
+  label('X-RAY SOURCE',25,292,'#a5b4fc',11);
+  box(734,111,62,312,materialGradient(734,111,62,312,'#8899ac','#334155','#19263b'),8);rivet(740,117);rivet(790,417);box(742,121,44,290,'#0f172a',3);
+  label('DETECTOR',720,98,'#a5b4fc',11);
+  if(xrState!=='dance'){
+    const model=xraySample(p,Math.round(xrPose*1000));
+    if(xrState==='exposure')poly([[137,231],[733,128],[733,408]],'#818cf80c');
+    drawXrayPackets(model,xrState==='review'?3:elapsed,xrState==='exposure');
+  }
+  xrayFigure(p,false);
+  if(xrState==='review'){
+    ctx.save();ctx.beginPath();ctx.rect(cut,87,600-cut,351);ctx.clip();box(280,86,320,354,'#030815',12);xrayFigure(p,true);ctx.restore();
+    line([[cut,89],[cut,437]],'#a5b4fc',2);box(cut-22,102,44,24,'#a5b4fc',12);label('< >',cut-12,119,'#172033',13);
+    label('VISIBLE',295,458,'#cbd5e1',11);label('X-RAY IMAGE',490,458,'#c7d2fe',11);
+    label('Bright duck = metal belt buckle',302,480,'#fde68a',11);
+  }else label(xrState==='dance'?'Dance first. Hold still for imaging.':'Capturing a stationary pose…',305,460,'#94a3b8',12);
+  label('More photons detected',647,452,'#cbd5e1',10);label('→ darker image',647,468,'#94a3b8',10);
+  label('Fewer behind bone',647,490,'#cbd5e1',10);label('→ lighter image',647,506,'#94a3b8',10);
+  label('Illustrated rays are invisible in real life. Transmission and anatomy are simplified.',24,522,'#94a3b8',11);
+}
+
+
+let pigStoryStart=performance.now();
+function restartPigStory(){pigStoryStart=performance.now();}
+// Illustrative transmission pattern, not measured shielding coefficients or dose.
+function pigPhotonPasses(house,photon){return house===0 ? photon%10!==0 : house===1 ? photon%3===0 : photon===7;}
+function drawStoryPig(x,y,mood,time){
+  ctx.save();ctx.translate(x,y);
+  const hop=mood==='happy'?Math.abs(Math.sin(time*6))*5:0;ctx.translate(0,-hop);
+  line([[-10,22],[-12,34]],'#be7188',6);line([[10,22],[12,34]],'#be7188',6);
+  disk(0,9,22,'#f5a5b9');box(-17,9,34,18,'#4c7ba1',8);
+  poly([[-18,-13],[-17,-34],[-3,-21]],'#ef9bb0');poly([[6,-22],[20,-34],[19,-10]],'#ef9bb0');
+  disk(0,-10,23,materialGradient(-23,-33,46,46,'#ffd6e0','#f4a8bf','#cc7c99'));
+  if(time%4<.13){line([[-11,-13],[-5,-13]],'#63374c',2);line([[5,-13],[11,-13]],'#63374c',2);}else{disk(-8,-13,3,'#172033');disk(8,-13,3,'#172033');disk(-9,-14,1,'#fff');disk(7,-14,1,'#fff');}
+  disk(-15,-4,4,'#ee8eac66');disk(15,-4,4,'#ee8eac66');line([[-10,9],[-10,21]],'#91bbd4',2);line([[10,9],[10,21]],'#91bbd4',2);disk(-10,11,1.5,'#e2e8f0');disk(10,11,1.5,'#e2e8f0');
+  ctx.beginPath();ctx.ellipse(0,-2,12,8,0,0,Math.PI*2);ctx.fillStyle='#e888a3';ctx.fill();disk(-4,-2,2,'#8f445e');disk(4,-2,2,'#8f445e');
+  if(mood==='worried'){line([[-13,-22],[-5,-24]],'#63374c',2);line([[5,-24],[13,-22]],'#63374c',2);ctx.beginPath();ctx.arc(0,13,5,Math.PI,Math.PI*2);ctx.strokeStyle='#8f445e';ctx.stroke();}
+  else {ctx.beginPath();ctx.arc(0,7,6,0,Math.PI);ctx.strokeStyle='#8f445e';ctx.lineWidth=2;ctx.stroke();}
+  line([[-19,10],[-30,mood==='happy'?-10:19]],'#f7b6c7',6);line([[19,10],[30,mood==='happy'?-10:19]],'#f7b6c7',6);
+  ctx.restore();
+}
+function drawGammaWolf(time){
+  ctx.save();ctx.translate(116,340);
+  const puff=time<2?Math.sin(time*5)*4:0;
+  poly([[-34,48],[-32,-14],[4,-28],[34,19],[19,66]],'#566579');
+  poly([[-28,-49],[-39,-95],[-4,-66]],'#94a3b8');poly([[5,-67],[21,-94],[26,-49]],'#94a3b8');
+  disk(-1,-43,36,'#94a3b8');poly([[12,-48],[70,-26],[34,-8],[4,-15]],'#b7c4d5');disk(66,-27,8,'#172033');
+  disk(8,-51,5,'#fff');disk(10,-51,2.5,'#172033');line(time>9?[[0,-58],[17,-64]]:[[0,-63],[17,-59]],'#334155',3);
+  poly([[-29,-51],[-37,-45],[-29,-38],[-36,-31],[-25,-25]],'#b7c4d5');
+  disk(21,-26,13+puff,'#cbd5e1');line([[46,-15],[60,-16]],'#334155',2);
+  line([[-14,53],[-26,91]],'#64748b',16);line([[16,53],[27,91]],'#64748b',16);
+  line([[-28,7],[-47,26]],'#94a3b8',12);line([[24,14],[42,31]],'#94a3b8',12);
+  poly([[-32,31],[-75,13],[-61,51],[-28,54]],'#64748b');ctx.restore();
+}
+function drawGammaPigs(){
+  const time=((performance.now()-pigStoryStart)/1000)%16,release=2,spacing=.24,flight=2.5,total=20;
+  const finished=time>release+(total-1)*spacing+flight;
+  ctx.fillStyle='#0c1227';ctx.fillRect(0,0,880,650);
+  label('The Three Little Pigs & the Gamma Wolf',24,64,'#e9d5ff',19);
+  label('Same photon stream. Three different walls. Which pig stays best protected?',24,86,'#b5bfd2',12);
+  drawGammaWolf(time);
+  box(26,206,207,44,'#25304a',10);label(time<2?'“I’ll huff and I’ll puff…”':finished?'“That thick lead wall!”':'“…and send gamma rays in!”',38,232,'#f1e6ff',12);
+  label('GAMMA WOLF',58,459,'#c4b5fd',13);label('A fictional storyteller',51,478,'#94a3b8',11);
+  // Nuclear emission inset distinguishes the fantasy wolf from the real source process.
+  box(27,108,210,80,'#172139',9);
+  const excited=time<2;
+  for(let n=0;n<10;n++){const a=n*2.4,r=7+Math.sqrt(n)*5;disk(61+Math.cos(a)*r,146+Math.sin(a)*r,6,n%2?'#c084fc':'#60a5fa');}
+  label(excited?'Excited nucleus':'Lower-energy nucleus',94,134,'#e2e8f0',10);
+  label('releases a gamma photon',94,155,'#c4b5fd',9);
+  if(time>=2){const u=(time-2)%2;disk(93+u*55,171,3,'#e9d5ff');}
+  const names=['PAPER HOUSE','ALUMINUM HOUSE','THICK LEAD HOUSE'];
+  const widths=[7,19,43],wallColors=['#e9ddc6','#a3b5c8','#555c70'];
+  for(let i=0;i<3;i++){
+    const cy=181+i*151,base=cy+56,roof=cy-50;
+    box(258,cy-68,599,143,i===2?'#202038':'#151f34',12);
+    label(names[i],272,cy-44,i===2?'#e9d5ff':'#e2e8f0',11);
+    // Front wall cut away so the pig and transmitted photons can be seen.
+    box(450,cy-25,177,78,i===2?'#303044':'#29364a',2);
+    poly([[432,cy-28],[537,cy-64],[643,cy-28]],materialGradient(432,cy-64,211,36,i===0?'#fff5dc':i===1?'#e4edf4':'#818597',wallColors[i],i===0?'#b9a98e':'#333d50'));
+    if(i===0){line([[537,cy-62],[537,cy-30]],'#b9a98e',1);line([[470,cy-39],[534,cy-56]],'#fff9ed',1);}
+    if(i===1){for(let x=462;x<625;x+=27)rivet(x,cy-32);}
+    if(i===2){line([[480,cy-43],[585,cy-43]],'#a3a6b433',1);}
+    line([[432,cy-28],[537,cy-64],[643,cy-28]],'#cbd5e1',2);
+    box(420,cy-26,widths[i],83,wallColors[i],1);box(625,cy-26,8,83,wallColors[i],1);
+    if(i===0){for(let k=0;k<5;k++)line([[421,cy-20+k*16],[426,cy-12+k*16]],'#a89b86',1);poly([[420,cy-26],[427,cy-26],[427,cy-17]],'#fff7e6');}
+    if(i===1){for(let k=0;k<4;k++)line([[424+k*4,cy-22],[424+k*4,base-3]],'#d6e4ee',1);}
+    if(i===2){for(let k=0;k<5;k++){line([[420,cy-15+k*15],[463,cy-15+k*15]],'#9194a6',1);const seam=430+(k%2)*17;line([[seam,cy-26+k*15],[seam,cy-15+k*15]],'#30364b',1);}}
+    line([[413,base],[647,base]],'#64748b',3);
+    let arrived=0,nearDetector=false;
+    for(let n=0;n<total;n++){
+      const age=time-release-n*spacing,pass=pigPhotonPasses(i,n),u=age/flight;
+      if(age>=flight&&pass)arrived++;
+      if(age<0||u>1)continue;
+      const x=280+u*514,y=cy+8+((n%5)-2)*5;
+      if(x<420||pass){line([[x-8,y],[x,y]],'#d8b4fe',2);disk(x,y,2,'#f3e8ff');}
+      else if(x<438){disk(424+(i*5),y,3,'#fbbf24');}
+      if(pass&&x>778)nearDetector=true;
+    }
+    // Only packets which really crossed the wall trigger the detector.
+    box(787,cy-21,22,69,'#475569',5);box(792,cy-14,12,53,nearDetector?'#e9d5ff':'#1e293b',2);
+    label('Detector',762,cy-32,'#94a3b8',10);
+    const retreat=finished&&i<2?Math.min(1,(time-9.1)/1.4):0;
+    drawStoryPig(545+Math.max(0,retreat)*137,cy+15,finished?(i===2?'happy':'worried'):'neutral',time);
+    if(finished){label(i===0?'Too many got through!':i===1?'Still too many!':'My lead house wins!',272,cy+20,i===2?'#a7f3d0':'#fda4af',10);}
+    label(i===0?'Thin paper: little reduction':i===1?'This aluminum wall: partial reduction':'Thick lead: strongest reduction here',460,cy+73,i===2?'#a7f3d0':'#b5bfd2',10);
+    label(arrived?'Photons detected':'Waiting for photons',715,cy+66,arrived?'#e9d5ff':'#64748b',9);
+  }
+  label(finished?'The paper and aluminum pigs retreat. The lead pig celebrates!':'Watch the detectors: fewer arrivals mean less transmitted radiation.',26,585,finished?'#e9d5ff':'#cbd5e1',13);
+  label('Story model: gamma rays do not blow houses down. The houses remain standing.',26,610,'#94a3b8',11);
+  label('Thick lead reduces transmission, not to zero. Results depend on thickness and photon energy.',26,630,'#94a3b8',11);
+  label('Illustrative photon counts, not measured dose or a guarantee of survival.',26,646,'#94a3b8',10);
+}
+
+
+let newtonStart=performance.now();
+function newtonRayHit(origin,direction,vertices){
+  let best=null;
+  for(let i=0;i<vertices.length;i++){
+    const a=vertices[i],b=vertices[(i+1)%vertices.length],edge=[b[0]-a[0],b[1]-a[1]];
+    const cross=(u,v)=>u[0]*v[1]-u[1]*v[0],offset=[a[0]-origin[0],a[1]-origin[1]],den=cross(direction,edge);
+    if(Math.abs(den)<1e-8)continue;
+    const t=cross(offset,edge)/den,u=cross(offset,direction)/den;
+    if(t>.001&&u>=0&&u<=1&&(!best||t<best.t)){
+      const len=Math.hypot(...edge);let normal=[-edge[1]/len,edge[0]/len];
+      if(normal[0]*direction[0]+normal[1]*direction[1]>0)normal=normal.map(v=>-v);
+      best={t,point:[origin[0]+t*direction[0],origin[1]+t*direction[1]],normal};
+    }
+  }return best;
+}
+function newtonRefract(d,n,ratio){
+  const c=-(d[0]*n[0]+d[1]*n[1]),k=1-ratio*ratio*(1-c*c);
+  return k<0?null:[ratio*d[0]+(ratio*c-Math.sqrt(k))*n[0],ratio*d[1]+(ratio*c-Math.sqrt(k))*n[1]];
+}
+function newtonOptics(angle,index){
+  const vertices=[[-62,67],[0,-78],[62,67]].map(([x,y])=>[460+x*Math.cos(angle)-y*Math.sin(angle),240+x*Math.sin(angle)+y*Math.cos(angle)]);
+  const first=newtonRayHit([94,228],[1,0],vertices);if(!first)return null;
+  const inside=newtonRefract([1,0],first.normal,1/index),second=inside&&newtonRayHit(first.point,inside,vertices);if(!second)return null;
+  const out=newtonRefract(inside,second.normal,index);if(!out||out[0]<=0)return null;
+  const end=[727,second.point[1]+(727-second.point[0])*out[1]/out[0]];
+  return {vertices,path:[[94,228],first.point,second.point,end]};
+}
+function drawNewton(){
+  const elapsed=(performance.now()-newtonStart)/1000,cycle=elapsed%15,adjust=cycle<4;
+  const angle=adjust?Math.sin(cycle*Math.PI/2)*.065:0;
+  const sky=ctx.createLinearGradient(0,0,0,620);sky.addColorStop(0,'#11192d');sky.addColorStop(1,'#2f2630');ctx.fillStyle=sky;ctx.fillRect(0,0,880,620);
+  label('Newton explores the colors hidden in white light',24,62,'#fef3c7',18);
+  // Window shutter and a narrow slit admit a beam into the dark study.
+  box(25,104,90,237,'#584434',5);box(34,113,72,219,'#0c1424',2);
+  for(let i=0;i<5;i++)line([[36,125+i*44],[104,125+i*44]],'#352e2b',2);
+  box(85,212,11,32,'#e2e8f0',1);box(89,225,8,6,'#fff',0);
+  label('Sunlight through a slit',25,365,'#a8b3c7',11);
+  // A broad screen receives the separated wavelengths.
+  poly([[727,168],[815,183],[815,429],[727,414]],'#d5d0c0');
+  line([[724,166],[818,181],[818,432],[724,417],[724,166]],'#796d5c',5);
+  line([[768,430],[768,456]],'#71645b',8);
+  label('Spectrum on the screen',678,146,'#e2e8f0',12);
+  const colors=['#ff514c','#ff8e36','#ffda4f','#78d569','#49bcff','#8c7afa','#b180ff'];
+  const paths=[];
+  // A simple dispersive-glass model bends every ray at both interfaces.
+  for(let i=0;i<35;i++){
+    const u=i/34,ray=newtonOptics(angle,1.50+.035*u);
+    if(!ray)continue;paths.push(ray);
+    ctx.save();ctx.globalAlpha=.32;line(ray.path,colors[Math.min(6,Math.floor(u*7))],2);ctx.restore();
+    const y=ray.path[3][1];
+    line([[729,y],[811,y+14]],colors[Math.min(6,Math.floor(u*7))],3);
+  }
+  const ref=paths[0];
+  if(ref){
+    ctx.save();ctx.shadowColor='#fff';ctx.shadowBlur=9;line(ref.path.slice(0,2),'#fff8e8',4);ctx.restore();
+    poly(ref.vertices,'#b9e1ff18');line([...ref.vertices,ref.vertices[0]],'#c7e2f4',2);
+    line([[452,178],[419,276]],'#ffffff70',2);poly([[454,179],[450,212],[425,278],[430,251]],'#d5efff15');
+    for(let k=0;k<7;k++){
+      const ray=newtonOptics(angle,1.50+k/6*.035);if(!ray)continue;
+      const u=(elapsed*.4+k*.13)%1,a=ray.path[2],b=ray.path[3];disk(a[0]+(b[0]-a[0])*u,a[1]+(b[1]-a[1])*u,2,colors[k]);
+    }
+  }
+  // Brass prism mount and wooden desk.
+  line([[460,309],[460,442]],'#a9874b',7);box(432,435,58,14,'#c4a66a',4);
+  timber(30,449,821,22);timber(45,471,24,149);timber(808,471,24,149);
+  line([[36,454],[845,454]],'#b88a5b',2);
+  // Newton's coat, waistcoat, long hair, and expressive face.
+  const headX=277,headY=328;
+  poly([[239,369],[308,366],[333,451],[223,451]],'#553d64');
+  poly([[267,371],[285,371],[296,449],[250,449]],'#c9b391');
+  for(let y=391;y<447;y+=15)disk(275,y,2,'#735c48');
+  disk(headX,headY,34,'#dbc4a0');
+  for(let i=0;i<13;i++){const a=Math.PI*.1+i*Math.PI*.8/12;disk(headX+Math.cos(a)*37,headY-Math.sin(a)*32,13,'#5c4337');}
+  for(const x of [241,310])for(let j=0;j<4;j++)disk(x,325+j*14,12,'#644b3d');
+  if(cycle%4<.14){line([[265,326],[271,326]],'#644b3d',1.5);line([[285,326],[291,326]],'#644b3d',1.5);}else{disk(268+(adjust?2:1),326+(adjust?-1:2),2.5,'#292524');disk(288+(adjust?2:1),326+(adjust?-1:2),2.5,'#292524');}
+  line([[263,319],[271,317]],'#644b3d',1.3);line([[284,317],[293,319]],'#644b3d',1.3);line([[278,329],[275,339],[282,339]],'#b28c70',1.5);
+  ctx.beginPath();ctx.arc(279,341,9,0,Math.PI*.8);ctx.strokeStyle='#8b6551';ctx.lineWidth=1.5;ctx.stroke();
+  poly([[258,363],[277,380],[296,363],[285,391],[270,392]],'#eee6d3');
+  const writing=newtonWriting(cycle);
+  const hand=adjust?[445,324+Math.sin(cycle*2)*4]:[writing.tip[0]-9,writing.tip[1]-12];
+  const elbow=newtonElbow([307,383],hand);
+  ctx.save();ctx.lineCap='round';line([[307,383],elbow,hand],'#674d78',20);line([[241,388],[213,431],[300,450]],'#674d78',18);disk(...hand,10,'#dbc4a0');ctx.restore();
+  label('ISAAC NEWTON',157,537,'#f0d7ac',15);label(adjust?'Adjusting the prism…':'Observing, then recording…',157,558,'#c4b5a3',12);
+  // Notebook pages. Notes belong to the illustration, not verbatim historical quotations.
+  poly([[354,468],[529,454],[724,469],[717,575],[530,561],[361,579]],'#e7d4ad');
+  line([[529,456],[530,561]],'#ab9474',2);line([[533,459],[534,559]],'#fff1cc99',2);
+  for(let y=477;y<566;y+=7)line([[362,y],[520,y-4]],'#8f76530c',.6);
+  label('OBSERVATIONS',550,485,'#5a422e',12);
+  const notes=['White light contains many colors.','The prism separates those colors.','Violet bends more than red.'];
+  notes.forEach((note,i)=>{if(cycle>5+i*2){label(note,543,508+i*20,'#654d37',10);}});
+  if(!adjust){
+    // Ink follows the nib exactly; completed strokes remain on the page.
+    for(let j=0;j<=writing.lineIndex;j++){
+      const end=j<writing.lineIndex?1:writing.u,points=[];
+      for(let u=0;u<=end;u+=.01)points.push([370+60*u,506+j*13+Math.sin(u*70)*1.6]);
+      if(points.length>1)line(points,'#715236',1.3);
+    }
+    ctx.save();ctx.lineCap='round';line([elbow,hand],'#674d78',18);disk(...hand,9,'#dbc4a0');ctx.restore();
+    const tip=writing.tip;
+    line([tip,[tip[0]+27,tip[1]-55]],'#342b30',2);
+    poly([[tip[0]+9,tip[1]-20],[tip[0]+19,tip[1]-55],[tip[0]+35,tip[1]-70],[tip[0]+33,tip[1]-36]],'#eee6d3');
+  }
+  label('Illustrated experiment; notes are paraphrased. Ray motion and dispersion are enlarged for visibility.',24,605,'#aaa9b5',11);
+}
+
+
+function bandSymbol(index){
+  const paths=['M3 18L13 2L23 18M7 13H19M9 9H17','M2 11Q7 1 12 11T24 11','M3 16Q13 0 23 16M6 18Q13 7 20 18','M4 18L12 2L20 18Z M20 8L26 4M20 12L26 12M20 16L26 20','M3 3L23 17M3 17L23 3M7 6L7 14M13 9L13 11M19 6L19 14','M8 3H18M7 8H19M7 13H19M8 18H18M13 2V20','M13 2V7M13 15V20M3 6L8 9M18 13L23 16M3 16L8 13M18 9L23 6'];
+  return `<svg viewBox="0 0 28 22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="${paths[index]}"/></svg>`;
+}
+function prepareScene(){
+  renderDpr=Math.min(3,Math.max(1,window.devicePixelRatio||1));
+  const width=Math.round(880*renderDpr),height=Math.round(sceneHeight*renderDpr);
+  if(sceneCanvas.width!==width||sceneCanvas.height!==height){sceneCanvas.width=width;sceneCanvas.height=height;}
+  ctx.setTransform(renderDpr,0,0,renderDpr,0,0);
+}
+function presentScene(){
+  const id=BANDS[currentIdx].id,w=canvas.clientWidth,mobile=w<600;
+  const sections={
+    radio:[['Broadcast and mountain ridge',0,80,500,254],['The valley receives the signal',500,85,380,250]],
+    microwave:[['Satellite → cloud → home dish',25,80,460,270],['A separately powered microwave oven',495,82,355,264]],
+    infrared:[['Infrared reveals hidden stars',20,122,700,151],['A breathing dog and a warm surprise',280,350,400,157]],
+    visible:[['White sunlight separates into colors',80,150,750,290],['Newton records his observations',200,290,610,294]],
+    uv:[['Slide the fabric cover to compare',20,76,840,202],['Left cell: atom-level DNA view',47,296,386,307],['Right cell: atom-level DNA view',447,296,386,307]],
+    xray:[['The dancer freezes for an exposure',280,86,320,354]],
+    gamma:[['The Gamma Wolf sends the same stream',25,108,215,385],['Paper house',258,113,599,143],['Aluminum house',258,264,599,143],['Thick lead house',258,415,599,143]]
+  };
+  const notes={radio:'Longer waves spread past the ridge. The receiver uses local power.',microwave:'The dish receives data. The oven heats with electrical power.',infrared:'One IR viewer reveals both scenes. Colors are assigned to invisible infrared.',visible:'The prism separates colors already present in white sunlight.',uv:'Pink bonds show damage. Each loop starts fresh DNA, not a repair.',xray:'Fewer photons behind bone produce a lighter image. The captured pose stays still.',gamma:'Thick lead reduces transmission, not to zero. This story is not a survival calculation.'};
+  displayRegions=[];
+  let height=650*w/880;
+  if(mobile){
+    let y=52;
+    for(const [caption,sx,sy,sw,sh] of sections[id]){
+      const dw=w-24,dh=sh*dw/sw;
+      displayRegions.push({caption,sx,sy,sw,sh,dx:12,dy:y+27,dw,dh});y+=dh+48;
+    }height=y+80;
+  }else displayRegions=[{sx:0,sy:0,sw:880,sh:sceneHeight,dx:0,dy:(650-sceneHeight)*w/1760,dw:w,dh:sceneHeight*w/880}];
+  canvas.style.height=height+'px';
+  const bw=Math.round(w*renderDpr),bh=Math.round(height*renderDpr);
+  if(canvas.width!==bw||canvas.height!==bh){canvas.width=bw;canvas.height=bh;}
+  displayCtx.setTransform(renderDpr,0,0,renderDpr,0,0);displayCtx.fillStyle='#0b1226';displayCtx.fillRect(0,0,w,height);
+  if(mobile){displayCtx.fillStyle='#f1f5f9';displayCtx.font='700 17px system-ui';displayCtx.fillText(BANDS[currentIdx].short+' in motion',14,30);}
+  for(const r of displayRegions){
+    if(mobile){displayCtx.font='600 13px system-ui';displayCtx.fillStyle='#dbe4f0';displayCtx.fillText(r.caption,r.dx,r.dy-9);}
+    displayCtx.drawImage(sceneCanvas,r.sx*renderDpr,r.sy*renderDpr,r.sw*renderDpr,r.sh*renderDpr,r.dx,r.dy,r.dw,r.dh);
+  }
+  if(mobile){
+    displayCtx.font='12px system-ui';displayCtx.fillStyle='#b7c5db';let line='',y=height-66;
+    for(const word of notes[id].split(' ')){if(displayCtx.measureText(line+word).width>w-28){displayCtx.fillText(line,14,y);line='';y+=18;}line+=word+' ';}displayCtx.fillText(line,14,y);
+  }
+}
+
+
+let popcornModel={time:0,next:0,particles:[]};
+function updatePopcorn(time){
+  const phase=time%14,target=Math.min(phase,12.7),m=popcornModel;
+  if(target<m.time||target-m.time>15){m.time=0;m.next=0;m.particles=[];}
+  while(m.time+1/120<=target){
+    const dt=1/120;m.time+=dt;
+    while(m.next<28&&m.time>=.4+m.next*.23){const n=m.next++,r=((n*73+19)%101)/100;m.particles.push({x:624+r*31,y:202,vx:(r-.5)*125,vy:-95-((n*37)%80),angle:n,spin:(r-.5)*9,r:6+n%3});}
+    for(const p of m.particles){p.vy+=210*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.angle+=p.spin*dt;
+      if(p.x-p.r<536){p.x=536+p.r;p.vx=Math.abs(p.vx)*.65;}if(p.x+p.r>744){p.x=744-p.r;p.vx=-Math.abs(p.vx)*.65;}
+      if(p.y-p.r<122){p.y=122+p.r;p.vy=Math.abs(p.vy)*.55;}
+      const floor=p.x>607&&p.x<675?209:263;
+      if(p.y+p.r>floor){p.y=floor-p.r;p.vy=Math.abs(p.vy)>18?-Math.abs(p.vy)*.35:0;p.vx*=.92;p.spin*=.91;}
+    }
+    for(let i=0;i<m.particles.length;i++)for(let j=i+1;j<m.particles.length;j++){
+      const a=m.particles[i],b=m.particles[j],dx=b.x-a.x,dy=b.y-a.y,dist=Math.hypot(dx,dy),min=(a.r+b.r)*.85;
+      if(dist>.01&&dist<min){const nx=dx/dist,ny=dy/dist,over=(min-dist)*.5;a.x-=nx*over;a.y-=ny*over;b.x+=nx*over;b.y+=ny*over;
+        const relative=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;if(relative<0){a.vx+=relative*nx*.65;a.vy+=relative*ny*.65;b.vx-=relative*nx*.65;b.vy-=relative*ny*.65;}a.spin*=.98;b.spin*=.98;
+      }
+    }
+  }
+  return {particles:m.particles,fade:Math.min(1,(14-phase)/1.3)};
+}
+function paintPopcorn(time){
+  const state=updatePopcorn(time);ctx.save();ctx.globalAlpha=Math.max(0,state.fade);
+  for(const p of state.particles){ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.angle);for(const [x,y,r] of [[-3,0,.7],[3,1,.65],[0,-4,.7]])disk(x,y,p.r*r,'#fff1c3');disk(0,2,p.r*.27,'#c79a4d');ctx.restore();}
+  ctx.restore();
+}
+let xraySampleCache=null;
+function xraySample(p,key){
+  if(xraySampleCache?.key===key)return xraySampleCache;
+  const mask=document.createElement('canvas');mask.width=880;mask.height=530;const saved=ctx;
+  try{ctx=mask.getContext('2d');xrayFigure(p,true);}finally{ctx=saved;}
+  const data=mask.getContext('2d').getImageData(0,0,880,530).data,rows=[];
+  for(let row=0;row<28;row++){
+    const y=130+row*10,samples=[];let optical=0;
+    for(let x=137;x<=755;x+=2){const yy=231+(y-231)*(x-137)/(755-137),idx=(Math.round(yy)*880+x)*4,a=data[idx+3]/255;
+      const luminance=(data[idx]+data[idx+1]+data[idx+2])/765;
+      optical+=a>.7&&luminance>.55?.12:a>.02?.008:0;samples.push({x,y:yy,optical});
+    }
+    rows.push({y,samples,transmission:Math.exp(-optical)});
+  }
+  return xraySampleCache={key,rows};
+}
+function drawXrayPackets(model,elapsed,exposing){
+  for(let row=0;row<model.rows.length;row++){
+    const r=model.rows[row];let arrivals=0;
+    for(let n=0;n<6;n++){
+      const launch=n*.21,age=elapsed-launch,progress=age/1.1;
+      const threshold=-Math.log((((row*37+n*59)%97)+.5)/97);
+      const hit=r.samples.find(s=>s.optical>=threshold),end=hit?hit.x:755;
+      if(progress>=1&&!hit)arrivals++;
+      if(exposing&&progress>=0&&progress<1){const x=137+618*progress,y=231+(r.y-231)*progress;if(x<end)line([[x-5,y],[x,y]],'#c7d2fe',1.5);}
+    }
+    const light=215-Math.round(arrivals/6*190);box(747,r.y-3,34,7,`rgb(${light},${light},${Math.min(255,light+25)})`,1);
+  }
+}
+function newtonWriting(cycle){
+  const lineIndex=Math.min(3,Math.floor(Math.max(0,cycle-4)/2.5));
+  const u=Math.max(0,Math.min(1,(cycle-4-lineIndex*2.5)/2.1));
+  return {lineIndex,u,tip:[370+60*u,506+lineIndex*13+Math.sin(u*70)*1.6]};
+}
+function newtonElbow(shoulder,hand){
+  const dx=hand[0]-shoulder[0],dy=hand[1]-shoulder[1],d=Math.max(1,Math.hypot(dx,dy)),l1=95,l2=100;
+  const along=(l1*l1-l2*l2+d*d)/(2*d),perp=Math.sqrt(Math.max(0,l1*l1-along*along));
+  return [shoulder[0]+along*dx/d-perp*dy/d,shoulder[1]+along*dy/d+perp*dx/d];
+}
+
+
+function materialGradient(x,y,w,h,light,mid,dark){const g=ctx.createLinearGradient(x,y,x+w,y+h);g.addColorStop(0,light);g.addColorStop(.42,mid);g.addColorStop(1,dark);return g;}
+function shadedOrb(x,y,r,color){
+  ctx.save();disk(x+1,y+2,r,'#00000035');const g=ctx.createRadialGradient(x-r*.35,y-r*.4,r*.05,x,y,r);g.addColorStop(0,'#ffffff');g.addColorStop(.28,color);g.addColorStop(1,'#182238');disk(x,y,r,g);ctx.restore();
+}
+function softGlow(x,y,rx,ry,color){ctx.save();ctx.translate(x,y);ctx.scale(1,ry/rx);const g=ctx.createRadialGradient(0,0,0,0,0,rx);g.addColorStop(0,color);g.addColorStop(1,'#00000000');ctx.fillStyle=g;ctx.fillRect(-rx,-rx,rx*2,rx*2);ctx.restore();}
+function rivet(x,y){disk(x,y,1.8,'#182238');disk(x-.4,y-.5,1,'#d7e1ec');}
+function timber(x,y,w,h){
+  box(x,y,w,h,materialGradient(x,y,w,h,'#ad7b51','#785139','#3e2b25'),4);
+  for(let j=0;j<4;j++){const pts=[];for(let k=0;k<=30;k++)pts.push([x+k*w/30,y+3+j*(h-6)/4+Math.sin(k*.8+j)*1.1]);line(pts,'#2e211d40',.8);}
+  line([[x+3,y+2],[x+w-3,y+2]],'#d6a57580',1);
+}
+
+
+const WAVE_COMPARISONS=[
+  {wave:'100 m',object:'Football field ≈ 100 m',ratio:1,art:'<rect x="130" y="82" width="100" height="48" rx="3" fill="#24734c"/><path d="M180 82V130M140 82V130M220 82V130" stroke="#d1fae5"/><rect x="133" y="85" width="94" height="42" fill="none" stroke="#d1fae5"/><circle cx="180" cy="106" r="10" fill="none" stroke="#d1fae5"/>'},
+  {wave:'12 cm',object:'Baseball diameter ≈ 7.4 cm',ratio:12/7.4,art:'<ellipse cx="180" cy="108" rx="50" ry="25" fill="#f8fafc" stroke="#94a3b8"/><path d="M153 87Q180 108 153 129M207 87Q180 108 207 129" fill="none" stroke="#dc2626" stroke-width="2" stroke-dasharray="3 2"/>'},
+  {wave:'70 μm',object:'Hair diameter ≈ 70 μm',ratio:1,art:'<rect x="130" y="83" width="100" height="48" rx="14" fill="#a77b52"/><path d="M140 87V127M154 87V127M170 87V127M190 87V127M207 87V127M220 87V127" stroke="#d6b38c"/><text x="180" y="111" text-anchor="middle" fill="#201b19" font-size="11">hair width</text>'},
+  {wave:'550 nm',object:'Small bacterium ≈ 1 μm long',ratio:.55,art:'<rect x="130" y="86" width="100" height="42" rx="21" fill="#6ee7b7" stroke="#047857" stroke-width="2"/><path d="M146 108q12-17 23 0t23 0t23 0" fill="none" stroke="#047857" stroke-width="2"/><circle cx="154" cy="100" r="2" fill="#047857"/>'},
+  {wave:'50 nm',object:'Example virus ≈ 100 nm wide',ratio:.5,art:'<ellipse cx="180" cy="106" rx="41" ry="23" fill="#67e8f9" stroke="#0891b2"/><path d="M130 106H145M215 106H230M155 79l7 10M205 79l-7 10M155 133l7-10M205 133l-7-10" stroke="#0891b2" stroke-width="3"/><path d="M158 105q12-14 22 0t22 0" fill="none" stroke="#0e7490"/>'},
+  {wave:'0.1 nm',object:'Atom diameter ≈ 0.1 nm',ratio:1,art:'<ellipse cx="180" cy="106" rx="50" ry="25" fill="#c7d2fe" fill-opacity=".65" stroke="#818cf8" stroke-dasharray="2 3"/><ellipse cx="180" cy="106" rx="35" ry="17" fill="#a5b4fc" fill-opacity=".4"/><circle cx="180" cy="106" r="4" fill="#4338ca"/>'},
+  {wave:'1 pm (≈1 MeV photon)',object:'Nucleus ≈ 5 fm: λ is ~200× larger (not to scale)',ratio:2.2,art:'<ellipse cx="180" cy="106" rx="50" ry="25" fill="#c084fc" fill-opacity=".12"/>'+Array.from({length:14},(_,i)=>`<circle cx="${141+(i%5)*19+(Math.floor(i/5)%2)*7}" cy="${91+Math.floor(i/5)*15}" r="8" fill="${i%2?'#c084fc':'#60a5fa'}" stroke="#f5eaff" stroke-width=".6"/>`).join('')}
+];
+function wavelengthComparison(index){
+  const c=WAVE_COMPARISONS[index],period=100*c.ratio,points=[];
+  for(let x=-period;x<=360+period;x+=1.5)points.push(`${x.toFixed(1)},${(27-12*Math.cos(2*Math.PI*(x-28)/period)).toFixed(1)}`);
+  return `<span class="comparison-detail"><span class="comparison-example">Example λ: ${c.wave}</span>
+  <svg class="comparison-wave" viewBox="0 0 360 158" role="img" aria-label="Animated ${c.wave} wavelength compared with ${c.object}">
+    <defs><clipPath id="waveClip${index}"><rect x="7" y="8" width="346" height="36"/></clipPath></defs>
+    <g clip-path="url(#waveClip${index})"><polyline points="${points.join(' ')}" fill="none" stroke="currentColor" stroke-width="2.5"><animateTransform attributeName="transform" type="translate" from="0 0" to="${period} 0" dur="${(period/60).toFixed(2)}s" repeatCount="indefinite"/></polyline></g>
+    <path d="M28 47v7h${period}v-7" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="${28+period/2}" y="69" text-anchor="middle" fill="currentColor" font-size="13">one wavelength (λ)</text>
+    ${c.art}<path d="M130 139v5h100v-5" fill="none" stroke="currentColor" stroke-width="1.2"/>
+  </svg><span class="comparison-object">${c.object}</span><span class="comparison-note">Each band is magnified separately.</span></span>`;
+}
+function buildBandInfo(){
+  const info=document.getElementById('bandInfo');
+  info.style.gridTemplateColumns=document.getElementById('spectrumBar').style.gridTemplateColumns;
+  const cls=i=>i===currentIdx?' class="active"':'';
+  info.innerHTML=BANDS.map((b,i)=>`<div${cls(i)}><span>${b.sizeLabel}</span></div>`).join('')
+    +BANDS.map((b,i)=>`<div${cls(i)}><span>${b.frequency.replace(/\s*\([^)]*\)/g,'')}</span></div>`).join('');
+}
+function alignZoom(){
+  const wrap=document.getElementById('zoomStrip'),cell=document.getElementById('bandInfo').children[currentIdx];if(!cell)return;
+  const b=BANDS[currentIdx],vis=b.id==='visible';
+  document.getElementById('zoomBar').style.background=vis?'':`linear-gradient(90deg,${b.accent}44,${b.accent})`;
+  document.getElementById('zoomTicks').innerHTML=(vis?['700 nm (red)','600 nm','500 nm','400 nm (violet)']:b.ticks).map(t=>`<span>${t}</span>`).join('');
+  document.getElementById('zoomCompare').innerHTML=wavelengthComparison(currentIdx);
+  const wr=wrap.getBoundingClientRect(),r=cell.getBoundingClientRect(),w=wr.width,x1=r.left-wr.left,x2=r.right-wr.left;
+  document.getElementById('zoomSvg').innerHTML=`<path d="M ${x1} 0 L 0 34 M ${x2} 0 L ${w} 34" fill="none" stroke="#64748b" stroke-width="1.5"/>`;
+}
+function alignSpectrumBracket(){
+  const bar=document.getElementById('spectrumBar'),active=bar.querySelector('.active');if(!active)return;
+  const br=bar.getBoundingClientRect(),r=active.getBoundingClientRect(),cx=(r.left-br.left+r.width/2)/br.width*880,half=Math.min(65,r.width/br.width*360);
+  document.getElementById('bracketStem').setAttribute('x1',cx);document.getElementById('bracketStem').setAttribute('x2',cx);
+  document.getElementById('bracketFoot').setAttribute('d',`M ${cx-half} 35 L ${cx-half} 24 L ${cx+half} 24 L ${cx+half} 35`);
+}
+
+
+window.addEventListener("resize",alignSpectrumBracket);window.addEventListener("resize",alignZoom);
+buildUI();
+renderStage();
 </script>
-
-  <script data-rise-completion>
-    (() => {
-      let riseCompletionSent = false;
-      const sendRiseCompletion = () => {
-        if (riseCompletionSent) return;
-        riseCompletionSent = true;
-        window.parent.postMessage({ type: 'complete' }, '*');
-      };
-
-      const riseRoot = document.querySelector('.rise-walkthrough');
-      if (!riseRoot) return;
-
-      // Explorer completion: the learner changes one meaningful setting or starts a model.
-      riseRoot.addEventListener('change', sendRiseCompletion);
-      riseRoot.addEventListener('click', (event) => {
-        const button = event.target.closest('button');
-        if (!button) return;
-        const label = (button.id + ' ' + button.textContent).toLowerCase();
-        if (/reset|replay|pause/.test(label)) return;
-        sendRiseCompletion();
-      });
-    })();
-  </script>
-</main>
 </body>
-</html>
+</html>

@@ -1,815 +1,156 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Simulation: 3D Inverse-Square Law Projection</title>
-<style>
-  :root {
-    --bg: #eef4f8;
-    --card: #ffffff;
-    --accent: #c0266d;
-    --accent-hover: #9d174d;
-    --detector: #0891b2;
-    --text: #172033;
-    --muted: #526277;
-    --line: #cbd5e1;
-    --canvas: #e6ebf0;
-    --soft-blue: #e8f7fb;
-    --soft-pink: #fdf0f6;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    padding: 14px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-  .header-container {
-    max-width: 1200px;
-    width: 100%;
-    margin-bottom: 10px;
-  }
-  h1 { font-size: 1.45rem; margin-bottom: 2px; color: var(--accent); }
-  .subtitle { color: var(--muted); font-size: 0.9rem; }
-  .layout {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 10px;
-    max-width: 1200px;
-    width: 100%;
-  }
-  .canvas-wrap {
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 8px;
-    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: hidden;
-  }
-  canvas {
-    width: 100%;
-    max-width: 1160px;
-    height: auto;
-    display: block;
-    border-radius: 8px;
-    background: var(--canvas);
-  }
-  .controls {
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 10px;
-    display: grid;
-    grid-template-columns: 1.05fr 0.9fr;
-    grid-template-areas:
-      "readout diagram"
-      "hint hint";
-    gap: 8px;
-    align-items: stretch;
-    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
-  }
-  .readout { grid-area: readout; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .control-group {
-    position: absolute;
-    z-index: 2;
-    left: 18px;
-    right: 18px;
-    bottom: 18px;
-    background: rgba(248, 250, 252, 0.94);
-    border: 1px solid rgba(203, 213, 225, 0.95);
-    border-radius: 8px;
-    padding: 8px 10px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.14);
-    backdrop-filter: blur(4px);
-  }
-  .control-group label {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    font-size: 0.84rem;
-    color: var(--muted);
-    margin-bottom: 5px;
-    font-weight: 600;
-  }
-  .control-group input[type="range"] {
-    width: 100%;
-    accent-color: var(--detector);
-    height: 5px;
-  }
-  .slider-scale {
-    position: relative;
-    height: 18px;
-    margin: 2px 7px 0;
-    color: var(--muted);
-    font-size: 0.68rem;
-    font-weight: 700;
-  }
-  .slider-mark {
-    position: absolute;
-    top: 1px;
-    transform: translateX(-50%);
-    text-align: center;
-    white-space: nowrap;
-  }
-  .slider-mark::before {
-    content: '';
-    display: block;
-    width: 1px;
-    height: 5px;
-    margin: 0 auto 1px;
-    background: #64748b;
-  }
-  .readout-card {
-    background: #f8fafc;
-    border-radius: 8px;
-    padding: 7px 8px;
-    text-align: center;
-    border: 1px solid var(--line);
-    min-height: 56px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-  .readout-card .val {
-    font-size: 1.25rem;
-    font-weight: 750;
-    color: var(--detector);
-    font-variant-numeric: tabular-nums;
-    line-height: 1.05;
-  }
-  .readout-card .lbl {
-    font-size: 0.68rem;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.45px;
-    margin-top: 3px;
-  }
-  .hint-area {
-    grid-area: hint;
-    background: var(--soft-pink);
-    padding: 8px 10px;
-    border-radius: 8px;
-    border: 1px solid #f3bfd5;
-    min-height: 68px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 6px;
-  }
-  .hint-question {
-    color: #6b2148;
-    font-size: 0.8rem;
-    line-height: 1.25;
-    font-weight: 650;
-  }
-  .hint-button {
-    background: var(--accent);
-    color: #ffffff;
-    border: none;
-    padding: 6px 10px;
-    border-radius: 7px;
-    cursor: pointer;
-    font-size: 0.78rem;
-    font-weight: 700;
-    width: 100%;
-  }
-  .hint-button:hover { background: var(--accent-hover); }
-  .hint-text {
-    display: none;
-    color: #6b2148;
-    font-size: 0.75rem;
-    line-height: 1.25;
-  }
-  .hint-text.show { display: block; }
-  .diagram-container {
-    grid-area: diagram;
-    border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid var(--line);
-    background: var(--canvas);
-    min-height: 96px;
-  }
-  .diagram-container canvas {
-    width: 100%;
-    height: 96px;
-    display: block;
-    background: var(--canvas);
-  }
-  @media (max-width: 900px) {
-    .controls {
-      grid-template-columns: 1fr 1fr;
-      grid-template-areas:
-        "readout diagram"
-        "hint hint";
-    }
-  }
-  @media (max-width: 620px) {
-    body { padding: 8px; }
-    .controls {
-      grid-template-columns: 1fr;
-      grid-template-areas: "readout" "diagram" "hint";
-    }
-    .control-group { left: 14px; right: 14px; bottom: 14px; }
-    .diagram-container canvas { height: 120px; }
-  }
-</style>
-
-  <style data-rise-unit-5>
-    html,
-    body {
-      background: transparent;
-    }
-
-    *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      min-height: 0;
-      min-width: 0;
-      padding: 12px;
-    }
-
-    .rise-walkthrough {
-      width: min(100%, 1200px);
-      max-width: 1200px;
-      margin-inline: auto;
-      border: 5px solid #285f9f;
-      border-radius: 18px;
-      overflow: hidden;
-    }
-
-    .rise-walkthrough.rise-shell {
-      padding: clamp(12px, 2vw, 24px);
-      background: #fff;
-    }
-
-    .rise-walkthrough canvas,
-    .rise-walkthrough svg {
-      max-width: 100%;
-    }
-
-    .rise-walkthrough button,
-    .rise-walkthrough input,
-    .rise-walkthrough select {
-      min-height: 32px;
-    }
-
-    .rise-walkthrough button:focus-visible,
-    .rise-walkthrough input:focus-visible,
-    .rise-walkthrough select:focus-visible {
-      outline: 3px solid #f59e0b;
-      outline-offset: 3px;
-    }
-
-    .rise-walkthrough > #canvas-container,
-    .rise-walkthrough > .controls-panel {
-      margin-inline: auto;
-    }
-
-    @media (max-width: 520px) {
-      body { padding: 4px; }
-      .rise-walkthrough { border-width: 5px; border-radius: 12px; }
-      .rise-walkthrough.rise-shell { padding: 10px; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .rise-walkthrough *,
-      .rise-walkthrough *::before,
-      .rise-walkthrough *::after {
-        scroll-behavior: auto !important;
-        transition-duration: 0.01ms !important;
-      }
-    }
-  </style>
-</head>
-<body>
-<main class="rise-walkthrough rise-shell" aria-label="Simulation: 3D Inverse-Square Law Projection">
-<div class="header-container">
-    <h1>3D Projection: The Inverse-Square Law</h1>
-    <p class="subtitle">Algorithmic visualization of wave energy spreading across 1r, 2r, and 3r distances.</p>
-  </div>
-
-  <div class="layout">
-    <div class="canvas-wrap">
-      <canvas role="img" aria-label="Interactive visualization for Simulation: 3D Inverse-Square Law Projection" id="c" width="1160" height="560"></canvas>
-      <div class="control-group">
-        <label>
-          <span>Move Detector Plane ($r$)</span>
-          <span id="distDisplay" style="color: var(--detector); font-weight: bold;">1.0</span>
-        </label>
-        <input type="range" id="dist" min="0.5" max="3.5" value="1" step="0.05">
-        <div class="slider-scale" aria-hidden="true">
-          <span class="slider-mark" style="left:16.67%">1r</span>
-          <span class="slider-mark" style="left:50%">2r</span>
-          <span class="slider-mark" style="left:83.33%">3r</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="controls">
-      <div class="readout">
-        <div class="readout-card">
-          <div class="val" id="areaVal" style="color: var(--accent);">1.0 A</div>
-          <div class="lbl">Area (r²)</div>
-        </div>
-        <div class="readout-card">
-          <div class="val" id="intVal">100%</div>
-          <div class="lbl">Intensity (1/r²)</div>
-        </div>
-      </div>
-
-      <div class="hint-area">
-        <div class="hint-question">How does intensity change as the detector moves farther from the source?</div>
-        <button class="hint-button" id="hintBtn" type="button">Show Hint</button>
-        <div class="hint-text" id="hintText">Intensity follows an inverse-square pattern: I ∝ 1/r². Doubling distance gives 1/4 the intensity; tripling it gives 1/9.</div>
-      </div>
-
-      <div class="diagram-container">
-        <canvas id="waveDiagram" width="640" height="96" aria-label="Sound wave amplitude at the detector"></canvas>
-      </div>
-    </div>
-  </div>
-
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why Sound Gets Quieter</title><link rel="stylesheet" href="animated-demos.css"></head><body>
+<main class="wave-demo">
+<h1>Why Sound Gets Quieter</h1><div class="stage"><svg id="scene" role="img" aria-label="Sound spreading from a point source over spheres of radius r, 2r and 3r"></svg></div>
+<div class="controls"><button id="step" type="button" hidden>Next step</button></div>
+<span id="demo-status" class="sr-only" role="status" aria-live="polite"></span>
+<script>window.walkthroughLesson = {"title":"Why Sound Gets Quieter","group":"demos","type":"animated-demo","demoKind":"intensity-spheres","choices":[]};</script>
 <script>
-  const canvas = document.getElementById('c');
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width;
-  const H = canvas.height;
+(() => {
+  'use strict';
+  const C = { ink: '#17324a', blue: '#23649a', teal: '#087c80', orange: '#a94b24', cell: '#fff3b0', hot: '#ffcf4a' };
+  const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+  const text = (x, y, s, size = 18, color = C.ink, anchor = 'middle', weight = '') =>
+    `<text x="${x}" y="${y}" font-size="${size}" fill="${color}" text-anchor="${anchor}"${weight ? ` font-weight="${weight}"` : ''}>${s}</text>`;
+  const line = (x, y, u, v, color = C.ink, w = 1.5, dash = '') =>
+    `<line x1="${x}" y1="${y}" x2="${u}" y2="${v}" stroke="${color}" stroke-width="${w}"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`;
 
-  // UI Elements
-  const distSlider = document.getElementById('dist');
-  const distDisplay = document.getElementById('distDisplay');
-  const intVal = document.getElementById('intVal');
-  const areaVal = document.getElementById('areaVal');
-  const hintBtn = document.getElementById('hintBtn');
-  const hintText = document.getElementById('hintText');
-  const waveDiagram = document.getElementById('waveDiagram');
-  const waveDiagramCtx = waveDiagram.getContext('2d');
-  window.addEventListener('resize', drawWaveDiagram);
+  // Stage start times (s): wave only, patch at r, patch at 2r, patch at 3r, summary.
+  const T = [0, 3.4, 7.4, 11.4, 15.4], LENGTH = 18.5, HOLD = [2.8, 6.6, 10.6, 14.6, 17];
+  const captions = [
+    ['Sound spreads out in all directions.', 'The same power P crosses every sphere.'],
+    ['At distance r, a box of area A', 'catches intensity I.'],
+    ['At 2r the wave covers 4 boxes (4A).', 'One box of area A gets only I/4.'],
+    ['At 3r the wave covers 9 boxes (9A).', 'One box of area A gets only I/9.'],
+    ['Double the distance: 1/4 intensity.', 'Triple the distance: 1/9.']
+  ];
 
-  // State
-  let detectorR = 1.0;
-  let time = 0;
-  const radialPanel = { left: 830, centerX: 990, centerY: 286, unitR: 40, maxR: 3.4 };
-  const radialParticles = [];
+  function render(w, t) {
+    const compact = w < 600;
+    const r = compact ? 90 : 150, alpha = compact ? 0.22 : 0.17, sx0 = compact ? 44 : 150, sy0 = compact ? 215 : 235;
+    const H = compact ? 520 : 570, rMax = 3 * r + 45, speed = r * 0.85, sp = r * 0.45;
+    const fs = compact ? 16 : 19;
+    const stage = t < T[1] ? 0 : t < T[2] ? 1 : t < T[3] ? 2 : t < T[4] ? 3 : 4;
+    // Oblique projection of a point on a sphere of radius d at in-plane angle a, depth angle b.
+    const P = (d, a, b) => [sx0 + d * (Math.cos(a) * Math.cos(b) + 0.5 * Math.sin(b)), sy0 - d * (Math.sin(a) * Math.cos(b) + 0.35 * Math.sin(b))];
+    let svg = '';
 
-  // 3D Isometric Projection Vectors
-  const source2D = { x: 70, y: 250 };
-  const dir2D = { x: 200, y: -5 };    // Vector extending out along the Z axis (Distance)
-  const up2D = { x: 0, y: -55 };      // Vector defining 'Up' on a plane
-  const right2D = { x: 45, y: 22 };   // Vector defining 'Right' on a plane (Creates tilt)
-
-  // Get a projected 2D point for a 3D coordinate on a plane at distance 'r'
-  // u and v range from -1 to 1 (left to right, top to bottom)
-  function getPt(r, u, v) {
-    return {
-      x: source2D.x + r * dir2D.x + u * r * right2D.x + v * r * up2D.x,
-      y: source2D.y + r * dir2D.y + u * r * right2D.y + v * r * up2D.y
-    };
-  }
-
-  function updateState() {
-    detectorR = parseFloat(distSlider.value);
-    distDisplay.textContent = detectorR.toFixed(2) + ' r';
-
-    let area = detectorR * detectorR;
-    let intensity = 1 / area;
-
-    areaVal.textContent = area.toFixed(1) + ' A';
-    intVal.textContent = (intensity * 100).toFixed(1) + '%';
-
-    drawWaveDiagram();
-  }
-
-  function resizeWaveDiagramCanvas() {
-    const rect = waveDiagram.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    const displayWidth = Math.max(260, Math.round(rect.width));
-    const displayHeight = Math.max(96, Math.round(rect.height));
-    const targetWidth = Math.round(displayWidth * dpr);
-    const targetHeight = Math.round(displayHeight * dpr);
-
-    if (waveDiagram.width !== targetWidth || waveDiagram.height !== targetHeight) {
-      waveDiagram.width = targetWidth;
-      waveDiagram.height = targetHeight;
-    }
-
-    waveDiagramCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    return { w: displayWidth, h: displayHeight };
-  }
-
-  function drawWaveDiagram() {
-    const { w: diagramWidth, h: diagramHeight } = resizeWaveDiagramCanvas();
-    const padX = 14;
-    const topBand = 18;
-    const bottomBand = 18;
-    const centerY = Math.round(diagramHeight * 0.58);
-    const availableHalfHeight = Math.max(12, (diagramHeight - topBand - bottomBand) * 0.42);
-    const amplitude = Math.max(8, Math.min(availableHalfHeight, availableHalfHeight * 0.95 / Math.max(detectorR, 0.7)));
-    const leftX = padX;
-    const rightX = diagramWidth - padX;
-    const detectorX = Math.max(leftX + 80, rightX - 48);
-    const waveRightX = detectorX - 12;
-    const wavelength = Math.max(42, Math.min(72, (waveRightX - leftX) / 3.6));
-    const titleSize = diagramHeight < 110 ? 10 : 12;
-    const valueSize = diagramHeight < 110 ? 10 : 11;
-
-    waveDiagramCtx.clearRect(0, 0, diagramWidth, diagramHeight);
-
-    waveDiagramCtx.fillStyle = '#e6ebf0';
-    waveDiagramCtx.fillRect(0, 0, diagramWidth, diagramHeight);
-
-    waveDiagramCtx.strokeStyle = '#d8e3ec';
-    waveDiagramCtx.lineWidth = 1;
-    waveDiagramCtx.strokeRect(0.5, 0.5, diagramWidth - 1, diagramHeight - 1);
-
-    waveDiagramCtx.fillStyle = '#172033';
-    waveDiagramCtx.font = `600 ${titleSize}px sans-serif`;
-    waveDiagramCtx.textAlign = 'left';
-    waveDiagramCtx.textBaseline = 'middle';
-    waveDiagramCtx.fillText('Sound wave reaching the detector', leftX, 12);
-
-    waveDiagramCtx.fillStyle = '#0891b2';
-    waveDiagramCtx.font = `700 ${valueSize}px sans-serif`;
-    waveDiagramCtx.textAlign = 'right';
-    waveDiagramCtx.fillText(`r = ${detectorR.toFixed(2)}r   amplitude = ${(1 / detectorR).toFixed(2)}×`, rightX, 12);
-
-    waveDiagramCtx.strokeStyle = '#b8c8d8';
-    waveDiagramCtx.lineWidth = 1.5;
-    waveDiagramCtx.beginPath();
-    waveDiagramCtx.moveTo(leftX, centerY);
-    waveDiagramCtx.lineTo(rightX, centerY);
-    waveDiagramCtx.stroke();
-
-    waveDiagramCtx.strokeStyle = '#cbd5e1';
-    waveDiagramCtx.setLineDash([4, 4]);
-    waveDiagramCtx.beginPath();
-    waveDiagramCtx.moveTo(detectorX, topBand + 6);
-    waveDiagramCtx.lineTo(detectorX, diagramHeight - bottomBand);
-    waveDiagramCtx.stroke();
-    waveDiagramCtx.setLineDash([]);
-
-    waveDiagramCtx.strokeStyle = '#f472b6';
-    waveDiagramCtx.lineWidth = 3;
-    waveDiagramCtx.beginPath();
-    for (let x = leftX; x <= waveRightX; x += 2) {
-      const y = centerY - Math.sin((x - leftX) * Math.PI * 2 / wavelength - time * 3.5) * amplitude;
-      if (x === leftX) waveDiagramCtx.moveTo(x, y);
-      else waveDiagramCtx.lineTo(x, y);
-    }
-    waveDiagramCtx.stroke();
-
-    waveDiagramCtx.strokeStyle = '#0891b2';
-    waveDiagramCtx.lineWidth = 2;
-    waveDiagramCtx.beginPath();
-    waveDiagramCtx.moveTo(detectorX, centerY - amplitude);
-    waveDiagramCtx.lineTo(detectorX, centerY + amplitude);
-    waveDiagramCtx.stroke();
-
-    waveDiagramCtx.beginPath();
-    waveDiagramCtx.moveTo(detectorX - 5, centerY - amplitude);
-    waveDiagramCtx.lineTo(detectorX + 5, centerY - amplitude);
-    waveDiagramCtx.moveTo(detectorX - 5, centerY + amplitude);
-    waveDiagramCtx.lineTo(detectorX + 5, centerY + amplitude);
-    waveDiagramCtx.stroke();
-
-    waveDiagramCtx.fillStyle = '#0891b2';
-    waveDiagramCtx.font = `700 ${valueSize}px sans-serif`;
-    waveDiagramCtx.textAlign = 'center';
-    waveDiagramCtx.fillText('Detector', detectorX, diagramHeight - 9);
-
-    waveDiagramCtx.fillStyle = '#526277';
-    waveDiagramCtx.font = `${Math.max(9, valueSize - 1)}px sans-serif`;
-    waveDiagramCtx.textAlign = 'left';
-    waveDiagramCtx.fillText('equilibrium', leftX + 4, centerY - 7);
-
-    waveDiagramCtx.textAlign = 'right';
-    waveDiagramCtx.fillText('measured amplitude', detectorX - 10, centerY - amplitude - 6);
-  }
-
-  distSlider.addEventListener('input', updateState);
-  hintBtn.addEventListener('click', () => {
-    const isOpen = hintText.classList.toggle('show');
-    hintBtn.textContent = isOpen ? 'Hide Hint' : 'Show Hint';
-  });
-
-  function initRadialParticles() {
-    for (let i = 0; i < 1400; i++) {
-      const radius = Math.sqrt(Math.random()) * radialPanel.unitR * radialPanel.maxR;
-      const angle = Math.random() * Math.PI * 2;
-      radialParticles.push({
-        radius,
-        xDirection: Math.cos(angle),
-        yDirection: Math.sin(angle)
-      });
-    }
-  }
-
-  function drawRadialWaveField() {
-    const { left, centerX, centerY, unitR, maxR } = radialPanel;
-    const angularFrequency = Math.PI * 4;
-    const waveNumber = (Math.PI * 2) / 40;
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(left, 16, W - left - 16, H - 32);
-    ctx.clip();
-    ctx.fillStyle = '#e6ebf0';
-    ctx.fillRect(left, 16, W - left - 16, H - 32);
-
-    radialParticles.forEach(particle => {
-      const effectiveRadius = Math.max(particle.radius, 18);
-      const amplitude = 9 * unitR / effectiveRadius;
-      const displacement = Math.sin(waveNumber * particle.radius - angularFrequency * time) * amplitude;
-      const currentRadius = particle.radius + displacement;
-      const nextDisplacement = Math.sin(waveNumber * (particle.radius + 2) - angularFrequency * time)
-        * (9 * unitR / Math.max(particle.radius + 2, 18));
-      const compression = displacement - nextDisplacement;
-      const alpha = Math.max(0.12, Math.min(0.8, 1.2 * Math.pow(unitR / effectiveRadius, 2)));
-
-      if (compression > 0.35 * unitR / effectiveRadius) {
-        ctx.fillStyle = `rgba(249, 115, 22, ${alpha})`;
-      } else if (compression < -0.35 * unitR / effectiveRadius) {
-        ctx.fillStyle = `rgba(34, 211, 238, ${alpha})`;
-      } else {
-        ctx.fillStyle = `rgba(100, 116, 139, ${alpha * 0.7})`;
+    // Spherical wavefronts: faint full rings, bright inside the cone, dimming as 1/r^2.
+    const nRings = 5, cycle = nRings * sp * 1.6;
+    for (let j = 0; j < nRings; j++) {
+      const raw = speed * t - j * sp * 1.6;
+      if (raw < 6) continue;
+      const R = raw % cycle;
+      if (R < 6) continue;
+      const fade = clamp(1 / ((R / r) ** 2), 0.18, 1);
+      const gid = 'g' + j;
+      const op = (0.35 + 0.65 * fade).toFixed(2);
+      svg += `<defs><radialGradient id="${gid}" cx="40%" cy="40%" r="62%"><stop offset="55%" stop-color="${C.teal}" stop-opacity="0"/><stop offset="100%" stop-color="${C.teal}" stop-opacity="${(0.1 + 0.16 * fade).toFixed(2)}"/></radialGradient></defs>`;
+      svg += `<circle cx="${sx0}" cy="${sy0}" r="${R.toFixed(1)}" fill="url(#${gid})" stroke="${C.teal}" stroke-width="1.6" opacity="${op}"/>`;
+      // Great circles in the same oblique projection as the boxes give the shell its 3D shape.
+      for (const [u, v] of [[[1, 0], [0.5, -0.35]], [[0, -1], [0.5, -0.35]]]) {
+        const g = [];
+        for (let i = 0; i <= 48; i++) { const th = Math.PI * 2 * i / 48; g.push(`${i ? 'L' : 'M'}${(sx0 + R * (Math.cos(th) * u[0] + Math.sin(th) * v[0])).toFixed(1)},${(sy0 + R * (Math.cos(th) * u[1] + Math.sin(th) * v[1])).toFixed(1)}`); }
+        svg += `<path d="${g.join(' ')}Z" fill="none" stroke="${C.teal}" stroke-width="1" opacity="${(0.45 * op).toFixed(2)}"/>`;
       }
+      const pts = [];
+      for (let i = 0; i <= 16; i++) { const a = -alpha + 2 * alpha * i / 16, p = P(R, a, 0); pts.push(`${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`); }
+      svg += `<path d="${pts.join(' ')}" fill="none" stroke="${C.teal}" stroke-width="3.5" stroke-linecap="round" opacity="${fade.toFixed(2)}"/>`;
+    }
 
-      ctx.fillRect(
-        centerX + particle.xDirection * currentRadius,
-        centerY + particle.yDirection * currentRadius,
-        1.5,
-        1.5
-      );
+    // Cone edges to the corners of the 3r patch.
+    for (const [a, b] of [[-alpha, -alpha], [alpha, -alpha], [alpha, alpha], [-alpha, alpha]]) {
+      const p = P(3 * r + 20, a, b);
+      svg += line(sx0, sy0, p[0].toFixed(1), p[1].toFixed(1), C.blue, 1.3);
+    }
+
+    // Distance scale along the axis.
+    const axisY = sy0 + (compact ? 150 : 175);
+    svg += line(sx0, axisY, sx0 + 3 * r + 20, axisY, C.ink, 1.5);
+    svg += line(sx0, axisY - 6, sx0, axisY + 6, C.ink, 1.5) + text(sx0, axisY + 24, 'source', fs - 3, C.ink);
+    [1, 2, 3].forEach(k => {
+      const x = sx0 + k * r;
+      svg += line(x, axisY - 6, x, axisY + 6, C.ink, 1.5) + text(x, axisY + 24, k === 1 ? 'r' : k + 'r', fs, C.ink, 'middle', 700);
     });
 
-    [1, 2, 3].forEach(referenceRadius => {
-      const pixelRadius = referenceRadius * unitR;
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, pixelRadius, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(100, 116, 139, 0.45)';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 4]);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle = '#64748b';
-      ctx.font = 'bold 12px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(`${referenceRadius}r`, centerX, centerY - pixelRadius - 10);
-    });
-
-    const detectorRadius = detectorR * unitR;
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, detectorRadius, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(34, 211, 238, 0.06)';
-    ctx.fill();
-    ctx.strokeStyle = '#22d3ee';
-    ctx.lineWidth = 2.5;
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, 9, 0, Math.PI * 2);
-    ctx.fillStyle = '#f472b6';
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, 3.5, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-
-    ctx.fillStyle = '#172033';
-    ctx.font = 'bold 14px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('Spherical Wave', centerX, 44);
-    ctx.restore();
-
-    ctx.strokeStyle = '#cbd5e1';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(left - 12, 28);
-    ctx.lineTo(left - 12, H - 28);
-    ctx.stroke();
-  }
-
-  function drawConeLines(maxR) {
-    ctx.strokeStyle = 'rgba(244, 114, 182, 0.5)';
-    ctx.lineWidth = 1;
-
-    // Draw the 4 corner rays from the source
-    const corners = [ [-1, -1], [1, -1], [1, 1], [-1, 1] ];
-    corners.forEach(c => {
-      let pMax = getPt(maxR, c[0], c[1]);
-      ctx.beginPath();
-      ctx.moveTo(source2D.x, source2D.y);
-      ctx.lineTo(pMax.x, pMax.y);
-      ctx.stroke();
-    });
-  }
-
-  function drawPlane(r, type = 'fixed') {
-    const isDetector = (type === 'detector');
-
-    // Draw outer boundary polygon
-    ctx.beginPath();
-    let p1 = getPt(r, -1, -1);
-    let p2 = getPt(r, 1, -1);
-    let p3 = getPt(r, 1, 1);
-    let p4 = getPt(r, -1, 1);
-    ctx.moveTo(p1.x, p1.y);
-    ctx.lineTo(p2.x, p2.y);
-    ctx.lineTo(p3.x, p3.y);
-    ctx.lineTo(p4.x, p4.y);
-    ctx.closePath();
-
-    // Styling based on plane type
-    if (isDetector) {
-      // Detector plane (Cyan, changes opacity based on intensity)
-      let intensity = Math.min(1.0, 1 / (r * r));
-      ctx.fillStyle = `rgba(34, 211, 238, ${Math.max(0.15, intensity * 0.8)})`;
-      ctx.fill();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = '#22d3ee';
-      ctx.stroke();
-
-      // Detector Label
-      let lblPt = getPt(r, 0, 1.15);
-      ctx.fillStyle = '#22d3ee';
-      ctx.font = 'bold 13px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('Detector', lblPt.x, lblPt.y);
-
-    } else {
-      // Fixed Reference Planes (1r, 2r, 3r)
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
-      ctx.fill();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = '#475569';
-      ctx.stroke();
-
-      // Subdivide the grid into r*r cells
-      let cells = Math.round(r);
-
-      ctx.strokeStyle = '#94a3b8';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 4]);
-
-      // Vertical grid lines
-      for (let i = 1; i < cells; i++) {
-        let u = -1 + (i / cells) * 2;
-        let top = getPt(r, u, -1);
-        let bot = getPt(r, u, 1);
-        ctx.beginPath(); ctx.moveTo(top.x, top.y); ctx.lineTo(bot.x, bot.y); ctx.stroke();
+    // Patches: draw far to near so the nearer ones sit on top.
+    for (let k = 3; k >= 1; k--) {
+      if (stage < k) continue;
+      const u = t - T[k];
+      const appear = clamp(u / 0.6);
+      if (appear <= 0) continue;
+      const d = k * r, N = k;
+      const shade = ['#ffc933', '#ffe08a', '#fff2c4'];
+      let cells = '', labels = '';
+      for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+        const a0 = -alpha + 2 * alpha * i / N, a1 = -alpha + 2 * alpha * (i + 1) / N;
+        const b0 = -alpha + 2 * alpha * j / N, b1 = -alpha + 2 * alpha * (j + 1) / N;
+        const q = [P(d, a0, b0), P(d, a1, b0), P(d, a1, b1), P(d, a0, b1)];
+        const pts = q.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+        const cx = q.reduce((s, p) => s + p[0], 0) / 4, cy = q.reduce((s, p) => s + p[1], 0) / 4;
+        cells += `<polygon points="${pts}" fill="${shade[k - 1]}" stroke="${k === 1 ? C.ink : C.blue}" stroke-width="${k === 1 ? 2.2 : 1.4}" stroke-dasharray="${N > 1 ? '5 4' : ''}" stroke-linejoin="round"/>`;
+        labels += text(cx.toFixed(1), (cy + 6).toFixed(1), 'A', compact ? 14 : 17, C.orange, 'middle', 700);
       }
-
-      // Horizontal grid lines
-      for (let i = 1; i < cells; i++) {
-        let v = -1 + (i / cells) * 2;
-        let left = getPt(r, -1, v);
-        let right = getPt(r, 1, v);
-        ctx.beginPath(); ctx.moveTo(left.x, left.y); ctx.lineTo(right.x, right.y); ctx.stroke();
-      }
-      ctx.setLineDash([]);
-
-      // Draw 'A' in each sub-cell to prove area multiplication
-      ctx.fillStyle = '#9f1239'; // Dark red/pink matching diagram
-      ctx.font = 'bold 12px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-
-      for(let i=0; i<cells; i++) {
-        for(let j=0; j<cells; j++) {
-          let cellU = -1 + ((i + 0.5) / cells) * 2;
-          let cellV = -1 + ((j + 0.5) / cells) * 2;
-          let pt = getPt(r, cellU, cellV);
-          ctx.fillText('A', pt.x, pt.y);
-        }
-      }
-
-      // Distance Label (1r, 2r, 3r)
-      let lblPt = getPt(r, 0, -1.15);
-      ctx.fillStyle = '#172033';
-      ctx.font = 'bold 16px sans-serif';
-      ctx.fillText(`${cells}r`, lblPt.x, lblPt.y);
-    }
-  }
-
-  let wavePulses = [];
-
-  function render() {
-    ctx.fillStyle = '#e6ebf0';
-    ctx.fillRect(0, 0, W, H);
-
-    drawRadialWaveField();
-
-    // Draw Source Node
-    ctx.beginPath();
-    ctx.arc(source2D.x, source2D.y, 8, 0, Math.PI * 2);
-    ctx.fillStyle = '#f472b6';
-    ctx.fill();
-    ctx.fillStyle = '#172033';
-    ctx.font = '12px sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText('Source P', source2D.x - 15, source2D.y + 4);
-
-    drawConeLines(3.6);
-
-    // Manage expanding wave pulses
-    if (Math.random() < 0.02) {
-      wavePulses.push({ r: 0 }); // spawn new pulse
+      // Outer edge of the whole patch on top of the cells.
+      const c0 = P(d, -alpha, -alpha), c1 = P(d, alpha, -alpha), c2 = P(d, alpha, alpha), c3 = P(d, -alpha, alpha);
+      const outline = `<polygon points="${[c0, c1, c2, c3].map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ')}" fill="none" stroke="${C.ink}" stroke-width="2.2" stroke-linejoin="round"/>`;
+      svg += `<g opacity="${appear.toFixed(2)}">${cells}${N > 1 ? outline : ''}${labels}</g>`;
+      // Guide from the axis tick up to the patch, then intensity and area labels.
+      const top = Math.min(c0[1], c1[1], c2[1], c3[1]), bottom = Math.max(c0[1], c1[1], c2[1], c3[1]);
+      const mid = (Math.min(c0[0], c3[0]) + Math.max(c1[0], c2[0])) / 2;
+      const showVals = clamp((u - 1.2) / 0.6);
+      const I = k === 1 ? 'I' : 'I/' + k * k;
+      svg += `<g opacity="${appear.toFixed(2)}">${text(sx0 + k * r, axisY + 52, I, compact ? 22 : 26, C.orange, 'middle', 800)}</g>`;
+      const area = k === 1 ? 'area A' : `area ${k * k}A`;
+      svg += `<g opacity="${showVals.toFixed(2)}">${text(mid.toFixed(1), (bottom + 24).toFixed(1), area, fs - 2, C.ink)}</g>`;
     }
 
-    // Z-Sorting setup: Collect all planes to draw back-to-front
-    let planesToDraw = [
-      { r: 1, type: 'fixed' },
-      { r: 2, type: 'fixed' },
-      { r: 3, type: 'fixed' },
-      { r: detectorR, type: 'detector' }
-    ];
+    // Formula, top right.
+    const fx = w - (compact ? 14 : 24), fw = compact ? 130 : 170;
+    svg += `<rect x="${fx - fw}" y="14" width="${fw}" height="${compact ? 36 : 42}" rx="8" fill="#fff" stroke="${C.orange}" stroke-width="1.6"/>` + text(fx - fw / 2, compact ? 40 : 44, 'I = P / 4πr²', compact ? 20 : 24, C.ink, 'middle', 700);
+    // Source.
+    svg += `<circle cx="${sx0}" cy="${sy0}" r="9" fill="${C.orange}" stroke="${C.orange}" stroke-width="2"/>`;
+    svg += text(sx0 + (compact ? 4 : 0), sy0 - 24, 'source P', fs, C.orange, 'middle', 700);
 
-    // Add wave pulses to the render list
-    for (let i = wavePulses.length - 1; i >= 0; i--) {
-      let p = wavePulses[i];
-      p.r += 0.015;
-      if (p.r > 3.6) {
-        wavePulses.splice(i, 1);
-      } else {
-        planesToDraw.push({ r: p.r, type: 'pulse' });
-      }
-    }
+    // Caption.
+    const cap = captions[stage], capY = axisY + (compact ? 92 : 98);
+    cap.forEach((s, i) => { svg += text(w / 2, capY + i * (fs + 9), s, fs, C.ink, 'middle', i === 1 && stage > 0 ? 700 : 600); });
 
-    // Sort planes by distance (r) so further planes draw in front (isometric overlap)
-    planesToDraw.sort((a, b) => a.r - b.r);
-
-    // Draw sorted planes
-    planesToDraw.forEach(plane => {
-      if (plane.type === 'pulse') {
-        // Draw expanding energy frame
-        ctx.beginPath();
-        let p1 = getPt(plane.r, -1, -1);
-        let p2 = getPt(plane.r, 1, -1);
-        let p3 = getPt(plane.r, 1, 1);
-        let p4 = getPt(plane.r, -1, 1);
-        ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.lineTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y); ctx.closePath();
-
-        let intensity = Math.min(1.0, 1.5 / Math.max(0.5, plane.r * plane.r));
-        ctx.strokeStyle = `rgba(244, 114, 182, ${intensity})`;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      } else {
-        drawPlane(plane.r, plane.type);
-      }
-    });
-
-    time += 0.016;
-  drawWaveDiagram();
-    requestAnimationFrame(render);
+    const desc = captions[stage].join(' ');
+    return { svg, height: H, description: 'A point source sends sound outward over spheres of radius r, 2r and 3r. ' + desc };
   }
 
-  // Initialize
-  initRadialParticles();
-  updateState();
-  render();
-
+  const scene = document.getElementById('scene'), step = document.getElementById('step'), live = document.getElementById('demo-status');
+  const compactMq = matchMedia('(max-width: 760px)'), reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  let elapsed = 0, last = null, frameId, completed = false, view = 0;
+  function draw(announce) {
+    const w = compactMq.matches ? 420 : 840, res = render(w, elapsed);
+    scene.setAttribute('viewBox', `0 0 ${w} ${res.height}`);
+    scene.innerHTML = res.svg;
+    scene.setAttribute('aria-label', res.description);
+    scene.dataset.time = elapsed.toFixed(2);
+    if (announce) live.textContent = res.description;
+  }
+  function finish() { if (!completed) { completed = true; window.parent.postMessage({ type: 'complete' }, '*'); } }
+  function restart() { elapsed = 0; view = 0; last = null; draw(true); }
+  function settings() { step.hidden = !reduced.matches; if (reduced.matches) { elapsed = HOLD[0]; view = 0; draw(true); } else restart(); }
+  step.addEventListener('click', () => { view = (view + 1) % HOLD.length; elapsed = HOLD[view]; if (view === HOLD.length - 1) finish(); draw(true); });
+  compactMq.addEventListener('change', () => draw());
+  reduced.addEventListener('change', settings);
+  document.addEventListener('visibilitychange', () => { last = null; });
+  function frame(now) {
+    const dt = last === null ? 0 : Math.min(0.1, (now - last) / 1000); last = now;
+    if (!reduced.matches && !document.hidden) {
+      elapsed += dt;
+      if (elapsed >= T[4] + 1.5) finish();
+      if (elapsed >= LENGTH) elapsed = 0;
+      draw();
+    }
+    frameId = requestAnimationFrame(frame);
+  }
+  window.addEventListener('pagehide', () => cancelAnimationFrame(frameId));
+  settings(); frameId = requestAnimationFrame(frame);
+})();
 </script>
-
-  <script data-rise-completion>
-    (() => {
-      let riseCompletionSent = false;
-      const sendRiseCompletion = () => {
-        if (riseCompletionSent) return;
-        riseCompletionSent = true;
-        window.parent.postMessage({ type: 'complete' }, '*');
-      };
-
-      const riseRoot = document.querySelector('.rise-walkthrough');
-      if (!riseRoot) return;
-
-      // Explorer completion: the learner changes one meaningful setting or starts a model.
-      riseRoot.addEventListener('change', sendRiseCompletion);
-      riseRoot.addEventListener('click', (event) => {
-        const button = event.target.closest('button');
-        if (!button) return;
-        const label = (button.id + ' ' + button.textContent).toLowerCase();
-        if (/reset|replay|pause/.test(label)) return;
-        sendRiseCompletion();
-      });
-    })();
-  </script>
-</main>
-</body>
-</html>
+</main></body></html>

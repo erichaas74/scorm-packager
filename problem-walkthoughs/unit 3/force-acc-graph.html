@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Force over time: find the impulse</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: transparent; color: #172434; font: 16px/1.45 system-ui, sans-serif; }
+    .walkthrough { max-width: 900px; margin: 12px auto; padding: 20px; border: 5px solid #285f9f; border-radius: 18px; background: #fff; }
+    h2 { font-size: 1.15rem; line-height: 1.3; margin: 0 0 12px; }
+    p { margin: 0 0 16px; }
+    button, input { font: inherit; }
+    button { min-height: 44px; padding: 10px 14px; border: 1px solid #718096; border-radius: 6px; color: #21324a; background: #fff; cursor: pointer; }
+    button:hover:not(:disabled) { background: #edf3fc; }
+    button:disabled { opacity: .45; cursor: default; }
+    .primary { background: #285f9f; color: #fff; border-color: #285f9f; }
+    .primary:hover:not(:disabled) { background: #204c80; }
+    :focus-visible { outline: 3px solid #285f9f; outline-offset: 4px; }
+    .layout { display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; align-items: center; }
+    figure { margin: 0; padding: 8px; border: 0; border-radius: 8px; background: #f8fbff; }
+    svg { display: block; width: 100%; height: auto; }
+    svg text { font: 16px system-ui, sans-serif; fill: #21324a; }
+    figcaption { font-size: .88rem; color: #526078; margin: 12px 4px 0; }
+    fieldset { border: 0; padding: 0; margin: 16px 0; min-width: 0; }
+    .option { display: flex; align-items: start; gap: 10px; border: 1px solid #c6d1df; border-radius: 8px; padding: 15px; margin-bottom: 10px; font-size: 1.1rem; font-weight: 600; cursor: pointer; }
+    .option { width: 100%; text-align: left; }
+    .option:disabled { opacity: 1; cursor: default; }
+    .option.correct { border: 2px solid #187552; background: #eaf6ef; }
+    .option.incorrect { border: 2px solid #a65316; background: #fff1e7; }
+    input[type="radio"] { margin-top: 6px; accent-color: #285f9f; }
+    .feedback { margin-top: 18px; padding: 16px; border-left: 4px solid #285f9f; background: #edf3fc; border-radius: 4px; }
+    .feedback p:last-child { margin-bottom: 0; }
+    .feedback strong { display: block; margin-bottom: 6px; }
+    .equation { font-size: 1.1rem; font-weight: 650; }
+    footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-top: 1px solid #d6e0ed; margin-top: 28px; padding-top: 18px; }
+    #progress { font-size: .88rem; color: #526078; }
+    [hidden] { display: none !important; }
+    @media (max-width: 720px) {
+      .walkthrough { padding: 12px; margin: 0; }
+      .layout { grid-template-columns: 1fr; gap: 22px; }
+      figure { padding: 8px; }
+      footer { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+  <main class="walkthrough" aria-label="Impulse problem walkthrough">
+    <div class="layout">
+      <figure>
+        <svg id="graph" viewBox="0 0 540 380" role="img" aria-labelledby="graph-title graph-desc"></svg>
+        <figcaption id="caption"></figcaption>
+      </figure>
+      <section aria-labelledby="question">
+        <h2 id="question" tabindex="-1"></h2>
+        <div id="response">
+          <div id="inputs"></div>
+        </div>
+        <div class="feedback" id="feedback" role="status" hidden></div>
+      </section>
+    </div>
+    <footer>
+      <button id="back" type="button">Previous</button>
+      <span id="progress"></span>
+      <button id="next" class="primary" type="button">Continue →</button>
+    </footer>
+    <noscript><p>Enable JavaScript for this walkthrough. Impulse is the signed area under a net-force versus time graph.</p></noscript>
+  </main>
+  <script>
+    (() => {
+      'use strict';
+
+      const steps = [
+        {
+          title: 'What is the impulse from 0 to 4 s?', end: 4,
+          points: [[0, 4], [2, 4], [2, 0], [4, 0]],
+          regions: [
+            { points: [[0, 0], [0, 4], [2, 4], [2, 0]], area: 8, label: [1, 2], calculation: '(4 N)(2 s)' }
+          ],
+          description: 'Net force is constant at +4 N from 0 to 2 s, drops immediately to zero at 2 s, and remains zero from 2 to 4 s.',
+          options: ['+4 N·s', '+8 N·s', '+16 N·s'], answer: 1,
+          explanation: 'Only the 0-2 s rectangle contributes impulse. From 2-4 s, the force is zero.',
+          equation: 'J = (4 N)(2 s) + (0 N)(2 s) = +8 N·s'
+        },
+        {
+          title: 'What is the impulse from 0 to 4 s?', end: 4,
+          points: [[0, 0], [2, 4], [4, 0]],
+          regions: [{ points: [[0, 0], [2, 4], [4, 0]], area: 8, label: [2, 1], calculation: '(1/2)(4 s)(4 N)' }],
+          description: 'Net force rises linearly from 0 N at 0 s to +4 N at 2 s, then falls linearly to 0 N at 4 s.',
+          options: ['+16 N·s', '+4 N·s', '+8 N·s'], answer: 2,
+          explanation: 'The force changes, so use the triangle area.',
+          equation: 'J = (1/2)(4 s)(4 N) = +8 N·s'
+        },
+        {
+          title: 'What is the total impulse from 0 to 6 s?', end: 6,
+          points: [[0, 0], [2, 4], [4, 0], [4, -4], [6, -4], [6, 0]],
+          regions: [
+            { points: [[0, 0], [2, 4], [4, 0]], area: 8, label: [2, 1], calculation: '(1/2)(4 s)(4 N)' },
+            { points: [[4, 0], [4, -4], [6, -4], [6, 0]], area: -8, label: [5, -2], calculation: '(-4 N)(2 s)' }
+          ],
+          description: 'A positive triangular pulse from 0 to 4 s peaks at +4 N at 2 s. From 4 to 6 s the net force is constant at -4 N, then returns to zero.',
+          options: ['0 N·s', '+16 N·s', '+4 N·s'], answer: 0,
+          explanation: 'The positive triangle and negative rectangle cancel. Momentum ends where it started.',
+          equation: 'J = +8 + (-8) = 0 N·s'
+        }
+      ];
+      const $ = id => document.getElementById(id);
+      const responses = new Array(steps.length).fill(null);
+      let current = 0;
+      let advanceTimer = null;
+      let completionSent = false;
+      const feedbackDelay = 4000;
+      const ns = 'http://www.w3.org/2000/svg';
+
+      function drawGraph() {
+        const graph = $('graph');
+        graph.replaceChildren();
+        const add = (tag, attrs, text) => {
+          const el = document.createElementNS(ns, tag);
+          Object.entries(attrs).forEach(([name, value]) => el.setAttribute(name, value));
+          if (text !== undefined) el.textContent = text;
+          graph.append(el);
+          return el;
+        };
+        const revealed = responses[current] !== null;
+        const step = steps[current];
+        const x = t => 64 + t * (432 / step.end);
+        const y = f => 190 - f * 28;
+        add('title', { id: 'graph-title' }, 'Net force versus time');
+        add('desc', { id: 'graph-desc' }, step.description + ' Time is in seconds; force is in newtons. Right is positive.');
+        if (revealed) step.regions.forEach(region => {
+          add('polygon', { points: region.points.map(([t, f]) => `${x(t)},${y(f)}`).join(' '), fill: region.area > 0 ? '#c9ddf5' : '#f8dbc2' });
+        });
+        for (let t = 0; t <= step.end; t++) {
+          add('line', { x1: x(t), y1: 60, x2: x(t), y2: 320, stroke: '#dce4ee' });
+          add('text', { x: x(t), y: 344, 'text-anchor': 'middle' }, t);
+        }
+        for (let f = -4; f <= 4; f += 2) {
+          add('line', { x1: x(0), y1: y(f), x2: x(step.end), y2: y(f), stroke: f === 0 ? '#65758c' : '#dce4ee', 'stroke-width': f === 0 ? 2 : 1 });
+          add('text', { x: 49, y: y(f) + 5, 'text-anchor': 'end' }, f > 0 ? `+${f}` : f);
+        }
+        add('line', { x1: x(0), y1: 60, x2: x(0), y2: 320, stroke: '#65758c', 'stroke-width': 2 });
+        add('text', { x: 64, y: 30 }, 'Net force (N)');
+        add('text', { x: 280, y: 373, 'text-anchor': 'middle' }, 'Time (s)');
+        step.points.slice(1).forEach(([t, f], index) => {
+          const [previousT, previousF] = step.points[index];
+          add('line', { x1: x(previousT), y1: y(previousF), x2: x(t), y2: y(f), stroke: '#285f9f', 'stroke-width': 4, 'stroke-dasharray': t === previousT ? '3 4' : '' });
+        });
+        if (revealed) step.regions.forEach(region => {
+          const cx = x(region.label[0]);
+          const cy = y(region.label[1]);
+          add('text', { x: cx, y: cy - 5, 'text-anchor': 'middle', style: 'font-size:14px;font-weight:650' }, region.calculation);
+          add('text', { x: cx, y: cy + 16, 'text-anchor': 'middle', style: 'font-size:15px;font-weight:700' }, `= ${region.area > 0 ? '+' : ''}${region.area} N·s`);
+        });
+        $('caption').hidden = true;
+      }
+
+      function showFeedback() {
+        const step = steps[current];
+        const response = responses[current];
+        $('feedback').hidden = response === null;
+        if (response === null) return;
+        $('feedback').replaceChildren();
+        const heading = document.createElement('strong');
+        heading.textContent = response.correct ? 'Correct.' : 'Not quite.';
+        const explanation = document.createElement('p');
+        explanation.textContent = step.explanation;
+        const equation = document.createElement('p');
+        equation.className = 'equation';
+        equation.textContent = step.equation;
+        $('feedback').append(heading, explanation, equation);
+
+      }
+
+      function render(focus = false) {
+        clearTimeout(advanceTimer);
+        advanceTimer = null;
+        const step = steps[current];
+        const response = responses[current];
+        $('question').textContent = step.title;
+        $('inputs').replaceChildren();
+        const fieldset = document.createElement('fieldset');
+        fieldset.setAttribute('aria-labelledby', 'question');
+        step.options.forEach((text, index) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'option';
+          button.textContent = text;
+          button.disabled = response !== null;
+          button.setAttribute('aria-pressed', String(response !== null && Number(response.value) === index));
+          if (response !== null && index === step.answer) button.classList.add('correct');
+          if (response !== null && Number(response.value) === index && !response.correct) button.classList.add('incorrect');
+          button.addEventListener('click', () => answer(index));
+          fieldset.append(button);
+        });
+        $('inputs').append(fieldset);
+        $('back').disabled = current === 0;
+        $('next').disabled = response === null;
+        $('next').hidden = response === null;
+        $('next').textContent = current === steps.length - 1 ? 'Start over ↺' : 'Continue →';
+        $('progress').textContent = `${current + 1} of ${steps.length}`;
+        showFeedback();
+        drawGraph();
+        if (focus) $('question').focus();
+      }
+
+      function answer(value) {
+        if (responses[current] !== null) return;
+        responses[current] = { value, correct: value === steps[current].answer };
+        if (!completionSent && responses.every(response => response !== null)) {
+          window.parent.postMessage({ type: 'complete' }, '*');
+          completionSent = true;
+        }
+        render();
+        $('next').focus();
+        if (current < steps.length - 1) {
+          $('progress').textContent = `${current + 1} of ${steps.length} - Next in 4 seconds`;
+          advanceTimer = setTimeout(() => {
+            current++;
+            render(true);
+          }, feedbackDelay);
+        }
+      }
+      $('back').addEventListener('click', () => { if (current > 0) { current--; render(true); } });
+      $('next').addEventListener('click', () => {
+        if (responses[current] === null) return;
+        if (current === steps.length - 1) {
+          responses.fill(null); current = 0;
+        } else current++;
+        render(true);
+      });
+      render();
+    })();
+  </script>
+</body>
+</html>

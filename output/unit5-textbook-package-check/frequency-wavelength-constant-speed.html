@@ -1,0 +1,869 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frequency and Wavelength</title>
+<style>
+html, body { background: transparent; }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 12px; color: #172f46; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+.lesson { width: min(100%, 1040px); margin: auto; border: 2px solid #527797; border-radius: 12px; overflow: hidden; background: #fff; }
+h1 { margin: 0; padding: 16px 8px; background: #eef5fa; font-size: clamp(.78rem, 2.7vw, 1.5rem); line-height: 1.3; text-align: center; white-space: nowrap; font-weight: 750; }
+.content { padding: 12px; }
+.stage { overflow: hidden; border: 1px solid #bdcdd8; border-radius: 8px; background: #fff; }
+.stage svg { display: block; width: 100%; height: auto; background: #fff; }
+.stage svg text { font-family: system-ui, sans-serif; font-size: 20px; font-weight: 550; fill: #102c40; }
+.stage svg .small { font-size: 18px; }
+.stage svg .strong { font-weight: 700; }
+.stage svg .isotope { font-size: 28px; font-weight: 600; }
+.stage svg .equation-small { font-size: 17px; }
+.message { min-height: 100px; padding: 15px 18px; border-top: 1px solid #d2dfe7; background: #f5f9fc; }
+.message p { margin: 0; line-height: 1.5; }
+#prompt { font-size: 1rem; font-weight: 700; }
+#explanation { margin-top: 6px; color: #284358; }
+.buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+button { flex: 1 1 160px; padding: 11px 14px; min-height: 46px; border: 1.5px solid #376a92; border-radius: 7px; background: #f8fbfd; color: #173e5c; font: inherit; font-weight: 650; cursor: pointer; }
+button:hover:not(:disabled) { background: #e4eff7; }
+button:focus-visible { outline: 3px solid #aa4f1c; outline-offset: 2px; }
+button:disabled { cursor: default; }
+.utility { flex: 0 1 auto; border-color: #9db5c6; }
+[hidden] { display: none !important; }
+@media(max-width: 760px) { body { padding: 4px; } .content { padding: 5px; } .message { padding: 12px; } button { font-size: .92rem; flex-basis: 140px; } .utility { flex-basis: auto; } .stage svg .small { font-size: 20px; } }
+
+</style>
+</head>
+<body>
+<main class="lesson rise-walkthrough">
+<h1>Frequency and Wavelength</h1>
+<div class="content">
+<div class="stage">
+<svg id="scene" viewBox="0 0 840 490" role="img" aria-label="Frequency and Wavelength"></svg>
+<div class="message" role="status" aria-live="polite">
+<p id="prompt">Watch the setup.</p>
+<p id="explanation"></p>
+</div>
+</div>
+<div class="buttons" role="group" aria-label="Prediction and playback">
+<button type="button" data-choice="0" hidden>2 m becomes 1 m</button>
+<button type="button" data-choice="1" hidden>2 m becomes 4 m</button>
+<button class="utility" type="button" id="pause">Pause</button>
+<button class="utility" type="button" id="step" hidden>Next step</button>
+<button class="utility" type="button" id="replay">Replay</button>
+</div>
+</div>
+</main>
+<script>window.walkthroughLesson = {"title":"Frequency and Wavelength","type":"wave","variant":"frequency","question":"Wave speed stays 8 m/s. Frequency rises from 4 Hz to 8 Hz. What happens to wavelength?","choices":["2 m becomes 1 m","2 m becomes 4 m"],"correct":0,"explanation":"Use λ = v/f. At 4 Hz, λ = 2 m; at 8 Hz, λ = 1 m."};</script>
+<script >
+(() => {
+  'use strict';
+  const ink = '#172f46', blue = '#23649a', teal = '#087c80', rust = '#a94b24', gold = '#f6ce43', muted = '#708595';
+  const escape = value => String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+  const label = (x, y, value, anchor = 'start', kind = '') => `<text x="${x}" y="${y}" text-anchor="${anchor}" class="${kind}">${escape(value)}</text>`;
+  const line = (x1, y1, x2, y2, color = muted, width = 1.5, dash = '') => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${width}" ${dash ? `stroke-dasharray="${dash}"` : ''}/>`;
+  const path = (points, color = teal, width = 3, dash = '') => `<path d="${points.map((point, index) => `${index ? 'L' : 'M'}${point[0].toFixed(2)},${point[1].toFixed(2)}`).join(' ')}" fill="none" stroke="${color}" stroke-width="${width}" stroke-linejoin="round" ${dash ? `stroke-dasharray="${dash}"` : ''}/>`;
+  const box = (x, y, width, height, fill = '#f0f7fa', stroke = '#bccdd8', radius = 0) => `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${radius}" fill="${fill}" stroke="${stroke}"/>`;
+  const dot = (x, y, radius = 4, fill = teal, stroke = '#fff') => `<circle cx="${x}" cy="${y}" r="${radius}" fill="${fill}" stroke="${stroke}" stroke-width="1.2"/>`;
+  function arrow(x1, y1, x2, y2, color = blue, width = 2.4, both = false) {
+    if (Math.hypot(x2 - x1, y2 - y1) < 1) return '';
+    const head = (startX, startY, endX, endY) => {
+      const angle = Math.atan2(endY - startY, endX - startX);
+      return path([[endX - 8 * Math.cos(angle - .45), endY - 8 * Math.sin(angle - .45)], [endX, endY], [endX - 8 * Math.cos(angle + .45), endY - 8 * Math.sin(angle + .45)]], color, width);
+    };
+    return line(x1, y1, x2, y2, color, width) + head(x1, y1, x2, y2) + (both ? head(x2, y2, x1, y1) : '');
+  }
+  function ray(x1, y1, x2, y2) {
+    return line(x1, y1, x2, y2, '#826522', 5) + arrow(x1, y1, x2, y2, gold, 3);
+  }
+  function sample(start, end, fn, steps = 200) {
+    return Array.from({ length: steps + 1 }, (_, index) => { const position = start + (end - start) * index / steps; return [position, fn(position)]; });
+  }
+  function dimension(x1, x2, y, value) {
+    return line(x1, y - 6, x1, y + 6, ink) + line(x2, y - 6, x2, y + 6, ink) + arrow(x1, y, x2, y, ink, 1.5, true) + label((x1 + x2) / 2, y - 12, value, 'middle');
+  }
+  function arc(centerX, centerY, radius, start, end, color = blue) {
+    const points = Array.from({ length: 41 }, (_, index) => { const angle = start + (end - start) * index / 40; return [centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle)]; });
+    return path(points, color, 1.8);
+  }
+  function graph({ width = 400, baseline = 210, top = 95, bottom = 285, xmax = 4, ticks = [0, 1, 2, 3, 4], xlabel = 'Position (m)', ylabel = 'Displacement (cm)' } = {}) {
+    const left = 55, right = width - 25;
+    let markup = label(left, top - 25, ylabel) + arrow(left, bottom, left, top, ink, 1.4) + arrow(left, baseline, right + 6, baseline, ink, 1.4);
+    for (const tick of ticks) {
+      const position = left + tick / xmax * (right - left);
+      markup += line(position, baseline - 4, position, baseline + 4, ink) + label(position, bottom + 23, tick, 'middle', 'small');
+    }
+    markup += label((left + right) / 2, bottom + 52, xlabel, 'middle');
+    return { markup, left, right, scale: (right - left) / xmax };
+  }
+  function panels(items, compact) {
+    let offset = 0;
+    const height = compact ? items.reduce((sum, item) => sum + item.height + 14, 0) : Math.max(...items.map(item => item.height)) + 20;
+    const markup = items.map((item, index) => {
+      const x = compact ? 10 : 10 + index * 420;
+      const y = compact ? offset + 10 : 10;
+      offset += item.height + 14;
+      return `<g transform="translate(${x} ${y})">${box(0, 0, 400, item.height, '#fff', '#d0dce3', 8)}${item.markup}</g>`;
+    }).join('');
+    return { markup, width: compact ? 420 : items.length * 420, height };
+  }
+  const single = (markup, width, height) => ({ markup, width, height });
+  const degrees = radians => radians * 180 / Math.PI;
+  const radians = angle => angle * Math.PI / 180;
+  const refracted = (n1, n2, angle) => Math.asin(n1 * Math.sin(angle) / n2);
+  const critical = (n1, n2 = 1) => Math.asin(n2 / n1);
+  const lensImage = (focal, distance) => 1 / (1 / focal - 1 / distance);
+  const physics = { refracted, critical, lensImage, intensityRatio: distanceRatio => 1 / distanceRatio ** 2, remaining: (initial, halfLives) => initial * 2 ** -halfLives, photonEnergy: wavelength => 1239.841984 / wavelength };
+  const helpers = { ink, blue, teal, rust, gold, muted, label, line, path, box, dot, arrow, ray, sample, dimension, arc, graph, panels, single, degrees, radians, physics };
+  window.Unit5Diagrams = {
+    helpers,
+    physics,
+    scenes: {},
+    render(lesson, state) {
+      const result = this.scenes[lesson.type](lesson, state, helpers);
+      result.markup = `<defs><linearGradient id="visibleSpectrum"><stop stop-color="#7352a5"/><stop offset=".23" stop-color="#638fc8"/><stop offset=".46" stop-color="#8ac59d"/><stop offset=".65" stop-color="#f0dd77"/><stop offset="1" stop-color="#ce7475"/></linearGradient></defs>${result.markup}`;
+      return result;
+    }
+  };
+})();
+
+</script>
+<script >
+(() => {
+  'use strict';
+  const { label, line, path, box, dot, arrow, sample, dimension, graph, panels, single, ink, blue, teal, rust, muted } = window.Unit5Diagrams.helpers;
+  function interference(state) {
+    const width = state.compact ? 420 : 840;
+    const progress = state.reveal ? state.progress : 0;
+    const travel = progress < .33 ? progress / .33 : progress <= .55 ? 1 : 1 + (progress - .55) / .45;
+    const centerA = 1.2 + 1.8 * travel;
+    const centerB = 6 - centerA;
+    const overlapping = progress >= .33 && progress <= .55;
+    const separated = progress > .55;
+    const chart = graph({ width, baseline: 330, top: 100, bottom: 350, xmax: 6, ticks: [0, 2, 4, 6] });
+    const amplitude = 105;
+    const displacement = (position, center) => Math.exp(-(((position - center) / .48) ** 2));
+    const component = center => sample(chart.left, chart.right, position => 330 - amplitude * displacement((position - chart.left) / chart.scale, center), 300);
+    let drawing = `<g data-pulse-a="${centerA}" data-pulse-b="${centerB}" data-overlap="${overlapping}">`;
+    drawing += label(width / 2, 34, 'Actual rope = sum of both pulses', 'middle', 'strong') + chart.markup;
+    for (const value of [0, 1, 2]) {
+      const vertical = 330 - value * amplitude;
+      drawing += line(chart.left - 5, vertical, chart.left, vertical, ink) + label(35, vertical + 6, value, 'end');
+    }
+    if (Math.abs(centerA - centerB) < 1.3) {
+      drawing += path(component(centerA), blue, 2, '6 5') + path(component(centerB), rust, 2, '3 6');
+    }
+    drawing += path(sample(chart.left, chart.right, position => {
+      const distance = (position - chart.left) / chart.scale;
+      return 330 - amplitude * (displacement(distance, centerA) + displacement(distance, centerB));
+    }, 300), teal, 4);
+    if (Math.abs(centerA - centerB) >= 1.3) {
+      for (const [center, name, direction, color] of [[centerA, 'A', 1, blue], [centerB, 'B', -1, rust]]) {
+        const horizontal = chart.left + center * chart.scale;
+        drawing += dot(horizontal, 225, 5, color) + label(horizontal, 190, `${name}: 1 cm`, 'middle');
+        drawing += arrow(horizontal - direction * 22, 155, horizontal + direction * 22, 155, color, 3);
+      }
+    }
+    if (overlapping) {
+      drawing += label(width / 2, 447, 'At overlap: 1 cm + 1 cm = 2 cm', 'middle', 'strong') + label(width / 2, 484, 'Dashed curves: individual pulses', 'middle', 'small');
+    } else if (separated) {
+      drawing += label(width / 2, 447, 'They pass through, not bounce back.', 'middle', 'small') + label(width / 2, 484, 'Same shape, height and directions.', 'middle', 'small');
+    } else {
+      drawing += label(width / 2, 447, 'A travels right; B travels left.', 'middle') + label(width / 2, 484, 'Watch the rope as they overlap.', 'middle', 'small');
+    }
+    return single(drawing + '</g>', width, 510);
+  }
+  function wave(lesson, state) {
+    const { reveal, progress, time, compact } = state;
+    const width = compact ? 420 : 840;
+    const variant = lesson.variant;
+    if (variant === 'interference') return interference(state);
+    const phase = state.complete ? 0 : time * 2;
+    if (['frequency', 'pitch'].includes(variant)) {
+      return panels([0, 1].map(index => {
+        const frequency = variant === 'frequency';
+        const chart = graph({ xmax: frequency ? 4 : 10, ticks: frequency ? [0, 1, 2, 3, 4] : [0, 5, 10], xlabel: frequency ? 'Position (m)' : 'Time (ms)', ylabel: frequency ? 'Displacement (cm)' : 'Pressure change (Pa)' });
+        const period = frequency ? (index ? 1 : 2) : 5;
+        const amplitude = frequency ? 35 : index ? 65 : 32.5;
+        let drawing = label(25, 32, index ? 'After the change' : 'Before the change', 'start', 'strong') + chart.markup;
+        drawing += line(chart.left - 5, 210 - amplitude, chart.left, 210 - amplitude, ink) + label(25, 216 - amplitude, frequency ? '1' : index ? '2' : '1', 'middle', 'small');
+        if (!index || reveal || !frequency) drawing += path(sample(chart.left, chart.right, position => 210 - amplitude * Math.sin((position - chart.left) / chart.scale * 2 * Math.PI / period)));
+        else drawing += label(210, 155, 'Predict the wavelength', 'middle');
+        if (frequency) {
+          drawing += label(200, 385, `f = ${index ? 8 : 4} Hz; v = 8 m/s`, 'middle');
+          if (reveal) drawing += dimension(chart.left + .25 * period * chart.scale, chart.left + 1.25 * period * chart.scale, 125, `λ = ${period} m`);
+        } else drawing += label(200, 385, reveal ? 'Same period: 5 ms → 200 Hz' : 'Same time scale in both graphs', 'middle', 'small');
+        return { markup: drawing, height: 410 };
+      }), compact);
+    }
+    if (['longitudinal', 'compression'].includes(variant)) {
+      const left = 40, right = width - 40, wavelength = (right - left) / 2;
+      const amplitude = wavelength * .095;
+      let drawing = label(width / 2, 34, 'Energy travels; matter oscillates', 'middle', 'strong') + arrow(width / 2 - 65, 70, width / 2 + 65, 70) + label(width / 2, 100, 'Wave direction', 'middle');
+      const spring = lesson.title === 'A Longitudinal Wave';
+      const offset = reveal && state.complete ? 0 : phase;
+      for (let column = 0; column <= 48; column++) {
+        const origin = left + (right - left) * column / 48;
+        const position = origin + amplitude * Math.sin(2 * Math.PI * (origin - left) / wavelength - offset);
+        if (spring) drawing += `<ellipse cx="${position}" cy="210" rx="7" ry="48" fill="none" stroke="${column === 24 ? rust : teal}" stroke-width="${column === 24 ? 4 : 1.8}"/>`;
+        else for (let row = 0; row < 5; row++) drawing += dot(position, 165 + row * 22, row === 2 && column === 24 ? 6 : 3, row === 2 && column === 24 ? rust : teal);
+      }
+      const origin = width / 2;
+      drawing += line(origin, 140, origin, 285, rust, 1.5, '4 5') + label(origin, 310, 'One equilibrium position', 'middle', 'small');
+      if (reveal) {
+        drawing += arrow(origin - amplitude, 340, origin + amplitude, 340, rust, 2, true) + label(origin, 375, 'Particle motion: back and forth', 'middle');
+        if (state.complete) {
+          const compressionX = left + wavelength / 2;
+          drawing += line(compressionX, 140, compressionX, 155, ink) + label(compressionX, 135, 'Compression', 'middle', 'small');
+          drawing += line(left + wavelength, 265, left + wavelength, 279, ink);
+          drawing += label(width / 2, 420, 'Close spacing = greater density', 'middle');
+        }
+      }
+      return single(drawing, width, 445);
+    }
+    if (variant === 'standing') {
+      const left = 55, right = width - 30, span = right - left;
+      let drawing = label(width / 2, 32, 'Same amplitude, frequency and wavelength', 'middle', 'small');
+      const rows = [{ y: 120, title: 'Right-moving wave', sign: -1, color: blue }, { y: 260, title: 'Left-moving wave', sign: 1, color: rust }, { y: 435, title: 'Sum on the same string', sign: 0, color: teal }];
+      for (const row of rows) {
+        drawing += label(left, row.y - 55, row.title) + line(left, row.y, right, row.y, muted, 1, '5 5');
+        if (row.sign || reveal) drawing += path(sample(left, right, position => row.y - (row.sign ? 28 * Math.sin(4 * Math.PI * (position - left) / span + row.sign * phase) : 56 * Math.sin(4 * Math.PI * (position - left) / span) * Math.cos(phase))), row.color);
+        if (row.sign) drawing += arrow(row.sign < 0 ? right - 65 : right, row.y - 55, row.sign < 0 ? right : right - 65, row.y - 55, row.color);
+      }
+      if (reveal) {
+        for (let node = 0; node <= 4; node++) drawing += dot(left + span * node / 4, 435, 5, ink);
+        drawing += line(left + span / 4, 440, left + span / 4, 510, ink) + label(left + span / 4, 535, 'Node: always still', 'middle', 'small');
+        drawing += arrow(left + span * .625, 379, left + span * .625, 491, rust, 1.5, true) + label(left + span * .625, 570, 'Antinode: largest motion', 'middle', 'small');
+      }
+      return single(drawing, width, 595);
+    }
+    if (variant === 'beats') {
+      const chart = graph({ width, baseline: 240, top: 115, bottom: 330, xmax: 1, ticks: [0, .25, .5, .75, 1], xlabel: 'Time (s)', ylabel: 'Sound pressure (relative)' });
+      let drawing = label(width / 2, 35, '440 Hz + 444 Hz', 'middle', 'strong') + chart.markup;
+      if (reveal) {
+        drawing += path(sample(chart.left, chart.right, position => { const seconds = (position - chart.left) / chart.scale; return 240 - 34 * (Math.sin(2 * Math.PI * 440 * seconds) + Math.sin(2 * Math.PI * 444 * seconds)); }, 3500), '#8fb8be', 1);
+        for (const direction of [-1, 1]) drawing += path(sample(chart.left, chart.right, position => 240 + direction * 68 * Math.abs(Math.cos(4 * Math.PI * (position - chart.left) / chart.scale))), teal, 2.5);
+        drawing += dimension(chart.left, chart.left + chart.scale / 4, 150, '0.25 s') + label(width / 2, 420, '4 loudness cycles in 1 second', 'middle') + label(width / 2, 458, 'fbeat = |444 − 440| = 4 Hz', 'middle');
+      } else drawing += label(width / 2, 180, 'How often will loudness peak?', 'middle');
+      return single(drawing, width, 485);
+    }
+    const period = variant === 'period';
+    const chart = graph({ width, baseline: 245, top: 120, bottom: 330, xmax: period ? 1 : 6, ticks: period ? [0, .5, 1] : [0, 2, 4, 6], xlabel: period ? 'Time (s)' : 'Position (m)' });
+    const amplitude = 60;
+    let drawing = chart.markup + label(33, 190, '+3', 'middle', 'small') + label(33, 251, '0', 'middle', 'small') + label(33, 310, '−3', 'middle', 'small');
+    if (['pulse', 'boundary'].includes(variant)) {
+      const center = variant === 'boundary' ? 4 + (reveal ? progress * 6 : 0) : 1 + (reveal ? progress * 3 : 0);
+      const displacement = position => {
+        const distance = (position - chart.left) / chart.scale;
+        const pulse = origin => Math.exp(-(((distance - origin) / .28) ** 2));
+        return variant === 'boundary' ? 60 * (pulse(center) - pulse(12 - center)) : 60 * pulse(center);
+      };
+      drawing += path(sample(chart.left, chart.right, position => 245 - displacement(position)));
+      if (variant === 'boundary') {
+        drawing += box(chart.right, 145, 12, 180, '#d9e3e9') + label(chart.right, 100, 'Fixed end', 'end');
+        for (let hatch = 150; hatch < 320; hatch += 15) drawing += line(chart.right, hatch + 10, chart.right + 10, hatch, muted);
+        drawing += dot(chart.right, 245, 4, ink) + arrow(center >= 6 ? chart.right - 20 : chart.left + 80, 150, center >= 6 ? chart.right - 85 : chart.left + 145, 150);
+        if (reveal) drawing += label(width / 2, 430, 'Fixed end stays at y = 0', 'middle') + label(width / 2, 467, center > 6 ? 'Reflected pulse is inverted' : 'The incident pulse approaches the end', 'middle');
+      } else {
+        drawing += label(width / 2, 42, 'One disturbance at the source', 'middle') + arrow(chart.left + 80, 140, chart.left + 155, 140);
+        if (reveal) drawing += label(width / 2, 430, 'One pulse carries the disturbance', 'middle');
+      }
+      return single(drawing, width, 490);
+    }
+    const fixed = ['amplitude', 'wavelength', 'period'].includes(variant);
+    const offset = fixed ? 0 : phase;
+    const wavelength = period ? .5 : 2;
+    drawing += path(sample(chart.left, chart.right, position => 245 - amplitude * Math.sin((position - chart.left) / chart.scale * 2 * Math.PI / wavelength - offset)));
+    drawing += label(width / 2, 36, period ? 'One point oscillates at 2 Hz' : 'A snapshot of the rope', 'middle', 'strong');
+    if (variant === 'amplitude') {
+      const crest = chart.left + chart.scale * .5;
+      drawing += line(crest, 185, crest + 30, 185, rust) + arrow(crest + 30, 245, crest + 30, 185, rust, 2, true) + label(crest + 40, 216, '3 cm');
+      if (reveal) drawing += label(width / 2, 430, 'A = 3 cm, not crest to trough', 'middle');
+    } else if (variant === 'wavelength') {
+      for (const position of [.5, 2.5]) drawing += dot(chart.left + position * chart.scale, 185, 5, rust);
+      if (reveal) drawing += dimension(chart.left + .5 * chart.scale, chart.left + 2.5 * chart.scale, 140, 'λ = 2 m') + label(width / 2, 430, 'Matching points, one cycle apart', 'middle');
+    } else if (period) {
+      const moment = state.complete ? .5 : Math.min(.5, time / 8);
+      drawing += dot(chart.left + moment * chart.scale, 245 - amplitude * Math.sin(4 * Math.PI * moment), 6, rust);
+      if (reveal) drawing += dimension(chart.left, chart.left + .5 * chart.scale, 140, 'T = 0.5 s') + label(width / 2, 430, 'T = 1/f = 1/2 = 0.5 s', 'middle');
+    } else {
+      const position = chart.left + chart.scale * 3;
+      drawing += line(position, 170, position, 320, rust, 1.4, '4 5') + dot(position, 245 - amplitude * Math.sin(3 * Math.PI - offset), 7, rust);
+      drawing += arrow(width / 2 - 45, 75, width / 2 + 45, 75) + label(width / 2 + 65, 82, 'Energy', 'start', 'small');
+      if (reveal) drawing += arrow(position + 24, 185, position + 24, 305, rust, 2, true) + label(width / 2, 430, 'Particle: up and down at fixed x', 'middle');
+    }
+    return single(drawing, width, 460);
+  }
+  window.Unit5Diagrams.scenes.wave = wave;
+})();
+
+</script>
+<script >
+(() => {
+  'use strict';
+  const { label, line, path, box, dot, arrow, ray, sample, dimension, arc, panels, single, ink, blue, teal, rust, muted, radians, degrees, physics } = window.Unit5Diagrams.helpers;
+  function interfaceDiagram({ width = 400, upper, lower, angle = radians(45), outputAngle, reveal, progress = 1, outgoingProgress = 1, fromBelow = false, reflect = false, water = false }) {
+    const center = width / 2, boundary = 225, length = 165;
+    const incidentSign = fromBelow ? 1 : -1;
+    let drawing = box(10, 60, width - 20, boundary - 60, '#f5f9fc', 'none') + box(10, boundary, width - 20, 190, '#e2f1f1', 'none');
+    drawing += label(22, 37, upper, 'start', 'strong') + label(22, 450, lower, 'start', 'strong');
+    drawing += line(10, boundary, width - 10, boundary, blue, 2) + label(width - 15, boundary - 12, 'Boundary', 'end', 'small');
+    drawing += line(center, 74, center, 404, muted, 1.5, '6 6') + label(center + 10, 91, 'Normal', 'start', 'small');
+    const startX = center - length * Math.sin(angle), startY = boundary + incidentSign * length * Math.cos(angle);
+    const arrival = Math.min(1, progress);
+    drawing += ray(startX, startY, startX + (center - startX) * arrival, startY + (boundary - startY) * arrival);
+    const normalAngle = fromBelow ? Math.PI / 2 : -Math.PI / 2;
+    drawing += arc(center, boundary, 47, normalAngle, normalAngle + incidentSign * angle) + label(25, fromBelow ? 385 : 115, `θ₁ = ${degrees(angle).toFixed(1)}°`);
+    if (reveal) {
+      const sign = reflect ? incidentSign : -incidentSign;
+      const outgoing = reflect ? angle : outputAngle;
+      const endX = center + length * outgoingProgress * Math.sin(outgoing), endY = boundary + sign * length * outgoingProgress * Math.cos(outgoing);
+      drawing += ray(center, boundary, endX, endY);
+      const normal = sign > 0 ? Math.PI / 2 : -Math.PI / 2;
+      drawing += arc(center, boundary, 58, normal, normal - sign * outgoing, teal);
+      drawing += label(width - 24, sign > 0 ? 385 : 123, `${reflect ? 'θr' : 'θ₂'} = ${degrees(outgoing).toFixed(1)}°`, 'end');
+      if (water) {
+        for (const distance of [45, 90, 135]) {
+          const positionX = center - distance * Math.sin(angle), positionY = boundary - distance * Math.cos(angle);
+          drawing += line(positionX - 30 * Math.cos(angle), positionY + 30 * Math.sin(angle), positionX + 30 * Math.cos(angle), positionY - 30 * Math.sin(angle), teal, 2);
+          const lowerDistance = distance * 2 / 3;
+          const lowerX = center + lowerDistance * Math.sin(outgoing), lowerY = boundary + lowerDistance * Math.cos(outgoing);
+          drawing += line(lowerX - 30 * Math.cos(outgoing), lowerY + 30 * Math.sin(outgoing), lowerX + 30 * Math.cos(outgoing), lowerY - 30 * Math.sin(outgoing), teal, 2);
+        }
+      }
+    }
+    drawing += label(width / 2, 490, 'Angles measured from the normal', 'middle', 'small');
+    return drawing;
+  }
+  function optics(lesson, state) {
+    const { reveal, progress, compact } = state;
+    if (lesson.variant === 'gem') return panels([{ name: 'Glass', index: 1.52 }, { name: 'Diamond', index: 2.42 }].map(material => ({ height: 510, markup: interfaceDiagram({ upper: 'Air · n₁ = 1.00', lower: `${material.name} · n₂ = ${material.index.toFixed(2)}`, outputAngle: physics.refracted(1, material.index, radians(45)), reveal, outgoingProgress: Math.min(1, progress * 2) }) })), compact);
+    const width = compact ? 420 : 840;
+    if (lesson.variant === 'water') {
+      const diagramWidth = compact ? 420 : 640;
+      let drawing = interfaceDiagram({ width: diagramWidth, upper: 'Deep water · v₁ = 3 m/s', lower: 'Shallow water · v₂ = 2 m/s', outputAngle: Math.asin(2 / 3 * Math.sin(Math.PI / 4)), reveal, water: true });
+      if (reveal) drawing += label(diagramWidth / 2, 530, 'Closer wavefronts → shorter λ', 'middle') + label(diagramWidth / 2, 566, 'Frequency stays the same', 'middle');
+      return single(drawing, diagramWidth, reveal ? 590 : 515);
+    }
+    const focal = (width - 90) / 5.5, objectX = 40, lensX = objectX + 2.5 * focal, imageX = lensX + physics.lensImage(focal, 2.5 * focal);
+    const axis = 235, objectHeight = 65, imageHeight = objectHeight * (imageX - lensX) / (lensX - objectX);
+    let drawing = label(width / 2, 35, 'Thin converging lens · object beyond 2F', 'middle', 'small') + line(20, axis, width - 15, axis, muted, 1.5);
+    drawing += `<path d="M${lensX} 100 Q${lensX + 27} ${axis} ${lensX} 365 Q${lensX - 27} ${axis} ${lensX} 100Z" fill="#e0f1f5" stroke="${blue}" stroke-width="1.8"/>`;
+    for (const [multiple, name] of [[-2, '2F'], [-1, 'F'], [1, 'F'], [2, '2F']]) drawing += dot(lensX + multiple * focal, axis, 3, ink) + label(lensX + multiple * focal, axis + (multiple > 0 ? -18 : 32), name, 'middle');
+    drawing += arrow(objectX, axis, objectX, axis - objectHeight, rust, 4) + label(objectX - 15, 140, 'Object');
+    if (reveal) {
+      const end = imageX + (width - imageX - 22) * .7;
+      const rays = [
+        [[objectX, axis - objectHeight], [lensX, axis - objectHeight], [end, axis - objectHeight + (end - lensX) * objectHeight / focal]],
+        [[objectX, axis - objectHeight], [lensX, axis], [end, axis + (end - lensX) * objectHeight / (lensX - objectX)]],
+        [[objectX, axis - objectHeight], [lensX, axis + imageHeight], [end, axis + imageHeight]]
+      ];
+      rays.forEach((points, index) => {
+        if (progress * 3 >= index || state.complete) {
+          drawing += ray(...points[0], ...points[1]) + ray(...points[1], ...points[2]);
+          const fraction = .35 + index * .25;
+          const markerX = points[0][0] + (points[1][0] - points[0][0]) * fraction;
+          const markerY = points[0][1] + (points[1][1] - points[0][1]) * fraction;
+          drawing += dot(markerX, markerY, 11, '#fff', '#8c712b') + label(markerX, markerY + 6, index + 1, 'middle', 'small');
+        }
+      });
+      if (progress > .75 || state.complete) drawing += arrow(imageX, axis, imageX, axis + imageHeight, blue, 4) + label(imageX, 355, 'Image', 'middle') + label(width / 2, 402, 'Real · inverted · smaller', 'middle', 'strong');
+      drawing += label(25, 451, '1  Parallel → far focus', 'start', 'small') + label(25, 483, '2  Through center → undeviated', 'start', 'small') + label(25, 515, '3  Near focus → parallel', 'start', 'small');
+      drawing += label(width / 2, 557, 'do = 2.5f → di = 1.67f', 'middle');
+    } else drawing += label(width / 2, 420, 'Where will the rays meet?', 'middle');
+    return single(drawing, width, reveal ? 585 : 450);
+  }
+  function refraction(lesson, state) {
+    const scenario = lesson.cases[state.caseIndex];
+    const angle = radians(30);
+    const width = state.compact ? 420 : 640;
+    return single(interfaceDiagram({ width, upper: `${scenario.from} · n₁ = ${scenario.n1.toFixed(2)}`, lower: `${scenario.to} · n₂ = ${scenario.n2.toFixed(2)}`, angle, outputAngle: physics.refracted(scenario.n1, scenario.n2, angle), reveal: state.reveal, progress: state.phase === 'watch' ? Math.min(1, state.elapsed / 1200) : 1, outgoingProgress: Math.min(1, state.progress * 2) }), width, 515);
+  }
+  function criticalAngle(lesson, state) {
+    const material = lesson.cases[state.caseIndex];
+    const limit = physics.critical(material.n1);
+    const phase = state.phase;
+    const reflection = ['reflection', 'hold'].includes(phase);
+    let angle = limit;
+    if (phase === 'increase') angle = radians(10) + (limit - radians(10)) * state.progress;
+    if (reflection) angle += radians(15) * (phase === 'hold' ? 1 : state.progress);
+    const total = angle > limit + 1e-9;
+    const ratio = (1 / material.n1).toFixed(4), index = material.n1.toFixed(2);
+    let drawing = interfaceDiagram({ upper: 'Air · n₂ = 1.00', lower: `${material.from} · n₁ = ${index}`, angle, outputAngle: total ? 0 : Math.asin(Math.min(1, material.n1 * Math.sin(angle))), reveal: true, fromBelow: true, reflect: total });
+    if (!total) drawing += `<g opacity=".42">${ray(200, 225, 200 + 110 * Math.sin(angle), 225 + 110 * Math.cos(angle))}</g>` + label(382, 420, phase === 'increase' ? 'Reflected portion' : 'Reflected ray', 'end', 'small');
+    const steps = {
+      increase: ['Watch θ₁ and θ₂ grow', 'θ₂ grows faster than θ₁.', 'The dashed line is the normal.'],
+      critical: ['At the critical angle', 'θ₂ = 90°', 'The refracted ray grazes', 'the boundary.'],
+      sine: ['Snell’s law at the limit', 'n₁ sin θc = n₂ sin(90°)', 'sin(90°) = 1'],
+      simplify: ['Substitute and simplify', `${index} sin θc = 1.00 × 1`, `${index} sin θc = 1.00`],
+      divide: ['Divide both sides by n₁', `sin θc = 1.00 / ${index}`, `sin θc ≈ ${ratio}`],
+      inverse: ['Take inverse sine', `θc = sin⁻¹(1.00 / ${index})`, 'Use degree mode.'],
+      result: ['The critical angle', `θc ≈ ${degrees(limit).toFixed(1)}°`, 'This is the limiting angle,', 'not yet above the limit.'],
+      reflection: ['Increase above θc', `θ₁ > ${degrees(limit).toFixed(1)}°`, 'No refracted ray enters air.', 'All light reflects inside.'],
+      hold: ['Total internal reflection', 'Higher → lower index', 'AND θ₁ > θc', 'Reflected angle = incident angle', 'Ideal, lossless interface']
+    };
+    const rows = steps[phase];
+    let explanation = label(25, 40, rows[0], 'start', 'strong');
+    rows.slice(1).forEach((value, index) => { explanation += label(200, 110 + index * 53, value, 'middle', index === 0 ? 'strong' : ''); });
+    if (['sine', 'simplify', 'divide', 'inverse', 'result'].includes(phase)) explanation += label(200, state.compact ? 330 : 430, 'The diagram stays at θ₂ = 90°', 'middle', 'small');
+    return panels([{ markup: drawing, height: 515 }, { markup: explanation, height: state.compact ? 365 : 515 }], state.compact);
+  }
+  function diffraction(lesson, state) {
+    if (lesson.variant === 'double') {
+      const width = state.compact ? 420 : 840, barrier = width * .3, screen = width - 65, center = 225;
+      let drawing = label(width / 2, 35, 'Coherent light · two narrow slits', 'middle', 'small');
+      const slitY = [center - 28, center + 28];
+      for (let position = 25; position < barrier - 10; position += 25) drawing += line(position, 115, position, 335, teal, 2);
+      drawing += line(barrier, 95, barrier, slitY[0] - 6, ink, 6) + line(barrier, slitY[0] + 6, barrier, slitY[1] - 6, ink, 6) + line(barrier, slitY[1] + 6, barrier, 355, ink, 6);
+      drawing += box(screen, 95, 24, 260, '#e5ebef') + label(screen + 12, 395, 'Screen', 'middle');
+      if (state.reveal) {
+        drawing += `<defs><clipPath id="waveFrontClip"><rect x="${barrier}" y="95" width="${screen - barrier}" height="260"/></clipPath></defs><g clip-path="url(#waveFrontClip)">`;
+        for (const origin of slitY) for (let radius = 24; radius < (screen - barrier) * Math.min(1, state.progress * 2) + 40; radius += 24) drawing += arc(barrier, origin, radius, -Math.PI / 2, Math.PI / 2, '#94bdbd');
+        drawing += '</g>';
+        for (let vertical = 0; vertical < 260; vertical += 2) {
+          const pathDifference = Math.hypot(screen - barrier, 95 + vertical - slitY[0]) - Math.hypot(screen - barrier, 95 + vertical - slitY[1]);
+          const amplitude = Math.cos(Math.PI * pathDifference / 8) ** 2;
+          drawing += box(screen + 1, 95 + vertical, 22, 2, `rgb(${Math.round(44 + 202 * amplitude)},${Math.round(60 + 151 * amplitude)},${Math.round(75 - 20 * amplitude)})`, 'none');
+        }
+        drawing += line(barrier, slitY[0], screen, center, rust, 1.5, '4 4') + line(barrier, slitY[1], screen, center, rust, 1.5, '4 4');
+        drawing += label(width / 2, 440, 'Center: equal paths → bright', 'middle') + label(width / 2, 478, 'Bright: add · Dark: cancel', 'middle');
+      }
+      drawing += label(width / 2, 520, 'Selected wavefronts; schematic scale', 'middle', 'small');
+      return single(drawing, width, 545);
+    }
+    return panels([40, 160].map(gap => {
+      let drawing = label(200, 35, gap === 40 ? 'Opening a = λ' : 'Opening a = 4λ', 'middle', 'strong');
+      for (const vertical of [80, 120, 160]) drawing += line(40, vertical, 360, vertical, teal, 2);
+      drawing += line(20, 190, 200 - gap / 2, 190, ink, 7) + line(200 + gap / 2, 190, 380, 190, ink, 7);
+      if (state.reveal) {
+        for (const radius of [40, 80, 120, 160]) {
+          if (gap === 40) drawing += arc(200, 190, radius, 0, Math.PI, teal);
+          else {
+            drawing += line(200 - gap / 2, 190 + radius, 200 + gap / 2, 190 + radius, teal, 2);
+            drawing += arc(200 - gap / 2, 190, radius, Math.PI / 2, Math.PI * .7, teal) + arc(200 + gap / 2, 190, radius, Math.PI * .3, Math.PI / 2, teal);
+          }
+        }
+        drawing += label(200, 405, gap === 40 ? 'Strong spreading' : 'Mostly forward; edge spreading', 'middle', 'small');
+      }
+      drawing += label(200, 445, 'Same wavelength in both cases', 'middle', 'small');
+      return { markup: drawing, height: 470 };
+    }), state.compact);
+  }
+  Object.assign(window.Unit5Diagrams.scenes, { optics, refraction, critical: criticalAngle, diffraction });
+})();
+
+</script>
+<script >
+(() => {
+  'use strict';
+  const { label, line, path, box, dot, arrow, sample, dimension, graph, panels, single, ink, blue, teal, rust, gold, muted, physics } = window.Unit5Diagrams.helpers;
+  const decayOrder = Array.from({ length: 80 }, (_, index) => index);
+  let decaySeed = 314159;
+  for (let index = decayOrder.length - 1; index > 0; index--) {
+    decaySeed = (1664525 * decaySeed + 1013904223) >>> 0;
+    const target = Math.floor(decaySeed / 4294967296 * (index + 1));
+    [decayOrder[index], decayOrder[target]] = [decayOrder[target], decayOrder[index]];
+  }
+  function photon(x, y, color = '#a77a14') {
+    return path(sample(x - 18, x + 18, position => y - 7 * Math.sin((position - x) * Math.PI / 9) * Math.exp(-((position - x) ** 2) / 200), 50), color, 2.2);
+  }
+  function photons(lesson, state) {
+    const { reveal, progress, compact } = state;
+    if (lesson.variant === 'brightness') return panels([6, 12].map((count, index) => {
+      let drawing = label(200, 35, index ? 'Twice the intensity' : 'Original intensity', 'middle', 'strong') + label(200, 77, 'Same area; same time: 1 s', 'middle', 'small');
+      drawing += box(30, 105, 340, 150, '#fff9e7', '#ddceaa', 6);
+      if (!index || reveal) {
+        for (let packet = 0; packet < count; packet++) drawing += photon(72 + packet % 6 * 51, 155 + Math.floor(packet / 6) * 58);
+        drawing += label(200, 295, `${count} photons arrive`, 'middle');
+      } else drawing += label(200, 185, 'What changes?', 'middle');
+      drawing += label(200, 341, 'Each photon: E = hf = 2 eV', 'middle', 'small');
+      if (reveal) drawing += label(200, 385, `Total energy: ${count * 2} eV`, 'middle', 'strong');
+      drawing += label(200, 430, 'Symbols count photons, not their size', 'middle', 'small');
+      return { markup: drawing, height: 450 };
+    }), compact);
+    const ionization = lesson.variant === 'ionization';
+    const threshold = ionization ? 12 : 2.3;
+    return panels([ionization ? 5 : 1.5, ionization ? 15 : 3].map(energy => {
+      const enough = energy > threshold;
+      let drawing = label(200, 35, `${energy.toFixed(ionization ? 0 : 1)} eV photon`, 'middle', 'strong') + label(200, 75, `${ionization ? 'Ionization energy' : 'Work function'} = ${threshold} eV`, 'middle', 'small');
+      if (ionization) {
+        drawing += `<circle cx="240" cy="180" r="58" fill="none" stroke="${muted}" stroke-dasharray="4 4"/>` + dot(240, 180, 17, '#e9b9a3', rust);
+      } else {
+        drawing += box(205, 115, 80, 130, '#eef3f7', '#8ca4b6');
+        for (let row = 0; row < 4; row++) for (let column = 0; column < 2; column++) drawing += dot(220 + column * 42, 132 + row * 32, 7, '#c4d7e5', '#637f95');
+        drawing += label(247, 270, 'Metal', 'middle', 'small');
+      }
+      const impact = reveal && progress > .4;
+      if (!impact) drawing += photon(65 + (reveal ? Math.min(1, progress / .4) * 135 : 0), 180) + arrow(55, 215, 140, 215, '#a77a14');
+      if (impact && enough) {
+        const distance = Math.min(1, (progress - .4) / .4);
+        const start = ionization ? 298 : 278;
+        drawing += dot(start + distance * (345 - start), 180 - distance * 45, 6, blue) + arrow(295, 200, 355, 150, blue);
+      } else drawing += dot(ionization ? 298 : 278, 180, 6, blue);
+      const baseline = 405, scale = 100 / (ionization ? 15 : 3);
+      drawing += label(30, 298, 'Energy (eV)', 'start', 'small') + arrow(45, baseline, 45, 307, ink, 1.3) + label(32, baseline + 6, '0', 'end', 'small');
+      drawing += line(50, baseline - threshold * scale, 360, baseline - threshold * scale, rust, 1.7, '5 4') + label(355, baseline - threshold * scale - 12, 'Threshold', 'end', 'small');
+      drawing += box(75, baseline - energy * scale, 48, energy * scale, '#f9df86', '#8a712b') + label(100, 434, 'Photon', 'middle', 'small');
+      if (impact) {
+        drawing += label(260, 445, enough ? 'Electron escapes' : 'No electron escapes', 'middle', 'small');
+        drawing += label(200, 492, enough ? `K${ionization ? '' : 'max'} = ${energy} − ${threshold} = ${(energy - threshold).toFixed(ionization ? 0 : 1)} eV` : 'Photon energy is below threshold', 'middle', 'small');
+      }
+      drawing += label(200, 534, 'Single-photon model; not to scale', 'middle', 'small');
+      return { markup: drawing, height: 555 };
+    }), compact);
+  }
+  function spectrum(lesson, state) {
+    if (lesson.variant === 'doppler') {
+      const width = state.compact ? 420 : 840, left = 45, right = width - 30;
+      const map = wavelength => left + (wavelength - 400) / 300 * (right - left);
+      let drawing = label(width / 2, 35, 'Match the same absorption lines', 'middle', 'strong');
+      for (const [vertical, title, shift] of [[115, 'Laboratory', 1], [275, 'Distant star', 1.05]]) {
+        drawing += label(left, vertical - 28, title) + box(left, vertical, right - left, 60, 'url(#visibleSpectrum)', 'none');
+        for (const wavelength of [450, 480, 540, 620]) drawing += line(map(wavelength * shift), vertical, map(wavelength * shift), vertical + 60, ink, 4);
+        for (const wavelength of [400, 500, 600, 700]) drawing += line(map(wavelength), vertical + 64, map(wavelength), vertical + 70, ink) + label(map(wavelength), vertical + 95, wavelength, 'middle', 'small');
+      }
+      drawing += label(width / 2, 415, 'Wavelength (nm)', 'middle');
+      if (state.reveal) {
+        drawing += arrow(map(540), 245, map(567), 245, rust, 2) + label(width / 2, 465, '540 nm → 567 nm', 'middle', 'strong') + label(width / 2, 505, 'Longer λ: source moving away', 'middle');
+        drawing += label(width / 2, 545, 'Same fractional shift: Δλ/λ = 0.05', 'middle', 'small');
+      }
+      return single(drawing, width, state.reveal ? 570 : 445);
+    }
+    return panels([700, 350].map(wavelength => {
+      const chart = graph({ baseline: 180, top: 100, bottom: 250, xmax: 1400, ticks: [0, 700, 1400], xlabel: 'Position (nm)', ylabel: 'Electric field (relative)' });
+      let drawing = label(200, 35, wavelength === 700 ? 'Visible red' : 'Ultraviolet', 'middle', 'strong') + chart.markup;
+      drawing += path(sample(chart.left, chart.right, position => 180 - 35 * Math.sin((position - chart.left) / chart.scale * 2 * Math.PI / wavelength)), wavelength === 700 ? '#ad4b4c' : '#7650a0');
+      drawing += dimension(chart.left, chart.left + wavelength * chart.scale, 365, `λ = ${wavelength} nm`);
+      if (state.reveal) drawing += label(200, 420, `E = ${physics.photonEnergy(wavelength).toFixed(2)} eV`, 'middle', 'strong') + label(200, 462, 'E = hc/λ; shorter λ → greater E', 'middle', 'small');
+      drawing += label(200, 505, 'Same spatial scale; schematic field', 'middle', 'small');
+      return { markup: drawing, height: 525 };
+    }), state.compact);
+  }
+  function nucleus(centerX, centerY, protons, neutrons, radius = 48) {
+    const count = protons + neutrons;
+    let drawing = '';
+    for (let particle = 0; particle < count; particle++) {
+      const distance = radius * Math.sqrt((particle + .5) / count);
+      const angle = particle * 2.399963;
+      const proton = (particle * 73) % count < protons;
+      drawing += dot(centerX + distance * Math.cos(angle), centerY + distance * Math.sin(angle), radius / Math.sqrt(count) * .91, proton ? '#e9b9a3' : '#accde5', proton ? rust : blue);
+    }
+    return drawing;
+  }
+  function nuclear(lesson, state) {
+    const { reveal, progress, compact } = state;
+    if (lesson.variant === 'alpha') {
+      return panels([false, true].map(after => {
+        let drawing = label(200, 35, after ? 'After alpha decay' : 'Before decay', 'middle', 'strong');
+        if (!after || reveal) {
+          drawing += nucleus(after ? 130 : 200, 185, after ? 86 : 88, after ? 136 : 138, after ? 75 : 85);
+          drawing += label(after ? 130 : 200, 85, after ? '²²²₈₆Rn' : '²²⁶₈₈Ra', 'middle', 'isotope');
+          drawing += label(after ? 130 : 200, 305, after ? '86 p + 136 n' : '88 p + 138 n', 'middle');
+          if (after) {
+            drawing += arrow(215, 175, 275, 175, ink) + label(310, 85, '⁴₂He', 'middle', 'isotope');
+            drawing += dot(300, 165, 10, '#e9b9a3', rust) + dot(320, 185, 10, '#e9b9a3', rust) + dot(320, 165, 10, '#accde5', blue) + dot(300, 185, 10, '#accde5', blue) + label(310, 305, '2 p + 2 n', 'middle');
+            drawing += label(200, 340, 'Mass number: 226 = 222 + 4', 'middle', 'small') + label(200, 380, 'Charge number: 88 = 86 + 2', 'middle', 'small');
+          } else drawing += dot(115, 347, 7, '#e9b9a3', rust) + label(130, 354, 'Proton') + dot(115, 387, 7, '#accde5', blue) + label(130, 394, 'Neutron');
+        } else drawing += label(200, 185, 'Which particles leave?', 'middle');
+        drawing += label(200, 440, 'Nuclei are schematic; sizes not to scale', 'middle', 'small');
+        return { markup: drawing, height: 460 };
+      }), compact);
+    }
+    if (lesson.variant === 'halflife') {
+      const decays = reveal ? Math.floor(80 * (1 - 2 ** -progress)) : 0;
+      let population = label(200, 35, 'One sample: 80 parent nuclei', 'middle', 'strong');
+      for (let index = 0; index < 80; index++) {
+        const decayed = decayOrder.indexOf(index) < decays;
+        population += dot(50 + index % 10 * 33, 95 + Math.floor(index / 10) * 29, 7, decayed ? '#fff' : rust, decayed ? '#aab9c4' : '#fff');
+      }
+      population += label(200, 365, `${80 - decays} parent nuclei remain`, 'middle') + label(200, 408, 'Filled = parent; outline = daughter', 'middle', 'small') + label(200, 448, 'Illustrative outcome; real counts vary', 'middle', 'small');
+      const chart = graph({ baseline: 320, top: 105, bottom: 320, xmax: 2, ticks: [0, 1, 2], xlabel: 'Time (half-lives)', ylabel: 'Expected parent count' });
+      let decay = label(200, 35, 'Population trend', 'middle', 'strong') + chart.markup;
+      for (const count of [0, 20, 40, 80]) decay += line(chart.left, 320 - count * 2.5, chart.right, 320 - count * 2.5, '#e1e8ed', 1) + label(35, 326 - count * 2.5, count, 'end', 'small');
+      if (reveal) decay += path(sample(chart.left, chart.right, position => 320 - physics.remaining(80, (position - chart.left) / chart.scale) * 2.5)) + dot(chart.left + chart.scale, 220, 5, rust) + label(200, 435, 'N = N₀ × (½)^(t/T½)', 'middle') + label(200, 472, 'After T½: expected count = 40', 'middle', 'small');
+      return panels([{ markup: population, height: 495 }, { markup: decay, height: 495 }], compact);
+    }
+    let reaction = label(200, 35, 'One possible fission reaction', 'middle', 'strong');
+    if (!reveal || progress < .35) reaction += nucleus(240, 190, 92, 143, 75) + label(240, 100, '²³⁵₉₂U', 'middle', 'isotope') + dot(65 + (reveal ? progress / .35 * 110 : 0), 190, 6, blue) + arrow(75, 225, 150, 225, blue) + label(65, 150, '¹₀n', 'middle');
+    else {
+      reaction += nucleus(130, 175, 56, 85, 55) + nucleus(270, 175, 36, 56, 47) + label(130, 100, '¹⁴¹₅₆Ba', 'middle', 'isotope') + label(270, 100, '⁹²₃₆Kr', 'middle', 'isotope');
+      for (const center of [155, 200, 245]) reaction += dot(center, 260, 6, blue);
+      reaction += label(200, 303, '3 neutrons + released energy', 'middle', 'small');
+    }
+    reaction += label(200, 355, '¹₀n + ²³⁵₉₂U →', 'middle') + label(200, 392, '¹⁴¹₅₆Ba + ⁹²₃₆Kr + 3¹₀n', 'middle') + label(200, 435, '236 nucleons on each side', 'middle', 'small') + label(200, 472, '92 protons on each side', 'middle', 'small');
+    let chain = label(200, 35, 'Neutrons can continue the chain', 'middle', 'small') + dot(60, 220, 20, '#e2eaf0', blue) + label(60, 263, 'Fission', 'middle', 'small');
+    for (const targetY of [125, 320]) {
+      chain += nucleus(310, targetY, 92, 143, 43) + label(310, targetY - 52, '²³⁵U', 'middle');
+      if (reveal) chain += arrow(90, 220, 265, targetY, blue) + dot(90 + 175 * progress, 220 + (targetY - 220) * progress, 5, blue);
+    }
+    if (reveal) chain += arrow(80, 210, 155, 90, blue) + label(160, 75, 'Some escape', 'middle', 'small') + label(200, 420, 'Enough further fissions → a chain', 'middle', 'small');
+    chain += label(200, 465, 'Schematic; not every neutron succeeds', 'middle', 'small');
+    return panels([{ markup: reaction, height: 505 }, { markup: chain, height: 505 }], compact);
+  }
+  Object.assign(window.Unit5Diagrams.scenes, { photons, spectrum, nuclear });
+})();
+
+</script>
+<script >
+(() => {
+  'use strict';
+  const { label, line, path, box, dot, arrow, sample, dimension, graph, panels, single, ink, blue, teal, rust, muted } = window.Unit5Diagrams.helpers;
+  function intensity(lesson, state) {
+    let spheres = label(200, 35, 'Same power spreads outward', 'middle', 'strong');
+    spheres += `<circle cx="200" cy="220" r="140" fill="#f1f7fb" stroke="${blue}" stroke-width="2"/><circle cx="200" cy="220" r="70" fill="#e4f1f1" stroke="${teal}" stroke-width="2"/>` + dot(200, 220, 9, rust);
+    spheres += arrow(200, 220, 270, 220, teal, 1.6) + label(235, 205, 'r', 'middle') + arrow(200, 220, 101, 121, blue, 1.6) + label(135, 149, '2r', 'middle');
+    spheres += label(200, 395, 'Cross-section of spherical fronts', 'middle', 'small') + label(200, 438, 'No absorption; point-source model', 'middle', 'small');
+    let areas = label(200, 35, 'Double r → four times the area', 'middle', 'small');
+    areas += box(80, 110, 64, 64, '#d7eded', teal) + label(112, 90, 'At r', 'middle') + label(112, 210, '1 area unit', 'middle', 'small');
+    for (let column = 0; column < 2; column++) for (let row = 0; row < 2; row++) areas += box(220 + column * 64, 110 + row * 64, 64, 64, '#e5eef7', blue);
+    areas += label(284, 90, 'At 2r', 'middle') + label(284, 275, '4 area units', 'middle', 'small');
+    if (state.reveal) areas += label(200, 325, 'Same power ÷ 4 times the area', 'middle', 'small') + label(200, 370, 'I₂ = I₁ / 4', 'middle', 'strong');
+    areas += label(200, 420, 'Sphere area = 4πr²; I = P/(4πr²)', 'middle', 'small') + label(200, 460, 'Squares compare areas, not detectors', 'middle', 'small');
+    return panels([{ markup: spheres, height: 485 }, { markup: areas, height: 485 }], state.compact);
+  }
+  function oscillator(lesson, state) {
+    const resonance = lesson.variant === 'resonance';
+    const amplitude = resonance ? 15 + (state.reveal ? 75 * (1 - Math.exp(-3 * state.progress)) : 0) : 90;
+    const phase = state.complete ? (resonance ? Math.PI / 2 : 0) : state.time * 2;
+    const position = 220 + amplitude * Math.sin(phase), speed = 65 * Math.cos(phase);
+    let mechanism = label(200, 35, resonance ? 'Push at the natural frequency' : 'Mass on an ideal spring', 'middle', 'strong');
+    mechanism += box(25, 133, 15, 130, '#dbe5eb') + line(40, 253, 380, 253, muted, 2);
+    mechanism += line(220, 105, 220, 285, muted, 1.4, '5 5');
+    const spring = [[40, 205], [50, 205]];
+    for (let coil = 0; coil <= 20; coil++) spring.push([50 + (position - 90) * coil / 20, 205 + (coil % 2 ? -12 : 12)]);
+    spring.push([position - 30, 205]);
+    mechanism += path(spring, blue, 2) + box(position - 30, 175, 60, 60, '#d7ecec', teal, 3);
+    for (const end of [220 - amplitude, 220 + amplitude]) mechanism += line(end, 258, end, 271, ink);
+    mechanism += label(220, 307, 'Equilibrium, x = 0', 'middle');
+    if (!resonance) mechanism += label(130, 350, '−A', 'middle') + label(310, 350, '+A', 'middle');
+    if (state.reveal) mechanism += arrow(position, 145, position + speed, 145, rust) + label(200, 100, resonance ? 'Timed push transfers energy' : 'Velocity changes during the cycle', 'middle', 'small');
+    if (resonance) mechanism += dimension(220, 220 + amplitude, 390, 'A');
+    else mechanism += label(200, 405, 'Turning points: v = 0', 'middle');
+    let evidence = label(200, 35, resonance ? 'Amplitude grows, then levels off' : 'Energy changes form', 'middle', 'small');
+    if (resonance) {
+      const chart = graph({ baseline: 310, top: 105, bottom: 310, xmax: 10, ticks: [0, 5, 10], xlabel: 'Number of timed pushes', ylabel: 'Amplitude (relative)' });
+      evidence += chart.markup;
+      if (state.reveal) evidence += path(sample(chart.left, chart.left + (chart.right - chart.left) * state.progress, position => 310 - (30 + 150 * (1 - Math.exp(-3 * (position - chart.left) / (chart.right - chart.left)))))) + line(chart.left, 130, chart.right, 130, muted, 1.3, '5 5') + label(200, 440, 'Damping limits the final amplitude', 'middle', 'small');
+    } else {
+      const potential = Math.sin(phase) ** 2, kinetic = Math.cos(phase) ** 2;
+      for (const [center, fraction, name, color] of [[115, kinetic, 'Kinetic', teal], [285, potential, 'Spring', blue]]) {
+        evidence += box(center - 35, 135, 70, 180, '#f1f5f8');
+        if (state.reveal) evidence += box(center - 35, 315 - 180 * fraction, 70, 180 * fraction, name === 'Kinetic' ? '#c9e7e5' : '#d1e2f2', color);
+        evidence += label(center, 352, name, 'middle');
+      }
+      evidence += label(200, 397, 'Total mechanical energy is constant', 'middle', 'small');
+      if (state.reveal) evidence += label(200, 440, 'At equilibrium: maximum speed', 'middle', 'small');
+    }
+    return panels([{ markup: mechanism, height: 465 }, { markup: evidence, height: 465 }], state.compact);
+  }
+  function harmonics(lesson, state) {
+    const width = state.compact ? 420 : 840, left = 60, right = width - 50;
+    let drawing = label(width / 2, 35, 'Air displacement, not air pressure', 'middle', 'strong');
+    drawing += box(left, 130, right - left, 150, '#f0f7fa', 'none') + line(left, 130, right, 130, blue, 3) + line(left, 280, right, 280, blue, 3) + line(left, 130, left, 280, blue, 7);
+    drawing += label(left, 95, 'Closed', 'middle') + label(right, 95, 'Open', 'middle') + line(left, 205, right, 205, muted, 1.2, '5 5');
+    if (state.reveal) {
+      for (const sign of [-1, 1]) drawing += path(sample(left, right, position => 205 + sign * 60 * Math.sin((position - left) / (right - left) * Math.PI / 2)), sign > 0 ? '#92b8bd' : teal, sign > 0 ? 1.5 : 3, sign > 0 ? '5 5' : '');
+      drawing += dot(left, 205, 5, ink) + arrow(right, 145, right, 265, rust, 1.7, true);
+      drawing += label(left, 330, 'Node', 'middle') + label(right, 330, 'Antinode', 'middle') + dimension(left, right, 385, 'L = λ/4');
+      drawing += label(width / 2, 435, 'Envelope of longitudinal displacement', 'middle', 'small') + label(width / 2, 472, 'Air moves along the pipe, not up/down', 'middle', 'small');
+      for (const fraction of [.15, .4, .65, .9]) {
+        const center = left + fraction * (right - left), extent = 13 * Math.sin(fraction * Math.PI / 2);
+        drawing += arrow(center - extent, 535, center + extent, 535, rust, 1.5, true) + dot(center, 535, 2, rust);
+      }
+      drawing += label(width / 2, 580, 'Particle motion (exaggerated)', 'middle', 'small');
+    } else drawing += label(width / 2, 365, 'The closed end cannot move', 'middle');
+    return single(drawing, width, state.reveal ? 610 : 400);
+  }
+  function race(lesson, state) {
+    const electromagnetic = lesson.variant === 'em', width = state.compact ? 420 : 840;
+    const left = 95, right = width - 35;
+    const duration = electromagnetic ? 1 : 100;
+    const elapsed = state.reveal ? duration * state.progress : 0;
+    let drawing = label(width / 2, 35, electromagnetic ? 'Vacuum · distance = 300 km' : 'Same distance = 34.3 m', 'middle', 'strong');
+    const lanes = electromagnetic ? [{ name: 'Radio', speed: 300000000 }, { name: 'Visible', speed: 300000000 }] : [{ name: 'Air', speed: 343 }, { name: 'Steel', speed: 5900 }];
+    lanes.forEach((lane, index) => {
+      const baseline = 150 + index * 190, arrival = electromagnetic ? 1 : 34300 / lane.speed;
+      const fraction = Math.min(1, elapsed / arrival);
+      drawing += box(left, baseline - 35, right - left, 70, index ? '#e4edf2' : '#f2f7fa', '#c4d2dc', 3) + label(20, baseline + 7, lane.name, 'start', 'small');
+      drawing += line(right, baseline - 45, right, baseline + 45, muted, 1.5, '5 5') + arrow(left, baseline, left + (right - left) * fraction, baseline, index ? rust : teal, 3);
+      drawing += line(left + (right - left) * fraction, baseline - 25, left + (right - left) * fraction, baseline + 25, index ? rust : teal, 3);
+      drawing += label((left + right) / 2, baseline + 76, electromagnetic ? 'c = 3.00 × 10⁸ m/s' : `v ≈ ${lane.speed.toLocaleString('en-US')} m/s`, 'middle', 'small');
+      if (state.reveal && fraction === 1) drawing += label((left + right) / 2, baseline - 65, `Arrival: ${arrival.toFixed(electromagnetic ? 1 : 2)} ms`, 'middle');
+    });
+    drawing += label(width / 2, 470, `Elapsed time: ${elapsed.toFixed(1)} ms`, 'middle') + label(width / 2, 512, 'Pulse fronts, not individual particles', 'middle', 'small');
+    return single(drawing, width, 540);
+  }
+  function sound(lesson, state) {
+    const width = state.compact ? 420 : 840, left = 100, right = width - 85;
+    let drawing = label(width / 2, 35, state.reveal ? 'Vacuum gap: no material to vibrate' : 'Sound is a traveling pressure disturbance', 'middle', 'small');
+    drawing += box(20, 185, 35, 65, '#d6e3ec', blue) + `<path d="M55 185L80 165V270L55 250Z" fill="#e4eef5" stroke="${blue}" stroke-width="2"/>` + label(55, 320, 'Speaker', 'middle', 'small');
+    drawing += box(left, 110, right - left, 220, state.reveal ? '#fff' : '#f1f8fa', '#b2c8d7', 8) + dot(width - 40, 210, 18, '#e7eff5', blue) + label(width - 45, 365, 'Receiver', 'middle', 'small');
+    if (!state.reveal) {
+      const spacing = (right - left - 25) / 22;
+      for (let column = 0; column < 22; column++) for (let row = 0; row < 6; row++) drawing += dot(left + 15 + column * spacing + spacing * .8 * Math.sin(column * .65 - state.time * 2), 155 + row * 25, 2.6, teal);
+      drawing += arrow(left + 20, 80, right - 20, 80, teal);
+    } else drawing += label(width / 2, 220, 'No particles', 'middle') + label(width / 2, 425, 'The speaker still vibrates.', 'middle') + label(width / 2, 465, 'No sound crosses the empty gap.', 'middle');
+    return single(drawing, width, 500);
+  }
+  function communication(lesson, state) {
+    const infrared = lesson.variant === 'infrared', width = state.compact ? 420 : 840;
+    const source = 55, target = width - 55;
+    let drawing = label(width / 2, 35, infrared ? 'Information carried by infrared light' : 'Information carried by radio waves', 'middle', 'small');
+    drawing += box(source - 23, 95, 46, 100, '#e6eef4', blue, 8) + box(source - 15, 110, 30, 45, '#fff', blue, 2);
+    for (let index = 0; index < 3; index++) drawing += dot(source - 10 + index * 10, 173, 2, blue);
+    if (infrared) drawing += box(target - 35, 110, 70, 60, '#d9e8f0', blue, 3) + line(target, 170, target, 190, blue, 3) + line(target - 15, 190, target + 15, 190, blue, 3);
+    else drawing += `<path d="M${target - 30} 165V145A30 30 0 0 1 ${target + 30} 145V165" fill="none" stroke="${blue}" stroke-width="5"/>` + box(target - 33, 155, 12, 28, '#d0e4ec', blue, 3) + box(target + 21, 155, 12, 28, '#d0e4ec', blue, 3);
+    drawing += label(source, 230, infrared ? 'Remote' : 'Phone', 'middle', 'small') + label(width - 15, 230, infrared ? 'TV' : 'Headphones', 'end', 'small');
+    if (state.reveal) drawing += arrow(source + 40, 145, target - 45, 145, teal, 2.5) + label(width / 2, 115, infrared ? 'Infrared' : 'Bluetooth', 'middle');
+    const bits = [1, 0, 1, 1, 0], left = 45, span = width - 90;
+    drawing += label(width / 2, 295, 'Example information: 1 0 1 1 0', 'middle');
+    let points = [[left, 385]];
+    bits.forEach((bit, index) => { const start = left + index * span / bits.length, end = left + (index + 1) * span / bits.length; points.push([start, bit ? 335 : 385], [end, bit ? 335 : 385]); });
+    points.push([width - 45, 385]);
+    drawing += path(points, blue, 2) + arrow(left, 410, width - 35, 410, ink, 1.4) + label(width / 2, 448, 'Time →', 'middle');
+    if (state.reveal) drawing += label(width / 2, 495, 'Receiver decodes the same information', 'middle', 'small');
+    drawing += label(width / 2, 540, 'Coding schematic, not a protocol waveform', 'middle', 'small');
+    return single(drawing, width, 565);
+  }
+  function clocks(lesson, state) {
+    let timing = label(200, 35, 'Uncorrected GPS clock', 'middle', 'strong');
+    timing += label(25, 100, 'Weaker gravity: +45 μs/day') + label(25, 150, 'Orbital motion: −7 μs/day');
+    const zero = 80, scale = 5;
+    timing += line(zero, 195, zero, 355, ink, 1.4);
+    timing += arrow(zero, 220, zero + 45 * scale, 220, teal, 7) + label(zero + 45 * scale, 202, '+45', 'end');
+    timing += arrow(zero, 310, zero - 7 * scale, 310, rust, 7) + label(zero + 15, 317, '−7');
+    if (state.reveal) timing += label(200, 405, 'Net: +38 μs per day', 'middle', 'strong');
+    timing += label(200, 455, 'Rounded, representative values', 'middle', 'small');
+    let distance = label(200, 35, 'Timing becomes a range error', 'middle', 'small') + label(200, 110, 'Range = c × travel time', 'middle');
+    distance += box(35, 180, 45, 45, '#dceaf1', blue) + line(40, 173, 75, 232, blue, 2) + dot(345, 270, 20, '#e2f1ed', teal) + arrow(85, 215, 315, 265, teal, 2);
+    distance += label(60, 270, 'Satellite', 'middle', 'small') + label(320, 325, 'Receiver', 'middle', 'small');
+    if (state.reveal) distance += label(200, 380, 'Δr = (3 × 10⁸)(38 × 10⁻⁶)', 'middle', 'small') + label(200, 425, '≈ 11,400 m equivalent range error', 'middle', 'small');
+    distance += label(200, 470, 'Not a direct prediction of position error', 'middle', 'small');
+    return panels([{ markup: timing, height: 495 }, { markup: distance, height: 495 }], state.compact);
+  }
+  Object.assign(window.Unit5Diagrams.scenes, { intensity, oscillator, harmonics, race, sound, communication, clocks });
+})();
+
+</script>
+<script >
+(() => {
+  'use strict';
+  const lesson = window.walkthroughLesson;
+  const scene = document.getElementById('scene');
+  const prompt = document.getElementById('prompt');
+  const explanation = document.getElementById('explanation');
+  const pauseButton = document.getElementById('pause');
+  const replayButton = document.getElementById('replay');
+  const stepButton = document.getElementById('step');
+  const choices = [...document.querySelectorAll('[data-choice]')];
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const compact = window.matchMedia('(max-width: 760px)');
+  const durations = { watch: 2400, reveal: 6500, complete: 5000, increase: 8000, critical: 2500, sine: 3500, simplify: 3500, divide: 4000, inverse: 4000, result: 4000, reflection: 4000, hold: 6500 };
+  const criticalPhases = ['increase', 'critical', 'sine', 'simplify', 'divide', 'inverse', 'result', 'reflection', 'hold'];
+  let phase, elapsed = 0, lastTime = null, selected = null, caseIndex = 0, paused = false, completed = false;
+  const isCritical = lesson.type === 'critical';
+  const isRefraction = lesson.type === 'refraction';
+  function correctIndex() {
+    if (!isRefraction) return lesson.correct;
+    const material = lesson.cases[caseIndex];
+    return material.n2 > material.n1 ? 0 : 1;
+  }
+  function explanationText() {
+    if (!isRefraction) return lesson.explanation;
+    const material = lesson.cases[caseIndex];
+    return material.n2 > material.n1 ? 'The entering index is higher. Light slows down; the angle to the normal decreases.' : 'The entering index is lower. Light speeds up; the angle to the normal increases.';
+  }
+  function render() {
+    const reveal = phase === 'reveal' || phase === 'complete';
+    const progress = phase === 'complete' ? 1 : Math.min(1, elapsed / durations[phase]);
+    const time = phase === 'watch' ? elapsed / 1000 : phase === 'predict' ? 2.4 : 2.4 + progress * 5;
+    const state = { phase, elapsed, progress, time: reducedMotion.matches ? 0 : time, reveal, complete: phase === 'complete', compact: compact.matches, caseIndex };
+    const diagram = window.Unit5Diagrams.render(lesson, state);
+    scene.setAttribute('viewBox', `0 0 ${diagram.width} ${diagram.height}`);
+    scene.innerHTML = diagram.markup;
+    scene.setAttribute('aria-label', `${lesson.title}. ${[...scene.querySelectorAll('text')].map(element => element.textContent).join('. ')}. ${prompt.textContent} ${explanation.textContent}`);
+    scene.dataset.phase = phase;
+    scene.dataset.case = caseIndex;
+  }
+  function signalCompletion() {
+    if (completed) return;
+    completed = true;
+    window.parent.postMessage({ type: 'complete' }, '*');
+  }
+  function setPhase(next) {
+    phase = next;
+    elapsed = 0;
+    choices.forEach(button => { button.hidden = phase !== 'predict'; button.disabled = phase !== 'predict'; });
+    pauseButton.hidden = phase === 'predict' || (phase === 'complete' && !isRefraction) || (isCritical && reducedMotion.matches);
+    stepButton.hidden = !(isCritical && reducedMotion.matches);
+    explanation.textContent = '';
+    if (isCritical) {
+      const messages = {
+        increase: ['Watch both angles increase.', 'Both angles are measured from the dashed normal.'],
+        critical: ['The refracted angle reaches 90°.', 'The limiting refracted ray lies along the boundary.'],
+        sine: ['Use Snell’s law at the critical angle.', 'First replace sin(90°) with 1.'],
+        simplify: ['Substitute the two indices.', 'Multiplying by 1 leaves the right side unchanged.'],
+        divide: ['Isolate sin θc.', 'Divide both sides by the index of the starting material.'],
+        inverse: ['Solve for the angle.', 'Take inverse sine, using degrees.'],
+        result: ['The critical angle is the limiting angle.', 'Next, increase the incident angle beyond it.'],
+        reflection: ['Above the critical angle, the ray reflects inside.', 'There is no propagating refracted ray into the air.'],
+        hold: ['Total internal reflection.', 'At an ideal lossless interface, all incident light reflects inside. This requires higher to lower index and an incident angle above the critical angle.']
+      };
+      prompt.textContent = messages[phase][0];
+      explanation.textContent = messages[phase][1];
+      if (phase === 'hold' && caseIndex === lesson.cases.length - 1) signalCompletion();
+    } else if (phase === 'watch') prompt.textContent = 'Watch the setup.';
+    else if (phase === 'predict') prompt.textContent = lesson.question;
+    else if (phase === 'reveal') prompt.textContent = 'Watch the evidence.';
+    else {
+      prompt.textContent = selected === correctIndex() ? 'Correct.' : 'Here is what happens.';
+      explanation.textContent = explanationText();
+      if (!isRefraction || caseIndex === lesson.cases.length - 1) signalCompletion();
+    }
+    scene.setAttribute('aria-label', `${lesson.title}. ${prompt.textContent} ${explanation.textContent}`);
+    render();
+  }
+  function advanceCritical() {
+    if (phase === 'hold') { caseIndex = (caseIndex + 1) % lesson.cases.length; setPhase('increase'); }
+    else setPhase(criticalPhases[criticalPhases.indexOf(phase) + 1]);
+  }
+  function restart() {
+    elapsed = 0;
+    lastTime = null;
+    selected = null;
+    caseIndex = 0;
+    paused = false;
+    pauseButton.textContent = 'Pause';
+    setPhase(isCritical ? 'increase' : reducedMotion.matches ? 'predict' : 'watch');
+  }
+  choices.forEach(button => button.addEventListener('click', () => {
+    if (phase !== 'predict') return;
+    selected = Number(button.dataset.choice);
+    setPhase(reducedMotion.matches ? 'complete' : 'reveal');
+    replayButton.focus({ preventScroll: true });
+  }));
+  pauseButton.addEventListener('click', () => { paused = !paused; pauseButton.textContent = paused ? 'Play' : 'Pause'; });
+  replayButton.addEventListener('click', restart);
+  stepButton.addEventListener('click', advanceCritical);
+  compact.addEventListener('change', render);
+  reducedMotion.addEventListener('change', restart);
+  function frame(timestamp) {
+    const delta = lastTime === null ? 0 : Math.min(100, timestamp - lastTime);
+    lastTime = timestamp;
+    if (!paused && phase !== 'predict' && !(phase === 'complete' && !isRefraction) && !(isCritical && reducedMotion.matches)) {
+      elapsed += delta;
+      if (elapsed >= durations[phase]) {
+        if (isCritical) advanceCritical();
+        else if (phase === 'watch') setPhase('predict');
+        else if (phase === 'reveal') setPhase('complete');
+        else { caseIndex = (caseIndex + 1) % lesson.cases.length; selected = null; setPhase(reducedMotion.matches ? 'predict' : 'watch'); }
+      } else if (phase !== 'complete') render();
+    }
+    requestAnimationFrame(frame);
+  }
+  restart();
+  requestAnimationFrame(frame);
+})();
+
+</script>
+</body>
+</html>

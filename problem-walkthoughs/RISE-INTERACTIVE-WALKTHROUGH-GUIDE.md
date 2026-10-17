@@ -1,276 +1,126 @@
 # Building Interactive Rise Walkthroughs
 
-## The one rule
+## Three groups
 
-**Show, ask, then tell — never in another order.**
+Every learner-facing walkthrough belongs to one of these three groups. Choose the group by what the student does, not by the rendering technology or number of examples. These replace the previous eight-type classification. Follow `AGENTS.md` and the user's latest instructions when an older example differs.
 
-A walkthrough is not a worked solution with pictures. It is a physical situation the learner
-watches, a decision they commit to, and evidence that settles it. Everything in the file exists
-to serve that loop. If a paragraph, label, hint, or equation is on screen before the learner has
-chosen, it is either setup or it is a spoiler — and it is usually a spoiler.
-
-Two hard constraints govern every type below:
-
-1. **No answer before the choice.** No numeric result, no final vector, no equation with values
-   substituted, no color-coded "correct" styling, no trail showing where the ball lands. Draw
-   placeholders (`?`, dashed ghost, greyed row) until a selection is registered.
-2. **No extra information.** One phenomenon, one question at a time. Directions under 15 words.
-   Feedback is two sentences maximum. Delete any sentence that restates what the animation
-   already showed.
-
----
-
-## The eight types in this folder
-
-| # | Type | What it does | Files |
+| Group | Purpose | What the student does | Default flow |
 |---|---|---|---|
-| 1 | **Predict → Reveal** | One event, one prediction, one animated payoff | `horzontal-table-launch`, `cup-launch`, `airplane-drop`, `horizontal-double-height`, `ship-double-launch-time`, `angled-launch-samefinalspeed`, `galileo-interial-ramp-demo`, `force-box-drop` |
-| 2 | **Scenario Series** | The same predict loop repeated over a scenario array | `newtons-3rd-law`, `elastic-collisions`, `inelastic-collisions`, `perfectly-elastic-collision`, `force-box-prediction`, `newtons-3rd-astronaut`, `work-sign-challenge`, `lost-energy-work`, `same-work-different-power` |
-| 3 | **Stepped Numeric Solver** | Randomized problem, multiple choice at every algebra step | `Atwood-pulley`, `Atwood-machine-flat`, `Atwood-machine-ramp`, `change-in-mometum`, `u1-l5`, `gravity-relationship-lab` |
-| 4 | **Guided Equation Walkthrough** | Back/Next narration of a solution, no question | `work-equation`, `work-equartion-angled` |
-| 5 | **Goal Challenge** | Set parameters to hit a target, across rounds/levels | `spring-launcher-challenge`, `insulated-cup-challenge`, `circus-launch`, `thermal-equilibrium-mixer` |
-| 6 | **Lab / Data Collection** | Run trials, fill a table, analysis unlocks after | `crosswind-Ariplane`, `collisiion-1d`, `Static-Forces` |
-| 7 | **Free Explorer** | Sliders and live readouts, nothing gated | `KE-simulation-basic`, `newton-spacewalk`, `newtons-cannon`, `friction-tests`, `simple-machines`, `galileo-boat-relative-motion`, `elevator-updated`, `elevator-weight` |
-| 8 | **Diagram Generator** | Authoring tool, not a learner activity | `1d-problem-4types`, `2d-problem-4types` |
+| 1. Animated demos | Show a phenomenon through animated examples | Watches and compares what happens | Setup -> animate -> highlight evidence -> next example |
+| 2. Misconception questions | Expose a mistaken expectation through a question and visual evidence | Makes a choice, then sees why the result follows | Setup -> question -> student answer -> animated evidence -> next case |
+| 3. Guided simulations | Show what a few student-controlled values do through a short sequence | Changes values, runs or watches the model, and follows a few steps | Baseline -> adjust -> observe -> compare -> next guided step |
 
-Types 1–3 are the workhorses. Reach for those first. Types 4 and 7 have no prediction gate and
-should only be chosen deliberately (see their sections).
+Use one primary group per activity. A demo does not need a quiz. A guided simulation does not need an answer gate at every step. A misconception activity must obtain a choice before revealing the conclusion.
 
----
+## Shared build instruction
 
-## Type 1 — Predict → Reveal
+Build the diagram first. Use one single-line title and place buttons and compact controls immediately beneath the diagram. Keep object names, colors, and line styles consistent everywhere, including object-specific controls and answer buttons. Put values and units directly on the objects or measurement guides they describe. Avoid explanatory paragraphs, redundant instructions, extra panels, and unused space. Preserve graph scale and layout between states. Provide Replay or Reset as appropriate and respect reduced-motion preferences. Use the playback rules of the selected group rather than forcing every activity into a question-and-answer flow.
 
-**Use when** a single moment decides a single misconception. One scene, one question, done in
-under 60 seconds.
+## Specify the activity before coding
 
-**State machine** (`horzontal-table-launch.html:572` is the reference implementation):
+Record these decisions before drawing the scene:
 
-```js
-let state = 'setup';   // setup → predict → reveal → explain
-let prediction = null;
-```
+- Group, phenomenon, and the single relationship students should notice.
+- What changes and what stays constant, including scales and physical assumptions.
+- The animated examples, misconception choices, or student-controlled values and guided steps.
+- The model that computes the outcome and the visual evidence that establishes it.
+- What appears at each stage and what, if anything, must stay hidden until an answer.
+- Object names, colors, line styles, matching control swatches, and completion condition.
 
-| State | Screen | Text budget |
-|---|---|---|
-| `setup` | Static scene, one Start button | 1 sentence |
-| `predict` | Motion frozen at the decision point, 2–4 large buttons | 1 question, no hint |
-| `reveal` | Outcome animates; trails/vectors/timers appear as it happens | labels only |
-| `explain` | Result + one reason, Replay button | 2 sentences |
+For directly comparable curves, use shared axes and fixed scales across cases. Draw measurements at the correct physical locations: amplitude from equilibrium to crest; one cycle between matching phase points; frequency consistent with cycle duration (`f = 1 / T`, converting milliseconds to seconds). Show only the measurements relevant to the current example, question, or step. Values and units belong on the guides, not in a separate readout.
 
-**Do:** freeze motion exactly at the moment of doubt; add evidence (trail, ghost, ring, timer)
-only during `reveal`; let a wrong prediction proceed to the same reveal — the animation is the
-correction, not a red X.
+## Group 1: Animated demos
 
-**Don't:** show the landing point, flight path, or any comparison marker during `predict`. Don't
-pre-render both outcomes and hide one with CSS the learner can inspect mid-question.
+**Use when:** students should see how a phenomenon works through a few clear animated examples.
 
-**Skeleton:**
+**Visual standard:** physics textbook quality. Build a precise scientific figure first: correct geometry and proportions, readable labels, clear directional arrows, restrained colors, and deliberate line weights. Main physical objects should dominate; construction lines, equilibrium positions, and grids should be lighter. Attach labels and values to their objects or measurement guides. Distinguish propagation from material motion, rays from wavefronts, and measurements from motion arrows.
 
-```html
-<section class="wt" data-wt>
-  <div class="stage" data-stage aria-label="Simulation"><!-- SVG or canvas --></div>
-  <div class="card" aria-live="polite">
-    <p data-prompt>Both balls leave the table at the same instant.</p>
-    <div data-choices hidden>
-      <button data-choice="a">Dropped ball</button>
-      <button data-choice="b">Launched ball</button>
-      <button data-choice="same">Same time</button>
-    </div>
-    <p data-feedback></p>
-    <button data-main>Start</button>
-  </div>
-</section>
-```
+A demo may be a great still image or vector diagram with explanatory arrows when movement adds no useful evidence. Most demos should animate to reveal motion, propagation, interaction, or a changing relationship. Animate the physical model, not decorative objects. Keep reference points and scales fixed so the viewer can see what changes. Freeze representative states for reduced-motion users. Do not force animation onto an inherently static relationship or treat an attractive illustration as evidence of physical accuracy.
 
-```js
-function choose(v) {
-  if (state !== 'predict') return;
-  prediction = v;
-  state = 'reveal';
-  render();                       // hides choices, clears prompt
-  playOutcome(() => {             // evidence draws DURING this
-    state = 'explain';
-    render();                     // feedback text appears only now
-  });
-}
-```
+Review figures at desktop and mobile sizes: recognizable objects, no competing labels, unclipped arrowheads, legible units, consistent object identity, physically correct directions, and a clear distinction between the phenomenon and schematic aids. A screenshot should work as a textbook figure even without the animation.
 
----
+- Start automatically with a simple setup, then animate the phenomenon.
+- Use a small sequence of examples, changing one meaningful condition at a time so the relationship is visible.
+- Show labels, motion, trails, and measurements when they help the student notice the phenomenon. There is no answer gate and no requirement to hide the result.
+- Hold the result briefly, highlight the important evidence, and automatically move to the next example. Loop automatically without Play/Pause buttons, retain Replay, and respect reduced-motion preferences.
+- Use visual evidence instead of narration paragraphs. Do not add prediction buttons, scores, or a final quiz by default.
+- Complete after the required examples have been shown, not after an invented question has been answered.
 
-## Type 2 — Scenario Series
-
-**Use when** one principle needs several cases before it generalizes (equal masses, head-on,
-heavy-into-light…).
-
-Identical to Type 1, plus a scenario array and a "Next scenario" button. Everything that varies
-lives in data, so the flow code is written once. See `elastic-collisions.html:530`:
-
-```js
-const scenarios = [
-  { title: 'Equal Mass Transfer',
-    description: 'Cart A moves right into identical Cart B at rest.',
-    m1: 1, u1: 3, m2: 1, u2: 0,
-    askFor: 'B',
-    colors: { /* per-scenario so cases stay visually distinct */ },
-    explanation: 'Cart A stops after impact, so momentum predicts B.' }
-];
-```
-
-**Rules specific to this type:**
-
-- `description` is one sentence. `explanation` is one sentence. These are the whole text budget.
-- Distractor options are generated from the physics (`buildOptions`), not hand-written, and
-  shuffled. Never leave the correct answer in a fixed slot.
-- Reset every panel between scenarios — `resetCards()` must clear equations, momentum rows, and
-  result styling, or scenario 2 opens with scenario 1's answer visible.
-- 4–6 scenarios. Past that, learners stop predicting and start clicking.
-- Longer chains (`momentumChoice → choose → result`, as in `elastic-collisions`) are fine: each
-  sub-step is its own gate, and each reveals only its own line of the equation.
-
----
-
-## Type 3 — Stepped Numeric Solver
-
-**Use when** the skill is executing a multi-step calculation, not predicting an outcome.
-
-The problem is randomized per session and each algebra step is a 4-option multiple choice. The
-critical pattern (`Atwood-pulley.html`) is the placeholder equation:
-
-```js
-equations: [
-  `a = Fnet / mtotal`,                                   // the form — always shown
-  `a = ${format1(p.fnet)} / ${format1(p.mtotal)}`,       // the substitution — always shown
-  completed[i] ? `a = ${format1(p.a)} m/s²` : `a = ?`    // the result — gated
-]
-```
-
-The learner always sees the equation and the numbers going in. They never see the number coming
-out until they have picked it. Carry that `completed[i] ? value : '?'` idiom into every new
-solver.
-
-Distractors come from plausible errors, not noise:
-
-```js
-distractors: [p.fnet / p.m1, p.fnet / p.m2, p.a * 1.25, p.a * 0.75]
-//            forgot to combine masses      arithmetic slips
-```
-
-Cache the shuffled choices per step (`choiceCache[step]`) so going Back doesn't reorder them, and
-gate Next on `completed[step]`.
-
-**Text budget:** a step is a `title` (3–5 words), a `question` (one line), and the equation stack.
-No commentary paragraph. If a step needs prose to make sense, it's two steps.
-
----
-
-## Type 4 — Guided Equation Walkthrough
-
-**Use when** — rarely. This is Back/Next narration with no prediction, so it violates the one
-rule by design: `work-equation.html` displays `W = 500 J` to a learner who was never asked.
-
-Keep it only for a first exposure to a brand-new equation, where there is nothing yet to predict.
-The moment the learner could plausibly attempt the step, convert it to Type 3 — the visual scene
-and step array carry over almost unchanged; you add `choices`, `correctIndex`, and the
-`completed[i] ? … : '?'` gate.
-
-If you keep it as narration: three steps (Define → Substitute → Solve), one sentence each, and
-reveal scene parts progressively via `parts: ['force', 'distance']` so the diagram builds with
-the algebra rather than sitting complete from the start.
-
----
-
-## Type 5 — Goal Challenge
-
-**Use when** the learner should manipulate variables to *achieve* something — the prediction is
-implicit in the setting they choose.
-
-```js
-const rounds = [
-  { level: 1, mass: 2.0, k: 200, x: 0.30, targetSpeed: 3.0 },
-  { level: 2, mass: 2.0, k: 250, targetHeight: 1.0, adjustable: 'k' }
-];
-let gameState = 'setup'; // setup → predict → launched → result → gameover
-```
-
-- Each round exposes exactly one adjustable variable (`adjustable: 'k'`). Two knobs turns physics
-  into guess-and-check.
-- Lock the target readout to the goal, and show the *achieved* value only after the run.
-- Hints live behind a button (`hint-panel hidden`), never on screen by default.
-- Ramp difficulty across rounds; end with a round where the learner picks the value from scratch.
-
----
-
-## Type 6 — Lab / Data Collection
-
-**Use when** the point is a relationship across trials, not a single event.
-
-Structure: controls card → run trial → row appends to a data table → after N valid trials, the
-analysis card unlocks and asks the conceptual question.
-
-- Gate the analysis section (`analysis-fields hidden`, `locked-card`) with a completion checklist.
-  The unlock *is* the pacing; without it learners answer from the prompt instead of the data.
-- The table shows measurements only — no derived/expected column, no residuals, nothing that
-  hands over the pattern.
-- Accept numeric answers with a stated tolerance and units beside the input.
-- These are the only walkthroughs that may exceed one screen, and only because the table grows.
-
----
-
-## Type 7 — Free Explorer
-
-**Use when** the goal is developing intuition before any question exists — introducing a new
-quantity, or a demo you narrate live in class.
-
-No gating, live readouts, sliders. Because nothing is hidden, an explorer must be paired with a
-Type 1/2 activity that asks something, or the learner leaves having watched rather than thought.
-Do not use an explorer where a prediction is possible.
-
----
-
-## Type 8 — Diagram Generator
-
-`1d-problem-4types` and `2d-problem-4types` are authoring tools for producing problem figures —
-sidebar of parameters, rendered SVG, export. Not learner-facing. Don't model new walkthroughs on
-their two-pane layout.
-
----
-
-## Choosing a type
+Example: animate a pulse reflecting from a fixed boundary, then a free boundary. Keep the incoming pulse comparable and show the reflected pulse's orientation directly.
 
 ```text
-Is there a single moment a learner will get wrong?      → Type 1
-  …and does it take several cases to generalize?        → Type 2
-Is the skill executing a calculation?                   → Type 3
-Should they hit a target by changing one variable?      → Type 5
-Is the point a relationship across many trials?         → Type 6
-Is the equation brand new with nothing to predict yet?  → Type 4
-None of the above (pure intuition-building)             → Type 7, paired with 1 or 2
+setup -> animate example -> highlight relevant feature -> hold -> next example
 ```
+
+## Group 2: Misconception questions
+
+**Use when:** students are likely to make a specific mistaken prediction or misread a comparison. The question reveals the misconception; the animation and measurements resolve it.
+
+- Define the misconception explicitly in authoring data, without displaying the explanation before the answer.
+- Automatically show the setup. Wait indefinitely for the student's answer; do not time out the choice.
+- Show the evidence needed to interpret a comparison before asking. For a prediction, withhold the future outcome. Hide correct-answer styling and explanatory guides until the answer.
+- Ask about one property at a time. Omit visible question text if answer labels already communicate the task; include one short question inside the diagram when needed.
+- Make answer labels explicit: "Wave A is louder," "Wave B is louder," "Same loudness." Match A's and B's button swatches to their diagram colors and line styles; Same carries both.
+- Keep object choices in stable A/B/Same order. Vary the correct object across cases and include equal outcomes where meaningful. Use plausible misconceptions for numeric distractors and shuffle those where appropriate.
+- After either a correct or incorrect answer, reveal the same physical evidence. Highlight measurement guides with object, value, and units directly on the lines. Highlight both when equal. No routine feedback paragraph or praise text.
+- Automatically advance after enough time to inspect the evidence. Keep Replay; no Start, Add B, or Next buttons by default.
+- Complete once the required cases have been answered and their evidence shown.
+
+**Example: "Double the height means double the horizontal range."**
+
+Use horizontal launches with equal horizontal speed, uniform gravity, and negligible air resistance. Show heights `h` and `2h` before the choice, but do not show landing positions or range guides yet. Ask whether doubling the height produces twice the range. After the answer, animate both launches and label the horizontal distances on the ground. Under these assumptions, `t = sqrt(2h/g)` and `R = vx * t`, so doubling height gives `sqrt(2)` times the range (about 1.41 times), not twice. The misconception is the distractor, never the model used to animate the result. Keep any mathematical explanation in authoring notes unless the diagram needs it.
+
+```text
+setup -> choice -> answer -> animate outcome -> labeled measurement evidence -> next case
+```
+
+For a visible-wave comparison, the two waves appear before the choice; only the explanatory amplitude or frequency guides are withheld.
+
+## Group 3: Guided simulations
+
+**Use when:** students should control a few values, see what those values do, and work through a few purposeful steps.
+
+- Expose only a few relevant controls, typically 1-3 values. Do not build a large dashboard of settings.
+- Use a short guided sequence, typically 3-4 steps: inspect a baseline, change one value, compare the effect, then try another value or combination if useful.
+- Give each step one short action instruction inside the diagram. Show current values and units beside the corresponding object or measurement; give every slider/input an accessible name.
+- Keep other variables fixed while introducing one relationship. Later steps may let students combine the few controls to explore their effects.
+- Update the model live when useful; use a Run button when an event such as a launch needs a deliberate start. Preserve a clearly identified baseline or previous trial when it helps comparison.
+- Let the student decide when to advance from exploration. A small Next step control is appropriate here; do not auto-advance while the student is adjusting values or examining a result.
+- Keep Reset available and define whether it resets the trial, current step, or full activity. Do not silently discard settings between steps.
+- Questions may be included when they serve the step, but are not mandatory. Do not turn every control change into a multiple-choice gate.
+- Complete after the required guided steps or meaningful runs have been performed, not merely after moving any slider.
+
+Example: start with a reference wave, let the student change amplitude while frequency stays fixed, then change frequency while amplitude stays fixed, then try both. Show the corresponding height and cycle spacing directly on the graph.
+
+```text
+baseline -> student adjusts value -> live change or run -> inspect comparison -> next step
+```
+
+## Choosing and adapting a group
+
+- Want students to watch a phenomenon unfold through examples? Choose **Animated demo**.
+- Want students to commit to an expectation and discover a misconception? Choose **Misconception questions**.
+- Want students to change values and learn their effects through a few steps? Choose **Guided simulation**.
+
+Older prediction loops and scenario series generally fit Group 2. Older explorers, challenges, and labs can supply models for Group 3, but must be narrowed to a few controls and guided steps. Equation walkthroughs and numeric solvers are techniques to use inside a suitable group when they support the phenomenon; they are not additional top-level groups. A worksheet-only solver does not automatically qualify as a guided simulation. Diagram generators are authoring tools outside these three learner-facing groups. Existing files remain references, not automatic examples of compliance; this guide reorganization does not reclassify or rebuild them by itself.
 
 ---
 
-## Text budget (applies to every type)
+## Text budget
 
-| Element | Limit |
+| Element | Default |
 |---|---|
-| Setup / situation | 1 sentence |
-| Question | 1 line, no restatement of the setup |
-| Choice label | 2–5 words |
-| Feedback | Result sentence + one reason sentence |
-| Step title | 3–5 words |
-| Hints | Behind a button, one sentence, never default-visible |
+| Main title | One single-line title; no subtitle or kicker |
+| Setup / situation | Diagram labels; at most one necessary sentence |
+| Question | Group 2, or an optional simulation check: omit when answer labels suffice; otherwise one line inside the diagram |
+| Choice label | Explicit object and property, even if longer than five words |
+| Feedback | Highlighted measurement guides labeled with object, value, and units |
+| Guided step | One short action instruction inside the diagram; no extra introductory heading |
+| Hints | Only when needed, behind a button; one sentence |
 
-Feedback formula, correct and incorrect alike:
+Examples: "Wave A is louder," "Wave B is louder," "Same loudness"; for pitch, "Wave A has higher pitch," "Wave B has higher pitch," "Same pitch." Each button includes the corresponding line swatch. Do not collapse different properties into vague "A," "B," or "Both" choices.
 
-```text
-[Result]. [One reason tied to what was just visible].
-```
-
-> They land together. Both started with zero vertical velocity and the same acceleration.
-
-No praise-only feedback. No derivations. No "Great job!" No restating the question. No paragraph
-of theory after the reveal — if the concept needs a paragraph, it belongs in the Rise text block
-above the embed, not inside the interaction.
+In Group 2, after answering, highlight the measurement that establishes the result; highlight both when equal. Keep the values attached to the actual guide lines. No routine "Correct!", result paragraph, or explanation panel. Add one short explanation only if the diagram cannot communicate the reasoning. Keep a concise equivalent result available through accessible status text.
 
 ---
 
@@ -323,23 +173,22 @@ Write and test every walkthrough to align with [WCAG 2.2](https://www.w3.org/TR/
 - Support browser zoom to 200% and reflow at a 320 CSS-pixel viewport without losing content or functionality or requiring two-dimensional scrolling, except where the content itself genuinely requires it.
 - Do not place essential instructions only in hover states. Ensure instructions and feedback remain available to touch, keyboard, and assistive-technology users.
 
+The following layout illustrates Group 2; demos use playback controls, and guided simulations use compact value controls and step navigation in the same location.
+
 ```text
-┌────────────────────────────────────────────┐
-│ Small title                        Reset   │
-│                                            │
-│            MAIN SIMULATION                 │  ≥ 60% of block height
-│        objects • arrows • labels           │
-│                                            │
-│  Question card                             │
-│  [Choice A] [Choice B] [Choice C]          │
-└────────────────────────────────────────────┘
++--------------------------------------------+
+|              Single-line title             |
+|                                            |
+|          DIAGRAM / SHARED GRAPH            |
+|     objects, labels, measurement guides     |
++--------------------------------------------+
+  [A swatch + answer] [B swatch + answer]
+  [Both swatches + same property] [Replay]
 ```
 
 - One responsive wrapper, stable aspect ratio, no page scroll at the target embed width.
-- Question lives *inside* the simulation box — never make the learner connect distant text to an
-  event.
-- Rendering: SVG for staged scenes with discrete labeled parts (Type 1, 4); canvas for continuous
-  motion, many objects, or per-frame physics (Types 2, 3, 5, 7). Both are in use and both are fine.
+- Necessary question text lives inside the diagram. Omit it when answer labels suffice. Keep controls 4-8 px below the diagram container and remove unused space inside the diagram.
+- Rendering: use SVG for scenes with discrete labeled parts; use canvas when continuous motion, many objects, or per-frame physics warrant it. Any of the three groups can use either.
 - Self-contained: no remote assets or external libraries in files destined for a Rise embed.
 - Prefix classes (`rph-*`) or scope all CSS under the root class to avoid Rise collisions.
 - Real `<button>` elements, visible focus, `aria-live="polite"` on feedback, mouse + keyboard +
@@ -351,17 +200,44 @@ Write and test every walkthrough to align with [WCAG 2.2](https://www.w3.org/TR/
 
 ---
 
+## Playback and starter implementation
+
+Use these requirements in starters for all three groups and when revising shared playback code. Updating prose alone is insufficient if the copied template still generates question cards and explanation paragraphs. Older activities are not automatically compliant references.
+
+- Use the selected group's state sequence. Demos have no answer gate; misconception questions wait indefinitely for an answer; guided simulations wait for student adjustments and step advancement.
+- For automatic demos and misconception sequences, initial timing suggestions are reference 2.4 seconds, transition about 1 second, evidence 5-6.5 seconds. Tune to the phenomenon; never apply these as deadlines for student input. Keep Replay available and meet the accessibility requirements above.
+- Reduced motion uses static stages or minimal transitions while preserving the phenomenon, required evidence, and any answer or student-control gate.
+- Cancel all pending timers and animation callbacks when replaying or changing scenarios; do not let callbacks from the previous case change the new one.
+- Use one object identity map for curves, labels, legend, buttons, and feedback. Keep scene geometry and graph scales fixed through the sequence.
+- Use one scenario model to derive physical outcomes, rendered values, any correct answers, accessible status, and tests. Do not retain stale legacy configuration that describes a different question.
+- Reset all feedback and answer state. Guard completion so a full activity sends one completion message, including when replayed.
+
 ## Build checklist
 
-- [ ] Type chosen deliberately from the table above
-- [ ] One phenomenon, one objective
-- [ ] Simulation dominates the block
-- [ ] **Nothing on screen before the choice hints at the answer** — check placeholders, ghosts, CSS-hidden nodes, and pre-drawn trails
-- [ ] Choices shuffled; correct answer not in a fixed position
-- [ ] Distractors are plausible errors, not random numbers
-- [ ] Evidence appears synchronized with the reveal, not before
-- [ ] Every text element inside its budget; no sentence restates the animation
-- [ ] Hints behind a button
-- [ ] Reset/replay returns every object, label, and panel to initial state
-- [ ] Responsive at narrow Rise widths; no internal page scroll
-- [ ] Keyboard and touch tested
+- [ ] One of the three groups selected; phenomenon, controls/examples/questions, model, and completion specified
+- [ ] One title, diagram dominates, no redundant instructions or extra question card
+- [ ] Group 1: examples animate without quiz gates; relevant evidence appears during or after the phenomenon
+- [ ] Group 2: comparison evidence visible before choice; predicted outcome and explanatory guides withheld until answer
+- [ ] Group 3: few working controls and a short guided sequence; student controls exploration and step advancement
+- [ ] Playback matches the group; no forced question gates in demos or forced timed advancement during student exploration
+- [ ] Where questions are used, labels identify object and property; A/B/Same order stable; correct outcome varies
+- [ ] Diagram, legend, buttons, and feedback share object names, colors, and line styles
+- [ ] Object-specific buttons include matching swatches; Same shows both where used; identity does not rely on color alone
+- [ ] Comparable curves share axes and fixed scales; measurement geometry, values, and units correct
+- [ ] Feedback highlights only the relevant measurement, both when equal, directly on the guides
+- [ ] No unnecessary feedback prose; accessible status communicates the result
+- [ ] Buttons sit 4-8 px beneath the diagram; no unused internal space or feedback layout jump
+- [ ] Numeric distractors reflect plausible errors and are shuffled where appropriate
+- [ ] Replay clears pending timers, animation, labels, and result state
+- [ ] Reduced motion, keyboard, and touch behavior checked; completion sent exactly once
+- [ ] Actual activity tested, not only an obsolete shared renderer or assumed Pause-button flow
+- [ ] All cases and steps exercised: demo sequence, applicable equal/incorrect answers, simulation control bounds and reset, replay during transitions, and repeated completion
+- [ ] Setup, active animation/control, and result screenshots (plus choice for Group 2) inspected at desktop and narrow widths (including 320 and 390 px); labels readable, no overlap or clipping
+- [ ] Source and extracted ZIP checked; package has current assets and no external dependencies
+- [ ] Relevant distributable copies updated; logic checks and visual checks reported separately
+
+If browser verification is unavailable, report that limitation explicitly. Passing syntax or mocked interaction checks does not establish that the diagram, swatches, or spacing look correct.
+
+## Future additions
+
+Add agreed preferences to the relevant sections above and mirror lasting defaults in `AGENTS.md`. Update conflicting examples and checklist items at the same time; do not accumulate contradictory rules in an appendix. Update affected starters and tests when implementing a new behavior.

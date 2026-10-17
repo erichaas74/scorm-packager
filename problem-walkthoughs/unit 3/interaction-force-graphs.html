@@ -9,103 +9,150 @@ html, body { background: transparent; margin:0; }
 * { box-sizing:border-box; }
 .walkthrough { max-width:900px;margin:12px auto;padding:20px;border:5px solid #285f9f;border-radius:18px;background:#fff;color:#172434;font:16px/1.45 system-ui,sans-serif; }
 .walkthrough h1 {font-size:1.45rem;margin:0 0 8px}.walkthrough h2 {font-size:1.15rem;margin:12px 0 6px}.walkthrough p {margin:8px 0}
-.walkthrough button,.walkthrough select {font:inherit;min-height:44px;padding:8px 12px;border:1px solid #718096;border-radius:6px;background:#fff;color:#172434}
+.walkthrough button {font:inherit;min-height:44px;padding:8px 12px;border:1px solid #718096;border-radius:6px;background:#fff;color:#172434}
 .walkthrough button:not(:disabled) {cursor:pointer}.walkthrough button:disabled {opacity:.5}.walkthrough button[aria-pressed="true"] {background:#285f9f;color:#fff}
 .walkthrough :focus-visible {outline:3px solid #285f9f;outline-offset:3px}
-.walkthrough .row {display:flex;flex-wrap:wrap;align-items:center;gap:10px}.walkthrough select {max-width:100%;width:100%}
+.walkthrough .row {display:flex;flex-wrap:wrap;align-items:center;gap:10px}
 .walkthrough .scene {display:flex;justify-content:center;align-items:center;gap:12px;min-height:95px;background:#f1f5f9;margin:12px 0;padding:12px;border-radius:8px}
 .walkthrough .object {border:2px solid #526779;border-radius:8px;padding:12px;text-align:center}.walkthrough .large {padding:20px}
 .walkthrough .choices {display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.walkthrough .feedback {border-left:4px solid #285f9f;padding-left:12px}
-.walkthrough svg {width:100%;display:block}.walkthrough svg text {font:13px system-ui;fill:#172434}.walkthrough .legend {display:flex;flex-wrap:wrap;gap:12px;font-size:14px}.walkthrough .key {display:inline-block;width:25px;vertical-align:middle;border-top:3px solid #285f9f}.walkthrough .other {border-top:3px dashed #a43c12}
+.walkthrough svg {width:100%;display:block}.walkthrough svg text {font:13px system-ui;fill:#172434}.walkthrough .legend {display:flex;flex-wrap:wrap;justify-content:flex-end;gap:12px;font-size:14px;margin:4px 0 8px}.walkthrough .key {display:inline-block;width:25px;vertical-align:middle;border-top:3px solid #285f9f}.walkthrough .other {border-top:3px dashed #a43c12}
 .walkthrough input {width:100%;accent-color:#285f9f;min-height:30px}.walkthrough .note {font-size:14px;color:#435366}.walkthrough [hidden] {display:none!important}
-.walkthrough .scene.animated {display:block;padding:0;min-height:0}.walkthrough .scene svg {height:170px}.walkthrough .scene svg text {font-size:14px}.walkthrough #playback {margin:8px 0}.walkthrough #motion-status {font-size:14px}
+.walkthrough .scene.animated {display:block;padding:0;min-height:0}.walkthrough .scene svg {height:auto;aspect-ratio:560/150}.walkthrough .scene svg text {font-size:14px}.walkthrough #playback {margin:8px 0}.walkthrough #motion-status {font-size:14px}
 @media(max-width:480px){.walkthrough{padding:12px;margin:0}.walkthrough .scene{gap:6px}.walkthrough .object{padding:8px}.walkthrough .choices button{width:100%}}
+.walkthrough .animation-stage {background:#f8fbff;border-radius:8px;overflow:hidden;margin:12px 0}
+.walkthrough .animation-stage .scene {margin:0}
+.walkthrough #result {position:relative}
+.walkthrough .animation-controls {position:absolute;top:0;right:0;display:flex;gap:8px;z-index:1}
+.walkthrough .animation-controls button {padding:6px 10px}
+.walkthrough .graph-choices {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.walkthrough .graph-choices button {padding:4px;min-width:0;width:100%}
+.walkthrough .graph-choices button:disabled {opacity:1}
+.walkthrough .choices button.correct {outline:3px solid #16803c;outline-offset:1px}
+@media(max-width:520px){.walkthrough .graph-choices {grid-template-columns:1fr}.walkthrough .graph-choices svg {max-height:120px}}
 </style>
 </head>
 <body>
 <main class="walkthrough">
-<h1>Interaction Force Graphs</h1>
-<label for="scenario">Unit 3 · Choose a situation</label>
-<select id="scenario"></select>
-<p id="setup"></p>
-<div class="scene" role="img" id="scene"><span class="object" id="object-a"></span><span aria-hidden="true">↔</span><span class="object large" id="object-b"></span></div>
-<h2 id="question"></h2>
-<div class="choices" id="choices" aria-labelledby="question"></div>
+<h2 id="situation-title" hidden></h2>
+<section id="question-panel" style="visibility:hidden"><h2 id="question" tabindex="-1"></h2>
+<div class="choices" id="choices" aria-labelledby="question"></div></section>
+<div class="animation-stage"><div class="scene" role="img" id="scene"><span class="object" id="object-a"></span><span aria-hidden="true">↔</span><span class="object large" id="object-b"></span></div></div>
+<p id="motion-explanation" role="status" hidden></p>
 <div id="result" hidden>
-<p class="feedback" id="feedback" role="status"></p>
-<div class="row" id="playback" hidden><button id="play">Play</button><button id="replay">Replay</button><span id="motion-status" role="status"></span></div>
-<div class="legend"><span><i class="key"></i> <span id="legend-a"></span></span><span><i class="key other"></i> <span id="legend-b"></span></span></div>
+<div class="animation-controls"><button id="replay">Replay</button><button id="reset">Start over</button></div>
 <svg id="graph" role="img" aria-labelledby="graph-title graph-desc"></svg>
-<label for="time">Read the graph: <output id="readout" for="time"></output></label>
-<input id="time" type="range" min="0" max="100" value="50" step="1">
-<p id="graph-help"></p>
-<p class="note">Illustrative values, not measurements. The signs use one shared direction axis; a negative force is not a weaker force.</p>
 </div>
-<div class="row"><button id="next" disabled>Next situation</button><button id="reset">Start over</button><span id="progress" role="status"></span></div>
 <script>
 (() => {
 'use strict';
 const cases=[
-{title:'Two carts collide',objects:['Light cart','Heavy cart'],setup:'A light cart and a heavy cart collide on a low-friction track.',q:'Which cart experiences the greater interaction force?',options:['The light cart','The heavy cart','Neither; equal magnitudes'],correct:2,a:'Heavy cart on light cart',b:'Light cart on heavy cart',unit:'N',points:[[0,0],[1,0],[1.5,20],[2,40],[2.5,20],[3,0],[4,0]],answer:'Neither cart experiences a greater interaction force.',why:'Their forces are equal and opposite at every instant, although the lighter cart has a larger acceleration from this force.',help:'Start at zero, draw the collision pulse, then reflect it across the time axis; both forces return to zero after separation.'},
-{title:'A car hits a truck',objects:['Car','Truck'],setup:'A car collides with a truck, and the car shows more damage.',q:'Does greater damage mean a greater interaction force?',options:['Yes; the car feels more','No; the forces are equal','Yes; the truck feels more'],correct:1,a:'Truck on car',b:'Car on truck',unit:'kN',points:[[0,0],[.1,0],[.15,30],[.2,60],[.25,30],[.3,0],[.4,0]],answer:'Greater damage does not mean a greater interaction force.',why:'The force magnitudes match, while damage also depends on structure, materials, and deformation.',help:'Draw both pulses with the same start time, peak time, and duration; their signed heights are opposite.'},
-{title:'Students push off on skateboards',objects:['Student A · 40 kg','Student B · 60 kg'],setup:'Two students with different masses push off on skateboards with negligible horizontal resistance.',q:'How can their accelerations differ if forces are equal?',options:['The lighter student accelerates more','The heavier student accelerates more','Equal force means equal acceleration'],correct:0,a:'Student B on student A',b:'Student A on student B',unit:'N',points:[[0,0],[.5,0],[1,60],[1.5,120],[2,60],[2.5,0],[4,0]],answer:'The lighter student has the larger acceleration magnitude.',why:'At 120 N, a = Fnet/m gives 3 m/s² for 40 kg and 2 m/s² for 60 kg, in opposite directions.',help:'Mirror the push pulses; after separation at 2.5 s, both interaction forces are zero even while the students keep moving.'},
-{title:'A hand pushes against a wall',objects:['Hand','Wall'],setup:'A person gradually pushes harder on a wall, holds the push, and then releases.',q:'What happens to the wall’s force when the push increases?',options:['It stays constant','It increases equally','It remains zero'],correct:1,a:'Hand on wall',b:'Wall on hand',unit:'N',points:[[0,0],[1,50],[3,50],[4,0],[5,0]],answer:'The wall’s force increases by the same amount.',why:'A stationary wall still exerts an equal and opposite contact force on the hand.',help:'Draw an increasing ramp, a steady plateau, and a decreasing ramp; mirror every part below zero.'},
-{title:'A book rests on a table',objects:['Book','Table'],setup:'A book rests on a horizontal table with no other vertical forces besides gravity and the table’s support.',q:'Are the book’s weight and upward support a third-law pair?',options:['Yes; they balance','No; both act on the book','Only when the book rests'],correct:1,a:'Table on book (up)',b:'Book on table (down)',unit:'N',points:[[0,10],[4,10]],answer:'Weight and support are not a third-law pair because both act on the book.',why:'The contact pair is table-on-book and book-on-table; the gravity pair is Earth-on-book and book-on-Earth.',help:'Using upward as positive, draw constant lines at +10 N and −10 N; the negative line is the book’s push on the table, not the book’s weight.'},
-{title:'Connected force sensors',objects:['Sensor A','Sensor B'],setup:'Two students hold connected force sensors while only one student actively pulls.',q:'Can either side of this interaction have a greater force?',options:['Yes; the active puller','Yes; the resisting student','No; the magnitudes match'],correct:2,a:'Sensor B on sensor A',b:'Sensor A on sensor B',unit:'N',points:[[0,0],[.5,5],[1,15],[1.5,10],[2,20],[2.5,15],[3,5],[3.5,0],[4,0]],answer:'Neither side of the same interaction has a greater force magnitude.',why:'Ideal, zeroed sensors show matching magnitudes even if only one student actively pulls; raw reading signs depend on sensor orientation.',help:'Use a common direction convention and mirror each peak and dip, with no time delay between the two curves.'}
+{title:'Two identical carts collide',objects:['Cart A','Cart B'],setup:'Two identical carts move toward each other at equal speeds and collide on a low-friction track. Watch the forces build live. Right is the positive direction for both carts.',q:'Why is one force positive and the other negative during the collision?',options:['The forces act in opposite directions','The negative force is weaker','Only one cart exerts a force'],correct:0,a:'Force on A',b:'Force on B',unit:'N',points:[[0,0],[1,0],[1.5,20],[2,40],[2.5,20],[3,0],[4,0]],answer:'The signs show opposite directions, not different strengths.',why:'Cart B pushes cart A to the right (positive), while cart A pushes cart B to the left (negative). Newton?s third law makes these forces equal in magnitude at every instant. At the peak they are +40 N and ?40 N. Choosing left as positive would reverse both signs.',help:'Compare the two curves as the carts touch and separate. Both return to zero after contact ends.'},
+{title:'A car hits a truck',objects:['Car','Truck'],setup:'A car collides with a truck, and the car shows more damage.',q:'What will the force graph look like when the car and truck collide?',options:['Equal force magnitudes','Force on truck much larger','Force on car much larger'],correct:0,a:'Force on car',b:'Force on truck',unit:'kN',points:[[0,0],[.1,0],[.15,30],[.2,60],[.25,30],[.3,0],[.4,0]],answer:'Greater damage does not mean a greater interaction force.',why:'The force magnitudes match, while damage also depends on structure, materials, and deformation.',help:'Draw both pulses with the same start time, peak time, and duration; their signed heights are opposite.'},
+{title:'Two students push off on skateboards',objects:['Student A · 40 kg','Student B · 60 kg'],setup:'Two students with different masses push off on skateboards with negligible horizontal resistance.',q:'Which student will have the greater acceleration?',options:['Student A (40 kg)','Student B (60 kg)','Both have the same acceleration'],correct:0,a:'Force on A',b:'Force on B',unit:'N',points:[[0,0],[.5,0],[1,60],[1.5,120],[2,60],[2.5,0],[4,0]],answer:'The lighter student has the larger acceleration magnitude.',why:'At 120 N, a = Fnet/m gives 3 m/s² for 40 kg and 2 m/s² for 60 kg, in opposite directions.',help:'Mirror the push pulses; after separation at 2.5 s, both interaction forces are zero even while the students keep moving.'},
 ];
-const shortCopy=[
-['Equal forces; the lighter cart accelerates more.','Mirror the pulses; both end at separation.'],
-['Equal forces; damage depends on structure and deformation.','Both pulses start and end together.'],
-['Equal forces; a = Fnet/m makes the lighter student accelerate more.','After separation: zero force, continued motion.']
-];
-shortCopy.forEach((copy,i)=>{cases[i].answer=copy[0];cases[i].why='';cases[i].help=copy[1];});
 const $=id=>document.getElementById(id),answered=new Map();let current=0,completionSent=false;
-let frame=0,playing=false,lastFrame=0;
+let frame=0,playing=false,lastFrame=0,animationTime=0,advanceTimer=0;
 const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
-function pause(){playing=false;cancelAnimationFrame(frame);frame=0;$('play').textContent='Play';}
-function tick(now){if(!playing)return;const dt=Math.min(now-lastFrame,80);lastFrame=now;$('time').value=Math.min(100,Number($('time').value)+dt/60);draw();if(Number($('time').value)>=100){pause();return;}frame=requestAnimationFrame(tick);}
-function play(){if(current>=3||$('result').hidden)return;if(Number($('time').value)>=100)$('time').value=0;playing=true;lastFrame=performance.now();$('play').textContent='Pause';frame=requestAnimationFrame(tick);}
+function pause(){playing=false;cancelAnimationFrame(frame);frame=0;}
+function tick(now){if(!playing)return;const dt=Math.min(now-lastFrame,80);lastFrame=now;animationTime=Math.min(100,animationTime+dt/60);draw();if(animationTime>=100){finish();return;}frame=requestAnimationFrame(tick);}
+function finish(){if(current>0&&!answered.has(current))return;pause();$('question').textContent=cases[current].q;$('choices').style.visibility='visible';if(current!==1||answered.has(1))explainMotion();animationTime=100;draw();$('question-panel').style.visibility='visible';if(current===0&&answered.has(0))confirmFirstAnswer();if(current===2){$('choices').querySelectorAll('button').forEach(b=>{if(Number(b.dataset.option)===cases[current].correct){b.classList.add('correct');b.setAttribute('aria-label','Student A, 40 kg: correct');}});progress();}if(current===1&&answered.has(1)){$('choices').querySelectorAll('button').forEach(b=>{if(b.dataset.option==='0'){b.classList.add('correct');b.setAttribute('aria-label','Equal force magnitudes: correct');}});advanceTimer=setTimeout(()=>{current++;load();$('replay').focus();},9000);}}
+function explainMotion(){const text=current===1?'Newton’s third law: the truck pushes on the car with the same force magnitude that the car pushes on the truck, in the opposite direction. The two force curves are equal and opposite throughout the collision.':current===2?'Student A (40 kg) has the greater acceleration. With equal forces, a = F/m: at 120 N, A accelerates at 3 m/s\u00b2 and B (60 kg) at 2 m/s\u00b2. A gains speed 1.5 times as quickly during the push. After separation, both coast with zero interaction force.':'';$('motion-explanation').textContent=text;$('motion-explanation').hidden=!text;}
+function play(){if(current>=3||$('result').hidden||(current>0&&!answered.has(current)))return;if(animationTime>=100)animationTime=0;$('question-panel').style.visibility='visible';if(current===0){$('question').textContent='When the carts collide, watch how the forces interact on the force-over-time graph.';$('choices').style.visibility='hidden';}playing=true;lastFrame=performance.now();frame=requestAnimationFrame(tick);}
 function forceAt(c,time){let k=1;while(k<c.points.length-1&&c.points[k][0]<time)k++;const p=c.points[k-1],q=c.points[k];return p[1]+(q[1]-p[1])*(time-p[0])/(q[0]-p[0]);}
 function motion(){
 if(current>=3)return;
-const scene=$('scene'),c=cases[current],u=Number($('time').value)/100,time=u*c.points.at(-1)[0],f=forceAt(c,time),peak=Math.max(...c.points.map(p=>p[1])),active=!$('result').hidden;
+const scene=$('scene'),c=cases[current],u=animationTime/100,time=u*c.points.at(-1)[0],f=forceAt(c,time),peak=Math.max(...c.points.map(p=>p[1])),active=!$('result').hidden;
 scene.replaceChildren();scene.classList.add('animated');
-const svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 560 170');svg.setAttribute('aria-hidden','true');scene.append(svg);
+const svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 35 560 150');svg.setAttribute('aria-hidden','true');scene.append(svg);
 const add=(tag,attrs,text)=>{const n=document.createElementNS(ns,tag);Object.entries(attrs).forEach(([k,v])=>n.setAttribute(k,v));if(text!==undefined){n.textContent=text;n.style.fontSize=Math.max(14,12*560/Math.max(scene.clientWidth,260))+'px';}svg.append(n);return n;};
+// Track and outlined vehicles adapted from the elastic/inelastic collision labs.
+for(let x=30;x<560;x+=40)add('line',{x1:x,y1:0,x2:x,y2:145,stroke:'#e2e8f0'});
+for(let x=36;x<530;x+=48)add('rect',{x,y:154,width:30,height:6,rx:2,fill:'#cbd5e1'});
+add('line',{x1:20,y1:143,x2:540,y2:143,stroke:'#64748b','stroke-width':5});
 let a,b,phase;
 if(current<2){
 const approach=Math.min(u/.25,1),after=Math.max(0,(u-.75)/.25),compression=u>=.25&&u<=.75?Math.sin((u-.25)*Math.PI*2)*9:0;
-a=365-approach*75+after*80-compression;b=210-after*32;
+if(current===0){a=355-approach*45+after*45-compression/2;b=205+approach*45-after*45+compression/2;}else{a=365-approach*75+after*80-compression;b=210-after*32;}
 phase=u<.25?'Approaching':u<.75?'Contact':'Separated';
-const vehicle=(cx,width,color,label,truck)=>{add('rect',{x:cx-width/2,y:83,width,height:32,rx:6,fill:color});if(current===1)add('rect',{x:cx-width/2+8,y:truck?58:68,width:width-22,height:25,rx:4,fill:color});[-width*.3,width*.3].forEach(dx=>add('circle',{cx:cx+dx,cy:119,r:9,fill:'#334155'}));const lx=truck?120:440;add('line',{x1:cx,y1:130,x2:lx,y2:138,stroke:'#718096'});add('text',{x:lx,y:158,'text-anchor':'middle'},label);};
-vehicle(b,100,'#a43c12',current===0?'Heavy cart':'Truck',true);vehicle(a,60,'#285f9f',current===0?'Light cart':'Car',false);
+const vehicle=(cx,width,color,label,truck)=>{
+const fill=color==='#285f9f'?'#dbeafe':'#ffedd5';
+if(current===0){
+add('rect',{x:cx-width/2,y:85,width,height:38,rx:9,fill,stroke:color,'stroke-width':3});
+add('text',{x:cx,y:109,'text-anchor':'middle','font-weight':700},label);
+}else if(truck){
+add('rect',{x:cx-width/2,y:68,width:width-30,height:55,rx:5,fill,stroke:color,'stroke-width':3});
+add('path',{d:`M${cx+width/2-30},86 H${cx+width/2-10} L${cx+width/2},101 V123 H${cx+width/2-30} Z`,fill,stroke:color,'stroke-width':3});
+add('path',{d:`M${cx+width/2-25},91 H${cx+width/2-13} L${cx+width/2-5},102 H${cx+width/2-25} Z`,fill:'#94a3b8'});
+}else{
+add('path',{d:`M${cx-width/2},105 L${cx-width/2+12},101 L${cx-10},85 H${cx+13} L${cx+25},103 L${cx+width/2},108 V123 H${cx-width/2} Z`,fill,stroke:color,'stroke-width':3,'stroke-linejoin':'round'});
+add('path',{d:`M${cx-6},90 H${cx+10} L${cx+19},102 H${cx-14} Z`,fill:'#94a3b8'});
+}
+[-width*.3,width*.3].forEach(dx=>{add('circle',{cx:cx+dx,cy:132,r:9,fill:'#334155'});add('circle',{cx:cx+dx,cy:132,r:3,fill:'#cbd5e1'});});
+if(current===1)add('text',{x:truck?120:440,y:178,'text-anchor':'middle','font-weight':700},label);
+};
+vehicle(b,current===0?60:100,'#a43c12',current===0?'B':'Truck',true);vehicle(a,60,'#285f9f',current===0?'A':'Car',false);
 }else{
 // Integrate the same force samples used by the graph. The 40:60 mass ratio
 // makes A move 1.5 times as far as B, then both coast after the push.
 let displacement=0,velocity=0;const dt=.005;for(let t=0;t<time;t+=dt){const step=Math.min(dt,time-t);const acceleration=forceAt(c,t+step/2)/40;displacement+=velocity*step+.5*acceleration*step*step;velocity+=acceleration*step;}
 a=308+displacement*12;b=252-displacement*8;phase=u<.125?'Ready':u<.625?'Pushing':'Coasting';
-const student=(cx,label,color,dir)=>{add('line',{x1:cx-24,y1:127,x2:cx+24,y2:127,stroke:color,'stroke-width':7,'stroke-linecap':'round'});[-15,15].forEach(dx=>add('circle',{cx:cx+dx,cy:136,r:5,fill:'#334155'}));add('circle',{cx,cy:52,r:11,fill:color});add('path',{d:`M${cx},65 L${cx},94 M${cx},94 L${cx-14},123 M${cx},94 L${cx+14},123 M${cx},72 L${u<.625?280:cx+dir*18},78`,stroke:color,'stroke-width':6,fill:'none','stroke-linecap':'round'});const lx=dir===1?120:440;add('line',{x1:cx,y1:140,x2:lx,y2:146,stroke:'#718096'});add('text',{x:lx,y:164,'text-anchor':'middle'},label);};
+const student=(cx,label,color,dir)=>{add('line',{x1:cx-24,y1:127,x2:cx+24,y2:127,stroke:color,'stroke-width':7,'stroke-linecap':'round'});[-15,15].forEach(dx=>add('circle',{cx:cx+dx,cy:136,r:5,fill:'#334155'}));add('circle',{cx,cy:52,r:11,fill:color});add('path',{d:`M${cx},65 L${cx},94 M${cx},94 L${cx-14},123 M${cx},94 L${cx+14},123 M${cx},72 L${u<.625?280:cx+dir*18},78`,stroke:color,'stroke-width':6,fill:'none','stroke-linecap':'round'});const lx=dir===1?120:440;add('line',{x1:cx,y1:140,x2:lx,y2:160,stroke:'#718096'});add('text',{x:lx,y:177,'text-anchor':'middle'},label);};
 student(b,'B · 60 kg','#a43c12',1);student(a,'A · 40 kg','#285f9f',-1);
 }
-if(active&&f>0){const length=12+f/peak*40;const arrow=(cx,dir,color)=>{const start=cx,end=cx+dir*length;add('line',{x1:start,y1:28,x2:end,y2:28,stroke:color,'stroke-width':4});add('path',{d:`M${end-dir*8},22 L${end},28 L${end-dir*8},34`,fill:'none',stroke:color,'stroke-width':3});};arrow(a,1,'#285f9f');arrow(b,-1,'#a43c12');}
-scene.setAttribute('aria-label',`${c.title}: ${phase.toLowerCase()}. ${active?'Equal and opposite force arrows follow the live graph.':''}`);
-const status=active?`${phase} · slow-motion schematic`:'';if($('motion-status').textContent!==status)$('motion-status').textContent=status;
+if(active&&f>0){
+const forceLength=f/peak*52;
+const arrow=(cx,dir,color,length,y,dashed=false)=>{const end=cx+dir*length;add('line',{x1:cx,y1:y,x2:end,y2:y,stroke:color,'stroke-width':4,'stroke-dasharray':dashed?'5 3':'none'});const head=Math.min(8,length*.45);add('path',{d:`M${end-dir*head},${y-head*.7} L${end},${y} L${end-dir*head},${y+head*.7}`,fill:'none',stroke:color,'stroke-width':3});};
+const right=a+(current===2?24:36),left=b-(current===1?56:current===2?24:36);
+arrow(right,1,'#285f9f',forceLength,85);arrow(left,-1,'#a43c12',forceLength,85);
+add('text',{x:right+8,y:74,'text-anchor':'start'},'F');add('text',{x:left-8,y:74,'text-anchor':'end'},'F');
+if(current===1){
+arrow(right,1,'#285f9f',forceLength,115,true);arrow(left,-1,'#a43c12',forceLength/2.5,115,true);
+add('text',{x:right+8,y:105,'text-anchor':'start'},'a');add('text',{x:left-8,y:105,'text-anchor':'end'},'a');
 }
-cases.forEach((c,i)=>{const o=document.createElement('option');o.value=i;o.textContent=`${i+1}. ${c.title}`;$('scenario').append(o);});
-function progress(){ $('progress').textContent=`${answered.size} of 6 explored`;if(answered.size===6&&!completionSent){completionSent=true;window.parent.postMessage({ type: 'complete' }, '*');}}
-function load(){pause();const c=cases[current];$('scenario').value=current;$('setup').textContent=c.setup;$('question').textContent=c.q;$('scene').classList.remove('animated');$('scene').innerHTML='<span class="object" id="object-a"></span><span aria-hidden="true">↔</span><span class="object large" id="object-b"></span>';$('object-a').textContent=c.objects[0];$('object-b').textContent=c.objects[1];$('scene').setAttribute('aria-label',c.setup);$('choices').replaceChildren();$('result').hidden=true;$('time').value=current<3?0:50;$('playback').hidden=current>=3;motion();
+}
+
+scene.setAttribute('aria-label',`${c.title}: ${phase.toLowerCase()}. ${active?(current===1?'Solid arrows show equal and opposite forces; dashed arrows show acceleration, larger for the lighter car.':'Arrows show equal and opposite forces.'):''}`);
+}
+function progress(){ if(answered.size===cases.length&&!completionSent){completionSent=true;window.parent.postMessage({ type: 'complete' }, '*');}}
+function load(){clearTimeout(advanceTimer);pause();$('choices').style.visibility='visible';$('motion-explanation').hidden=true;$('replay').disabled=current>0;$('question-panel').style.visibility='hidden';const c=cases[current];$('situation-title').hidden=current!==2;$('situation-title').textContent=current===2?c.title:'';$('question').textContent=c.q;$('scene').classList.remove('animated');$('scene').innerHTML='<span class="object" id="object-a"></span><span aria-hidden="true">↔</span><span class="object large" id="object-b"></span>';$('object-a').textContent=c.objects[0];$('object-b').textContent=c.objects[1];$('scene').setAttribute('aria-label',c.setup);$('choices').replaceChildren();$('choices').classList.toggle('graph-choices',current===1);$('result').hidden=false;animationTime=current===2?12.5:0;draw();
 const order=c.options.map((_,i)=>i);for(let i=order.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
-order.forEach(i=>{const b=document.createElement('button');b.textContent=c.options[i];b.setAttribute('aria-pressed',String(answered.get(current)===i));b.addEventListener('click',()=>{answered.set(current,i);$('choices').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));reveal();});$('choices').append(b);});
-$('next').disabled=!answered.has(current)||current===5;if(answered.has(current))reveal();progress();}
-function reveal(){pause();const c=cases[current];$('result').hidden=false;$('feedback').textContent=(current<3?'':answered.get(current)===c.correct?'Your prediction matches. ':'Compare your prediction with the evidence. ')+c.answer+' '+c.why;$('legend-a').textContent=c.a;$('legend-b').textContent=c.b;$('graph-help').textContent=c.help;$('next').disabled=current===5;if(current<3)$('time').value=0;draw();progress();if(current<3&&!reducedMotion.matches)play();}
+order.forEach(i=>{const b=document.createElement('button');b.textContent=c.options[i];b.dataset.option=i;if(current===1){b.textContent='';b.setAttribute('aria-label',c.options[i]);b.append(predictionGraph(i));}b.setAttribute('aria-pressed',String(answered.get(current)===i));b.addEventListener('click',()=>{answered.set(current,i);$('choices').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));reveal();});$('choices').append(b);});
+progress();if(current>0){$('question-panel').style.visibility='visible';}else if(!reducedMotion.matches)play();else finish();}
+function confirmFirstAnswer(){
+clearTimeout(advanceTimer);
+const correct=answered.get(0)===cases[0].correct;
+$('motion-explanation').textContent=(correct?'Correct! ':'The correct answer is: ')+ 'The forces act in opposite directions. Right is positive and left is negative; the force magnitudes are equal.';
+$('motion-explanation').hidden=false;
+$('choices').querySelectorAll('button').forEach(b=>{b.disabled=true;if(Number(b.dataset.option)===cases[0].correct){b.classList.add('correct');b.setAttribute('aria-label','The forces act in opposite directions: correct');}});
+advanceTimer=setTimeout(()=>{current=1;load();$('replay').focus();},6500);
+}
+function reveal(){if(current!==2)progress();if(current===2){$('replay').disabled=false;$('choices').querySelectorAll('button').forEach(b=>b.disabled=true);if(reducedMotion.matches)finish();else play();return;}if(current===1){explainMotion();$('replay').disabled=false;$('choices').querySelectorAll('button').forEach(b=>b.disabled=true);if(reducedMotion.matches)finish();else play();return;}if(current===0)confirmFirstAnswer();}
 const ns='http://www.w3.org/2000/svg';function node(tag,attrs,text){const n=document.createElementNS(ns,tag);Object.entries(attrs).forEach(([k,v])=>n.setAttribute(k,v));if(text!==undefined)n.textContent=text;$('graph').append(n);return n;}
-function draw(){if($('result').hidden)return;const c=cases[current],svg=$('graph'),w=svg.clientWidth,h=260,l=53,r=w-15,t=32,b=208,peak=Math.max(...c.points.map(p=>p[1])),end=c.points.at(-1)[0];const x=v=>l+v/end*(r-l),y=v=>(t+b)/2-v/(peak*1.25)*(b-t)/2;svg.replaceChildren();svg.setAttribute('viewBox',`0 0 ${w} ${h}`);node('title',{id:'graph-title'},c.title+' force versus time');node('desc',{id:'graph-desc'},c.help+' The two curves are equal in magnitude and opposite in sign at every time.');
+function predictionGraph(option){
+const svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 240 120');svg.setAttribute('aria-hidden','true');
+const add=(tag,attrs,text)=>{const n=document.createElementNS(ns,tag);Object.entries(attrs).forEach(([k,v])=>n.setAttribute(k,v));if(text!==undefined)n.textContent=text;svg.append(n);return n;};
+add('rect',{width:240,height:120,rx:6,fill:'#fff'});
+add('line',{x1:30,y1:8,x2:30,y2:100,stroke:'#64748b'});
+add('line',{x1:30,y1:54,x2:230,y2:54,stroke:'#64748b'});
+add('text',{x:14,y:58},'0');
+const heights=option===0?[36,36]:option===1?[12,36]:[36,12];
+heights.forEach((height,i)=>add('path',{d:`M30,54 L60,54 L108,${54+(i?height:-height)} L156,54 L230,54`,fill:'none',stroke:i?'#a43c12':'#285f9f','stroke-width':3,'stroke-dasharray':i?'7 4':'none'}));
+add('text',{x:225,y:42,'text-anchor':'end'},'Car').style.fill='#285f9f';
+add('text',{x:225,y:74,'text-anchor':'end'},'Truck').style.fill='#a43c12';
+return svg;
+}
+function draw(){if($('result').hidden)return;const c=cases[current],svg=$('graph'),w=svg.clientWidth,h=260,l=53,r=w-15,t=58,b=208,peak=Math.max(...c.points.map(p=>p[1])),end=c.points.at(-1)[0];const x=v=>l+v/end*(r-l),y=v=>(t+b)/2-v/(peak*1.25)*(b-t)/2;svg.replaceChildren();svg.setAttribute('viewBox',`0 0 ${w} ${h}`);node('title',{id:'graph-title'},c.title+' force versus time');node('desc',{id:'graph-desc'},'The two curves are equal in magnitude and opposite in sign at every time.');
 [-peak,0,peak].forEach(v=>{node('line',{x1:l,x2:r,y1:y(v),y2:y(v),stroke:v===0?'#526779':'#cbd5e1'});node('text',{x:l-7,y:y(v)+4,'text-anchor':'end'},v);});node('text',{x:l,y:18},`Force (${c.unit})`);node('line',{x1:l,x2:l,y1:t,y2:b,stroke:'#526779'});
 [0,end/2,end].forEach(v=>node('text',{x:x(v),y:b+21,'text-anchor':v===0?'start':v===end?'end':'middle'},v));node('text',{x:(l+r)/2,y:253,'text-anchor':'middle'},'Time (s)');
-const graphTime=Number($('time').value)/100*end;const visible=current<3?[...c.points.filter(p=>p[0]<graphTime),[graphTime,forceAt(c,graphTime)]]:c.points;
+// Label each curve directly, above and below the shared zero-force line.
+const labelX=r-8;
+const upperLabel=node('text',{x:labelX,y:y(0)-12,'text-anchor':'end'},c.a);upperLabel.style.fill='#285f9f';
+const lowerLabel=node('text',{x:labelX,y:y(0)+22,'text-anchor':'end'},c.b);lowerLabel.style.fill='#a43c12';
+const graphTime=animationTime/100*end;const visible=current<3?[...c.points.filter(p=>p[0]<graphTime),[graphTime,forceAt(c,graphTime)]]:c.points;
 [1,-1].forEach((sign,i)=>node('path',{d:visible.map((p,j)=>(j?'L':'M')+x(p[0])+','+y(sign*p[1])).join(' '),fill:'none',stroke:i?'#a43c12':'#285f9f','stroke-width':3,'stroke-dasharray':i?'7 4':'none'}));
-const time=Number($('time').value)/100*end;let k=1;while(k<c.points.length-1&&c.points[k][0]<time)k++;const p=c.points[k-1],q=c.points[k],f=p[1]+(q[1]-p[1])*(time-p[0])/(q[0]-p[0]);node('line',{x1:x(time),x2:x(time),y1:t,y2:b,stroke:'#526779','stroke-dasharray':'3 4'});[f,-f].forEach((v,i)=>node('circle',{cx:x(time),cy:y(v),r:4,fill:i?'#a43c12':'#285f9f'}));$('readout').textContent=`${time.toFixed(2)} s | solid: ${f.toFixed(1)} ${c.unit} | dashed: ${(-f).toFixed(1)} ${c.unit}`;}
-$('scenario').addEventListener('change',()=>{current=Number($('scenario').value);load();});$('next').addEventListener('click',()=>{if(current<5){current++;load();$('scenario').focus();}});$('reset').addEventListener('click',()=>{answered.clear();current=0;load();$('scenario').focus();});$('time').step='.01';$('time').addEventListener('input',()=>{pause();draw();});$('play').addEventListener('click',()=>{if(playing)pause();else play();});$('replay').addEventListener('click',()=>{pause();$('time').value=0;draw();play();});document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});reducedMotion.addEventListener('change',()=>{if(reducedMotion.matches)pause();});new ResizeObserver(()=>{draw();}).observe($('graph'));
+const time=animationTime/100*end;let k=1;while(k<c.points.length-1&&c.points[k][0]<time)k++;const p=c.points[k-1],q=c.points[k],f=p[1]+(q[1]-p[1])*(time-p[0])/(q[0]-p[0]);node('line',{x1:x(time),x2:x(time),y1:t,y2:b,stroke:'#526779','stroke-dasharray':'3 4'});[f,-f].forEach((v,i)=>node('circle',{cx:x(time),cy:y(v),r:4,fill:i?'#a43c12':'#285f9f'}));}
+$('reset').addEventListener('click',()=>{answered.clear();current=0;load();$('replay').focus();});$('replay').addEventListener('click',()=>{clearTimeout(advanceTimer);pause();$('motion-explanation').hidden=true;animationTime=0;draw();play();});document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();else if(animationTime<100)play();});reducedMotion.addEventListener('change',()=>{if(reducedMotion.matches)finish();});new ResizeObserver(()=>{draw();}).observe($('graph'));
 const graphDraw=draw;draw=function(){graphDraw();motion();};load();
 })();
 </script>

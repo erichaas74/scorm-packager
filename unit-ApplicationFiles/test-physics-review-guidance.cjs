@@ -43,7 +43,8 @@ for (const [lesson, number, value] of [['U1L3',2,4.9], ['U2L1',4,32.56], ['U2L2'
   assert(!accepts(lesson, number, value), `${lesson} Q${number}: incorrect value accepted`);
 }
 const honors = JSON.parse(fs.readFileSync(path.join(__dirname, 'unit-1/lesson-honors/busybee-rubric-metadata.json'), 'utf8'));
-assert.deepEqual(honors.questions.at(-1).allowedScores, [0,4]);
+assert.deepEqual(honors.questions.at(-2).allowedScores, [0,0.5,1,1.5,2,2.5,3]);
+assert.deepEqual(honors.questions.at(-1).allowedScores, [0,0.5,1,1.5,2,2.5,3,3.5,4]);
 assert(banks.U1L5[8].includes('exact numbers are not required'));
 assert(banks.U2L2[8].includes('effects compete'));
-console.log('PASS: eight aligned lab banks, stable guides/checklists, reviewed numeric answers accepted, wrong controls rejected, honors completion preserved.');
+console.log('PASS: eight aligned lab banks, stable guides/checklists, reviewed numeric answers accepted, wrong controls rejected, honors write-up partial credit preserved.');

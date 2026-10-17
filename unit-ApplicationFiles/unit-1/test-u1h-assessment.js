@@ -79,16 +79,15 @@ for (let i = 0; i < 4; i++) {
 
 const sections = markup.split(/<section class="lab-section(?: independent-section)?"[^>]*>/).slice(1);
 assert.equal(sections.length, 5);
-assert.deepEqual(sections.map(s => (s.match(/<a:question>/g) || []).length), [2, 2, 2, 2, 1]);
-assert(sections[4].includes('id="s5-buzz-response" class="buzz-slot s5-program-response" aria-hidden="true"'));
-assert(sections[4].includes('id="s5-launch"') && sections[4].includes('id="s5-events"'), 'Section 5 must expose flight controls and event data');
-assert(!/class="eq"|step-tracker|substep-card/.test(sections[4]), 'Section 5 must not provide worked calculation scaffolding');
+assert.deepEqual(sections.map(s => (s.match(/<a:question>/g) || []).length), [2, 2, 2, 2, 2]);
+assert(sections[4].includes('Lab Write-Up'));
+assert(!/s5-buzz-response|s5-answer-total|s5-launch|U1H_SECTION5_COMPLETE_V1/.test(html), 'Retired parachute form and completion bridge must not be embedded');
 const preview = read('u1h-rocket-launch-buzz-assessment-template-preview.html');
-assert.deepEqual([...preview.matchAll(/data-buzz-preview-question="(\d+)"/g)].map(m => Number(m[1])), [1,2,3,4,5,6,7,8,9]);
+assert.deepEqual([...preview.matchAll(/data-buzz-preview-question="(\d+)"/g)].map(m => Number(m[1])), [1,2,3,4,5,6,7,8,9,10]);
 
 const solve = vm.runInNewContext('const GRAVITY=-10, RETRO_ACCEL=20; (' +
   read('sim.js').match(/function solveMission\([^]*?\n    }/)[0] + ')');
 const original = solve(20, 2.5);
 assert.equal(-original.retroHeight, -62.5);
 assert.equal(original.retroBurnDuration, 2.5);
-console.log('ok: five sections, question order, independent flight controls, and original mission answer keys');
+console.log('ok: five sections, question order, visible lab write-up slots, and original mission answer keys');

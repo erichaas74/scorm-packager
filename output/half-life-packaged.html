@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Counting Half-Lives</title><style>
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; }
+body { padding: 10px; color: #17324a; font: 16px system-ui, sans-serif; }
+.wave-demo { max-width: 960px; margin: auto; border: 5px solid #285f9f; border-radius: 16px; overflow: hidden; background: #fff; }
+.wave-demo h1 { margin: 0; padding: 14px 8px; background: #edf4fa; text-align: center; font-size: clamp(12px, 3.1vw, 24px); white-space: nowrap; }
+.wave-demo .stage { margin: 8px 8px 0; }
+.wave-demo svg { display: block; width: 100%; height: auto; }
+.wave-demo svg text { font-family: system-ui, sans-serif; font-weight: 600; paint-order: stroke fill; stroke: #fff; stroke-width: 3px; stroke-linejoin: round; }
+.wave-demo svg line, .wave-demo svg path { stroke-linecap: round; }
+.wave-demo .controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 4px 8px 10px; }
+.wave-demo button { min-height: 44px; min-width: 90px; padding: 9px 18px; border: 1.5px solid #285f9f; border-radius: 7px; background: #edf4fa; color: #17324a; font: inherit; font-weight: 650; cursor: pointer; }
+.wave-demo button:hover { background: #dcebf8; }
+.wave-demo button:focus-visible { outline: 3px solid #a94b24; outline-offset: 2px; }
+.wave-demo [hidden] { display: none !important; }
+.wave-demo .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+@media (max-width: 760px) { body { padding: 4px; } .wave-demo .stage { margin: 3px 2px 0; } .wave-demo svg text { font-size: 18px; } }
+
+</style><style>.wave-demo{max-width:1040px}.stage{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}@media(max-width:760px){.stage{grid-template-columns:1fr}}.stage svg{min-width:0;overflow:hidden}.controls button{min-width:0}.live{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}</style></head>
+<body><main class="wave-demo"><h1>Counting Half-Lives</h1><div class="stage"><svg id="scene" viewBox="0 0 440 535" role="img" aria-label="Half-life population"></svg><svg id="decay-graph" viewBox="0 0 440 535" role="img" aria-label="Population decay graph"></svg></div><div class="controls"><button data-choice="0"></button><button data-choice="1"></button><button data-choice="2"></button><button id="replay">Replay</button></div><p id="status" class="live" role="status" aria-live="polite"></p></main>
+<script>window.walkthroughLesson={title:"Counting Half-Lives",type:"nuclear",variant:"halflife",group:"misconceptions",cases:[{start:80,halves:1,choices:[20,40,0]},{start:120,halves:2,choices:[30,60,0]},{start:200,halves:3,choices:[100,0,25]}]};</script><script >
+(() => {
+  'use strict';
+  // Expected populations: actual radioactive samples fluctuate statistically.
+  const cases = window.walkthroughLesson.cases;
+  const scene = document.getElementById('scene');
+  const graph = document.getElementById('decay-graph');
+  const status = document.getElementById('status');
+  const buttons = [...document.querySelectorAll('[data-choice]')];
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  let index = 0, phase = 'predict', elapsed = 0, last = null, completed = false, announced = -1;
+  let ranks = [];
+  const label = (x,y,s,size=19,color='#17324a',anchor='start') => `<text x="${x}" y="${y}" font-size="${size}" fill="${color}" text-anchor="${anchor}">${s}</text>`;
+  const clamp = x => Math.max(0, Math.min(1, x));
+  const duration = 3600, motion = 2400;
+  // Schematic nucleus icons: nucleon dots are illustrative, not isotope counts.
+  // A four-nucleon alpha cluster leaves; the daughter nucleus remains in place.
+  const nucleus = (x,y,scale,progress,closeup=false) => {
+    const decayed=progress>=.5, travel=clamp((progress-.5)*2);
+    const core=[[-4,-3],[-6,0],[-3,3],[0,4],[0,0],[-1,-4]];
+    let out=`<g transform="translate(${x} ${y}) scale(${scale})">`;
+    core.forEach(([u,v],i)=>{out+=`<circle cx="${u}" cy="${v}" r="2.6" fill="${decayed?(i%2?'#9fb9c6':'#cfab99'):(i%2?'#287eae':'#dc683c')}" stroke="#fff" stroke-width=".5"/>`;});
+    if(progress<1||closeup) {
+      const dx=travel*(closeup?13:9),dy=-travel*(closeup?7:5);
+      out+=`<g transform="translate(${dx} ${dy})" opacity="${closeup?1:1-travel}">`;
+      [[2,-4],[5,-4],[2,-1],[5,-1]].forEach(([u,v],i)=>{out+=`<circle cx="${u}" cy="${v}" r="2.3" fill="${i%2?'#287eae':'#dc683c'}" stroke="#fff" stroke-width=".5"/>`;});
+      out+='</g>';
+    }
+    return out+'</g>';
+  };
+  function render() {
+    const c = cases[index], reveal = phase !== 'predict';
+    const intervalTime = Math.floor(elapsed/duration);
+    const continuous = Math.min(c.halves, intervalTime + Math.min(1,(elapsed%duration)/motion));
+    const time = reveal ? (reduced.matches ? Math.floor(continuous) : continuous) : 0;
+    const step = Math.floor(time);
+    const hold = reveal && step>0 && time===step;
+    const progressAt = rank => {
+      const lifetime=-Math.log2(1-(rank+.5)/c.start);
+      if(Math.floor(lifetime)>=c.halves)return 0;
+      if(reduced.matches)return time>=Math.ceil(lifetime)?1:0;
+      if(time>=Math.ceil(lifetime))return 1;
+      return reveal?clamp(.5+(time-lifetime)/.12):0;
+    };
+    let svg = label(220,32,`After ${c.halves} half-${c.halves===1?'life':'lives'}, how many remain?`,19,'#17324a','middle');
+    svg += nucleus(32,91,.95,0)+label(44,97,'Parent',17);
+    svg += nucleus(142,91,.95,1)+label(154,97,'Decayed',17);
+    let remaining = c.start;
+    const columns=c.start<=80?10:c.start<=120?12:16;
+    const rows=Math.ceil(c.start/columns),pitch=380/columns;
+    const iconScale=c.start<=80?2:c.start<=120?1.65:1.25;
+    const left=30+pitch/2,top=145+(325-(rows-1)*pitch)/2;
+    const position=i=>[left+(i%columns)*pitch,top+Math.floor(i/columns)*pitch];
+    for(let i=0;i<c.start;i++) {
+      // Shuffle decay identity, but retain every nucleus at its original location.
+      // Exact halves illustrate expected population counts, not a guaranteed sample.
+      const progress = progressAt(ranks[i]);
+      const decayed = progress >= .5;
+      if(decayed)remaining--;
+      const [x,y]=position(i);
+      if(hold&&!decayed)svg+=`<circle cx="${x}" cy="${y}" r="${8.7*iconScale}" fill="none" stroke="#087c80" stroke-width="1.5"/>`;
+      svg += `<g data-particle="${i}" data-decayed="${decayed}" data-progress="${progress}">${nucleus(x,y,iconScale,progress)}</g>`;
+    }
+    // A magnified flip uses the same particle state, not an extra nucleus.
+    const focusRank=Math.min(c.start-1,Math.floor(c.start*(1-2**-(Math.max(0,Math.ceil(time)-1)+.5))));
+    const focusIndex=ranks.indexOf(focusRank),fp=progressAt(focusRank);
+    const [fx,fy]=position(focusIndex);
+    svg+=`<path d="M${fx} ${fy} L350 130 V109" fill="none" stroke="#8aa0b0" stroke-width="1" stroke-dasharray="3 4"/>`;
+    svg+=`<circle cx="${fx}" cy="${fy}" r="${9*iconScale}" fill="none" stroke="#a94b24" stroke-width="1.5"/>`;
+    svg+=`<rect x="290" y="48" width="120" height="80" rx="9" fill="#f2f6fa" stroke="#bdcdd8"/>`;
+    svg+=nucleus(340,82,2.5,fp,true);
+    svg+=label(350,119,'One nucleus',16,'#17324a','middle');
+
+
+    for(let n=0;n<=c.halves;n++) {
+      const x=45+n*116;
+      svg+=label(x,510,n<=step?c.start/2**n:'?',22,n===step?'#087c80':'#17324a','middle');
+      if(n>0) {
+        svg+=`<path d="M${x-81} 502 h48 m-6 -5 l6 5 l-6 5" fill="none" stroke="#a94b24" stroke-width="2"/>`;
+        if(n<=step)svg+=label(x-57,490,'&#247; 2',16,'#a94b24','middle');
+      }
+    }
+
+    scene.innerHTML = svg;
+    const X = t => 64 + 318*t/4, Y = count => 455-355*count/c.start;
+    let plot = label(64,72,'Parent nuclei remaining',18);
+    for(let j=0;j<=4;j++) {
+      const count=c.start*j/4,y=Y(count);
+      plot+=`<path d="M64 ${y} H382" stroke="#e6edf2" stroke-width=".8"/>`;
+      plot+=label(52,y+6,count,17,'#17324a','end');
+    }
+    plot+=`<path d="M64 90 V455 H392" fill="none" stroke="#17324a" stroke-width="1.5"/>`;
+    for(let n=0;n<=4;n++) {
+      plot+=`<path d="M${X(n)} 455 v6" stroke="#17324a"/>`;
+      plot+=label(X(n),484,n,18,'#17324a','middle');
+    }
+    plot+=label(220,520,'Time (half-lives)',18,'#17324a','middle');
+
+    if(reveal) {
+      const points=Array.from({length:121},(_,i)=>{const t=time*i/120;return `${i?'L':'M'}${X(t)} ${Y(c.start*2**-t)}`;}).join(' ');
+      plot+=`<path data-decay-curve d="${points}" fill="none" stroke="#23649a" stroke-width="3"/>`;
+      for(let n=0;n<=step;n++) {
+        const x=X(n),count=c.start/2**n,y=Y(count);
+        plot+=`<path d="M64 ${y} H${x} V455" fill="none" stroke="#087c80" stroke-dasharray="4 4" stroke-width="1"/>`;
+        plot+=`<circle data-graph-count="${count}" cx="${x}" cy="${y}" r="5" fill="#087c80"/>`;
+      }
+      plot+=`<path d="M${X(time)} 455 V${Y(c.start*2**-time)} H64" fill="none" stroke="${hold?'#087c80':'#23649a'}" stroke-width="1.5" stroke-dasharray="4 4"/>`;
+      plot+=`<circle data-live-count="${remaining}" cx="${X(time)}" cy="${Y(c.start*2**-time)}" r="${hold?10:7}" fill="${hold?'#087c80':'#23649a'}" fill-opacity=".15" stroke="${hold?'#087c80':'#23649a'}" stroke-width="2"/>`;
+    } else plot+=`<circle cx="64" cy="100" r="5" fill="#23649a"/>`;
+
+    graph.innerHTML=plot;
+    graph.setAttribute('aria-label',`Expected parent count versus half-lives, on a fixed axis from 0 to 4 half-lives. Starts at ${c.start}. ${reveal?Array.from({length:step+1},(_,n)=>`After ${n}: ${c.start/2**n}`).join('. '):'The curve is revealed after answering.'}`);
+    scene.dataset.time=time;scene.dataset.remaining=remaining;scene.dataset.phase=phase;scene.dataset.case=index;scene.dataset.step=step;
+    scene.setAttribute('aria-label',`Starting with ${c.start} nuclei. After ${c.halves} half-lives, how many remain? ${reveal ? `Shown through ${step} half-lives: ${c.start/2**step} expected remaining.` : ''}`);
+    if (reveal && step !== announced) {
+      announced = step;
+      status.textContent = step ? `${step} half-lives: ${c.start/2**(step-1)} divided by 2 equals ${c.start/2**step} nuclei remaining.` : `Start with ${c.start} nuclei.`;
+    }
+  }
+  function setup() {
+    phase='predict';elapsed=0;last=null;announced=-1;
+    ranks=Array.from({length:cases[index].start},(_,i)=>i);
+    let seed=1729+index;
+    for(let i=ranks.length-1;i>0;i--) {
+      seed=(Math.imul(seed,1664525)+1013904223)>>>0;
+      const j=seed%(i+1);[ranks[i],ranks[j]]=[ranks[j],ranks[i]];
+    }
+    buttons.forEach((b,i)=>{b.hidden=false;b.disabled=false;b.textContent=`${cases[index].choices[i]} nuclei`;});
+    status.textContent=`Start with ${cases[index].start} nuclei. How many remain after ${cases[index].halves} half-lives?`;
+    render();
+  }
+  buttons.forEach(b=>b.addEventListener('click',()=>{
+    if(phase!=='predict')return;
+    phase='reveal';elapsed=0;last=null;
+    buttons.forEach(button=>{button.hidden=true;button.disabled=true;});
+    document.getElementById('replay').focus({preventScroll:true});
+    render();
+  }));
+  document.getElementById('replay').addEventListener('click',()=>{index=0;setup();});
+  document.addEventListener('visibilitychange',()=>{last=null;});
+  function frame(now) {
+    const dt=last===null?0:Math.min(100,now-last);last=now;
+    if(phase==='reveal'&&!document.hidden) {
+      elapsed+=dt;
+      // Reduced motion reveals the same counts at each half-life without flips.
+      const finalAt=(cases[index].halves-1)*duration+motion;
+      if(elapsed>=finalAt&&index===cases.length-1&&!completed){completed=true;window.parent.postMessage({type:'complete'},'*');}
+      if(elapsed>=finalAt+4500) {
+        if(index<cases.length-1){index++;setup();}
+        else {phase='complete';render();}
+      } else render();
+    }
+    requestAnimationFrame(frame);
+  }
+  setup();requestAnimationFrame(frame);
+})();
+
+</script></body></html>

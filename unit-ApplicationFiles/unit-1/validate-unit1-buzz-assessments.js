@@ -11,7 +11,7 @@ const assessments = [
   { lesson: 'U1L3', dir: 'lesson-3', setup: 'u1l3_galileo_buzz_setup.txt', template: 'u1l3-galileo-buzz-assessment-template.html', preview: 'u1l3-galileo-buzz-assessment-template-preview.html', simulation: 'index.html', count: 10, automaticPoints: 10, busybeeQuestionPoints: [2, 3] },
   { lesson: 'U1L4', dir: 'lesson-4', setup: 'u1l4_reaction_time_buzz_setup.txt', template: 'u1l4-reaction-time-buzz-assessment-template.html', preview: 'u1l4-reaction-time-buzz-assessment-template-preview.html', simulation: 'index.html', count: 10, automaticPoints: 8, busybeeQuestionPoints: [3, 4] },
   { lesson: 'U1L5', dir: 'lesson-5', setup: 'u1l5_skydiver_buzz_setup.txt', template: 'u1l5-skydiver-buzz-assessment-template.html', preview: 'u1l5-skydiver-buzz-assessment-template-preview.html', simulation: 'sky-dive-lab.html', count: 10, automaticPoints: 8, busybeeQuestionPoints: [3, 4] },
-  { lesson: 'U1H', dir: 'lesson-honors', setup: 'u1h_rocket_launch_buzz_setup.txt', template: 'u1h-rocket-launch-buzz-assessment-template.html', preview: 'u1h-rocket-launch-buzz-assessment-template-preview.html', simulation: 'index.html', count: 9, totalPoints: 15, automaticPoints: 11, busybeeQuestionPoints: [4] }
+  { lesson: 'U1H', dir: 'lesson-honors', setup: 'u1h_rocket_launch_buzz_setup.txt', template: 'u1h-rocket-launch-buzz-assessment-template.html', preview: 'u1h-rocket-launch-buzz-assessment-template-preview.html', simulation: 'index.html', count: 10, totalPoints: 15, automaticPoints: 8, busybeeQuestionPoints: [3, 4] }
 ];
 
 function fail(message) {

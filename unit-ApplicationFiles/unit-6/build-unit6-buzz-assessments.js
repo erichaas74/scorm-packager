@@ -87,7 +87,7 @@ const setupGuides = [
     template: 'u6l3-circuit-design-buzz-assessment-template.html',
     preview: 'u6l3-circuit-design-buzz-assessment-template-preview.html',
     count: 10,
-    mix: 'five numeric, three multiple-choice, and two essay questions',
+    mix: 'four numeric, four multiple-choice, and two essay questions',
     mission: 'Wire a reliable three-room electrical system like an engineer! You will measure current and voltage, compare series and parallel circuits, test failures and switches, and defend a design that keeps every room working independently.',
     goals: [
       'Apply Ohms law and equivalent resistance to series and parallel circuits.',
@@ -95,16 +95,16 @@ const setupGuides = [
       'Defend a parallel household-style design while recognizing its current tradeoff.'
     ],
     steps: [
-      'Complete the eight circuit missions in order and avoid creating a direct short across the battery.',
-      'Place the ammeter in series and the voltmeter across a component, then record model evidence for each mission.',
-      'Test series and parallel bulb failures and all four switch combinations.',
-      'Build the final three-room circuit and confirm that every design requirement passes.',
-      'Answer all 10 Buzz questions using the evidence tables. Any downloaded report is optional and not graded.'
+      'Open PhET Circuit Construction Kit: DC using the link in the lab. Choose the Lab screen and keep it open beside the evidence notebook. Build with a 9.0 V battery and identical 10 ohm bulbs.',
+      'Predict, build, and measure for each of the eight challenges. Enter actual PhET readings in the notebook; measurements and wiring are not imported automatically.',
+      'Use the same battery voltage for series and parallel comparisons. Calculate total resistance from measured V/I, compare brightness, and test each bulb failure and all four switch combinations.',
+      'Build your final three-room circuit, measure its voltages and total current, and test each bulb failure and independent switch. Revise failed designs and record your wiring description. An optional screenshot is kept locally and included in printing.',
+      'Answer and submit all 10 questions in Buzz using your evidence. The notebook does not submit to Buzz. Text downloads and screenshots are optional personal records, not graded uploads.'
     ],
     checks: [
-      'The circuit builder, meters, switches, failure tests, and evidence notebook respond.',
-      'All eight missions can record evidence and the final design can satisfy all six requirements.',
-      'The report download remains optional and does not affect the Buzz score.'
+      'The PhET link opens, the eight build challenges are available, and evidence fields accept student measurements.',
+      'No evidence is auto-filled. Predictions, measurements, explanations, and the optional screenshot survive refresh when browser storage is available.',
+      'Progress means tables are filled, not that wiring was verified. The report is optional; only native Buzz responses determine the score.'
     ],
     note: 'Use meter readings, not electron-animation speed, as quantitative evidence.'
   },
@@ -362,13 +362,11 @@ function buildCircuit() {
   html = html.replace('<script src="app.js"></script>', () => `<script>\n${js}\n</script>`);
   html = addBodyClass(html);
   html = addHeadContent(html, `${sharedCss}\n<style>
-    .u6-buzz-assessment .view-tabs [data-view="report"],.u6-buzz-assessment #reportView,.u6-buzz-assessment .progress-summary,.u6-buzz-assessment #notebookView .question-block,.u6-buzz-assessment #notebookCount{display:none!important}
+    .u6-buzz-assessment .u6-buzz-section{scroll-margin-top:20px}
   </style>`);
-  html = html.replace('Answer questions</button>', 'Review evidence</button>');
-  html = html.replace('Use measurements from the model or PhET, then explain the patterns in your own words.', 'Review and correct the measurements saved from each mission. Use these evidence tables in the native Buzz questions.');
   const section = assessmentSection(
     'Buzz assessment: Circuit Design Challenge',
-    'Record the model evidence for the circuit missions before answering. Use 9.0 V and the model\'s 10 ohm bulbs for the fixed calculations.',
+    'Build and measure in PhET, then enter your own evidence in the notebook. Questions 2–6 and 8 use the stated ideal-circuit values; use your actual recorded measurements and tests in Questions 9–10. Submit your answers through Buzz. Notebook progress and optional reports are not graded.',
     'buzz-assessment-questions.txt',
     [
       'Identify the condition for a closed circuit',

@@ -13,7 +13,7 @@ const sourceCss = readSource('style.css');
 const sourceScript = readSource('sim.js');
 const outputPath = path.join(lessonDir, 'u1h-rocket-launch-buzz-assessment-template.html');
 
-const EXPECTED_SLOTS = 9;
+const EXPECTED_SLOTS = 10;
 
 const integrityGuard = `  <script id="buzz-assessment-integrity-guard">
     (function () {
@@ -713,7 +713,16 @@ ${markup.split('\n').map((line) => (line.trim() ? `    ${line}` : line)).join('\
 const sectionsMarkup = SECTIONS.map(buildSectionMarkup).join('\n\n');
 
 /* Student-controlled flight, embedded with its model and controls. */
-const independentMarkup = readSource('parachute-challenge.html');
+const independentMarkup = `
+    <section class="lab-section independent-section" id="lab-write-up">
+      <div class="section-heading">
+        <p>Section 5 of 5</p>
+        <h2>Lab Write-Up</h2>
+        <p>Use the fixed rocket mission from Sections 1?4. Explain your reasoning and support it with your calculated values.</p>
+      </div>
+      <div class="buzz-slot"><a:question></a:question></div>
+      <div class="buzz-slot"><a:question></a:question></div>
+    </section>`;
 
 /* ------------------------------------------------------------------ *
  * 4. Template styles
@@ -922,7 +931,7 @@ const intro = `    <header class="lab-intro">
       <h1>Unit 1 Honors: Rocket Launch Lab Assessment</h1>
       <p><strong>Welcome to Mission Control.</strong> Your challenge is to launch a rocket, predict its apex, and guide it through a precision retro-burn landing.
       Sections 1–4 follow the same rocket from powered burn through retro-burn landing.</p>
-      <p>Complete those calculations in order, then launch and land your own parachute-equipped rocket in Section 5. Use your flight record to calculate time in the air.</p>
+      <p>Complete those calculations in order, then answer the two lab write-up questions in Section 5 using evidence from the same mission.</p>
     </header>`;
 
 const bootstrap = `  <script>
@@ -960,18 +969,6 @@ ${independentMarkup}
 ${buildLabFactory(sourceScript)}
   </script>
 ${bootstrap}
-  <script>
-${readSource('parachute-flight.js')}
-  </script>
-  <script>
-${readSource('parachute-grading.js')}
-  </script>
-  <script>
-${readSource('parachute-challenge.js')}
-  </script>
-  <script>
-${readSource('parachute-buzz-response.js')}
-  </script>
 ${integrityGuard}
 </body>`;
 
@@ -979,12 +976,20 @@ const template = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="u1h-assessment-version" content="2026-10-14-lab-write-up" />
+  <!-- Use the matching question bank and rubric: 10 questions, 15 points.
+       Q1-Q8 numeric (8 points); Q9-Q10 written explanations (3 and 4 points). -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Unit 1 Honors: Rocket Launch Lab Assessment</title>
   <style>
 ${sourceCss}
-${readSource('parachute-challenge.css')}
-  </style>${templateStyles}
+
+  /* phone-input-sizing: avoid double-tap zoom and focus zoom on controls. */
+button, select, input, textarea { touch-action: manipulation; }
+@media (max-width: 600px) {
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px; }
+}
+</style>${templateStyles}
 </head>
 ${body}
 </html>
@@ -996,4 +1001,4 @@ if (slotCount !== EXPECTED_SLOTS) {
 }
 
 fs.writeFileSync(outputPath, template, 'utf8');
-console.log(`Built ${path.relative(process.cwd(), outputPath)} (${slotCount} question slots, ${SECTIONS.length} staged simulations + 1 independent flight)`);
+console.log(`Built ${path.relative(process.cwd(), outputPath)} (${slotCount} question slots, ${SECTIONS.length} staged simulations + 1 lab write-up)`);

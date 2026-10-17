@@ -186,35 +186,30 @@ const assessments = [
     template: 'u1h-rocket-launch-buzz-assessment-template.html',
     preview: 'u1h-rocket-launch-buzz-assessment-template-preview.html',
     simulation: 'index.html',
-    count: 9,
+    count: 10,
     totalPoints: 15,
-    automaticPoints: 11,
-    busybeeQuestionPoints: [4],
-    mix: 'eight numeric questions and one hidden program-generated completion essay',
-    mission: 'Reconstruct a rocket launch in Sections 1–4, ending with retro-burn displacement and duration. In Section 5, control engine cutoff and parachute deployment, try to land safely, and calculate airborne time from your flight record.',
+    automaticPoints: 8,
+    busybeeQuestionPoints: [3, 4],
+    mix: 'eight numeric questions and two written lab explanations',
+    mission: 'Reconstruct the fixed rocket launch in Sections 1?4, then calculate the acceleration needed after a late retro burn and explain the four phases of motion in Section 5.',
     goals: [
       'Apply constant-acceleration equations across connected flight phases.',
       'Calculate apex height, flight time, total distance, and touchdown behavior.',
       'Distinguish velocity, acceleration, distance, and displacement in a complete mission.'
     ],
     steps: [
-      'Run the fixed powered-burn section and calculate its displacement and cutoff velocity.',
-      'Run the coast and apex sections and calculate the added height and time.',
-      'In Section 4, calculate only the retro-burn displacement and duration, using the original mission.',
-      'Answer Questions 1-8 using the fixed 20 m/s², 2.5 s mission.',
-      'In Section 5, launch and choose when to cut the engine; fuel forces cutoff at 4 s. Deploy the parachute during descent and try to land at 6 m/s or less.',
-      'Calculate flight times, percentage, and landing safety in the app, then select Submit Section 5. All answers must be correct to complete the 4-point section.',
-      'Submit the Buzz assessment after completing your work. Incomplete Section 5 work leaves its hidden response blank.'
+      'Run Sections 1-4 and answer Questions 1-8 using the fixed +20 m/s^2, 2.5 s powered burn and -10 m/s^2 gravity.',
+      'In Section 5, explain how to recover from a late retro burn and calculate the required net acceleration in Question 9.',
+      'Analyze velocity and acceleration in all four phases in Question 10, using at least two calculated values.',
+      'Enter your written answers in the visible Buzz response boxes, then submit the assessment.'
     ],
     checks: [
       'All four fixed-mission simulations load without a neighboring file.',
-      'Questions 7-8 ask only for retro-burn displacement (-62.5 m) and duration (2.5 s).',
-      'Section 5 supports manual engine cutoff, automatic fuel cutoff at 4 s, one-way parachute deployment, safe and hard landings, and retry records.',
-      'Section 5 has one hidden Buzz essay worth 4 points. Complete work autofills its flight evidence; incomplete work leaves the real essay response empty.',
-      'Test student-view submission in Buzz: incomplete must remain blank, complete must retain the generated evidence after submission. Blank responses may be flagged unanswered instead of invoking BusyBee; confirm teacher handling.',
-      'All five sections and nine question slots render and the document-wide integrity guard is present.'
+      'Questions 7-8 ask for retro displacement (-62.5 m) and duration (2.5 s).',
+      'Section 5 contains two visible essay response boxes worth 3 and 4 points, with partial credit.',
+      'There are exactly ten question slots and no automatic flight-record response.'
     ],
-    note: 'The Unit 1 builder embeds all rocket, parachute, grading, and Buzz response sources. Run test-u1h-assessment.js, test-u1h-parachute.js, and test-u1h-buzz-response.js. Hiding is for the normal student interface, not a security boundary. The native textarea/rich-text adapter must be verified in the deployed Buzz student assessment.'
+    note: 'Import the matching question bank and rubric metadata together with the template. Replace the old questions rather than appending; turn question shuffling off.' 
   }
 ];
 
@@ -284,7 +279,7 @@ function buildSetup(item) {
   }
   const numberedSteps = item.steps.concat([
     item.lesson === 'U1H'
-      ? 'Before submitting, answer Questions 1-8 and confirm Section 5 reports complete. The hidden ninth answer is managed by the app.'
+      ? 'Before submitting, answer Questions 1-8 and write your explanations for Questions 9-10.'
       : `Before submitting, confirm that all ${item.count} questions are answered and the final two responses cite recorded evidence.`
   ]).map((step, index) => `${index + 1}. ${step}`);
   const output = [
@@ -306,7 +301,7 @@ function buildSetup(item) {
     item.completedProvidedChart
       ? '- This lesson uses 10 automatic points because students complete the provided Galileo data chart.'
       : item.lesson === 'U1H'
-      ? '- Section 5 is binary: complete evidence earns 4 points; blank, missing, or invalid evidence is incomplete and earns 0. No partial credit.'
+      ? '- Section 5 contains two written explanations worth 3 and 4 points, graded using their full-, partial-, and no-credit rubrics.'
       : '- This lesson does not use the 10-automatic-point chart model; its live evidence is evaluated in the final BusyBee responses.',
     '- No file upload earns or replaces points.',
     '',
@@ -403,7 +398,7 @@ function buildMetadata(item) {
 
   const metadata = {
     schema: 'busybee-rubric/v1',
-    lastUpdated: item.lesson === 'U1H' ? '2026-09-17' : '2026-08-11',
+    lastUpdated: item.lesson === 'U1H' ? '2026-10-14' : '2026-08-11',
     lesson: {
       unit: 'U1',
       lesson: item.lesson,
@@ -427,7 +422,7 @@ function buildMetadata(item) {
       automaticQuestions: questions.filter((question) => question.grading === 'auto').map((question) => question.id),
       busybeeQuestions: questions.filter((question) => question.grading === 'busybee').map((question) => question.id),
       rule: item.lesson === 'U1H'
-        ? 'Section 5 uses one hidden program-generated essay: complete evidence = 4 points; blank or invalid evidence = incomplete, 0 points. Teacher reviews BusyBee suggestions.'
+        ? 'Section 5 contains two written explanations: late retro-burn acceleration (3 points) and four-phase motion (4 points). Award partial credit according to each rubric. Teacher reviews BusyBee suggestions.'
         : 'All variable student evidence is graded only in the final two BusyBee responses.'
     },
     questions
