@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Electron Drift and Current</title>
+<style>
+html, body { background: transparent; }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 12px; color: #172f46; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+.lesson { width: min(100%, 1040px); margin: auto; border: 2px solid #527797; border-radius: 12px; overflow: hidden; background: #fff; }
+h1 { margin: 0; padding: 16px 8px; background: #eef5fa; font-size: clamp(.78rem, 2.7vw, 1.5rem); line-height: 1.3; text-align: center; white-space: nowrap; font-weight: 750; }
+.content { padding: 12px; }
+.stage { overflow: hidden; border: 1px solid #bdcdd8; border-radius: 8px; background: #fff; }
+.stage svg { display: block; width: 100%; height: auto; background: #fff; }
+.stage svg text { font-family: system-ui, sans-serif; font-size: 20px; font-weight: 500; fill: #172f46; }
+.stage svg .small { font-size: 18px; }
+.stage svg .strong { font-weight: 700; }
+.stage svg .isotope { font-size: 28px; font-weight: 600; }
+.stage svg .equation-small { font-size: 17px; }
+.message { min-height: 100px; padding: 15px 18px; border-top: 1px solid #d2dfe7; background: #f5f9fc; }
+.message p { margin: 0; line-height: 1.5; }
+#prompt { font-size: 1rem; font-weight: 700; }
+#explanation { margin-top: 6px; color: #284358; }
+.buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+button { flex: 1 1 160px; padding: 11px 14px; min-height: 46px; border: 1.5px solid #376a92; border-radius: 7px; background: #f8fbfd; color: #173e5c; font: inherit; font-weight: 650; cursor: pointer; }
+button:hover:not(:disabled) { background: #e4eff7; }
+button:focus-visible { outline: 3px solid #aa4f1c; outline-offset: 2px; }
+button:disabled { cursor: default; }
+.utility { flex: 0 1 auto; border-color: #9db5c6; }
+[hidden] { display: none !important; }
+@media(max-width: 600px) { body { padding: 4px; } .content { padding: 5px; } .message { padding: 12px; } button { font-size: .92rem; flex-basis: 140px; } .utility { flex-basis: auto; } .stage svg .small { font-size: 20px; } }
+
+</style>
+<style>
+.lesson { border: 5px solid #285f9f; }
+.buttons { margin-top: 6px; align-items: center; }
+.buttons label { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 650; }
+select { font: inherit; color: #173e5c; background: #f8fbfd; border: 1.5px solid #376a92; border-radius: 7px; min-height: 46px; padding: 8px; }
+select:focus-visible { outline: 3px solid #aa4f1c; outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+</style>
+</head>
+<body>
+<main class="lesson rise-walkthrough">
+<h1>Electron Drift and Current</h1>
+<div class="content">
+<div class="stage">
+<svg id="scene" viewBox="0 0 800 410" role="img" aria-label="Electron Drift and Current"></svg>
+
+</div>
+<div class="buttons" role="group" aria-label="Playback"><button class="utility" type="button" id="replay">Replay</button></div><span id="status" class="sr-only" role="status" aria-live="polite"></span>
+</div>
+
+<script>window.walkthroughLesson = {"title":"Electron Drift and Current","type":"wire","variant":"drift","question":"Conventional current points right. Which way do electrons drift in the metal?","choices":["Left","Right"],"correct":0,"explanation":"Electrons have negative charge, so their average drift is opposite conventional current. Their random motion continues while they drift."};</script>
+<script >
+(() => {
+  'use strict';
+  const ink = '#172f46', blue = '#23649a', teal = '#087c80', rust = '#a94b24', gold = '#f6ce43', muted = '#708595';
+  const escape = value => String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+  const label = (x, y, value, anchor = 'start', kind = '') => `<text x="${x}" y="${y}" text-anchor="${anchor}" class="${kind}">${escape(value)}</text>`;
+  const line = (x1, y1, x2, y2, color = muted, width = 1.5, dash = '') => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${width}" ${dash ? `stroke-dasharray="${dash}"` : ''}/>`;
+  const path = (points, color = teal, width = 3, dash = '') => `<path d="${points.map((point, index) => `${index ? 'L' : 'M'}${point[0].toFixed(2)},${point[1].toFixed(2)}`).join(' ')}" fill="none" stroke="${color}" stroke-width="${width}" stroke-linejoin="round" ${dash ? `stroke-dasharray="${dash}"` : ''}/>`;
+  const box = (x, y, width, height, fill = '#f0f7fa', stroke = '#bccdd8', radius = 0) => `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${radius}" fill="${fill}" stroke="${stroke}"/>`;
+  const dot = (x, y, radius = 4, fill = teal, stroke = '#fff') => `<circle cx="${x}" cy="${y}" r="${radius}" fill="${fill}" stroke="${stroke}" stroke-width="1.2"/>`;
+  function arrow(x1, y1, x2, y2, color = blue, width = 2.4, both = false) {
+    if (Math.hypot(x2 - x1, y2 - y1) < 1) return '';
+    const head = (startX, startY, endX, endY) => {
+      const angle = Math.atan2(endY - startY, endX - startX);
+      return path([[endX - 8 * Math.cos(angle - .45), endY - 8 * Math.sin(angle - .45)], [endX, endY], [endX - 8 * Math.cos(angle + .45), endY - 8 * Math.sin(angle + .45)]], color, width);
+    };
+    return line(x1, y1, x2, y2, color, width) + head(x1, y1, x2, y2) + (both ? head(x2, y2, x1, y1) : '');
+  }
+  function ray(x1, y1, x2, y2) {
+    return line(x1, y1, x2, y2, '#826522', 5) + arrow(x1, y1, x2, y2, gold, 3);
+  }
+  function sample(start, end, fn, steps = 200) {
+    return Array.from({ length: steps + 1 }, (_, index) => { const position = start + (end - start) * index / steps; return [position, fn(position)]; });
+  }
+  function dimension(x1, x2, y, value) {
+    return line(x1, y - 6, x1, y + 6, ink) + line(x2, y - 6, x2, y + 6, ink) + arrow(x1, y, x2, y, ink, 1.5, true) + label((x1 + x2) / 2, y - 12, value, 'middle');
+  }
+  function arc(centerX, centerY, radius, start, end, color = blue) {
+    const points = Array.from({ length: 41 }, (_, index) => { const angle = start + (end - start) * index / 40; return [centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle)]; });
+    return path(points, color, 1.8);
+  }
+  function graph({ width = 400, baseline = 210, top = 95, bottom = 285, xmax = 4, ticks = [0, 1, 2, 3, 4], xlabel = 'Position (m)', ylabel = 'Displacement (cm)' } = {}) {
+    const left = 55, right = width - 25;
+    let markup = label(left, top - 25, ylabel) + arrow(left, bottom, left, top, ink, 1.4) + arrow(left, baseline, right + 6, baseline, ink, 1.4);
+    for (const tick of ticks) {
+      const position = left + tick / xmax * (right - left);
+      markup += line(position, baseline - 4, position, baseline + 4, ink) + label(position, bottom + 23, tick, 'middle', 'small');
+    }
+    markup += label((left + right) / 2, bottom + 52, xlabel, 'middle');
+    return { markup, left, right, scale: (right - left) / xmax };
+  }
+  function panels(items, compact) {
+    let offset = 0;
+    const height = compact ? items.reduce((sum, item) => sum + item.height + 14, 0) : Math.max(...items.map(item => item.height)) + 20;
+    const markup = items.map((item, index) => {
+      const x = compact ? 10 : 10 + index * 420;
+      const y = compact ? offset + 10 : 10;
+      offset += item.height + 14;
+      return `<g transform="translate(${x} ${y})">${box(0, 0, 400, item.height, '#fff', '#d0dce3', 8)}${item.markup}</g>`;
+    }).join('');
+    return { markup, width: compact ? 420 : items.length * 420, height };
+  }
+  const single = (markup, width, height) => ({ markup, width, height });
+  const degrees = radians => radians * 180 / Math.PI;
+  const radians = angle => angle * Math.PI / 180;
+  const physics = { force: (first, second, distance) => 9e9 * Math.abs(first * second) / distance ** 2, field: (charge, distance) => 9e9 * charge / distance ** 2, potential: (charge, distance) => 9e9 * charge / distance, wireField: (current, distance) => 2e-7 * current / distance, current: (voltage, resistance) => voltage / resistance, parallel: resistances => 1 / resistances.reduce((sum, resistance) => sum + 1 / resistance, 0), emf: (turns, field, area, speed) => turns * field * area * speed };
+  const helpers = { ink, blue, teal, rust, gold, muted, label, line, path, box, dot, arrow, ray, sample, dimension, arc, graph, panels, single, degrees, radians, physics };
+  window.Unit6Diagrams = {
+    helpers,
+    physics,
+    scenes: {},
+    render(lesson, state) {
+      const result = this.scenes[lesson.type](lesson, state, helpers);
+      result.markup = `<defs><linearGradient id="visibleSpectrum"><stop stop-color="#7352a5"/><stop offset=".23" stop-color="#638fc8"/><stop offset=".46" stop-color="#8ac59d"/><stop offset=".65" stop-color="#f0dd77"/><stop offset="1" stop-color="#ce7475"/></linearGradient></defs>${result.markup}`;
+      return result;
+    }
+  };
+})();
+
+</script>
+<script >
+(() => {
+  'use strict';
+  const { label, line, path, box, dot, arrow, sample, dimension, arc, graph, panels, single, ink, blue, teal, rust, muted } = window.Unit6Diagrams.helpers;
+  function charge(centerX, centerY, sign, radius = 25) {
+    return dot(centerX, centerY, radius, sign > 0 ? '#fbe7da' : '#e0eef9', sign > 0 ? rust : blue) + line(centerX - radius * .3, centerY, centerX + radius * .3, centerY, sign > 0 ? rust : blue, 2.5) + (sign > 0 ? line(centerX, centerY - radius * .3, centerX, centerY + radius * .3, rust, 2.5) : '');
+  }
+  function charges(lesson, state) {
+    const { reveal, progress, compact } = state, variant = lesson.variant;
+    const width = compact ? 420 : 840;
+    if (['transfer', 'count'].includes(variant)) {
+      const counting = variant === 'count', radius = counting ? 85 : compact ? 55 : 85;
+      const centers = counting ? [width / 2] : [width * .25, width * .75];
+      const moving = reveal && progress < .8;
+      let drawing = label(width / 2, 35, counting ? 'Count positive and negative charges' : 'Transfer one electron, not a proton', 'middle', 'small');
+      centers.forEach((center, index) => {
+        drawing += dot(center, 210, radius, 'none', '#a8bac8') + dot(center, 210, 24, '#fbe7da', rust) + label(center, 217, '6p', 'middle');
+        const electrons = counting ? 7 : 6;
+        for (let electron = 0; electron < electrons; electron++) {
+          if (!counting && index === 0 && electron === 0 && reveal) continue;
+          const angle = electron * 2 * Math.PI / electrons;
+          drawing += charge(center + radius * Math.cos(angle), 210 + radius * Math.sin(angle), -1, 8);
+        }
+        if (!counting && index === 1 && reveal && !moving) drawing += charge(center + radius * Math.cos(Math.PI / 6), 210 + radius * .5, -1, 8);
+        drawing += label(center, 90, counting ? '6 protons, 7 electrons' : `Atom ${index ? 'B' : 'A'}`, 'middle');
+        drawing += label(center, 340, counting ? '+6e − 7e' : reveal ? index ? moving ? '6 electrons' : '7 electrons' : '5 electrons' : '6 electrons', 'middle', 'small');
+        if (reveal) drawing += label(center, 380, counting ? 'Net charge = −e' : index ? moving ? 'Receiving electron' : 'Charge = −e' : 'Charge = +e', 'middle', 'small');
+      });
+      if (!counting && moving) {
+        const amount = progress / .8;
+        const start = centers[0] + radius, end = centers[1] + radius * Math.cos(Math.PI / 6);
+        drawing += charge(start + (end - start) * amount, 210 + radius * .5 * amount - 105 * Math.sin(Math.PI * amount), -1, 9);
+      }
+      drawing += label(width / 2, 430, 'Charge counts, not electron orbits', 'middle', 'small');
+      if (reveal && !counting) drawing += label(width / 2, 470, 'Total charge remains zero', 'middle');
+      return single(drawing, width, 495);
+    }
+    if (variant === 'sharing') {
+      const radius = compact ? 45 : 65, initial = width / 4, shift = width / 4 - radius;
+      const movement = !reveal ? 0 : progress < .35 ? progress / .35 : progress <= .65 ? 1 : (1 - progress) / .35;
+      const shared = reveal && progress >= .35;
+      let drawing = label(width / 2, 35, 'Identical isolated metal spheres', 'middle', 'strong');
+      drawing += charge(initial + shift * movement, 220, 1, radius) + charge(width - initial - shift * movement, 220, shared ? 1 : -1, radius);
+      drawing += label(initial + shift * movement, 330, shared ? '+2 nC' : '+6 nC', 'middle') + label(width - initial - shift * movement, 330, shared ? '+2 nC' : '−2 nC', 'middle');
+      if (shared) drawing += label(width / 2, 390, '(+6 − 2) / 2 = +2 nC each', 'middle');
+      drawing += label(width / 2, 440, 'Total charge: +4 nC throughout', 'middle');
+      return single(drawing, width, 470);
+    }
+    if (variant === 'conductor') {
+      const left = 35, right = width - 35, center = width / 2, radius = 75;
+      let drawing = label(center, 35, 'Isolated metal conductor', 'middle', 'strong') + `<ellipse cx="${center}" cy="210" rx="${(right - left) / 2}" ry="${radius}" fill="#edf3f7" stroke="#8aa5b7"/>`;
+      for (let index = 0; index < 12; index++) {
+        const angle = index * 2 * Math.PI / 12;
+        const finalX = center + (right - left) / 2 * Math.cos(angle), finalY = 210 + radius * Math.sin(angle);
+        const startX = left + 40 + index % 3 * 13, startY = 185 + Math.floor(index / 3) * 17;
+        const amount = reveal ? progress : 0;
+        drawing += charge(startX + (finalX - startX) * amount, startY + (finalY - startY) * amount, -1, 7);
+      }
+      if (reveal) drawing += label(center, 350, 'Excess charge reaches the surface', 'middle') + label(center, 397, 'At equilibrium: E inside = 0', 'middle');
+      drawing += label(center, 449, 'Charge symbols show redistribution', 'middle', 'small');
+      return single(drawing, width, 475);
+    }
+    if (variant === 'polarization') {
+      const wall = width - 155;
+      let drawing = label(width / 2, 35, 'The wall remains electrically neutral', 'middle', 'small');
+      drawing += `<ellipse cx="90" cy="215" rx="48" ry="70" fill="#e2eef9" stroke="${blue}" stroke-width="2"/>` + label(90, 223, '− − −', 'middle') + label(90, 330, 'Balloon', 'middle');
+      drawing += box(wall, 105, 130, 230, '#f1f4f6', '#a7bac8');
+      for (let row = 0; row < 4; row++) {
+        const separation = reveal ? 12 + 12 * progress : 12;
+        const center = wall + 65, vertical = 140 + row * 53;
+        drawing += line(center - separation, vertical, center + separation, vertical, muted) + charge(center - separation, vertical, 1, 9) + charge(center + separation, vertical, -1, 9);
+      }
+      if (reveal) drawing += arrow(145, 215, wall - 18, 215, rust, 3) + label(width / 2, 390, 'Closer + attraction is stronger', 'middle') + label(width / 2, 432, 'Bound charges shift slightly', 'middle');
+      drawing += label(width / 2, 475, 'Polarization exaggerated for visibility', 'middle', 'small');
+      return single(drawing, width, 500);
+    }
+    if (variant === 'potential') {
+      const chart = graph({ baseline: 330, top: 110, bottom: 330, xmax: 3, ticks: [1, 2, 3], xlabel: 'Distance r (m)', ylabel: 'Potential V (V)' });
+      let plot = label(200, 35, 'V = kQ/r; Q = +1 nC', 'middle') + chart.markup;
+      for (const value of [0, 3, 6, 9]) plot += line(chart.left, 330 - value * 20, chart.right, 330 - value * 20, '#e3eaef') + label(38, 336 - value * 20, value, 'end', 'small');
+      plot += path(sample(chart.left + chart.scale * .85, chart.right, position => 330 - 180 / ((position - chart.left) / chart.scale)));
+      if (reveal) plot += dot(chart.left + 2 * chart.scale, 240, 5, rust) + label(200, 445, 'Double r → half V', 'middle');
+      let setup = label(200, 35, 'Potential is a scalar', 'middle', 'strong') + charge(65, 205, 1, 30);
+      const distance = reveal ? 105 + 105 * progress : 105;
+      setup += dot(65 + distance, 205, 7, teal) + label(65 + distance, 165, 'Probe', 'middle') + dimension(65, 65 + distance, 285, reveal && progress === 1 ? '2 m' : '1 m → 2 m');
+      setup += label(200, 355, reveal ? '9 V → 4.5 V' : 'At 1 m: V = 9 V', 'middle') + label(200, 420, 'Reference: V = 0 at infinity', 'middle', 'small');
+      return panels([{ markup: setup, height: 470 }, { markup: plot, height: 470 }], compact);
+    }
+    const gravity = variant === 'gravity';
+    const rows = gravity ? [false, true] : [true];
+    return panels(rows.map(electric => {
+      let drawing = label(200, 35, electric ? 'Like electric charges' : 'Ordinary masses', 'middle', 'strong');
+      const movement = reveal ? progress * 20 * (electric ? 1 : -1) : 0;
+      const left = 120 - movement, right = 280 + movement;
+      drawing += electric ? charge(left, 200, 1, 35) + charge(right, 200, 1, 35) : dot(left, 200, 35, '#e6edf3', blue) + dot(right, 200, 35, '#e6edf3', blue) + label(left, 207, 'm', 'middle') + label(right, 207, 'm', 'middle');
+      if (reveal) drawing += electric ? arrow(left - 38, 200, left - 85, 200, rust, 3) + arrow(right + 38, 200, right + 85, 200, rust, 3) : arrow(left + 38, 200, left + 75, 200, teal, 3) + arrow(right - 38, 200, right - 75, 200, teal, 3);
+      drawing += label(200, 315, electric ? 'Repulsion' : 'Attraction', 'middle') + label(200, 365, 'Equal forces, opposite directions', 'middle', 'small');
+      return { markup: drawing, height: 400 };
+    }), compact);
+  }
+  function plates(lesson, state) {
+    const variant = lesson.variant, width = state.compact ? 420 : 840, left = 40, right = width - 40;
+    const changing = ['voltage', 'isolated'].includes(variant);
+    const amount = state.reveal ? state.progress : 0;
+    const gap = changing ? 110 + amount * 110 : 240;
+    const upper = 240 - gap / 2, lower = 240 + gap / 2;
+    let drawing = label(width / 2, 35, changing ? variant === 'isolated' ? 'Fixed Q and plate area; isolated' : 'Field held fixed: E = 100 N/C' : 'Uniform field between parallel plates', 'middle', 'small');
+    drawing += box(left, upper - 5, right - left, 10, '#f7decf', rust) + box(left, lower - 5, right - left, 10, '#dbeaf6', blue);
+    for (let index = 0; index < 6; index++) {
+      const horizontal = left + 22 + index * (right - left - 44) / 5;
+      drawing += label(horizontal, upper - 17, '+', 'middle') + label(horizontal, lower + 32, '−', 'middle');
+    }
+    for (const fraction of [.18, .5, .82]) drawing += arrow(left + (right - left) * fraction, upper + 25, left + (right - left) * fraction, lower - 25, '#90b7ba', 2);
+    drawing += label(right - 15, 245, 'E ↓', 'end');
+    if (changing) {
+      drawing += arrow(25, upper, 25, lower, ink, 1.5, true) + label(width / 2, 425, state.reveal ? 'd: 2 cm → 4 cm' : 'd = 2 cm', 'middle');
+      if (state.reveal) drawing += label(width / 2, 468, variant === 'isolated' ? 'E = Q/(ε₀A): unchanged' : '|ΔV| = Ed = 100 × 0.04 = 4 V', 'middle', 'small') + label(width / 2, 505, 'Twice the gap → twice |ΔV|', 'middle');
+    } else if (variant === 'trajectory') {
+      const start = left + 25, span = right - left - 55, drop = 130;
+      const horizontal = start + span * amount, vertical = upper + 45 + drop * amount ** 2;
+      if (state.reveal) drawing += path(sample(start, horizontal, position => upper + 45 + drop * ((position - start) / span) ** 2), rust, 3, '6 4');
+      drawing += charge(horizontal, vertical, 1, 12) + arrow(horizontal, vertical, horizontal + 38, vertical + 38 * 2 * drop * amount / span, blue, 3);
+      if (state.reveal) drawing += arrow(horizontal - 20, vertical, horizontal - 20, vertical + 55, rust, 3);
+      drawing += label(width / 2, 425, 'Blue: velocity tangent to the path', 'middle', 'small') + label(width / 2, 468, 'Force and acceleration stay downward', 'middle', 'small');
+    } else {
+      const work = variant === 'work', horizontal = width / 2 - 45;
+      const vertical = work ? lower - 50 - amount * 120 : upper + 65 + amount * 110;
+      drawing += charge(horizontal, vertical, 1, 16);
+      if (state.reveal) {
+        drawing += arrow(horizontal + 28, vertical, horizontal + 28, vertical + 55, rust, 3);
+        if (work) drawing += arrow(horizontal - 28, vertical, horizontal - 28, vertical - 55, blue, 3);
+      }
+      drawing += label(width / 2, 425, work ? 'Move upward at constant speed' : 'Positive q: F = qE, downward', 'middle', 'small');
+      if (state.reveal) drawing += label(width / 2, 468, work ? 'External work > 0; ΔU > 0' : 'Field points from + to −', 'middle') + (work ? label(width / 2, 505, 'Blue: external force; rust: electric force', 'middle', 'small') : '');
+    }
+    drawing += label(width / 2, 547, 'Edge effects neglected', 'middle', 'small');
+    return single(drawing, width, 570);
+  }
+  function distance(lesson, state) {
+    const variant = lesson.variant;
+    const magnetic = variant === 'magnetic', doubleCharge = variant === 'charge';
+    return panels([false, true].map(after => {
+      const changed = after && state.reveal;
+      const separation = doubleCharge ? 220 : changed ? 240 : 120;
+      let drawing = label(200, 35, after ? 'After the change' : 'Before the change', 'middle', 'strong');
+      drawing += magnetic ? dot(60, 185, 18, '#e7eff5', blue) + dot(60, 185, 5, blue) : charge(60, 185, 1, 23);
+      drawing += magnetic ? box(60 + separation - 18, 170, 36, 30, '#e2f1ed', teal, 3) : charge(60 + separation, 185, 1, 15);
+      drawing += dimension(60, 60 + separation, 275, magnetic ? changed ? '4 cm' : '2 cm' : doubleCharge ? 'r = 1 m (fixed)' : changed ? '2 m' : '1 m');
+      const magnitude = magnetic ? changed ? 10 : 20 : doubleCharge ? changed ? 18 : 9 : variant === 'electric' ? changed ? 2.25 : 9 : changed ? 2.25 : 9;
+      if (!after || state.reveal) drawing += label(200, 335, `${magnetic ? 'B' : variant === 'electric' ? 'E' : 'F'} = ${magnitude} ${magnetic ? 'μT' : variant === 'electric' ? 'kN/C' : 'mN'}`, 'middle', 'strong');
+      if (!magnetic && (!after || state.reveal)) drawing += arrow(125, 390, 125 + magnitude / 9 * 90, 390, rust, 4);
+      drawing += label(200, 435, magnetic ? 'Long wire: I = 2 A, out of page' : doubleCharge ? changed ? 'q₁ = 2 μC; q₂ = 1 μC' : 'q₁ = q₂ = 1 μC' : variant === 'electric' ? 'Point source: Q = +1 μC' : 'Fixed charges: q₁ = q₂ = 1 μC', 'middle', 'small');
+      if (state.reveal) drawing += label(200, 480, magnetic ? 'B ∝ 1/r' : doubleCharge ? 'F ∝ q₁q₂' : variant === 'electric' ? 'E ∝ 1/r²' : 'F ∝ 1/r²', 'middle');
+      return { markup: drawing, height: 505 };
+    }), state.compact);
+  }
+  function field(lesson, state) {
+    const width = state.compact ? 420 : 840, center = width / 2, variant = lesson.variant;
+    let drawing = '';
+    if (variant === 'lines') {
+      drawing += label(center, 35, 'Field direction: force on positive q', 'middle', 'small') + charge(center, 235, 1, 32);
+      if (state.reveal) for (let index = 0; index < 12; index++) {
+        const angle = index * Math.PI / 6;
+        drawing += arrow(center + 43 * Math.cos(angle), 235 + 43 * Math.sin(angle), center + 145 * Math.cos(angle), 235 + 145 * Math.sin(angle), teal, 2.5);
+      }
+      drawing += label(center, 445, 'Positive source: arrows point outward', 'middle', 'small');
+    } else if (variant === 'sum') {
+      const offset = width * .24, vertical = 330, pointY = 200;
+      drawing += label(center, 35, 'Equal sources; P is equally far away', 'middle', 'small') + charge(center - offset, vertical, 1) + charge(center + offset, vertical, 1);
+      drawing += label(center - offset, 385, '+Q', 'middle') + label(center + offset, 385, '+Q', 'middle') + dot(center, pointY, 5, ink) + label(center + 18, pointY + 25, 'P');
+      for (const sign of [-1, 1]) drawing += line(center + sign * offset, vertical, center, pointY, muted, 1.5, '5 5');
+      if (state.reveal) {
+        for (const sign of [-1, 1]) {
+          drawing += arrow(center, pointY, center + sign * offset * .45, pointY - 58.5, sign > 0 ? rust : blue, 3);
+          drawing += line(center + sign * offset * .45, pointY - 58.5, center, pointY - 117, muted, 1.2, '5 4');
+        }
+        drawing += arrow(center, pointY, center, pointY - 117, teal, 4) + label(center + 15, 100, 'Net E');
+        drawing += label(center, 440, 'Horizontal components cancel', 'middle') + label(center, 480, 'Vertical components add', 'middle');
+      }
+    } else if (variant === 'test') {
+      drawing += label(center, 35, 'Field exists even without a test charge', 'middle', 'small') + charge(width * .25, 220, 1, 35) + label(width * .25, 300, '+Q', 'middle') + dot(width * .6, 220, 5, ink) + label(width * .6, 180, 'P', 'middle');
+      if (state.reveal) drawing += arrow(width * .6, 220, width - 30, 220, teal, 4) + label(width * .75, 300, 'E →', 'middle') + label(center, 420, 'A positive test charge is repelled', 'middle', 'small');
+    } else {
+      const unequal = variant === 'force', unit = (center - 120) / 2;
+      drawing += label(center, 35, 'Forces on the middle positive charge', 'middle', 'small') + charge(50, 235, 1) + charge(width - 50, 235, 1) + charge(center, 235, 1, 18);
+      drawing += label(50, 300, unequal ? '+2 μC' : '+Q', 'middle', 'small') + label(width - 50, 300, unequal ? '+1 μC' : '+Q', 'middle', 'small') + label(center, 300, '+q', 'middle');
+      drawing += dimension(50, center, 355, 'r') + dimension(center, width - 50, 355, 'r');
+      if (state.reveal) {
+        drawing += arrow(center + 23, 235, center + 23 + unit * (unequal ? 2 : 1), 235, rust, 4) + arrow(center - 23, 235, center - 23 - unit, 235, blue, 4);
+        drawing += label(center + 23 + unit * (unequal ? 1 : .5), 202, unequal ? '2F' : 'F', 'middle') + label(center - 23 - unit / 2, 202, 'F', 'middle');
+        drawing += label(center, 435, unequal ? 'Net: 2F − F = F, to the right' : 'Equal and opposite: net force = 0', 'middle', 'small');
+      }
+    }
+    return single(drawing, width, 510);
+  }
+  window.Unit6Diagrams.helpers.charge = charge;
+  Object.assign(window.Unit6Diagrams.scenes, { charges, plates, distance, field });
+})();
+
+</script>
+<script >
+(() => {
+  'use strict';
+  const { label, line, path, box, dot, arrow, panels, single, ink, blue, teal, rust } = window.Unit6Diagrams.helpers;
+  function resistor(centerX, centerY, value, vertical = false) {
+    const symbol = box(-30, -12, 60, 24, '#edf5f1', teal);
+    return `<g transform="translate(${centerX} ${centerY})${vertical ? ' rotate(90)' : ''}">${symbol}</g>` + label(centerX, centerY - 30, value, 'middle', 'small');
+  }
+  function lamp(centerX, centerY, brightness, broken = false) {
+    let drawing = dot(centerX, centerY, 23, brightness ? brightness > .5 ? '#ffe58d' : '#fff5cf' : '#f0f3f5', ink);
+    if (broken) drawing += path([[centerX - 15, centerY - 15], [centerX - 4, centerY - 4]], ink, 1.7) + path([[centerX + 5, centerY + 5], [centerX + 15, centerY + 15]], ink, 1.7);
+    else drawing += line(centerX - 15, centerY - 15, centerX + 15, centerY + 15, ink, 1.7) + line(centerX - 15, centerY + 15, centerX + 15, centerY - 15, ink, 1.7);
+    return drawing;
+  }
+  function source(left, top, bottom, voltage) {
+    const center = (top + bottom) / 2;
+    return line(left, top, left, center - 8, ink, 2.5) + line(left - 22, center - 8, left + 22, center - 8, ink, 3) + line(left - 12, center + 8, left + 12, center + 8, ink, 3) + line(left, center + 8, left, bottom, ink, 2.5) + label(left - 30, center - 17, '+', 'middle', 'small') + label(left - 30, center + 28, '−', 'middle', 'small') + label(left + 35, center + 7, voltage, 'start', 'small');
+  }
+  function loop({ width = 420, voltage = '12 V', components = [], current = false, bottom = 360, top = 170 }) {
+    const left = 60, right = width - 40;
+    let drawing = source(left, top, bottom, voltage) + line(right, top, right, bottom, ink, 2.5) + line(right, bottom, left, bottom, ink, 2.5);
+    let previous = left;
+    components.forEach(component => {
+      drawing += line(previous, top, component.center - component.radius, top, ink, 2.5) + component.markup;
+      previous = component.center + component.radius;
+    });
+    drawing += line(previous, top, right, top, ink, 2.5);
+    if (current) drawing += arrow(right - 35, bottom + 30, left + 60, bottom + 30, rust, 2.5) + label((right + left) / 2, bottom + 65, 'Conventional current', 'middle', 'small');
+    return drawing;
+  }
+  function parallel({ voltage = '12 V', second = true, bulbs = false, lit = true }) {
+    const left = 55, branchLeft = 175, right = 365, top = 130, bottom = 350;
+    let drawing = source(left, top, bottom, voltage) + line(left, top, branchLeft, top, ink, 2.5) + line(left, bottom, branchLeft, bottom, ink, 2.5) + line(branchLeft, top, branchLeft, second ? 290 : 185, ink, 2.5) + line(right, 185, right, 290, ink, 2.5);
+    const rows = second ? [185, 290] : [185];
+    if (!second) drawing += line(right, 185, right, 350, ink, 2.5);
+    drawing += line(branchLeft, bottom, right, bottom, ink, 2.5) + line(right, 290, right, bottom, ink, 2.5);
+    rows.forEach(vertical => {
+      const center = 270, radius = bulbs ? 23 : 30;
+      drawing += line(branchLeft, vertical, center - radius, vertical, ink, 2.5) + line(center + radius, vertical, right, vertical, ink, 2.5);
+      drawing += bulbs ? lamp(center, vertical, lit ? 1 : 0) : resistor(center, vertical, '6 Ω');
+      drawing += dot(branchLeft, vertical, 3, ink, ink) + dot(right, vertical, 3, ink, ink);
+    });
+    return drawing;
+  }
+  function circuit(lesson, state) {
+    const variant = lesson.variant, reveal = state.reveal, progress = state.progress;
+    const width = state.compact ? 420 : 840;
+    if (variant === 'brightness') return panels([false, true].map(isParallel => {
+      let drawing = label(200, 35, isParallel ? 'Parallel bulbs' : 'Series bulbs', 'middle', 'strong') + label(200, 78, 'Identical resistive bulbs: 6 Ω each', 'middle', 'small');
+      if (isParallel) drawing += parallel({ bulbs: true, lit: reveal });
+      else drawing += loop({ width: 400, components: [170, 285].map(center => ({ center, radius: 23, markup: lamp(center, 170, reveal ? .25 : 0) })) });
+      if (reveal) drawing += label(200, 425, isParallel ? 'Each bulb: 12 V, 24 W' : 'Each bulb: 6 V, 6 W', 'middle') + label(200, 470, 'Brightness follows power: P = V²/R', 'middle', 'small');
+      return { markup: drawing, height: 495 };
+    }), state.compact);
+    if (variant === 'parallel') return panels([false, true].map(after => {
+      const added = after && reveal;
+      let drawing = label(200, 35, after ? 'Add a second path' : 'One resistor', 'middle', 'strong') + parallel({ second: added });
+      if (!after || reveal) drawing += label(200, 425, added ? 'Rtotal = 3 Ω; Itotal = 4 A' : 'Rtotal = 6 Ω; I = 2 A', 'middle', 'small');
+      if (added) drawing += label(200, 470, 'Each branch: I = 12/6 = 2 A', 'middle', 'small');
+      return { markup: drawing, height: 495 };
+    }), state.compact);
+    const left = 60, right = width - 40, span = right - left, top = 170;
+    const broken = variant === 'failure' && reveal && progress >= .2;
+    const closed = variant !== 'switch' || reveal && progress >= .25;
+    const voltage = variant === 'series' ? '18 V' : variant === 'crane' ? reveal ? '6 V' : '? V' : variant === 'voltage' ? reveal ? '12 V' : '6 V' : '12 V';
+    const components = [];
+    const addResistor = (fraction, value) => { const center = left + fraction * span; components.push({ center, radius: 30, markup: resistor(center, top, value) }); };
+    if (['ohm', 'voltage', 'series', 'crane'].includes(variant)) {
+      if (variant === 'series') addResistor(.32, '3 Ω');
+      addResistor(variant === 'series' ? .72 : .6, variant === 'crane' ? 'Coil: 3 Ω' : '6 Ω');
+    } else {
+      if (variant === 'failure') { const center = left + span * .32; components.push({ center, radius: 23, markup: lamp(center, top, broken ? 0 : 1, broken) }); }
+      if (variant === 'switch') {
+        const center = left + span * .28, radius = 26;
+        components.push({ center, radius, markup: dot(center - radius, top, 3, ink) + dot(center + radius, top, 3, ink) + line(center - radius, top, center + radius, closed ? top : top - 35, ink, 2.5) });
+      }
+      if (variant === 'meter' && reveal) { const center = left + span * .3; components.push({ center, radius: 23, markup: dot(center, top, 23, '#fff', teal) + label(center, top + 7, 'A', 'middle') }); }
+      const center = left + span * .72;
+      components.push({ center, radius: 23, markup: lamp(center, top, broken || !closed ? 0 : 1) });
+    }
+    let drawing = label(width / 2, 35, variant === 'crane' ? 'Coil current limit: 2 A' : variant === 'failure' ? 'A series bulb breaks' : variant === 'meter' ? 'Measure current through the bulb' : 'Ideal source and connecting wires', 'middle', 'small');
+    drawing += loop({ width, voltage, components, current: closed && !broken && (reveal || variant === 'failure') });
+    if (variant === 'meter' && !reveal) drawing += dot(width / 2, 440, 23, '#fff', teal) + label(width / 2, 447, 'A', 'middle');
+    if (reveal) {
+      const captions = {
+        ohm: ['I = V/R = 12/6 = 2 A', 'The same current flows around the loop.'],
+        voltage: ['I: 6/6 = 1 A → 12/6 = 2 A', 'Same resistance; double voltage.'],
+        series: ['Rtotal = 3 + 6 = 9 Ω', 'I = 18/9 = 2 A everywhere'],
+        crane: ['I = 6/3 = 2 A: at the limit', '12 V would give 4 A: too much.'],
+        switch: [closed ? 'Complete path: the bulb lights' : 'The switch is closing', 'No current can cross the open gap.'],
+        failure: [broken ? 'Open path: I = 0 everywhere' : 'Both bulbs initially conduct', 'Breaking either bulb stops both.'],
+        meter: ['Ammeter in series: same current', 'Never connect it across the source.']
+      };
+      drawing += label(width / 2, 475, captions[variant][0], 'middle', 'small') + label(width / 2, 520, captions[variant][1], 'middle', 'small');
+    }
+    return single(drawing, width, 550);
+  }
+  function conversion(lesson, state) {
+    const width = state.compact ? 420 : 840, center = width / 2;
+    let drawing = label(center, 35, lesson.variant === 'current' ? 'Measure charge crossing a section' : 'Micro means one millionth', 'middle', 'strong');
+    if (lesson.variant === 'current') {
+      drawing += box(30, 140, width - 60, 110, '#eef5f9', '#a7becd', 20) + line(center, 105, center, 280, rust, 2, '6 5') + label(center, 315, 'Counting plane', 'middle');
+      for (let index = 0; index < 8; index++) {
+        const start = 40 + index * (center - 65) / 8;
+        const position = state.reveal ? start + (center - 15) * Math.min(1, state.progress * 1.4) : start;
+        drawing += dot(position, 175 + index % 2 * 35, 6, blue);
+      }
+      drawing += label(center, 85, 'ΔQ = 8 C in Δt = 5 s', 'middle');
+      if (state.reveal) drawing += label(center, 380, 'Iavg = ΔQ/Δt = 8/5 = 1.6 A', 'middle', 'small');
+      drawing += label(center, 435, 'Dots represent charge amounts, not electrons', 'middle', 'small');
+    } else {
+      drawing += label(center, 115, '4 μC', 'middle', 'isotope') + arrow(center, 145, center, 200, blue, 3);
+      if (state.reveal) drawing += label(center, 245, '4 μC × (10⁻⁶ C / 1 μC)', 'middle') + label(center, 310, '= 4 × 10⁻⁶ C', 'middle', 'strong') + label(center, 375, '= 0.000004 C', 'middle', 'strong');
+      drawing += label(center, 440, 'Units cancel; the physical charge is unchanged', 'middle', 'small');
+    }
+    return single(drawing, width, 470);
+  }
+  Object.assign(window.Unit6Diagrams.helpers, { resistor, lamp, source });
+  Object.assign(window.Unit6Diagrams.scenes, { circuit, conversion });
+})();
+
+</script>
+<script >
+(() => {
+  'use strict';
+  const { label, line, path, box, dot, arrow, dimension, panels, single, sample, ink, blue, teal, rust } = window.Unit6Diagrams.helpers;
+  const ring = (x, y, radius, color = teal) => `<circle cx="${x}" cy="${y}" r="${radius}" fill="none" stroke="${color}" stroke-width="2"/>`;
+  function currentSymbol(x, y, outward) {
+    return dot(x, y, 11, '#fff', rust) + (outward ? dot(x, y, 3, rust, rust) : line(x - 5, y - 5, x + 5, y + 5, rust, 2) + line(x - 5, y + 5, x + 5, y - 5, rust, 2));
+  }
+  function solenoid(turns, core, strength) {
+    let drawing = box(65, 165, 270, 90, core ? '#e3e8ed' : '#fafcfd', '#b5c5cf', 8);
+    for (let index = 0; index < turns; index++) {
+      const horizontal = 80 + index * 240 / (turns - 1);
+      drawing += currentSymbol(horizontal, 165, true) + currentSymbol(horizontal, 255, false);
+    }
+    for (const vertical of [190, 210, 230]) drawing += arrow(95, vertical, 305, vertical, teal, strength);
+    drawing += `<path d="M305 210 C385 210 375 100 300 100 H100 C25 100 15 210 95 210" fill="none" stroke="${teal}" stroke-width="1.6"/>` + arrow(235, 100, 170, 100, teal, 1.6);
+    drawing += label(40, 240, 'S', 'middle') + label(360, 240, 'N', 'middle');
+    return drawing + label(200, 305, 'Selected windings; side section', 'middle', 'small') + label(200, 340, '⊙ out of page    ⊗ into page', 'middle', 'small');
+  }
+  function coil(lesson, state) {
+    const variant = lesson.variant;
+    return panels([false, true].map(after => {
+      const changed = after && state.reveal;
+      let drawing = label(200, 35, after ? 'Change one variable' : 'Starting coil', 'middle', 'strong');
+      if (variant === 'loops') {
+        for (let index = 0; index < (changed ? 3 : 1); index++) drawing += `<ellipse cx="200" cy="210" rx="${60 + index * 7}" ry="${90 + index * 7}" fill="none" stroke="${rust}" stroke-width="2.5"/>`;
+        drawing += arrow(75, 210, 325, 210, teal, changed ? 5 : 2.5) + label(200, 350, 'Same center, radius, and current', 'middle', 'small');
+      } else drawing += solenoid(changed && variant === 'turns' ? 10 : 5, changed && variant === 'core', changed ? 4 : 2);
+      drawing += label(200, 395, variant === 'core' ? changed ? 'Soft-iron core added' : 'Air core' : variant === 'loops' ? changed ? '3 aligned loops' : '1 loop' : changed ? '100 turns; same I and length' : '50 turns; same I and length', 'middle', 'small');
+      if (state.reveal) drawing += label(200, 440, changed ? variant === 'core' ? 'Stronger B (before saturation)' : variant === 'loops' ? 'Center field: 3B' : 'Inside field: 2B' : 'Reference field: B', 'middle', 'small');
+      return { markup: drawing, height: 470 };
+    }), state.compact);
+  }
+  function wire(lesson, state) {
+    const width = state.compact ? 420 : 840, center = width / 2;
+    if (lesson.variant === 'resistance') return panels([1, 2].map(multiplier => {
+      const length = multiplier * 130;
+      let drawing = label(200, 40, multiplier === 1 ? 'Reference wire' : 'Longer wire', 'middle', 'strong') + box(55, 180, length, 65, '#f7e5cf', rust, 4) + dimension(55, 55 + length, 290, multiplier === 1 ? 'L' : '2L') + label(200, 100, 'Same material and cross section', 'middle', 'small');
+      if (state.reveal) drawing += label(200, 355, multiplier === 1 ? 'R = ρL/A' : 'Rnew = ρ(2L)/A = 2R', 'middle');
+      return { markup: drawing, height: 400 };
+    }), state.compact);
+    if (lesson.variant === 'drift') {
+      let drawing = box(30, 150, width - 60, 180, '#edf5fa', '#abc0d0');
+      for (let row = 0; row < 3; row++) for (let column = 0; column < 7; column++) drawing += dot(65 + column * (width - 130) / 6, 180 + row * 60, 10, '#e0d8c8', '#b7a789');
+      for (let index = 0; index < 12; index++) {
+        const span = width - 90, horizontal = 45 + ((index * span / 12 - state.progress * 65 + span) % span);
+        drawing += dot(horizontal, 205 + (index % 2) * 60 + Math.sin(index * 3 + state.time * 8) * 10, 4, blue, blue);
+      }
+      drawing += arrow(center - 100, 100, center + 100, 100, rust) + label(center, 65, 'Conventional current →', 'middle') + arrow(center + 100, 385, center - 100, 385, blue) + label(center, 425, 'Electron drift ←', 'middle') + label(center, 475, 'Random motion plus a small net drift', 'middle', 'small');
+      return single(drawing, width, 510);
+    }
+    const compass = lesson.variant === 'compass';
+    let drawing = label(center, 35, 'Straight wire: current out of page', 'middle', 'small');
+    const vertical = compass ? 300 : 245;
+    for (const radius of [60, 100, 140]) {
+      drawing += ring(center, vertical, radius);
+      drawing += arrow(center + radius, vertical + 12, center + radius, vertical - 12, teal, 2);
+      drawing += arrow(center - radius, vertical - 12, center - radius, vertical + 12, teal, 2);
+    }
+    drawing += currentSymbol(center, vertical, true);
+    if (compass) {
+      const deflection = state.reveal ? state.progress * 55 : 0;
+      drawing += dot(center, 160, 34, '#fff', ink) + arrow(center, 160, center - deflection * .55, 130, rust, 3);
+      drawing += arrow(center + 100, 90, center + 100, 40, blue) + label(center + 105, 75, 'Earth B', 'start', 'small');
+      drawing += label(center, 485, state.reveal ? 'North end turns toward net B' : 'Compass initially follows Earth B', 'middle', 'small');
+    } else drawing += label(center, 435, 'B circles counterclockwise', 'middle') + label(center, 480, 'Right-hand thumb points out: ⊙', 'middle', 'small');
+    return single(drawing, width, 520);
+  }
+  function graph(lesson, state) {
+    const distance = lesson.variant === 'distance';
+    let drawing = label(210, 35, distance ? 'Field around a straight wire' : 'Field inside a fixed solenoid', 'middle', 'strong');
+    const left = 70, right = 365, top = 100, bottom = 350;
+    const xmax = distance ? 8 : 2, ymax = distance ? 20 : 4;
+    for (let tick = 0; tick <= 4; tick++) {
+      const vertical = bottom - tick * (bottom - top) / 4;
+      drawing += line(left, vertical, right, vertical, '#dbe4ea', 1) + label(left - 12, vertical + 6, String(tick * ymax / 4), 'end', 'small');
+      const horizontal = left + tick * (right - left) / 4;
+      drawing += line(horizontal, bottom, horizontal, bottom + 6) + label(horizontal, bottom + 30, String(tick * xmax / 4), 'middle', 'small');
+    }
+    drawing += arrow(left, bottom, right + 10, bottom, ink, 1.5) + arrow(left, bottom, left, top - 20, ink, 1.5) + label(left, 70, distance ? 'B (μT)' : 'B (mT)') + label(210, 420, distance ? 'Distance r (cm)' : 'Current I (A)', 'middle');
+    const points = distance ? [[2, 20], [4, 10], [8, 5]] : [[1, 2], [2, 4]];
+    if (state.reveal) drawing += path(sample(distance ? left + 2 / xmax * (right - left) : left, right, horizontal => { const value = (horizontal - left) / (right - left) * xmax; return bottom - (distance ? 40 / value : 2 * value) / ymax * (bottom - top); }), teal, 3);
+    points.forEach(([horizontal, vertical]) => { drawing += dot(left + horizontal / xmax * (right - left), bottom - vertical / ymax * (bottom - top), 5, rust); });
+    drawing += label(210, 465, distance ? '2 cm: 20 μT · 4 cm: 10 μT' : '1 A: 2 mT · 2 A: 4 mT', 'middle', 'small');
+    if (state.reveal) drawing += label(210, 505, distance ? 'B ∝ 1/r, not 1/r²' : 'B ∝ I (same coil and core)', 'middle');
+    return single(drawing, 420, 535);
+  }
+  function experiment(lesson, state) {
+    return panels([false, true].map(after => {
+      const changed = after && state.reveal, turns = lesson.variant !== 'current', current = lesson.variant !== 'turns';
+      let drawing = label(200, 35, after ? 'Trial B' : 'Trial A', 'middle', 'strong') + solenoid(changed && turns ? 8 : 4, false, changed ? 4 : 2);
+      drawing += label(200, 390, `${changed && turns ? 40 : 20} turns; I = ${changed && current ? 2 : 1} A`, 'middle');
+      drawing += label(200, 435, 'Same core, coil length, sensor point', 'middle', 'small');
+      if (state.reveal) drawing += label(200, 480, lesson.variant === 'unfair' ? 'Two variables: cannot isolate cause' : `Model reading: ${changed ? 4 : 2} mT`, 'middle', 'small');
+      return { markup: drawing, height: 510 };
+    }), state.compact);
+  }
+  function machine(lesson, state) {
+    const motor = lesson.variant === 'motor', width = state.compact ? 420 : 840, center = width / 2;
+    const angle = state.reveal ? state.progress * (motor ? .65 : Math.PI * 2 * (lesson.variant === 'speed' ? 2 : 1)) : 0;
+    let drawing = box(25, 140, 65, 180, '#f8e7df', rust) + box(width - 90, 140, 65, 180, '#e5eff8', blue) + label(57, 235, 'N', 'middle', 'strong') + label(width - 57, 235, 'S', 'middle', 'strong');
+    for (const vertical of [165, 230, 295]) drawing += arrow(100, vertical, width - 100, vertical, teal, 1.5);
+    drawing += label(center, 65, 'Uniform magnetic field B →', 'middle');
+    if (motor) {
+      const offset = 75 * Math.cos(angle), rise = 75 * Math.sin(angle);
+      drawing += ring(center, 230, 80, '#b2c2cd') + line(center - offset, 230 - rise, center + offset, 230 + rise, ink, 2) + currentSymbol(center - offset, 230 - rise, true) + currentSymbol(center + offset, 230 + rise, false);
+      if (state.reveal) drawing += arrow(center - offset, 230 - rise - 15, center - offset, 230 - rise - 65, rust, 3) + arrow(center + offset, 230 + rise + 15, center + offset, 230 + rise + 65, rust, 3);
+      drawing += label(center, 385, 'Rotor section: ⊙ out, ⊗ in', 'middle', 'small') + label(center, 430, 'Opposite forces produce torque', 'middle', 'small') + label(center, 480, 'Electrical → mechanical energy', 'middle');
+    } else {
+      drawing += `<ellipse cx="${center}" cy="230" rx="${Math.max(8, 75 * Math.abs(Math.sin(angle)))}" ry="95" fill="#fff8e766" stroke="${rust}" stroke-width="3"/>` + line(center, 115, center, 345, ink, 1.5, '5 5');
+      drawing += label(center, 385, 'Coil turns about the dashed axis', 'middle', 'small');
+      const multiplier = lesson.variant === 'turns' || lesson.variant === 'speed' ? 2 : 1;
+      drawing += label(center, 430, state.reveal ? lesson.variant === 'turns' ? 'Double N → double peak emf' : lesson.variant === 'speed' ? 'Double ω → double peak emf' : 'Changing flux induces emf' : 'Mechanical input: turn the coil', 'middle', 'small');
+      if (state.reveal) drawing += label(center, 475, 'ε = NBAω sin(ωt)', 'middle') + label(center, 520, multiplier === 2 ? lesson.variant === 'speed' ? 'Frequency also doubles.' : 'Rotation rate stays the same.' : 'Mechanical → electrical energy', 'middle', 'small');
+    }
+    if (!motor) {
+      const left = 55, right = width - 35, baseline = 625;
+      const doubled = state.reveal && ['turns', 'speed'].includes(lesson.variant);
+      const amplitude = doubled ? 45 : 22.5, frequency = state.reveal && lesson.variant === 'speed' ? 2 : 1;
+      drawing += label(center, 565, 'Induced emf / initial peak emf', 'middle', 'small');
+      drawing += arrow(left, baseline, right, baseline, ink, 1.5) + line(left, 575, left, 675, ink, 1.5);
+      for (const value of [-2, 0, 2]) drawing += label(left - 10, baseline - value * 22.5 + 6, value, 'end', 'small');
+      if (doubled) drawing += path(sample(left, right, horizontal => baseline - 22.5 * Math.sin((horizontal - left) / (right - left) * Math.PI * 2)), '#8296a5', 1.5, '5 5');
+      drawing += path(sample(left, right, horizontal => baseline - amplitude * Math.sin((horizontal - left) / (right - left) * Math.PI * 2 * frequency)), rust, 2.5);
+      drawing += label(center, 710, doubled ? 'Same time span; dashed = original' : 'Time → one rotation period', 'middle', 'small');
+    }
+    return single(drawing, width, motor ? 555 : 740);
+  }
+  function braking(lesson, state) {
+    return panels([false, true].map(copper => {
+      const progress = state.progress, displacement = state.reveal ? copper ? 73.8 * (progress - .18 * (1 - Math.exp(-progress / .18))) : 205 * progress ** 2 : 0;
+      const vertical = 140 + displacement;
+      let drawing = label(200, 35, copper ? 'Copper tube' : 'Plastic tube', 'middle', 'strong') + box(125, 90, 150, 330, copper ? '#faeee1' : '#edf5fa', copper ? rust : blue, 8) + box(150, vertical, 100, 30, '#f6d9cf', rust) + box(150, vertical + 30, 100, 30, '#dae9f6', blue) + label(200, vertical + 22, 'N', 'middle') + label(200, vertical + 52, 'S', 'middle');
+      if (state.reveal) {
+        drawing += arrow(300, vertical + 30, 300, vertical + 95, ink, 2) + label(315, vertical + 70, 'mg', 'start', 'small');
+        if (copper) {
+          drawing += arrow(100, vertical + 30, 100, vertical + 30 - 65 * (1 - Math.exp(-progress / .18)), teal, 3) + label(90, vertical - 40, 'Fmag', 'middle', 'small');
+          for (const above of [true, false]) {
+            const loopY = vertical + (above ? -20 : 80);
+            drawing += `<ellipse cx="200" cy="${loopY}" rx="75" ry="12" fill="none" stroke="${teal}" stroke-width="2"/>` + arrow(above ? 185 : 215, loopY + 12, above ? 215 : 185, loopY + 12, teal, 2);
+          }
+        }
+        drawing += label(200, 465, copper ? 'Induced currents oppose the fall' : 'No magnetic braking', 'middle', 'small') + label(200, 505, copper ? 'Slower fall; energy becomes heat' : 'Downward acceleration: g', 'middle', 'small');
+      }
+      return { markup: drawing, height: 535 };
+    }), state.compact);
+  }
+  Object.assign(window.Unit6Diagrams.scenes, { coil, wire, graph, experiment, machine, braking });
+})();
+
+</script>
+<script>window.activityGroup = {"href":"electron-drift-wire.html","title":"Electron Drift and Current","group":"demo"};</script>
+<script >
+(() => {
+  'use strict';
+  const config = window.activityGroup, lesson = window.walkthroughLesson;
+  const svg = document.getElementById('scene'), status = document.getElementById('status');
+  const control = document.getElementById('parameter');
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  let elapsed = 0, last = null, step = 0, completed = false;
+  const complete = () => { if (!completed) { completed = true; window.parent.postMessage({type: 'complete'}, '*'); } };
+  const escape = value => value.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+  function render() {
+    const demo = config.group === 'demo', changed = control?.value === '1';
+    const progress = demo ? reduced.matches ? 1 : Math.max(0, Math.min(1, (elapsed - 1400) / 4500)) : changed ? 1 : 0;
+    const reveal = demo ? reduced.matches || elapsed >= 1400 : changed;
+    const phase = demo ? progress === 1 ? 'complete' : reveal ? 'reveal' : 'watch' : 'explore';
+    const result = Unit6Diagrams.render(lesson, {phase, reveal, progress, complete: progress === 1, compact: innerWidth <= 600, time: demo && !reduced.matches ? elapsed / 1000 : 0});
+    let markup = result.markup, height = result.height;
+    if (!demo) {
+      // Keep the existing reference/comparison artwork and its validated two conditions.
+      markup = markup.replaceAll('Before the change','Reference').replaceAll('After the change','Your setting');
+      const c = config.control;
+      const lines = step === 0 ? [c[3], 'Set '+c[0].toLowerCase()+' to '+c[2]+'.'] : step === 1 ? [c[4], 'Now restore '+c[1]+' and compare.'] : ['Baseline restored. Compare either setting.', c[3]];
+      markup += lines.map((line,i)=>`<text x="${result.width/2}" y="${height+26+i*28}" text-anchor="middle" class="small">${escape(line)}</text>`).join('');
+      height += 72;
+      const message = lines.join(' '); if (status.textContent !== message) status.textContent = message;
+    } else if (phase === 'complete') {
+      if (status.textContent !== lesson.explanation) status.textContent = lesson.explanation;
+      complete();
+    }
+    svg.setAttribute('viewBox', `0 0 ${result.width} ${height}`);
+    svg.innerHTML = markup; svg.dataset.phase = phase; svg.dataset.step = step;
+    svg.setAttribute('aria-label', lesson.title + '. ' + (demo ? lesson.explanation : status.textContent));
+  }
+  control?.addEventListener('change', () => {
+    if (step === 0 && control.value === '1') step = 1;
+    else if (step === 1 && control.value === '0') { step = 2; complete(); }
+    render();
+  });
+  document.getElementById('replay').addEventListener('click', () => {
+    elapsed = 0; last = null; step = 0; status.textContent = '';
+    if (control) control.value = '0'; render();
+  });
+  function frame(now) {
+    const delta = last === null ? 0 : Math.min(100, now-last); last = now;
+    if (config.group === 'demo' && !reduced.matches && !document.hidden) {
+      elapsed += delta; if (elapsed >= 8900) elapsed = 0; render();
+    }
+    requestAnimationFrame(frame);
+  }
+  addEventListener('resize', render); reduced.addEventListener('change', render);
+  render(); requestAnimationFrame(frame);
+})();
+
+</script>
+</main>
+</body>
+</html>

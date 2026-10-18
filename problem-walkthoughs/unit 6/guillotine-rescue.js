@@ -1,0 +1,90 @@
+(() => {
+  'use strict';
+  const svg=document.getElementById('scene'),status=document.getElementById('status'),brake=document.getElementById('brake');
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)');
+  const g=9.81,vt=.45,tau=vt/g,limit=.8,height=1;
+  let phase='ready',elapsed=0,time=0,last=null,activation=null,polarity=1,completed=false,resultSpeed=0;
+  function model(t,on){if(!on||t<on.t)return {y:g*t*t/2,v:g*t};const dt=t-on.t,decay=Math.exp(-dt/tau);return {y:on.y+vt*dt+(on.v-vt)*tau*(1-decay),v:vt+(on.v-vt)*decay};}
+  function crossing(on){let low=0,high=4;for(let i=0;i<70;i++){const mid=(low+high)/2;if(model(mid,on).y<height)low=mid;else high=mid;}const t=(low+high)/2;return {t,...model(t,on)};}
+  window.rescuePhysics={model,crossing,g,vt,tau,limit};
+  window.rescueState=()=>({phase,time,elapsed,activation:activation?{...activation}:null,polarity,completed,resultSpeed,...model(time,activation),...(phase==='saved'?{y:height,v:0}:{})});
+  const L=(x1,y1,x2,y2,c,w=1,dash='')=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="${w}" ${dash?`stroke-dasharray="${dash}"`:''}/>`;
+  const T=(x,y,s,cls='',color)=>`<text x="${x}" y="${y}" text-anchor="middle" class="${cls}" ${color?`style="fill:${color}"`:''}>${s}</text>`;
+  const P=(d,c,w=2,fill='none')=>`<path d="${d}" fill="${fill}" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  const E=(x,y,rx,ry,fill,stroke='none')=>`<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="${fill}" stroke="${stroke}"/>`;
+  const R=(x,y,w,h,fill,stroke='none',r=0)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="${fill}" stroke="${stroke}"/>`;
+  const defs=`<defs>
+  <linearGradient id="wood"><stop stop-color="#67432f"/><stop offset=".22" stop-color="#aa8055"/><stop offset=".62" stop-color="#8f6542"/><stop offset="1" stop-color="#523827"/></linearGradient>
+  <linearGradient id="copper"><stop stop-color="#824422"/><stop offset=".2" stop-color="#d99461"/><stop offset=".4" stop-color="#f8d5ac"/><stop offset=".68" stop-color="#bf7847"/><stop offset="1" stop-color="#8b4c2a"/></linearGradient>
+  <linearGradient id="steel" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#4b6273"/><stop offset=".27" stop-color="#e2edf3"/><stop offset=".5" stop-color="#a6b9c6"/><stop offset=".76" stop-color="#f6fbff"/><stop offset="1" stop-color="#6a8396"/></linearGradient>
+  <linearGradient id="north"><stop stop-color="#793544"/><stop offset=".4" stop-color="#cf6676"/><stop offset="1" stop-color="#7b3040"/></linearGradient>
+  <linearGradient id="south"><stop stop-color="#224e7b"/><stop offset=".4" stop-color="#5d94c5"/><stop offset="1" stop-color="#204a76"/></linearGradient>
+  <radialGradient id="shadow"><stop stop-color="#25485a" stop-opacity=".2"/><stop offset="1" stop-color="#25485a" stop-opacity="0"/></radialGradient>
+  </defs>`;
+  function arrow(x,y,dy,c){return L(x,y,x,y+dy,c,3)+P(`M${x-5} ${y+dy-Math.sign(dy)*8} L${x} ${y+dy} L${x+5} ${y+dy-Math.sign(dy)*8}`,c,3);}
+  function loop(y,dir){return E(220,y,35,9,'none','#b07b13')+L(220-dir*9,y+9,220+dir*9,y+9,'#b07b13',3)+P(`M${220+dir*4} ${y+5} L${220+dir*10} ${y+9} L${220+dir*4} ${y+13}`,'#b07b13',2);}
+  function person(saved){
+    let s=P('M251 548 Q280 529 302 553 L332 586 Q335 599 320 604 L264 600 L248 572 Z','#31516b',2,'#577d96');
+    s+=P('M275 592 L302 604 L312 620 L291 624 L269 608 L245 611 L233 601 Z','#3a5265',2,'#344d64')+P('M292 623 L318 623 Q323 629 316 633 L291 632 Z','#293d4b',2,'#293d4b');
+    s+=P('M279 557 Q270 579 251 584 L226 581 L226 570 L246 568 L257 550','#31516b',2,'#6c91aa')+P('M228 571 L209 569 Q201 570 203 576 L207 582 L229 583 Z','#a77b5b',1.2,'#e2b99a');
+    s+=R(219,543,22,22,'#d8aa88','none',7)+E(220,533,24,27,'#e5bea0','#a67e60')+P('M197 530 Q191 507 213 503 Q240 500 244 525 L235 518 Q218 525 203 518 Z','#4e4037',1,'#4e4037');
+    s+=E(196,535,4,7,'#deb394','#a67e60')+E(244,535,4,7,'#deb394','#a67e60');
+    s+=P(saved?'M208 532 q4 4 8 0 M226 532 q4 4 8 0':'M207 531 l8 -2 M227 529 l8 2','#453b36',1.6);
+    if(!saved)s+=E(212,535,1.6,2.5,'#27333b')+E(230,535,1.6,2.5,'#27333b');
+    s+=P('M220 535 l-2 8 5 0','#b48768',1)+P(saved?'M211 549 Q220 556 230 548':'M212 551 Q221 545 230 551','#725047',1.7);
+    return s;
+  }
+  function render(){
+    const state=model(time,activation),y=145+285*Math.min(1,state.y),saved=phase==='saved',failed=phase==='failed',moving=phase==='falling';
+    const guide=phase==='ready'?'Get ready. Close the copper brake.':saved?'SAVED — the catch is holding the blade.':failed?'TIME FROZEN — too fast for the catch.':activation?'Brake engaged. Watch the blade slow.':'Save them! Engage the magnetic brake.';
+    let s=defs+T(220,26,guide,'strong',saved?'#176843':failed?'#a13a25':undefined);
+    s+=T(220,50,reduced.matches?'Still-frame mode · choose brake or no brake':polarity===1?'N pole up · motion shown 4× slower':'Poles reversed · same braking effect','small');
+    s+=E(222,630,187,20,'url(#shadow)');
+    // Tall braced timber frame; rails are distinct from the conductive brake.
+    s+=P('M80 606 L107 487 L107 605 Z','#674b34',2,'#9c754d')+P('M360 606 L333 487 L333 605 Z','#674b34',2,'#9c754d');
+    s+=R(85,88,29,517,'url(#wood)','#63452e',3)+R(326,88,29,517,'url(#wood)','#63452e',3)+R(75,72,290,36,'url(#wood)','#63452e',4);
+    for(const x of [93,101,337,346])s+=P(`M${x} 115 Q${x+3} 230 ${x} 330 Q${x-2} 450 ${x+1} 590`,'#563a2644',1);
+    s+=R(108,112,8,381,'url(#steel)','#6e8492')+R(324,112,8,381,'url(#steel)','#6e8492');
+    for(const x of [99,341])for(const yy of [90,477,589])s+=E(x,yy,4,4,'#a4b6c3','#42586b')+L(x-2,yy,x+2,yy,'#42586b');
+    // Copper sleeve is shown in cutaway; closing the gap allows circular currents.
+    s+=R(181,115,78,338,'url(#copper)','#9a5b35',7)+R(191,120,58,327,'#f6e2c9');
+    s+=E(220,115,39,10,'url(#copper)','#9a5b35')+E(220,115,29,6,'#8f6445');
+    if(!activation)s+=L(253,121,253,447,'#fff',5)+L(253,121,253,447,'#73513e',1,'3 3');
+    s+=T(282,137,'Copper','small')+T(282,156,activation?'closed':'open gap','small');
+    // Existing cutaway magnet imagery becomes the blade carriage's magnetic brake.
+    const north=polarity===1?'north':'south',south=polarity===1?'south':'north';
+    s+=R(200,y-31,40,20,`url(#${north})`)+R(200,y-11,40,20,`url(#${south})`)+E(220,y-31,20,5,`url(#${north})`)+E(220,y+9,20,5,`url(#${south})`)+T(220,y-15,polarity===1?'N':'S','pole')+T(220,y+5,polarity===1?'S':'N','pole');
+    if(activation&&moving&&state.v>.005)s+=loop(Math.max(128,y-43),polarity)+loop(Math.min(443,y+19),-polarity);
+    // The metallic angled blade, carriage bar, and guide rollers move together.
+    s+=R(111,y+17,218,14,'url(#steel)','#536b7d',3)+P(`M119 ${y+31} L321 ${y+31} L321 ${y+49} L119 ${y+75} Z`,'#536b7d',1.5,'url(#steel)')+P(`M120 ${y+71} L320 ${y+46}`,'#f8fcff',2);
+    for(const x of [118,322])s+=E(x,y+24,5,5,'#677f91','#334c60');
+    if(moving){const ratio=activation?state.v/vt:0,weightLength=40/Math.max(1,ratio/2.6);s+=arrow(373,y+25,weightLength,'#285f9f')+T(373,y+weightLength+43,'mg','small','#285f9f');if(activation){const dy=-weightLength*ratio;s+=arrow(65,y+25,dy,'#087c80')+T(65,Math.max(117,y+dy+13),'braking','small','#087c80');}}
+    // Catch is separate from magnetic drag. No image ever crosses the person.
+    s+=R(saved?112:92,503,saved?40:20,11,saved?'#26845a':'#8c9da9','#456779',2)+R(328,503,saved?0:20,11,'#8c9da9','#456779',2);
+    if(saved)s+=R(288,503,40,11,'#26845a','#456779',2);
+    s+=T(65,493,'catch','small',saved?'#176843':'#526c80')+L(82,496,111,507,'#8499a8',1);
+    s+=person(saved);
+    s+=R(127,567,149,18,'url(#wood)','#63452e',4)+R(139,584,16,40,'url(#wood)')+R(258,584,16,40,'url(#wood)')+R(66,609,300,19,'url(#wood)','#63452e',4);
+    if(phase==='ready')s+=T(220,665,'Brake slows the blade; the catch stops it.','small');
+    else if(saved)s+=T(220,653,`Caught at ${resultSpeed.toFixed(2)} m/s → stopped.`,'strong')+T(220,678,'No current now; the catch holds the blade.','small');
+    else if(failed)s+=T(220,653,`${resultSpeed.toFixed(2)} m/s is too fast for the catch.`,'strong')+T(220,678,'Frozen before contact. Try braking earlier.','small');
+    else s+=T(220,653,`Blade speed: ${state.v.toFixed(2)} m/s`,'strong')+T(220,678,'Catch needs 0.80 m/s or less.','small');
+    svg.innerHTML=s;svg.setAttribute('viewBox','0 0 440 696');svg.dataset.phase=phase;svg.setAttribute('aria-label',guide);
+    brake.disabled=!(phase==='falling'||(phase==='ready'&&reduced.matches))||!!activation;brake.textContent=activation?'Brake engaged':'Engage magnetic brake';
+    document.getElementById('no-brake').hidden=!reduced.matches;document.getElementById('no-brake').disabled=phase!=='ready';
+    if(status.textContent!==guide)status.textContent=guide;
+  }
+  function finish(){const end=crossing(activation);time=end.t;resultSpeed=end.v;phase=end.v<=limit?'saved':'failed';elapsed=0;if(phase==='saved'&&!completed){completed=true;window.parent.postMessage({type:'complete'},'*');}render();}
+  function reset(next=false){if(next&&phase==='saved')polarity*=-1;phase='ready';elapsed=time=0;activation=null;resultSpeed=0;last=null;render();}
+  brake.addEventListener('click',()=>{if(activation||!(phase==='falling'||reduced.matches&&phase==='ready'))return;activation={t:time,...model(time,null)};if(reduced.matches)finish();else render();});
+  document.getElementById('no-brake').addEventListener('click',()=>{if(reduced.matches&&phase==='ready')finish();});
+  document.getElementById('replay').addEventListener('click',()=>reset());
+  function frame(now){const dt=last===null?0:Math.min(80,now-last);last=now;
+    if(!document.hidden){
+      if(phase==='saved'||phase==='failed'){elapsed+=dt;if(elapsed>=3000)reset(true);}
+      else if(!reduced.matches){elapsed+=dt;if(phase==='ready'&&elapsed>=1100){phase='falling';elapsed=0;}if(phase==='falling'){time+=dt/4000;if(model(time,activation).y>=height)finish();}}
+      render();
+    }requestAnimationFrame(frame);
+  }
+  reduced.addEventListener('change',()=>reset());reset();requestAnimationFrame(frame);
+})();

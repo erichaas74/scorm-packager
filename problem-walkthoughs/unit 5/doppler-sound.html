@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ambulance Doppler Effect</title>
+<style>
+html, body { background: transparent; }
+body { margin:0; padding:8px; }
+.doppler, .doppler * { box-sizing:border-box; }
+.doppler { max-width:850px; margin:auto; border:5px solid #285f9f; border-radius:12px; background:#fff; color:#172f46; font:16px/1.35 system-ui,sans-serif; overflow:hidden; }
+.doppler h1 { margin:0; padding:13px 8px; background:#eef5fa; text-align:center; font-size:clamp(17px,3vw,24px); white-space:nowrap; }
+.doppler .content { padding:10px; }
+.doppler svg { display:block; width:100%; height:auto; background:#fff; }
+.doppler svg text { font:16px system-ui,sans-serif; fill:#172f46; }
+.doppler svg .strong { font-weight:700; }
+.doppler svg .small { font-size:14px; }
+.doppler .choices { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; margin-top:6px; }
+.doppler button { min-height:44px; border:2px solid #527797; border-radius:6px; background:#f8fbfd; color:#173e5c; font:600 15px system-ui,sans-serif; padding:9px 7px; cursor:pointer; }
+.doppler button:hover:not(:disabled) { background:#e4eff7; }
+.doppler button:focus-visible { outline:3px solid #a94b24; outline-offset:2px; }
+.doppler button:disabled { cursor:default; }
+.doppler .choices button:disabled { color:#526176; border-color:#b8c7d0; background:#f4f6f8; }
+.doppler .choices button[data-result="answer"] { border:2px solid #087583; background:#e3f3f4; color:#064f59; }
+.doppler .choices button[data-result="selected"] { border:2px dashed #8b4931; }
+.doppler .swatch { display:inline-block; width:20px; border-top:3px solid #087583; vertical-align:middle; margin-right:6px; }
+.doppler .utilities { display:flex; justify-content:center; flex-wrap:wrap; gap:6px; margin-top:6px; }
+.doppler .utilities button { background:#fff; font-weight:500; }
+.doppler .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+@media(max-width:560px) { body{padding:4px}.doppler .content{padding:5px}.doppler button{font-size:14px;padding:8px 4px}.doppler .swatch{width:13px;margin-right:3px}.doppler svg text,.doppler svg .small{font-size:18px} }
+</style>
+</head>
+<body>
+<main class="doppler">
+<h1>Ambulance Doppler Effect</h1>
+<div class="content">
+<svg id="scene" viewBox="0 0 800 390" role="img" aria-label="Stationary ambulance and listener"></svg>
+<div class="choices" role="group" aria-label="Your pitch compared with the stationary siren">
+<button type="button" data-answer="higher" aria-label="You hear a higher pitch"><span class="swatch" aria-hidden="true"></span>Higher pitch</button>
+<button type="button" data-answer="lower" aria-label="You hear a lower pitch"><span class="swatch" aria-hidden="true"></span>Lower pitch</button>
+<button type="button" data-answer="same" aria-label="You hear the same pitch"><span class="swatch" aria-hidden="true"></span>Same pitch</button>
+</div>
+<div class="utilities"><button type="button" id="hear">Hear comparison</button><button type="button" id="replay">Replay</button></div>
+<span id="status" class="sr-only" role="status" aria-live="polite"></span>
+</div>
+<script>
+(() => {
+ 'use strict';
+ // Group 2. Fixed 600 Hz source, fixed sound speed and amplitude, still air.
+ // Cases change source/listener motion only. v/c = 0.1; source and passenger
+ // share velocity. Graphs use identical 0–10 ms axes and pressure amplitude.
+ const cases=[
+  {name:'Toward you',answer:'higher',ratio:1/.9,detail:'Wavefronts reach you more often.'},
+  {name:'Away from you',answer:'lower',ratio:1/1.1,detail:'Wavefronts reach you less often.'},
+  {name:'You’re a passenger',answer:'same',ratio:1,detail:'You and the siren move together.'}
+ ];
+ const scene=document.getElementById('scene'),status=document.getElementById('status');
+ const buttons=[...document.querySelectorAll('[data-answer]')];
+ const hear=document.getElementById('hear'),replay=document.getElementById('replay');
+ const compact=matchMedia('(max-width:560px)'), reduced=matchMedia('(prefers-reduced-motion: reduce)');
+ const ink='#172f46',teal='#087583',gray='#526176',red='#af3c43';
+ let index=0,phase='reference',selected=null,elapsed=0,frameId=0,last=0,timer=0;
+ let completed=false,visited=new Set(),audioContext,oscillator,gain,audioTimers=[],audioGeneration=0,hearing='';
+ const frequency=()=>600*cases[index].ratio;
+ const text=(x,y,value,anchor='start',cls='',color=ink)=>`<text x="${x}" y="${y}" text-anchor="${anchor}" class="${cls}" style="fill:${color}">${value}</text>`;
+ const line=(x1,y1,x2,y2,color=ink,width=1,dash='')=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${width}" ${dash?`stroke-dasharray="${dash}"`:''}/>`;
+ function stopAudio(){audioGeneration++;audioTimers.forEach(clearTimeout);audioTimers=[];hearing='';if(gain){gain.gain.cancelScheduledValues(audioContext.currentTime);gain.gain.setTargetAtTime(0,audioContext.currentTime,.015);}hear.textContent='Hear comparison';}
+ function stop(){clearTimeout(timer);cancelAnimationFrame(frameId);frameId=0;last=0;stopAudio();}
+ function announce(){const c=cases[index];status.textContent=phase==='reference'?'Stationary reference. The same siren will be heard in a moving situation.':phase==='question'?`${c.name}. Compare your pitch with the stationary siren: higher, lower, or the same.`:`${selected===c.answer?'Your choice matches.':'Your choice was '+selected+'.'} You hear ${c.answer} pitch: ${Math.round(frequency())} Hz, compared with 600 Hz at rest. ${c.detail}`;}
+ function updateControls(){buttons.forEach(b=>{b.disabled=phase!=='question';b.removeAttribute('data-result');b.setAttribute('aria-pressed',String(phase==='evidence'&&selected===b.dataset.answer));if(phase==='evidence'){if(b.dataset.answer===cases[index].answer)b.dataset.result='answer';else if(b.dataset.answer===selected)b.dataset.result='selected';}});hear.disabled=phase==='reference';}
+ function start(){stop();phase='reference';selected=null;elapsed=0;draw();updateControls();announce();timer=setTimeout(()=>{phase='question';draw();updateControls();announce();animate();},2400);}
+ function animate(){cancelAnimationFrame(frameId);last=0;if(reduced.matches){elapsed=3;draw();return;}const tick=now=>{if(last)elapsed=Math.min(4,elapsed+(now-last)/1000);last=now;draw();if(elapsed<4)frameId=requestAnimationFrame(tick);};frameId=requestAnimationFrame(tick);}
+ function scheduleAdvance(){clearTimeout(timer);timer=setTimeout(()=>{if(phase!=='evidence')return;index=(index+1)%cases.length;start();},3000);}
+ function answer(value){if(phase!=='question')return;stop();selected=value;phase='evidence';draw();updateControls();announce();replay.focus({preventScroll:true});visited.add(index);if(visited.size===cases.length&&!completed){completed=true;window.parent.postMessage({ type: 'complete' }, '*');}scheduleAdvance();}
+ buttons.forEach(b=>b.addEventListener('click',()=>answer(b.dataset.answer)));
+ replay.addEventListener('click',start);
+ hear.addEventListener('click',async()=>{
+  if(phase==='evidence')scheduleAdvance();
+  if(hearing){stopAudio();draw();return;}
+  stopAudio();const generation=audioGeneration;
+  try{
+   if(!audioContext){audioContext=new (window.AudioContext||window.webkitAudioContext)();oscillator=audioContext.createOscillator();gain=audioContext.createGain();gain.gain.value=0;oscillator.connect(gain);gain.connect(audioContext.destination);oscillator.start();}
+   await audioContext.resume();if(generation!==audioGeneration)return;
+   const tone=(hz,label)=>{oscillator.frequency.setValueAtTime(hz,audioContext.currentTime);gain.gain.setTargetAtTime(.055,audioContext.currentTime,.02);hearing=label;hear.textContent='Stop sound';if(phase!=='evidence'){cancelAnimationFrame(frameId);elapsed=0;if(label==='You hear')animate();}draw();};
+   tone(600,'At rest');
+   audioTimers.push(setTimeout(()=>{gain.gain.setTargetAtTime(0,audioContext.currentTime,.015);},1000));
+   audioTimers.push(setTimeout(()=>tone(frequency(),'You hear'),1250));
+   audioTimers.push(setTimeout(()=>{stopAudio();draw();},2600));
+  }catch(error){stopAudio();status.textContent='Sound is unavailable. Watch the sound waves in the scene.';}
+ });
+ function person(x,y){return `<g transform="translate(${x} ${y})">
+ <ellipse cy="1" rx="23" ry="5" fill="#233b4c" opacity=".13"/>
+ <path d="M-11 -44L-13 -6H-3L2 -36L8 -6H18L11 -45Z" fill="#263d52"/>
+ <path d="M-13 -8H-3V0H-20Q-22 -5 -13 -8M8 -8H18L24 -1H8Z" fill="#15283a"/>
+ <path d="M-13 -4H-4M10 -3H21" stroke="#c9d4df" stroke-width="2"/>
+ <path d="M-9 -77Q-21 -73 -22 -60L-23 -42Q-21 -36 -17 -40L-13 -60L-12 -44Q0 -40 13 -45L13 -63L20 -49Q23 -47 26 -51L18 -72Q13 -78 6 -78Z" fill="#087583"/>
+ <path d="M-11 -69L-12 -48M12 -68L12 -48" fill="none" stroke="#075865" stroke-width="2"/>
+ <path d="M-22 -42L-22 -34Q-18 -29 -16 -35L-16 -42M21 -51L25 -46Q30 -45 29 -50L26 -55" fill="#c88e66"/>
+ <path d="M-5 -85V-76Q0 -70 7 -77V-85" fill="#ba7955"/>
+ <ellipse cx="1" cy="-92" rx="13" ry="16" fill="#d9a27b"/>
+ <path d="M-12 -91Q-17 -113 1 -111Q19 -111 14 -91L8 -97L5 -103Q-2 -97 -12 -99Z" fill="#352d2c"/>
+ <circle cx="-10" cy="-91" r="4" fill="#d9a27b"/><path d="M-11 -92L-9 -89" stroke="#9e644a" fill="none"/>
+ <circle cx="-3" cy="-94" r="1.2" fill="#382f2b"/>
+ </g>`;}
+ function ambulance(x,y,s,passenger){
+ const wheel=(wx)=>`<g transform="translate(${wx} -12)"><circle r="23" fill="#172733"/><circle r="18" fill="#283d4c" stroke="#71818b" stroke-width="1.5"/><g transform="rotate(${elapsed*65})"><circle r="13" fill="#b4c4cd" stroke="#e7eff3" stroke-width="2"/><path d="M0 -11V11M-11 0H11M-8 -8L8 8M-8 8L8 -8" stroke="#687e8d" stroke-width="3"/></g><circle r="5" fill="#526b7d"/><circle r="2" fill="#e3ebef"/></g>`;
+ return `<g transform="translate(${x} ${y}) scale(${s})">
+ <ellipse cx="0" cy="7" rx="139" ry="10" fill="#253c4b" opacity=".16"/>
+ <path d="M-126 -111Q-126 -119 -118 -119H28V-13H-126Z" fill="url(#bodypaint)" stroke="#52697b" stroke-width="1.6"/>
+ <path d="M28 -97H66Q75 -97 80 -89L106 -54L126 -46Q134 -43 134 -32V-13H28Z" fill="url(#bodypaint)" stroke="#52697b" stroke-width="1.6"/>
+ <path d="M-125 -40H133V-25H-125Z" fill="#bc3444"/>
+ <path d="M-125 -40H133" stroke="#e2767d" stroke-width="2"/>
+ <path d="M-123 -12H132V-5H-123Z" fill="#3b5263"/>
+ <path d="M-120 -108H18V-51H-120Z" fill="#f7fafc" stroke="#c6d2db"/>
+ <path d="M-115 -109V-42M20 -108V-42" stroke="#a9bbc8" stroke-width="1.2"/>
+ <path d="M38 -88H65Q69 -88 72 -83L91 -55H38Z" fill="url(#glass)" stroke="#294a61" stroke-width="2"/>
+ <path d="M47 -85H64L82 -58H68Z" fill="#fff" opacity=".28"/>
+ <path d="M31 -94V-15M99 -51V-16" stroke="#b2c2cd" stroke-width="1.5"/>
+ <rect x="39" y="-49" width="13" height="3" rx="1.5" fill="#5e788b"/>
+ <path d="M96 -64H107V-51H101" fill="#2c4558"/><path d="M99 -56L94 -52" stroke="#2c4558" stroke-width="3"/>
+ <path d="M122 -44H132V-32H122Z" fill="#fff2b3" stroke="#c09b44"/>
+ <rect x="-130" y="-41" width="5" height="13" rx="1" fill="#ba3243"/>
+ <path d="M123 -22H135V-13H122M-129 -20H-116V-12H-129" fill="#7b919f"/>
+ <path d="M-107 -9A28 28 0 0 1 -51 -9M62 -9A28 28 0 0 1 118 -9" fill="#233d50"/>
+ ${wheel(-79)}${wheel(90)}
+ <rect x="-18" y="-126" width="63" height="7" rx="2" fill="#607887"/>
+ <path d="M-14 -135H12V-126H-14Z" fill="#cf3e50"/><path d="M15 -135H41V-126H15Z" fill="#337da5"/>
+ <path d="M-10 -132H7M19 -132H36" stroke="#fff" stroke-width="2" opacity=".6"/>
+ <path d="M-55 -101V-66M-72 -83H-38" stroke="#c13746" stroke-width="9"/>
+ <text x="-52" y="-52" text-anchor="middle" style="font-size:12px;font-weight:800;letter-spacing:1.2px;fill:#425f73">AMBULANCE</text>
+ <path d="M-108 -66H-102" stroke="#607c90" stroke-width="3"/>
+ ${passenger?`<path d="M47 -57Q47 -70 58 -70Q69 -70 73 -56Z" fill="${teal}"/><path d="M62 -64L73 -57H81" stroke="#d5a078" stroke-width="4" stroke-linecap="round"/><circle cx="57" cy="-78" r="8" fill="#d9a27b"/><path d="M49 -78Q46 -91 58 -88Q66 -87 65 -78L60 -82L50 -82Z" fill="#352d2c"/>`:`<path d="M49 -57Q50 -69 61 -68L73 -56Z" fill="#64798c"/><circle cx="59" cy="-77" r="7" fill="#c79773"/><path d="M52 -78Q50 -88 60 -87L66 -81" fill="#364455"/>`}
+ </g>`;
+ }
+ function draw(){
+  const mobile=compact.matches,w=mobile?420:840,h=mobile?410:422;
+  const c=cases[index],active=phase!=='reference'&&(phase==='evidence'||hearing!=='At rest'),evidence=phase==='evidence';
+  const size=mobile?.58:.95, road=mobile?280:292;
+  const velocity=mobile?15:28, startX=index===1?(mobile?184:370):(mobile?103:180);
+  const x=startX+(active?velocity*elapsed:0),listener=index===1?(mobile?45:112):(mobile?365:728);
+  const roof=road-135*size,source=x+12*size;
+  const youX=index===2?x+57*size:listener,youY=index===2?road-78*size:road-92*(mobile?.78:1);
+  let out=`<defs>
+  <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#edf5fa"/><stop offset="1" stop-color="#fff"/></linearGradient>
+  <linearGradient id="bodypaint" x2="0" y2="1"><stop stop-color="#fff"/><stop offset=".7" stop-color="#edf2f6"/><stop offset="1" stop-color="#d9e3eb"/></linearGradient>
+  <linearGradient id="glass" x2="1" y2="1"><stop stop-color="#a5d1e3"/><stop offset="1" stop-color="#4b7b99"/></linearGradient>
+  <clipPath id="landscape"><rect width="${w}" height="${road+27}" rx="8"/></clipPath>
+  <marker id="motion" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="${ink}"/></marker>
+  </defs><g clip-path="url(#landscape)">
+  <rect width="${w}" height="${road+27}" fill="url(#sky)"/>
+  <path d="M0 ${road-37}Q${w*.24} ${road-60} ${w*.46} ${road-34}T${w} ${road-43}V${road+5}H0Z" fill="#deebe8"/>
+  <path d="M0 ${road-19}Q${w*.5} ${road-27} ${w} ${road-15}V${road+6}H0Z" fill="#ccdfd8"/>
+  <rect y="${road+1}" width="${w}" height="26" fill="#536977"/>
+  <path d="M0 ${road+2}H${w}" stroke="#a8bdc5" stroke-width="4"/>
+  <path d="M0 ${road+20}H${w}" stroke="#e6e9dc" stroke-width="2" stroke-dasharray="30 24"/>
+  `;
+  // Sound fronts expand from fixed emission positions, not the moving vehicle.
+  const soundSpeed=velocity*10,period=mobile?.52:.48;
+  for(let n=0;n<11;n++){
+   const age=(elapsed%period)+n*period+.04;
+   const center=source-(active?velocity*age:0),radius=soundSpeed*age;
+   out+=`<circle cx="${center}" cy="${roof}" r="${radius}" fill="none" stroke="#408ca8" stroke-opacity="${Math.max(.16,.58-n*.035)}" stroke-width="${mobile?1.8:2}"/>`;
+  }
+  out+='</g>';
+  out+=`<rect x="10" y="10" width="${mobile?210:236}" height="34" rx="5" fill="#fff" fill-opacity=".92"/>`+text(21,33,phase==='reference'||(phase!=='evidence'&&hearing==='At rest')?'Ambulance at rest':c.name,'start','strong');
+  out+=ambulance(x,road,size,index===2);
+  if(index!==2)out+=`<g transform="translate(${listener} ${road}) scale(${mobile?.78:1})">${person(0,0)}</g>`;
+  if(active){const ay=roof-28,offset=evidence&&index===1&&!mobile?88:0;out+=`<path d="M${x-30+offset} ${ay}H${x+42+offset}" fill="none" stroke="${ink}" stroke-width="2.5" marker-end="url(#motion)"/>`;}
+  if(index===2){
+   out+=line(youX,youY-9,youX+47,youY-41,teal,1.5)+text(youX+55,youY-48,'You','middle','strong',teal);
+  }else{
+   out+=text(listener,youY-29,'You','middle','strong',teal);
+  }
+  if(evidence){
+   // Each stroke is one cycle arriving within the same 12 ms window.
+   // Start after the shared t=0 cycle: 7 source cycles, 8 approaching,
+   // 6 receding, or 7 co-moving cycles. Spacing is computed from Hz.
+   const bx=mobile||index===1?12:w-408,by=mobile?51:index===1?46:42,bw=396;
+   const left=bx+169,span=207,duration=12;
+   out+=`<rect x="${bx}" y="${by}" width="${bw}" height="106" rx="8" fill="#fff" fill-opacity=".96" stroke="#bacbd5"/>`;
+   out+=text(left+span/2,by+20,'Same 12 milliseconds','middle','small',gray);
+   for(const [hz,color,label,row] of [[600,red,'Siren',0],[frequency(),teal,'You',1]]){
+    const cy=by+43+row*39;
+    out+=text(bx+12,cy+6,`${label}: ${Math.round(hz)} Hz`,'start','strong',color);
+    out+=line(left,cy+13,left+span,cy+13,'#cbd8df',1);
+    for(let n=1;n*1000/hz<=duration+1e-8;n++){
+     const px=left+span*(n*1000/hz)/duration;
+     out+=`<path data-pulse="${label}" d="M${px-3} ${cy-9}Q${px+4} ${cy} ${px-3} ${cy+9}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round"/>`;
+    }
+   }
+   const correct=selected===c.answer,accent=correct?'#17623d':'#8c470b',fill=correct?'#e3f4e8':'#fff0d8';
+   const rx=mobile?12:120,rw=w-2*rx,ry=road+34;
+   out+=`<rect x="${rx}" y="${ry}" width="${rw}" height="80" rx="8" fill="${fill}" stroke="${accent}" stroke-width="2"/><circle cx="${rx+27}" cy="${ry+27}" r="15" fill="${accent}"/>`;
+   out+=correct?`<path d="M${rx+19} ${ry+27}l6 6 11-13" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`:`<path d="M${rx+20} ${ry+20}l14 14m0-14-14 14" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>`;
+   out+=`<text x="${rx+51}" y="${ry+35}" style="font-size:${mobile?22:26}px;font-weight:800;fill:${accent}">${correct?'CORRECT':'NOT QUITE'}: ${c.answer} pitch</text>`;
+   out+=text(w/2,ry+64,c.detail,'middle','small',accent);
+  }else{
+   const label=hearing?(hearing==='At rest'?'Listening: at rest':'Listening: your sound'):'Compare with the siren at rest.';
+   out+=text(w/2,road+54,label,'middle','small',gray);
+   out+=text(w/2,road+79,phase==='reference'?'Same siren. Same loudness.':index===2?'You ride inside with the siren.':'You stand still beside the road.','middle','small',gray);
+  }
+  scene.setAttribute('viewBox',`0 0 ${w} ${h}`);scene.innerHTML=out;scene.dataset.phase=phase;scene.dataset.case=String(index);
+  scene.setAttribute('aria-label',phase==='reference'?'Ambulance and listener at rest. Circular sound fronts spread from the roof siren.':`${c.name}. ${index===2?'You are seated inside the cab.':'You stand beside the road as the ambulance moves right.'}${evidence?' You hear '+Math.round(frequency())+' Hz instead of the stationary 600 Hz. '+c.detail:''}`);
+ }
+
+ compact.addEventListener('change',draw);
+ reduced.addEventListener('change',()=>{cancelAnimationFrame(frameId);if(phase!=='reference')animate();});
+ document.addEventListener('visibilitychange',()=>{if(document.hidden)stop();else if(phase==='reference')start();else{draw();updateControls();if(phase==='evidence')scheduleAdvance();}});
+ window.addEventListener('pagehide',stop);
+ start();
+})();
+</script>
+</main>
+</body>
+</html>

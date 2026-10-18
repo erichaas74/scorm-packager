@@ -7,7 +7,7 @@ const unit = path.join(root, 'unit 5');
 const files = [...JSON.parse(fs.readFileSync(path.join(unit, 'simple-walkthrough-files.json'), 'utf8')), 'polarization-filters.html'];
 const built = spawnSync(process.execPath, [path.join(root, 'build-rise-zips.js'), ...files.map(file => 'unit 5/' + file)], { stdio: 'inherit', windowsHide: true });
 if (built.status !== 0) process.exit(built.status || 1);
-const destination = path.join(unit, 'rise-upload-packages');
+const destination = path.join(root, 'rise-zips');
 fs.mkdirSync(destination, { recursive: true });
 const packages = files.map(file => {
   const relative = 'unit 5/' + file;
@@ -15,16 +15,12 @@ const packages = files.map(file => {
   const prefix = path.basename(parsed.dir).replace(/\s+/g, '-').toLowerCase();
   const stem = parsed.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
   const zip = `${prefix}-${stem}.zip`;
-  const source = path.join(root, 'rise-zips', zip);
-  fs.copyFileSync(source, path.join(destination, zip));
-  const localArchive = path.join(unit, file.replace(/\.html$/, '.zip'));
-  if (fs.existsSync(localArchive)) fs.copyFileSync(source, localArchive);
   const html = fs.readFileSync(path.join(unit, file), 'utf8');
   const config = JSON.parse(html.match(/window.walkthroughLesson = (.*?);<\/script>/s)[1]);
   return { file, title: config.title, zip };
 });
 const manifest = JSON.stringify({ version: 'textbook-rebuild', packages }, null, 2);
-fs.writeFileSync(path.join(destination, 'package-list.json'), manifest);
+fs.writeFileSync(path.join(destination, 'unit-5-package-list.json'), manifest);
 const output = path.resolve(root, '../output/unit-5-textbook-rise-packages.zip');
 const stream = fs.createWriteStream(output);
 const archive = archiver('zip', { zlib: { level: 9 } });

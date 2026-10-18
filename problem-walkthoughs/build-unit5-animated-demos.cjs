@@ -25,14 +25,5 @@ for (const entry of entries) {
 if (process.argv.includes('--package')) {
   const built = spawnSync(process.execPath, [path.join(__dirname, 'build-rise-zips.js'), ...entries.map(e=>'unit 5/'+e.file)], {stdio:'inherit',windowsHide:true});
   if (built.status !== 0) process.exit(built.status || 1);
-  for (const entry of entries) {
-    const parsed = path.parse('unit 5/'+entry.file);
-    const prefix = path.basename(parsed.dir).replace(/\s+/g,'-').toLowerCase();
-    const stem = parsed.name.replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'').toLowerCase();
-    const zip = `${prefix}-${stem}.zip`, source = path.join(__dirname,'rise-zips',zip);
-    fs.copyFileSync(source,path.join(unit,'rise-upload-packages',zip));
-    const local = path.join(unit, entry.file.replace(/\.html$/,'.zip'));
-    if(fs.existsSync(local))fs.copyFileSync(source,local);
-  }
 }
 console.log(`Updated ${entries.length} animated demo pages.`);

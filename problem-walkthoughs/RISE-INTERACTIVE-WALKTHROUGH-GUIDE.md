@@ -7,7 +7,7 @@ Every learner-facing walkthrough belongs to one of these three groups. Choose th
 | Group | Purpose | What the student does | Default flow |
 |---|---|---|---|
 | 1. Animated demos | Show a phenomenon through animated examples | Watches and compares what happens | Setup -> animate -> highlight evidence -> next example |
-| 2. Misconception questions | Expose a mistaken expectation through a question and visual evidence | Makes a choice, then sees why the result follows | Setup -> question -> student answer -> animated evidence -> next case |
+| 2. Misconception questions | Expose a mistaken expectation through a question and visual evidence | Makes a choice, then inspects the result | Setup -> question -> student answer -> explicit feedback and evidence -> readable hold -> automatic next case |
 | 3. Guided simulations | Show what a few student-controlled values do through a short sequence | Changes values, runs or watches the model, and follows a few steps | Baseline -> adjust -> observe -> compare -> next guided step |
 
 Use one primary group per activity. A demo does not need a quiz. A guided simulation does not need an answer gate at every step. A misconception activity must obtain a choice before revealing the conclusion.
@@ -15,6 +15,16 @@ Use one primary group per activity. A demo does not need a quiz. A guided simula
 ## Shared build instruction
 
 Build the diagram first. Use one single-line title and place buttons and compact controls immediately beneath the diagram. Keep object names, colors, and line styles consistent everywhere, including object-specific controls and answer buttons. Put values and units directly on the objects or measurement guides they describe. Avoid explanatory paragraphs, redundant instructions, extra panels, and unused space. Preserve graph scale and layout between states. Provide Replay or Reset as appropriate and respect reduced-motion preferences. Use the playback rules of the selected group rather than forcing every activity into a question-and-answer flow.
+
+### Visual quality is not interface clutter
+
+The main scene is the product. Keep detailed, recognizable artwork, clear movement, and physically meaningful visual evidence. A little explanation supports the scene. Removing panels or extra text must not reduce the quality of the vehicle, person, apparatus, or animation.
+
+For an existing activity, inspect the source and design notes before editing, and preserve its established visual and interaction design. Change only what the request requires. Do not respond to a request for less clutter by replacing the scene with crude icons, stick figures, waveform graphs, or a new lesson format.
+
+A requested comparison can be integrated into the scene without becoming a dashboard. Give both quantities the same scale or time window, label their identities and units, and place the comparison near the relevant object or listener. Check placement in every case, including when the listener changes sides. Keep conclusions hidden until the answer when required by the activity.
+
+These are authoring instructions, not authorization to rebuild unrelated existing activities. Preserve an existing activity's specifically requested behavior. Do not copy obsolete timer-driven question flows into new or revised work.
 
 ## Specify the activity before coding
 
@@ -62,8 +72,9 @@ setup -> animate example -> highlight relevant feature -> hold -> next example
 - Ask about one property at a time. Omit visible question text if answer labels already communicate the task; include one short question inside the diagram when needed.
 - Make answer labels explicit: "Wave A is louder," "Wave B is louder," "Same loudness." Match A's and B's button swatches to their diagram colors and line styles; Same carries both.
 - Keep object choices in stable A/B/Same order. Vary the correct object across cases and include equal outcomes where meaningful. Use plausible misconceptions for numeric distractors and shuffle those where appropriate.
-- After either a correct or incorrect answer, reveal the same physical evidence. Highlight measurement guides with object, value, and units directly on the lines. Highlight both when equal. No routine feedback paragraph or praise text.
-- Automatically advance after enough time to inspect the evidence. Keep Replay; no Start, Add B, or Next buttons by default.
+- After either answer, show prominent explicit feedback: a checkmark with CORRECT, or a cross with NOT QUITE, plus the correct outcome. Use icon, text, and color together. A subtle border or small line of text is not sufficient. Keep the feedback within the scene's established footprint.
+- Reveal the same physical evidence for correct and incorrect answers. Highlight measurement guides with object, value, and units directly on the lines. Highlight both when equal. Include at most a short explanatory sentence when useful.
+- Stop ongoing motion and audio when answering. If the physical outcome needs a finite animated reveal, finish that reveal and then hold. Keep the scene still during a readable feedback hold, then advance automatically. Keep Replay; do not require Next. Replaying audio preserves feedback and the held scene and extends the hold so the sound can finish.
 - Complete once the required cases have been answered and their evidence shown.
 
 **Example: "Double the height means double the horizontal range."**
@@ -71,7 +82,7 @@ setup -> animate example -> highlight relevant feature -> hold -> next example
 Use horizontal launches with equal horizontal speed, uniform gravity, and negligible air resistance. Show heights `h` and `2h` before the choice, but do not show landing positions or range guides yet. Ask whether doubling the height produces twice the range. After the answer, animate both launches and label the horizontal distances on the ground. Under these assumptions, `t = sqrt(2h/g)` and `R = vx * t`, so doubling height gives `sqrt(2)` times the range (about 1.41 times), not twice. The misconception is the distractor, never the model used to animate the result. Keep any mathematical explanation in authoring notes unless the diagram needs it.
 
 ```text
-setup -> choice -> answer -> animate outcome -> labeled measurement evidence -> next case
+setup -> choice -> answer -> explicit result + physical evidence -> readable hold -> automatic next case
 ```
 
 For a visible-wave comparison, the two waves appear before the choice; only the explanatory amplitude or frequency guides are withheld.
@@ -85,7 +96,7 @@ For a visible-wave comparison, the two waves appear before the choice; only the 
 - Give each step one short action instruction inside the diagram. Show current values and units beside the corresponding object or measurement; give every slider/input an accessible name.
 - Keep other variables fixed while introducing one relationship. Later steps may let students combine the few controls to explore their effects.
 - Update the model live when useful; use a Run button when an event such as a launch needs a deliberate start. Preserve a clearly identified baseline or previous trial when it helps comparison.
-- Let the student decide when to advance from exploration. A small Next step control is appropriate here; do not auto-advance while the student is adjusting values or examining a result.
+- Advance guidance automatically after the intended meaningful interaction, without requiring Next. Preserve the student's values and result while they explore; do not use a timer to discard their work.
 - Keep Reset available and define whether it resets the trial, current step, or full activity. Do not silently discard settings between steps.
 - Questions may be included when they serve the step, but are not mandatory. Do not turn every control change into a multiple-choice gate.
 - Complete after the required guided steps or meaningful runs have been performed, not merely after moving any slider.
@@ -93,7 +104,7 @@ For a visible-wave comparison, the two waves appear before the choice; only the 
 Example: start with a reference wave, let the student change amplitude while frequency stays fixed, then change frequency while amplitude stays fixed, then try both. Show the corresponding height and cycle spacing directly on the graph.
 
 ```text
-baseline -> student adjusts value -> live change or run -> inspect comparison -> next step
+baseline -> student adjusts value -> live change or run -> inspect comparison -> guidance advances automatically
 ```
 
 ## Choosing and adapting a group
@@ -114,13 +125,13 @@ Older prediction loops and scenario series generally fit Group 2. Older explorer
 | Setup / situation | Diagram labels; at most one necessary sentence |
 | Question | Group 2, or an optional simulation check: omit when answer labels suffice; otherwise one line inside the diagram |
 | Choice label | Explicit object and property, even if longer than five words |
-| Feedback | Highlighted measurement guides labeled with object, value, and units |
+| Feedback | Prominent CORRECT/NOT QUITE with icon and correct outcome, physical evidence, and at most one short explanation |
 | Guided step | One short action instruction inside the diagram; no extra introductory heading |
 | Hints | Only when needed, behind a button; one sentence |
 
 Examples: "Wave A is louder," "Wave B is louder," "Same loudness"; for pitch, "Wave A has higher pitch," "Wave B has higher pitch," "Same pitch." Each button includes the corresponding line swatch. Do not collapse different properties into vague "A," "B," or "Both" choices.
 
-In Group 2, after answering, highlight the measurement that establishes the result; highlight both when equal. Keep the values attached to the actual guide lines. No routine "Correct!", result paragraph, or explanation panel. Add one short explanation only if the diagram cannot communicate the reasoning. Keep a concise equivalent result available through accessible status text.
+In Group 2, show unmistakable CORRECT/NOT QUITE feedback as well as the physical evidence. Highlight the measurement that establishes the result; highlight both when equal. Keep values attached to their guides. A short explanation is welcome when it helps; avoid long paragraphs or a separate dashboard. Keep an equivalent result available through accessible status text. Hold the visible feedback for a readable interval, then advance automatically. Keep Replay available.
 
 ---
 
@@ -136,6 +147,7 @@ Prepare every walkthrough ZIP for use as an embedded code block with these requi
 
 - Treat the walkthrough cards linked from `problem-walkthoughs/index.html` as the active packaging list. Files removed from that index are deprecated and must not be included in a batch build unless they are deliberately restored to the index.
 - Run `node problem-walkthoughs/build-rise-zips.js` from the repository root to rebuild the active packages. The generated ZIPs are written to `problem-walkthoughs/rise-zips/` with one walkthrough per ZIP.
+- Unit 5 builds (`build-unit5-textbook.cjs` and `build-unit5-animated-demos.cjs --package`) also use `rise-zips/` as their single location for individual activity ZIPs. They do not refresh legacy copies in `unit 5/rise-upload-packages/` or beside the source HTML. The textbook build writes `rise-zips/unit-5-package-list.json` and still creates the combined bundle at `output/unit-5-textbook-rise-packages.zip`.
 
 - Place an `index.html` file at the root of the ZIP.
 - Keep the HTML, CSS, and JavaScript self-contained in `index.html`, or include required local files in the ZIP. Do not make external web requests for scripts, styles, fonts, images, APIs, or other assets.
@@ -205,7 +217,7 @@ The following layout illustrates Group 2; demos use playback controls, and guide
 Use these requirements in starters for all three groups and when revising shared playback code. Updating prose alone is insufficient if the copied template still generates question cards and explanation paragraphs. Older activities are not automatically compliant references.
 
 - Use the selected group's state sequence. Demos have no answer gate; misconception questions wait indefinitely for an answer; guided simulations wait for student adjustments and step advancement.
-- For automatic demos and misconception sequences, initial timing suggestions are reference 2.4 seconds, transition about 1 second, evidence 5-6.5 seconds. Tune to the phenomenon; never apply these as deadlines for student input. Keep Replay available and meet the accessibility requirements above.
+- Automatic demos and misconception feedback use timed stages. The answer gate waits indefinitely. After an answer, show prominent feedback and physical evidence for about three seconds, then automatically advance; do not require Next. Keep Replay. Cancel old timers on replay or case changes, pause timers while hidden, and allow audio comparisons to finish before advancement.
 - Reduced motion uses static stages or minimal transitions while preserving the phenomenon, required evidence, and any answer or student-control gate.
 - Cancel all pending timers and animation callbacks when replaying or changing scenarios; do not let callbacks from the previous case change the new one.
 - Use one object identity map for curves, labels, legend, buttons, and feedback. Keep scene geometry and graph scales fixed through the sequence.
@@ -225,7 +237,9 @@ Use these requirements in starters for all three groups and when revising shared
 - [ ] Object-specific buttons include matching swatches; Same shows both where used; identity does not rely on color alone
 - [ ] Comparable curves share axes and fixed scales; measurement geometry, values, and units correct
 - [ ] Feedback highlights only the relevant measurement, both when equal, directly on the guides
-- [ ] No unnecessary feedback prose; accessible status communicates the result
+- [ ] Explicit, conspicuous answer feedback with icon and text; short explanation only; accessible status communicates the same result
+- [ ] Answer stops ongoing activity; prominent feedback stays for the intended hold and then advances automatically; no Next gate; Replay cancels the pending transition; audio replay preserves feedback and extends the hold
+- [ ] Main visual retains its quality and identity; no unrequested graphs, dashboard, or redesign; evidence placement checked for every scenario
 - [ ] Buttons sit 4-8 px beneath the diagram; no unused internal space or feedback layout jump
 - [ ] Numeric distractors reflect plausible errors and are shuffled where appropriate
 - [ ] Replay clears pending timers, animation, labels, and result state

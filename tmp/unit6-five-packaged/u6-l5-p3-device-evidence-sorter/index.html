@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Can a Motor Become a Generator?</title><style>
+html, body { background: transparent; }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 8px; font: 16px/1.4 system-ui, sans-serif; color: #172f46; }
+main { max-width: 900px; margin: auto; background: white; border: 5px solid #285f9f; border-radius: 14px; overflow: hidden; }
+h1 { margin: 0; padding: 16px 4px; background: #eef5fa; font-size: clamp(12px, 2.8vw, 24px); white-space: nowrap; text-align: center; }
+.content { padding: 8px; }
+svg { display: block; width: 100%; height: auto; }
+svg text { font-family: system-ui,sans-serif; fill: #172f46; font-size: 17px; }
+svg .small { font-size: 14px; }
+svg .strong { font-weight: 750; }
+svg .white { fill: white; }
+svg .feedback { font-size: 24px; font-weight: 850; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+button,select { font: inherit; font-size: 15px; min-height: 44px; padding: 9px 12px; border: 1.5px solid #376a92; border-radius: 7px; background: #f8fbfd; color: #173e5c; cursor: pointer; }
+button:hover { background: #e4eff7; }
+button[aria-pressed="true"] { background: #285f9f; color: white; }
+button:focus-visible,select:focus-visible,input:focus-visible { outline: 3px solid #aa4f1c; outline-offset: 2px; }
+.choices, .experiment { display: contents; }
+label { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-weight: 650; }
+input[type="range"] { width: 110px; accent-color: #285f9f; min-height: 36px; }
+[hidden] { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+@media(max-width:600px) { body { padding: 3px; } .content { padding: 4px; } button,select { font-size: 13px; padding: 8px; } }
+
+</style></head>
+<body><main class="rise-walkthrough"><h1>Can a Motor Become a Generator?</h1><div class="content"><svg id="scene" role="img" aria-label="Can a Motor Become a Generator?"></svg><div class="controls"><div class="choices" role="group" aria-label="Prediction"></div><div class="experiment" role="group" aria-label="Experiment" hidden></div><button id="replay" type="button">Replay</button></div><span id="status" class="sr-only" role="status" aria-live="polite"></span></div>
+<script>window.walkthroughLesson = {"title":"Can a Motor Become a Generator?","type":"challenge","variant":"reversible"};</script>
+<script>window.motorChallenge = {"href":"u6-l5-p3-device-evidence-sorter.html","kind":"reversible","title":"Can a Motor Become a Generator?"};</script><script >
+(() => {
+  'use strict';
+  const ink = '#172f46', blue = '#23649a', teal = '#087c80', rust = '#a94b24', gold = '#f6ce43', muted = '#708595';
+  const escape = value => String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+  const label = (x, y, value, anchor = 'start', kind = '') => `<text x="${x}" y="${y}" text-anchor="${anchor}" class="${kind}">${escape(value)}</text>`;
+  const line = (x1, y1, x2, y2, color = muted, width = 1.5, dash = '') => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${width}" ${dash ? `stroke-dasharray="${dash}"` : ''}/>`;
+  const path = (points, color = teal, width = 3, dash = '') => `<path d="${points.map((point, index) => `${index ? 'L' : 'M'}${point[0].toFixed(2)},${point[1].toFixed(2)}`).join(' ')}" fill="none" stroke="${color}" stroke-width="${width}" stroke-linejoin="round" ${dash ? `stroke-dasharray="${dash}"` : ''}/>`;
+  const box = (x, y, width, height, fill = '#f0f7fa', stroke = '#bccdd8', radius = 0) => `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${radius}" fill="${fill}" stroke="${stroke}"/>`;
+  const dot = (x, y, radius = 4, fill = teal, stroke = '#fff') => `<circle cx="${x}" cy="${y}" r="${radius}" fill="${fill}" stroke="${stroke}" stroke-width="1.2"/>`;
+  function arrow(x1, y1, x2, y2, color = blue, width = 2.4, both = false) {
+    if (Math.hypot(x2 - x1, y2 - y1) < 1) return '';
+    const head = (startX, startY, endX, endY) => {
+      const angle = Math.atan2(endY - startY, endX - startX);
+      return path([[endX - 8 * Math.cos(angle - .45), endY - 8 * Math.sin(angle - .45)], [endX, endY], [endX - 8 * Math.cos(angle + .45), endY - 8 * Math.sin(angle + .45)]], color, width);
+    };
+    return line(x1, y1, x2, y2, color, width) + head(x1, y1, x2, y2) + (both ? head(x2, y2, x1, y1) : '');
+  }
+  function ray(x1, y1, x2, y2) {
+    return line(x1, y1, x2, y2, '#826522', 5) + arrow(x1, y1, x2, y2, gold, 3);
+  }
+  function sample(start, end, fn, steps = 200) {
+    return Array.from({ length: steps + 1 }, (_, index) => { const position = start + (end - start) * index / steps; return [position, fn(position)]; });
+  }
+  function dimension(x1, x2, y, value) {
+    return line(x1, y - 6, x1, y + 6, ink) + line(x2, y - 6, x2, y + 6, ink) + arrow(x1, y, x2, y, ink, 1.5, true) + label((x1 + x2) / 2, y - 12, value, 'middle');
+  }
+  function arc(centerX, centerY, radius, start, end, color = blue) {
+    const points = Array.from({ length: 41 }, (_, index) => { const angle = start + (end - start) * index / 40; return [centerX + radius * Math.cos(angle), centerY + radius * Math.sin(angle)]; });
+    return path(points, color, 1.8);
+  }
+  function graph({ width = 400, baseline = 210, top = 95, bottom = 285, xmax = 4, ticks = [0, 1, 2, 3, 4], xlabel = 'Position (m)', ylabel = 'Displacement (cm)' } = {}) {
+    const left = 55, right = width - 25;
+    let markup = label(left, top - 25, ylabel) + arrow(left, bottom, left, top, ink, 1.4) + arrow(left, baseline, right + 6, baseline, ink, 1.4);
+    for (const tick of ticks) {
+      const position = left + tick / xmax * (right - left);
+      markup += line(position, baseline - 4, position, baseline + 4, ink) + label(position, bottom + 23, tick, 'middle', 'small');
+    }
+    markup += label((left + right) / 2, bottom + 52, xlabel, 'middle');
+    return { markup, left, right, scale: (right - left) / xmax };
+  }
+  function panels(items, compact) {
+    let offset = 0;
+    const height = compact ? items.reduce((sum, item) => sum + item.height + 14, 0) : Math.max(...items.map(item => item.height)) + 20;
+    const markup = items.map((item, index) => {
+      const x = compact ? 10 : 10 + index * 420;
+      const y = compact ? offset + 10 : 10;
+      offset += item.height + 14;
+      return `<g transform="translate(${x} ${y})">${box(0, 0, 400, item.height, '#fff', '#d0dce3', 8)}${item.markup}</g>`;
+    }).join('');
+    return { markup, width: compact ? 420 : items.length * 420, height };
+  }
+  const single = (markup, width, height) => ({ markup, width, height });
+  const degrees = radians => radians * 180 / Math.PI;
+  const radians = angle => angle * Math.PI / 180;
+  const physics = { force: (first, second, distance) => 9e9 * Math.abs(first * second) / distance ** 2, field: (charge, distance) => 9e9 * charge / distance ** 2, potential: (charge, distance) => 9e9 * charge / distance, wireField: (current, distance) => 2e-7 * current / distance, current: (voltage, resistance) => voltage / resistance, parallel: resistances => 1 / resistances.reduce((sum, resistance) => sum + 1 / resistance, 0), emf: (turns, field, area, speed) => turns * field * area * speed };
+  const helpers = { ink, blue, teal, rust, gold, muted, label, line, path, box, dot, arrow, ray, sample, dimension, arc, graph, panels, single, degrees, radians, physics };
+  window.Unit6Diagrams = {
+    helpers,
+    physics,
+    scenes: {},
+    render(lesson, state) {
+      const result = this.scenes[lesson.type](lesson, state, helpers);
+      result.markup = `<defs><linearGradient id="visibleSpectrum"><stop stop-color="#7352a5"/><stop offset=".23" stop-color="#638fc8"/><stop offset=".46" stop-color="#8ac59d"/><stop offset=".65" stop-color="#f0dd77"/><stop offset="1" stop-color="#ce7475"/></linearGradient></defs>${result.markup}`;
+      return result;
+    }
+  };
+})();
+
+</script><script >
+(() => {
+  'use strict';
+  const cfg = window.motorChallenge, svg = document.getElementById('scene');
+  const {label:T,line:L,box:R,dot:C,arrow:A,arc,ink,blue,teal,rust} = Unit6Diagrams.helpers;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  const status = document.getElementById('status'), experiment = document.querySelector('.experiment');
+  const definitions = {
+    motor: {question:['When the switch closes, which way','will the coil turn in this end-on view?'], choices:['Clockwise','Counterclockwise','Remain still'], correct:0, result:'Clockwise: left force up, right force down.', guide:'Reverse the battery and compare rotation.'},
+    induction: {question:['When will the meter respond: moving the','magnet into the coil, stopped inside, or both?'], choices:['While moving only','While stopped only','Both'], correct:0, result:'Moving: deflection. Stopped: zero.', guide:'Move out, then reverse the pole and move in.'},
+    load: {question:['Connect a second identical bulb in parallel.','At the SAME speed, is the crank…?'], choices:['Easier to turn','Harder to turn','Equally difficult'], correct:1, result:'Harder: twice the output needs twice the torque.', guide:'Add bulbs, then remove one. Keep speed fixed.'},
+    wire: {question:['When the switch closes, will this wire','move toward you, away, or stay still?'], choices:['Toward you','Away from you','No movement'], correct:1, result:'Away: current right × field down = into page.', guide:'Reverse current, field, then both together.'},
+    reversible: {question:['The battery is disconnected. Will turning','this motor’s shaft power a suitable bulb?'], choices:['Yes, it generates','No, it needs a battery'], correct:0, result:'Yes: turning the shaft induces a voltage.', guide:'Increase speed, then reverse rotation.'}
+  };
+  const def = definitions[cfg.kind];
+  let phase='predict', elapsed=0, clock=0, last=null, chosen=null, polarity=1, field=1, bulbs=1, speed=10, angle=0;
+  let magX=85, travel=null, meter=0, motion=1, completeSent=false;
+  const visited=new Set();
+  const model = {
+    load:n=>({power:n*3, torque:n*.3, voltage:6}),
+    output:(w,p)=>.2*w*p,
+    force:(i,b)=>-i*b,
+    flux:(x,p)=>p*Math.exp(-(((x-270)/100)**2)),
+    emf:(x,v,p)=>2*(x-270)/10000*model.flux(x,p)*v
+  };
+  // Exposed read-only snapshots support verification of the shipped physics/flow.
+  window.challengeState=()=>({phase,elapsed,polarity,field,bulbs,speed,angle,magX,meter,travel:!!travel,visited:[...visited],completeSent,generatedVoltage:model.output(speed,polarity),...model.load(bulbs),force:model.force(polarity,field)});
+  window.challengePhysics=model;
+  const round=n=>Math.abs(n)<.005?'0':n.toFixed(2);
+  const text=(x,y,t,cls='')=>T(x,y,t,'middle',cls);
+  const path=(d,stroke=ink,width=2,fill='none')=>`<path d="${d}" stroke="${stroke}" stroke-width="${width}" fill="${fill}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  function current(x,y,out){return C(x,y,10,'white',rust)+(out?C(x,y,3,rust,rust):L(x-4,y-4,x+4,y+4,rust,2)+L(x-4,y+4,x+4,y-4,rust,2));}
+  function pole(x,y,w,h,n){return R(x,y,w,h,n?'#f8e7df':'#e5eff8',n?rust:blue,6)+text(x+w/2,y+h/2+6,n?'N':'S','strong');}
+  function battery(y,closed,p=1){return L(100,y,178,y,blue,2)+L(190,y,300,y,blue,2)+L(178,y-19,178,y+19,ink,3)+L(190,y-10,190,y+10,ink,3)+text(170,y-27,p===1?'+':'−')+text(200,y-27,p===1?'−':'+')+L(100,y,100,y-55,blue,2)+L(300,y,300,y-55,blue,2)+C(100,y-55,3,ink)+C(100,y-87,3,ink)+L(100,y-55,closed?100:74,y-87,ink,3)+L(100,y-87,100,y-108,blue,2)+L(300,y-55,300,y-108,blue,2)+text(200,y+28,closed?'Switch closed':'Switch open','small');}
+  function bulb(x,y,on=1){const brightness=Math.min(1,on*on);return C(x,y,20,'#f4f7fa','#8498a8')+`<g opacity="${brightness}">`+C(x,y,32,'#ffdb5966','none')+C(x,y,20,'#fff0a3','#c6a147')+'</g>'+path(`M${x-10} ${y+10} l6 -14 8 9 6 -15`,on?'#b37b14':'#8498a8',2)+R(x-9,y+19,18,13,'#9dacb6',ink,2)+L(x-8,y+24,x+8,y+24,ink,1);}
+  function hand(x,y){return `<g transform="translate(${x} ${y})">`+path('M-34 32 L-16 15 Q-15 5 -6 2 L17 0 Q25 1 25 8 L20 12 Q33 9 33 19 Q33 25 24 28 L9 37 L-11 40 L-23 51 Z','#a78065',1.5,'#e6c6a9')+path('M-6 12 L14 13 M-2 21 L20 20 M2 29 L19 27','#bd967b',1.2)+path('M-34 32 L-23 51 L-42 64 L-56 45 Z',blue,1,'#c9dfed')+'</g>';}
+  function rotation(cx,cy,r,dir,color=teal){const from=dir===1?-2.7:-.45,to=dir===1?-.45:-2.7;const end=[cx+r*Math.cos(to),cy+r*Math.sin(to)],prev=[cx+r*Math.cos(to-dir*.16),cy+r*Math.sin(to-dir*.16)];return arc(cx,cy,r,from,to,color)+A(...prev,...end,color,2.6);}
+  function motorScene(active){
+    let s=pole(16,78,50,152,true)+pole(334,78,50,152,false);
+    for(const y of [100,154,208])s+=A(73,y,327,y,'#85b4b7',1.5);
+    s+=text(200,42,'N → S: magnetic field','small');
+    const a=active?angle:0,dx=76*Math.cos(a),dy=76*Math.sin(a);
+    s+=C(200,154,83,'#ffffff88','#bdcdd8')+L(200-dx,154-dy,200+dx,154+dy,rust,6)+C(200,154,11,'#b3c0c9',ink);
+    const outLeft=(Math.cos(a)>=0?1:-1)*polarity===1;
+    s+=current(200-dx,154-dy,outLeft)+current(200+dx,154+dy,!outLeft);
+    if(active){const sign=outLeft?-1:1;s+=A(200-dx,154-dy+sign*16,200-dx,154-dy+sign*62,teal,3)+A(200+dx,154+dy-sign*16,200+dx,154+dy-sign*62,teal,3)+rotation(200,154,103,polarity);}
+    s+=text(200,263,active?(polarity===1?'Clockwise torque ↻':'Counterclockwise torque ↺'):'Intended current: ⊙ left, ⊗ right','small');
+    s+=`<g transform="rotate(${a*180/Math.PI} 200 298)">`+arc(200,298,18,.1,Math.PI-.1,rust)+arc(200,298,18,Math.PI+.1,Math.PI*2-.1,blue)+'</g>';
+    s+=R(169,291,13,14,'#5d6872')+R(218,291,13,14,'#5d6872')+L(100,302,169,298,blue,2)+L(300,302,231,298,blue,2)+battery(410,active,polarity);
+    s+=text(200,342,'Split ring + brushes','small')+text(200,365,active?'Connections swap each half-turn.':'Copper coil; view along the shaft.','small');
+    return s;
+  }
+  function inductionScene(){
+    let s=text(200,40,'Magnet ↔ coil ↔ galvanometer','small');
+    const x=reduced.matches&&travel? (motion>0?170:220):magX;
+    s+=R(213,116,150,76,'#eef5fa','none',12);
+    // Back halves of the same copper windings, magnet, then front halves.
+    for(let i=0;i<7;i++)s+=`<ellipse cx="${220+i*21}" cy="154" rx="13" ry="65" fill="none" stroke="#c48b59" stroke-width="3"/>`;
+    s+=pole(x-65,133,65,42,polarity<0)+pole(x,133,65,42,polarity>0);
+    for(let i=0;i<7;i++)s+=path(`M${220+i*21} 89 A13 65 0 0 1 ${220+i*21} 219`,rust,3);
+    if(travel)s+=A(115,77,115+motion*60,77,teal,3);
+    s+=path('M220 219 L220 264 L115 264 L115 350 L153 350',blue,2)+path('M346 219 L346 350 L247 350',blue,2);
+    s+=R(142,286,116,108,'#eef5fa','#91a9bb',12)+path('M155 351 A45 45 0 0 1 245 351','#8498a8',2);
+    for(const n of [-1,0,1]){const a=-Math.PI/2+n*.85;s+=L(200+40*Math.cos(a),351+40*Math.sin(a),200+46*Math.cos(a),351+46*Math.sin(a),ink,1.5);}
+    const deflect=Math.max(-1,Math.min(1,meter/1.25));const a=-Math.PI/2+deflect*.85;
+    s+=A(200,351,200+39*Math.cos(a),351+39*Math.sin(a),rust,2.6)+C(200,351,4,rust)+text(200,310,'0','small')+text(157,336,'−','small')+text(243,336,'+','small')+text(200,379,'G','strong');
+    s+=text(200,425,phase==='predict'?'Meter ready':travel?'Moving: induced current':'Stopped: zero induced current','strong');
+    s+=text(200,449,'Signed deflection; arbitrary scale','small');return s;
+  }
+  function machineBody(a){
+    let s=R(105,96,190,125,'#eef3f7','#8ca4b6',18)+pole(117,115,35,83,true)+pole(248,115,35,83,false);
+    s+=A(154,118,245,118,'#85b4b7',1.5)+A(154,194,245,194,'#85b4b7',1.5);
+    s+=`<g transform="rotate(${a*180/Math.PI} 200 157)">`+R(169,130,62,54,'#fff7ed',rust,5);
+    for(let i=0;i<4;i++)s+=R(172+i*3,132+i*2,56-i*6,50-i*4,'none',rust,1);
+    s+='</g>'+C(200,157,9,'#aebdc8',ink)+L(200,157,200,239,'#7e94a3',8)+C(200,239,7,'#aebdc8',ink);
+    const x=200+48*Math.cos(a),y=239+30*Math.sin(a);
+    s+=L(200,239,x,y,ink,6)+C(x,y,8,'#425b6e',ink)+hand(x+6,y+3);
+    return s;
+  }
+  function loadScene(){
+    let s=text(200,35,'Same shaft speed: 10 rad/s','strong')+text(200,61,'Rotation shown slowed','small')+machineBody(angle);
+    const n=phase==='predict'?1:bulbs,m=model.load(n);
+    s+=text(200,327,`Drive torque: ${m.torque.toFixed(2)} N·m`,'strong');
+    if(phase!=='predict')s+=rotation(200,157,72,-1,teal)+text(200,353,`Resisting torque: ${m.torque.toFixed(2)} N·m`,'small');
+    // Every bulb bridges the same two rails: explicit parallel topology.
+    s+=path('M105 160 L35 160 L35 393 L365 393',blue,2)+path('M295 160 L385 160 L385 478 L35 478',blue,2);
+    for(let i=0;i<3;i++){const x=90+i*110;const on=i<n;s+=L(x,393,x,on?410:399,on?blue:'#c9d4dc',2)+bulb(x,431,on?1:0)+L(x,463,x,478,on?blue:'#c9d4dc',2);if(!on)s+=C(x,399,2,'white',ink)+L(x,410,x+9,401,ink,1.5);}
+    s+=text(200,505,`${n} bulb${n===1?'':'s'} · ${m.power.toFixed(1)} W electrical output`,'strong')+text(200,529,'6 V · 12 Ω per bulb · ideal generator','small');return s;
+  }
+  function wireScene(active){
+    let s=pole(115,47,170,44,field>0)+pole(115,260,170,44,field<0);
+    for(const x of [140,200,260])s+=field>0?A(x,101,x,245,'#85b4b7',1.7):A(x,245,x,101,'#85b4b7',1.7);
+    const toward=model.force(polarity,field)>0;
+    const size=active?(toward?1.15:.85):1, y=active?(toward?196:159):178;
+    s+=L(55,110,55,278,'#c5d1da',1,'4 4')+L(345,110,345,278,'#c5d1da',1,'4 4')+L(55,178,345,178,'#bdcdd8',2,'5 4');
+    const left=200-130*size,right=200+130*size;
+    s+=path(`M55 110 Q40 140 ${left} ${y} M345 110 Q360 140 ${right} ${y}`,blue,2)+L(left,y,right,y,'#895332',9)+L(left,y-2,right,y-2,'#d99962',3);
+    s+=polarity>0?A(135,y-22,265,y-22,rust,3):A(265,y-22,135,y-22,rust,3);
+    if(active)s+=text(200,y+43,toward?'⊙ Force toward you':'⊗ Force away from you','strong');
+    s+=text(200,334,active?'Solid wire moved; dashed = start.':'Arrow shows intended current.','small');
+    s+=path('M55 110 L32 110 L32 355 L100 355 M345 110 L370 110 L370 355 L300 355',blue,2)+battery(463,active,polarity);
+    return s;
+  }
+  function reversibleScene(active){
+    const w=active?speed:0,v=model.output(w,polarity);
+    let s=text(200,34,'Permanent-magnet DC motor','strong')+text(200,60,'Rotation shown slowed','small')+machineBody(active?angle:0)+text(200,323,'Battery disconnected · hand drives shaft','small');
+    s+=path('M105 175 L42 175 L42 391 L166 391',blue,2)+path('M295 175 L358 175 L358 465 L166 465',blue,2)+L(166,391,166,407,blue,2)+bulb(166,427,Math.abs(v)>0?Math.min(1,Math.abs(v)/6):0)+L(166,459,166,465,blue,2);
+    s+=R(246,370,92,60,'#edf5fa','#8ca4b6',8)+text(292,406,`${v>=0?'+':''}${v.toFixed(1)} V`,'strong')+L(246,383,42,383,blue,1)+L(338,419,358,419,blue,1);
+    s+=text(200,495,active?`${polarity===1?'Forward':'Reverse'} · ${w} rad/s`:'Shaft stationary: 0 V','strong')+text(200,520,'Average DC output · suitable small bulb','small');return s;
+  }
+  function guide(){
+    if(isFinished())return 'Comparison complete. Keep experimenting.';
+    if(cfg.kind==='motor')return def.guide;
+    if(cfg.kind==='induction')return !visited.has('out')?'Move the magnet out; watch the needle.':'Reverse the pole, then run a move.';
+    if(cfg.kind==='load')return !visited.has('added')?'Add another bulb; compare the drive torque.':'Remove a bulb; compare torque again.';
+    if(cfg.kind==='wire')return `Try ${!visited.has('-1,1')?'current reversed only':!visited.has('1,-1')?'field reversed only':'both reversed'}.`;
+    return !visited.has('faster')?'Raise speed above 10 rad/s.':'Reverse rotation; compare the voltage sign.';
+  }
+  function isFinished(){return cfg.kind==='motor'?visited.has('reverse'):cfg.kind==='induction'?visited.has('out')&&visited.has('pole'):cfg.kind==='load'?visited.has('added')&&visited.has('removed'):cfg.kind==='wire'?['-1,1','1,-1','-1,-1'].every(x=>visited.has(x)):visited.has('faster')&&visited.has('reverse');}
+  function updateCompletion(){if(phase==='experiment'&&isFinished()&&!completeSent){completeSent=true;window.parent.postMessage({type:'complete'},'*');}}
+  function render(){
+    const compact=innerWidth<=600,W=compact?440:800,scale=compact?1:1.3,top=80;
+    const sceneHeight=['load','reversible'].includes(cfg.kind)?545:cfg.kind==='wire'?505:470;
+    const footer=top+sceneHeight*scale,H=footer+91;
+    const active=phase!=='predict';
+    let art=cfg.kind==='motor'?motorScene(active):cfg.kind==='induction'?inductionScene():cfg.kind==='load'?loadScene():cfg.kind==='wire'?wireScene(active):reversibleScene(active);
+    let topLines=phase==='predict'?def.question:phase==='experiment'?[guide()]:[''];
+    let markup=topLines.map((x,i)=>text(W/2,26+i*25,x,'strong')).join('');
+    markup+=`<g transform="translate(${(W-400*scale)/2} ${top}) scale(${scale})">${art}</g>`;
+    if(phase==='reveal'||phase==='feedback'){
+      const good=chosen===def.correct,color=good?'#176843':'#a13a25';
+      markup+=R(10,footer,W-20,83,good?'#e8f5ee':'#fff0e8',color,9)+`<text x="${W/2}" y="${footer+31}" text-anchor="middle" class="feedback" style="fill:${color}">${good?'✓ CORRECT':'✕ NOT QUITE'}</text>`;
+      const lines=cfg.kind==='load'?['Harder: twice the electrical output','needs twice the drive torque.']:cfg.kind==='wire'?['Away from you: current right,','field down, force into the page.']:[def.result];
+      markup+=lines.map((x,i)=>text(W/2,footer+55+i*20,x,'small')).join('');
+    } else if(phase==='experiment')markup+=text(W/2,footer+28,cfg.kind==='motor'?'Same field; reversed battery → reversed torque.':cfg.kind==='induction'?'Changing flux drives current; a held magnet does not.':cfg.kind==='load'?'Mechanical input supplies the electrical output.':cfg.kind==='wire'?'Reverse both: the original force direction returns.':'More speed → more voltage; reverse → opposite polarity.','small');
+    svg.innerHTML=markup;svg.setAttribute('viewBox',`0 0 ${W} ${H}`);svg.dataset.phase=phase;
+    document.querySelector('.choices').hidden=phase!=='predict';experiment.hidden=phase!=='experiment';
+    const msg=phase==='predict'?def.question.join(' '):phase==='experiment'?guide():(chosen===def.correct?'Correct. ':'Not quite. ')+def.result;
+    if(status.textContent!==msg)status.textContent=msg;
+    svg.setAttribute('aria-label',cfg.title+'. '+msg);
+    document.querySelectorAll('[data-toggle]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.toggle==='field'?field<0:polarity<0)));
+  }
+  function runMagnet(){
+    if(travel)return;
+    const target=motion===1?270:85;
+    if(Math.abs(magX-target)<1)magX=motion===1?85:270;
+    travel={start:magX,target,t:0,duration:1800};meter=0;
+  }
+  function answer(index){if(phase!=='predict')return;chosen=index;phase='reveal';elapsed=0;angle=0;
+    if(cfg.kind==='induction')runMagnet();if(cfg.kind==='load')bulbs=2;render();document.getElementById('replay').focus({preventScroll:true});}
+  function reset(){phase='predict';elapsed=clock=angle=0;last=null;chosen=null;polarity=field=motion=1;bulbs=1;speed=10;magX=85;travel=null;meter=0;visited.clear();
+    document.querySelectorAll('select').forEach(x=>x.value=x.id==='bulbs'?'2':'1');const slider=document.getElementById('speed');if(slider)slider.value=10;render();}
+  document.querySelector('.choices').innerHTML=def.choices.map((x,i)=>`<button type="button" data-choice="${i}">${x}</button>`).join('');
+  const controls={
+    motor:'<button type="button" data-toggle="polarity" aria-pressed="false">Reverse battery</button>',
+    induction:'<label>Motion <select id="motion"><option value="1">Into coil</option><option value="-1">Out of coil</option></select></label><button type="button" data-toggle="polarity" aria-pressed="false">Reverse pole</button><button type="button" id="run">Move magnet</button>',
+    load:'<label>Parallel bulbs <select id="bulbs"><option>0</option><option>1</option><option selected>2</option><option>3</option></select></label>',
+    wire:'<button type="button" data-toggle="polarity" aria-pressed="false">Reverse current</button><button type="button" data-toggle="field" aria-pressed="false">Reverse field</button>',
+    reversible:'<label>Speed <input id="speed" type="range" min="0" max="30" step="5" value="10" aria-label="Shaft speed in radians per second"></label><button type="button" data-toggle="polarity" aria-pressed="false">Reverse rotation</button>'
+  };experiment.innerHTML=controls[cfg.kind];
+  document.querySelectorAll('[data-choice]').forEach(b=>b.addEventListener('click',()=>answer(Number(b.dataset.choice))));
+  document.querySelectorAll('[data-toggle]').forEach(b=>b.addEventListener('click',()=>{
+    if(phase!=='experiment')return;
+    if(b.dataset.toggle==='field')field*=-1;else polarity*=-1;
+    if(cfg.kind==='motor')visited.add('reverse');
+    if(cfg.kind==='wire')visited.add(`${polarity},${field}`);
+    if(cfg.kind==='reversible'&&speed>0&&polarity<0)visited.add('reverse');
+    // Changing the magnet pole is done at rest; only subsequent motion counts.
+    if(cfg.kind==='induction'){travel=null;meter=0;}
+    updateCompletion();render();
+  }));
+  document.getElementById('motion')?.addEventListener('change',e=>{motion=Number(e.target.value);travel=null;meter=0;render();});
+  document.getElementById('run')?.addEventListener('click',()=>{runMagnet();render();});
+  document.getElementById('bulbs')?.addEventListener('change',e=>{const n=Number(e.target.value);if(n>bulbs)visited.add('added');if(n<bulbs&&visited.has('added'))visited.add('removed');bulbs=n;updateCompletion();render();});
+  document.getElementById('speed')?.addEventListener('input',e=>{speed=Number(e.target.value);if(speed>10)visited.add('faster');if(speed>0&&polarity<0)visited.add('reverse');updateCompletion();render();});
+  document.getElementById('replay').addEventListener('click',reset);
+  function frame(now){const dt=last===null?0:Math.min(80,now-last);last=now;
+    if(!document.hidden){clock+=dt;
+      if(phase==='reveal'||phase==='feedback')elapsed+=dt;
+      if(phase==='reveal'&&elapsed>=2400){phase='feedback';elapsed=0;if(cfg.kind==='motor')angle=0;}
+      if(phase==='feedback'&&elapsed>=3000){phase='experiment';elapsed=0;}
+      const moving=phase==='reveal'||phase==='experiment'||(phase==='predict'&&cfg.kind==='load');
+      if(moving&&!reduced.matches)angle+=dt/1000*(cfg.kind==='reversible'?speed*.25:2)*polarity;
+      if(travel&&phase!=='feedback'){
+        travel.t+=dt;const u=Math.min(1,travel.t/travel.duration);
+        magX=travel.start+(travel.target-travel.start)*u;
+        meter=model.emf(magX,(travel.target-travel.start)/(travel.duration/1000),polarity);
+        if(u>=1){travel=null;meter=0;if(phase==='experiment'){if(motion<0)visited.add('out');if(polarity<0)visited.add('pole');updateCompletion();}}
+      }
+      render();
+    }requestAnimationFrame(frame);
+  }
+  addEventListener('resize',render);reduced.addEventListener('change',render);reset();requestAnimationFrame(frame);
+})();
+
+</script></main></body></html>

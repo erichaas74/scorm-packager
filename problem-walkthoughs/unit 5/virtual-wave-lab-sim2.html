@@ -4,34 +4,210 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Finding Resonance</title>
-<link rel="stylesheet" href="simple-walkthrough.css">
+<style>
+body{margin:0;font:16px/1.4 system-ui,sans-serif;color:#17202a;background:#f6f8fb}
+main{max-width:760px;margin:0 auto;padding:16px;position:relative}
+h1{font-size:1.4rem;margin:0}
+#step{color:#5b6775;margin:2px 0 8px;font-weight:600}
+canvas{width:100%;display:block;background:#fff;border:1px solid #cfd8e3;border-radius:6px}
+#stage{display:flex;gap:10px;align-items:stretch}
+#stage canvas{flex:1;min-width:0}
+#fctl{display:flex;flex-direction:column;align-items:center;gap:6px;width:76px;font-size:.8rem;font-weight:700;color:#1f5fbf;text-align:center;line-height:1.15}
+#fctl[hidden]{display:none}
+#fctl b{font-size:.9rem;color:#17202a}
+#f{flex:1;width:44px;writing-mode:vertical-lr;direction:rtl;accent-color:#1f6feb;margin:0;cursor:ns-resize}
+button{margin:8px 8px 0 0;padding:9px 14px;font:inherit;font-weight:600;border:1px solid #1f6feb;background:#fff;color:#1f6feb;border-radius:8px;cursor:pointer}
+button.go{background:#1f6feb;color:#fff}
+button[hidden]{display:none}
+#jump{position:absolute;top:16px;right:16px}
+#jump button{margin:0 0 0 4px;padding:2px 9px;font-size:.85rem}
+#msg{font-weight:700;margin:10px 0 0}
+</style>
 </head>
 <body>
-<main class="lesson rise-walkthrough">
+<main>
 <h1>Finding Resonance</h1>
-<div class="content">
-<div class="stage">
-<svg id="scene" viewBox="0 0 840 490" role="img" aria-label="Finding Resonance"></svg>
-<div class="message" role="status" aria-live="polite">
-<p id="prompt">Watch the setup.</p>
-<p id="explanation"></p>
-</div>
-</div>
-<div class="buttons" role="group" aria-label="Prediction and playback">
-<button type="button" data-choice="0" hidden>Frequency becomes zero</button>
-<button type="button" data-choice="1" hidden>Amplitude grows</button>
-<button class="utility" type="button" id="pause">Pause</button>
-<button class="utility" type="button" id="step" hidden>Next step</button>
-<button class="utility" type="button" id="replay">Replay</button>
-</div>
-</div>
+<p id="step"></p>
+<div id="jump" aria-label="Jump to step"></div>
+<div id="stage">
+<div id="fctl" hidden><b>Your frequency</b><span>▲ High<br>tight waves</span><input id="f" type="range" orient="vertical" aria-label="Your sound frequency, low to high"><span>Low ▼<br>stretched waves</span></div>
+<canvas id="c" width="760" height="300" role="img" aria-label="Resonance scene"></canvas></div>
+<p id="msg" role="status" aria-live="polite"></p>
+<button id="push" class="go" hidden>Push (or press Space)</button>
+<span id="autoBtns" hidden>
+<button data-n="1">Auto: no nodes</button>
+<button data-n="3">Auto: 2 nodes</button>
+<button data-n="4">Auto: 3 nodes</button>
+</span>
+<button id="next" class="go" hidden>Next</button>
 </main>
-<script>window.walkthroughLesson = {"title":"Finding Resonance","type":"oscillator","variant":"resonance","question":"A small repeated push matches the system's natural frequency. What happens?","choices":["Frequency becomes zero","Amplitude grows"],"correct":1,"explanation":"At resonance, well-timed pushes transfer energy efficiently and build larger oscillations. Damping limits the growth."};</script>
-<script src="textbook-diagrams.js"></script>
-<script src="textbook-waves.js"></script>
-<script src="textbook-optics.js"></script>
-<script src="textbook-matter.js"></script>
-<script src="textbook-systems.js"></script>
-<script src="simple-walkthrough.js"></script>
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)},c=$("c"),g=c.getContext("2d"),f=$("f");
+var TAU=Math.PI*2;
+var S=[
+ {name:"Push a swing",Z:.06,B:.5,G:.15,f0:[.4],min:.1,max:1,step:.005,v:.25,d:2,
+  goal:"Tap Push each time the swing is moving right. Good timing makes it climb.",
+  win:"Resonance! Each push arrives while the swing is already moving the same way, so every push adds energy."},
+ {name:"Shake a string",Z:.06,B:.5,G:.2,f0:[1,2,3,4,5,6],min:.3,max:3.6,step:.01,v:.5,d:2,
+  goal:"Grab the left end and shake it up and down. Find a rhythm that makes the whole string swing in a standing wave. Shake faster to add more nodes.",
+  win:"A standing wave! Each faster resonance adds one more node. The frequencies are 1, 2, 3, 4… times the lowest one."},
+ {name:"Sing to a glass",Z:.1,B:1,G:.25,f0:[440],min:200,max:700,step:1,v:300,d:0,
+  goal:"Tap the glass to hear and see its wave. Then slide until your wave matches the glass's.",
+  win:"The note matches the glass's natural frequency, so the rim wobble grows. A loud enough match can shatter a real glass."}
+];
+var s=0,X,V,t,last=0,peak,won,wonAt,flash=null,dadX=295,auto=0,lk=1,env=[0,0,0,0,0,0],shownN=0,hd=0,tg=0,drag=false,tapAt=-9,tapped=false,ac=null,osc=null,hush=0;
+function load(n){
+  s=n;var o=S[s];X=o.f0.map(function(){return 0});V=X.slice();t=0;peak=0;won=false;flash=null;dadX=295;hd=tg=0;drag=false;tapAt=-9;tapped=false;stopHum();c.style.cursor=(s===2?"pointer":"");c.style.touchAction=(s===1?"none":"");c.style.cursor=(s===1?"ns-resize":"");
+  f.min=o.min;f.max=o.max;f.step=o.step;f.value=o.v;
+  $("fctl").hidden=(s!==2);$("push").hidden=(s!==0);$("next").hidden=(s!==1);$("autoBtns").hidden=(s!==1);auto=0;sync();env=X.map(function(){return 0});shownN=0;
+  $("step").textContent="Step "+(s+1)+" of 3: "+o.name;
+  
+}
+function audio(){var A=window.AudioContext||window.webkitAudioContext;if(!ac&&A)ac=new A();if(ac&&ac.state==="suspended")ac.resume();return ac}
+function ping(hz){if(!audio())return;var o=ac.createOscillator(),gn=ac.createGain();o.frequency.value=hz;
+  gn.gain.setValueAtTime(.3,ac.currentTime);gn.gain.exponentialRampToValueAtTime(.001,ac.currentTime+2);
+  o.connect(gn);gn.connect(ac.destination);o.start();o.stop(ac.currentTime+2)}
+function hum(hz){if(!audio())return;if(!osc){osc=ac.createOscillator();var gn=ac.createGain();gn.gain.value=.15;osc.connect(gn);gn.connect(ac.destination);osc.start()}
+  osc.frequency.value=hz;clearTimeout(hush);hush=setTimeout(stopHum,400)}
+function stopHum(){clearTimeout(hush);if(osc){try{osc.stop()}catch(e){}osc=null}}
+f.oninput=function(){if(s===2)hum(+f.value)};
+function push(){if(s!==0||won)return;flash={at:t,good:V[0]>0};V[0]+=1}
+$("next").onclick=function(){load(2)};
+function sync(){[].forEach.call($("autoBtns").children,function(b){b.className=(+b.dataset.n===auto?"go":"")})}
+[].forEach.call($("autoBtns").children,function(b){b.onclick=function(){var n=+b.dataset.n;auto=(auto===n?0:n);X=X.map(function(){return 0});V=X.slice();env=X.slice();shownN=0;peak=0;won=false;hd=tg=0;sync()}});
+$("push").onpointerdown=function(e){e.preventDefault();push()};
+c.onpointerdown=function(e){if(s===2){var r=c.getBoundingClientRect(),dx=(e.clientX-r.left)*760/r.width-600,dy=(e.clientY-r.top)*300/r.height-140;if(dx*dx+dy*dy<130*130&&!won){tapAt=t;tapped=true;ping(S[2].f0[0])}}else if(s===0)push();else if(s===1){drag=true;auto=0;sync();c.setPointerCapture(e.pointerId);aim(e)}};
+c.onpointermove=function(e){if(drag)aim(e)};
+c.onpointerup=c.onpointercancel=function(){drag=false;tg=0};
+function aim(e){var r=c.getBoundingClientRect();tg=Math.max(-1,Math.min(1,(150-(e.clientY-r.top)*300/r.height)/60))}
+document.addEventListener("keydown",function(e){if(e.code==="Space"&&s===0){e.preventDefault();if(!e.repeat)push()}});
+var INK="#1b2733",MUTE="#66727f",BLU="#1f5fbf",GRN="#1a7f4a",RED="#b3261e",pkA=0;
+function ln(x1,y1,x2,y2,col,w,dash){g.strokeStyle=col||INK;g.lineWidth=w||1.5;g.setLineDash(dash||[]);g.beginPath();g.moveTo(x1,y1);g.lineTo(x2,y2);g.stroke();g.setLineDash([])}
+function arr(x1,y1,x2,y2,col,w){ln(x1,y1,x2,y2,col,w||2.5);var a=Math.atan2(y2-y1,x2-x1);g.fillStyle=col;g.beginPath();g.moveTo(x2,y2);g.lineTo(x2-11*Math.cos(a-.4),y2-11*Math.sin(a-.4));g.lineTo(x2-11*Math.cos(a+.4),y2-11*Math.sin(a+.4));g.closePath();g.fill()}
+function tx(s,x,y,col,al,sz,st){g.fillStyle=col||INK;g.textAlign=al||"left";g.font=(st||"")+" "+(sz||14)+"px 'Segoe UI',system-ui,sans-serif";g.fillText(s,x,y)}
+function dim(x1,x2,y,label,col){var m=(x1+x2)/2;arr(m,y,x1,y,col,1.5);arr(m,y,x2,y,col,1.5);ln(x1,y-6,x1,y+6,col,1.5);ln(x2,y-6,x2,y+6,col,1.5);tx(label,m,y-8,col,"center",14,"italic")}
+function hatch(x1,x2,y){ln(x1,y,x2,y,INK,2);for(var x=x1;x<x2;x+=10)ln(x,y,x-8,y+9,MUTE,1)}
+function baby(lx,ly){
+  g.lineCap="round";g.lineJoin="round";
+  g.strokeStyle="#6b5a45";g.lineWidth=2;
+  g.beginPath();g.moveTo(lx,ly);g.lineTo(-28,-30);g.moveTo(lx,ly);g.lineTo(32,-18);g.stroke();   /* ropes */
+  g.fillStyle="#8fc4f0";g.strokeStyle="#4f86b8";g.lineWidth=1.5;                                   /* onesie */
+  g.beginPath();g.moveTo(-13,-14);g.lineTo(-11,-42);g.quadraticCurveTo(0,-47,11,-42);g.lineTo(13,-14);g.closePath();g.fill();g.stroke();
+  ln(6,-40,28,-33,"#f3c9a3",7);ln(6,-40,28,-33,"#d9a67e",1);                                       /* arm */
+  g.fillStyle="#f3c9a3";g.strokeStyle="#d9a67e";g.beginPath();g.arc(-2,-58,15,0,TAU);g.fill();g.stroke();   /* head */
+  g.beginPath();g.arc(-17,-58,4,0,TAU);g.fill();g.stroke();                                          /* ear */
+  g.fillStyle="#ffd54a";g.strokeStyle="#c9a227";g.beginPath();g.arc(-2,-58,15.5,Math.PI*1.02,Math.PI*1.9);g.closePath();g.fill();g.stroke();   /* hat */
+  g.fillStyle="#fff";g.beginPath();g.arc(-2,-75,4.5,0,TAU);g.fill();g.stroke();
+  g.fillStyle="#1b2733";[3,10].forEach(function(x){g.beginPath();g.arc(x,-57,1.9,0,TAU);g.fill()});
+  g.strokeStyle="#b5473a";g.lineWidth=1.5;g.beginPath();g.arc(7,-52,4,.15*Math.PI,.85*Math.PI);g.stroke();
+  g.fillStyle="rgba(240,120,120,.45)";g.beginPath();g.arc(12,-53,3,0,TAU);g.fill();
+  g.fillStyle="#e8743b";g.strokeStyle="#9c4a1e";g.lineWidth=2;                                       /* bucket seat */
+  g.beginPath();g.moveTo(-28,-30);g.lineTo(32,-18);g.quadraticCurveTo(38,10,20,13);g.lineTo(-6,13);g.quadraticCurveTo(-34,13,-28,-30);g.closePath();g.fill();g.stroke();
+  ln(-22,-22,28,-12,"#f4a074",3);
+  ln(6,-12,30,-6,"#f3c9a3",9);ln(30,-6,33,15,"#f3c9a3",9);                                        /* legs */
+  g.fillStyle="#d94f5c";g.beginPath();g.ellipse(36,19,9,5,0,0,TAU);g.fill();
+  g.fillStyle="#f3c9a3";g.beginPath();g.arc(28,-33,4.5,0,TAU);g.fill();                              /* hand */
+}
+function dad(x,ext){
+  var gy=285,sx=x+5,sy=gy-102,hx=x+30+ext*36,hy=gy-92;g.lineCap="round";
+  ln(x-1,gy-62,x-9,gy,"#2f4a6d",10);ln(x+3,gy-62,x+9,gy,"#2f4a6d",10);
+  g.fillStyle="#222";g.beginPath();g.ellipse(x-4,gy-2,9,4,0,0,TAU);g.fill();g.beginPath();g.ellipse(x+15,gy-2,9,4,0,0,TAU);g.fill();
+  ln(x+1,gy-62,x+4,gy-108,"#4b8a5a",24);
+  g.fillStyle="#f0c4a0";g.strokeStyle="#c99a74";g.lineWidth=1.5;g.beginPath();g.arc(x+6,gy-126,12,0,TAU);g.fill();g.stroke();
+  g.fillStyle="#4a3426";g.beginPath();g.arc(x+4,gy-128,12.5,Math.PI,Math.PI*1.85);g.closePath();g.fill();
+  g.fillStyle=INK;g.beginPath();g.arc(x+13,gy-127,1.7,0,TAU);g.fill();
+  g.strokeStyle="#b5473a";g.lineWidth=1.5;g.beginPath();g.arc(x+12,gy-122,3.5,.2*Math.PI,.8*Math.PI);g.stroke();
+  ln(sx,sy,hx,hy,"#3d7349",8);
+  g.fillStyle="#f0c4a0";g.beginPath();g.arc(hx+3,hy,5,0,TAU);g.fill();
+  return {x:hx+8,y:hy};
+}
+function swing(a){
+  var px=400,py=33,L=170,gy=285,th=.75*Math.tanh(a*.8),sn=Math.sin(th),cs=Math.cos(th),bx=px+L*sn,by=py+L*cs,deg=Math.round(Math.abs(th)*180/Math.PI);
+  g.fillStyle="#e6f1dd";g.fillRect(0,gy,760,15);hatch(60,720,gy);g.lineCap="round";
+  ln(135,gy,135,py,"#5a4630",16);ln(135,200,262,py+5,"#5a4630",8);        /* post and support brace */
+  ln(135,py,px+8,py,"#4a3a28",11);ln(135,py-6,px+8,py-6,"#7a6246",2);      /* swing arm */
+  g.fillStyle="#9aa3ad";g.fillRect(112,gy-9,46,9);
+  ln(px,py,px,gy,"#c3ccd6",1);tx("equilibrium",px+6,gy-8,MUTE,"left",12,"italic");
+  if(Math.abs(th)>.04){g.strokeStyle=INK;g.lineWidth=1.5;g.beginPath();g.arc(px,py,60,Math.PI/2,Math.PI/2-th,th>0);g.stroke();
+    tx("θ = "+deg+"°",px+(th>0?-12:12),py+88,INK,th>0?"right":"left",14,"italic")}
+  g.fillStyle="rgba(0,0,0,.12)";g.beginPath();g.ellipse(bx+(th>0?8:-8),gy-3,38,6,0,0,TAU);g.fill();
+  dadX+=(Math.max(190,bx-118)-dadX)*.3;
+  var pp=flash?t-flash.at:9,hand=dad(dadX,pp<.12?pp/.12:pp<.45?1-(pp-.12)/.33:0);
+  g.save();g.translate(bx,by);g.rotate(-th);baby(((px-bx)*cs-(py-by)*sn),((px-bx)*sn+(py-by)*cs));g.restore();
+  g.fillStyle="#2b2b2b";g.beginPath();g.arc(px,py,5,0,TAU);g.fill();g.fillStyle="#bbb";g.beginPath();g.arc(px,py,2,0,TAU);g.fill();
+  var sp=Math.abs(V[0]);
+  if(sp>.3){var d=V[0]>0?1:-1,len=Math.min(85,sp*26);arr(bx,by+36,bx+d*len*cs,by+36-d*len*sn,BLU,3);tx("v",bx+d*(len*cs+(d>0?12:-12)),by+36-d*len*sn+5,BLU,"center",15,"italic")}
+  if(flash&&t-flash.at<.6){var col=flash.good?GRN:RED;arr(hand.x,hand.y,hand.x+50,hand.y,col,5);tx("push",hand.x+25,hand.y-12,col,"center",13,"bold");tx(flash.good?"Dad's push adds energy":"Dad's push fights the swing",745,28,col,"right",15,"bold")}
+}
+function wr(){var o=S[s];return o.B*f.value/o.f0[0]}      /* slowed-down drive rate, Hz */
+function string(){
+  var x0=110,x1=660,cy=140,L=x1-x0,k=0,n,i,u,y;
+  for(i=1;i<env.length;i++)if(env[i]>env[k])k=i;
+  if(env[k]>.4&&env.every(function(q,j){return j===k||q<.5*env[k]}))shownN=k+1;else if(env[k]<.15)shownN=0;
+  var dom=shownN>0;n=shownN;k=Math.max(0,n-1);lk+=((dom?0:1)-lk)*.1;
+  ln(x1,cy-80,x1,cy+80,INK,3);for(y=cy-80;y<cy+80;y+=10)ln(x1,y,x1+9,y-8,MUTE,1);
+  ln(x0-12,cy-72,x0-12,cy+72,"#cfd8e3",9);
+  ln(x0,cy,x1,cy,"#c3ccd6",1);
+  g.strokeStyle=RED;g.lineWidth=3;g.beginPath();
+  for(i=0;i<=160;i++){u=i/160;y=0;X.forEach(function(q,j){y+=q*Math.sin((j+1)*Math.PI*u)*(dom&&j!==k?lk:1)});
+    y=Math.max(-110,Math.min(110,y*60+hd*50*Math.max(0,1-u*18)));i?g.lineTo(x0+L*u,cy-y):g.moveTo(x0,cy-hd*50)}
+  g.stroke();
+  g.fillStyle=drag?BLU:"#35404d";g.fillRect(x0-26,cy-hd*50-17,28,34);
+  ln(x0-20,cy-hd*50-6,x0-4,cy-hd*50-6,"#fff",2);ln(x0-20,cy-hd*50,x0-4,cy-hd*50,"#fff",2);ln(x0-20,cy-hd*50+6,x0-4,cy-hd*50+6,"#fff",2);
+  arr(x0-48,cy-12,x0-48,cy-52,MUTE,2);arr(x0-48,cy+12,x0-48,cy+52,MUTE,2);tx("drag",x0-48,cy+72,MUTE,"center",13,"italic");
+  tx("fixed end",x1,cy-90,MUTE,"center",12,"italic");
+  dim(x0,x1,268,"L",INK);
+  if(dom){for(i=1;i<n;i++){g.fillStyle="#fff";g.strokeStyle=INK;g.lineWidth=2;g.beginPath();g.arc(x0+L*i/n,cy,5,0,TAU);g.fill();g.stroke()}
+    if(n>1)tx("node",x0+L/n,cy+22,INK,"center",13,"italic");tx("antinode",x0+L/(2*n),cy-100,INK,"center",13,"italic");
+    if(n>1)dim(x0,x0+2*L/n,232,"λ",GRN);
+    tx("standing wave: "+(n===1?"no nodes between the ends":(n-1)+(n===2?" node":" nodes")),20,28,GRN,"left",15,"bold")}
+}
+function wave(y0,hz,col){
+  var k=TAU*(hz/110)/400,x;g.strokeStyle=col;g.lineWidth=3;g.beginPath();
+  for(x=60;x<=440;x+=3){var y=y0-30*Math.sin(k*(x-60)-4*t);x>60?g.lineTo(x,y):g.moveTo(x,y)}g.stroke();
+  ln(60,y0,445,y0,"#c3ccd6",1);arr(60,y0+38,60,y0-40,MUTE,1.5);
+  var c0=60+(Math.PI/2+4*t)/k;while(c0-TAU/k>=60)c0-=TAU/k;while(c0<60)c0+=TAU/k;
+  if(c0+TAU/k<=440)dim(c0,c0+TAU/k,y0-44,"λ",col);
+}
+function glass(a){
+  var R=80,cx=600,cy=140,w=Math.max(-1.4,Math.min(1.4,a)),i,th;
+  g.beginPath();g.arc(cx,cy,R,0,TAU);g.setLineDash([4,4]);g.strokeStyle=MUTE;g.lineWidth=1;g.stroke();g.setLineDash([]);
+  g.beginPath();for(i=0;i<=100;i++){th=i/100*TAU;var r=R+w*22*Math.cos(2*th);i?g.lineTo(cx+r*Math.cos(th),cy+r*Math.sin(th)):g.moveTo(cx+r,cy)}
+  g.closePath();g.fillStyle="rgba(120,190,245,.35)";g.fill();g.strokeStyle=Math.abs(w)>.8?RED:BLU;g.lineWidth=3;g.stroke();
+  if(Math.abs(w)>.15)for(i=0;i<4;i++){th=i*Math.PI/2;var d=(i%2?-1:1)*Math.sign(w),r0=R+w*22*Math.cos(2*th),l=14+Math.abs(w)*14;
+    arr(cx+(r0+(d>0?4:l+4))*Math.cos(th),cy+(r0+(d>0?4:l+4))*Math.sin(th),cx+(r0+(d>0?l+4:4))*Math.cos(th),cy+(r0+(d>0?l+4:4))*Math.sin(th),RED,2)}
+  if(t-tapAt<1.5){g.strokeStyle="rgba(31,95,191,"+(1-(t-tapAt)/1.5)+")";g.lineWidth=2;
+    for(i=0;i<3;i++){g.beginPath();g.arc(cx,cy,R+34+i*14+(t-tapAt)*40,0,TAU);g.stroke()}}
+  tx("wine glass (top view)",cx,cy+R+50,MUTE,"center",13,"italic");
+  if(!tapped)tx("Tap the glass",cx,cy-R-24,BLU,"center",15,"bold");
+  tx("The glass's sound wave",60,24,GRN,"left",14,"bold");tx("Your sound wave",60,148,BLU,"left",14,"bold");tx("◄ the slider changes this wave",196,148,BLU,"left",13,"italic");
+  if(tapped)wave(105,S[2].f0[0],GRN)
+  else{ln(60,105,440,105,"#9aa8b8",1.5,[6,6]);tx("tap the glass to see its wave",250,92,MUTE,"center",13,"italic")}
+  wave(225,+f.value,BLU);
+}
+function frame(ts){
+  var dt=Math.min(.05,(ts-last)/1000||.016);last=ts;
+  if(auto&&!drag)tg=.7*Math.sin(TAU*.5*auto*t);
+  hd+=(tg-hd)*Math.min(1,dt*25);
+  var o=S[s],n=Math.ceil(dt/.004),h=dt/n,wd=TAU*wr(),m=0;
+  for(var i=0;i<n;i++){t+=h;
+    X.forEach(function(q,k){var w=TAU*o.B*o.f0[k]/o.f0[0],F=s===0?0:s===1?o.G*w*w*hd:o.G*w*w*Math.cos(wd*t);
+      V[k]+=(F-2*o.Z*w*V[k]-w*w*q)*h;X[k]+=V[k]*h})}
+  X.forEach(function(q,k){m=Math.max(m,Math.abs(q));env[k]=Math.max(Math.abs(q),env[k]*(1-dt*.8))});
+  peak=Math.max(m,peak*(1-dt));                       /* recent max amplitude */
+  g.clearRect(0,0,760,300);
+  if(s===0)swing(X[0]);else if(s===1)string();else glass(X[0]*Math.cos(TAU*3*t));
+  var near=o.f0.reduce(function(a,b){return Math.min(a,Math.abs(f.value-b)/b)},9),msg=$("msg");
+  if(peak>.8&&!won){won=true;wonAt=t}
+  if(won){msg.textContent=o.win;msg.style.color="#1a8f4c";if(s!==1&&t-wonAt>5){load(s<2?s+1:0);requestAnimationFrame(frame);return}}
+  else{msg.textContent=(s===1&&auto)?"Auto-shake is moving the end at just the right rhythm. Watch the standing wave build.":near<.15?"Getting close. Fine-tune the frequency.":o.goal;msg.style.color="#17202a"}
+  requestAnimationFrame(frame);
+}
+[1,2,3].forEach(function(n){var b=document.createElement("button");b.textContent=n;b.setAttribute("aria-label","Go to step "+n);b.onclick=function(){load(n-1)};$("jump").appendChild(b)});
+load(0);
+requestAnimationFrame(function(ts){last=ts;requestAnimationFrame(frame)});
+})();
+</script>
 </body>
 </html>

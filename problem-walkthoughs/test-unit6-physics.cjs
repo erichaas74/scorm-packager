@@ -18,13 +18,17 @@ near(physics.parallel([6, 6]), 3);
 near(physics.current(18, 9), 2);
 near(physics.emf(100, .2, .01, 10), 2);
 const files = JSON.parse(fs.readFileSync(path.join(root, 'simple-walkthrough-files.json')));
+let rendered = 0;
 for (const file of files) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   const lesson = JSON.parse(html.match(/window.walkthroughLesson = (.*?);<\/script>/s)[1]);
+  // Interactive motor challenges have a separate browser/model verification suite.
+  if (['challenge','showpiece'].includes(lesson.type)) continue;
+  rendered++;
   for (const compact of [false, true]) for (const reveal of [false, true]) for (const progress of [0, .25, .5, .75, 1]) {
     const result = diagrams.render(lesson, { phase: reveal ? 'reveal' : 'predict', reveal, progress, time: progress * 6.5, complete: progress === 1, compact });
     assert(!/NaN|Infinity|undefined/.test(result.markup), `${file}: invalid geometry`);
     assert(result.width > 0 && result.height > 0);
   }
 }
-console.log(`Physics identities and render states pass for ${files.length} lessons.`);
+console.log(`Physics identities and render states pass for ${rendered} textbook lessons; custom activities use their own model and browser verification suites.`);
