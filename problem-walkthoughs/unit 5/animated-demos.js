@@ -124,21 +124,43 @@
     return {svg,height:485,description:`Two waves on the same rope travel at 2 metres per second. Frequencies ${base} and ${2*base} hertz give wavelengths ${v/base} and ${v/(2*base)} metres. Both fronts travel together.`};
   }
   function standing(w,t,example) {
-    const left=48,right=w-24,L=6,scale=(right-left)/L,n=example+2,k=n*Math.PI/L,omega=k*2;
-    let svg=status(w,'Opposite traveling waves add');
-    for(const [y,dir,color,name] of [[140,-1,C.blue,'Right-moving component'],[285,1,C.orange,'Left-moving component']]) {
-      svg+=text(left,y-62,name,18,color,'start')+line(left,y,right,y,C.grid,1);
-      svg+=curve(left,right,x=>y-28*Math.sin(k*(x-left)/scale+dir*omega*t),color,2,'5 3');
-      svg+=arrow(dir===-1?right-50:right,y-60,dir===-1?right:right-50,y-60,color);
+    const left=40,right=w-24,L=6,scale=(right-left)/L,n=example+1,k=n*Math.PI/L,omega=k*2;
+    const phase=t<2?'travel':t<4?'combine':t<14?'standing':'frequency';
+    const time=t*.75,front=Math.min(L,2*time);
+    const incomingRight=x=>x<=front?Math.sin(k*x-omega*time):0;
+    const incomingLeft=x=>x>=L-front?Math.sin(k*x+omega*time):0;
+    const heading=phase==='travel'?'Waves enter from opposite ends':phase==='combine'?'The waves overlap and add':phase==='standing'?'Their sum is a standing wave':n<3?'Higher frequency: next harmonic':'Return to the fundamental';
+    let svg=status(w,heading);
+    svg+=text(left,65,`Harmonic ${n}`,18,C.ink,'start')+text(right,65,`f = ${(n/6).toFixed(3)} Hz`,18,C.ink,'end');
+    for(const [y,dir,color,name] of [[160,-1,C.blue,'Right-moving wave'],[295,1,C.orange,'Left-moving wave']]) {
+      svg+=text(left,y-57,name,18,color,'start')+line(left,y,right,y,C.grid,1);
+      svg+=curve(left,right,x=>y-28*Math.sin(k*(x-left)/scale+dir*omega*time),color,2.5,dir===-1?'7 4':'3 4');
+      svg+=arrow(dir===-1?right-60:right,y-55,dir===-1?right:right-60,y-55,color,3);
+      // Follow crests (phase), not particles: equal speeds, opposite directions.
+      for(let j=-8;j<=8;j++) {
+        const x=(Math.PI/2+TAU*j-dir*omega*time)/k;
+        if(x>=0&&x<=L)svg+=circle(left+x*scale,y-28,5,color,'white');
+      }
     }
-    svg+=text(left,385,'Actual string: the sum',18,C.teal,'start')+line(left,455,right,455,C.grid);
-    svg+=curve(left,right,x=>455-28*physics.standing((x-left)/scale,t,n),C.teal,4);
-    for(let j=0;j<=n;j++)svg+=circle(left+L*j/n*scale,455,4,C.ink);
-    svg+=line(left+L/n*scale,461,left+L/n*scale,508,C.ink)+text(left+L/n*scale,528,'Node',17);
-    const anti=left+L*(n-.5)/n*scale;
-    svg+=arrow(anti,511,anti,399,C.orange)+arrow(anti,399,anti,511,C.orange)+text(w-24,557,'Antinode: largest motion',17,C.orange,'end');
-    svg+=footer(w,'Nodes stay still; energy does not drift along.',587);
-    return {svg,height:610,description:`Standing mode ${n}. Equal opposite traveling waves form a sum with fixed nodes and oscillating antinodes. The components are shown separately above the actual string.`};
+    svg+=text(left,385,'Actual string: right + left',18,C.teal,'start');
+    svg+=line(left,455,right,455,C.grid);
+    svg+=`<g opacity=".5">`+curve(left,right,x=>455-28*incomingRight((x-left)/scale),C.blue,2,'7 4')+curve(left,right,x=>455-28*incomingLeft((x-left)/scale),C.orange,2,'3 4')+'</g>';
+    svg+=curve(left,right,x=>455-28*(incomingRight((x-left)/scale)+incomingLeft((x-left)/scale)),C.teal,4);
+    if(t<4) {
+      svg+=arrow(left,411,left+Math.min(60,front*scale),411,C.blue,3);
+      svg+=arrow(right,411,right-Math.min(60,front*scale),411,C.orange,3);
+      svg+=circle(left+front*scale,455,4,C.blue,'white')+circle(right-front*scale,455,4,C.orange,'white');
+    }
+    if(t>=4) {
+      for(let j=0;j<=n;j++)svg+=circle(left+L*j/n*scale,455,4,C.ink);
+      const node=left+L*Math.floor(n/2)/n*scale, anti=left+L*(n-.5)/n*scale;
+      svg+=line(node,463,node,514,C.ink)+text(Math.max(65,node),538,'Fixed node',17);
+      svg+=arrow(anti,511,anti,399,C.orange)+arrow(anti,399,anti,511,C.orange);
+      svg+=text(right,566,`${n} ${n===1?'loop':'loops'} \u2022 ${n} ${n===1?'antinode':'antinodes'}`,18,C.teal,'end');
+    } else svg+=text(w/2,535,'Waves travel along this string',17);
+    const next=n<3?n+1:1;
+    svg+=text(w/2,600,t>=14?`Next: ${(n/6).toFixed(3)} \u2192 ${(next/6).toFixed(3)} Hz`:'6 m string \u2022 2 m/s \u2022 0.75x speed',18);
+    return {svg,height:620,phase,description:`Harmonic ${n}, frequency ${(n/6).toFixed(3)} hertz. ${heading}. Equal blue right-moving and orange left-moving waves have the same speed and amplitude. ${t>=4?`Their teal sum has ${n} antinodes and ${n+1} fixed nodes.`:'On the bottom string one wave enters from the left and another from the right; their displacements add wherever they overlap.'}`};
   }
   function refractPanel(w,t,n1,n2,degrees,name,id,water=false) {
     const cx=w/2,cy=240,theta=degrees*Math.PI/180,beta=physics.snell(n1,n2,theta),len=140;
@@ -337,7 +359,7 @@
     svg+=text(w/2,486,example===0?'Real, inverted, half-size':'Real, inverted, twice-size',18)+footer(w,'Ideal thin lens; rays drawn in sequence.',523);
     return {svg,height:545,description:`An ideal converging thin lens with object distance ${d} focal lengths forms a real inverted image at ${image} focal lengths, with magnification ${(-image/d).toFixed(1)}. Three construction rays meet at the image tip.`};
   }
-  const counts={refraction:3};
+  const counts={refraction:3,standing:3};
   function render(kind,w,t,example=0) {
     if(['transverse','longitudinal','compression','soundparticles'].includes(kind))return particles(w,t,kind);
     if(['pulse','reflection','interference'].includes(kind))return pulses(w,t,kind,example);
@@ -362,15 +384,16 @@
   const compact=matchMedia('(max-width: 760px)'),reduced=matchMedia('(prefers-reduced-motion: reduce)');
   let elapsed=0,last=null,example=0,completed=false,frameId,stage=0;
   const count=counts[lesson.kind]||(['transverse','longitudinal','compression','soundparticles','gem','photons'].includes(lesson.kind)?1:2);
-  const length=12;
+  const length=lesson.kind==='standing'?18:12;
   function draw(announce=false) {
     let t=elapsed;
     if(lesson.kind==='interference')t=elapsed<4?elapsed:elapsed<6?4:elapsed-2;
     const result=render(lesson.kind,compact.matches?420:840,t,example);
     scene.setAttribute('viewBox',`0 0 ${compact.matches?420:840} ${result.height}`);
     scene.innerHTML=result.svg;scene.setAttribute('aria-label',result.description);
-    scene.dataset.phase='demo';scene.dataset.example=example;scene.dataset.time=t.toFixed(2);
-    if(announce)live.textContent=result.description;
+    const changed=scene.dataset.phase!==(result.phase||'demo');
+    scene.dataset.phase=result.phase||'demo';scene.dataset.example=example;scene.dataset.time=t.toFixed(2);
+    if(announce||changed)live.textContent=result.description;
   }
   function advance() {
     if(example===count-1&&!completed){completed=true;window.parent.postMessage({ type: 'complete' }, '*');}
@@ -379,7 +402,7 @@
   function reset() {elapsed=0;example=0;stage=0;last=null;draw(true);}
   function settings(){step.hidden=!reduced.matches;reset();}
   replay.addEventListener('click',reset);
-  step.addEventListener('click',()=>{stage++;if(stage>3)advance();else {elapsed=[0,2,4,8][stage];draw(true);}});
+  step.addEventListener('click',()=>{stage++;if(stage>3)advance();else {elapsed=(lesson.kind==='standing'?[0,3.2,7,15]:[0,2,4,8])[stage];draw(true);}});
   compact.addEventListener('change',()=>draw());reduced.addEventListener('change',settings);
   document.addEventListener('visibilitychange',()=>{last=null;});
   function frame(now) {

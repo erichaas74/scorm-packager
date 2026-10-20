@@ -134,12 +134,14 @@ Current template names (all renamed on 2026-07-13):
    ```text
    Type: F, Number
    Score: 1
-   Figures: 3
    Var: launch1 = 20..35
    1) Level 1 Trial 1: Set Cannon 1 to $launch1$ degrees, click Fire Baseline,
       then adjust Cannon 2 until the act succeeds. What Cannon 2 angle worked? ________ degrees
    a. eval(90-$launch1$)
    ```
+
+   Do not add `Figures:` to these angle questions: it requires significant digits,
+   so `Figures: 3` can reject a correct whole-degree entry such as `64`.
 
    Always preview variable import in Buzz and confirm the `eval` grades correctly
    before publishing.

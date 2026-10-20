@@ -1,0 +1,2 @@
+from pathlib import Path
+p=Path('problem-walkthoughs/unit 6/sphere-contact.js');s=p.read_text();s=s.replace('const theta=-Math.PI/2+i*2*Math.PI/n,x=', 'const top=Math.ceil(n/2),upper=i<top,count=upper?top:n-top,j=upper?i:i-top,theta=(upper?-3:1)*Math.PI/4+(count===1?Math.PI/4:j*Math.PI/2/(count-1)),x=');s='\n'.join(line for line in s.splitlines() if not line.strip().startswith('const descriptions='));p.write_text(s)

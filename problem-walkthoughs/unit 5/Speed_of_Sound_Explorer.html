@@ -1,38 +1,762 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sound Through Steel and Air</title>
-<link rel="stylesheet" href="simple-walkthrough.css">
-</head>
+<!DOCTYPE html><html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Speed of Sound Simulation</title>
+  <style>
+    :root {
+      --navy: #17365d;
+      --blue: #2865a8;
+      --blue-dark: #174b86;
+      --sky: #eaf5ff;
+      --surface: #ffffff;
+      --ink: #17263b;
+      --muted: #53677e;
+      --line: #a9c3df;
+      --orange: #d96522;
+      --green: #187447;
+      --green-soft: #e9f8ef;
+      --red: #a83b32;
+      --red-soft: #fff0ed;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: transparent;
+      color: var(--ink);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    body { padding: 18px; }
+    button { min-height: 44px; font: inherit; }
+
+    .sos-app {
+      width: min(100%, 1050px);
+      margin: 0 auto;
+      overflow: hidden;
+      border: 5px solid var(--blue);
+      border-radius: 24px;
+      background: var(--surface);
+      box-shadow: 0 16px 42px rgba(23, 54, 93, 0.14);
+    }
+
+    .sos-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(110deg, #ffffff, #e9f5ff);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 9px;
+    }
+
+    .header-modes {
+      display: flex;
+      overflow: hidden;
+      border: 1px solid #7898b9;
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .sos-kicker {
+      margin: 0 0 4px;
+      color: var(--blue);
+      font-size: 0.75rem;
+      font-weight: 850;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--navy);
+      font-size: clamp(1.45rem, 4vw, 2.15rem);
+      line-height: 1.08;
+    }
+
+    .reset-button {
+      flex: 0 0 auto;
+      padding: 8px 15px;
+      border: 1px solid #7898b9;
+      border-radius: 999px;
+      background: #fff;
+      color: var(--blue-dark);
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .sos-body { padding: 18px; }
+
+    .intro {
+      margin: 0 0 14px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .race-panel,
+    .explanation {
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: #fbfdff;
+    }
+
+    .button-row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .mode-button,
+    .replay-button {
+      padding: 9px 14px;
+      border: 1px solid #7898b9;
+      border-radius: 10px;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    .mode-button {
+      min-height: 40px;
+      border: 0;
+      border-radius: 0;
+    }
+
+    .mode-button + .mode-button { border-left: 1px solid #7898b9; }
+
+    .mode-button[aria-pressed="true"] {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .mode-button:hover, .replay-button:hover { background: #e4f1fd; }
+
+    .race-panel {
+      padding: 15px;
+      background: linear-gradient(180deg, #f8fcff, #eef7ff);
+    }
+
+    .race-status {
+      min-height: 25px;
+      margin: 0 0 9px;
+      color: var(--blue-dark);
+      font-size: 0.9rem;
+      font-weight: 800;
+    }
+
+    .tracks { display: grid; gap: 11px; }
+
+    .track-card {
+      display: grid;
+      grid-template-columns: 140px minmax(0, 1fr) 94px;
+      align-items: center;
+      gap: 12px;
+      min-height: 92px;
+      padding: 11px 12px;
+      border: 1px solid #b9cee3;
+      border-radius: 14px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .track-card:hover:not(:disabled) { border-color: var(--blue); background: #f3f9ff; }
+    .track-card:disabled { cursor: default; }
+    .track-card.selected { border: 2px solid var(--orange); background: #fff7f0; }
+
+    .medium-name { color: var(--navy); font-weight: 900; }
+    .medium-detail { margin-top: 3px; color: var(--muted); font-size: 0.76rem; }
+
+    .track {
+      position: relative;
+      height: 68px;
+      overflow: hidden;
+      border: 1px solid #9eb8d1;
+      border-radius: 11px;
+      background: #f7fbff;
+    }
+
+    .particle-field {
+      position: absolute;
+      z-index: 1;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .source,
+    .detector {
+      position: absolute;
+      z-index: 2;
+      top: 10px;
+      width: 7px;
+      height: 46px;
+      border-radius: 4px;
+      background: var(--navy);
+    }
+
+    .source { left: 20px; }
+    .detector { right: 20px; background: var(--orange); }
+
+    .pulse {
+      position: absolute;
+      z-index: 3;
+      top: 15px;
+      left: 22px;
+      width: 24px;
+      height: 24px;
+      opacity: 0;
+      transform: translateX(0);
+    }
+
+    .pulse.mystery {
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      top: 8px;
+      border: 3px solid var(--track-color, var(--blue));
+      border-radius: 7px;
+      background: #fff;
+      color: var(--navy);
+      box-shadow: 0 0 0 5px rgba(40, 101, 168, 0.12);
+      font-size: 1.25rem;
+      font-weight: 950;
+      opacity: 1;
+    }
+
+    .pulse.mystery::after {
+      content: "?";
+      position: static;
+      border-radius: 0;
+      background: transparent;
+    }
+
+    .result {
+      display: grid;
+      place-content: center;
+      width: 78px;
+      aspect-ratio: 1;
+      justify-self: center;
+      padding: 5px;
+      border: 1px solid #a9c3df;
+      border-radius: 10px;
+      background: #f7fbff;
+      color: var(--muted);
+      font-size: 0.76rem;
+      font-weight: 750;
+      text-align: center;
+    }
+
+    .result strong { display: block; color: var(--navy); font-size: 1rem; }
+    .track-card.arrived { border-color: var(--track-color); background: #f7fcff; }
+
+    .result-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+    .replay-button { color: var(--blue-dark); }
+
+    .explanation {
+      margin-top: 12px;
+      padding: 15px 16px;
+      background: var(--green-soft);
+      border-color: #8ec9a7;
+      color: #174d31;
+      line-height: 1.5;
+    }
+
+    .explanation[data-correct="false"] { background: var(--red-soft); border-color: #e0a29b; color: #6d2924; }
+    .explanation h2 { margin: 0 0 5px; font-size: 1rem; }
+    .explanation p { margin: 0; }
+
+    .reason-choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+    .reason-choice {
+      padding: 9px 13px;
+      border: 1px solid #7898b9;
+      border-radius: 10px;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    .reason-choice:hover:not(:disabled) { background: #e4f1fd; }
+    .reason-choice:disabled { cursor: default; opacity: 0.7; }
+    .reason-choice.selected { border: 2px solid currentColor; }
+    [hidden] { display: none !important; }
+    :focus-visible { outline: 3px solid var(--orange); outline-offset: 3px; }
+
+    @media (max-width: 700px) {
+      body { padding: 8px; }
+      .sos-header { align-items: flex-start; flex-direction: column; padding: 15px; }
+      .header-actions { width: 100%; justify-content: space-between; }
+      .sos-body { padding: 12px; }
+      .track-card { grid-template-columns: 1fr; gap: 7px; }
+      .result { text-align: left; }
+      .track { min-height: 68px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; }
+    }
+  </style>
+
+  <style data-rise-unit-5="">
+    html,
+    body {
+      background: transparent;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 0;
+      min-width: 0;
+      padding: 12px;
+    }
+
+    .rise-walkthrough {
+      width: min(100%, 1200px);
+      max-width: 1200px;
+      margin-inline: auto;
+      border: 5px solid #285f9f;
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    .rise-walkthrough.rise-shell {
+      padding: clamp(12px, 2vw, 24px);
+      background: #fff;
+    }
+
+    .rise-walkthrough canvas,
+    .rise-walkthrough svg {
+      max-width: 100%;
+    }
+
+    .rise-walkthrough button,
+    .rise-walkthrough input,
+    .rise-walkthrough select {
+      min-height: 32px;
+    }
+
+    .rise-walkthrough button:focus-visible,
+    .rise-walkthrough input:focus-visible,
+    .rise-walkthrough select:focus-visible {
+      outline: 3px solid #f59e0b;
+      outline-offset: 3px;
+    }
+
+    .rise-walkthrough > #canvas-container,
+    .rise-walkthrough > .controls-panel {
+      margin-inline: auto;
+    }
+
+    @media (max-width: 520px) {
+      body { padding: 4px; }
+      .rise-walkthrough { border-width: 5px; border-radius: 12px; }
+      .rise-walkthrough.rise-shell { padding: 10px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .rise-walkthrough *,
+      .rise-walkthrough *::before,
+      .rise-walkthrough *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+<style>
+.result-actions { gap: 8px; margin-top: 6px; }
+#test-button { background: #285f9f; color: white; }
+#test-button:disabled { opacity: .55; cursor: not-allowed; }
+.prediction-label { display:block; min-height:1.25em; font-size:.8rem; font-weight:800; color:#99420d; }
+.distance-label { position:absolute; left:50%; bottom:0; transform:translateX(-50%); font-size:.75rem; background:#fff; color:#17365d; }
+.track-card.winner { border:3px solid #187447; }
+.race-status[data-result] { padding:12px; border:2px solid #285f9f; border-radius:8px; background:#edf5fc; color:#17365d; font-weight:650; line-height:1.5; }
+
+.result { width:100px; aspect-ratio:auto; min-height:64px; visibility:hidden; }
+.track-card.arrived .result, .track-card.arrived .result > * { visibility:visible; }
+@media(max-width:700px) {
+.track-card {grid-template-columns:1fr 100px;}
+.track-card .track {grid-column:1 / -1; grid-row:2;}
+.result {grid-column:2;grid-row:1;}
+h1 {font-size:clamp(14px,4.2vw,24px);}
+}
+
+/* Enlarged material cutaways and source/detector apparatus. */
+.track-card { grid-template-columns:118px minmax(0,1fr) 100px; gap:10px; }
+.track { height:144px; background:linear-gradient(#f5f9fd,#e8f1f8); border-radius:12px; box-shadow:inset 0 2px 7px #17365d18; }
+.track-card[data-track="water"] .track { background:linear-gradient(#eafcfc,#c7e8ee); }
+.track-card[data-track="steel"] .track { background:linear-gradient(110deg,#ececf4,#fafaff 40%,#d9dce8); }
+.track-card[data-track="hot-air"] .track { background:linear-gradient(#fff8ec,#f8e6d3); }
+.track-card[data-track="cold-air"] .track { background:linear-gradient(#eef7ff,#dcebf8); }
+.source,.detector { top:32px; height:80px; width:24px; border-radius:0; background:none; }
+.source { left:4px; width:28px; }
+.detector { right:4px; background:none; }
+.source svg,.detector svg { display:block; width:100%; height:100%; }
+.track-card.arrived .detector-light { fill:#138353; }
+.distance-label { bottom:3px; padding:0 7px; border-radius:4px; font-weight:700; }
+.medium-name::before { content:""; display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; background:var(--track-color); }
+.track-card.selected { box-shadow:inset 4px 0 #d96522; }
+.track-card.winner { box-shadow:inset 4px 0 #187447; }
+.wave-key { margin:9px 0 0; color:#40566d; font-size:.78rem; text-align:center; }
+@media(max-width:700px) {
+ .track-card { grid-template-columns:minmax(0,1fr) 100px; padding:9px; }
+ .race-panel { padding:9px; }
+ .sos-body { padding:8px; }
+ .track { height:140px; }
+ .header-actions { gap:6px; }
+ .mode-button { padding:8px 10px; }
+}
+</style></head>
 <body>
-<main class="lesson rise-walkthrough">
-<h1>Sound Through Steel and Air</h1>
-<div class="content">
-<div class="stage">
-<svg id="scene" viewBox="0 0 840 490" role="img" aria-label="Sound Through Steel and Air"></svg>
-<div class="message" role="status" aria-live="polite">
-<p id="prompt">Watch the setup.</p>
-<p id="explanation"></p>
-</div>
-</div>
-<div class="buttons" role="group" aria-label="Prediction and playback">
-<button type="button" data-choice="0" hidden>Steel</button>
-<button type="button" data-choice="1" hidden>Air</button>
-<button type="button" data-choice="2" hidden>They tie</button>
-<button class="utility" type="button" id="pause">Pause</button>
-<button class="utility" type="button" id="step" hidden>Next step</button>
-<button class="utility" type="button" id="replay">Replay</button>
-</div>
-</div>
+<main class="sos-app rise-walkthrough" id="speed-sound-app">
+    <header class="sos-header">
+      <div>
+        
+        <h1>Which Sound Wave Is Faster?</h1>
+      </div>
+      <div class="header-actions">
+        <div class="header-modes" aria-label="Choose a comparison">
+          <button class="mode-button" type="button" data-mode="substance" aria-pressed="true">Matter type</button>
+          <button class="mode-button" type="button" data-mode="temperature" aria-pressed="false">Temperature</button>
+        </div>
+        <button class="reset-button" id="reset-button" type="button">Reset</button>
+      </div>
+    </header>
+
+    <div class="sos-body">
+
+
+      <section class="race-panel" aria-label="Speed of sound race">
+        <p class="race-status" id="race-status" aria-live="polite">Which substance will carry the sound wave fastest? Select a track.</p>
+        <div class="tracks" id="tracks"></div><p class="wave-key">Shaded bands: compression. Particles vibrate locally. Waves enlarged.</p>
+        <div class="result-actions">
+          
+          <button class="replay-button" id="replay-button" type="button" hidden="">Replay animation</button>
+        </div>
+      </section>
+
+
+    </div>
+
+<script>
+    const comparisons = {
+      substance: {
+        question: 'Which substance will carry the sound wave fastest?',
+        winner: 'steel',
+        explanation: 'Steel is fastest because its particles are strongly connected and the material is very stiff. A vibration is passed from particle to particle much faster than it is in water or air. Density alone does not determine sound speed; elasticity matters too.',
+        tracks: [
+          { id: 'air', name: 'Air', detail: '20 °C · gas', speed: 343, color: '#2d85c7' },
+          { id: 'water', name: 'Water', detail: '20 °C · liquid', speed: 1480, color: '#148fa3' },
+          { id: 'steel', name: 'Steel', detail: '20 °C · solid', speed: 5100, color: '#7357b5' }
+        ]
+      },
+      temperature: {
+        question: 'In which air temperature will the sound wave travel fastest?',
+        winner: 'hot-air',
+        explanation: 'Sound is fastest in the warm air. Warmer gas particles move more quickly and transfer the pressure disturbance to neighboring particles sooner. Over the same distance, the 40 °C pulse reaches its detector first.',
+        tracks: [
+          { id: 'cold-air', name: 'Cold air', detail: '−10 °C', speed: 325, color: '#3b82c4' },
+          { id: 'room-air', name: 'Room air', detail: '20 °C', speed: 343, color: '#178b94' },
+          { id: 'hot-air', name: 'Hot air', detail: '40 °C', speed: 355, color: '#d36a22' }
+        ]
+      }
+    };
+
+    const tracks = document.getElementById('tracks');
+    const raceStatus = document.getElementById('race-status');
+    const replayButton = document.getElementById('replay-button');
+    const testedModes = new Set();
+    const visitedModes = new Set(['substance']);
+    let advanceTimer = null;
+    function cancelAdvance() { clearTimeout(advanceTimer); advanceTimer = null; }
+    let completionSent = false;
+    let phase = 'predict';
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    let mode = 'substance';
+    let prediction = null;
+    let animationFrame = null;
+    let idleAnimationFrame = null;
+
+    function travelTime(speed) {
+      return (100 / speed).toFixed(3);
+    }
+
+    function render() {
+      const comparison = comparisons[mode];
+      tracks.innerHTML = comparison.tracks.map((item) => `
+        <button class="track-card" type="button" data-track="${item.id}" style="--track-color:${item.color}" aria-pressed="false" aria-label="Predict ${item.name} will arrive first">
+          <div>
+            <div class="medium-name">${item.name}</div>
+            <div class="medium-detail">${item.detail}</div><span class="prediction-label"></span>
+          </div>
+          <div class="track" aria-label="${item.name} sound track">
+            <canvas role="img" aria-label="Interactive visualization for Speed of Sound Simulation" class="particle-field" aria-hidden="true"></canvas>
+            <span class="source" aria-hidden="true"><svg viewBox="0 0 28 80"><rect x="1" y="8" width="10" height="64" rx="4" fill="#253d55"/><path d="M10 26 L23 14 L23 66 L10 54Z" fill="#758da3" stroke="#17365d" stroke-width="2"/><path d="M23 18 Q14 40 23 62" fill="none" stroke="#d8e7f4" stroke-width="3"/><circle cx="6" cy="16" r="2" fill="#c3d1dc"/><circle cx="6" cy="64" r="2" fill="#c3d1dc"/></svg></span><span class="distance-label">100 m</span>
+            <span class="pulse" aria-hidden="true"></span>
+            <span class="detector" aria-hidden="true"><svg viewBox="0 0 24 80"><rect x="3" y="10" width="18" height="60" rx="6" fill="#e4eaf0" stroke="#516a80" stroke-width="2"/><path d="M7 23H17 M7 29H17 M7 35H17 M7 41H17 M7 47H17" stroke="#7890a4" stroke-width="2"/><circle class="detector-light" cx="12" cy="59" r="4" fill="#9cabb9"/></svg></span>
+          </div>
+          <div class="result" aria-live="polite"><strong class="speed-result"></strong><span class="arrival-time"></span></div>
+        </button>
+      `).join('');
+
+      tracks.querySelectorAll('.track-card').forEach((track) => {
+        track.addEventListener('click', () => makePrediction(track.dataset.track));
+      });
+
+      startIdleVibration();
+
+      raceStatus.textContent = `${comparison.question} Select your prediction to launch the waves.`;
+      replayButton.hidden = true;
+      delete raceStatus.dataset.result;
+      prediction = null;
+      phase = 'predict';
+      tracks.dataset.phase = phase;
+
+    }
+
+    function resetAnimation() {
+      cancelAdvance();
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      if (idleAnimationFrame) cancelAnimationFrame(idleAnimationFrame);
+      animationFrame = null;
+      idleAnimationFrame = null;
+      tracks.querySelectorAll('.pulse').forEach((pulse) => { pulse.style.transform = 'translateX(0)'; });
+      tracks.querySelectorAll('.pulse').forEach((pulse) => pulse.classList.remove('mystery'));
+      delete raceStatus.dataset.result;
+      tracks.querySelectorAll('.track-card').forEach((card) => card.classList.remove('arrived', 'winner'));
+      tracks.querySelectorAll('.speed-result').forEach((label) => { label.textContent = ''; });
+      tracks.querySelectorAll('.arrival-time').forEach((label) => { label.textContent = ''; });
+      const comparison = comparisons[mode];
+      comparison.tracks.forEach((item) => {
+        const canvas = tracks.querySelector(`[data-track="${item.id}"] .particle-field`);
+        if (canvas) drawLongitudinal(canvas, 0, item.color, false, item.id);
+      });
+    }
+
+    function startIdleVibration() {
+      if (idleAnimationFrame) cancelAnimationFrame(idleAnimationFrame);
+
+      const comparison = comparisons[mode];
+      function animateIdle() {
+        comparison.tracks.forEach((item) => {
+          const canvas = tracks.querySelector(`[data-track="${item.id}"] .particle-field`);
+          if (canvas) drawLongitudinal(canvas, 0, item.color, false, item.id);
+        });
+
+        idleAnimationFrame = null;
+      }
+
+      idleAnimationFrame = requestAnimationFrame(animateIdle);
+    }
+
+    function drawLongitudinal(canvas, progress, color, active, materialId = 'air') {
+      const dpr=Math.min(devicePixelRatio||1,2),w=Math.max(1,canvas.clientWidth),h=Math.max(1,canvas.clientHeight);
+      if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)) {canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);}
+      const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+      const solid=materialId==='steel',liquid=materialId==='water';
+      const x0=36,x1=w-30,span=Math.max(1,x1-x0),top=38,bottom=h-30;
+      const rows=solid?5:liquid?5:4,cols=Math.max(9,Math.round(span/(solid?14:liquid?15:23)));
+      const dx=span/(cols-1),dy=(bottom-top)/(rows-1),front=x0+span*progress;
+      const wavelength=span*.18;
+      const envelope=x=>{const behind=front-x;return active&&behind>=0?Math.min(1,behind/(wavelength*.5)):0;};
+      const points=[];
+      // Continuous traveling sound; particles oscillate locally behind the first wavefront.
+      for(let r=0;r<rows;r++) {
+        points[r]=[];
+        for(let c=0;c<cols;c++) {
+          const jitter=solid?0:Math.sin(c*2.31+r*1.47)*dx*.16;
+          const bx=x0+c*dx+jitter,by=top+r*dy+(solid?0:Math.sin(c*1.73+r*2.17)*dy*.16);
+          const amp=Math.min(dx*.32,wavelength*.09);
+          const displacement=-amp*Math.sin(2*Math.PI*(bx-front)/wavelength)*envelope(bx);
+          points[r].push({x:bx+displacement,y:by,base:bx,energy:envelope(bx)});
+        }
+      }
+      ctx.save();ctx.beginPath();ctx.rect(x0-5,28,span+10,h-50);ctx.clip();
+      // Translucent compression bands move at the same speed as the front.
+      if(active)for(let j=Math.max(0,Math.ceil((front-x1)/wavelength));j<=Math.floor((front-x0)/wavelength);j++) {
+        const x=front-wavelength*j;
+        const strength=envelope(x);
+        if(x<x0||x>x1||strength<.01)continue;
+        const band=ctx.createLinearGradient(x-9,0,x+9,0);
+        band.addColorStop(0,color+'00');band.addColorStop(.5,color+'99');band.addColorStop(1,color+'00');
+        ctx.fillStyle=band;ctx.fillRect(x-9,28,18,h-50);
+      }
+      if(solid) {
+        ctx.strokeStyle='#8c88a8';ctx.lineWidth=1;
+        for(let r=0;r<rows;r++)for(let c=0;c<cols;c++) {
+          const p=points[r][c];
+          for(const q of [points[r][c+1],points[r+1]?.[c]].filter(Boolean)) {
+            ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke();
+          }
+        }
+      }
+      function bead(x,y,r,tint) {
+        const g=ctx.createRadialGradient(x-r*.35,y-r*.4,.2,x,y,r);
+        g.addColorStop(0,'#ffffff');g.addColorStop(.4,tint);g.addColorStop(1,tint);
+        ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+        ctx.strokeStyle='#17365d40';ctx.lineWidth=.6;ctx.stroke();
+      }
+      for(let r=0;r<rows;r++)for(let c=0;c<cols;c++) {
+        const p=points[r][c],radius=solid?3.5:liquid?3.8:2.8;
+        if(!solid&&!liquid)bead(p.x+3,p.y+2,radius*.8,color);
+        bead(p.x,p.y,radius,color);
+        if(r===2&&c===Math.floor(cols*.5)) {
+          ctx.strokeStyle='#ad481b';ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,p.y,radius+2,0,Math.PI*2);ctx.stroke();
+          ctx.strokeStyle='#ad481b88';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(p.base,top-5);ctx.lineTo(p.base,bottom+5);ctx.stroke();
+        }
+      }
+      ctx.restore();
+      if(active) {
+        ctx.strokeStyle=color;ctx.lineWidth=3;ctx.setLineDash([4,3]);
+        if(progress<=1){ctx.beginPath();ctx.moveTo(front,31);ctx.lineTo(front,h-26);ctx.stroke();}ctx.setLineDash([]);
+        const arrowEnd=Math.min(x1,x0+span*(progress%1)+19),arrowStart=Math.max(x0,arrowEnd-34);
+        ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(arrowStart,18);ctx.lineTo(arrowEnd,18);ctx.stroke();
+        ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(arrowEnd,18);ctx.lineTo(arrowEnd-6,14);ctx.lineTo(arrowEnd-6,22);ctx.fill();
+      }
+    }
+
+    function makePrediction(answer) {
+      if (phase !== 'predict') return;
+      prediction = answer;
+      tracks.querySelectorAll('.track-card').forEach((track) => {
+        const selected = track.dataset.track === answer;
+        track.classList.toggle('selected', selected);
+        track.setAttribute('aria-pressed', String(selected));
+        track.querySelector('.prediction-label').textContent = selected ? 'Your prediction' : '';
+      });
+      const choice = comparisons[mode].tracks.find(item => item.id === answer);
+      runRace();
+    }
+
+    function runRace() {
+      if (!prediction || phase === 'running') return;
+      phase = 'running';
+      tracks.dataset.phase = phase;
+      tracks.querySelectorAll('.track-card').forEach(card => { card.disabled = true; });
+
+      resetAnimation();
+      replayButton.hidden = true;
+      raceStatus.textContent = 'Sound starts together over 100 m. All waves continue until the last arrival. Equally slowed playback.';
+
+      const comparison = comparisons[mode];
+      const slowest = Math.min(...comparison.tracks.map((item) => item.speed));
+      const durations = comparison.tracks.map((item) => {
+        const scaled = (mode === 'substance' ? 12000 : 6000) * (slowest / item.speed);
+        const normalDuration = scaled;
+        return reducedMotion.matches ? 80 : normalDuration;
+      });
+      const start = performance.now();
+
+      function animate(now) {
+        let finished = 0;
+        comparison.tracks.forEach((item, index) => {
+          const card = tracks.querySelector(`[data-track="${item.id}"]`);
+          const track = card.querySelector('.track');
+          const canvas = card.querySelector('.particle-field');
+          const pulse = card.querySelector('.pulse');
+          const distance = Math.max(0, track.clientWidth - 100);
+          const waveProgress = Math.min(now-start,Math.max(...durations))/durations[index];
+          const progress = Math.min(1,waveProgress);
+          card.dataset.waveProgress = String(waveProgress);
+          card.dataset.progress = progress.toFixed(4);
+          drawLongitudinal(canvas, waveProgress, item.color, true, item.id);
+          pulse.style.transform = `translateX(${distance * progress}px)`;
+          if (progress === 1) {
+            finished += 1;
+            card.classList.add('arrived');
+            card.querySelector('.speed-result').textContent = `${item.speed} m/s`;
+            const rank = [...comparison.tracks].sort((a,b) => b.speed-a.speed).findIndex(t => t.id === item.id) + 1;
+            card.querySelector('.arrival-time').textContent = `${rank === 1 ? '1st' : rank === 2 ? '2nd' : '3rd'} · ${travelTime(item.speed)} s`;
+          }
+        });
+
+        if (finished < comparison.tracks.length) {
+          animationFrame = requestAnimationFrame(animate);
+        } else {
+          animationFrame = null;
+          revealResult();
+          // Hold the final positions so the measured result stays visible.
+        }
+      }
+
+      animationFrame = requestAnimationFrame(animate);
+    }
+
+    function revealResult() {
+      testedModes.add(mode);
+      if (testedModes.size === 2 && !completionSent) {
+        completionSent = true;
+        window.parent.postMessage({ type: 'complete' }, '*');
+      }
+      replayButton.hidden = false;
+      phase = 'result';
+      tracks.dataset.phase = phase;
+      const comparison = comparisons[mode];
+      const winner = comparison.tracks.find(item => item.id === comparison.winner);
+      raceStatus.textContent = mode === 'substance'
+        ? 'Steel arrives first. Its high stiffness relative to its density lets a vibration pass between neighboring particles much faster than in water or air.'
+        : 'Warm air (40 \u00b0C) arrives first. Its molecules move faster, so pressure disturbances travel faster through the gas. All three waves cover the same 100 m.';
+      raceStatus.dataset.result = 'true';
+      if (mode === 'substance' && !visitedModes.has('temperature')) {
+        raceStatus.textContent += ' Temperature comparison follows shortly.';
+        cancelAdvance();
+        advanceTimer = setTimeout(() => {
+          if (mode === 'substance' && phase === 'result' && !visitedModes.has('temperature')) selectMode('temperature');
+        }, 8000);
+      }
+      tracks.querySelector('[data-track="' + comparison.winner + '"]').classList.add('winner');
+    }
+
+    function selectMode(nextMode) {
+      resetAnimation();
+      mode = nextMode;
+      visitedModes.add(mode);
+      document.querySelectorAll('.mode-button').forEach(button => {
+        button.setAttribute('aria-pressed', String(button.dataset.mode === mode));
+      });
+      render();
+    }
+    document.querySelectorAll('.mode-button').forEach(button => {
+      button.addEventListener('click', () => selectMode(button.dataset.mode));
+    });
+    window.addEventListener('pagehide', cancelAdvance);
+
+    replayButton.addEventListener('click', runRace);
+    document.getElementById('reset-button').addEventListener('click', () => {
+      resetAnimation();
+      render();
+    });
+
+    window.addEventListener('resize', () => {
+      comparisons[mode].tracks.forEach(item => {
+        const card=tracks.querySelector(`[data-track="${item.id}"]`);
+        drawLongitudinal(card.querySelector('canvas'), phase==='predict'?0:Number(card.dataset.waveProgress||0), item.color, phase!=='predict', item.id);
+      });
+    });
+    render();
+  </script>
 </main>
-<script>window.walkthroughLesson = {"title":"Sound Through Steel and Air","type":"race","variant":"sound","question":"Sound travels the same distance in steel and air. Which pulse arrives first?","choices":["Steel","Air","They tie"],"correct":0,"explanation":"Sound travels faster in steel than in air. The speed depends on the medium's elastic properties and density."};</script>
-<script src="textbook-diagrams.js"></script>
-<script src="textbook-waves.js"></script>
-<script src="textbook-optics.js"></script>
-<script src="textbook-matter.js"></script>
-<script src="textbook-systems.js"></script>
-<script src="simple-walkthrough.js"></script>
-</body>
-</html>
+
+
+</body></html>

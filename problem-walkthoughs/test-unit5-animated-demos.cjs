@@ -18,7 +18,7 @@ near(p.pulses(6, 5), 1); // Components pass through rather than bounce.
 near(p.pulse(3, 0), 0);
 near(p.pulse(3, 3), 1);
 near(p.pulse(3, 7), 0);
-for (const n of [2, 3]) for (const t of [0, .2, 1, 4]) {
+for (const n of [1, 2, 3]) for (const t of [0, .2, 1, 4]) {
   for (let j = 0; j <= n; j++) near(p.standing(6*j/n, t, n), 0);
   for (let x = 0; x <= 6; x += .1) {
     const k = n*Math.PI/6;

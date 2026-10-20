@@ -1,38 +1,73 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>A Closed Pipe's First Mode</title>
-<link rel="stylesheet" href="simple-walkthrough.css">
-</head>
-<body>
-<main class="lesson rise-walkthrough">
-<h1>A Closed Pipe's First Mode</h1>
-<div class="content">
-<div class="stage">
-<svg id="scene" viewBox="0 0 840 490" role="img" aria-label="A Closed Pipe's First Mode"></svg>
-<div class="message" role="status" aria-live="polite">
-<p id="prompt">Watch the setup.</p>
-<p id="explanation"></p>
-</div>
-</div>
-<div class="buttons" role="group" aria-label="Prediction and playback">
-<button type="button" data-choice="0" hidden>One quarter</button>
-<button type="button" data-choice="1" hidden>One half</button>
-<button type="button" data-choice="2" hidden>One full wavelength</button>
-<button class="utility" type="button" id="pause">Pause</button>
-<button class="utility" type="button" id="step" hidden>Next step</button>
-<button class="utility" type="button" id="replay">Replay</button>
-</div>
-</div>
-</main>
-<script>window.walkthroughLesson = {"title":"A Closed Pipe's First Mode","type":"harmonics","variant":"pipe","question":"One pipe end is closed and the other open. How much wavelength fits in its first mode?","choices":["One quarter","One half","One full wavelength"],"correct":0,"explanation":"The closed end is a displacement node and the open end is a displacement antinode. They are one quarter wavelength apart."};</script>
-<script src="textbook-diagrams.js"></script>
-<script src="textbook-waves.js"></script>
-<script src="textbook-optics.js"></script>
-<script src="textbook-matter.js"></script>
-<script src="textbook-systems.js"></script>
-<script src="simple-walkthrough.js"></script>
-</body>
-</html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Closed-Pipe Harmonics</title>
+<style>
+html, body { background: transparent; margin:0; }
+.pipe-demo{box-sizing:border-box;width:min(100%,960px);margin:auto;padding:14px 12px 10px;border:5px solid #285f9f;border-radius:18px;background:#fff;color:#173449;font-family:system-ui,sans-serif}
+.pipe-demo *{box-sizing:border-box}.pipe-demo h1{font-size:clamp(20px,3vw,28px);line-height:1.2;text-align:center;margin:0 0 6px;white-space:nowrap}
+.pipe-demo svg{display:block;width:100%;height:auto}.pipe-demo svg text{font-family:system-ui,sans-serif;fill:#173449;font-size:15px}.pipe-demo svg .small{font-size:13px;fill:#486174}.pipe-demo svg .strong{font-weight:700}.pipe-demo svg .big{font-size:21px;font-weight:700}
+.pipe-demo .controls{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-top:6px}.pipe-demo button{font:600 14px system-ui;color:#173449;background:#f1f6fa;border:1px solid #8da6b8;border-radius:7px;min-height:36px;min-width:36px;padding:6px 10px;cursor:pointer}.pipe-demo button[aria-pressed=true]{background:#285f9f;color:white;border-color:#285f9f}.pipe-demo button:focus-visible{outline:3px solid #bc6b00;outline-offset:2px}.pipe-demo .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+@media(max-width:500px){.pipe-demo{padding:10px 4px 8px;border-radius:12px}.pipe-demo button{padding:6px 8px}.pipe-demo svg .small{font-size:13px}}
+</style></head><body><main class="pipe-demo">
+<h1>Closed-Pipe Harmonics</h1>
+<svg id="scene" role="img" aria-labelledby="scene-title scene-desc"></svg>
+<div class="controls" role="group" aria-label="Harmonic examples">
+<button data-mode="0" aria-label="First harmonic" aria-pressed="true">1st</button><button data-mode="1" aria-label="Third harmonic" aria-pressed="false">3rd</button><button data-mode="2" aria-label="Fifth harmonic" aria-pressed="false">5th</button><button data-mode="3" aria-label="Seventh harmonic" aria-pressed="false">7th</button><button id="replay">Replay</button>
+</div><span id="status" class="sr" role="status" aria-live="polite"></span>
+<script>
+(()=>{'use strict';
+const svg=document.getElementById('scene'),status=document.getElementById('status');
+const media=matchMedia('(prefers-reduced-motion: reduce)'),modes=[1,3,5,7],names=['Fundamental','Third harmonic','Fifth harmonic','Seventh harmonic'];
+let mode=0,elapsed=0,last=0,completed=false,seen=new Set(),width=900,lastStage=-1;
+const text=(x,y,s,cls='',anchor='middle')=>cls==='small'?'':`<text x="${x}" y="${y}" class="${cls}" text-anchor="${anchor}">${s}</text>`;
+const line=(x,y,a,b,c='#a8bac5',w=1,d='')=>`<line x1="${x}" y1="${y}" x2="${a}" y2="${b}" stroke="${c}" stroke-width="${w}" ${d?`stroke-dasharray="${d}"`:''}/>`;
+function checkComplete(){if(seen.size===modes.length&&!completed){completed=true;window.parent.postMessage({type:'complete'}, '*');}}
+function select(i){mode=i;elapsed=0;lastStage=-1;last=0;document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',Number(b.dataset.mode)===mode));if(media.matches){seen.add(mode);checkComplete();}draw();}
+function draw(){
+ const w=width,compact=w<540,x0=compact?30:65,x1=w-x0,len=x1-x0,n=modes[mode];
+ const stage=media.matches?3:Math.min(3,Math.floor(elapsed/4));
+ const k=n*Math.PI/2,phase=media.matches?1:Math.cos(2*Math.PI*(n/4)*elapsed),amp=compact?4:10;
+ const instruction=['Air vibrates along the pipe.','Mark the still points and largest motion.','Count the quarter-wavelength sections.','Same pipe. Shorter wavelength, higher pitch.'][stage];
+ const desc=`${names[mode]}. A pipe closed at the left and open at the right. Length 1 metre, sound speed 340 metres per second. ${n} quarter wavelengths fit. Wavelength ${(4/n).toFixed(3)} metres; frequency ${85*n} hertz. ${((n+1)/2)} displacement nodes and ${((n+1)/2)} displacement antinodes. Only odd harmonics are allowed. Air moves horizontally; the lower curve represents displacement, not the path of air particles.`;
+ const stacked=w<700,topShift=stacked?117:18;
+ svg.setAttribute('viewBox',`0 0 ${w} ${(compact?525:518)+topShift}`);svg.setAttribute('data-harmonic',String(n));svg.setAttribute('data-stage',String(stage));
+ let h=`<title id="scene-title">${names[mode]}</title><desc id="scene-desc">${desc}</desc><defs><linearGradient id="metal" x2="0" y2="1"><stop stop-color="#d2e0e7"/><stop offset=".4" stop-color="#f8fbfc"/><stop offset="1" stop-color="#91acbd"/></linearGradient><linearGradient id="air" x2="0" y2="1"><stop stop-color="#e5f4f4"/><stop offset=".5" stop-color="#fbfefe"/><stop offset="1" stop-color="#deeff0"/></linearGradient><pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><path d="M0 0V7" stroke="#7c95a6" stroke-width="2"/></pattern><clipPath id="tube"><rect x="${x0}" y="147" width="${len+14}" height="112"/></clipPath></defs>`;
+ h+=text(stacked?w/2:w*.21,stacked?29:45,names[mode],'big');
+ h+=text(stacked?w/2:w*.21,stacked?54:72,`n = ${n}   ·   L = 1.00 m`,'strong');
+ h+=text(stacked?w/2:w*.21,stacked?78:96,'v = 340 m/s','strong');
+ const bx=stacked?10:w*.43,by=stacked?94:5,bw=w-bx-(stacked?10:16);
+ h+=`<rect x="${bx}" y="${by}" width="${bw}" height="56" rx="6" fill="#f1f6fa" stroke="#285f9f" stroke-width="2"/><rect x="${bx}" y="${by+64}" width="${bw}" height="56" rx="6" fill="#f1f6fa" stroke="#285f9f" stroke-width="2"/>`;
+ const working=[elapsed>=2||media.matches?`λ = 4L/n = 4 × 1.00 / ${n}`:'λ = 4L/n',`λ ${n===1||n===5?'=':'≈'} ${(4/n).toFixed(n===1?2:3)} m`,elapsed>=10||media.matches?`f = nv/(4L) = ${n} × 340 / (4 × 1.00)`:'f = nv/(4L)',`f = ${85*n} Hz`];
+ working.forEach((s,i)=>{if(i<=stage)h+=text(bx+12,by+22+Math.floor(i/2)*64+(i%2)*24,s,i%2?'strong':'','start');});
+ h+=`<g transform="translate(0 ${topShift})">`;
+ h+=text(x0,126,'Closed','strong','start')+text(x1,126,'Open','strong','end');
+ h+=`<rect x="${x0-11}" y="137" width="${len+11}" height="132" rx="5" fill="url(#metal)" stroke="#647f91" stroke-width="1.5"/><rect x="${x0}" y="147" width="${len}" height="112" fill="url(#air)"/><rect x="${x0-11}" y="139" width="11" height="128" fill="url(#hatch)"/><ellipse cx="${x1}" cy="203" rx="10" ry="65" fill="#e1edf1" stroke="#647f91" stroke-width="2"/><ellipse cx="${x1}" cy="203" rx="6" ry="56" fill="#f7fbfc"/>`;
+ h+='<g clip-path="url(#tube)">';
+ const cols=compact?37:61;for(let c=0;c<=cols;c++){let u=c/cols,s=Math.sin(k*u),x=x0+u*len+amp*s*phase;for(let r=0;r<5;r++){let y=164+r*19;h+=`<circle cx="${x.toFixed(2)}" cy="${y}" r="${compact?1.7:2.1}" fill="#187b83" opacity=".65"/>`;}}
+ h+='</g>';
+ if(stage>=1){for(let j=0;j<=n;j++){let x=x0+j*len/n,node=j%2===0;h+=line(x,151,x,255,node?'#294d65':'#a96a16',1,'3 5');h+=node?`<circle cx="${x}" cy="203" r="5" fill="#173449" stroke="white" stroke-width="1.5"/>`:`<path d="M${x+amp*Math.sin(j*Math.PI/2)*phase} 197l6 6-6 6-6-6Z" fill="#a96a16" stroke="white"/>`;h+=text(x,290,node?'N':'A','strong');}}
+ else {h+=text(w/2,291,compact?'Air stays near its starting position.':'Particles move back and forth, not end to end.','small');}
+ if(stage>=2){for(let j=0;j<n;j++){let a=x0+j*len/n,b=a+len/n;h+=line(a,316,b,316,j%2?'#a96a16':'#187b83',3)+line(a,310,a,322,'#486174',1.4);if(!compact||n<=5)h+=text((a+b)/2,340,'λ/4','small');}h+=line(x1,310,x1,322,'#486174',1.4);if(compact&&n>5)h+=text(w/2,340,'Each section = λ/4','small');h+=text(w/2,353,'L = 1.00 m','strong');}
+ else h+=line(x0,326,x1,326,'#486174',1.5)+line(x0,320,x0,332)+line(x1,320,x1,332)+text(w/2,353,'L = 1.00 m','strong');
+ const gy=compact?440:433,ga=32;
+ h+=text(w/2,393,'Air displacement along the pipe','strong');
+ // Match the upper tube's closed-left/open-right boundaries around the displacement curve.
+ h+=`<path d="M${x1} ${gy-36}H${x0}V${gy+36}H${x1}" fill="url(#air)" stroke="#647f91" stroke-width="2"/><rect x="${x0-7}" y="${gy-36}" width="7" height="72" fill="url(#hatch)" stroke="#647f91" stroke-width="1"/><ellipse cx="${x1}" cy="${gy}" rx="6" ry="36" fill="none" stroke="#647f91" stroke-width="1.5"/>`;
+ h+=line(x0,gy,x1,gy,'#9eb3bf',1,'4 4');
+ for(let sign of [-1,1]){let d='';for(let i=0;i<=240;i++){let u=i/240;d+=`${i?'L':'M'}${(x0+u*len).toFixed(2)},${(gy-sign*ga*Math.sin(k*u)).toFixed(2)} `;}h+=`<path d="${d}" fill="none" stroke="#8aaeb3" stroke-width="1.4" stroke-dasharray="4 4"/>`;}
+ let d='';for(let i=0;i<=240;i++){let u=i/240;d+=`${i?'L':'M'}${(x0+u*len).toFixed(2)},${(gy-ga*Math.sin(k*u)*phase).toFixed(2)} `;}h+=`<path d="${d}" fill="none" stroke="#086b73" stroke-width="3"/>`;
+ if(stage>=1)for(let j=0;j<=n;j++){let x=x0+j*len/n;h+=j%2===0?`<circle cx="${x}" cy="${gy}" r="4" fill="#173449"/>`:'';}
+ h+=text(x0,gy+60,'Closed: node','strong','start')+text(x1,gy+60,'Open: antinode','strong','end');
+ h+='</g>';
+ svg.innerHTML=h;
+ if(lastStage!==stage){status.textContent=`${names[mode]}. ${instruction} ${stage===3?desc:''}`;lastStage=stage;}
+}
+ document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>select(Number(b.dataset.mode))));
+ document.getElementById('replay').addEventListener('click',()=>select(0));
+ new ResizeObserver(entries=>{width=Math.max(280,Math.min(900,entries[0].contentRect.width));draw();}).observe(svg.parentElement);
+ media.addEventListener('change',()=>select(mode));
+ document.addEventListener('visibilitychange',()=>{last=0;});
+ function tick(now){let dt=last?Math.min((now-last)/1000,.1):0;last=now;if(!document.hidden&&!media.matches){elapsed+=dt;if(elapsed>=16){seen.add(mode);checkComplete();select((mode+1)%modes.length);}draw();}requestAnimationFrame(tick);}
+ select(0);requestAnimationFrame(tick);
+})();
+</script></main></body></html>

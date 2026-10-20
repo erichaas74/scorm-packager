@@ -1,0 +1,10 @@
+const fs=require('fs');const p='problem-walkthoughs/unit 5/string_pipe_harmonics_simulation.html';let s=fs.readFileSync(p,'utf8');
+s=s.replace('<button data-mode="4" aria-label="Ninth harmonic" aria-pressed="false">9th</button><button data-mode="5" aria-pressed="false">The rule</button>','');
+s=s.replace("modes=[1,3,5,7,9,9],names=['Fundamental','Third harmonic','Fifth harmonic','Seventh harmonic','Ninth harmonic','Every allowed harmonic']","modes=[1,3,5,7],names=['Fundamental','Third harmonic','Fifth harmonic','Seventh harmonic']");
+s=s.replace('seen.size===6','seen.size===modes.length').replace('n=modes[mode],rule=mode===5','n=modes[mode]').replace('media.matches||rule?3','media.matches?3').replace("rule?'Only odd harmonics meet both boundaries.':",'');
+s=s.replace(/^ h\+=text\(stacked\?w\/2:w\*\.21,stacked\?54:72,.*\r?\n/m,'');
+s=s.replace("const working=rule?['λₙ = 4L/n','fₙ = nv/(4L)','L = 1.00 m; v = 340 m/s','n = 1, 3, 5, 7, 9, …']:","const working=");
+s=s.replace("n===1?'=':'≈'","n===1||n===5?'=':'≈'");
+s=s.replace("text(w/2,363,`L = ${n===1?'':n+' × '}λ/4 = 1.00 m`,'strong')","text(w/2,353,'L = 1.00 m','strong')");
+s=s.replace('select((mode+1)%6)','select((mode+1)%modes.length)');
+fs.writeFileSync(p,s);

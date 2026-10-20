@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timbre Builder: Match the Instrument</title>
+    <style>
+        :root {
+            --navy: #153456;
+            --blue: #285f9f;
+            --blue-dark: #174b86;
+            --blue-soft: #e8f2fd;
+            --orange: #e56b24;
+            --ink: #132238;
+            --muted: #52657b;
+            --line: #bfd1e3;
+            --stage: #f8fbfe;
+            --wave-sum: #7c3aed;
+            --wave-a: #2563eb;
+            --wave-b: #d92c2c;
+            --success: #15803d;
+        }
+
+        * { box-sizing: border-box; }
+        html, body { margin: 0; }
+
+        body {
+            min-height: 100vh;
+            padding: 20px;
+            background: #eef4fa;
+            color: var(--ink);
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        }
+
+        button, input { font: inherit; }
+
+        .simulation {
+            width: min(100%, 1080px);
+            margin: 0 auto;
+            overflow: hidden;
+            border: 4px solid var(--blue);
+            border-radius: 22px;
+            background: #fff;
+            box-shadow: 0 18px 45px rgba(21, 52, 86, .14);
+        }
+
+        .sim-header {
+            padding: 18px 22px 16px;
+            border-bottom: 1px solid var(--line);
+            background: linear-gradient(115deg, #fff 0%, #edf6ff 100%);
+        }
+
+        .kicker {
+            margin: 0 0 3px;
+            color: var(--blue);
+            font-size: .72rem;
+            font-weight: 850;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+        }
+
+        .sim-header h1 {
+            margin: 0;
+            color: var(--navy);
+            font-size: clamp(1.3rem, 3.6vw, 1.75rem);
+            line-height: 1.1;
+        }
+
+        .subtitle { margin: 6px 0 0; color: var(--muted); font-size: .92rem; }
+
+        .view-toggles {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 14px 18px 0;
+        }
+
+        .view-toggles button {
+            min-height: 40px;
+            padding: 8px 18px;
+            border: 1px solid #9db5cc;
+            border-radius: 999px;
+            background: #fff;
+            color: var(--blue-dark);
+            font-weight: 750;
+            cursor: pointer;
+            transition: .2s;
+        }
+
+        .view-toggles button:hover:not(.active) { background: var(--blue-soft); }
+
+        .view-toggles button.active {
+            background: var(--blue);
+            border-color: var(--blue-dark);
+            color: #fff;
+        }
+
+        .sim-body { padding: 14px 18px 18px; }
+
+        .stage {
+            position: relative;
+            height: 460px;
+            overflow: hidden;
+            border: 1px solid #9fbbd5;
+            border-radius: 16px;
+            background: var(--stage);
+        }
+
+        canvas { display: block; width: 100%; height: 100%; }
+
+        .readout-badge {
+            position: absolute;
+            top: 14px;
+            left: 14px;
+            padding: 8px 13px;
+            border: 1px solid rgba(40, 95, 159, .28);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, .93);
+            color: var(--navy);
+            font-size: .88rem;
+            font-weight: 850;
+            transition: .3s;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .readout-badge.tuned {
+            border-color: var(--success);
+            color: var(--success);
+            background: #eefbf1;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-top: 14px;
+            padding: 15px;
+            border: 1px solid var(--line);
+            border-radius: 15px;
+            background: var(--stage);
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 0;
+            padding: 12px 13px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: #fff;
+        }
+
+        .control-group > label {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            color: var(--navy);
+            font-size: .86rem;
+            font-weight: 750;
+        }
+
+        .control-group > label span:last-child {
+            color: var(--blue);
+            font-variant-numeric: tabular-nums;
+        }
+
+        input[type=range] { width: 100%; cursor: pointer; accent-color: var(--blue); }
+        input[type=range]:disabled { accent-color: #94a3b8; cursor: not-allowed; }
+
+        .timbre-sliders {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            text-align: center;
+        }
+
+        .timbre-slider-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            color: var(--muted);
+            font-size: .78rem;
+            font-weight: 750;
+        }
+
+        .timbre-slider-col input[type=range] {
+            writing-mode: vertical-lr;
+            direction: rtl;
+            appearance: slider-vertical;
+            height: 96px;
+            width: 8px;
+        }
+
+        .preset-buttons {
+            grid-column: 1 / -1;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .preset-buttons button {
+            padding: 7px 14px;
+            border: 1px solid #9db5cc;
+            border-radius: 999px;
+            background: #fff;
+            color: var(--blue-dark);
+            font-size: .85rem;
+            font-weight: 750;
+            cursor: pointer;
+        }
+
+        .preset-buttons button:hover { background: var(--blue-soft); }
+
+        .info-panel {
+            grid-column: 1 / -1;
+            margin: 0;
+            padding: 11px 13px;
+            border-left: 4px solid var(--orange);
+            border-radius: 8px;
+            background: #fff4ec;
+            color: #713516;
+            font-size: .9rem;
+            line-height: 1.45;
+        }
+
+        .toggle-row {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            color: var(--navy);
+            font-size: .88rem;
+            font-weight: 700;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--blue); cursor: pointer; }
+
+        .helper-note {
+            grid-column: 1 / -1;
+            text-align: center;
+            color: var(--muted);
+            font-size: .85rem;
+        }
+
+        :focus-visible { outline: 3px solid var(--orange); outline-offset: 3px; }
+
+        @media (max-width: 760px) {
+            body { padding: 10px; }
+            .simulation { border-width: 3px; border-radius: 17px; }
+            .sim-body { padding: 10px; }
+            .subtitle { display: none; }
+            .stage { height: 380px; }
+            .controls { grid-template-columns: 1fr; }
+        }
+        .instruments { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 14px 18px 0; }
+        .inst {
+            display: flex; flex-direction: column; align-items: stretch; gap: 2px;
+            padding: 6px 8px 8px; border: 2px solid #9db5cc; border-radius: 14px;
+            background: #fff; color: var(--navy); cursor: pointer; position: relative; text-align: center;
+        }
+        .inst:hover:not(.active) { background: var(--blue-soft); }
+        .inst.active { border-color: var(--orange); background: #fff4ec; box-shadow: 0 0 0 2px rgba(229,107,36,.25); }
+        .inst svg { width: 100%; height: 44px; display: block; }
+        .inst .name { font-size: .84rem; font-weight: 800; }
+        .inst.done::after {
+            content: "\2713"; position: absolute; top: 4px; right: 6px; width: 20px; height: 20px;
+            border-radius: 50%; background: var(--success); color: #fff; font-size: 13px; line-height: 20px; font-weight: 900;
+        }
+        .actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }
+        .actions button {
+            display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 16px;
+            border: 1px solid #9db5cc; border-radius: 999px; background: #fff; color: var(--blue-dark);
+            font-weight: 750; cursor: pointer;
+        }
+        .actions button:hover { background: var(--blue-soft); }
+        .actions button[aria-pressed="true"] { background: var(--blue); border-color: var(--blue-dark); color: #fff; }
+        .swatch { width: 22px; height: 6px; border-radius: 3px; display: inline-block; }
+        .timbre-slider-col input[type=range] {
+            -webkit-appearance: none; appearance: none; background: transparent;
+            writing-mode: vertical-lr; direction: rtl; width: 22px; height: 110px; margin: 0; --pct: 0%;
+        }
+        .timbre-slider-col input[type=range]::-webkit-slider-runnable-track {
+            width: 8px; border-radius: 4px; background: linear-gradient(to top, var(--c) var(--pct), #dbe4ee var(--pct));
+        }
+        .timbre-slider-col input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 22px; height: 22px; margin-left: -7px; border-radius: 50%;
+            background: var(--c); border: 3px solid #fff; box-shadow: 0 0 0 1.5px var(--c), 0 1px 3px rgba(0,0,0,.3);
+        }
+        .timbre-slider-col input[type=range]::-moz-range-track { width: 8px; border-radius: 4px; background: #dbe4ee; }
+        .timbre-slider-col input[type=range]::-moz-range-progress { width: 8px; border-radius: 4px; background: var(--c); }
+        .timbre-slider-col input[type=range]::-moz-range-thumb {
+            width: 16px; height: 16px; border-radius: 50%; background: var(--c); border: 3px solid #fff; box-shadow: 0 0 0 1.5px var(--c);
+        }
+        .hint-text {
+            grid-column: 1 / -1; margin: 0; padding: 9px 13px; border-left: 4px solid var(--orange);
+            border-radius: 8px; background: #fff4ec; color: #713516; font-weight: 700; font-size: .92rem;
+        }
+        .hint-text[hidden] { display: none; }
+        .success { position: absolute; inset: 0; z-index: 3; display: flex; align-items: flex-start; justify-content: center; padding-top: 34%; background: rgba(240, 253, 244, .35); }
+        .success[hidden] { display: none; }
+        .success-card {
+            display: flex; align-items: center; gap: 16px; padding: 16px 26px; border: 3px solid var(--success);
+            border-radius: 18px; background: rgba(255,255,255,.96); box-shadow: 0 10px 30px rgba(21,128,61,.25);
+        }
+        .success-check {
+            width: 56px; height: 56px; border-radius: 50%; background: var(--success); color: #fff;
+            font-size: 36px; line-height: 56px; text-align: center; font-weight: 900; flex: none;
+        }
+        .success-word { color: var(--success); font-size: 1.7rem; font-weight: 900; letter-spacing: .04em; line-height: 1.1; }
+        .success-title { color: var(--navy); font-size: 1.05rem; font-weight: 800; }
+        .success-sub { color: var(--muted); font-size: .9rem; font-weight: 700; }
+        .success-sub:empty { display: none; }
+        @media (max-width: 760px) { .instruments { grid-template-columns: repeat(2, 1fr); padding: 10px 10px 0; } }
+    </style>
+
+  <style data-rise-unit-5>
+    html,
+    body {
+      background: transparent;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 0;
+      min-width: 0;
+      padding: 12px;
+    }
+
+    .rise-walkthrough {
+      width: min(100%, 1200px);
+      max-width: 1200px;
+      margin-inline: auto;
+      border: 5px solid #285f9f;
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    .rise-walkthrough.rise-shell {
+      padding: clamp(12px, 2vw, 24px);
+      background: #fff;
+    }
+
+    .rise-walkthrough canvas,
+    .rise-walkthrough svg {
+      max-width: 100%;
+    }
+
+    .rise-walkthrough button,
+    .rise-walkthrough input,
+    .rise-walkthrough select {
+      min-height: 32px;
+    }
+
+    .rise-walkthrough button:focus-visible,
+    .rise-walkthrough input:focus-visible,
+    .rise-walkthrough select:focus-visible {
+      outline: 3px solid #f59e0b;
+      outline-offset: 3px;
+    }
+
+    .rise-walkthrough > #canvas-container,
+    .rise-walkthrough > .controls-panel {
+      margin-inline: auto;
+    }
+
+    @media (max-width: 520px) {
+      body { padding: 4px; }
+      .rise-walkthrough { border-width: 5px; border-radius: 12px; }
+      .rise-walkthrough.rise-shell { padding: 10px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .rise-walkthrough *,
+      .rise-walkthrough *::before,
+      .rise-walkthrough *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+<main class="simulation rise-walkthrough">
+    <header class="sim-header">
+        <h1>Timbre Builder: Match the Instrument</h1>
+    </header>
+
+    <div class="instruments" id="instruments" role="group" aria-label="Choose an instrument to match"></div>
+
+    <div class="sim-body">
+        <section class="stage" aria-label="Waveform display">
+            <canvas role="img" aria-label="Instrument wave and your harmonic mix wave" id="simCanvas"></canvas>
+            <div id="readoutBadge" class="readout-badge" role="status" aria-live="polite">Match the flute</div>
+            <div id="success" class="success" role="status" aria-live="assertive" hidden>
+                <div class="success-card">
+                    <span class="success-check" aria-hidden="true">&#10003;</span>
+                    <div>
+                        <div class="success-word">MATCHED!</div>
+                        <div id="successTitle" class="success-title"></div>
+                        <div id="successSub" class="success-sub"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div id="timbreControls" class="controls">
+            <div class="control-group" style="grid-column: 1 / -1;">
+                <label><span>Harmonic Mix (Amplitudes) &mdash; pitch fixed at 200 Hz</span></label>
+                <div class="timbre-sliders">
+                    <div class="timbre-slider-col"><label for="h1">1st</label><input type="range" id="h1" min="0" max="100" value="100"></div>
+                    <div class="timbre-slider-col"><label for="h2">2nd</label><input type="range" id="h2" min="0" max="100" value="0"></div>
+                    <div class="timbre-slider-col"><label for="h3">3rd</label><input type="range" id="h3" min="0" max="100" value="0"></div>
+                    <div class="timbre-slider-col"><label for="h4">4th</label><input type="range" id="h4" min="0" max="100" value="0"></div>
+                    <div class="timbre-slider-col"><label for="h5">5th</label><input type="range" id="h5" min="0" max="100" value="0"></div>
+                </div>
+            </div>
+            <div class="actions">
+                <button type="button" id="playTarget"><span class="swatch" style="background:#e56b24;height:8px"></span><span id="playTargetLabel">Hear the Flute</span></button>
+                <button type="button" id="playYours"><span class="swatch" style="background:#7c3aed"></span>Hear your wave</button>
+                <button type="button" id="hintBtn" aria-pressed="false">Show hint</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    const readoutBadge = document.getElementById('readoutBadge');
+    const h = [1, 2, 3, 4, 5].map(n => document.getElementById('h' + n));
+
+    const HARMONIC_COLORS = ['#2563eb', '#0891b2', '#15803d', '#e56b24', '#c0266d'];
+    const TARGET_COLOR = '#e56b24';
+    const FUNDAMENTAL = 200;                 // Hz, fixed for every instrument
+    const TIMBRE_WINDOW_S = 0.010;           // 10 ms window = two cycles
+    const TOLERANCE = 0.12;                  // per-harmonic amplitude tolerance
+    const START_MIX = [100, 0, 0, 0, 0];
+
+    // Relative harmonic amplitudes (0-1) that define each instrument's sound.
+    const INSTRUMENTS = [
+        { id: 'flute',    name: 'Flute',    amps: [1, 0.40, 0, 0, 0] },
+        { id: 'clarinet', name: 'Clarinet', amps: [1, 0, 0.75, 0, 0.50] },
+        { id: 'violin',   name: 'Violin',   amps: [1, 0.50, 0.33, 0.25, 0.20] },
+        { id: 'trumpet',  name: 'Trumpet',  amps: [0.55, 1, 0.85, 0.55, 0.30] }
+    ];
+
+    const ART = {
+        flute: '<rect x="8" y="19" width="204" height="8" rx="4" fill="#cbd5e1" stroke="#64748b" stroke-width="1.5"/><rect x="8" y="19" width="204" height="3" rx="1.5" fill="#fff" opacity=".6"/><ellipse cx="38" cy="16" rx="5" ry="3" fill="#94a3b8" stroke="#64748b"/><g fill="#475569"><circle cx="82" cy="23" r="3"/><circle cx="104" cy="23" r="3"/><circle cx="126" cy="23" r="3"/><circle cx="156" cy="23" r="3"/><circle cx="178" cy="23" r="3"/></g><g stroke="#64748b" stroke-width="1.5"><line x1="62" y1="19" x2="62" y2="27"/><line x1="196" y1="19" x2="196" y2="27"/></g>',
+        clarinet: '<rect x="14" y="20" width="22" height="6" rx="2" fill="#1f2937"/><path d="M36 17 H150 V29 H36 Z" fill="#1f2937"/><path d="M150 17 L172 17 L196 8 H212 V38 H196 L172 29 H150 Z" fill="#111827"/><rect x="36" y="17" width="114" height="3" fill="#fff" opacity=".18"/><g fill="#d1d5db"><circle cx="60" cy="23" r="3"/><circle cx="82" cy="23" r="3"/><circle cx="104" cy="23" r="3"/><circle cx="126" cy="23" r="3"/></g><g fill="#9ca3af"><rect x="34" y="15" width="3" height="16"/><rect x="148" y="15" width="3" height="16"/><rect x="196" y="6" width="16" height="3"/><rect x="196" y="37" width="16" height="3"/></g><rect x="6" y="18" width="12" height="10" rx="2" fill="#9a6b3a"/>',
+        violin: '<path d="M62 23 C62 8 84 4 98 14 C106 20 114 18 122 14 C138 4 162 8 162 23 C162 38 138 42 122 32 C114 28 106 26 98 32 C84 42 62 38 62 23 Z" fill="#b45309" stroke="#78350f" stroke-width="1.5"/><path d="M70 23 C70 13 86 10 96 17 C106 24 114 24 124 17 C134 10 152 13 152 23 C152 33 134 36 124 29 C114 22 106 22 96 29 C86 36 70 33 70 23Z" fill="#c2410c" opacity=".45"/><rect x="162" y="21" width="42" height="4" fill="#1f2937"/><rect x="200" y="17" width="12" height="12" rx="3" fill="#78350f"/><circle cx="206" cy="19" r="2" fill="#fcd34d"/><circle cx="206" cy="27" r="2" fill="#fcd34d"/><rect x="78" y="22" width="3" height="2" fill="#1f2937"/><g stroke="#e5e7eb" stroke-width=".9"><line x1="206" y1="22" x2="84" y2="21"/><line x1="206" y1="24" x2="84" y2="25"/></g><rect x="112" y="19" width="2" height="9" fill="#fef3c7"/><path d="M20 38 L120 8" stroke="#78350f" stroke-width="2" opacity=".85"/>',
+        trumpet: '<path d="M14 16 H92 C108 16 108 40 92 40 H70 C52 40 52 26 70 26 H150" fill="none" stroke="#d4a017" stroke-width="5" stroke-linecap="round"/><path d="M150 26 L178 26 L206 8 V44 L178 26" fill="#e8b923" stroke="#a16207" stroke-width="2" stroke-linejoin="round"/><path d="M14 16 H92 C108 16 108 40 92 40 H70 C52 40 52 26 70 26 H150" fill="none" stroke="#fde68a" stroke-width="1.5" stroke-linecap="round" opacity=".7"/><g fill="#a16207"><rect x="100" y="10" width="5" height="9" rx="1"/><rect x="112" y="10" width="5" height="9" rx="1"/><rect x="124" y="10" width="5" height="9" rx="1"/></g><rect x="6" y="14" width="10" height="5" rx="2" fill="#a16207"/>'
+    };
+
+    let width = 0, height = 0;
+    let current = 0;
+    const done = new Set();
+    let advanceTimer = null;
+    let completionSent = false;
+
+    function sampleWave(amps, n) {
+        const out = new Float64Array(n + 1);
+        for (let i = 0; i <= n; i++) {
+            const t = (i / n) * TIMBRE_WINDOW_S;
+            let s = 0;
+            for (let k = 1; k <= 5; k++) s += amps[k - 1] * Math.sin(2 * Math.PI * FUNDAMENTAL * k * t);
+            out[i] = s;
+        }
+        return out;
+    }
+
+    function peakOf(arr) { let p = 0; for (const v of arr) p = Math.max(p, Math.abs(v)); return p; }
+
+    function buildCards() {
+        const wrap = document.getElementById('instruments');
+        INSTRUMENTS.forEach((inst, idx) => {
+            const wave = sampleWave(inst.amps, 120);
+            const p = peakOf(wave) || 1;
+            const pts = Array.from(wave, (v, i) => `${(6 + (i / 120) * 208).toFixed(1)},${(11 - (v / p) * 9).toFixed(1)}`).join(' ');
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'inst';
+            b.dataset.index = idx;
+            b.setAttribute('aria-label', `Match the ${inst.name}`);
+            b.innerHTML = `<svg viewBox="0 0 220 46" aria-hidden="true">${ART[inst.id]}</svg>` +
+                `<svg viewBox="0 0 220 22" aria-hidden="true" style="height:20px"><polyline points="${pts}" fill="none" stroke="${TARGET_COLOR}" stroke-width="2" stroke-linejoin="round"/></svg>` +
+                `<span class="name">${inst.name}</span>`;
+            b.addEventListener('click', () => selectInstrument(idx, true));
+            wrap.appendChild(b);
+        });
+    }
+
+    function refreshCards() {
+        document.querySelectorAll('.inst').forEach((b, i) => {
+            b.classList.toggle('active', i === current);
+            b.classList.toggle('done', done.has(i));
+            b.setAttribute('aria-pressed', i === current ? 'true' : 'false');
+        });
+    }
+
+    function setMix(values) { values.forEach((v, i) => { h[i].value = v; }); if (typeof paintSliders === 'function') paintSliders(); }
+
+    function selectInstrument(idx, resetMix) {
+        clearTimeout(advanceTimer);
+        current = idx;
+        hideSuccess();
+        if (resetMix) setMix(START_MIX);
+        document.getElementById('playTargetLabel').textContent = 'Hear the ' + INSTRUMENTS[idx].name;
+        if (typeof stopAll === 'function') stopAll();
+        if (typeof setHint === 'function') setHint(false);
+        refreshCards();
+    }
+
+    function isMatched() {
+        const target = INSTRUMENTS[current].amps;
+        return h.every((s, i) => Math.abs(parseFloat(s.value) / 100 - target[i]) <= TOLERANCE);
+    }
+
+    function checkMatch() {
+        if (done.has(current) || !isMatched()) return;
+        done.add(current);
+        refreshCards();
+        const next = INSTRUMENTS.findIndex((_, i) => !done.has(i));
+        const name = INSTRUMENTS[current].name;
+        stopAll();
+        targetNodes = playTone(INSTRUMENTS[current].amps, 2.6, false);   // play the matched note
+        showSuccess(next === -1 ? 'All four instruments matched!' : `That is the ${name}`, next === -1 ? '' : `Next: ${INSTRUMENTS[next].name}`);
+        h.forEach(s => { s.disabled = true; });
+        clearTimeout(advanceTimer);
+        if (next === -1) {
+            if (!completionSent) { completionSent = true; window.parent.postMessage({ type: 'complete' }, '*'); }
+        } else {
+            advanceTimer = setTimeout(() => selectInstrument(next, true), 3200);
+        }
+    }
+
+    const successEl = document.getElementById('success');
+    function showSuccess(title, sub) {
+        document.getElementById('successTitle').textContent = title;
+        document.getElementById('successSub').textContent = sub;
+        successEl.hidden = false;
+    }
+    function hideSuccess() {
+        successEl.hidden = true;
+        h.forEach(s => { s.disabled = false; });
+    }
+
+    function paintSliders() {
+        h.forEach((s, i) => {
+            s.style.setProperty('--c', HARMONIC_COLORS[i]);
+            s.style.setProperty('--pct', s.value + '%');
+            s.previousElementSibling.style.color = HARMONIC_COLORS[i];
+        });
+    }
+
+    // ---- Hint: reveal the instrument's own harmonic breakdown (dotted lines and dashed target boxes)
+    const hintBtn = document.getElementById('hintBtn');
+    let hintOn = false;
+    function setHint(on) {
+        hintOn = on;
+        hintBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        hintBtn.textContent = on ? 'Hide hint' : 'Show hint';
+    }
+    hintBtn.addEventListener('click', () => setHint(!hintOn));
+
+    // ---- Sound: one sine oscillator per harmonic, mixed at the slider amplitudes
+    let audioCtx = null;
+    let yoursNodes = null;
+    const playTargetBtn = document.getElementById('playTarget');
+    const playYoursBtn = document.getElementById('playYours');
+    function ensureAudio() {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        if (!audioCtx) audioCtx = new AC();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        return audioCtx;
+    }
+    function gainsFor(amps) {
+        const total = amps.reduce((a, b) => a + b, 0) || 1;
+        return amps.map(a => 0.22 * a / total);
+    }
+    function playTone(amps, seconds, live) {
+        const ac = ensureAudio();
+        if (!ac) return null;
+        const t0 = ac.currentTime;
+        const master = ac.createGain();
+        master.gain.setValueAtTime(0.0001, t0);
+        master.gain.exponentialRampToValueAtTime(1, t0 + 0.03);
+        master.gain.setValueAtTime(1, t0 + seconds - 0.15);
+        master.gain.exponentialRampToValueAtTime(0.0001, t0 + seconds);
+        master.connect(ac.destination);
+        const gains = gainsFor(amps);
+        const parts = gains.map((g, i) => {
+            const osc = ac.createOscillator(), gn = ac.createGain();
+            osc.type = 'sine'; osc.frequency.value = FUNDAMENTAL * (i + 1); gn.gain.value = g;
+            osc.connect(gn); gn.connect(master); osc.start(t0); osc.stop(t0 + seconds + 0.05);
+            return gn;
+        });
+        const nodes = { parts, master, until: t0 + seconds };
+        if (live) yoursNodes = nodes;
+        return nodes;
+    }
+    let targetNodes = null;
+    function stopAll() {
+        [yoursNodes, targetNodes].forEach(n => { if (n) { try { n.master.disconnect(); } catch (e) {} } });
+        yoursNodes = null; targetNodes = null;
+    }
+    playTargetBtn.addEventListener('click', () => { stopAll(); targetNodes = playTone(INSTRUMENTS[current].amps, 2, false); });
+    playYoursBtn.addEventListener('click', () => { stopAll(); playTone(h.map(s => parseFloat(s.value) / 100), 2.5, true); });
+
+    h.forEach(s => s.addEventListener('input', () => {
+        paintSliders();
+        if (yoursNodes && audioCtx && audioCtx.currentTime < yoursNodes.until) {
+            gainsFor(h.map(x => parseFloat(x.value) / 100)).forEach((g, i) => yoursNodes.parts[i].gain.setTargetAtTime(g, audioCtx.currentTime, 0.02));
+        }
+        checkMatch();
+    }));
+
+    function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        width = Math.max(320, Math.round(rect.width));
+        height = Math.max(240, Math.round(rect.height));
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    function plotBox() { return { left: 46, right: width - 16, top: 58, bottom: height - 54 }; }
+
+    function drawPlotBackground(box, verticalDivs, horizontalDivs) {
+        const pw = box.right - box.left, ph = box.bottom - box.top;
+        ctx.fillStyle = '#f8fbfe'; ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(box.left, box.top, pw, ph);
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= horizontalDivs; i++) {
+            const y = box.top + (ph / horizontalDivs) * i;
+            ctx.beginPath(); ctx.moveTo(box.left, y); ctx.lineTo(box.right, y);
+            ctx.strokeStyle = i === 0 || i === horizontalDivs ? 'rgba(21,52,86,0.28)' : 'rgba(40,95,159,0.10)'; ctx.stroke();
+        }
+        for (let i = 0; i <= verticalDivs; i++) {
+            const x = box.left + (pw / verticalDivs) * i;
+            ctx.beginPath(); ctx.moveTo(x, box.top); ctx.lineTo(x, box.bottom);
+            ctx.strokeStyle = i === 0 || i === verticalDivs ? 'rgba(21,52,86,0.28)' : 'rgba(40,95,159,0.10)'; ctx.stroke();
+        }
+    }
+
+    function drawWaveLabel(text, x, y, color) {
+        ctx.save(); ctx.font = '700 13px Segoe UI, system-ui, sans-serif'; ctx.fillStyle = color; ctx.textAlign = 'left';
+        ctx.fillText(text, x, y); ctx.restore();
+    }
+
+    function drawAxisTicks(box, ticks, axisTitle) {
+        ctx.save(); ctx.fillStyle = '#52657b'; ctx.font = '12px Segoe UI, system-ui, sans-serif'; ctx.textAlign = 'center';
+        const pw = box.right - box.left;
+        ticks.forEach(t => ctx.fillText(t.label, box.left + t.ratio * pw, box.bottom + 20));
+        ctx.fillStyle = '#153456'; ctx.font = '700 13px Segoe UI, system-ui, sans-serif';
+        ctx.fillText(axisTitle, box.left + pw / 2, box.bottom + 42);
+        ctx.restore();
+    }
+
+    function drawYAxis(box, centerY, maxAmp) {
+        ctx.save(); ctx.fillStyle = '#52657b'; ctx.font = '11px Segoe UI, system-ui, sans-serif'; ctx.textAlign = 'right';
+        ctx.fillText('+', box.left - 8, centerY - maxAmp + 4);
+        ctx.fillText('0', box.left - 8, centerY + 4);
+        ctx.fillText('−', box.left - 8, centerY + maxAmp + 4);
+        ctx.translate(14, centerY); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center';
+        ctx.fillStyle = '#153456'; ctx.font = '700 12px Segoe UI, system-ui, sans-serif';
+        ctx.fillText('Air pressure', 0, 0); ctx.restore();
+    }
+
+    function drawHarmonicSpectrum(box, amps, target) {
+        const pw = 158, ph = 104, px = box.right - pw - 12, py = box.top + 12;
+        ctx.save();
+        ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.strokeStyle = 'rgba(40,95,159,0.28)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 10); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#153456'; ctx.font = '700 10px Segoe UI, system-ui, sans-serif'; ctx.textAlign = 'left';
+        ctx.fillText('HARMONIC MIX', px + 10, py + 15);
+        const baseline = py + ph - 30, barMax = 54, bw = 16, gap = 10;
+        for (let n = 0; n < 5; n++) {
+            const x = px + 12 + n * (bw + gap);
+            const bh = Math.max(1, amps[n] * barMax);
+            ctx.fillStyle = HARMONIC_COLORS[n]; ctx.globalAlpha = amps[n] > 0 ? 1 : 0.22;
+            ctx.fillRect(x, baseline - bh, bw, bh); ctx.globalAlpha = 1;
+            if (target) {
+                const th = Math.max(1, target[n] * barMax);
+                ctx.strokeStyle = '#153456'; ctx.lineWidth = 1.6; ctx.setLineDash([3, 2]);
+                ctx.strokeRect(x - 2, baseline - th, bw + 4, th); ctx.setLineDash([]);
+            }
+            ctx.fillStyle = '#52657b'; ctx.font = '10px Segoe UI, system-ui, sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText(String(n + 1), x + bw / 2, baseline + 11);
+        }
+        ctx.fillStyle = '#153456'; ctx.font = '700 9px Segoe UI, system-ui, sans-serif'; ctx.textAlign = 'left';
+        if (target) ctx.fillText('Bars = yours   Dashed box = target', px + 10, py + ph - 8);
+        ctx.restore();
+    }
+
+    function draw() {
+        const inst = INSTRUMENTS[current];
+        const amps = h.map(s => parseFloat(s.value) / 100);
+        const matched = isMatched();
+        const period = 1 / FUNDAMENTAL;
+
+        readoutBadge.textContent = matched
+            ? `Matched! That is the ${inst.name}'s harmonic mix`
+            : `Match the ${inst.name}'s wave  |  Pitch: ${FUNDAMENTAL} Hz  |  Period: ${(period * 1000).toFixed(1)} ms`;
+        readoutBadge.className = 'readout-badge' + (matched ? ' tuned' : '');
+
+        const box = plotBox();
+        const pw = box.right - box.left, ph = box.bottom - box.top;
+        const centerY = box.top + ph / 2, maxAmp = ph * 0.42;
+        drawPlotBackground(box, 10, 8);
+
+        const periodRight = box.left + Math.min(1, period / TIMBRE_WINDOW_S) * pw;
+        ctx.save();
+        ctx.fillStyle = 'rgba(40,95,159,0.07)'; ctx.fillRect(box.left, box.top, periodRight - box.left, ph);
+        ctx.strokeStyle = 'rgba(40,95,159,0.45)'; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(periodRight, box.top); ctx.lineTo(periodRight, box.bottom); ctx.stroke();
+        ctx.restore();
+        ctx.save(); ctx.fillStyle = '#285f9f'; ctx.font = '700 12px Segoe UI, system-ui, sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(`1 period = ${(period * 1000).toFixed(1)} ms`, (box.left + periodRight) / 2, box.top + 16); ctx.restore();
+
+        ctx.save(); ctx.strokeStyle = 'rgba(21,52,86,0.35)'; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.moveTo(box.left, centerY); ctx.lineTo(box.right, centerY); ctx.stroke(); ctx.restore();
+
+        const steps = Math.max(2, Math.round(pw));
+        const targetWave = sampleWave(inst.amps, steps);
+        const sum = sampleWave(amps, steps);
+        const scale = maxAmp / (peakOf(targetWave) || 1);   // fixed per instrument so heights are comparable
+        const X = i => box.left + (i / steps) * pw;
+
+        ctx.save();
+        ctx.beginPath(); ctx.rect(box.left, box.top, pw, ph); ctx.clip();
+
+        // Instrument's target wave
+        ctx.beginPath(); ctx.strokeStyle = TARGET_COLOR; ctx.globalAlpha = 0.55; ctx.lineWidth = 8; ctx.lineJoin = 'round';
+        for (let i = 0; i <= steps; i++) { const y = centerY - targetWave[i] * scale; if (i) ctx.lineTo(X(i), y); else ctx.moveTo(X(i), y); }
+        ctx.stroke(); ctx.globalAlpha = 1;
+
+        {
+            const comp = (a, n, i) => centerY - a * Math.sin(2 * Math.PI * FUNDAMENTAL * n * (i / steps) * TIMBRE_WINDOW_S) * scale;
+            // Hint: the instrument's harmonic breakdown (dotted), the components to match
+            ctx.lineCap = 'round'; ctx.lineWidth = 3; ctx.setLineDash([1, 6]);
+            for (let n = 1; n <= 5; n++) {
+                if (!hintOn || inst.amps[n - 1] <= 0) continue;
+                ctx.beginPath(); ctx.strokeStyle = HARMONIC_COLORS[n - 1];
+                for (let i = 0; i <= steps; i++) { const y = comp(inst.amps[n - 1], n, i); if (i) ctx.lineTo(X(i), y); else ctx.moveTo(X(i), y); }
+                ctx.stroke();
+            }
+            // Your harmonics (solid)
+            ctx.setLineDash([]); ctx.lineCap = 'butt'; ctx.lineWidth = 1.6; ctx.globalAlpha = 0.9;
+            for (let n = 1; n <= 5; n++) {
+                if (amps[n - 1] <= 0) continue;
+                ctx.beginPath(); ctx.strokeStyle = HARMONIC_COLORS[n - 1];
+                for (let i = 0; i <= steps; i++) { const y = comp(amps[n - 1], n, i); if (i) ctx.lineTo(X(i), y); else ctx.moveTo(X(i), y); }
+                ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        // Student's wave
+        ctx.beginPath(); ctx.strokeStyle = '#7c3aed'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+        for (let i = 0; i <= steps; i++) { const y = centerY - sum[i] * scale; if (i) ctx.lineTo(X(i), y); else ctx.moveTo(X(i), y); }
+        ctx.stroke();
+        ctx.restore();
+
+        // Legend
+        ctx.save();
+        ctx.lineWidth = 6; ctx.strokeStyle = TARGET_COLOR; ctx.beginPath(); ctx.moveTo(box.left + 10, box.bottom - 30); ctx.lineTo(box.left + 36, box.bottom - 30); ctx.stroke();
+        ctx.lineWidth = 3; ctx.strokeStyle = '#7c3aed'; ctx.beginPath(); ctx.moveTo(box.left + 10, box.bottom - 12); ctx.lineTo(box.left + 36, box.bottom - 12); ctx.stroke();
+        ctx.restore();
+        drawWaveLabel(`${inst.name}'s wave (target)`, box.left + 44, box.bottom - 25, '#b4500f');
+        drawWaveLabel('Your wave', box.left + 44, box.bottom - 7, '#7c3aed');
+
+        drawYAxis(box, centerY, maxAmp);
+        drawHarmonicSpectrum(box, amps, hintOn ? inst.amps : null);
+        const msTicks = [];
+        for (let ms = 0; ms <= 10; ms += 2) msTicks.push({ ratio: ms / 10, label: String(ms) });
+        drawAxisTicks(box, msTicks, 'Time in milliseconds');
+
+        requestAnimationFrame(draw);
+    }
+
+    buildCards();
+    setMix(START_MIX);
+    paintSliders();
+    refreshCards();
+    draw();
+</script>
+</main>
+</body>
+</html>

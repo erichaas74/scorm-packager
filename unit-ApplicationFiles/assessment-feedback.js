@@ -24,7 +24,7 @@ const lessonTopics = {
 };
 const questionTopics = {
   U1L2: ['distance and displacement', 'average speed', 'travel time', 'waiting time', 'travel time', 'travel time', 'waiting and average speed', 'closed-route displacement', 'average speed and velocity', 'route planning and motion'],
-  U1L3: ['falling distance', 'falling distance', 'interval distances', 'odd-number distance patterns', 'square-number distance patterns', 'increasing interval distances', 'constant-acceleration patterns', 'measurement uncertainty', 'evidence of acceleration', 'acceleration models and uncertainty'],
+  U1L3: ['falling distance', 'falling distance', 'interval distances', 'odd-number distance patterns', 'square-number distance patterns', "Galileo's timing method", 'first-interval average speed', 'last-interval average speed', 'acceleration from average interval speeds', 'evidence of acceleration', 'acceleration models and uncertainty'],
   U1L4: ['falling-distance equations', 'reaction-time calculations', 'falling-distance calculations', 'accelerating travel time', 'accelerating race gaps', 'constant-speed equations', 'constant-speed race gaps', 'false starts', 'visual and auditory reaction times', 'reaction time and race gaps'],
   U1L5: ['velocity-time graphs', 'terminal velocity', 'constant velocity', 'graph slope and acceleration', 'parachute acceleration', 'diving acceleration', 'body position and acceleration', 'relative motion', 'body position and motion evidence', 'formation-diving strategy'],
   U1H: ['powered-flight displacement', 'engine-cutoff velocity', 'coasting displacement', 'coasting time', 'maximum flight height', 'time to maximum height', 'braking displacement', 'braking time', 'late retro-burn acceleration', 'four-phase velocity and acceleration'],
@@ -166,8 +166,8 @@ const explanations = {
 const writtenFeedbackExamples = {
   "U1L2-Q09": "Use your route distance for average speed and displacement for average velocity; divide each by total time.",
   "U1L2-Q10": "Backtracking adds distance, while waiting adds time without adding distance; explain how each changes the average rate.",
-  "U1L3-Q09": "Compare distances covered in equal time intervals; increasing distances show that the object is speeding up.",
-  "U1L3-Q10": "Explain how increasing interval distances fit steady acceleration, then name a measurement error and its likely effect.",
+  "U1L3-Q10": "Compare distances covered in equal time intervals; increasing distances show that the object is speeding up.",
+  "U1L3-Q11": "Explain how increasing interval distances fit steady acceleration, then name a measurement error and its likely effect.",
   "U1L4-Q09": "Include both measured reaction times and their difference to show which signal produced the faster response.",
   "U1L4-Q10": "Explain why the accelerating cars separate more, while equal-speed runners keep the same gap after both start.",
   "U1L5-Q09": "Describe a before-and-after graph change or readout showing how body position changed your speed or gap.",

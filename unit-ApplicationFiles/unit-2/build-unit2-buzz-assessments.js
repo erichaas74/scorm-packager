@@ -90,6 +90,7 @@ const assessments = [
     ],
     checks: [
       'All three Buzz variables evaluate with answer = 90 - the generated angle.',
+      'Leave Significant figures unset on numeric questions: whole-degree answers such as 64, 48, and 27 must receive credit without trailing decimals.',
       'The 30- and 60-degree trials match within tolerance and 45 degrees has the greatest range.',
       'Both embedded simulator levels and all 10 question slots operate in Buzz.'
     ],
@@ -301,15 +302,20 @@ function normalizeTemplate(item) {
   console.log(`Normalized ${path.relative(root, templatePath)}`);
 }
 
-require('./lesson-u2l4/build-river-rescue-buzz-assessment.js');
-assessments.forEach(normalizeTemplate);
-assessments.forEach(buildSetup);
+const requestedLessons = process.argv.slice(2).map(value => value.toUpperCase());
+const selectedAssessments = requestedLessons.length
+  ? assessments.filter(item => requestedLessons.includes(item.lesson.toUpperCase()) || requestedLessons.includes(item.dir.toUpperCase()))
+  : assessments;
+if (!selectedAssessments.length) throw new Error('No Unit 2 lessons matched the requested targets.');
+if (selectedAssessments.some(item => item.lesson === 'U2L4')) require('./lesson-u2l4/build-river-rescue-buzz-assessment.js');
+selectedAssessments.forEach(normalizeTemplate);
+selectedAssessments.forEach(buildSetup);
 
 const previewBuilder = path.resolve(root, '..', '..', 'unit-buzz-template-conversion-files', 'build-buzz-template-previews.js');
-const previewBuild = spawnSync(process.execPath, [previewBuilder, 'unit-ApplicationFiles/unit-2'], {
+const previewBuild = spawnSync(process.execPath, [previewBuilder, ...selectedAssessments.map(item => `unit-ApplicationFiles/unit-2/${item.dir}`)], {
   cwd: path.resolve(root, '..', '..'),
   stdio: 'inherit'
 });
 if (previewBuild.status !== 0) process.exit(previewBuild.status || 1);
 
-console.log('Built all Unit 2 Buzz assessments, previews, and TXT setup guides.');
+console.log(`Built Unit 2 delivery files for: ${selectedAssessments.map(item => item.lesson).join(', ')}.`);

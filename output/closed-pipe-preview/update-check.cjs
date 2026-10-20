@@ -1,0 +1,1 @@
+const fs=require('fs');let p='output/closed-pipe-preview/check.cjs',s=fs.readFileSync(p,'utf8').replace('length:6','length:4').replace('i<5','i<4').replaceAll('s.buttons[5].click();','s.buttons[3].click();').replace("`L = ${n===1?'':n+' × '}λ/4 = 1.00 m`","'L = 1.00 m'").replace('five harmonics','four harmonics');fs.writeFileSync(p,s);

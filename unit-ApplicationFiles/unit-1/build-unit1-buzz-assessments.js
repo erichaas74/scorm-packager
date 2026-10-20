@@ -86,11 +86,11 @@ const assessments = [
     template: 'u1l3-galileo-buzz-assessment-template.html',
     preview: 'u1l3-galileo-buzz-assessment-template-preview.html',
     simulation: 'index.html',
-    count: 10,
+    count: 11,
     automaticPoints: 10,
     busybeeQuestionPoints: [2, 3],
     completedProvidedChart: true,
-    mix: 'three numeric, five multiple-choice, and two essay questions',
+    mix: 'six numeric, three multiple-choice, and two essay questions',
     mission: 'Recreate Galileo’s breakthrough with a digital falling object! You will measure equal time intervals, uncover odd- and square-number patterns, and turn a table of distances into evidence for constant acceleration.',
     goals: [
       'Measure free-fall distance at fixed times and calculate interval distances.',
@@ -100,14 +100,15 @@ const assessments = [
     steps: [
       'Drop or scrub the ball to every marked time from 0.1 s through 0.7 s.',
       'Complete the distance, interval-distance, interval-ratio, and total-ratio columns in order.',
-      'Answer Questions 1-8 using the fixed table values and patterns.',
-      'Cite at least two completed rows in Question 9.',
-      'Connect both mathematical patterns and one uncertainty source in Question 10.'
+      'Answer Questions 1-6 using the table values, patterns, and Galileo timing method.',
+      'Calculate average speeds for the first and last intervals, then acceleration, in Questions 7-9 using the supplied equations.',
+      'Cite at least two completed rows in Question 10.',
+      'Connect both mathematical patterns and one uncertainty source in Question 11.'
     ],
     checks: [
       'The four table stages unlock in order and accept the expected free-fall values.',
       'The completed chart reveals after every column is correct.',
-      'All 10 questions render; no file upload question remains.'
+      'All 11 questions render; no file upload question remains.'
     ],
     note: 'The optional image download is for student reference only and is not part of grading.'
   },
@@ -280,7 +281,7 @@ function buildSetup(item) {
   const numberedSteps = item.steps.concat([
     item.lesson === 'U1H'
       ? 'Before submitting, answer Questions 1-8 and write your explanations for Questions 9-10.'
-      : `Before submitting, confirm that all ${item.count} questions are answered and the final two responses cite recorded evidence.`
+      : `Before submitting, confirm that all ${item.count} questions are answered and the final ${item.busybeeQuestionPoints.length} responses cite recorded evidence.`
   ]).map((step, index) => `${index + 1}. ${step}`);
   const output = [
     item.title.toUpperCase(),
@@ -299,7 +300,7 @@ function buildSetup(item) {
     `- The assessment is worth ${item.totalPoints || 15} points: ${item.automaticPoints} auto-graded points plus ${(item.totalPoints || 15) - item.automaticPoints} BusyBee points.`,
     `- The final ${item.busybeeQuestionPoints.length} evidence response(s) are worth ${item.busybeeQuestionPoints.join(' and ')} points.`,
     item.completedProvidedChart
-      ? '- This lesson uses 10 automatic points because students complete the provided Galileo data chart.'
+      ? `- Complete the provided Galileo data chart; Questions 1-9 are worth ${item.automaticPoints} automatic points and Questions 10-11 are written responses.`
       : item.lesson === 'U1H'
       ? '- Section 5 contains two written explanations worth 3 and 4 points, graded using their full-, partial-, and no-credit rubrics.'
       : '- This lesson does not use the 10-automatic-point chart model; its live evidence is evaluated in the final BusyBee responses.',
@@ -423,7 +424,7 @@ function buildMetadata(item) {
       busybeeQuestions: questions.filter((question) => question.grading === 'busybee').map((question) => question.id),
       rule: item.lesson === 'U1H'
         ? 'Section 5 contains two written explanations: late retro-burn acceleration (3 points) and four-phase motion (4 points). Award partial credit according to each rubric. Teacher reviews BusyBee suggestions.'
-        : 'All variable student evidence is graded only in the final two BusyBee responses.'
+        : `All variable student evidence is graded only in the final ${item.busybeeQuestionPoints.length} BusyBee responses.`
     },
     questions
   };

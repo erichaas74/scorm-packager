@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beat Generator: Tuning Forks</title>
+    <style>
+        :root {
+            --navy: #153456;
+            --blue: #285f9f;
+            --blue-dark: #174b86;
+            --blue-soft: #e8f2fd;
+            --orange: #e56b24;
+            --ink: #132238;
+            --muted: #52657b;
+            --line: #bfd1e3;
+            --stage: #f8fbfe;
+            --wave-sum: #7c3aed;
+            --wave-a: #2563eb;
+            --wave-b: #d92c2c;
+            --success: #15803d;
+        }
+
+        * { box-sizing: border-box; }
+        html, body { margin: 0; }
+
+        body {
+            min-height: 100vh;
+            padding: 20px;
+            background: #eef4fa;
+            color: var(--ink);
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        }
+
+        button, input { font: inherit; }
+
+        .simulation {
+            width: min(100%, 1080px);
+            margin: 0 auto;
+            overflow: hidden;
+            border: 4px solid var(--blue);
+            border-radius: 22px;
+            background: #fff;
+            box-shadow: 0 18px 45px rgba(21, 52, 86, .14);
+        }
+
+        .sim-header {
+            padding: 18px 22px 16px;
+            border-bottom: 1px solid var(--line);
+            background: linear-gradient(115deg, #fff 0%, #edf6ff 100%);
+        }
+
+        .sim-header h1 {
+            margin: 0;
+            color: var(--navy);
+            font-size: clamp(1.3rem, 3.6vw, 1.75rem);
+            line-height: 1.1;
+        }
+
+        .sim-body { padding: 14px 18px 18px; }
+
+        .stage {
+            display: flex;
+            height: 480px;
+            overflow: hidden;
+            border: 1px solid #9fbbd5;
+            border-radius: 16px;
+            background: var(--stage);
+        }
+
+        .plot { position: relative; flex: 1; min-width: 0; }
+        canvas { display: block; width: 100%; height: 100%; }
+
+        /* Right-hand column: one cell per wave row. Padding matches the plot box in the script. */
+        .side {
+            display: flex;
+            flex-direction: column;
+            width: 252px;
+            flex: none;
+            padding: 16px 12px 34px 0;
+        }
+
+        .cell {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+            margin: 5px 0;
+            padding: 8px 12px;
+            border: 2px solid var(--line);
+            border-left-width: 6px;
+            border-radius: 12px;
+            background: #fff;
+        }
+
+        .cell-a { border-color: var(--wave-a); }
+        .cell-b { border-color: var(--wave-b); flex-direction: column; align-items: stretch; justify-content: center; gap: 4px; }
+        .cell-c { border-color: var(--wave-sum); flex-direction: column; align-items: stretch; justify-content: center; gap: 3px; }
+
+        .small { color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .02em; }
+        .big { font-size: 2rem; font-weight: 900; line-height: 1.05; font-variant-numeric: tabular-nums; }
+        .cell-a .big { color: var(--wave-a); }
+        .cell-b .big { color: var(--wave-b); }
+        .cell-c .big { color: var(--wave-sum); font-size: 1.7rem; }
+        .cell-c.tuned { border-color: var(--success); background: #eefbf1; }
+        .cell-c.tuned .big { color: var(--success); }
+
+        .pair { display: flex; gap: 14px; font-size: 1.05rem; font-weight: 850; font-variant-numeric: tabular-nums; }
+        .pair .a { color: var(--wave-a); }
+        .pair .b { color: var(--wave-b); }
+
+        .fork { width: 74px; height: 100px; flex: none; }
+        .fork .tine-l, .fork .tine-r { transform-box: view-box; transform-origin: 35px 58px; }
+        .fork .tine-l { animation: tine-l .16s ease-in-out infinite alternate; }
+        .fork .tine-r { animation: tine-r .16s ease-in-out infinite alternate; }
+        .fork .arcs { animation: arcs .9s ease-in-out infinite alternate; }
+        @keyframes tine-l { from { transform: rotate(-1.6deg); } to { transform: rotate(1.6deg); } }
+        @keyframes tine-r { from { transform: rotate(1.6deg); } to { transform: rotate(-1.6deg); } }
+        @keyframes arcs { from { opacity: .35; } to { opacity: 1; } }
+
+        input[type=range] { width: 100%; height: 26px; cursor: pointer; accent-color: var(--wave-b); }
+        .range-ends { display: flex; justify-content: space-between; color: var(--muted); font-size: .72rem; font-weight: 700; margin-top: -4px; }
+
+        :focus-visible { outline: 3px solid var(--orange); outline-offset: 3px; }
+
+        @media (max-width: 760px) {
+            body { padding: 10px; }
+            .simulation { border-width: 3px; border-radius: 17px; }
+            .sim-body { padding: 10px; }
+            .stage { flex-direction: column; height: auto; }
+            .plot { height: 330px; flex: none; }
+            .side { width: auto; padding: 4px 10px 10px; }
+            .cell { flex: none; min-height: 110px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .fork .tine-l, .fork .tine-r, .fork .arcs { animation: none; }
+        }
+    </style>
+
+  <style data-rise-unit-5>
+    html,
+    body {
+      background: transparent;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 0;
+      min-width: 0;
+      padding: 12px;
+    }
+
+    .rise-walkthrough {
+      width: min(100%, 1200px);
+      max-width: 1200px;
+      margin-inline: auto;
+      border: 5px solid #285f9f;
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    .rise-walkthrough.rise-shell {
+      padding: clamp(12px, 2vw, 24px);
+      background: #fff;
+    }
+
+    .rise-walkthrough canvas,
+    .rise-walkthrough svg {
+      max-width: 100%;
+    }
+
+    .rise-walkthrough button,
+    .rise-walkthrough input,
+    .rise-walkthrough select {
+      min-height: 32px;
+    }
+
+    .rise-walkthrough button:focus-visible,
+    .rise-walkthrough input:focus-visible,
+    .rise-walkthrough select:focus-visible {
+      outline: 3px solid #f59e0b;
+      outline-offset: 3px;
+    }
+
+    .rise-walkthrough > #canvas-container,
+    .rise-walkthrough > .controls-panel {
+      margin-inline: auto;
+    }
+
+    @media (max-width: 520px) {
+      body { padding: 4px; }
+      .rise-walkthrough { border-width: 5px; border-radius: 12px; }
+      .rise-walkthrough.rise-shell { padding: 10px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .rise-walkthrough *,
+      .rise-walkthrough *::before,
+      .rise-walkthrough *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+<main class="simulation rise-walkthrough">
+    <header class="sim-header">
+        <h1>Beat Generator: Tuning Forks</h1>
+    </header>
+
+    <div class="sim-body">
+        <section class="stage" aria-label="Waveform display and frequency controls">
+            <div class="plot">
+                <canvas role="img" aria-label="Wave A from a 440 hertz tuning fork, Wave B from an adjustable instrument, and their sum, which shows beats" id="simCanvas"></canvas>
+            </div>
+
+            <div class="side">
+                <div class="cell cell-a">
+                    <svg class="fork" viewBox="0 0 70 100" role="img" aria-label="Tuning fork vibrating at 440 hertz">
+                        <g class="arcs" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round">
+                            <path d="M13 12 Q7 26 13 40"/><path d="M5 8 Q-3 26 5 44"/>
+                            <path d="M57 12 Q63 26 57 40"/><path d="M65 8 Q73 26 65 44"/>
+                        </g>
+                        <rect x="31" y="56" width="8" height="30" rx="3" fill="#94a3b8" stroke="#64748b" stroke-width="1.5"/>
+                        <circle cx="35" cy="90" r="6" fill="#94a3b8" stroke="#64748b" stroke-width="1.5"/>
+                        <g fill="none" stroke-linecap="round">
+                            <g class="tine-l">
+                                <path d="M24 6 V46 Q24 58 35 58" stroke="#64748b" stroke-width="8"/>
+                                <path d="M24 6 V46 Q24 58 35 58" stroke="#cbd5e1" stroke-width="5"/>
+                                <path d="M22.5 8 V44" stroke="#fff" stroke-width="1.5" opacity=".8"/>
+                            </g>
+                            <g class="tine-r">
+                                <path d="M46 6 V46 Q46 58 35 58" stroke="#64748b" stroke-width="8"/>
+                                <path d="M46 6 V46 Q46 58 35 58" stroke="#cbd5e1" stroke-width="5"/>
+                                <path d="M44.5 8 V44" stroke="#fff" stroke-width="1.5" opacity=".8"/>
+                            </g>
+                        </g>
+                    </svg>
+                    <div>
+                        <div class="small">Tuning Fork A (fixed)</div>
+                        <div class="big" id="freqADisplay">440 Hz</div>
+                    </div>
+                </div>
+
+                <div class="cell cell-b">
+                    <div class="small">Instrument B &mdash; drag to tune</div>
+                    <div class="big" id="freqBDisplay">444.0 Hz</div>
+                    <input type="range" id="freqB" min="430" max="450" value="444" step="0.5" aria-label="Instrument B frequency in hertz">
+                    <div class="range-ends" aria-hidden="true"><span>430 Hz</span><span>450 Hz</span></div>
+                </div>
+
+                <div class="cell cell-c" id="beatCell" role="status" aria-live="polite">
+                    <div class="pair"><span class="a" id="pairA">A 440.0 Hz</span><span class="b" id="pairB">B 444.0 Hz</span></div>
+                    <div class="small" id="beatLabel">Beat output</div>
+                    <div class="big" id="beatOut">4.0 beats/s</div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+<script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const freqB = document.getElementById('freqB');
+    const FREQ_A = 440;                       // tuning fork A is fixed
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // Slow-motion display: the window shows `base` cycles of A, and exactly
+    // |fB - fA| more (or fewer) cycles of B, so the number of beats on screen
+    // equals the beat frequency. Both waves travel to the right slowly.
+    const BASE_CYCLES = 26;
+    const TRAVEL = 0.035;                     // window widths per second
+
+    const PLOT_TOP = 16;                      // keep in sync with .side padding in CSS
+    const PLOT_BOTTOM_PAD = 34;
+
+    let width = 0;
+    let height = 0;
+
+    function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        width = Math.max(240, Math.round(rect.width));
+        height = Math.max(240, Math.round(rect.height));
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    function updateReadouts() {
+        const fB = parseFloat(freqB.value);
+        const beat = Math.abs(fB - FREQ_A);
+        const tuned = beat < 0.05;
+        document.getElementById('freqBDisplay').textContent = fB.toFixed(1) + ' Hz';
+        document.getElementById('pairA').textContent = 'A ' + FREQ_A.toFixed(1) + ' Hz';
+        document.getElementById('pairB').textContent = 'B ' + fB.toFixed(1) + ' Hz';
+        document.getElementById('beatLabel').textContent = tuned ? 'In tune' : 'Beat output = |A − B|';
+        document.getElementById('beatOut').textContent = tuned ? 'No beats' : beat.toFixed(1) + ' beats/s';
+        document.getElementById('beatCell').classList.toggle('tuned', tuned);
+    }
+
+    freqB.addEventListener('input', updateReadouts);
+
+    function plotBox() {
+        return { left: 10, right: width - 10, top: PLOT_TOP, bottom: height - PLOT_BOTTOM_PAD };
+    }
+
+    function drawBackground(box) {
+        const plotW = box.right - box.left;
+        const plotH = box.bottom - box.top;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(box.left, box.top, plotW, plotH);
+
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 8; i++) {
+            const x = box.left + (plotW / 8) * i;
+            ctx.beginPath();
+            ctx.moveTo(x, box.top);
+            ctx.lineTo(x, box.bottom);
+            ctx.strokeStyle = i === 0 || i === 8 ? 'rgba(21,52,86,0.28)' : 'rgba(40,95,159,0.08)';
+            ctx.stroke();
+        }
+        for (let r = 0; r <= 3; r++) {
+            const y = box.top + (plotH / 3) * r;
+            ctx.beginPath();
+            ctx.moveTo(box.left, y);
+            ctx.lineTo(box.right, y);
+            ctx.strokeStyle = 'rgba(21,52,86,0.28)';
+            ctx.stroke();
+        }
+    }
+
+    function drawTrace(box, centerY, amplitude, color, lineWidth, valueAt) {
+        const plotW = box.right - box.left;
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth;
+        ctx.lineJoin = 'round';
+        for (let px = 0; px <= plotW; px++) {
+            const y = centerY - valueAt(px / plotW) * amplitude;
+            if (px === 0) ctx.moveTo(box.left + px, y);
+            else ctx.lineTo(box.left + px, y);
+        }
+        ctx.stroke();
+    }
+
+    function drawLabel(text, x, y, color) {
+        ctx.save();
+        ctx.font = '800 14px Segoe UI, system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        const w = ctx.measureText(text).width;
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        ctx.beginPath();
+        ctx.roundRect(x - 6, y - 15, w + 12, 21, 6);
+        ctx.fill();
+        ctx.fillStyle = color;
+        ctx.fillText(text, x, y);
+        ctx.restore();
+    }
+
+    function render(t) {
+        const fB = parseFloat(freqB.value);
+        const cyclesA = BASE_CYCLES;
+        const cyclesB = BASE_CYCLES + (fB - FREQ_A);
+        const shift = TRAVEL * t;
+
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = '#f8fbfe';
+        ctx.fillRect(0, 0, width, height);
+
+        const box = plotBox();
+        const plotH = box.bottom - box.top;
+        const rowH = plotH / 3;
+        drawBackground(box);
+
+        const yA = box.top + rowH * 0.5;
+        const yB = box.top + rowH * 1.5;
+        const ySum = box.top + rowH * 2.5;
+        const amp = rowH * 0.34;
+        const sumAmp = rowH * 0.42;
+
+        const waveA = u => Math.sin(2 * Math.PI * cyclesA * (u - shift));
+        const waveB = u => Math.sin(2 * Math.PI * cyclesB * (u - shift));
+
+        ctx.save();
+        ctx.strokeStyle = 'rgba(21, 52, 86, 0.10)';
+        ctx.lineWidth = 1;
+        [yA, yB, ySum].forEach(y => {
+            ctx.beginPath();
+            ctx.moveTo(box.left, y);
+            ctx.lineTo(box.right, y);
+            ctx.stroke();
+        });
+        ctx.restore();
+
+        drawTrace(box, yA, amp, '#2563eb', 2.2, waveA);
+        drawTrace(box, yB, amp, '#d92c2c', 2.2, waveB);
+        drawTrace(box, ySum, sumAmp, '#7c3aed', 2.4, u => (waveA(u) + waveB(u)) / 2);
+
+        drawLabel('Wave A', box.left + 8, box.top + 18, '#2563eb');
+        drawLabel('Wave B', box.left + 8, box.top + rowH + 18, '#d92c2c');
+        drawLabel('A + B', box.left + 8, box.top + rowH * 2 + 18, '#7c3aed');
+
+        ctx.save();
+        ctx.fillStyle = '#52657b';
+        ctx.font = '700 12px Segoe UI, system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Slow-motion view: waves travel to the right', (box.left + box.right) / 2, box.bottom + 22);
+        ctx.restore();
+    }
+
+    function frame(now) {
+        render(reduceMotion ? 0 : now / 1000);
+        requestAnimationFrame(frame);
+    }
+
+    updateReadouts();
+    requestAnimationFrame(frame);
+</script>
+
+  <script data-rise-completion>
+    (() => {
+      let riseCompletionSent = false;
+      const sendRiseCompletion = () => {
+        if (riseCompletionSent) return;
+        riseCompletionSent = true;
+        window.parent.postMessage({ type: 'complete' }, '*');
+      };
+
+      const riseRoot = document.querySelector('.rise-walkthrough');
+      if (!riseRoot) return;
+
+      // Explorer completion: the learner changes one meaningful setting or starts a model.
+      riseRoot.addEventListener('change', sendRiseCompletion);
+      riseRoot.addEventListener('click', (event) => {
+        const button = event.target.closest('button');
+        if (!button) return;
+        const label = (button.id + ' ' + button.textContent).toLowerCase();
+        if (/reset|replay|pause/.test(label)) return;
+        sendRiseCompletion();
+      });
+    })();
+  </script>
+</main>
+</body>
+</html>

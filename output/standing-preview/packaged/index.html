@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Making a Standing Wave</title><style>
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; }
+body { padding: 10px; color: #17324a; font: 16px system-ui, sans-serif; }
+.wave-demo { max-width: 960px; margin: auto; border: 5px solid #285f9f; border-radius: 16px; overflow: hidden; background: #fff; }
+.wave-demo h1 { margin: 0; padding: 14px 8px; background: #edf4fa; text-align: center; font-size: clamp(12px, 3.1vw, 24px); white-space: nowrap; }
+.wave-demo .stage { margin: 8px 8px 0; }
+.wave-demo svg { display: block; width: 100%; height: auto; }
+.wave-demo svg text { font-family: system-ui, sans-serif; font-weight: 600; paint-order: stroke fill; stroke: #fff; stroke-width: 3px; stroke-linejoin: round; }
+.wave-demo svg line, .wave-demo svg path { stroke-linecap: round; }
+.wave-demo .controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 4px 8px 10px; }
+.wave-demo button { min-height: 44px; min-width: 90px; padding: 9px 18px; border: 1.5px solid #285f9f; border-radius: 7px; background: #edf4fa; color: #17324a; font: inherit; font-weight: 650; cursor: pointer; }
+.wave-demo button:hover { background: #dcebf8; }
+.wave-demo button:focus-visible { outline: 3px solid #a94b24; outline-offset: 2px; }
+.wave-demo [hidden] { display: none !important; }
+.wave-demo .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+@media (max-width: 760px) { body { padding: 4px; } .wave-demo .stage { margin: 3px 2px 0; } .wave-demo svg text { font-size: 18px; } }
+
+</style></head><body>
+<main class="wave-demo">
+<h1>Making a Standing Wave</h1><div class="stage"><svg id="scene" role="img" aria-label="Animated physics demonstration"></svg></div>
+<div class="controls"><button id="step" type="button" hidden>Next view</button><button id="replay" type="button">Replay</button></div>
+<span id="demo-status" class="sr-only" role="status" aria-live="polite"></span>
+<script>window.walkthroughLesson = {"title":"Making a Standing Wave","group":"demos","type":"animated-demo","demoKind":"standing","choices":[]};</script>
+<script>window.demoLesson = {"kind":"standing"};</script><script >
+(() => {
+  'use strict';
+  const TAU = 2 * Math.PI;
+  const C = { ink: '#17324a', blue: '#23649a', teal: '#087c80', orange: '#a94b24', pale: '#eaf2f7', grid: '#d9e4ec' };
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const text = (x,y,s,size=18,color=C.ink,anchor='middle') => `<text x="${x}" y="${y}" font-size="${size}" fill="${color}" text-anchor="${anchor}">${esc(s)}</text>`;
+  const line = (x,y,u,v,color=C.grid,stroke=1,dash='') => `<line x1="${x}" y1="${y}" x2="${u}" y2="${v}" stroke="${color}" stroke-width="${stroke}" ${dash?`stroke-dasharray="${dash}"`:''}/>`;
+  const circle = (x,y,r,color=C.orange,fill=color) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" stroke="${color}" stroke-width="2"/>`;
+  const rect = (x,y,w,h,fill=C.pale,stroke='none',radius=6) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${radius}" fill="${fill}" stroke="${stroke}"/>`;
+  const path = (points,color=C.teal,stroke=3,dash='') => `<path d="${points.map((p,i)=>`${i?'L':'M'}${p[0].toFixed(3)},${p[1].toFixed(3)}`).join(' ')}" fill="none" stroke="${color}" stroke-width="${stroke}" stroke-linejoin="round" ${dash?`stroke-dasharray="${dash}"`:''}/>`;
+  const curve = (x0,x1,fn,color=C.teal,stroke=3,dash='') => path(Array.from({length:401},(_,i)=>{const x=x0+(x1-x0)*i/400;return [x,fn(x)];}),color,stroke,dash);
+  function arrow(x,y,u,v,color=C.blue,stroke=2) {
+    const length=Math.hypot(u-x,v-y);
+    if(length<.5)return '';
+    const a=Math.atan2(v-y,u-x), h=Math.min(9,length*.45), half=h*.42;
+    const bx=u-h*Math.cos(a),by=v-h*Math.sin(a);
+    return line(x,y,bx,by,color,stroke)+`<path d="M${u},${v} L${bx-half*Math.sin(a)},${by+half*Math.cos(a)} L${bx+half*Math.sin(a)},${by-half*Math.cos(a)} Z" fill="${color}"/>`;
+  }
+  function bracket(x,u,y,label,color=C.orange) {
+    return line(x,y,u,y,color,2)+line(x,y-5,x,y+5,color,2)+line(u,y-5,u,y+5,color,2)+text(Math.max(96,(x+u)/2),y-11,label,17,color);
+  }
+  const clamp = (x,a=0,b=1)=>Math.max(a,Math.min(b,x));
+  const bump = z => Math.abs(z)<1 ? (1+Math.cos(Math.PI*z))/2 : 0;
+  const physics = {
+    transverse:(x,t,A=1,lambda=2,v=1)=>A*Math.sin(TAU*(x-v*t)/lambda),
+    pulse:(x,t,v=1,A=1)=>A*bump((x-v*t)/.65),
+    reflected:(x,center,L=6)=>bump((x-center)/.55)-bump((x-(2*L-center))/.55),
+    pulses:(x,t,sign=1)=>bump((x-(1+t))/.65)+sign*bump((x-(7-t))/.65),
+    standing:(x,t,n=2,L=6,v=2)=>2*Math.sin(n*Math.PI*x/L)*Math.cos(n*Math.PI*v*t/L),
+    snell:(n1,n2,angle)=>Math.asin(n1/n2*Math.sin(angle)),
+    diffraction:(ratio,angle)=>{const b=Math.PI*ratio*Math.sin(angle);return Math.abs(b)<1e-10?1:(Math.sin(b)/b)**2;},
+    photonEV:lambdaNm=>1239.841984/lambdaNm,
+    intensity:r=>1/(r*r),
+    lens:(f,d)=>1/(1/f-1/d),
+    gps:days=>({motion:-7*days,gravity:45*days,net:38*days,range:299792458*38e-6*days})
+  };
+  function axes(w,y=245,max=6,amplitude=65) {
+    const left=48,right=w-24,scale=(right-left)/max;
+    let svg='';
+    for(let x=0;x<=max;x++) svg+=line(left+x*scale,y-amplitude*1.5,left+x*scale,y+amplitude*1.5,C.grid,.7);
+    svg+=line(left,y,right,y,C.ink,1.5);
+    for(const x of [0,max/2,max])svg+=text(left+x*scale,y+amplitude*1.5+25,x,16);
+    svg+=text((left+right)/2,y+amplitude*1.5+50,'Position (m)',17);
+    return {left,right,scale,svg,X:x=>left+x*scale};
+  }
+  const footer=(w,s,y=450)=>text(w/2,y,s,17);
+  const status=(w,s)=>text(w/2,34,s,19);
+  function particles(w,t,k) {
+    const longitudinal=k!=='transverse', spring=k==='longitudinal', a=axes(w,230,6,58),lambda=2,v=.8;
+    let svg=status(w,longitudinal?'Compression travels right':'Wave travels right')+arrow(w/2-50,65,w/2+50,65);
+    const track=3,xt=a.X(track);
+    svg+=a.svg;
+    if(longitudinal) {
+      // Material coordinates remain ordered: A*k < 1 prevents coil crossing.
+      for(let j=0;j<=72;j++) {
+        const origin=6*j/72,x=origin+.18*Math.sin(TAU*(origin-v*t)/lambda);
+        if(spring)svg+=`<ellipse cx="${a.X(x)}" cy="230" rx="4" ry="42" fill="none" stroke="${j===36?C.orange:C.teal}" stroke-width="${j===36?4:1.5}"/>`;
+        else for(let row=0;row<5;row++)svg+=circle(a.X(x),190+row*20,j===36&&row===2?6:1.8,j===36&&row===2?C.orange:C.teal);
+      }
+      svg+=line(xt,160,xt,300,C.orange,1.5,'4 4');
+      const trackedX=a.X(track+.18*Math.sin(TAU*(track-v*t)/lambda));
+      svg+=circle(trackedX,230,10,C.orange,'none');
+      svg+=bracket(xt-.18*a.scale,xt+.18*a.scale,320,spring?'One coil':'One particle',C.orange);
+      const compression=(lambda/2+v*t)%lambda+2;
+      svg+=rect(a.X(compression)-12,174,24,112,'#f4c84d33');
+      svg+=text(a.X(compression),155,'Compression',17);
+      svg+=footer(w,spring?'Coils oscillate parallel to travel.':'Particles oscillate parallel to travel.');
+    } else {
+      svg+=curve(a.left,a.right,x=>230-58*physics.transverse((x-a.left)/a.scale,t,1,lambda,v));
+      for(let j=0;j<=36;j++)svg+=circle(a.X(j/6),230-58*physics.transverse(j/6,t,1,lambda,v),j===18?7:2.2,j===18?C.orange:C.teal);
+      svg+=circle(xt,230-58*physics.transverse(track,t,1,lambda,v),11,C.orange,'none');
+      svg+=line(xt,160,xt,300,C.orange,1.5,'4 4')+arrow(xt+22,285,xt+22,175,C.orange)+arrow(xt+22,175,xt+22,285,C.orange);
+      svg+=text(xt,140,'One rope particle',17,C.orange);
+      svg+=footer(w,'Particles move up and down at fixed x.');
+    }
+    return {svg,height:475,description:longitudinal?`The compression moves right. The highlighted ${spring?'coil':'particle'} oscillates about its fixed equilibrium position.`:'The wave moves right while the highlighted rope particle moves vertically at a fixed horizontal position.'};
+  }
+  function pulses(w,t,k,example) {
+    const interference=k==='interference',fixed=k==='reflection',max=interference?8:6;
+    const a=axes(w,260,max,55), sign=example===1?-1:1;
+    const physical=clamp(t/8)* (interference?6:8)- (interference?0:fixed?-1:1);
+    const A=example===1&&!interference?.65:1;
+    const y=x=>interference?physics.pulses(x,physical,sign):fixed?A*physics.reflected(x,physical):A*physics.pulse(x,physical);
+    let svg=status(w,interference?(sign===1?'Two upward pulses':'Opposite pulses'):fixed?'Reflection at a fixed end':'One source motion creates one pulse')+a.svg;
+    if(interference) {
+      svg+=curve(a.left,a.right,x=>260-55*bump(((x-a.left)/a.scale-(1+physical))/.65),C.blue,2,'6 5');
+      svg+=curve(a.left,a.right,x=>260-55*sign*bump(((x-a.left)/a.scale-(7-physical))/.65),C.orange,2,'3 5');
+      svg+=text(50,90,'A: 1 cm',17,C.blue,'start')+text(w-30,90,`B: ${sign} cm`,17,C.orange,'end');
+    }
+    svg+=curve(a.left,a.right,x=>260-55*y((x-a.left)/a.scale),C.teal,4);
+    if(fixed){
+      svg+=rect(a.right,160,15,160,'#eaf2f7',C.ink,0);
+      for(let y=174;y<=314;y+=14)svg+=line(a.right,y,a.right+15,y-12,C.ink,1);
+      svg+=circle(a.right,260,4,C.ink)+text(w-28,139,'Fixed end',17,C.ink,'end');
+    }
+    const particle=fixed?4:interference?4:3;
+    svg+=line(a.X(particle),140,a.X(particle),330,C.orange,1,'4 5')+circle(a.X(particle),260-55*y(particle),6,C.orange);
+    for(const val of (interference?[0,1,2]:[-1,0,1]))svg+=text(36,266-55*val,val,16,C.ink,'end');
+    svg+=text(48,119,'Displacement (cm)',16,C.ink,'start');
+    let caption;
+    if(interference) {
+      const at=Math.abs(physical-3)<.35;
+      caption=at?(sign===1?'At full overlap: 1 + 1 = 2 cm':'At full overlap: 1 - 1 = 0 cm'):'Solid line: sum of the dashed pulses';
+      // Hold at exact overlap in the shared timeline, not by changing wave speed.
+      svg+=footer(w,caption,428)+footer(w,'Pulses pass through with unchanged shapes.',460);
+    } else if(fixed)svg+=footer(w,physical>6?'Returning pulse is inverted.':'The end remains at zero displacement.',440);
+    else svg+=footer(w,'The particle returns to equilibrium.',440);
+    return {svg,height:480,description:interference?`Two pulses superpose. ${sign===1?'Equal upward pulses add to 2 cm.':'Equal opposite pulses cancel at full overlap.'} They pass through one another.`:fixed?'An incident pulse reflects inverted at the fixed end; the endpoint always stays at zero displacement.':'A localized disturbance travels right; material points move up and return to equilibrium.'};
+  }
+  function frequency(w,t,example) {
+    const left=48,right=w-24,scale=(right-left)/8,v=2;
+    const physical=Math.min(4,t/2),base=example===0?.5:1;
+    let svg=status(w,'Same rope: same wave speed');
+    for(const [y,f,color] of [[170,base,C.blue],[345,2*base,C.orange]]) {
+      svg+=text(left,y-85,`f = ${f} Hz`,18,color,'start')+text(right,y-85,`v = ${v} m/s`,18,color,'end');
+      svg+=line(left,y,right,y,C.ink,1.2);
+      svg+=curve(left,right,x=>y-32*((x-left)/scale<=v*physical?Math.sin(TAU*f*(physical-(x-left)/scale/v)):0),color);
+      svg+=bracket(left,left+v/f*scale,y+58,`wavelength = ${v/f} m`,color);
+    }
+    const x=left+v*physical*scale;
+    svg+=line(x,115,x,385,C.teal,2,'5 5')+circle(x,170,5,C.teal)+circle(x,345,5,C.teal);
+    svg+=text(w/2,430,`Both fronts: ${(v*physical).toFixed(1)} m in ${physical.toFixed(1)} s`,18);
+    svg+=footer(w,'Higher frequency; shorter wavelength.',464);
+    return {svg,height:485,description:`Two waves on the same rope travel at 2 metres per second. Frequencies ${base} and ${2*base} hertz give wavelengths ${v/base} and ${v/(2*base)} metres. Both fronts travel together.`};
+  }
+  function standing(w,t,example) {
+    const left=40,right=w-24,L=6,scale=(right-left)/L,n=example+1,k=n*Math.PI/L,omega=k*2;
+    const phase=t<2?'travel':t<4?'combine':t<14?'standing':'frequency';
+    const time=t*.75,front=Math.min(L,2*time);
+    const incomingRight=x=>x<=front?Math.sin(k*x-omega*time):0;
+    const incomingLeft=x=>x>=L-front?Math.sin(k*x+omega*time):0;
+    const heading=phase==='travel'?'Waves enter from opposite ends':phase==='combine'?'The waves overlap and add':phase==='standing'?'Their sum is a standing wave':n<3?'Higher frequency: next harmonic':'Return to the fundamental';
+    let svg=status(w,heading);
+    svg+=text(left,65,`Harmonic ${n}`,18,C.ink,'start')+text(right,65,`f = ${(n/6).toFixed(3)} Hz`,18,C.ink,'end');
+    for(const [y,dir,color,name] of [[160,-1,C.blue,'Right-moving wave'],[295,1,C.orange,'Left-moving wave']]) {
+      svg+=text(left,y-57,name,18,color,'start')+line(left,y,right,y,C.grid,1);
+      svg+=curve(left,right,x=>y-28*Math.sin(k*(x-left)/scale+dir*omega*time),color,2.5,dir===-1?'7 4':'3 4');
+      svg+=arrow(dir===-1?right-60:right,y-55,dir===-1?right:right-60,y-55,color,3);
+      // Follow crests (phase), not particles: equal speeds, opposite directions.
+      for(let j=-8;j<=8;j++) {
+        const x=(Math.PI/2+TAU*j-dir*omega*time)/k;
+        if(x>=0&&x<=L)svg+=circle(left+x*scale,y-28,5,color,'white');
+      }
+    }
+    svg+=text(left,385,'Actual string: right + left',18,C.teal,'start');
+    svg+=line(left,455,right,455,C.grid);
+    svg+=`<g opacity=".5">`+curve(left,right,x=>455-28*incomingRight((x-left)/scale),C.blue,2,'7 4')+curve(left,right,x=>455-28*incomingLeft((x-left)/scale),C.orange,2,'3 4')+'</g>';
+    svg+=curve(left,right,x=>455-28*(incomingRight((x-left)/scale)+incomingLeft((x-left)/scale)),C.teal,4);
+    if(t<4) {
+      svg+=arrow(left,411,left+Math.min(60,front*scale),411,C.blue,3);
+      svg+=arrow(right,411,right-Math.min(60,front*scale),411,C.orange,3);
+      svg+=circle(left+front*scale,455,4,C.blue,'white')+circle(right-front*scale,455,4,C.orange,'white');
+    }
+    if(t>=4) {
+      for(let j=0;j<=n;j++)svg+=circle(left+L*j/n*scale,455,4,C.ink);
+      const node=left+L*Math.floor(n/2)/n*scale, anti=left+L*(n-.5)/n*scale;
+      svg+=line(node,463,node,514,C.ink)+text(Math.max(65,node),538,'Fixed node',17);
+      svg+=arrow(anti,511,anti,399,C.orange)+arrow(anti,399,anti,511,C.orange);
+      svg+=text(right,566,`${n} ${n===1?'loop':'loops'} \u2022 ${n} ${n===1?'antinode':'antinodes'}`,18,C.teal,'end');
+    } else svg+=text(w/2,535,'Waves travel along this string',17);
+    const next=n<3?n+1:1;
+    svg+=text(w/2,600,t>=14?`Next: ${(n/6).toFixed(3)} \u2192 ${(next/6).toFixed(3)} Hz`:'6 m string \u2022 2 m/s \u2022 0.75x speed',18);
+    return {svg,height:620,phase,description:`Harmonic ${n}, frequency ${(n/6).toFixed(3)} hertz. ${heading}. Equal blue right-moving and orange left-moving waves have the same speed and amplitude. ${t>=4?`Their teal sum has ${n} antinodes and ${n+1} fixed nodes.`:'On the bottom string one wave enters from the left and another from the right; their displacements add wherever they overlap.'}`};
+  }
+  function refractPanel(w,t,n1,n2,degrees,name,id,water=false) {
+    const cx=w/2,cy=240,theta=degrees*Math.PI/180,beta=physics.snell(n1,n2,theta),len=140;
+    const lam1=52/n1,lam2=52/n2;
+    let svg=rect(12,63,w-24,177,'#f4f8fc')+rect(12,240,w-24,180,'#e5f2f1');
+    svg+=text(w/2,29,name,19)+text(24,88,water?'Deeper: 3 m/s':`n = ${n1}`,17,C.blue,'start')+text(24,405,water?'Shallower: 2 m/s':`n = ${n2}`,17,C.teal,'start');
+    svg+=`<defs><clipPath id="upper-${id}"><rect x="12" y="100" width="${w-24}" height="140"/></clipPath><clipPath id="lower-${id}"><rect x="12" y="240" width="${w-24}" height="140"/></clipPath></defs>`;
+    for(const [angle,lambda,zone,color] of [[theta,lam1,'upper',C.blue],[beta,lam2,'lower',C.teal]]) {
+      svg+=`<g clip-path="url(#${zone}-${id})" opacity=".5">`;
+      for(let j=-14;j<=14;j++) {
+        const d=(j+(t*.45)%1)*lambda,px=cx+d*Math.sin(angle),py=cy+d*Math.cos(angle);
+        svg+=line(px-500*Math.cos(angle),py+500*Math.sin(angle),px+500*Math.cos(angle),py-500*Math.sin(angle),color,2);
+      }
+      svg+='</g>';
+    }
+    svg+=line(12,cy,w-12,cy,C.ink,2)+line(cx,105,cx,376,C.ink,1.2,'6 5');
+    svg+=arrow(cx-len*Math.sin(theta),cy-len*Math.cos(theta),cx,cy,C.blue,4);
+    svg+=arrow(cx,cy,cx+len*Math.sin(beta),cy+len*Math.cos(beta),C.teal,4);
+    function arc(angle,upper,r,color) {
+      return path(Array.from({length:31},(_,i)=>{const a=angle*i/30;return [cx+(upper?-1:1)*r*Math.sin(a),cy+(upper?-1:1)*r*Math.cos(a)];}),color,2);
+    }
+    svg+=arc(theta,true,43,C.blue)+arc(beta,false,48,C.teal);
+    svg+=text(cx+12,124,'Normal',16,C.ink,'start')+text(cx-70,190,`${degrees.toFixed(0)} deg`,18,C.blue)+text(cx+70,327,`${(beta*180/Math.PI).toFixed(1)} deg`,18,C.teal);
+    svg+=text(w/2,453,water?'Speed: 3 to 2 m/s':`Speed: ${(1/n1).toFixed(2)}c to ${(1/n2).toFixed(2)}c`,17);
+    svg+=text(w/2,484,water?'Wavelength: 3 to 2 m':`Wavelength: ${(600/n1).toFixed(0)} to ${(600/n2).toFixed(0)} nm`,17);
+    svg+=text(w/2,515,water?'Frequency stays 1 Hz':'Frequency unchanged',17);
+    return svg;
+  }
+  function refraction(w,t,example,gem) {
+    if(gem) {
+      const small=w<600,pw=small?w:400,height=540;
+      let svg='';
+      for(const [i,n,name] of [[0,1.52,'Glass'],[1,2.42,'Diamond']])svg+=`<g transform="translate(${small?0:i*420} ${small?i*height:0})">${refractPanel(pw,t,1,n,45,name,'gem'+i)}</g>`;
+      return {svg,height:small?1080:540,description:'At the same 45 degree incidence from air, glass bends to 27.7 degrees and diamond to 17.0 degrees. Wavefronts move more slowly and are closer in the higher-index material.'};
+    }
+    const cases=[[1,1.5,30,'Air to glass'],[1,1.5,50,'Air to glass'],[1.5,1,30,'Glass to air']];
+    const [n1,n2,a,name]=cases[example];
+    return {svg:refractPanel(w,t,n1,n2,a,name,'refract')+footer(w,'Transmitted wave; angles from the normal.',552),height:575,description:`${name}. Angle of incidence ${a} degrees, refraction ${(physics.snell(n1,n2,a*Math.PI/180)*180/Math.PI).toFixed(1)} degrees. Phase fronts satisfy Snell's law, keep the same frequency, and change speed and wavelength in proportion to 1 over refractive index.`};
+  }
+  function diffraction(w,t,example) {
+    const ratio=example===0?1.5:4, left=55,right=w-25,wall=left+65,cy=205,unit=23,gap=ratio*unit;
+    const radius=Math.min(120,right-wall-10);
+    let svg=status(w,ratio<2?'Narrow gap: broad spreading':'Wide gap: narrow main beam');
+    for(let j=0;j<5;j++) {const x=left+((j*unit+t*18)%100)-30;if(x<wall)svg+=line(x,110,x,300,C.blue,2);}
+    svg+=line(wall,100,wall,cy-gap/2,C.ink,9)+line(wall,cy+gap/2,wall,310,C.ink,9);
+    svg+=text(w/2,85,`gap = ${ratio} wavelengths`,17,C.orange);
+    svg+=line(wall-14,cy-gap/2,wall-14,cy+gap/2,C.orange,2)+line(wall-19,cy-gap/2,wall-9,cy-gap/2,C.orange,2)+line(wall-19,cy+gap/2,wall-9,cy+gap/2,C.orange,2);
+    for(let r=15;r<radius;r+=15) {
+      const rr=(r+t*18)%radius;
+      for(let j=-45;j<45;j++) {
+        const a=j*Math.PI/100,b=(j+1)*Math.PI/100,I=physics.diffraction(ratio,(a+b)/2);
+        svg+=`<g opacity="${.08+.85*Math.sqrt(I)}">${line(wall+rr*Math.cos(a),cy+rr*Math.sin(a),wall+rr*Math.cos(b),cy+rr*Math.sin(b),C.teal,2)}</g>`;
+      }
+    }
+    svg+=text(w/2,343,'Wavefront spreading: schematic',16);
+    const y=475,plotWidth=right-left;
+    svg+=line(left,y,right,y,C.ink)+text(w/2,378,'Far-field intensity / central intensity',17);
+    svg+=curve(left,right,x=>y-75*physics.diffraction(ratio,((x-left)/plotWidth-.5)*Math.PI),C.teal,3);
+    for(const [frac,s] of [[0,'-90'],[.5,'0'],[1,'90']])svg+=text(left+frac*plotWidth,500,s,16);
+    svg+=text(w/2,529,'Angle (degrees)',17);
+    const first=Math.asin(1/ratio),dx=first/Math.PI*plotWidth;
+    for(const sign of [-1,1])svg+=circle(left+plotWidth/2+sign*dx,y,4,C.orange);
+    svg+=footer(w,`First minima: +/- ${(first*180/Math.PI).toFixed(1)} deg`,561);
+    return {svg,height:585,description:`Gap width is ${ratio} wavelengths. The far-field single-slit intensity is sinc squared. First minima are at ${(first*180/Math.PI).toFixed(1)} degrees from the center. Wavefronts are schematic; the angular intensity plot is calculated.`};
+  }
+  function photons(w,t) {
+    const left=45,right=w-24,scale=(right-left)/1800;
+    let svg=status(w,'Higher frequency: more energy per photon');
+    for(const [y,lambda,color,name] of [[160,600,C.orange,'Visible light'],[350,300,C.blue,'Ultraviolet']]) {
+      svg+=text(left,y-76,name,18,color,'start')+text(right,y-76,`${(299792.458/lambda).toFixed(1)} THz`,18,color,'end');
+      svg+=line(left,y,right,y,C.grid)+curve(left,right,x=>y-27*Math.sin(TAU*((x-left)/scale-300*t)/lambda),color);
+      svg+=bracket(left,left+lambda*scale,y+58,`${lambda} nm`,color);
+      svg+=text(right,y+58,`${physics.photonEV(lambda).toFixed(2)} eV / photon`,17,color,'end');
+    }
+    svg+=text(w/2,435,'Same vacuum speed: c',18)+footer(w,'Wave phase slowed; equal field amplitudes.',469);
+    return {svg,height:490,description:'Visible 600 nanometre light has frequency about 499.7 terahertz and energy 2.07 electronvolts per photon. Ultraviolet 300 nanometre light has twice the frequency and twice the photon energy, about 4.13 electronvolts. Both move at the same vacuum speed.'};
+  }
+  function communication(w,t,example,infrared) {
+    const left=65,right=w-65,cy=195,bits=example===0?[1,0,1,1,0]:[0,1,0,0,1];
+    let svg=status(w,infrared?'Infrared carries the remote signal':'Radio carries the wireless signal');
+    svg+=rect(left-25,cy-50,50,95,'#e3ebf2',C.blue)+circle(left,cy-30,4,C.orange);
+    for(let j=0;j<4;j++)svg+=circle(left-10+(j%2)*20,cy+Math.floor(j/2)*18,3,C.blue);
+    if(infrared)svg+=rect(right-33,cy-38,66,56,'#d5eef0',C.teal)+line(right,cy+18,right,cy+38,C.teal,3)+line(right-20,cy+38,right+20,cy+38,C.teal,3);
+    else svg+=`<path d="M ${right-27} ${cy+20} V ${cy-15} A 27 27 0 0 1 ${right+27} ${cy-15} V ${cy+20}" fill="none" stroke="${C.teal}" stroke-width="6"/>`;
+    svg+=text(left,275,infrared?'Remote':'Phone',18)+text(right,275,infrared?'TV':'Headphones',18);
+    svg+=arrow(left+36,130,right-36,130,C.teal)+text(w/2,105,infrared?'Infrared light (~940 nm)':'Radio (2.4 GHz band)',18);
+    const bitTime=1.1,delay=1.2;
+    for(let i=0;i<bits.length;i++) {
+      const age=t-i*bitTime-1;
+      if(age>=0&&age<delay) {
+        const x=left+34+(right-left-68)*age/delay;
+        svg+=rect(x-14,cy-17,28,34,'#fff1bd',C.orange)+text(x,cy+6,bits[i],18,C.orange);
+      }
+    }
+    const received=bits.map((b,i)=>t>=i*bitTime+1+delay?b:'_').join(' ');
+    svg+=text(w/2,327,`Sent: ${bits.join(' ')}`,20,C.blue)+text(w/2,366,`Received: ${received}`,20,C.teal);
+    svg+=footer(w,infrared?'Bursts of infrared light encode information.':'Modulated radio encodes information.',417);
+    svg+=footer(w,'Data symbols shown; travel greatly slowed.',450);
+    return {svg,height:475,description:`${infrared?'A remote sends infrared light to a television.':'A phone sends radio signals in the 2.4 gigahertz band to headphones.'} The illustrated bits ${bits.join(' ')} arrive in order at the receiver. This is a data-transfer schematic, not a protocol or carrier waveform.`};
+  }
+  function race(w,t,example) {
+    const left=58,right=w-35,distance=example===0?300:600,duration=distance/300;
+    const physical=Math.min(duration,t/5),fraction=physical/duration;
+    let svg=status(w,'Equal distance through a vacuum');
+    for(const [y,name,color,cycles] of [[165,'Radio',C.blue,2],[315,'Visible light',C.orange,7]]) {
+      svg+=text(left,y-48,name,18,color,'start')+line(left,y,right,y,C.grid,2);
+      const x=left+(right-left)*fraction;
+      svg+=line(x, y-22, x,y+22,color,4)+circle(x,y,7,color);
+      svg+=curve(left,left+65,z=>y+55-8*Math.sin((z-left)/65*TAU*cycles),color,2);
+      svg+=text(right,y+60,'c = 299,792,458 m/s',16,color,'end');
+    }
+    svg+=line(right,100,right,350,C.ink,2,'5 4')+bracket(left,right,413,`${distance} m`);
+    // Display uses exact c: the illustrative 300 m/us timeline is rescaled.
+    svg+=text(w/2,455,`Both: ${(fraction*distance/299792458*1e6).toFixed(2)} microseconds`,18);
+    svg+=footer(w,fraction===1?'Arrive together.':'Same speed, different frequencies.',489);
+    svg+=footer(w,'Wave symbols not to scale; time slowed.',520);
+    return {svg,height:545,description:`Radio and visible light traverse ${distance} metres in vacuum together, taking ${(distance/299792458*1e6).toFixed(3)} microseconds at exactly 299792458 metres per second.`};
+  }
+  function intensity(w,t,example) {
+    const cx=w/2,cy=215,r0=Math.min(45,(w-80)/6),max=example===0?2:3;
+    let svg=status(w,'Same power spreads over larger spheres');
+    for(let i=1;i<=max;i++) {
+      svg+=circle(cx,cy,r0*i,C.grid,'none');
+      svg+=text(cx+r0*i*.72,cy-r0*i*.72-8,`${i}r`,17,C.ink);
+    }
+    for(let j=0;j<4;j++) {
+      const r=12+(t*25+j*35)%(max*r0-12);
+      svg+=`<g opacity="${.2+.5*(1-r/(max*r0))}">${circle(cx,cy,r,C.teal,'none')}</g>`;
+    }
+    svg+=circle(cx,cy,9,C.orange);
+    for(let j=0;j<12;j++){const a=j*TAU/12;svg+=arrow(cx+(max*r0-15)*Math.cos(a),cy+(max*r0-15)*Math.sin(a),cx+max*r0*Math.cos(a),cy+max*r0*Math.sin(a),C.teal,1);}
+    svg+=text(w/2,385,'Cross-section of spherical spreading',16);
+    const left=45,barWidth=w-150;
+    for(let i=1;i<=max;i++) {
+      const y=410+(i-1)*45;
+      svg+=text(left,y+20,`${i}r`,17,C.ink,'end')+rect(left+12,y,barWidth*physics.intensity(i),25,C.teal)+text(left+25+barWidth*physics.intensity(i),y+19,i===1?'I':'I / '+i*i,17,C.ink,'start');
+    }
+    svg+=footer(w,`Area x ${max*max}; intensity / ${max*max}`,565)+footer(w,'Point source; no absorption or shielding.',597);
+    return {svg,height:620,description:`For an isotropic point source without absorption, the same total power crosses every sphere. At ${max} times the radius the area is ${max*max} times larger and intensity is ${1/(max*max)} of the reference intensity.`};
+  }
+  function period(w,t,example) {
+    const f=example+1,T=1/f,physical=Math.min(2,t/4),left=145,right=w-24,scale=(right-left)/2,y=220;
+    let svg=status(w,`Frequency ${f} Hz: ${f} cycle${f===1?'':'s'} per second`);
+    svg+=text(65,107,'One point',17,C.orange)+text((left+right)/2,107,'Its motion over time',17,C.teal);
+    svg+=line(65,156,65,284,C.orange,1,'4 4')+circle(65,y-45*Math.sin(TAU*f*physical),9,C.orange);
+    svg+=line(left,y,right,y,C.ink,1.5)+curve(left,left+physical*scale,x=>y-45*Math.sin(TAU*f*(x-left)/scale),C.teal);
+    svg+=circle(left+physical*scale,y-45*Math.sin(TAU*f*physical),5,C.orange);
+    for(const sec of [0,1,2])svg+=text(left+sec*scale,299,sec,16);
+    svg+=text((left+right)/2,330,'Time (s)',17);
+    svg+=bracket(left,left+T*scale,380,`T = ${T} s`);
+    svg+=text(w/2,425,'One complete oscillation takes one period.',17)+text(w/2,460,'T = 1 / f',20);
+    return {svg,height:485,description:`A single point oscillates ${f} times per second. The synchronized trace records its displacement against time. One complete cycle takes ${T} seconds.`};
+  }
+  function wavelength(w,t,example) {
+    const lambda=example===0?2:3,v=.5,a=axes(w,245,6,50),crest=(lambda/4+v*t)%lambda;
+    let svg=status(w,'Measure between matching points')+a.svg;
+    svg+=curve(a.left,a.right,x=>245-50*physics.transverse((x-a.left)/a.scale,t,1,lambda,v));
+    for(const x of [crest,crest+lambda])svg+=circle(a.X(x),195,5,C.orange)+line(a.X(x),160,a.X(x),189,C.orange,1.5);
+    svg+=bracket(a.X(crest),a.X(crest+lambda),155,`wavelength = ${lambda} m`);
+    svg+=arrow(w/2-45,70,w/2+45,70)+footer(w,'Crest to next crest: one wavelength.',425);
+    return {svg,height:450,description:`The wave moves right. The highlighted neighboring crests remain ${lambda} metres apart; that distance is the wavelength.`};
+  }
+  function gps(w,t,example) {
+    const days=Math.min(1,t/8),values=physics.gps(days),corrected=example===1,cx=w/2,scale=(w-100)/100;
+    let svg=status(w,corrected?'Clock-rate correction cancels the drift':'Satellite clock gains on Earth clocks');
+    const rows=[[135,values.motion,'Motion: -7 microseconds/day',C.blue],[245,values.gravity,'Gravity: +45 microseconds/day',C.orange],[355,corrected?-values.net:0,corrected?'Rate correction: -38 microseconds/day':'No rate correction',C.blue],[465,corrected?0:values.net,'Net clock offset',C.teal]];
+    svg+=line(cx,100,cx,500,C.ink,1.3,'5 5');
+    for(const [y,value,name,color] of rows) {
+      const x=cx+value*scale;
+      svg+=text(w/2,y-35,name,17,color)+line(40,y,w-30,y,C.grid);
+      if(Math.abs(value)>.001)svg+=arrow(cx,y,x,y,color,8);else svg+=circle(cx,y,4,color);
+      svg+=text(x,y+25,`${value>0?'+':''}${value.toFixed(1)} us`,17,color,value>=0?'end':'start');
+    }
+    svg+=text(w/2,540,`Elapsed: ${(24*days).toFixed(1)} hours`,18);
+    svg+=text(w/2,574,`Equivalent range offset: ${(corrected?0:values.range/1000).toFixed(1)} km`,17);
+    svg+=text(w/2,606,'Rounded rates; not a position-error estimate.',16);
+    return {svg,height:630,description:`After ${(24*days).toFixed(1)} hours the rounded motion contribution is ${values.motion.toFixed(1)} microseconds and gravity contribution is ${values.gravity.toFixed(1)} microseconds. ${corrected?'Clock-rate correction cancels the net gain.':'The net gain is '+values.net.toFixed(1)+' microseconds.'} Multiplication by light speed gives an equivalent range offset, not a direct position error.`};
+  }
+  function lens(w,t,example) {
+    const f=1,d=example===0?3:1.5,image=physics.lens(f,d),cx=w/2,scale=(w-70)/7,y=235,H=.32*scale,objectX=cx-d*scale,imageX=cx+image*scale,imageH=-H*image/d;
+    let svg=status(w,example===0?'Object beyond twice the focal distance':'Object between F and 2F');
+    svg+=line(20,y,w-20,y,C.ink,1.5)+`<path d="M${cx} 110 Q${cx+23} ${y} ${cx} 360 Q${cx-23} ${y} ${cx} 110Z" fill="#e0f1f5" stroke="${C.blue}" stroke-width="2"/>`;
+    for(const m of [-2,-1,1,2])svg+=circle(cx+m*scale,y,3,C.ink)+text(cx+m*scale,285,Math.abs(m)===1?'F':'2F',16);
+    svg+=arrow(objectX,y,objectX,y-H,C.orange,4)+text(objectX,160,'Object',17,C.orange);
+    const rays=[[[objectX,y-H],[cx,y-H],[imageX,y-imageH]],[[objectX,y-H],[cx,y],[imageX,y-imageH]],[[objectX,y-H],[cx,y-imageH],[imageX,y-imageH]]];
+    for(let j=0;j<3;j++) {
+      const progress=clamp((t-j*2)/1.8),points=rays[j];
+      if(progress>0) {
+        const p1=clamp(progress*2),p2=clamp(progress*2-1),a=points[0],b=points[1],c=points[2];
+        svg+=arrow(a[0],a[1],a[0]+(b[0]-a[0])*p1,a[1]+(b[1]-a[1])*p1,j===0?C.blue:j===1?C.teal:C.orange,1.8);
+        if(p2>0)svg+=arrow(b[0],b[1],b[0]+(c[0]-b[0])*p2,b[1]+(c[1]-b[1])*p2,j===0?C.blue:j===1?C.teal:C.orange,1.8);
+      }
+    }
+    if(t>=6)svg+=arrow(imageX,y,imageX,y-imageH,C.teal,4)+text(imageX,330,'Image',17,C.teal);
+    svg+=bracket(objectX,cx,395,`object = ${d}f`,C.orange)+bracket(cx,imageX,440,`image = ${image.toFixed(1)}f`,C.teal);
+    svg+=text(w/2,486,example===0?'Real, inverted, half-size':'Real, inverted, twice-size',18)+footer(w,'Ideal thin lens; rays drawn in sequence.',523);
+    return {svg,height:545,description:`An ideal converging thin lens with object distance ${d} focal lengths forms a real inverted image at ${image} focal lengths, with magnification ${(-image/d).toFixed(1)}. Three construction rays meet at the image tip.`};
+  }
+  const counts={refraction:3,standing:3};
+  function render(kind,w,t,example=0) {
+    if(['transverse','longitudinal','compression','soundparticles'].includes(kind))return particles(w,t,kind);
+    if(['pulse','reflection','interference'].includes(kind))return pulses(w,t,kind,example);
+    if(kind==='frequency')return frequency(w,t,example);
+    if(kind==='standing')return standing(w,t,example);
+    if(kind==='refraction'||kind==='gem')return refraction(w,t,example,kind==='gem');
+    if(kind==='diffraction')return diffraction(w,t,example);
+    if(kind==='photons')return photons(w,t);
+    if(kind==='infrared'||kind==='bluetooth')return communication(w,t,example,kind==='infrared');
+    if(kind==='race')return race(w,t,example);
+    if(kind==='intensity')return intensity(w,t,example);
+    if(kind==='period')return period(w,t,example);
+    if(kind==='wavelength')return wavelength(w,t,example);
+    if(kind==='gps')return gps(w,t,example);
+    if(kind==='lens')return lens(w,t,example);
+    if(kind==='water')return {svg:refractPanel(w,t,1,1.5,example===0?45:0,'Waves enter shallower water','water',true)+footer(w,'Ideal long-wave model; angles from normal.',552),height:575,description:'Water waves slow from 3 to 2 metres per second at a shallower region. Wavelength changes from 3 to 2 metres while frequency stays at 1 hertz. Oblique incidence bends toward the normal; normal incidence remains straight.'};
+    throw Error('Unknown demo '+kind);
+  }
+  window.Unit5AnimatedDemos={physics,render};
+  if(!window.demoLesson)return;
+  const lesson=window.demoLesson,scene=document.getElementById('scene'),replay=document.getElementById('replay'),step=document.getElementById('step'),live=document.getElementById('demo-status');
+  const compact=matchMedia('(max-width: 760px)'),reduced=matchMedia('(prefers-reduced-motion: reduce)');
+  let elapsed=0,last=null,example=0,completed=false,frameId,stage=0;
+  const count=counts[lesson.kind]||(['transverse','longitudinal','compression','soundparticles','gem','photons'].includes(lesson.kind)?1:2);
+  const length=lesson.kind==='standing'?18:12;
+  function draw(announce=false) {
+    let t=elapsed;
+    if(lesson.kind==='interference')t=elapsed<4?elapsed:elapsed<6?4:elapsed-2;
+    const result=render(lesson.kind,compact.matches?420:840,t,example);
+    scene.setAttribute('viewBox',`0 0 ${compact.matches?420:840} ${result.height}`);
+    scene.innerHTML=result.svg;scene.setAttribute('aria-label',result.description);
+    const changed=scene.dataset.phase!==(result.phase||'demo');
+    scene.dataset.phase=result.phase||'demo';scene.dataset.example=example;scene.dataset.time=t.toFixed(2);
+    if(announce||changed)live.textContent=result.description;
+  }
+  function advance() {
+    if(example===count-1&&!completed){completed=true;window.parent.postMessage({ type: 'complete' }, '*');}
+    example=(example+1)%count;elapsed=0;stage=0;draw(true);
+  }
+  function reset() {elapsed=0;example=0;stage=0;last=null;draw(true);}
+  function settings(){step.hidden=!reduced.matches;reset();}
+  replay.addEventListener('click',reset);
+  step.addEventListener('click',()=>{stage++;if(stage>3)advance();else {elapsed=(lesson.kind==='standing'?[0,3.2,7,15]:[0,2,4,8])[stage];draw(true);}});
+  compact.addEventListener('change',()=>draw());reduced.addEventListener('change',settings);
+  document.addEventListener('visibilitychange',()=>{last=null;});
+  function frame(now) {
+    const dt=last===null?0:Math.min(.1,(now-last)/1000);last=now;
+    if(!reduced.matches&&!document.hidden){elapsed+=dt;if(elapsed>=length)advance();else draw();}
+    frameId=requestAnimationFrame(frame);
+  }
+  window.addEventListener('pagehide',()=>cancelAnimationFrame(frameId));
+  settings();frameId=requestAnimationFrame(frame);
+})();
+
+</script>
+</main></body></html>

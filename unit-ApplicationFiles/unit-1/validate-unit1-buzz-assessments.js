@@ -8,7 +8,7 @@ const workspace = path.resolve(root, '..', '..');
 const assessments = [
   { lesson: 'U1L1', dir: 'lesson-1', setup: 'u1l1_motion_graphs_buzz_setup.txt', template: 'u1l1-motion-graphs-buzz-assessment-template.html', preview: 'u1l1-motion-graphs-buzz-assessment-template-preview.html', simulation: 'index.html', applicationAssignment: true, completionQuestionCount: 15, count: 0, automaticPoints: 15, busybeeQuestionPoints: [] },
   { lesson: 'U1L2', dir: 'lesson-2', setup: 'u1l2_city_blocks_buzz_setup.txt', template: 'u1l2-city-blocks-buzz-assessment-template.html', preview: 'u1l2-city-blocks-buzz-assessment-template-preview.html', simulation: 'index.html', count: 10, automaticPoints: 8, busybeeQuestionPoints: [3, 4] },
-  { lesson: 'U1L3', dir: 'lesson-3', setup: 'u1l3_galileo_buzz_setup.txt', template: 'u1l3-galileo-buzz-assessment-template.html', preview: 'u1l3-galileo-buzz-assessment-template-preview.html', simulation: 'index.html', count: 10, automaticPoints: 10, busybeeQuestionPoints: [2, 3] },
+  { lesson: 'U1L3', dir: 'lesson-3', setup: 'u1l3_galileo_buzz_setup.txt', template: 'u1l3-galileo-buzz-assessment-template.html', preview: 'u1l3-galileo-buzz-assessment-template-preview.html', simulation: 'index.html', count: 11, automaticPoints: 10, completedProvidedChart: true, busybeeQuestionPoints: [2, 3] },
   { lesson: 'U1L4', dir: 'lesson-4', setup: 'u1l4_reaction_time_buzz_setup.txt', template: 'u1l4-reaction-time-buzz-assessment-template.html', preview: 'u1l4-reaction-time-buzz-assessment-template-preview.html', simulation: 'index.html', count: 10, automaticPoints: 8, busybeeQuestionPoints: [3, 4] },
   { lesson: 'U1L5', dir: 'lesson-5', setup: 'u1l5_skydiver_buzz_setup.txt', template: 'u1l5-skydiver-buzz-assessment-template.html', preview: 'u1l5-skydiver-buzz-assessment-template-preview.html', simulation: 'sky-dive-lab.html', count: 10, automaticPoints: 8, busybeeQuestionPoints: [3, 4] },
   { lesson: 'U1H', dir: 'lesson-honors', setup: 'u1h_rocket_launch_buzz_setup.txt', template: 'u1h-rocket-launch-buzz-assessment-template.html', preview: 'u1h-rocket-launch-buzz-assessment-template-preview.html', simulation: 'index.html', count: 10, totalPoints: 15, automaticPoints: 8, busybeeQuestionPoints: [3, 4] }
@@ -66,7 +66,7 @@ function verifyQuestionBank(item, dir) {
       }
       busybee += score;
     } else {
-      if (/^E\b/.test(type)) fail(`${item.lesson} Q${index + 1}: essays must be the final two questions only`);
+      if (/^E\b/.test(type)) fail(`${item.lesson} Q${index + 1}: essays must be in the final BusyBee question group`);
       if (property(block, 'Meta-grading') !== 'auto') fail(`${item.lesson} Q${index + 1}: automatic question lacks Meta-grading: auto`);
       if (/^MC\b/.test(type) && (block.match(/^\*[a-z]\./gm) || []).length !== 1) fail(`${item.lesson} Q${index + 1}: MC question must have exactly one starred answer`);
       if (/^F,\s*Number\b/.test(type) && !/^a\.\s*.+/m.test(block)) fail(`${item.lesson} Q${index + 1}: numeric question lacks an answer key`);
@@ -160,7 +160,7 @@ function verifyGeneratedFiles(item, dir) {
   const settings = metadata.assessmentSettings || {};
   if (settings.totalPoints !== (item.totalPoints || 15) || settings.automaticPoints !== item.automaticPoints || settings.busybeePoints !== (item.totalPoints || 15) - item.automaticPoints) fail(`${item.lesson}: metadata score settings are incorrect`);
   if (!Array.isArray(settings.requiredUploads) || settings.requiredUploads.length) fail(`${item.lesson}: metadata still requires an upload`);
-  if ((item.automaticPoints === 10) !== (settings.completedProvidedChart === true)) fail(`${item.lesson}: 10 automatic points must be reserved for a completed provided chart`);
+  if (!!item.completedProvidedChart !== (settings.completedProvidedChart === true)) fail(`${item.lesson}: completed-chart setting is incorrect`);
   const busybee = (metadata.questions || []).filter((question) => question.grading === 'busybee');
   if (busybee.length !== item.busybeeQuestionPoints.length || busybee.some((q, i) => q.points !== item.busybeeQuestionPoints[i])) fail(`${item.lesson}: metadata has the wrong final BusyBee point values`);
 }

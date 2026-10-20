@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Unit 5 Lesson 3 — Telescope &amp; microscope</title>
+<style>
+html, body { background: transparent; }
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#18324a}
+.optics{box-sizing:border-box;max-width:1020px;margin:0 auto;padding:18px;border:5px solid #285f9f;border-radius:22px;background:#fff}
+.optics h1{font-size:clamp(20px,3vw,28px);line-height:1.25;margin:0 0 12px;white-space:nowrap}
+.optics .figure{border-radius:12px;background:#f6f9fc;overflow:hidden}
+.optics .caption{padding:14px 18px 0;min-height:66px;box-sizing:border-box;font-size:17px;line-height:1.45}
+.optics .caption strong{color:#285f9f}
+.optics .scroll{overflow-x:auto;outline-offset:-3px}
+.optics svg{display:block;width:100%;min-width:700px;height:auto}
+.optics svg text{font-family:inherit;fill:#18324a;font-size:17px;paint-order:stroke;stroke:#f6f9fc;stroke-width:5px;stroke-linejoin:round}
+.optics svg .small{font-size:14px}
+.optics .controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.optics button{font:600 14px system-ui;padding:10px 14px;border:1px solid #879bb0;border-radius:8px;background:white;color:#18324a;cursor:pointer;min-height:42px}
+.optics button[aria-pressed="true"]{background:#285f9f;color:#fff;border-color:#285f9f}
+.optics button:focus-visible,.optics .scroll:focus-visible{outline:3px solid #b85c00;outline-offset:2px}
+.optics #replay{margin-left:auto}
+.optics .hint{display:none;margin:0;padding:5px 12px 8px;font-size:12px;color:#425d74}
+.optics .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+@media(max-width:720px){.optics{padding:10px;border-radius:16px}.optics .caption{font-size:15px;padding:12px;min-height:88px}.optics .hint{display:block}.optics button{padding:9px 11px}}
+</style>
+</head>
+<body><main class="optics">
+<h1>Telescope &amp; microscope</h1>
+<div class="figure">
+<div class="caption" id="caption" role="status" aria-live="polite"></div>
+<div class="scroll" tabindex="0" role="region" aria-label="Ray diagram. Scroll horizontally on narrow screens to follow the light.">
+<svg id="scene" viewBox="0 0 900 460" role="img" aria-labelledby="diagram-title diagram-desc"></svg>
+</div>
+<p class="hint">Slide the diagram sideways to follow the rays →</p>
+</div>
+<div class="controls"><button type="button" id="telescope" aria-pressed="true">Telescope</button><button type="button" id="microscope" aria-pressed="false">Microscope</button><button type="button" id="replay">Replay</button></div>
+<script>
+(()=>{
+'use strict';
+const svg=document.querySelector('#scene'),caption=document.querySelector('#caption');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)');
+let mode='telescope',stage=0,timer=null,deadline=0,remaining=0,completed=false;
+const seen=new Set(),axis=230,colors=['#b75012','#076d88','#7549a7'];
+const text=(x,y,t,anchor='middle',cls='')=>`<text x="${x}" y="${y}" text-anchor="${anchor}" class="${cls}">${t}</text>`;
+const line=(x,y,X,Y,color='#718398',dash='')=>`<path d="M${x} ${y}L${X} ${Y}" fill="none" stroke="${color}" stroke-width="1.3" ${dash?`stroke-dasharray="${dash}"`:''}/>`;
+function ray(a,b,c,i){return `<path class="ray" d="M${a} ${b}L${c[0]} ${c[1]}" fill="none" stroke="${colors[i]}" stroke-width="2.4"/>`+arrow(a,b,c[0],c[1],i);}
+function arrow(x,y,X,Y,i){const u=.58,px=x+(X-x)*u,py=y+(Y-y)*u,angle=Math.atan2(Y-y,X-x)*180/Math.PI;return `<path d="M-7 -3.5L1 0L-7 3.5" fill="none" stroke="${colors[i]}" stroke-width="2.3" transform="translate(${px} ${py}) rotate(${angle})"/>`;}
+function lens(x,r,name){return `<path d="M${x} ${axis-r}Q${x+34} ${axis} ${x} ${axis+r}Q${x-34} ${axis} ${x} ${axis-r}Z" fill="url(#glass)" stroke="#285f9f" stroke-width="1.8"/>`+line(x,axis-r-9,x,axis+r+9,'#9eb6cc','3 5')+text(x,65,name);}
+function focus(x,label,y=213){return `<circle cx="${x}" cy="${axis}" r="3.3" fill="#18324a"/>`+text(x,y,label);}
+function tree(x,y,h,opacity=1){return `<g transform="translate(${x} ${y}) scale(${h/100})" opacity="${opacity}"><path d="M-7 0L-3 -70L3 -70L7 0Z" fill="#805432" stroke="#513a28" stroke-width="2"/><path d="M0 -35L-23 -59M1 -50L22 -74" fill="none" stroke="#805432" stroke-width="5"/><path d="M-5 -100C-19 -105 -34 -91 -28 -79C-46 -78 -43 -55 -29 -51C-20 -37 -5 -41 2 -46C16 -36 36 -47 32 -61C47 -73 33 -92 19 -91C16 -102 5 -105 -5 -100Z" fill="#4c8a57" stroke="#2e6240" stroke-width="2"/><path d="M-23 -78Q-13 -94 -1 -88M7 -68Q24 -82 30 -67M-25 -59Q-10 -49 0 -60" fill="none" stroke="#8db875" stroke-width="5" stroke-linecap="round"/></g>`;}
+function ant(x,y,h,opacity=1){return `<g transform="translate(${x} ${y}) scale(${h/100})" opacity="${opacity}" stroke="#60382c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M-5 -48L-25 -62L-34 -86M5 -48L25 -62L34 -86M-6 -40L-30 -40L-43 -55M6 -40L30 -40L43 -55M-6 -32L-23 -19L-32 0M6 -32L23 -19L32 0" fill="none"/><ellipse cy="-18" rx="13" ry="18" fill="url(#ant)"/><ellipse cy="-43" rx="8" ry="12" fill="url(#ant)"/><ellipse cy="-70" rx="13" ry="16" fill="url(#ant)"/><path d="M-7 -82L-16 -93L-25 -100M7 -82L16 -93L25 -100" fill="none"/><circle cx="-6" cy="-75" r="2.5" fill="#1e292f"/><circle cx="6" cy="-75" r="2.5" fill="#1e292f"/><path d="M-9 -16Q0 -10 9 -16M-7 -10Q0 -5 7 -10" fill="none" stroke="#e0a27a" stroke-width="1.5"/></g>`;}
+function eye(y){return `<g transform="translate(815 ${y})"><path d="M0 -31Q35 -50 70 0Q35 50 0 31Q-12 0 0 -31Z" fill="#fff4e9" stroke="#79584b" stroke-width="1.7"/><path d="M8 -25Q34 -36 59 0Q34 36 8 25" fill="white" stroke="#a88c79"/><ellipse cx="2" rx="6" ry="23" fill="#4b8b96"/><ellipse cx="0" rx="3" ry="12" fill="#172b3b"/><path d="M15 -18Q25 0 15 18Q6 0 15 -18Z" fill="#bce0eb" stroke="#538396"/><path d="M63 -9L77 -5L77 5L63 9" fill="#e7baa0" stroke="#79584b"/></g>`+text(849,y+62,'Eye');}
+const words={
+telescope:['Set the two converging lenses so their focal planes meet.','From one point on a distant tree, draw parallel rays toward the objective.','Refract at the objective: the rays meet in its back focal plane.','The crossing forms an inverted real image at the eyepiece’s front focus.','The eyepiece turns these rays into a parallel bundle toward the eye.','The relaxed eye sees an enlarged angular view, inverted, with the final image at infinity.'],
+microscope:['Place the specimen just beyond the objective’s front focus.','Draw one ray parallel to the axis and one through the objective’s center.','Bend the parallel ray through Fₒ; keep the central ray straight.','Their crossing forms an enlarged, inverted real image inside the eyepiece’s focal length.','Refract through the eyepiece: the outgoing rays diverge toward the eye.','Extend the outgoing rays backward: the dashed lines meet at an enlarged virtual image.']
+};
+function draw(){
+const tel=mode==='telescope',o=tel?300:220,e=tel?650:500,fo=tel?260:60,fe=tel?90:140,ix=tel?560:400,iy=tel?261.2:274;
+svg.setAttribute('data-mode',mode);svg.setAttribute('data-stage',stage);
+let s=`<title id="diagram-title">${tel?'Astronomical telescope':'Compound microscope'} ray construction</title><desc id="diagram-desc">${words[mode][stage]} Solid rays travel left to right. Dashed colored lines are backward extensions, not light paths.</desc>
+<defs><linearGradient id="glass"><stop stop-color="#e7f5fc"/><stop offset=".5" stop-color="#a9d4eb"/><stop offset="1" stop-color="#edf9fc"/></linearGradient><linearGradient id="ant"><stop stop-color="#98553c"/><stop offset=".45" stop-color="#cf8060"/><stop offset="1" stop-color="#774330"/></linearGradient></defs>`;
+s+=line(25,axis,800,axis,'#718398','7 6')+text(787,axis-45,'Optical axis','end','small');
+s+=lens(o,110,'Objective')+lens(e,91,'Eyepiece')+eye(tel?220:251);
+s+=focus(o-fo,'Fₒ',axis+28)+focus(o+fo,tel?'Fₒ = Fₑ':'Fₒ')+focus(e+fe,'Fₑ',axis-15);
+if(!tel)s+=focus(e-fe,'Fₑ',axis+28);
+if(tel){s+=tree(77,157,77)+text(76,45,'Distant tree')+text(76,181,'One point at the top','middle','small')+text(76,199,'(distance omitted)','middle','small');}
+else{s+=ant(130,axis,22)+text(105,164,'Specimen')+line(110,174,128,199);}
+if(stage>=1){
+const hits=tel?[170,230,280]:[208,230];
+hits.forEach((h,i)=>{
+const start=tel?[160,h-(o-160)*.12]:[130,208],incoming=tel?.12:(h-208)/(o-130);
+const m=incoming-(h-axis)/fo,ey=h+m*(e-o),out=m-(ey-axis)/fe;
+s+=ray(start[0],start[1],[o,h],i);
+if(stage>=2)s+=ray(o,h,[stage>=4?e:ix,stage>=4?ey:iy],i);
+if(stage>=4)s+=ray(e,ey,[810,ey+out*(810-e)],i);
+if(!tel&&stage>=5)s+=`<path d="M150 384L${e} ${ey}" fill="none" stroke="${colors[i]}" stroke-width="1.8" stroke-dasharray="7 6"/>`;
+});
+}
+if(stage>=3){
+s+=(tel?tree(ix,axis,-31.2):ant(ix,axis,-44))+`<circle cx="${ix}" cy="${iy}" r="4" fill="#18324a"/>`;
+s+=text(tel?550:405,tel?335:142,'Real image')+text(tel?550:405,tel?357:164,'inverted','middle','small')+line(tel?550:405,tel?315:177,ix,tel?iy+7:axis-9);
+}
+if(stage>=5&&!tel){s+=ant(150,axis,-154,.72)+text(157,416,'Virtual image')+text(157,438,'enlarged & inverted','middle','small')+text(632,405,'Dashed = backward extension','middle','small');}
+if(stage>=5&&tel){s+=text(447,405,'Final image at infinity')+text(447,430,'Parallel outgoing rays · angular magnification ≈ 2.9×','middle','small');}
+if(stage===0)s+=text(450,411,tel?'Shared focal plane between the lenses':'Two lenses, two image-forming steps');
+svg.innerHTML=s;
+caption.innerHTML=`<strong>${tel?'Telescope':'Microscope'}.</strong> ${words[mode][stage]}`;
+document.querySelector('#telescope').setAttribute('aria-pressed',String(tel));
+document.querySelector('#microscope').setAttribute('aria-pressed',String(!tel));
+}
+function schedule(ms){clearTimeout(timer);remaining=ms;deadline=performance.now()+ms;if(!document.hidden)timer=setTimeout(advance,ms);}
+function advance(){
+if(stage===5){seen.add(mode);if(seen.size===2&&!completed){completed=true;window.parent.postMessage({ type: 'complete' }, '*');}start(mode==='telescope'?'microscope':'telescope');}
+else{stage++;draw();schedule(stage===5?4500:2200);}
+}
+function start(next){clearTimeout(timer);mode=next;stage=reduce.matches?5:0;draw();schedule(reduce.matches?16000:1400);}
+document.querySelector('#replay').onclick=()=>start(mode);
+for(const kind of ['telescope','microscope'])document.querySelector('#'+kind).onclick=()=>start(kind);
+document.addEventListener('visibilitychange',()=>{if(document.hidden){remaining=Math.max(0,deadline-performance.now());clearTimeout(timer);}else schedule(remaining);});
+reduce.addEventListener('change',()=>start(mode));
+start('telescope');
+})();
+</script>
+</main></body></html>

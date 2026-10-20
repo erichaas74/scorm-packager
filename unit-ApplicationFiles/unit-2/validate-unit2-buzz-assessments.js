@@ -70,6 +70,21 @@ for (const item of assessments) {
     }
   });
 
+  if (item.lesson === 'U2L3') {
+    for (const [index, block] of blocks.entries()) {
+      if (property(block, 'Type') === 'F, Number' && /^Figures:/m.test(block)) {
+        fail(`U2L3 Q${index + 1}: do not require significant figures for angle/range readings`);
+      }
+    }
+    const reportedTrials = [[26, 64], [42, 48], [63, 27]];
+    reportedTrials.forEach(([launch, answer], index) => {
+      const key = (blocks[index].match(/^a\. eval\(90-\$launch([123])\$\)$/m) || [])[1];
+      if (Number(key) !== index + 1 || 90 - launch !== answer) {
+        fail(`U2L3 Q${index + 1}: complementary-angle answer regression`);
+      }
+    });
+  }
+
   const expectedAutomatic = item.automaticPoints ?? 10;
   const expectedBusybee = item.busybeePoints ?? 5;
   const expectedFinalEssayPoints = item.finalEssayPoints ?? [2, 3];

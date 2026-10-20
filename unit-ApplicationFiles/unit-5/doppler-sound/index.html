@@ -41,18 +41,19 @@ body { margin:0; padding:8px; }
 <button type="button" data-answer="same" aria-label="You hear the same pitch"><span class="swatch" aria-hidden="true"></span>Same pitch</button>
 </div>
 <div class="utilities"><button type="button" id="hear">Hear comparison</button><button type="button" id="replay">Replay</button></div>
+<p style="margin:4px 0 0;text-align:center;font-size:12px;color:#526176">Audio shift exaggerated for clarity.</p>
 <span id="status" class="sr-only" role="status" aria-live="polite"></span>
 </div>
 <script>
 (() => {
  'use strict';
- // Group 2. Fixed 600 Hz source, fixed sound speed and amplitude, still air.
+ // Group 2. Siren sweeps around 600 Hz; fixed sound speed and amplitude, still air.
  // Cases change source/listener motion only. v/c = 0.1; source and passenger
  // share velocity. Graphs use identical 0–10 ms axes and pressure amplitude.
  const cases=[
-  {name:'Toward you',answer:'higher',ratio:1/.9,detail:'Wavefronts reach you more often.'},
-  {name:'Away from you',answer:'lower',ratio:1/1.1,detail:'Wavefronts reach you less often.'},
-  {name:'You’re a passenger',answer:'same',ratio:1,detail:'You and the siren move together.'}
+  {name:'Toward you',answer:'higher',ratio:1/.9,audioRatio:1.6,detail:'Wavefronts reach you more often.'},
+  {name:'Away from you',answer:'lower',ratio:1/1.1,audioRatio:.625,detail:'Wavefronts reach you less often.'},
+  {name:'You’re a passenger',answer:'same',ratio:1,audioRatio:1,detail:'You and the siren move together.'}
  ];
  const scene=document.getElementById('scene'),status=document.getElementById('status');
  const buttons=[...document.querySelectorAll('[data-answer]')];
@@ -60,34 +61,76 @@ body { margin:0; padding:8px; }
  const compact=matchMedia('(max-width:560px)'), reduced=matchMedia('(prefers-reduced-motion: reduce)');
  const ink='#172f46',teal='#087583',gray='#526176',red='#af3c43';
  let index=0,phase='reference',selected=null,elapsed=0,frameId=0,last=0,timer=0;
- let completed=false,visited=new Set(),audioContext,oscillator,gain,audioTimers=[],audioGeneration=0,hearing='';
+ let completed=false,visited=new Set(),audioContext,oscillator,gain,audioTimers=[],audioGeneration=0,hearing='',comparisonStage='',comparisonStarted=0;
  const frequency=()=>600*cases[index].ratio;
  const text=(x,y,value,anchor='start',cls='',color=ink)=>`<text x="${x}" y="${y}" text-anchor="${anchor}" class="${cls}" style="fill:${color}">${value}</text>`;
  const line=(x1,y1,x2,y2,color=ink,width=1,dash='')=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${width}" ${dash?`stroke-dasharray="${dash}"`:''}/>`;
- function stopAudio(){audioGeneration++;audioTimers.forEach(clearTimeout);audioTimers=[];hearing='';if(gain){gain.gain.cancelScheduledValues(audioContext.currentTime);gain.gain.setTargetAtTime(0,audioContext.currentTime,.015);}hear.textContent='Hear comparison';}
+ function stopAudio(){cancelAnimationFrame(frameId);frameId=0;audioGeneration++;audioTimers.forEach(clearTimeout);audioTimers=[];hearing='';if(oscillator)oscillator.frequency.cancelScheduledValues(audioContext.currentTime);if(gain){gain.gain.cancelScheduledValues(audioContext.currentTime);gain.gain.setTargetAtTime(0,audioContext.currentTime,.015);}hear.textContent='Hear comparison';}
  function stop(){clearTimeout(timer);cancelAnimationFrame(frameId);frameId=0;last=0;stopAudio();}
- function announce(){const c=cases[index];status.textContent=phase==='reference'?'Stationary reference. The same siren will be heard in a moving situation.':phase==='question'?`${c.name}. Compare your pitch with the stationary siren: higher, lower, or the same.`:`${selected===c.answer?'Your choice matches.':'Your choice was '+selected+'.'} You hear ${c.answer} pitch: ${Math.round(frequency())} Hz, compared with 600 Hz at rest. ${c.detail}`;}
+ function announce(){const c=cases[index];status.textContent=phase==='reference'?'Stationary reference. The same siren will be heard in a moving situation.':phase==='question'?`${c.name}. Compare your pitch with the stationary siren: higher, lower, or the same.`:`${selected===c.answer?'Your choice matches.':'Your choice was '+selected+'.'} You hear ${c.answer} pitch. Audio shift is exaggerated for clarity. The diagram shows the modeled mid-pitch: ${Math.round(frequency())} Hz, compared with 600 Hz at rest. ${c.detail}`;}
  function updateControls(){buttons.forEach(b=>{b.disabled=phase!=='question';b.removeAttribute('data-result');b.setAttribute('aria-pressed',String(phase==='evidence'&&selected===b.dataset.answer));if(phase==='evidence'){if(b.dataset.answer===cases[index].answer)b.dataset.result='answer';else if(b.dataset.answer===selected)b.dataset.result='selected';}});hear.disabled=phase==='reference';}
- function start(){stop();phase='reference';selected=null;elapsed=0;draw();updateControls();announce();timer=setTimeout(()=>{phase='question';draw();updateControls();announce();animate();},2400);}
+ function start(){stop();phase='reference';comparisonStage='';selected=null;elapsed=0;draw();updateControls();announce();timer=setTimeout(()=>{phase='question';draw();updateControls();announce();animate();},2400);}
  function animate(){cancelAnimationFrame(frameId);last=0;if(reduced.matches){elapsed=3;draw();return;}const tick=now=>{if(last)elapsed=Math.min(4,elapsed+(now-last)/1000);last=now;draw();if(elapsed<4)frameId=requestAnimationFrame(tick);};frameId=requestAnimationFrame(tick);}
- function scheduleAdvance(){clearTimeout(timer);timer=setTimeout(()=>{if(phase!=='evidence')return;index=(index+1)%cases.length;start();},3000);}
- function answer(value){if(phase!=='question')return;stop();selected=value;phase='evidence';draw();updateControls();announce();replay.focus({preventScroll:true});visited.add(index);if(visited.size===cases.length&&!completed){completed=true;window.parent.postMessage({ type: 'complete' }, '*');}scheduleAdvance();}
+ function scheduleAdvance(delay=3000){clearTimeout(timer);timer=setTimeout(()=>{if(phase!=='evidence')return;index=(index+1)%cases.length;start();},delay);}
+ function answer(value){if(phase!=='question')return;stop();selected=value;phase='evidence';draw();updateControls();announce();replay.focus({preventScroll:true});visited.add(index);if(visited.size===cases.length&&!completed){completed=true;window.parent.postMessage({ type: 'complete' }, '*');}playComparison();}
  buttons.forEach(b=>b.addEventListener('click',()=>answer(b.dataset.answer)));
  replay.addEventListener('click',start);
- hear.addEventListener('click',async()=>{
-  if(phase==='evidence')scheduleAdvance();
-  if(hearing){stopAudio();draw();return;}
-  stopAudio();const generation=audioGeneration;
-  try{
-   if(!audioContext){audioContext=new (window.AudioContext||window.webkitAudioContext)();oscillator=audioContext.createOscillator();gain=audioContext.createGain();gain.gain.value=0;oscillator.connect(gain);gain.connect(audioContext.destination);oscillator.start();}
-   await audioContext.resume();if(generation!==audioGeneration)return;
-   const tone=(hz,label)=>{oscillator.frequency.setValueAtTime(hz,audioContext.currentTime);gain.gain.setTargetAtTime(.055,audioContext.currentTime,.02);hearing=label;hear.textContent='Stop sound';if(phase!=='evidence'){cancelAnimationFrame(frameId);elapsed=0;if(label==='You hear')animate();}draw();};
-   tone(600,'At rest');
-   audioTimers.push(setTimeout(()=>{gain.gain.setTargetAtTime(0,audioContext.currentTime,.015);},1000));
-   audioTimers.push(setTimeout(()=>tone(frequency(),'You hear'),1250));
-   audioTimers.push(setTimeout(()=>{stopAudio();draw();},2600));
-  }catch(error){stopAudio();status.textContent='Sound is unavailable. Watch the sound waves in the scene.';}
+ hear.addEventListener('click',()=>{
+  if(hearing){stopAudio();draw();if(phase==='evidence')scheduleAdvance();return;}
+  playComparison();
  });
+ async function playComparison(){
+  stopAudio();const generation=audioGeneration;
+  // Feedback persists while the audio clock drives the stationary/moving reveal.
+  if(phase==='evidence')clearTimeout(timer);
+  try{
+   if(!audioContext){
+    audioContext=new (window.AudioContext||window.webkitAudioContext)();
+    oscillator=audioContext.createOscillator();gain=audioContext.createGain();
+    // A pure sine wave removes the buzzy harmonics from the rising/falling wail.
+    // The visual comparison shows a snapshot at the 600 Hz mid-pitch.
+    oscillator.type='sine';
+    gain.gain.value=0;oscillator.connect(gain);gain.connect(audioContext.destination);oscillator.start();
+   }
+   await audioContext.resume();if(generation!==audioGeneration)return;
+   comparisonStarted=audioContext.currentTime;
+   const tone=(hz,offset)=>{
+    const now=comparisonStarted+offset,ratio=hz/600;
+    const sweep=new Float32Array(481);
+    for(let i=0;i<sweep.length;i++){
+     const t=2.4*i/(sweep.length-1);
+     sweep[i]=hz*(1-.25*Math.cos(2*Math.PI*t*ratio/1.2));
+    }
+    oscillator.frequency.setValueCurveAtTime(sweep,now,2.4);
+    gain.gain.setValueAtTime(0,now);
+    gain.gain.linearRampToValueAtTime(.055,now+.025);
+    gain.gain.setValueAtTime(.055,now+2.375);
+    gain.gain.linearRampToValueAtTime(0,now+2.4);
+   };
+   tone(600,0);
+   tone(600*cases[index].audioRatio,2.7);
+   // Audio and motion share one clock, including the silent comparison gap.
+   // Scheduling the sound ahead avoids timer drift or a late muted tone.
+   const tick=()=>{
+    if(generation!==audioGeneration)return;
+    const t=audioContext.currentTime-comparisonStarted;
+    comparisonStage=t<2.7?'stationary':'moving';
+    hearing=t<2.7?'At rest':'You hear';
+    hear.textContent='Stop sound: '+hearing;
+    elapsed=t<2.7?0:reduced.matches?2.4:Math.min(2.4,t-2.7);
+    draw();
+    if(t>=5.1){
+     stopAudio();draw();
+     if(phase==='evidence')scheduleAdvance(300);
+    }else frameId=requestAnimationFrame(tick);
+   };
+   tick();
+  }catch(error){
+   if(generation!==audioGeneration)return;
+   stopAudio();status.textContent='Sound is unavailable. Watch the sound waves in the scene.';
+   if(phase==='evidence')scheduleAdvance();
+  }
+ }
  function person(x,y){return `<g transform="translate(${x} ${y})">
  <ellipse cy="1" rx="23" ry="5" fill="#233b4c" opacity=".13"/>
  <path d="M-11 -44L-13 -6H-3L2 -36L8 -6H18L11 -45Z" fill="#263d52"/>
@@ -104,7 +147,7 @@ body { margin:0; padding:8px; }
  </g>`;}
  function ambulance(x,y,s,passenger){
  const wheel=(wx)=>`<g transform="translate(${wx} -12)"><circle r="23" fill="#172733"/><circle r="18" fill="#283d4c" stroke="#71818b" stroke-width="1.5"/><g transform="rotate(${elapsed*65})"><circle r="13" fill="#b4c4cd" stroke="#e7eff3" stroke-width="2"/><path d="M0 -11V11M-11 0H11M-8 -8L8 8M-8 8L8 -8" stroke="#687e8d" stroke-width="3"/></g><circle r="5" fill="#526b7d"/><circle r="2" fill="#e3ebef"/></g>`;
- return `<g transform="translate(${x} ${y}) scale(${s})">
+ return `<g id="ambulance" transform="translate(${x} ${y}) scale(${s})">
  <ellipse cx="0" cy="7" rx="139" ry="10" fill="#253c4b" opacity=".16"/>
  <path d="M-126 -111Q-126 -119 -118 -119H28V-13H-126Z" fill="url(#bodypaint)" stroke="#52697b" stroke-width="1.6"/>
  <path d="M28 -97H66Q75 -97 80 -89L106 -54L126 -46Q134 -43 134 -32V-13H28Z" fill="url(#bodypaint)" stroke="#52697b" stroke-width="1.6"/>
@@ -134,7 +177,7 @@ body { margin:0; padding:8px; }
  }
  function draw(){
   const mobile=compact.matches,w=mobile?420:840,h=mobile?410:422;
-  const c=cases[index],active=phase!=='reference'&&(phase==='evidence'||hearing!=='At rest'),evidence=phase==='evidence';
+  const c=cases[index],active=phase!=='reference'&&comparisonStage!=='stationary',evidence=phase==='evidence';
   const size=mobile?.58:.95, road=mobile?280:292;
   const velocity=mobile?15:28, startX=index===1?(mobile?184:370):(mobile?103:180);
   const x=startX+(active?velocity*elapsed:0),listener=index===1?(mobile?45:112):(mobile?365:728);
@@ -162,7 +205,7 @@ body { margin:0; padding:8px; }
    out+=`<circle cx="${center}" cy="${roof}" r="${radius}" fill="none" stroke="#408ca8" stroke-opacity="${Math.max(.16,.58-n*.035)}" stroke-width="${mobile?1.8:2}"/>`;
   }
   out+='</g>';
-  out+=`<rect x="10" y="10" width="${mobile?210:236}" height="34" rx="5" fill="#fff" fill-opacity=".92"/>`+text(21,33,phase==='reference'||(phase!=='evidence'&&hearing==='At rest')?'Ambulance at rest':c.name,'start','strong');
+  out+=`<rect x="10" y="10" width="${mobile?210:236}" height="34" rx="5" fill="#fff" fill-opacity=".92"/>`+text(21,33,!active?'Ambulance at rest':c.name,'start','strong');
   out+=ambulance(x,road,size,index===2);
   if(index!==2)out+=`<g transform="translate(${listener} ${road}) scale(${mobile?.78:1})">${person(0,0)}</g>`;
   if(active){const ay=roof-28,offset=evidence&&index===1&&!mobile?88:0;out+=`<path d="M${x-30+offset} ${ay}H${x+42+offset}" fill="none" stroke="${ink}" stroke-width="2.5" marker-end="url(#motion)"/>`;}
@@ -178,8 +221,8 @@ body { margin:0; padding:8px; }
    const bx=mobile||index===1?12:w-408,by=mobile?51:index===1?46:42,bw=396;
    const left=bx+169,span=207,duration=12;
    out+=`<rect x="${bx}" y="${by}" width="${bw}" height="106" rx="8" fill="#fff" fill-opacity=".96" stroke="#bacbd5"/>`;
-   out+=text(left+span/2,by+20,'Same 12 milliseconds','middle','small',gray);
-   for(const [hz,color,label,row] of [[600,red,'Siren',0],[frequency(),teal,'You',1]]){
+   out+=text(left+span/2,by+20,'12 ms at mid-pitch','middle','small',gray);
+   for(const [hz,color,label,row] of [[600,red,'Siren',0],[active?frequency():600,teal,'You',1]]){
     const cy=by+43+row*39;
     out+=text(bx+12,cy+6,`${label}: ${Math.round(hz)} Hz`,'start','strong',color);
     out+=line(left,cy+13,left+span,cy+13,'#cbd8df',1);
@@ -199,12 +242,12 @@ body { margin:0; padding:8px; }
    out+=text(w/2,road+54,label,'middle','small',gray);
    out+=text(w/2,road+79,phase==='reference'?'Same siren. Same loudness.':index===2?'You ride inside with the siren.':'You stand still beside the road.','middle','small',gray);
   }
-  scene.setAttribute('viewBox',`0 0 ${w} ${h}`);scene.innerHTML=out;scene.dataset.phase=phase;scene.dataset.case=String(index);
-  scene.setAttribute('aria-label',phase==='reference'?'Ambulance and listener at rest. Circular sound fronts spread from the roof siren.':`${c.name}. ${index===2?'You are seated inside the cab.':'You stand beside the road as the ambulance moves right.'}${evidence?' You hear '+Math.round(frequency())+' Hz instead of the stationary 600 Hz. '+c.detail:''}`);
+  scene.setAttribute('viewBox',`0 0 ${w} ${h}`);scene.innerHTML=out;scene.dataset.phase=phase;scene.dataset.case=String(index);scene.dataset.playback=comparisonStage;
+  scene.setAttribute('aria-label',!active?'Ambulance and listener at rest. Circular sound fronts spread from the roof siren.':`${c.name}. ${index===2?'You are seated inside the cab.':'You stand beside the road as the ambulance moves right.'}${evidence?' At mid-pitch, you hear '+Math.round(frequency())+' Hz instead of the stationary 600 Hz. '+c.detail:''}`);
  }
 
  compact.addEventListener('change',draw);
- reduced.addEventListener('change',()=>{cancelAnimationFrame(frameId);if(phase!=='reference')animate();});
+ reduced.addEventListener('change',()=>{if(hearing)return;cancelAnimationFrame(frameId);if(phase==='question')animate();else draw();});
  document.addEventListener('visibilitychange',()=>{if(document.hidden)stop();else if(phase==='reference')start();else{draw();updateControls();if(phase==='evidence')scheduleAdvance();}});
  window.addEventListener('pagehide',stop);
  start();
