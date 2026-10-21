@@ -6,6 +6,7 @@
   <title>EM animated spectrum</title>
 
   <style>
+    html, body { background: transparent !important; }
     * { box-sizing: border-box; user-select: none; }
     body {
       margin: 0;
@@ -18,7 +19,7 @@
       max-width: 920px;
       margin: 0 auto;
       background: #ffffff;
-      border: 1px solid #e2e8f0;
+      border: 5px solid #285f9f;
       border-radius: 20px;
       padding: 20px 24px 26px;
       box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.08);
@@ -179,6 +180,7 @@
     /* Responsive stage: canvas height follows each scene's own aspect ratio, so there is no letterboxing. */
     #stageCanvas{height:auto}
     #stageCanvas:focus-visible{outline:3px solid #f59e0b;outline-offset:3px}
+    .part-tag{font-weight:800;color:#285f9f;margin-right:8px;white-space:nowrap}
     .scene-note{margin:8px 4px 16px;font-size:12px;line-height:1.5;color:#52677b}
     #spectrumBar{margin-top:104px}
     .comparison-copy .comparison-object{text-wrap:balance}
@@ -187,7 +189,7 @@
     @media(max-width:600px){
       /* Icons carry the band identity on narrow screens; the active band keeps its name. */
       #spectrumBar .spec-cell:not(.active) span:last-child:not(.band-symbol){font-size:0;line-height:0;height:0;overflow:hidden}
-      #spectrumBar .spec-cell.active span:last-child{font-size:9px;line-height:1.15;text-align:center}
+      #spectrumBar .spec-cell.active span:last-child{font-size:7px;letter-spacing:-.03em;line-height:1.15;text-align:center}
       #spectrumBar .band-symbol svg{width:34px;height:26px}
       .spectrum-tick span{font-size:10px}
       .scene-note{font-size:12px}
@@ -196,7 +198,7 @@
 </head>
 <body>
 
-<div class="rise-wrapper">
+<main class="rise-wrapper">
   <!-- DYNAMIC TEXTBOOK TITLE -->
   <div class="text-center mb-2">
     <h1 id="mainTitle" class="text-2xl md:text-3xl font-black tracking-wider uppercase text-slate-900">
@@ -207,7 +209,7 @@
     </p>
   </div>
 
-  <section id="sceneSummary" aria-label="Selected spectrum band details"></section>
+  <section id="sceneSummary" aria-label="Selected spectrum band details" aria-live="polite"></section>
 
   <!-- MAIN ZOOMED INTERACTIVE STAGE (CANVAS + CONTROLS) -->
   <div class="relative rounded-xl overflow-hidden border-2 border-slate-800 shadow-md bg-slate-950">
@@ -221,8 +223,6 @@
 
     <canvas role="img" aria-label="Animated electromagnetic wave demonstration" id="stageCanvas" width="880" height="250" class="w-full block" style="height:auto"></canvas>
   </div>
-
-  <p id="sceneNote" class="scene-note"></p>
 
   <!-- 7-BAND TEXTBOOK SPECTRUM BAR -->
   <div id="spectrumBar" class="spectrum-bar">
@@ -239,13 +239,12 @@
   </div>
 
 
-</div>
 
 <script>
 // Real clock for start times; performance.now() is frozen at a representative moment under reduced motion.
 const realNow = performance.now.bind(performance);
 const reduceMq = matchMedia('(prefers-reduced-motion: reduce)');
-const REST_TIME = {radio:5.5, microwave:4, infrared:8, visible:8, uv:9, xray:10, gamma:12};
+const REST_TIME = {radio:11, microwave:4, infrared:8, visible:8, uv:9, xray:10, gamma:12};
 function applyMotionPref() {
   if (reduceMq.matches) { const base = realNow(); performance.now = () => base + REST_TIME[BANDS[currentIdx].id] * 1000; }
   else performance.now = realNow;
@@ -422,7 +421,7 @@ const BANDS = [
 ];
 
 const SCENE_NOTES = {
-  radio: 'Schematic: diffraction depends on wavelength relative to ridge size. The receiver uses local power. The scene alternates between a long-wavelength (AM) and a short-wavelength (FM) signal.',
+  radio: 'Schematic: diffraction depends on wavelength relative to ridge size. The receiver uses local power. Both stations transmit the whole time; only the receiver’s dial changes.',
   microwave: 'Cloud and rain effects depend on frequency. The dish receives data; oven heating builds steam pressure in kernels.',
   infrared: 'The gold viewer sweeps across both scenes. Warm-air puffs are exaggerated illustrations; colors are assigned, not seen.',
   visible: 'Illustrated experiment; notes are paraphrased. Ray motion and dispersion are enlarged for visibility.',
@@ -517,6 +516,7 @@ function buildUI() {
 function selectBand(idx) {
   const retainFocus=document.activeElement?.closest('#spectrumBar');
   currentIdx = idx;
+  seqStart = realNow(); altShown = false; altIndex = 0;
   subMode = 0;
   sceneStart = realNow();
   if (BANDS[idx].id === 'visible') newtonStart=realNow();
@@ -540,16 +540,16 @@ function updateHeaderAndCards() {
   // Update Stage Badge & Action Button
   document.getElementById('stageBadge').textContent = b.badgeText;
   const explanations = {
-    radio: 'Long radio waves spread beyond the ridge and reach the antenna, allowing the locally powered receiver to play music.',
+    radio: 'The FM station’s short wave is blocked by the ridge, but the AM station’s long wave bends over it; turn the receiver’s dial to AM and the music plays.',
     microwave: 'The satellite sends data through clouds to the dish; the separately powered oven uses microwaves to heat water inside popcorn kernels.',
-    infrared: 'The infrared viewer reveals stars through dust and the dog’s warm body; animated air puffs illustrate cooling.',
+    infrared: 'The infrared viewer reveals stars through dust and shows which parts of the dog are warm or cold; the hotter a part, the more infrared it emits.',
     visible: 'Newton’s prism separates white sunlight into its colors because different wavelengths bend by different amounts in glass.',
     uv: 'Fluorescent dyes absorb invisible UV-A from a blacklight and re-emit lower-energy visible light, revealing hidden marks.',
     xray: 'Bone transmits fewer X-rays than soft tissue, creating lighter regions in the captured image.',
     gamma: 'The pigs’ houses show how shielding reduces gamma-ray transmission: thick lead protects best here, but does not stop every photon.'
   };
-  document.getElementById('sceneSummary').innerHTML = `<p class="scene-explanation">${explanations[b.id]}</p>`;
-  document.getElementById('sceneNote').textContent = SCENE_NOTES[b.id];
+  document.getElementById('sceneSummary').innerHTML = `<p class="scene-explanation"><span class="part-tag">Part ${altShown ? altIndex + 2 : 1} of ${2 + (EXTRA_ALTS[b.id] ? EXTRA_ALTS[b.id].length : 0)}</span>${altShown ? altInfo(b.id).summary : explanations[b.id]}</p>`;
+  canvas.setAttribute('aria-label', altShown ? altInfo(b.id).title : b.badgeText);
 }
 
 // ==========================================================
@@ -561,9 +561,24 @@ function renderStage() {
   ctx.clearRect(0,0,880,sceneHeight);
 
   const b = BANDS[currentIdx];
+  const altCount = 1 + (EXTRA_ALTS[b.id] ? EXTRA_ALTS[b.id].length : 0), cycleLen = PRIMARY_LEN[b.id] + altCount * ALT_LEN, el = ((performance.now() - seqStart) / 1000) % cycleLen, inAlt = el >= PRIMARY_LEN[b.id];
+  if (!inAlt) { const n0 = performance.now() - el * 1000; sceneStart = n0; pigStoryStart = n0; newtonStart = n0; xrLoopStart = n0; }
+  const altEl = el - PRIMARY_LEN[b.id], idx = inAlt ? Math.floor(altEl / ALT_LEN) : 0;
+  altT = inAlt ? altEl - idx * ALT_LEN : 0;
+  if (!completionSent) {
+    const seen = seenParts[b.id] || (seenParts[b.id] = {main: false, alt: false});
+    if (inAlt) seen.alt = true; else seen.main = true;
+    if (BANDS.every(x => seenParts[x.id] && seenParts[x.id].main && (reduceMq.matches || seenParts[x.id].alt))) {
+      completionSent = true;
+      try { window.parent.postMessage({ type: 'complete' }, '*'); } catch (e) {}
+    }
+  }
+  if (inAlt !== altShown || idx !== altIndex) { altShown = inAlt; altIndex = idx; updateHeaderAndCards(); }
+  {const marks=[0];for(let k=0;k<=altCount;k++)marks.push(PRIMARY_LEN[b.id]+k*ALT_LEN);fadeAmt=reduceMq.matches?0:Math.max(...marks.map(m=>uvClamp(1-Math.abs(el-m)/.35)));}
 
   // Newton adjusts the prism, observes the spectrum, and records notes.
-  if (b.id === 'visible') drawNewton();
+  if (altShown) { if (altIndex > 0) EXTRA_ALTS[b.id][altIndex - 1].draw(altT); else drawAlt(b.id, altT); }
+  else if (b.id === 'visible') drawNewton();
 
   // Custom vector scenes share the same responsive canvas.
   else if (b.id === 'radio') drawRadio();
@@ -589,7 +604,7 @@ let sceneStart = realNow();
 let irTouchStart = realNow();
 function syncSceneControl() {
   const id=BANDS[currentIdx].id;
-  sceneHeight={radio:360,microwave:360,infrared:570,visible:620,uv:650,xray:530,gamma:650}[id];
+  sceneHeight={radio:560,microwave:560,infrared:570,visible:620,uv:650,xray:530,gamma:650}[id];
   canvas.style.touchAction='auto';
   canvas.setAttribute('aria-label',BANDS[currentIdx].badgeText);
 }
@@ -603,54 +618,73 @@ function poly(points,color) {
 function disk(x,y,r,color) { ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fillStyle=color; ctx.fill(); }
 function box(x,y,w,h,color,r=4) {ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fillStyle=color;ctx.fill();}
 let narrowMode=false,sceneScale=1;
-function label(text,x,y,color='#cbd5e1',size=12) {if(narrowMode){if(size<12)return;size*=1.4;}ctx.fillStyle=color;ctx.font=`600 ${size}px system-ui`;ctx.fillText(text,x,y);}
-function night() {
-  const g=ctx.createLinearGradient(0,0,0,360);g.addColorStop(0,'#070c22');g.addColorStop(1,'#172e42');ctx.fillStyle=g;ctx.fillRect(0,0,880,360);
+function label(text,x,y,color='#cbd5e1',size=12) {if(narrowMode){if(size<12)return;size*=1.4;}else size=Math.max(size,11);ctx.fillStyle=color;ctx.font=`600 ${size}px system-ui`;ctx.fillText(text,x,y);}
+function night(h=360) {
+  const g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,'#070c22');g.addColorStop(1,'#172e42');ctx.fillStyle=g;ctx.fillRect(0,0,880,h);
   for(let i=0;i<45;i++) disk((i*137)%880,45+(i*37)%190,i%3===0?1.2:0.6,'#64748b');
 }
 function drawRadio() {
-  const total=(performance.now()-sceneStart)/1000, cyc=Math.floor(total/7), short=cyc%2===1, time=total-cyc*7;
-  const travel=3.2, period=1.6;
-  const arrival=time-travel;
+  const time=(performance.now()-sceneStart)/1000;
+  // Both stations transmit the whole loop. The receiver sits on FM first, then its dial turns to AM (6-8 s).
+  const travel=3.2, period=1.6, turn=uvClamp((time-6)/2), ease=turn*turn*(3-2*turn);
+  const tunedAM=time>=8, arrival=time-travel;
   const phase=((arrival%period)+period)%period;
-  const received=!short && arrival>=0;
+  const received=tunedAM && arrival>=0;
   const pulse=received && phase<0.38;
   const beat=received ? Math.max(0,1-(phase-0.24)/0.65)*(phase>=0.24?1:0):0;
-  night();
-  label(short?'FM: SHORT λ (~3 m) / SIGNAL SHADOW':'AM: LONG λ (~300 m) / DIFFRACTION',24,58,short?'#fbbf24':'#fca5a5',14);
-  poly([[0,310],[190,295],[330,106],[485,309],[880,307],[880,360],[0,360]],'#172437');
+  night(540);
+  label(time<6?'Receiver tuned to FM':time<8?'Turning the dial…':'Receiver tuned to AM',24,58,time<6?'#fbbf24':time<8?'#e2e8f0':'#fca5a5',14);
+  poly([[0,310],[190,295],[330,106],[485,309],[880,307],[880,372],[0,372]],'#172437');
   poly([[190,309],[330,106],[415,309]],materialGradient(220,110,170,200,'#748397','#43536a','#1d2b40'));
   line([[330,120],[304,194],[322,231],[287,299]],'#b2c0cc33',2);line([[306,167],[268,215],[252,282]],'#0b142744',2);
   poly([[330,106],[485,309],[415,309]],'#26384d');
   poly([[306,141],[330,106],[353,142],[331,132],[322,145]],'#becbd6');
+  // The short FM wave travels in a straight line, so the ridge casts a clear signal shadow over the valley.
+  ctx.save();ctx.globalAlpha=.5;poly([[330,106],[880,-74],[880,307],[485,309]],'#01030b');ctx.restore();
+  ctx.save();ctx.setLineDash([5,6]);line([[150,160],[330,106],[600,17]],'#fbbf24aa',1.5);ctx.restore();
+  label('FM shadow: no signal',418,204,'#fcd34d',12);
+  // AM station: tall tower on the far left.
   line([[60,306],[90,118],[120,306]],'#94a3b8',4);
   for(let y=165;y<300;y+=35) {const w=(y-118)*.16;line([[90-w,y],[90+w,y+30],[90-w-5,y+30],[90+w,y]],'#64748b');}
   line([[90,118],[90,96]],'#cbd5e1',3);disk(90,97,4,Math.sin(time*4)>0?'#ff4c59':'#7f1d1d');
-  label('BROADCAST',40,330,'#94a3b8',11);
-  // A shared travel clock controls crest position, antenna arrival, cable pulse and bass response.
-  for(let n=0;n<5;n++) {
-    const age=time-n*period-Math.max(0,Math.floor((time-travel-period)/period))*period;
-    if(age<0||age>travel)continue;
-    const u=age/travel;
-    if(short) {
-      const x=90+u*510;
-      if(x<281) {
-        const pts=[];for(let k=0;k<45;k++)pts.push([x-k,176+Math.sin(k*.65-time*12)*7]);line(pts,'#fb7185',2);
-      } else if(x<330) {
-        for(let j=0;j<7;j++){const a=j*.8;line([[279,176],[279-Math.abs(Math.cos(a))*22,176+Math.sin(a)*24]],'#fbbf24',1.5);}
-      }
-    } else {
-      // A short train of crests: the packet bends over the ridge instead of travelling as one lone arc.
-      for(let k=0;k<3;k++){
-        const uu=u-k*.05;if(uu<0)continue;
-        const cx=90+510*uu, cyy=175-72*Math.sin(Math.PI*uu)-32*uu;
-        ctx.save();ctx.globalAlpha=[1,.62,.34][k];ctx.beginPath();ctx.ellipse(cx,cyy,15,28,Math.sin(Math.PI*uu)*-.5,-1.1,1.1);
-        ctx.strokeStyle='#f87171';ctx.lineWidth=3.5-k*.6;ctx.stroke();ctx.restore();
-      }
-      disk(90+510*u+15,175-72*Math.sin(Math.PI*u)-32*u,3,'#fecaca');
+  // FM station: shorter tower in front of it.
+  line([[126,306],[150,152],[174,306]],'#a8b4c4',4);
+  for(let y=190;y<300;y+=32) {const w=(y-152)*.16;line([[150-w,y],[150+w,y+28],[150-w-4,y+28],[150+w,y]],'#64748b');}
+  line([[150,152],[150,134]],'#e2e8f0',3);disk(150,135,4,Math.sin(time*4+1.5)>0?'#fbbf24':'#78350f');
+  label(narrowMode?'AM':'AM · long λ',narrowMode?58:30,330,'#fca5a5',12);label(narrowMode?'FM':'FM · short λ',narrowMode?136:118,330,'#fcd34d',12);
+  // FM bursts leave the short tower and stop at the ridge face; AM waves bend over it.
+  const fmHit=(281.7-150)/159;
+  for(let n=0;n<9;n++) {
+    const age=time-(.4+n*period);
+    if(age<0)continue;
+    const x=150+age*159;
+    if(x<282) {
+      const pts=[];for(let k=0;k<45;k++)if(x-k>=150)pts.push([x-k,176+Math.sin(k*.65-time*12)*7]);
+      if(pts.length>1)line(pts,'#fbbf24',2);
+    } else if(age-fmHit<.6) {
+      const d=(age-fmHit)/.6;ctx.save();ctx.globalAlpha=1-d;
+      softGlow(281,176,26+d*18,26+d*18,'#fbbf24aa');
+      for(let j=0;j<7;j++){const a=j*.8;line([[279,176],[279-Math.abs(Math.cos(a))*(22+d*14),176+Math.sin(a)*(24+d*10)]],'#fbbf24',1.8);}
+      ctx.beginPath();ctx.arc(279,176,6+d*26,Math.PI*.55,Math.PI*1.45);ctx.strokeStyle='#fde68a';ctx.lineWidth=2;ctx.stroke();
+      ctx.restore();
     }
   }
-  // Sweeping cones are powered only after the first received crest.
+  const amAt=uu=>({x:90+510*uu,y:175-72*Math.sin(Math.PI*uu)-32*uu});
+  for(let n=0;n<9;n++) {
+    const age=time-n*period;
+    if(age<0||age>travel)continue;
+    const u=age/travel,N=46,L=.2,pts=[];
+    // A wave packet, not a lone arc: a few long wavelengths that follow the curve over the ridge.
+    for(let k=0;k<=N;k++){
+      const uu=u-L*(k/N);if(uu<0)continue;
+      const p=amAt(uu),dy=-72*Math.PI*Math.cos(Math.PI*uu)-32,len=Math.hypot(510,dy);
+      const off=11*Math.sin(Math.PI*k/N)*Math.sin(k*.34-time*9);
+      pts.push([p.x+(-dy/len)*off,p.y+(510/len)*off]);
+    }
+    if(pts.length>1)line(pts,'#f87171',2.6);
+    const h=amAt(u);disk(h.x,h.y,3,'#fecaca');
+  }
+  // Sweeping cones are powered only while the receiver is on AM and the signal is arriving.
   if(received) for(let i=0;i<2;i++) {
     const x=565+i*110, sweep=Math.sin(time*1.2+i)*75;
     poly([[x,234],[x-80+sweep,72],[x+25+sweep,72]],i?'#22d3ee22':'#e879f922');
@@ -677,6 +711,19 @@ function drawRadio() {
     label('AC signal',625,174,'#fde047',11);
   }
   for(const x of [518,702]) {box(x,255,25,54,'#080f1d');for(const y of [270,292]){disk(x+12,y,9,'#475569');disk(x+12,y,6+beat*2,received?'#a855f7':'#192436');}}
+  // The house receiver: a small unit on the wall, with its tuning dial enlarged in the callout above.
+  const needle=Math.PI+.5+(Math.PI-1)*ease+(time<6?Math.sin(time*31)*.025:0);
+  box(656,291,34,16,'#0b1220',3);disk(667,299,5,'#334155');line([[667,299],[667+4*Math.cos(needle),299+4*Math.sin(needle)]],'#f8fafc',1.5);disk(681,299,2.5,received?'#4ade80':'#7f1d1d');
+  ctx.save();ctx.setLineDash([3,4]);line([[690,164],[673,291]],'#64748b99',1);ctx.restore();
+  box(688,64,172,100,'#101a2e',12);
+  ctx.beginPath();ctx.roundRect(688,64,172,100,12);ctx.strokeStyle='#334155';ctx.lineWidth=1.5;ctx.stroke();
+  label('HOUSE RECEIVER',702,84,'#cbd5e1',12);
+  ctx.beginPath();ctx.arc(774,140,52,Math.PI,Math.PI*2);ctx.strokeStyle='#475569';ctx.lineWidth=3;ctx.stroke();
+  for(let k=0;k<=10;k++){const a=Math.PI+.5+(Math.PI-1)*k/10;line([[774+44*Math.cos(a),140+44*Math.sin(a)],[774+52*Math.cos(a),140+52*Math.sin(a)]],'#94a3b8',k%5?1:2);}
+  const fmOn=time<6.5, amOn=time>=7.5;
+  label('FM',700,158,fmOn?'#fbbf24':'#78683a',13);label('AM',822,158,amOn?'#fca5a5':'#7a5456',13);
+  label(tunedAM?'Music!':time<6?'No signal':'Tuning…',738,158,tunedAM?'#86efac':time<6?'#fda4af':'#e2e8f0',12);
+  line([[774,140],[774+46*Math.cos(needle),140+46*Math.sin(needle)]],'#f8fafc',3);disk(774,140,5,'#f8fafc');
   // Tires stay on the road; the chassis lifts on drawn hydraulic struts.
   for(const x of [766,830]) {disk(x,300,12,'#020617');disk(x,300,7,'#94a3b8');disk(x,300,3,'#334155');line([[x,298],[x,281-beat*13]],'#cbd5e1',3);}
   const cy=278-beat*13;
@@ -685,16 +732,70 @@ function drawRadio() {
   line([[747,cy-1],[760,cy-4],[833,cy-4],[850,cy+1]],'#a5f3fc80',1.4);
   if(received)softGlow(856,cy+2,23,9,'#fde68a55');
   line([[744,cy+9],[852,cy+9]],'#67e8f9',2);box(846,cy,7,4,'#fde68a',1);
-  if(short)label('*crickets*',731,246-(time*13%35),'#64748b',13);
-  label(short?'Valley blackout':received?'Signal received. Bass drop!':'Waiting for the first crest...',545,330,received?'#67e8f9':'#94a3b8',13);
+  if(!tunedAM)label('*crickets*',731,246-(time*13%35),'#64748b',13);
+  label(tunedAM?'AM signal received. Bass drop!':time<6?'FM blocked: valley blackout':'Tuning…',545,330,tunedAM?'#67e8f9':'#94a3b8',13);
+  // Why one is blocked and the other is not: compare each wavelength with the size of the ridge.
+  box(16,380,848,156,'#0e1829',14);
+  label('WAVELENGTH COMPARED WITH THE RIDGE',32,404,'#cbd5e1',13);
+  const sc=.36;
+  label('Ridge ≈ 1000 m across',32,438,'#94a3b8',12);box(250,424,1000*sc,16,'#475569',4);
+  label('AM wave: λ ≈ 300 m',32,484,'#fca5a5',12);
+  const lam=300*sc,wx0=250;
+  ctx.beginPath();for(let x=0;x<=lam*3;x+=2){const y=470-11*Math.sin(x/lam*2*Math.PI-time*3);x?ctx.lineTo(wx0+x,y):ctx.moveTo(wx0,y);}ctx.strokeStyle='#f87171';ctx.lineWidth=2.4;ctx.stroke();
+  line([[wx0,490],[wx0+lam,490]],'#fca5a5',1.5);line([[wx0,485],[wx0,495]],'#fca5a5',1.5);line([[wx0+lam,485],[wx0+lam,495]],'#fca5a5',1.5);
+  label('FM wave: λ ≈ 3 m',32,520,'#fcd34d',12);
+  line([[wx0,515],[wx0+3*sc,515]],'#fbbf24',3);label('100 times shorter than AM: far too small to bend around the ridge',wx0+16,520,'#94a3b8',11);
+  label('Ridge ≈ wavelength:',632,438,'#fca5a5',12);label('the wave bends around it.',632,456,'#e2e8f0',12);
+  label('Ridge ≫ wavelength:',632,484,'#fcd34d',12);label('the wave leaves a shadow.',632,502,'#e2e8f0',12);
+}
+// A communications satellite: foil-wrapped body, two cell-grid solar wings on booms, antenna dish and thruster.
+function drawSatellite(rain) {
+  ctx.save(); ctx.translate(105, 112); ctx.rotate(-.25);
+  for (const x0 of [-72, 24]) {
+    line([[x0 < 0 ? -20 : 20, 0], [x0 < 0 ? -26 : 26, 0]], '#94a3b8', 5);
+    box(x0, -20, 48, 40, '#16358f', 2);
+    for (let c = 0; c < 4; c++) for (let r = 0; r < 3; r++) box(x0 + 2 + c * 11.5, -18 + r * 12.6, 10, 11, '#1d4ed8', 1);
+    ctx.beginPath(); ctx.roundRect(x0, -20, 48, 40, 2); ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1.2; ctx.stroke();
+  }
+  box(-22, -26, 44, 52, materialGradient(-22, -26, 44, 52, '#f2d27a', '#c99a38', '#7a5a1c'), 4);
+  for (let k = 0; k < 4; k++) line([[-22, -16 + k * 11], [22, -12 + k * 11]], '#00000030', 1);
+  box(-22, 14, 44, 12, '#94a3b8', 3); poly([[-8, 26], [8, 26], [12, 34], [-12, 34]], '#475569');
+  line([[16, -26], [24, -40]], '#cbd5e1', 2); disk(24, -41, 3, '#fb923c');
+  ctx.beginPath(); ctx.arc(18, 30, 17, 0, Math.PI); ctx.fillStyle = '#f1f5f9'; ctx.fill(); line([[18, 30], [26, 40]], '#94a3b8', 2.5); ctx.restore();
+}
+// Close-up under the oven: why microwaves heat water and make a kernel pop.
+function microwaveStrip(time) {
+  box(16, 380, 848, 156, '#0e1829', 14);
+  label('INSIDE THE OVEN: HOW MICROWAVES POP A KERNEL', 32, 404, '#fdba74', 13);
+  const fx = 160, fy = 462, E = Math.sin(time * 5);
+  for (let k = -2; k <= 2; k++) { const x = fx + k * 46; if (Math.abs(E) > .08) altArrow(x, fy + 30 * E, x, fy - 30 * E, '#fdba74', 2.2); }
+  const th = E * .9;
+  ctx.save(); ctx.translate(fx, fy); ctx.rotate(th);
+  for (const s of [-1, 1]) { line([[0, 0], [s * 21, 16]], '#cbd5e1', 2); disk(s * 21, 16, 7, '#e2e8f0'); }
+  disk(0, 0, 12, '#ef4444'); ctx.restore();
+  label('The field flips 2.45 billion times a second.', 32, 508, '#fde68a', 12); label('Water molecules twist to follow it.', 32, 526, '#cbd5e1', 12);
+  altArrow(318, 462, 392, 462, '#64748b', 2.5);
+  // Kernel cross-section: heating water turns to steam, pressure builds, the hull bursts.
+  const kx = 520, ky = 458, p = (time % 3.5) / 3.5, burst = p > .93;
+  if (!burst) {
+    ctx.beginPath(); ctx.ellipse(kx, ky, 62, 52, 0, 0, Math.PI * 2); ctx.fillStyle = altMix('#d9b46a', '#ff9a3a', p * .6); ctx.fill(); ctx.strokeStyle = '#8a6428'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(kx, ky, 48, 38, 0, 0, Math.PI * 2); ctx.fillStyle = '#f3e3b8'; ctx.fill();
+    softGlow(kx, ky, 40, 34, altMix('#7dd3fc', '#fb923c', p) + '88');
+    disk(kx, ky, 5 + 21 * p, '#bfe3ffcc');
+    for (let i = 0; i < 7; i++) { const a = i * 2.4 + time * (1 + 5 * p), r = 16 + 14 * ((i * 37) % 10) / 10; disk(kx + Math.cos(a) * r * (0.6 + p * .5), ky + Math.sin(a) * r * (0.6 + p * .4), 2.4, '#38bdf8'); }
+  } else {
+    const d = (p - .93) / .07;
+    ctx.save(); ctx.globalAlpha = 1 - d * .4;
+    for (const [dx, dy, r] of [[0, 0, 26], [-26, 8, 22], [24, 6, 22], [-8, -22, 20], [12, -24, 18], [0, 24, 20]]) disk(kx + dx * (1 + d), ky + dy * (1 + d), r, '#fff7e0');
+    ctx.restore();
+  }
+  label('steam pressure builds…', 440, 522, '#cbd5e1', 11); label('then the kernel pops', 610, 522, '#fff7e0', 11);
+  box(652, 420, 18, 84, '#1e293b', 4); box(654, 504 - 82 * (burst ? 1 : p), 14, 82 * (burst ? 1 : p), altMix('#38bdf8', '#ef4444', p), 3); label('Pressure', 678, 466, '#94a3b8', 12);
 }
 function drawMicrowave() {
   const time=(performance.now()-sceneStart)/1000, rain=Math.floor(time/7)%2===1;
-  night();label('SATELLITE DATA LINK',24,64,'#fdba74',13);
-  // Custom solar panels and satellite body.
-  ctx.save();ctx.translate(105,112);ctx.rotate(-.25);
-  for(const x of [-66,22]){box(x,-17,44,34,'#1e40af',1);for(let n=1;n<4;n++)line([[x+n*11,-17],[x+n*11,17]],'#60a5fa',1);line([[x,0],[x+44,0]],'#60a5fa',1);}
-  box(-19,-23,38,46,'#cbd5e1');line([[0,23],[15,38]],'#94a3b8',3);ctx.beginPath();ctx.arc(18,30,16,0,Math.PI);ctx.fillStyle='#f1f5f9';ctx.fill();ctx.restore();
+  night(540);label('SATELLITE DATA LINK',24,64,'#fdba74',13);
+  drawSatellite(rain);
   for(let i=0;i<5;i++)disk(205+i*22,173+Math.sin(i)*9,25,rain?'#475569':'#94a3b8');
   if(rain)for(let i=0;i<14;i++){const x=197+i*8,y=202+(time*70+i*9)%50;line([[x,y],[x-3,y+8]],'#38bdf8',1);}
   // The data link is drawn as a travelling wave; rain weakens it beyond the cloud.
@@ -705,12 +806,12 @@ function drawMicrowave() {
       ctx.strokeStyle='#fb923c';ctx.lineWidth=2.5;ctx.stroke();ctx.restore();
     }
     ctx.save();ctx.globalAlpha=rain?.3:1;poly([[x0+ux*L+3,y0+uy*L+1],[x0+ux*L-9,y0+uy*L-9],[x0+ux*L-5,y0+uy*L+7]],'#fb923c');ctx.restore();}
-  label(rain?'Heavy rain: weaker link':'Cloud: microwave link passes',176,112,rain?'#7dd3fc':'#cbd5e1',11);
+  label(rain?'Heavy rain: weaker link':'Cloud: microwave link passes',238,130,rain?'#7dd3fc':'#cbd5e1',11);
   poly([[320,292],[383,225],[450,292]],'#64748b');box(337,286,96,42,'#334155');
   ctx.save();ctx.translate(369,242);ctx.rotate(-.5);ctx.beginPath();ctx.arc(0,0,23,0,Math.PI);ctx.fillStyle='#e2e8f0';ctx.fill();line([[0,17],[0,-10],[12,-17]],'#94a3b8',3);ctx.restore();
   line([[374,258],[374,283],[471,283],[471,150],[504,150]],rain?'#52717b':'#22d3ee',2);
   const signalPhase=(time*.7)%1;disk(374+97*signalPhase,283,2.5,rain?'#52717b':'#67e8f9');
-  label('DATA',419,274,'#67e8f9',10);label('Home dish',337,346,'#cbd5e1',11);
+  label('DATA',419,274,'#67e8f9',10);label('Home dish',337,346,'#cbd5e1',11);label(rain?'Link weakened by rain':'Link connected',337,366,rain?'#7dd3fc':'#86efac',12);
   // Smart kitchen receives information; a distinct mains cable supplies cooking energy.
   label('SMART KITCHEN / 2.45 GHz OVEN',504,64,'#fdba74',13);
   box(499,88,350,232,'#344459',16);box(507,96,334,214,materialGradient(507,96,334,214,'#eef2f6','#afbdcc','#6d7d92'),12);
@@ -730,33 +831,59 @@ function drawMicrowave() {
   box(773,117,58,31,'#0f172a');label('00:'+String(30-Math.floor(time)%30).padStart(2,'0'),778,138,'#4ade80',13);
   for(let i=0;i<9;i++)box(780+(i%3)*16,166+Math.floor(i/3)*17,10,9,'#64748b',2);
   box(773,233,56,28,'#f97316');label('HEAT',782,251,'#fff7ed',11);
-  label(rain?'Link faded':'Connected',768,282,rain?'#7c2d12':'#14532d',10);
   line([[809,320],[809,336],[740,336]],'#fbbf24',3);box(720,328,20,16,'#e2e8f0');line([[724,332],[724,339]],'#334155');line([[733,332],[733,339]],'#334155');
   label('Local electrical power',520,341,'#fde68a',11);
+  microwaveStrip(time);
 }
 
 
+// Thermal palette: temperature (°C) to false color, cold purple through hot pale yellow.
+function irHeat(T){
+  const st=[[20,'#1b1058'],[24,'#5b21b6'],[28,'#b02a8a'],[31,'#e8433a'],[34,'#f97316'],[37,'#fbbf24'],[39.5,'#fff4c2']];
+  if(T<=st[0][0])return st[0][1];
+  for(let i=1;i<st.length;i++)if(T<=st[i][0])return altMix(st[i-1][1],st[i][1],(T-st[i-1][0])/(st[i][0]-st[i-1][0]));
+  return st[st.length-1][1];
+}
 // Both reveals use exactly the same clipping rectangle and scannerX.
 function irDog(time,thermal) {
   const breath=Math.sin(time*2.8),cycle=time%12,fart=cycle>=7&&cycle<10;
-  const coat=thermal?'#f97316':'#b98553',light=thermal?'#fde68a':'#e7c99e',dark=thermal?'#dc4934':'#65432e';
+  // The dog's warmth drifts slowly. Ears, eyes and tongue change most; the nose and paws stay cold.
+  const a=.5+.5*Math.sin(time*.6);
+  const Tear=36+3*a, Teye=37.5+a, Ttongue=38+1.2*a, Tnose=25-1.5*breath, Tchest=35.5+a, Tpaw=24.5+.8*a;
+  const coat='#b98553',light='#e7c99e',dark='#65432e';
   function oval(x,y,rx,ry,color){ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();}
+  // A heat spot: hottest at the center and cooler toward the fur surface.
+  function heatOval(x,y,rx,ry,Tc,Te){
+    ctx.save();ctx.translate(x,y);ctx.scale(1,ry/rx);
+    const g=ctx.createRadialGradient(0,0,0,0,0,rx);g.addColorStop(0,irHeat(Tc));g.addColorStop(.6,irHeat((Tc+Te)/2));g.addColorStop(1,irHeat(Te));
+    ctx.beginPath();ctx.arc(0,0,rx,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();ctx.restore();
+  }
+  function heatBox(x,y,w,h,Tt,Tb,r){const g=ctx.createLinearGradient(0,y,0,y+h);g.addColorStop(0,irHeat(Tt));g.addColorStop(1,irHeat(Tb));ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fillStyle=g;ctx.fill();}
+  const part=(x,y,rx,ry,vis,Tc,Te)=>thermal?heatOval(x,y,rx,ry,Tc,Te):oval(x,y,rx,ry,vis);
+  const leg=(x,y,w,h,vis,Tt,Tb)=>thermal?heatBox(x,y,w,h,Tt,Tb,6):box(x,y,w,h,vis,6);
   oval(450,484,104,7,'#00000033');
   // The chest expands with each breath; all features share the same cycle.
   ctx.save();ctx.lineCap='round';
-  line([[386,430],[369,413],[362+Math.sin(time*5)*5,393]],coat,13);
-  for(const x of [400,469]){box(x,441,15,38,dark,6);oval(x+11,480,17,5,dark);}
-  oval(442,433,66+breath*2,32+breath*2,coat);
-  oval(468,437,29+breath*2,29+breath*2,light);
-  for(const x of [414,488]){box(x,444,15,37,coat,6);oval(x+11,481,17,6,light);}
-  oval(500,405,29,31,coat);oval(518,419,25,14,light);
-  oval(482,411,12,25,dark);oval(539,414,7,5,'#192131');
+  let tail=coat;if(thermal){tail=ctx.createLinearGradient(386,430,362,393);tail.addColorStop(0,irHeat(33));tail.addColorStop(1,irHeat(26.5));}
+  line([[386,430],[369,413],[362+Math.sin(time*5)*5,393]],tail,13);
+  for(const x of [400,469]){leg(x,441,15,38,dark,31,25);part(x+11,480,17,5,dark,24.5,22);}
+  part(442,433,66+breath*2,32+breath*2,coat,34.5+.8*a,30);
+  part(468,437,29+breath*2,29+breath*2,light,Tchest+1.5,33);
+  for(const x of [414,488]){leg(x,444,15,37,coat,33,26);part(x+11,481,17,6,light,Tpaw+1,Tpaw-2);}
+  part(500,405,29,31,coat,35,31);part(518,419,25,14,light,31,28);
+  part(482,411,12,25,dark,Tear,32);
+  part(539,414,7,5,'#192131',Tnose,Tnose-2);
   const blink=time%4.5>4.3;
-  if(blink)line([[506,399],[514,399]],'#192131',2);else {disk(510,399,3,'#192131');disk(511,398,1,'#fff');}
-  line([[515,426],[531,426]],'#573227',2);
-  oval(524,431+breath,5,6+breath,'#fb7185');
-  line([[481,431],[499,440]],thermal?'#eab308':'#168b96',6);disk(490,440,4,'#fbbf24');
-  if(thermal){softGlow(467,432,22,20,'#fde68a');softGlow(520,418,12,8,'#fff5b3');}
+  if(blink)line([[506,399],[514,399]],thermal?irHeat(33):'#192131',2);
+  else if(thermal){softGlow(510,399,9,9,irHeat(Teye)+'cc');disk(510,399,4.5,irHeat(Teye+1));disk(511,399,1.8,'#3b1a78');}
+  else {disk(510,399,3,'#192131');disk(511,398,1,'#fff');}
+  line([[515,426],[531,426]],thermal?irHeat(30):'#573227',2);
+  if(thermal)heatOval(524,431+breath,5,6+breath,Ttongue,Ttongue-3);else oval(524,431+breath,5,6+breath,'#fb7185');
+  line([[481,431],[499,440]],thermal?irHeat(28):'#168b96',6);disk(490,440,4,thermal?irHeat(23):'#fbbf24');
+  if(thermal){
+    softGlow(462,452,15,10,irHeat(38.5)+'bb');   // warm armpit: thin fur, blood vessels close to the skin
+    softGlow(467,432,20,18,irHeat(Tchest+2)+'88');
+  }
   // Stylized warm-air tracers fade as the puff mixes into cooler air.
   if(thermal){
     for(let i=0;i<3;i++){
@@ -768,56 +895,82 @@ function irDog(time,thermal) {
       for(let i=0;i<5;i++) {ctx.save();ctx.globalAlpha=Math.max(0,1-u)*.65;
         softGlow(379-u*65-i*5,437-u*22+Math.sin(i*2)*9,10+u*25,8+u*13,u<.45?'#fbbf24':'#f97316');ctx.restore();}
     }
+    // Warm parts radiate infrared toward the camera; hotter parts send brighter packets.
+    [[528,398,Teye],[503,436,Tchest],[528,431,Ttongue]].forEach(([ox,oy,T],i)=>{
+      const u=(time*.4+i*.33)%1;
+      uvVisiblePacket(ox+(735-ox)*u,oy+(i-1)*8*u,0,irHeat(T),(1-u*.6)*uvClamp((T-30)/8),time*14);
+    });
   }
   if(fart){label('pfft!',343-(cycle-7)*12,399-(cycle-7)*5,thermal?'#fde68a':'#cbd5e1',12);
     // A brief sheepish eyebrow and backward glance after the puff.
     line([[505,390],[514,392]],dark,2);}
   ctx.restore();
+  // Live temperature tags attached to the parts they describe.
+  if(thermal){
+    const tag=(x,y,w,text,ax,ay,T)=>{
+      line([[x+w/2,y+16],[ax,ay]],'#ffffff88',1);
+      box(x,y,w,16,'#0b0f1ccc',4);disk(x+8,y+8,4,irHeat(T));label(text,x+16,y+12,'#f8fafc',11);
+    };
+    tag(396,360,76,`Ear ${Tear.toFixed(1)} °C`,481,388,Tear);
+    tag(498,360,76,`Nose ${Tnose.toFixed(1)} °C`,540,409,Tnose);
+    tag(436,490,70,`Paw ${Tpaw.toFixed(1)} °C`,498,485,Tpaw);
+  }
 }
 function irStar(x,y,r,alpha=1) {
   ctx.save();ctx.globalAlpha=alpha;
   const glow=ctx.createRadialGradient(x,y,0,x,y,r*5);glow.addColorStop(0,'#fff4dc');glow.addColorStop(.15,'#ffc27bcc');glow.addColorStop(1,'#ff956600');ctx.fillStyle=glow;ctx.fillRect(x-r*5,y-r*5,r*10,r*10);
   disk(x,y,r,'#fff6e3');line([[x-r*3,y],[x+r*3,y]],'#ffe2b5',1);line([[x,y-r*3],[x,y+r*3]],'#ffe2b5',1);ctx.restore();
 }
+// The infrared viewer sweeps across the nebula, then pauses over the dog (covering its whole puff cycle) before sweeping away.
+function irViewerX(time){
+  const k=[[0,.22],[3,.3],[4.5,.52],[10,.52],[12.5,.3],[14,.22]];
+  for(let i=1;i<k.length;i++)if(time<=k[i][0]){const [t0,x0]=k[i-1],[t1,x1]=k[i],u=(time-t0)/(t1-t0);return x0+(x1-x0)*(.5-.5*Math.cos(Math.PI*u));}
+  return .22;
+}
+// Text drawn over the gold viewer sits on a dark chip so it stays readable as the viewer passes.
+function irChip(text,x,y,color,size){
+  if(narrowMode&&size<12)return;
+  ctx.save();ctx.font=`600 ${Math.max(size,11)}px system-ui`;const w=ctx.measureText(text).width;ctx.restore();
+  box(x-6,y-size-1,w+12,size+8,'#080e21dd',6);label(text,x,y,color,size);
+}
 function drawInfrared() {
   const time=(performance.now()-sceneStart)/1000;
-  // The viewer sweeps slowly across both scenes.
-  scannerX=reduceMq.matches?.36:.4+.22*Math.sin(time*.45);
-
+  scannerX=irViewerX(time);
   const left=scannerX*880-125;
   ctx.fillStyle='#080e21';ctx.fillRect(0,0,880,570);
-  label('Drag the gold viewer to reveal BOTH scenes',24,61,'#fde68a',16);
-  label('STELLAR NURSERY',28,91,'#e2e8f0',13);
-  label('Visible view: dust hides young stars',28,111,'#94a3b8',11);
-  // A procedural vector nebula retains its shape in both imaging modes.
+  // A procedural vector nebula keeps its shape in both imaging modes; only what each kind of light can see changes.
   function space(thermal) {
-    box(20,122,840,151,thermal?'#17152f':'#0b1428',12);
+    box(20,122,840,151,thermal?'#1a1030':'#0b1428',12);
+    ctx.save();ctx.beginPath();ctx.roundRect(20,122,840,151,12);ctx.clip();
+    for(let i=0;i<16;i++){const x=90+(i*97)%700,y=140+(i*53)%110;softGlow(x,y,70+(i%3)*12,34+(i%4)*6,thermal?(i%2?'#fb923c77':'#fbbf2466'):(i%2?'#6366f166':'#c026d366'));}
     for(let i=0;i<50;i++)disk(35+(i*149)%795,132+(i*47)%130,.6,'#64748b');
-    for(let i=0;i<28;i++) {
+    // Dust: opaque to visible light, almost transparent to infrared.
+    for(let i=0;i<30;i++) {
       const x=125+(i*77)%555,y=174+Math.sin(i*2.7)*34;
-      ctx.save();ctx.globalAlpha=thermal?.16:.92;
-      softGlow(x,y,48+(i%4)*8,30+(i%3)*7,thermal?'#b06d98':'#3d3238');ctx.restore();
+      ctx.save();ctx.globalAlpha=thermal?.1:.96;
+      softGlow(x,y,54+(i%4)*10,34+(i%3)*8,thermal?'#7a4a6a':'#241a1e');ctx.restore();
     }
     if(thermal) {
       for(let i=0;i<17;i++)irStar(130+(i*83)%495,144+(i*43)%103,1.8+(i%3),.8+.2*Math.sin(time+i));
       // Dense core remains dark even in this infrared view.
       ctx.save();ctx.globalAlpha=.92;ctx.beginPath();ctx.ellipse(515,209,43,24,-.4,0,Math.PI*2);ctx.fillStyle='#161829';ctx.fill();ctx.restore();
-      label('Dense core still obscured',438,258,'#c4b5fd',10);
+      label('Dense core still obscured',438,258,'#c4b5fd',11);
     } else {irStar(95,150,2);irStar(642,235,2);}
-    // Custom gold segmented mirror. Incoming signal marks move toward it.
+    ctx.restore();
+    // Custom gold segmented mirror, enlarged; incoming signal marks move toward it.
+    ctx.save();ctx.translate(776,206);ctx.scale(1.35,1.35);ctx.translate(-776,-206);
     for(const [dx,dy] of [[0,0],[-17,-10],[0,-20],[17,-10],[-17,10],[0,20],[17,10]]){
       const pts=[];for(let k=0;k<6;k++){const a=k*Math.PI/3;pts.push([776+dx+10*Math.cos(a),184+dy+10*Math.sin(a)]);}poly(pts,materialGradient(766+dx,174+dy,20,20,thermal?'#fff0ba':'#e4c480','#b78c47','#76562b'));line([pts[1],pts[2],pts[3]],'#ffedb580',.7);
     }
     line([[776,215],[757,236],[800,236],[776,215]],'#94a3b8',2);
     poly([[740,240],[810,240],[794,250],[756,250]],'#475569');
+    ctx.restore();
     if(thermal)for(let i=0;i<3;i++){const u=(time*.3+i/3)%1;line([[660+u*85,186],[668+u*85,186]],'#fbbf24',2);}
-    label('IR telescope',731,265,'#cbd5e1',10);
+    label('IR telescope',724,284,'#cbd5e1',11);
   }
   space(false);
   ctx.save();ctx.beginPath();ctx.rect(left,122,250,151);ctx.clip();space(true);ctx.restore();
   line([[20,290],[860,290]],'#334155',1);
-  label('THE WARM DOG',28,316,'#e2e8f0',13);
-  label('Watch the chest breathe. A surprise warm puff follows!',28,337,'#94a3b8',12);
   function tabletop(thermal) {
     box(20,350,840,157,thermal?'#211b42':'#293448',12);
     for(let i=0;i<7;i++)line([[30,361+i*23],[850,361+i*23]],thermal?'#302548':'#303e53',1);
@@ -826,17 +979,22 @@ function drawInfrared() {
     box(746,392,76,54,'#0b1220',8);box(736,403,16,28,'#64748b',4);box(766,446,17,29,'#64748b',3);
     box(760,402,49,30,thermal?'#713b65':'#334155',4);disk(785,417,9,thermal?'#fbbf24':'#64748b');
     disk(782,414,2,'#ffffff77');line([[750,394],[818,394]],'#64748b80',1);
-    label('Thermal camera',727,494,'#cbd5e1',10);
+    label('Thermal camera',727,494,'#cbd5e1',11);
   }
   tabletop(false);
   ctx.save();ctx.beginPath();ctx.rect(left,350,250,157);ctx.clip();tabletop(true);ctx.restore();
   // One continuous frame visibly joins the two clipped regions.
   ctx.strokeStyle='#fbbf24';ctx.lineWidth=2.5;ctx.strokeRect(left,118,250,393);
-  box(left+64,278,122,25,'#fbbf24',12);label('<  IR VIEWER  >',left+76,295,'#172033',12);
+  box(left+64,278,122,25,'#fbbf24',12);label('IR VIEWER',left+96,295,'#172033',12);
   label('SPACE: assigned infrared colors',24,535,'#c4b5fd',11);
   label('DOG: false-color temperature',452,535,'#fdba74',11);
-  const g=ctx.createLinearGradient(660,549,812,549);g.addColorStop(0,'#312e81');g.addColorStop(.5,'#f97316');g.addColorStop(1,'#fef08a');ctx.fillStyle=g;ctx.fillRect(660,544,152,9);
-  label('Cooler',610,553,'#94a3b8',10);label('Warmer',819,553,'#fde68a',10);
+  const g=ctx.createLinearGradient(650,549,790,549);for(let k=0;k<=6;k++)g.addColorStop(k/6,irHeat(24+k*(39.5-24)/6));ctx.fillStyle=g;ctx.fillRect(650,544,140,9);
+  label('Cooler 24 °C',566,553,'#c4b5fd',11);label('Warmer 39 °C',796,553,'#fde68a',11);
+  // Headings go on top so the viewer never hides them.
+  irChip('STELLAR NURSERY',28,96,'#e2e8f0',13);
+  irChip('Visible view: dust hides the young stars',28,114,'#94a3b8',11);
+  irChip('THE WARM DOG',28,316,'#e2e8f0',13);
+  irChip('Ears, eyes and tongue warm and cool; the nose and paws stay cold.',28,337,'#94a3b8',12);
 }
 
 
@@ -864,11 +1022,14 @@ function drawUV(){
   // Everyday objects, drawn as they look in ordinary light.
   // Banknote with a faint thread and portrait.
   box(45,300,160,85,'#b9c9a8',6);box(51,306,148,73,'#c8d6b8',3);
-  ctx.beginPath();ctx.ellipse(98,342,23,29,0,0,Math.PI*2);ctx.fillStyle='#9db08a';ctx.fill();
-  for(let k=0;k<4;k++)line([[132,320+k*12],[155,320+k*12]],'#8ea17d',2);
+  ctx.beginPath();ctx.roundRect(55,310,140,65,3);ctx.strokeStyle='#8ea17d';ctx.lineWidth=1;ctx.stroke();
+  for(const [rx,ry2] of [[65,320],[185,320],[65,366],[185,366]])for(let r=2;r<8;r+=2){ctx.beginPath();ctx.arc(rx,ry2,r,0,Math.PI*2);ctx.strokeStyle='#97aa86';ctx.lineWidth=.8;ctx.stroke();}
+  ctx.beginPath();ctx.ellipse(98,342,24,30,0,0,Math.PI*2);ctx.fillStyle='#a9bb97';ctx.fill();ctx.strokeStyle='#7e9370';ctx.lineWidth=1.5;ctx.stroke();
+  disk(98,335,9,'#8ea17d');ctx.beginPath();ctx.ellipse(98,362,16,11,0,Math.PI,Math.PI*2);ctx.fillStyle='#8ea17d';ctx.fill();
+  label('20',132,342,'#6f8460',24);
+  for(let k=0;k<3;k++)line([[132,352+k*7],[180,352+k*7]],'#8ea17d',1.4);
   line([[165,301],[165,384]],'#aebd9d',2);
   box(175,312,20,20,'#aab99a',10);
-  for(let k=0;k<3;k++)line([[60,368+k*0],[120,368]],'#8ea17d',2);
   // Highlighter marker.
   box(250,320,32,76,'#cfc94a',6);box(255,338,22,34,'#f1f5f9',2);box(248,296,36,28,'#3a3f52',5);poly([[254,320],[278,320],[272,330],[260,330]],'#8f8a2f');
   // Glass of clear tonic water.
@@ -898,7 +1059,8 @@ function drawUV(){
   ctx.save();ctx.globalAlpha=lights;label('Room light',112,130,'#fde68a',12);ctx.restore();
   box(235,106,200,26,'#2b2f45',6);
   ctx.save();ctx.globalAlpha=.3+.7*uv;box(245,120,180,9,'#c4b5fd',4);ctx.restore();
-  if(uv>0){ctx.save();ctx.globalAlpha=uv;softGlow(335,126,170,36,'#a78bfa99');label('UV-A lamp (365 nm)',445,124,'#ddd6fe',12);ctx.restore();}
+  if(uv>0){ctx.save();ctx.globalAlpha=uv;softGlow(335,126,170,36,'#a78bfa99');ctx.restore();}
+  ctx.save();ctx.globalAlpha=.45+.55*uv;label('UV-A lamp (365 nm)'+(uv>0?'':' · off'),445,124,'#ddd6fe',12);ctx.restore();
   // Hidden dyes and fluorescent materials light up under UV.
   if(fl>0){
     ctx.save();ctx.globalAlpha=fl;
@@ -929,7 +1091,7 @@ function drawUV(){
   line([[665,top],[835,top]],'#64748b',2);line([[665,ground],[835,ground]],'#64748b',2);
   line([[665,relaxed],[835,relaxed]],'#475569',1.5);
   label('Excited state',668,top-8,'#94a3b8',11);label('Ground state',668,ground+18,'#94a3b8',11);
-  line([[648,ground],[648,top+6]],'#64748b',1.5);poly([[648,top],[643,top+10],[653,top+10]],'#64748b');label('Energy',633,top-8,'#94a3b8',10);
+  line([[648,ground],[648,top+6]],'#64748b',1.5);poly([[648,top],[643,top+10],[653,top+10]],'#64748b');ctx.save();ctx.translate(638,300);ctx.rotate(-Math.PI/2);label('Energy',0,0,'#94a3b8',11);ctx.restore();
   // Faint guide arrows for the whole process.
   ctx.save();ctx.globalAlpha=.45;
   line([[700,ground],[700,top+8]],'#a78bfa',3);poly([[700,top],[694,top+12],[706,top+12]],'#a78bfa');
@@ -967,13 +1129,29 @@ function xrayFigure(p,bones){
   ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
   const limbs=[[p.ls,p.le,p.lh],[p.rs,p.re,p.rh],[p.hip,p.lk,p.lf],[p.hip,p.rk,p.rf]];
   if(!bones){
-    limbs.forEach((a,i)=>line(a,i<2?'#d9a581':'#334d76',i<2?19:25));
-    poly([[p.ls[0]-6,p.ls[1]-7],[p.rs[0]+6,p.rs[1]-7],[p.hip[0]+30,p.hip[1]],[p.hip[0]-30,p.hip[1]]],'#0e7490');
-    line([p.neck,p.head],'#d9a581',18);disk(...p.head,28,'#d9a581');
+    const skin='#d9a581',skinDark='#b9835f';
+    // Limbs: outline, base color and a soft highlight so they read as rounded forms.
+    limbs.forEach((a,i)=>{const w=i<2?19:25,c=i<2?skin:'#334d76',o=i<2?skinDark:'#22364f';line(a,o,w+4);line(a,c,w);line(a,i<2?'#ecc6a4':'#4b6a98',w*.32);});
+    for(const a of limbs.slice(2))line([a[0],a[1]],'#22364f',1.5);
+    for(const a of limbs.slice(0,2)){disk(...a[2],11,skinDark);disk(...a[2],9.5,skin);}
+    // Shirt with folds, collar and shaded side.
+    const tx=p.ls[0]-6,ty=p.ls[1]-7,tw=(p.rs[0]+6)-tx;
+    poly([[p.ls[0]-6,p.ls[1]-7],[p.rs[0]+6,p.rs[1]-7],[p.hip[0]+30,p.hip[1]],[p.hip[0]-30,p.hip[1]]],materialGradient(tx,ty,tw,110,'#1792af','#0e7490','#0a5568'));
+    line([[p.ls[0]+8,p.ls[1]+18],[p.hip[0]-10,p.hip[1]-14]],'#06475a66',2);line([[p.rs[0]-8,p.rs[1]+30],[p.hip[0]+14,p.hip[1]-6]],'#06475a66',2);line([[p.neck[0]+4,p.neck[1]+30],[p.hip[0]+4,p.hip[1]-10]],'#06475a44',2);
+    line([[p.hip[0]-30,p.hip[1]-1],[p.hip[0]+30,p.hip[1]-1]],'#0a5568',4);
+    line([p.neck,p.head],'#c99572',18);
+    poly([[p.neck[0]-13,p.neck[1]-4],[p.neck[0]+13,p.neck[1]-4],[p.neck[0],p.neck[1]+15]],'#0a5568');
+    // Head: shaded face, ears, hair, sunglasses, smile.
+    disk(p.head[0]-28,p.head[1]+2,6.5,skinDark);disk(p.head[0]+28,p.head[1]+2,6.5,skinDark);
+    const hg=ctx.createRadialGradient(p.head[0]-8,p.head[1]-10,4,p.head[0],p.head[1],30);hg.addColorStop(0,'#ecc6a4');hg.addColorStop(1,skin);
+    disk(...p.head,28,hg);
+    ctx.beginPath();ctx.arc(p.head[0],p.head[1]-2,28.5,Math.PI*1.04,Math.PI*1.96);ctx.fillStyle='#3b2a20';ctx.fill();
     box(p.head[0]-23,p.head[1]-7,20,11,'#0f172a');box(p.head[0]+3,p.head[1]-7,20,11,'#0f172a');line([[p.head[0]-3,p.head[1]-3],[p.head[0]+3,p.head[1]-3]],'#0f172a',2);line([[p.head[0]-20,p.head[1]-5],[p.head[0]-11,p.head[1]-5]],'#94a3b8',1.3);line([[p.head[0]+6,p.head[1]-5],[p.head[0]+15,p.head[1]-5]],'#94a3b8',1.3);
-    line([[p.head[0]-8,p.head[1]+14],[p.head[0]+8,p.head[1]+14]],'#7c4535',2);
-    line([[p.lf[0]-12,p.lf[1]+3],[p.lf[0]+9,p.lf[1]+3]],'#e2e8f0',13);line([[p.rf[0]-9,p.rf[1]+3],[p.rf[0]+12,p.rf[1]+3]],'#e2e8f0',13);
+    ctx.beginPath();ctx.arc(p.head[0],p.head[1]+9,10,.25,Math.PI-.25);ctx.strokeStyle='#7c4535';ctx.lineWidth=2.2;ctx.stroke();
+    // Sneakers with soles and a red stripe.
+    for(const f of [p.lf,p.rf]){ctx.beginPath();ctx.ellipse(f[0],f[1]+2,19,9,0,0,Math.PI*2);ctx.fillStyle='#f1f5f9';ctx.fill();line([[f[0]-18,f[1]+9],[f[0]+18,f[1]+9]],'#94a3b8',3);line([[f[0]-8,f[1]-2],[f[0]+10,f[1]-2]],'#ef4444',2.4);}
     line([[p.hip[0]-29,p.hip[1]-7],[p.hip[0]+29,p.hip[1]-7]],'#172033',9);
+    for(const dx of [-22,-8,8,22])line([[p.hip[0]+dx,p.hip[1]-11],[p.hip[0]+dx,p.hip[1]-3]],'#0b1220',2);
   }else{
     // Soft tissue remains a faint attenuation shadow, not an empty cutout.
     ctx.globalAlpha=.15;limbs.forEach(a=>line(a,'#cbd5e1',23));line([p.neck,p.hip],'#94a3b8',61);disk(...p.head,28,'#94a3b8');ctx.globalAlpha=1;
@@ -1010,7 +1188,8 @@ function drawXray(){
   box(40,196,79,71,materialGradient(40,196,79,71,'#9aabc1','#475569','#28354b'),12);rivet(49,207);rivet(109,256);box(110,216,27,30,'#94a3b8');disk(79,231,18,'#1e293b');disk(79,231,8,'#818cf8');line([[79,268],[79,432]],'#64748b',8);box(44,430,70,8,'#475569',3);
   label('X-RAY SOURCE',30,186,'#a5b4fc',11);
   box(734,111,62,312,materialGradient(734,111,62,312,'#8899ac','#334155','#19263b'),8);rivet(740,117);rivet(790,417);box(742,121,44,290,'#0f172a',3);
-  label('DETECTOR',720,98,'#a5b4fc',11);
+  label('DETECTOR',720,98,'#a5b4fc',11);disk(790,93,4,xrState==='dance'?'#f59e0b':xrState==='exposure'?'#60a5fa':'#4ade80');
+  for(let row=0;row<40;row++)box(747,130+row*7-2.5,34,5.5,'#1c2740',1);
   if(xrState!=='dance'){
     const model=xraySample(p,Math.round(xrPose*1000));
     if(xrState==='exposure')poly([[137,231],[733,128],[733,408]],'#818cf80c');
@@ -1023,8 +1202,8 @@ function drawXray(){
     label('VISIBLE',295,458,'#cbd5e1',11);label('X-RAY IMAGE',490,458,'#c7d2fe',11);
     label('Bright duck = metal belt buckle',302,480,'#fde68a',11);
   }else label(xrState==='dance'?'Dance first. Hold still for imaging.':'Capturing a stationary pose…',305,460,'#94a3b8',12);
-  label('More photons detected',647,452,'#cbd5e1',10);label('→ darker image',647,468,'#94a3b8',10);
-  label('Fewer behind bone',647,490,'#cbd5e1',10);label('→ lighter image',647,506,'#94a3b8',10);
+  box(630,443,12,12,'#2a3350',2);label('More photons → darker',650,454,'#cbd5e1',12);
+  box(630,467,12,12,'#d8dfef',2);label('Fewer (behind bone) → lighter',650,478,'#cbd5e1',12);
 }
 
 
@@ -1129,8 +1308,21 @@ function drawGammaPigs(){
     line([[413,base],[647,base]],'#64748b',3);
     // Faint guide from the wolf's mouth to this house's photon lane.
     if(time>=release-.3)line([[MX,MY],[laneX,cy+8]],'#d8b4fe26',1.2);
+    // Furnishings so the houses read as homes.
+    box(456,base-26,52,5,'#8b5e3c',2);line([[464,base-21],[464,base-3]],'#8b5e3c',3);line([[500,base-21],[500,base-3]],'#8b5e3c',3);
+    line([[482,base-26],[482,base-42]],'#cbd5e1',2);poly([[472,base-42],[492,base-42],[488,base-54],[476,base-54]],'#fde68a');
+    box(588,cy-14,30,24,'#3b4a66',2);box(591,cy-11,24,18,'#6b8fb8',1);line([[603,cy-11],[603,cy+7]],'#3b4a66',1);
+    // Radiation that actually crosses the pig makes it flinch and, after a few hits, worry.
+    let crossing=false,hitsOnPig=0;
+    for(let n=0;n<total;n++){
+      const age=time-release-n*spacing,u=age/flight,x=MX+u*(800-MX);
+      if(!pigPhotonPasses(i,n)||age<0)continue;
+      if(u<=1&&x>520&&x<575)crossing=true;
+      if(age>=(575-MX)/(800-MX)*flight)hitsOnPig++;
+    }
+    if(crossing)softGlow(545,cy+10,36,40,'#ef444466');
     const retreat=finished&&i<2?Math.min(1,(time-(emitEnd+flight))/1.4):0;
-    drawStoryPig(545+Math.max(0,retreat)*137,cy+15,finished?(i===2?'happy':'worried'):'neutral',time);
+    drawStoryPig(545+Math.max(0,retreat)*137+(crossing?Math.sin(time*70)*2.5:0),cy+15,finished?(i===2?'happy':'worried'):(hitsOnPig>=6?'worried':'neutral'),time);
     let arrived=0,nearDetector=false;
     for(let n=0;n<total;n++){
       const age=time-release-n*spacing,pass=pigPhotonPasses(i,n),u=age/flight;
@@ -1155,6 +1347,7 @@ function drawGammaPigs(){
     box(800,cy-24,34,72,'#475569',6);box(807,cy-16,20,56,'#1e293b',3);
     const fillH=56*arrived/total;
     if(fillH>0)box(807,cy+40-fillH,20,fillH,'#c4b5fd',3);
+    for(const q of [.25,.5,.75])line([[807,cy+40-56*q],[827,cy+40-56*q]],'#475569',1);
     if(nearDetector){ctx.strokeStyle='#f3e8ff';ctx.lineWidth=2;ctx.beginPath();ctx.roundRect(805,cy-18,24,60,4);ctx.stroke();}
     label('DETECTOR',790,cy-30,'#94a3b8',11);
     label(narrowMode?`${arrived} / ${total}`:`${arrived} of ${total} detected`,narrowMode?760:722,cy+66,arrived?'#e9d5ff':'#64748b',13);
@@ -1215,7 +1408,7 @@ function drawNewton(){
   const paths=[];
   // A simple dispersive-glass model bends every ray at both interfaces.
   for(let i=0;i<35;i++){
-    const u=i/34,ray=newtonOptics(angle,1.50+.07*u);
+    const u=i/34,ray=newtonOptics(angle,1.50+.085*u);
     if(!ray)continue;paths.push(ray);
     ctx.save();ctx.globalAlpha=.32;line(ray.path,colors[Math.min(6,Math.floor(u*7))],2);ctx.restore();
     const y=ray.path[3][1];
@@ -1228,7 +1421,7 @@ function drawNewton(){
     poly(ref.vertices,'#b9e1ff18');line([...ref.vertices,ref.vertices[0]],'#c7e2f4',2);
     line([[452,178],[419,276]],'#ffffff70',2);poly([[454,179],[450,212],[425,278],[430,251]],'#d5efff15');
     for(let k=0;k<7;k++){
-      const ray=newtonOptics(angle,1.50+k/6*.07);if(!ray)continue;
+      const ray=newtonOptics(angle,1.50+k/6*.085);if(!ray)continue;
       const u=(elapsed*.4+k*.13)%1,a=ray.path[2],b=ray.path[3];disk(a[0]+(b[0]-a[0])*u,a[1]+(b[1]-a[1])*u,2,colors[k]);
     }
   }
@@ -1296,7 +1489,7 @@ function prepareScene(){
   ctx.setTransform(sceneScale,0,0,sceneScale,0,0);
 }
 // Each scene is cropped to its own artwork; the canvas takes that aspect ratio, so nothing is letterboxed.
-const SCENE_BOUNDS={radio:[0,40,880,320],microwave:[0,40,880,320],infrared:[0,70,880,500],visible:[0,96,880,524],uv:[0,60,880,480],xray:[0,44,880,486],gamma:[20,104,840,462]};
+const SCENE_BOUNDS={radio:[0,40,880,500],microwave:[0,40,880,500],infrared:[0,70,880,500],visible:[0,100,880,500],uv:[0,50,880,500],xray:[0,30,880,500],gamma:[10,100,860,489]};
 function presentScene(){
   const id=BANDS[currentIdx].id,w=canvas.clientWidth,[sx,sy,sw,sh]=SCENE_BOUNDS[id],height=Math.round(w*sh/sw);
   canvas.style.height=height+'px';
@@ -1306,9 +1499,477 @@ function presentScene(){
   displayCtx.fillStyle='#0b1226';displayCtx.fillRect(0,0,w,height);
   displayRegions=[{sx,sy,sw,sh,dx:0,dy:0,dw:w,dh:height}];
   displayCtx.drawImage(sceneCanvas,sx*sceneScale,sy*sceneScale,sw*sceneScale,sh*sceneScale,0,0,w,height);
+  if(fadeAmt>0){displayCtx.fillStyle='rgba(11,18,38,'+fadeAmt.toFixed(3)+')';displayCtx.fillRect(0,0,w,height);}
 }
 
 
+
+// ==========================================================
+// ALTERNATE DEMOS: each band plays its main scene, then one more demo showing a different use or property.
+// ==========================================================
+const PRIMARY_LEN = {radio:14, microwave:14, infrared:14, visible:15, uv:12, xray:15, gamma:16};
+const ALT_LEN = 12;
+const ALT_INFO = {
+  radio: {title:'Radio telescope arrays combine many dishes to sharpen a radio image',
+    summary:'Radio waves from a distant galaxy reach many dishes at once; combining their signals works like one giant dish, so the radio image gets sharper as dishes join.',
+    note:'Schematic: real arrays such as the VLA combine dozens of dishes spread over kilometers, and radio images use assigned false colors.'},
+  microwave: {title:'Weather radar: echo delay gives distance, frequency shift gives motion',
+    summary:'Radar sends a microwave pulse; the echo’s delay gives the storm’s distance, and its frequency shift shows whether rain moves toward or away.',
+    note:'Schematic. Pulse speed, rain motion and the screen colors are simplified; real radar uses many scans.'},
+  infrared: {title:'A TV remote sends invisible infrared pulses that the TV decodes',
+    summary:'A remote’s infrared LED flickers in a coded pattern you cannot see; the TV’s sensor decodes it and changes the volume while its screen plays infrared-camera footage.',
+    note:'Schematic: real remote codes are faster and use a modulated carrier. Many phone cameras show the flicker; some filter it out. Thermal-camera colors are assigned to temperature.'},
+  visible: {title:'Why the sky is blue and the low Sun is red',
+    summary:'Air molecules scatter short blue wavelengths far more than long red ones, so the sky is blue and the low Sun, seen through more air, looks red.',
+    note:'Schematic: geometry, packet counts and colors are simplified. Scattered blue light also arrives from all directions of the sky.'},
+  uv: {title:'UV-blocking lenses and sunscreen absorb ultraviolet light',
+    summary:'A UV-blocking lens or a sunscreen layer absorbs ultraviolet while visible light still passes or reflects as usual.',
+    note:'Schematic: real products absorb or scatter only part of the UV, and protection depends on the product and how it is used.'},
+  xray: {title:'CT scan: many X-ray views build a cross-section image',
+    summary:'A CT scanner rotates an X-ray source and detector around the body; a computer combines many angles into a cross-section image.',
+    note:'Schematic: real scanners collect hundreds of views per slice and the patient table moves through the ring.'},
+  gamma: {title:'The atmosphere absorbs gamma rays, so gamma telescopes orbit in space',
+    summary:'Earth’s atmosphere absorbs gamma rays from space, so a gamma-ray telescope must orbit above the air to detect them.',
+    note:'Schematic: counts and timing are illustrative. Ground arrays detect only the faint air showers made by very high-energy gamma rays.'}
+};
+let seqStart = realNow(), altShown = false, altT = 0, altIndex = 0, fadeAmt = 0;
+let completionSent = false;
+const seenParts = {};
+
+function altBg(a, b) { const g = ctx.createLinearGradient(0, 0, 0, 650); g.addColorStop(0, a); g.addColorStop(1, b); ctx.fillStyle = g; ctx.fillRect(0, 0, 880, 650); }
+function altMix(a, b, u) { const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)), A = p(a), B = p(b); return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * u).toString(16).padStart(2, '0')).join(''); }
+function altArrow(x1, y1, x2, y2, color, w = 2) { line([[x1, y1], [x2, y2]], color, w); const a = Math.atan2(y2 - y1, x2 - x1); poly([[x2, y2], [x2 - 9 * Math.cos(a - .4), y2 - 9 * Math.sin(a - .4)], [x2 - 9 * Math.cos(a + .4), y2 - 9 * Math.sin(a + .4)]], color); }
+function altSun(x, y, r) { softGlow(x, y, r * 2.6, r * 2.6, '#fde68a55'); disk(x, y, r, '#fde68a'); for (let i = 0; i < 10; i++) { const a = i * Math.PI / 5; line([[x + Math.cos(a) * (r + 4), y + Math.sin(a) * (r + 4)], [x + Math.cos(a) * (r + 9), y + Math.sin(a) * (r + 9)]], '#fbbf24', 2); } }
+function altEye(x, y, uvLit) {
+  if (uvLit) softGlow(x, y, 36, 28, '#c084fc88');
+  ctx.beginPath(); ctx.ellipse(x, y, 26, 17, 0, 0, Math.PI * 2); ctx.fillStyle = '#f8fafc'; ctx.fill(); ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1.5; ctx.stroke();
+  disk(x + 5, y, 9, '#3b82f6'); disk(x + 5, y, 4, '#0f172a'); disk(x + 2, y - 3, 1.6, '#fff');
+}
+
+// ---------- MICROWAVE: weather radar ----------
+function drawMicrowaveAlt(t) {
+  night(540);
+  poly([[0, 330], [880, 330], [880, 372], [0, 372]], '#14202f');
+  label('WEATHER RADAR: echo delay and Doppler shift', 24, 64, '#fdba74', 14);
+  // Dish on a tower, scanning slowly.
+  box(100, 262, 20, 68, '#475569'); box(90, 322, 40, 8, '#334155', 2);
+  ctx.save(); ctx.translate(112, 252); ctx.rotate(-.55 + Math.sin(t * .6) * .08);
+  ctx.beginPath(); ctx.arc(0, 0, 26, 0, Math.PI); ctx.fillStyle = '#e2e8f0'; ctx.fill(); line([[0, 20], [0, -12], [14, -19]], '#94a3b8', 3); ctx.restore();
+  label('Radar dish', 56, 352, '#cbd5e1', 12);
+  // Storm cloud with rain moving toward (left) and away from (right) the dish.
+  ctx.save(); ctx.beginPath(); ctx.rect(330, 90, 280, 240); ctx.clip();
+  for (let i = 0; i < 7; i++) disk(375 + i * 34, 150 + Math.sin(i * 1.7) * 14, 36 + (i % 3) * 5, '#3b4658');
+  for (let i = 0; i < 6; i++) disk(392 + i * 34, 138 + Math.sin(i * 2.1) * 12, 30, '#566277');
+  ctx.restore();
+  for (let i = 0; i < 16; i++) {
+    const x = 352 + i * 15, y = 190 + (t * 60 + i * 23) % 100, away = x > 470;
+    line([[x, y], [x + (away ? 4 : -4), y + 11]], away ? '#fca5a5' : '#86efac', 1.6);
+  }
+  altArrow(440, 322, 380, 322, '#86efac', 2.5); altArrow(500, 322, 560, 322, '#fca5a5', 2.5);
+  label('Rain toward dish', 345, 306, '#86efac', 12); label('Rain away', 508, 306, '#fca5a5', 12);
+  // Pulse train out, echo back. The beam fades as it enters the cloud.
+  const ph = t % 3.6, sx = 140, sy = 232, ex = 350, ey = 188;
+  const cone = ctx.createLinearGradient(sx, 0, ex + 20, 0); cone.addColorStop(0, '#fdba7466'); cone.addColorStop(1, '#fdba7400');
+  ctx.fillStyle = cone; poly([[sx, sy], [ex + 20, ey - 40], [ex + 20, ey + 78]], cone);
+  const ang = Math.atan2(ey - sy, ex - sx);
+  for (let k = 0; k < 3; k++) {
+    if (ph < 1.4) { const u = ph / 1.4 - k * .07; if (u > 0 && u < 1) uvVisiblePacket(sx + (ex - sx) * u, sy + (ey - sy) * u, ang, '#fb923c', 1, t * 14); }
+    else if (ph < 2.8) { const u = 1 - (ph - 1.4) / 1.4 + k * .07; if (u > 0 && u < 1) uvVisiblePacket(sx + (ex - sx) * u, sy + (ey - sy) * u, ang + Math.PI, '#5eead4', 1, t * 14); }
+  }
+  line([[140, 340], [350, 340]], '#64748b', 1); line([[140, 335], [140, 345]], '#64748b', 1); line([[350, 335], [350, 345]], '#64748b', 1);
+  label('distance = (speed of light × delay) ÷ 2', 152, 358, '#cbd5e1', 12);
+  // Radar screen.
+  box(650, 84, 210, 230, '#0b1220', 14); label('Radar screen', 662, 108, '#cbd5e1', 12);
+  const cx = 755, cy = 205, R = 76, sw = (t * 1.05) % (Math.PI * 2);
+  disk(cx, cy, R, '#06240f');
+  for (const r of [R / 3, R * 2 / 3, R]) { ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.strokeStyle = '#14532d'; ctx.lineWidth = 1; ctx.stroke(); }
+  line([[cx - R, cy], [cx + R, cy]], '#14532d', 1); line([[cx, cy - R], [cx, cy + R]], '#14532d', 1);
+  const blobAng = Math.PI * 2 - .17, since = (((sw - blobAng) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2), glow = .35 + .65 * Math.max(0, 1 - since / (Math.PI * 2) * 1.3);
+  ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.clip();
+  ctx.globalAlpha = glow; disk(cx + 40, cy - 8, 17, '#22c55e'); disk(cx + 56, cy - 7, 17, '#ef4444'); disk(cx + 48, cy - 8, 9, '#fde047'); ctx.restore();
+  ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.clip();
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, R, sw - .6, sw); ctx.closePath(); ctx.fillStyle = '#22c55e44'; ctx.fill(); ctx.restore();
+  line([[cx, cy], [cx + R * Math.cos(sw), cy + R * Math.sin(sw)]], '#4ade80', 2);
+  disk(669, 296, 5, '#22c55e'); label('Toward', 678, 301, '#bbf7d0', 12); disk(755, 296, 5, '#ef4444'); label('Away', 764, 301, '#fecaca', 12);
+  // Echo timing: a longer delay means a farther storm.
+  box(16, 380, 420, 156, '#0e1829', 14); label('ECHO TIMING', 32, 404, '#fdba74', 13);
+  line([[40, 478], [410, 478]], '#475569', 2);
+  const echoX = 40 + 2.8 / 3.6 * 370, curX = 40 + ph / 3.6 * 370;
+  box(37, 438, 6, 40, '#fb923c', 2); label('pulse sent', 24, 430, '#fdba74', 12);
+  box(echoX - 3, 452, 6, 26, ph >= 2.8 ? '#5eead4' : '#1f3b44', 2); label('echo received', echoX - 52, 444, ph >= 2.8 ? '#99f6e4' : '#4b6670', 12);
+  line([[curX, 430], [curX, 484]], '#ffffff55', 1.2); disk(curX, 478, 4, '#fff');
+  altArrow(44, 500, echoX - 4, 500, '#94a3b8', 1.6); label('delay', 150, 520, '#cbd5e1', 12); label('longer delay = farther storm', 214, 520, '#94a3b8', 11);
+  // Doppler shift: the echo from approaching rain has squeezed waves, from receding rain stretched waves.
+  box(446, 380, 418, 156, '#0e1829', 14); label('DOPPLER SHIFT OF THE ECHO', 462, 404, '#fdba74', 13);
+  [[430, 'Sent pulse', '#fb923c', 32], [474, 'Rain toward: squeezed, higher frequency', '#86efac', 24], [518, 'Rain away: stretched, lower frequency', '#fca5a5', 42]].forEach(([y, text, col, lam]) => {
+    label(text, 462, y - 8, col, 12);
+    ctx.beginPath(); for (let x = 0; x <= 380; x += 2) { const yy = y + 6 + 7 * Math.sin((x - t * 70) / lam * Math.PI * 2); x ? ctx.lineTo(462 + x, yy) : ctx.moveTo(462, yy); }
+    ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke();
+  });
+}
+
+// ---------- INFRARED: TV remote ----------
+// Footage on the TV: an infrared (thermal) camera view of a night street. Warm bodies glow; cool things stay dark.
+function altThermalMovie(t) {
+  const w = 456, h = 256;
+  ctx.save(); ctx.beginPath(); ctx.roundRect(0, 0, w, h, 6); ctx.clip();
+  const sky = ctx.createLinearGradient(0, 0, 0, h); sky.addColorStop(0, '#12062e'); sky.addColorStop(.58, '#3a1458'); sky.addColorStop(.59, '#4d1d6a'); sky.addColorStop(1, '#2a0f45');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h);
+  poly([[0, 142], [60, 120], [130, 138], [200, 114], [290, 140], [370, 120], [456, 136], [456, 156], [0, 156]], '#2b1055');
+  for (const [x, s] of [[38, 1], [112, .8], [344, 1.1], [420, .9]]) {
+    line([[x, 176], [x, 144]], '#6a2a86', 5 * s);
+    for (const [dx, dy, r] of [[0, 120, 22], [-15, 134, 17], [15, 134, 17]]) disk(x + dx * s, dy, r * s, '#341566');
+  }
+  // Parked car: cool body, warm engine and exhaust.
+  box(236, 168, 92, 26, '#4a2278', 6); poly([[252, 168], [266, 150], [304, 150], [318, 168]], '#3b1a62');
+  softGlow(318, 178, 26, 14, '#ff7a1acc'); box(306, 172, 20, 12, '#ff8a2a', 4); disk(256, 196, 9, '#2a1048'); disk(310, 196, 9, '#2a1048');
+  ctx.save(); ctx.globalAlpha = .5 + .3 * Math.sin(t * 3); softGlow(336 + (t * 8) % 14, 190 - (t * 8) % 14, 10, 7, '#fb923c'); ctx.restore();
+  // Walker and dog crossing the street.
+  const px = ((t * 30) % (w + 140)) - 70, by = 214, sw = Math.sin(t * 6) * 14;
+  softGlow(px, by - 52, 38, 56, '#ff8a2a77');
+  // Legs and shoes (shoes stay cooler), arms, torso with a hot core, neck, head with cooler hair.
+  ctx.save(); ctx.lineCap = 'round';
+  for (const s of [sw, -sw]) { line([[px, by - 40], [px + s * .8, by - 20], [px + s, by - 4]], '#f97316', 12); box(px + s - 7, by - 6, 15, 7, '#7a2f5a', 3); }
+  for (const s of [-sw * .6, sw * .6]) { line([[px + (s > 0 ? 15 : -15), by - 80], [px + s * 1.2, by - 60], [px + s * 1.5, by - 44]], '#fb923c', 9); disk(px + s * 1.5, by - 42, 5, '#fde68a'); }
+  ctx.restore();
+  box(px - 17, by - 90, 34, 54, '#fb923c', 14);
+  softGlow(px, by - 62, 14, 24, '#fff2a8cc'); ctx.beginPath(); ctx.ellipse(px, by - 62, 10, 20, 0, 0, Math.PI * 2); ctx.fillStyle = '#fde68a'; ctx.fill();
+  line([[px, by - 90], [px, by - 84]], '#fbbf24', 9);
+  softGlow(px, by - 100, 20, 20, '#fff7c2cc'); disk(px, by - 100, 13, '#fff4b0');
+  ctx.beginPath(); ctx.arc(px, by - 101, 13.5, Math.PI * 1.02, Math.PI * 1.98); ctx.fillStyle = '#c2531c'; ctx.fill();
+  const dx = px - 88, ds = Math.sin(t * 9) * 8;
+  softGlow(dx, by - 20, 30, 18, '#ff8a2a66');
+  for (const [lx, a] of [[-14, ds], [-7, -ds], [8, -ds], [15, ds]]) line([[dx + lx, by - 12], [dx + lx + a, by]], '#f97316', 4);
+  ctx.beginPath(); ctx.ellipse(dx, by - 20, 23, 11, 0, 0, Math.PI * 2); ctx.fillStyle = '#fb923c'; ctx.fill();
+  disk(dx + 25, by - 28, 8.5, '#fcd34d'); line([[dx - 22, by - 24], [dx - 32, by - 34 + Math.sin(t * 8) * 3]], '#f97316', 3);
+  for (let y = 0; y < h; y += 4) line([[0, y], [w, y]], '#00000022', 1);
+  // Camera display: record light, scale bar and a temperature readout that follows the walker.
+  if (Math.sin(t * 4) > 0) disk(22, 22, 5, '#ef4444'); label('THERMAL', 34, 27, '#ffffff', 12);
+  const sc = ctx.createLinearGradient(0, 60, 0, 190); sc.addColorStop(0, '#fef08a'); sc.addColorStop(.45, '#f97316'); sc.addColorStop(1, '#3b1a78'); ctx.fillStyle = sc; ctx.fillRect(12, 60, 9, 130);
+  label('hot', 26, 72, '#fde68a', 12); label('cold', 26, 190, '#c4b5fd', 12);
+  const hx = px, hy = by - 100;
+  ctx.strokeStyle = '#fef08a'; ctx.lineWidth = 1.5; ctx.strokeRect(hx - 20, hy - 20, 40, 40);
+  label('36.5 °C', hx + 24, hy - 8, '#fef08a', 12);
+  ctx.strokeStyle = '#ffffff66'; ctx.lineWidth = 1.5;
+  for (const [cx0, cy0, sx, sy] of [[6, 6, 1, 1], [w - 6, 6, -1, 1], [6, h - 6, 1, -1], [w - 6, h - 6, -1, -1]]) { ctx.beginPath(); ctx.moveTo(cx0, cy0 + 14 * sy); ctx.lineTo(cx0, cy0); ctx.lineTo(cx0 + 14 * sx, cy0); ctx.stroke(); }
+  ctx.restore();
+}
+function drawInfraredAlt(t) {
+  altBg('#0a0f22', '#161b34');
+  label('REMOTE CONTROL: INVISIBLE INFRARED PULSES', 24, 100, '#fde68a', 15);
+  const bits = [1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1], t0 = 2, dt = .35, fly = 1.2;
+  const idx = Math.floor((t - t0) / dt), onNow = idx >= 0 && idx < bits.length && bits[idx] && ((t - t0) % dt) < .25;
+  const pressed = t >= 1 && t < 6.6, decT = t0 + bits.length * dt + fly, decoded = t >= decT;
+  const vol = decoded ? 3 + Math.round(uvClamp((t - decT) / 1.8) * 4) : 3;
+  const osd = decoded ? uvClamp((t - decT) / .25) * uvClamp(12 - t) : 0;
+  const ledX = 755, ledY = 262, sx = 260, sy = 400;
+  // Remote on the right, with a volume rocker.
+  box(690, 240, 130, 300, materialGradient(690, 240, 130, 300, '#3a4566', '#252d47', '#161c30'), 30);
+  disk(ledX, ledY, 10, '#0b0f1c'); if (onNow) softGlow(ledX, ledY, 44, 44, '#ff6b6b99');
+  disk(722, 298, 8, '#ef4444');
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 2; c++) box(706 + c * 34, 326 + r * 42, 28, 28, '#4b5675', 8);
+  box(780, 326, 30, 92, '#3b4565', 13); box(782, 328, 26, 42, pressed ? '#fbbf24' : '#4b5675', 10); box(782, 374, 26, 42, '#4b5675', 10);
+  label('+', 788, 356, pressed ? '#3b2a05' : '#e2e8f0', 18); label('–', 790, 402, '#e2e8f0', 18); label('VOL', 784, 436, '#cbd5e1', 12);
+  label('Remote', 730, 560, '#cbd5e1', 12);
+  // Invisible beam and the pulses it carries, travelling left to the TV.
+  ctx.save(); ctx.setLineDash([3, 6]); line([[ledX - 4, ledY - 6], [sx, sy - 6]], '#ffffff22', 1.2); ctx.restore();
+  label(narrowMode ? 'IR pulses (invisible)' : 'Infrared pulses (invisible to the eye)', 560, 222, '#fca5a5', 12);
+  let hit = false;
+  const ang = Math.atan2(sy - ledY, sx - ledX);
+  bits.forEach((b, i) => {
+    if (!b) return;
+    const age = t - (t0 + i * dt), u = age / fly;
+    if (u >= 0 && u <= 1) uvVisiblePacket(ledX + (sx - ledX) * u, ledY - 6 + (sy - ledY) * u, ang, '#ff5d5d', 1, t * 14);
+    if (age >= fly && age < fly + .2) hit = true;
+  });
+  // Large TV with a visible border, playing infrared-camera footage; the volume display sits at the top right of the screen.
+  box(20, 116, 480, 300, materialGradient(20, 116, 480, 300, '#2b3654', '#161d33', '#0b1220'), 16);
+  ctx.beginPath(); ctx.roundRect(20, 116, 480, 300, 16); ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.save(); ctx.translate(32, 128); altThermalMovie(t); ctx.restore();
+  ctx.beginPath(); ctx.roundRect(32, 128, 456, 256, 6); ctx.strokeStyle = '#05070f'; ctx.lineWidth = 3; ctx.stroke();
+  box(240, 416, 40, 12, '#2b3550', 2); box(200, 426, 120, 7, '#2b3550', 3);
+  disk(sx, sy, 6, hit ? '#fca5a5' : '#334155'); if (hit) softGlow(sx, sy, 26, 26, '#ff6b6b99');
+  label('IR sensor', sx + 14, sy + 5, '#94a3b8', 12);
+  if (osd > 0) {
+    ctx.save(); ctx.globalAlpha = osd;
+    box(346, 138, 134, 58, '#000000b8', 10);
+    poly([[358, 162], [367, 162], [377, 154], [377, 180], [367, 172], [358, 172]], '#ffffff');
+    for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.arc(377, 167, 8 + k * 6, -.8, .8); ctx.strokeStyle = vol >= 3 + k * 2 ? '#ffffff' : '#ffffff44'; ctx.lineWidth = 2; ctx.stroke(); }
+    label(String(vol * 10), 426, 176, '#ffffff', 20); label('VOL', 444, 156, '#86efac', 12);
+    for (let i = 0; i < 10; i++) box(358 + i * 11.2, 184, 8, 8, i < vol ? '#4ade80' : '#ffffff33', 2);
+    ctx.restore();
+  }
+  // Pulse pattern, now on the left under the TV.
+  label('Pulse pattern = command code', 34, 458, '#cbd5e1', 12); label('tall bar = 1, short bar = 0', 250, 458, '#94a3b8', 11);
+  bits.forEach((b, i) => { const arrived = t - (t0 + i * dt) >= fly; box(34 + i * 50, b ? 468 : 494, 34, b ? 38 : 14, arrived ? (b ? '#fb7185' : '#475569') : '#232b44', 4); });
+  const got = bits.filter((_, i) => t - (t0 + i * dt) >= fly).length;
+  label('Received bits: ' + bits.slice(0, got).join(' '), 34, 534, '#cbd5e1', 13);
+  if (decoded) label('→ TV decodes: VOLUME UP', 34, 556, '#86efac', 14);
+}
+
+// ---------- VISIBLE: blue sky, red sunset ----------
+// A scattered photon: larger and brighter than the generic packets so the blue sky reads clearly.
+function altBluePacket(x, y, angle, alpha, phase) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.globalAlpha = alpha;
+  softGlow(0, 0, 15, 15, '#60b5ff88');
+  const pts = []; for (let k = 0; k <= 16; k++) pts.push([-k * 1.5, 4 * Math.sin(k * 1.1 - phase) * (1 - k / 22)]);
+  line(pts, '#7cc4ff', 3); disk(0, 0, 3.4, '#e6f4ff'); ctx.restore();
+}
+function drawVisibleAlt(t) {
+  const k = uvClamp((t - 2) / 8), el = (62 - 59 * k) * Math.PI / 180, ox = 200, oy = 560, D = 480;
+  const sx = ox + D * Math.cos(el), sy = oy - D * Math.sin(el);
+  ctx.fillStyle = '#05070f'; ctx.fillRect(0, 0, 880, 650);
+  const sky = ctx.createLinearGradient(0, 100, 0, 560);
+  sky.addColorStop(0, altMix('#2f6fe0', '#1b1f4a', k)); sky.addColorStop(.6, altMix('#7fb8ff', '#b4412a', k)); sky.addColorStop(1, altMix('#cfe6ff', '#fb923c', k));
+  ctx.fillStyle = sky; ctx.fillRect(0, 100, 880, 462);
+  label('WHY THE SKY IS BLUE AND SUNSETS ARE RED', 24, 138, '#ffffff', 15);
+  label(k < .3 ? 'Midday: a short path through the air' : k > .8 ? 'Sunset: a long path through the air' : 'The Sun sinks and the path lengthens…', 24, 162, '#f1f5f9', 13);
+  ctx.setLineDash([6, 6]); line([[0, 200], [880, 200]], '#ffffff55', 1); ctx.setLineDash([]); label('Top of the atmosphere', 660, 192, '#ffffffcc', 12);
+  // Air molecules fill the sky; light scatters when it meets them.
+  for (let i = 0; i < 110; i++) disk(((i * 131) % 840) + 20, 212 + ((i * 79) % 340), 1.4, '#ffffff4a');
+  const pathColor = altMix('#fffbe8', '#ef4444', k);
+  line([[ox, oy], [sx, sy]], pathColor, 4);
+  altSun(sx, sy, 22);
+  // Red/orange light that survives travels straight along the path to the observer.
+  for (let i = 0; i < 6; i++) { const u = (t * .35 + i / 6) % 1; uvVisiblePacket(sx + (ox - sx) * u, sy + (oy - sy) * u, Math.atan2(oy - sy, ox - sx), altMix('#fff3c4', '#ff4d3a', k), 1, t * 12); }
+  // Blue light is knocked sideways out of the path by molecules, in every direction; a longer path scatters more of it away.
+  const nPts = 8 + Math.round(6 * k);
+  for (let i = 0; i < nPts; i++) {
+    const pu = .08 + i * (.8 / nPts), px = ox + (sx - ox) * pu, py = oy + (sy - oy) * pu;
+    for (let j = 0; j < 2; j++) {
+      const a = (i * 1.9 + j * 3.1) % (Math.PI * 2), u = (t * .45 + i * .17 + j * .5) % 1;
+      altBluePacket(px + Math.cos(a) * u * 80, py + Math.sin(a) * u * 80, a, (1 - u) * (1 - .45 * k), t * 14);
+    }
+  }
+  // Blue light scattered across the sky into the observer's eye: strong at midday, nearly gone at sunset.
+  for (let j = 0; j < 9; j++) {
+    const bx = 60 + j * 38, by = 240 + (j * 67) % 160, u = (t * .5 + j * .12) % 1;
+    altBluePacket(bx + (ox - bx) * u, by + (oy - 30 - by) * u, Math.atan2(oy - 30 - by, ox - bx), (1 - .85 * k) * (u < .96 ? 1 : 0), t * 14);
+  }
+  poly([[0, 562], [880, 550], [880, 620], [0, 620]], '#12261c');
+  // Observer looking up.
+  line([[ox, 562], [ox, 538]], '#1e293b', 8); disk(ox, 526, 10, '#e0b48c'); disk(ox + 3, 524, 2, '#1e293b'); line([[ox - 8, 548], [ox - 15, 560]], '#1e293b', 4); line([[ox + 8, 548], [ox + 15, 560]], '#1e293b', 4);
+  label('You', ox - 12, 584, '#e2e8f0', 12);
+  disk(300, 572, 5, '#4aa8ff'); label('Blue: scattered in every direction', 312, 577, '#cfe6ff', 12);
+  disk(300, 590, 5, '#ff6b4a'); label('Red: passes straight through', 312, 595, '#fecaca', 12);
+}
+
+// ---------- UV: lenses and sunscreen ----------
+// Sunglasses seen from the front, so the lens in the side view reads as eyewear.
+function altGlasses(x, y, tint, sc = 1) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(sc, sc);
+  for (const s of [-1, 1]) {
+    ctx.beginPath(); ctx.ellipse(s * 24, 0, 20, 14, 0, 0, Math.PI * 2); ctx.fillStyle = tint; ctx.fill(); ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(s * 24 - 6, -4, 6, 3, -.5, 0, Math.PI * 2); ctx.fillStyle = '#ffffff55'; ctx.fill();
+    line([[s * 44, -4], [s * 56, -2]], '#e2e8f0', 3);
+  }
+  ctx.beginPath(); ctx.arc(0, -4, 5, Math.PI, Math.PI * 2); ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 3; ctx.stroke(); ctx.restore();
+}
+function drawUVAlt(t) {
+  altBg('#0a0f20', '#101830');
+  label('BLOCKING UV: LENSES AND SUNSCREEN', 24, 86, '#c4b5fd', 15);
+  box(20, 100, 415, 400, '#141e34', 14); box(445, 100, 415, 400, '#141e34', 14);
+  label('UV-BLOCKING LENS', 36, 124, '#c4b5fd', 13); label('SUNSCREEN', 461, 124, '#c4b5fd', 13);
+  const rowsY = [232, 402], speed = 150;
+  const lane = (x0, x1, y, off, kind, stopAt, mode) => {
+    const span = x1 - x0 + 40, x = x0 + ((t * speed + off) % span);
+    if (x > x1) return;
+    if (kind === 'vis') {
+      if (mode === 'reflect' && x > stopAt) { const xr = stopAt - (x - stopAt); if (xr > x0) uvVisiblePacket(xr, y, Math.PI, '#fde68a', 1, t * 14); }
+      else uvVisiblePacket(x, y, 0, '#fde68a', 1, t * 14);
+    } else {
+      if (x < stopAt) gammaPacket(x, y, 0, 1, t * 18);
+      else if (mode === 'absorb') { const d = x - stopAt; if (d < 26) { ctx.save(); ctx.globalAlpha = 1 - d / 26; ctx.beginPath(); ctx.arc(stopAt, y, 4 + d * .9, 0, Math.PI * 2); ctx.strokeStyle = '#e9d5ff'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore(); } }
+      else if (mode === 'pass') gammaPacket(x, y, 0, x < x1 - 8 ? 1 : 0, t * 18);
+      else if (mode === 'skin') { gammaPacket(Math.min(x, stopAt + 40), y, 0, uvClamp(1 - (x - stopAt - 40) / 70), t * 18); }
+    }
+  };
+  // Left: plain lens vs UV-blocking lens. Light travels left to right toward an eye.
+  rowsY.forEach((ry, r) => {
+    altSun(60, ry, 12);
+    altGlasses(230, ry - 76, r ? '#7c3aed88' : '#bcd7ff33', .85);
+    label(r ? 'UV-blocking lens' : 'Plain lens', 40, ry - 62, r ? '#ddd6fe' : '#cbd5e1', 12);
+    box(224, ry - 46, 12, 92, r ? '#c4b5fd66' : '#bcd7ff44', 4); ctx.strokeStyle = r ? '#c4b5fd' : '#93c5fd'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(224, ry - 46, 12, 92, 4); ctx.stroke();
+    altEye(372, ry, r === 0 && ((t * speed) % 320) > 250);
+    for (const [dy, kind, o] of [[-22, 'uv', 0], [0, 'vis', 120], [22, 'uv', 200]]) lane(84, 346, ry + dy, o, kind, 224, kind === 'uv' ? (r ? 'absorb' : 'pass') : 'pass');
+    label(r ? 'UV blocked; visible light passes' : 'UV reaches the eye', 100, ry + 62, r ? '#a7f3d0' : '#fda4af', 12);
+  });
+  // Right: bare skin vs sunscreen layer. Visible light reflects, so the skin looks normal either way.
+  rowsY.forEach((ry, r) => {
+    altSun(487, ry, 12);
+    label(r ? 'With sunscreen' : 'Bare skin', 600, ry - 58, r ? '#ddd6fe' : '#cbd5e1', 12);
+    box(660, ry - 50, 110, 100, materialGradient(660, ry - 50, 110, 100, '#efbd9f', '#d9976f', '#b9744f'), 6);
+    box(660, ry - 50, 12, 100, '#f2c6ab', 4); line([[672, ry - 50], [672, ry + 50]], '#c98a68', 1);
+    for (let k2 = 0; k2 < 6; k2++) line([[678, ry - 40 + k2 * 16], [760, ry - 36 + k2 * 16]], '#c98a6844', 1);
+    if (r) { box(642, ry - 50, 18, 100, '#f8fafcc0', 4); for (let k2 = 0; k2 < 14; k2++) disk(646 + (k2 * 5) % 11, ry - 44 + k2 * 7, 1.6, '#e9d5ff'); }
+    const front = r ? 642 : 660;
+    for (const [dy, kind, o] of [[-22, 'uv', 0], [0, 'vis', 120], [22, 'uv', 200]]) lane(508, 740, ry + dy, o, kind, kind === 'uv' ? (r ? 642 : 700) : front, kind === 'uv' ? (r ? 'absorb' : 'skin') : 'reflect');
+    if (!r) { ctx.save(); ctx.globalAlpha = .5 + .3 * Math.sin(t * 5); softGlow(702, ry - 22, 14, 14, '#ef4444'); softGlow(702, ry + 22, 14, 14, '#ef4444'); ctx.restore(); }
+    label(r ? 'UV absorbed in the layer' : 'UV enters the skin', 500, ry + 62, r ? '#a7f3d0' : '#fda4af', 12);
+  });
+}
+
+// ---------- X-RAY: CT scan ----------
+// One cross-section of a torso, drawn either as the real patient (color) or as the grayscale CT image.
+function ctBody(cx, cy, s, gray) {
+  const C = (c, g) => gray ? g : c;
+  for (const d of [-1, 1]) { ctx.beginPath(); ctx.ellipse(cx + d * 76 * s, cy + 32 * s, 11 * s, 20 * s, d * .9, 0, Math.PI * 2); ctx.fillStyle = C('#cf9a76', '#6e737d'); ctx.fill(); }
+  ctx.beginPath(); ctx.ellipse(cx, cy, 82 * s, 56 * s, 0, 0, Math.PI * 2); ctx.fillStyle = C('#d9a581', '#7d828c'); ctx.fill(); ctx.strokeStyle = C('#a8734f', '#5a5f69'); ctx.lineWidth = 2 * s; ctx.stroke();
+  for (const d of [-1, 1]) {
+    ctx.beginPath(); ctx.ellipse(cx + d * 35 * s, cy - 5 * s, (d === 1 ? 19 : 23) * s, (d === 1 ? 27 : 31) * s, d * .08, 0, Math.PI * 2); ctx.fillStyle = C('#7a5a56', '#272b34'); ctx.fill();
+    line([[cx + d * 12 * s, cy - 10 * s], [cx + d * 26 * s, cy - 4 * s]], C('#5e4442', '#4b505b'), 2.4 * s);
+  }
+  ctx.beginPath(); ctx.ellipse(cx + 15 * s, cy + 6 * s, 15 * s, 14 * s, .5, 0, Math.PI * 2); ctx.fillStyle = C('#b45a5a', '#b6bac4'); ctx.fill();
+  for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.ellipse(cx, cy - 4 * s, (73 - i * 1.5) * s, (47 - i * 1.5) * s, 0, Math.PI * (.12 + i * .008), Math.PI * (.88 - i * .008)); ctx.strokeStyle = C('#ffffff30', '#ffffffa0'); ctx.lineWidth = 1.4 * s; ctx.stroke(); }
+  line([[cx, cy - 47 * s], [cx, cy - 36 * s]], C('#f1f5f9', '#ffffff'), 4 * s);
+  disk(cx, cy + 38 * s, 9 * s, C('#f1f5f9', '#ffffff')); line([[cx - 15 * s, cy + 36 * s], [cx + 15 * s, cy + 36 * s]], C('#f1f5f9', '#ffffff'), 3.4 * s); disk(cx, cy + 34 * s, 3.4 * s, C('#a8734f', '#2a2d34'));
+}
+function drawXrayAlt(t) {
+  altBg('#090f23', '#0d1530');
+  label('CT SCAN: MANY X-RAY VIEWS BUILD A SLICE', 24, 70, '#c7d2fe', 15);
+  const cx = 290, cy = 290, scan = 9, f = uvClamp(t / scan), theta = f * Math.PI * 2 - Math.PI / 2;
+  // Gantry ring and the table the patient lies on.
+  ctx.beginPath(); ctx.arc(cx, cy, 176, 0, Math.PI * 2); ctx.arc(cx, cy, 120, 0, Math.PI * 2, true); ctx.fillStyle = materialGradient(cx - 176, cy - 176, 352, 352, '#dbe4ee', '#8d9bb0', '#46546b'); ctx.fill('evenodd');
+  disk(cx, cy, 119, '#0a1224');
+  box(cx - 108, cy + 56, 216, 16, materialGradient(cx - 108, cy + 56, 216, 16, '#cbd5e1', '#94a3b8', '#64748b'), 8);
+  line([[cx - 90, cy + 72], [cx - 90, cy + 98]], '#64748b', 6); line([[cx + 90, cy + 72], [cx + 90, cy + 98]], '#64748b', 6);
+  ctBody(cx, cy - 2, 1, false);
+  // Rotating source and detector with a fan beam.
+  const R = 108, srcX = cx + R * Math.cos(theta), srcY = cy + R * Math.sin(theta);
+  const d1 = [cx + R * Math.cos(theta + Math.PI - .34), cy + R * Math.sin(theta + Math.PI - .34)], d2 = [cx + R * Math.cos(theta + Math.PI + .34), cy + R * Math.sin(theta + Math.PI + .34)];
+  ctx.save(); ctx.globalAlpha = f < 1 ? .2 : .05; poly([[srcX, srcY], d1, d2], '#c7d2fe'); ctx.restore();
+  if (f < 1) { line([[srcX, srcY], d1], '#a5b4fc66', 1); line([[srcX, srcY], d2], '#a5b4fc66', 1); }
+  ctx.beginPath(); ctx.arc(cx, cy, R, theta + Math.PI - .34, theta + Math.PI + .34); ctx.strokeStyle = '#818cf8'; ctx.lineWidth = 10; ctx.stroke();
+  ctx.save(); ctx.translate(srcX, srcY); ctx.rotate(theta + Math.PI / 2); box(-12, -9, 24, 18, '#cbd5e1', 4); disk(0, 6, 4, '#818cf8'); ctx.restore();
+  label('Source and detector rotate together', 100, 506, '#a5b4fc', 12);
+  // Reconstructed slice sharpens as more angles are collected.
+  const px = 725, py = 285, n = Math.floor(f * 24);
+  box(590, 100, 270, 390, '#0e1424', 14); label('RECONSTRUCTED SLICE', 606, 126, '#c7d2fe', 13);
+  // A computer collects the detector signals and builds the image.
+  altArrow(472, 290, 496, 290, '#818cf8', 2.5); altArrow(556, 290, 582, 290, '#818cf8', 2.5);
+  box(498, 264, 56, 40, '#1e293b', 4); ctx.beginPath(); ctx.roundRect(498, 264, 56, 40, 4); ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2; ctx.stroke();
+  disk(526, 284, 11 * (.3 + .7 * f), altMix('#334155', '#e2e8f0', f)); box(518, 304, 16, 7, '#475569', 2); box(508, 311, 36, 5, '#475569', 2);
+  label('Computer', 496, 336, '#a5b4fc', 12);
+  ctx.save(); ctx.beginPath(); ctx.arc(px, py, 104, 0, Math.PI * 2); ctx.fillStyle = '#02040a'; ctx.fill(); ctx.clip();
+  ctx.filter = `blur(${(11 * Math.pow(1 - f, 1.5)).toFixed(1)}px)`;
+  ctx.save(); ctx.beginPath(); ctx.ellipse(px, py, 96, 66, 0, 0, Math.PI * 2); ctx.clip();
+  for (let i = 0; i < n; i++) { const a = i * Math.PI / 24; line([[px - 130 * Math.cos(a), py - 130 * Math.sin(a)], [px + 130 * Math.cos(a), py + 130 * Math.sin(a)]], '#ffffff1a', 3); }
+  ctx.restore();
+  ctx.globalAlpha = .3 + .7 * f; ctBody(px, py, 1.17, true);
+  ctx.restore(); ctx.filter = 'none';
+  label(`Views used: ${n} of 24`, 606, 440, '#e2e8f0', 13);
+  label(f >= 1 ? (narrowMode ? 'Stack slices → 3D' : 'Stack many slices to make a 3D image') : 'Collecting views…', 606, 466, f >= 1 ? '#86efac' : '#94a3b8', 12);
+}
+
+// ---------- GAMMA: gamma-ray astronomy ----------
+function drawGammaAlt(t) {
+  ctx.fillStyle = '#04060f'; ctx.fillRect(0, 0, 880, 650);
+  for (let i = 0; i < 80; i++) disk((i * 97) % 880, 104 + (i * 53) % 280, i % 4 ? .7 : 1.3, '#94a3b8');
+  label('GAMMA-RAY ASTRONOMY: WHY TELESCOPES GO TO SPACE', 30, 132, '#e9d5ff', 15);
+  // Atmosphere and ground.
+  const atm = ctx.createLinearGradient(0, 380, 0, 504); atm.addColorStop(0, '#1d4ed800'); atm.addColorStop(.3, '#2563eb77'); atm.addColorStop(1, '#60a5facc'); ctx.fillStyle = atm; ctx.fillRect(0, 380, 880, 124);
+  ctx.setLineDash([6, 6]); line([[0, 382], [880, 382]], '#bfdbfe66', 1); ctx.setLineDash([]);
+  label('ATMOSPHERE', 36, 450, '#dbeafe', 13); label('Top of the atmosphere', 660, 374, '#bfdbfe', 12);
+  poly([[0, 504], [880, 496], [880, 650], [0, 650]], '#10321f'); line([[0, 504], [880, 496]], '#34d399', 2);
+  // Distant burst: a flash with shock rings and a narrow jet pointing toward Earth (not a Sun).
+  const bx = 110, by = 196, flash = t < 2 ? Math.sin(Math.min(1, t / 2) * Math.PI) : 0;
+  ctx.save(); ctx.globalAlpha = .12 + .1 * flash; poly([[bx, by], [bx + 420, by + 40], [bx + 420, by + 130]], '#c4b5fd'); ctx.restore();
+  for (let k = 0; k < 3; k++) { const r = (t * 36 + k * 30) % 90; ctx.save(); ctx.globalAlpha = (1 - r / 90) * .8; ctx.beginPath(); ctx.arc(bx, by, 14 + r, 0, Math.PI * 2); ctx.strokeStyle = '#c4b5fd'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore(); }
+  softGlow(bx, by, 36 + flash * 70, 36 + flash * 70, '#e9d5ffcc'); disk(bx, by, 7 + flash * 6, '#ffffff');
+  label('Gamma-ray burst (very far away)', 40, 262, '#e9d5ff', 12);
+  // Space telescope.
+  const sx = 470, sy = 262;
+  box(380, sy - 11, 52, 22, '#1e40af', 2); box(508, sy - 11, 52, 22, '#1e40af', 2); for (let k = 1; k < 4; k++) { line([[380 + k * 13, sy - 11], [380 + k * 13, sy + 11]], '#60a5fa', 1); line([[508 + k * 13, sy - 11], [508 + k * 13, sy + 11]], '#60a5fa', 1); }
+  box(437, sy - 19, 66, 38, materialGradient(437, sy - 19, 66, 38, '#e2e8f0', '#94a3b8', '#475569'), 5); disk(452, sy, 9, '#0f172a'); disk(452, sy, 4, '#c084fc');
+  // Ground telescope, enlarged.
+  const gx = 720, gy = 498;
+  ctx.save(); ctx.translate(gx, gy); ctx.scale(1.5, 1.5); ctx.translate(-gx, -gy);
+  box(708, gy - 22, 24, 22, '#475569', 3); ctx.beginPath(); ctx.arc(gx, gy - 24, 24, Math.PI, 0); ctx.fillStyle = '#cbd5e1'; ctx.fill(); line([[gx, gy - 24], [gx + 14, gy - 52]], '#94a3b8', 3);
+  ctx.restore();
+  // Photons: some reach orbit, others are absorbed by the air.
+  const speed = 220, lanes = [[455, 258, 'sat'], [720, 470, 'gnd'], [455, 266, 'sat'], [560, 470, 'gnd'], [458, 262, 'sat']];
+  let inSpace = 0, last = null;
+  for (let n = 0; n < 14; n++) {
+    const [tx, ty, kind] = lanes[n % lanes.length], t0 = .5 + n * .5, len = Math.hypot(tx - bx, ty - by), dur = len / speed, age = t - t0;
+    if (age < 0) continue;
+    let u = age / dur, uAbs = 2;
+    if (kind === 'gnd') uAbs = ((392 + (n * 13) % 30) - by) / (ty - by);
+    if (kind === 'sat' && u >= 1) { inSpace++; continue; }
+    if (kind === 'gnd' && u >= uAbs) {
+      const ax = bx + (tx - bx) * uAbs, ay = by + (ty - by) * uAbs, d = (age - uAbs * dur);
+      if (d < 1.4) { ctx.save(); ctx.globalAlpha = 1 - d / 1.4; softGlow(ax, ay, 16 + d * 10, 16 + d * 10, '#fbbf24cc'); disk(ax, ay, 3, '#fff7d6'); ctx.beginPath(); ctx.arc(ax, ay, 6 + d * 24, 0, Math.PI * 2); ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore(); if (!last || d < last.d) last = {x: ax, y: ay, d}; }
+      continue;
+    }
+    gammaPacket(bx + (tx - bx) * u, by + (ty - by) * u, Math.atan2(ty - by, tx - bx), 1, t * 18);
+  }
+  // The label follows the most recent absorption so it sits where the photon actually stops.
+  if (last) { ctx.save(); ctx.globalAlpha = 1 - last.d / 1.4; label('Absorbed by the air', last.x + 14, last.y - 10, '#fcd34d', 12); ctx.restore(); }
+  label('Space telescope', 405, 312, '#e9d5ff', 13); label(`${inSpace} detected`, 420, 332, inSpace ? '#e9d5ff' : '#64748b', 13);
+  label('Ground telescope', 610, 534, '#e2e8f0', 13); label('0 detected', 640, 554, '#94a3b8', 13);
+}
+
+function drawAlt(id, tt) {
+  ({radio: drawRadioArrayAlt, microwave: drawMicrowaveAlt, infrared: drawInfraredAlt, visible: drawVisibleAlt, uv: drawUVAlt, xray: drawXrayAlt, gamma: drawGammaAlt})[id](tt);
+}
+
+
+// ---------- RADIO alternate: a telescope array mapping a radio galaxy ----------
+// A radio galaxy: a bright core, jets, and two big lobes of radio glow.
+function altRadioGalaxy(cx, cy, s, stops) {
+  const lobe = (dx, dy) => {
+    ctx.save(); ctx.translate(cx + dx * s, cy + dy * s); ctx.rotate(-.18);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 44 * s); g.addColorStop(0, stops[0]); g.addColorStop(.55, stops[1]); g.addColorStop(1, stops[2]);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, 44 * s, 24 * s, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  };
+  lobe(-62, -10); lobe(62, 10);
+  line([[cx, cy], [cx - 52 * s, cy - 8 * s]], stops[0], 3 * s); line([[cx, cy], [cx + 52 * s, cy + 8 * s]], stops[0], 3 * s);
+  softGlow(cx, cy, 16 * s, 16 * s, stops[0]); disk(cx, cy, 4 * s, '#ffffff');
+}
+function drawRadioArrayAlt(t) {
+  const gx = 270, gy = 168, total = 9, order = [4, 2, 6, 0, 8, 3, 5, 1, 7];
+  const dishes = Array.from({length: total}, (_, i) => [110 + i * 60, i % 2 ? 428 : 446]);
+  const n = t < 3 ? 1 : Math.min(total, 1 + Math.floor((t - 3) / .75)), q = uvClamp((n - 1) / (total - 1));
+  const active = new Set(order.slice(0, n));
+  altBg('#070b1c', '#0f1830');
+  for (let i = 0; i < 90; i++) disk((i * 113) % 880, 44 + (i * 47) % 340, i % 4 ? .7 : 1.3, '#94a3b8');
+  label('RADIO ASTRONOMY: ARRAYS SHARPEN THE IMAGE', 24, 64, '#fecaca', 14);
+  // The target: a radio galaxy glowing far above, with the faint optical galaxy at its center.
+  ctx.save(); ctx.globalAlpha = .55; ctx.beginPath(); ctx.ellipse(gx, gy, 40, 16, -.18, 0, Math.PI * 2); ctx.fillStyle = '#cbd5e1'; ctx.fill(); ctx.restore();
+  altRadioGalaxy(gx, gy, 1.3, ['#fb7185cc', '#c084fc66', '#c084fc00']);
+  label('Radio galaxy, millions of light-years away', 130, 106, '#e2e8f0', 12);
+  // Ground, cables and dishes.
+  poly([[0, 410], [880, 400], [880, 560], [0, 560]], '#0e1a24'); line([[0, 410], [880, 400]], '#22443a', 2);
+  line([[100, 482], [745, 482]], '#334155', 2);
+  dishes.forEach(([dx, dy], i) => {
+    const on = active.has(i), aim = Math.atan2(gx - dx, -(gy - dy)), r = 21 + (i % 3) * 2;
+    line([[dx, dy], [dx, 482]], on ? '#64748b' : '#334155', 2);
+    box(dx - 6, dy - 4, 12, 9, on ? '#64748b' : '#334155', 2);
+    ctx.save(); ctx.translate(dx, dy - 10); ctx.rotate(aim);
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI); ctx.fillStyle = on ? '#e2e8f0' : '#475569'; ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, r - 5, .25, Math.PI - .25); ctx.strokeStyle = on ? '#94a3b8' : '#334155'; ctx.lineWidth = 1.2; ctx.stroke();
+    line([[0, 4], [0, -r + 4]], on ? '#cbd5e1' : '#475569', 2); disk(0, -r + 3, 2.5, on ? '#fb7185' : '#475569'); ctx.restore();
+    if (on) {
+      const ty = dy - 10 - r - 2;
+      ctx.save(); ctx.globalAlpha = .13; line([[gx, gy + 20], [dx, ty]], '#fb7185', 1.2); ctx.restore();
+      const u = (t * .4 + i * .19) % 1, px = gx + (dx - gx) * u, py = gy + 20 + (ty - gy - 20) * u;
+      uvVisiblePacket(px, py, Math.atan2(ty - gy - 20, dx - gx), '#fb7185', 1, t * 12);
+    }
+  });
+  // The array's spread is what sets the sharpness.
+  const xs = dishes.filter((_, i) => active.has(i)).map(d => d[0]), x0 = Math.min(...xs), x1 = Math.max(...xs);
+  line([[x0, 508], [x1, 508]], '#fb7185', 1.6); line([[x0, 502], [x0, 514]], '#fb7185', 1.6); line([[x1, 502], [x1, 514]], '#fb7185', 1.6);
+  label(n === 1 ? 'One dish: a small collecting area' : 'The array acts like one dish this wide', 110, 530, '#cbd5e1', 12);
+  // The combined image: blurry with one dish, sharp with the whole array.
+  box(630, 70, 230, 332, '#111a30', 14); label('Radio image', 646, 94, '#fecaca', 13); label('Same galaxy, false colors', 646, 114, '#fdba74', 12);
+  ctx.save(); ctx.beginPath(); ctx.arc(745, 232, 96, 0, Math.PI * 2); ctx.fillStyle = '#02040a'; ctx.fill(); ctx.clip();
+  ctx.filter = `blur(${(15 * Math.pow(1 - q, 1.4) + .4).toFixed(1)}px)`;
+  altRadioGalaxy(745, 232, 1.15, ['#fde047', '#f97316', '#7f1d1d00']);
+  ctx.restore(); ctx.filter = 'none';
+  label(`${n} of ${total} dishes: ${n === 1 ? 'blurry' : n < total ? 'sharper' : 'sharp'}`, 646, 388, q >= 1 ? '#86efac' : '#e2e8f0', 13);
+  altArrow(745, 480, 745, 406, '#64748b', 2);
+}
+const EXTRA_ALTS = {};
+function altInfo(id) { return altIndex === 0 ? ALT_INFO[id] : EXTRA_ALTS[id][altIndex - 1].info; }
 
 let popcornModel={time:0,next:0,particles:[]};
 function updatePopcorn(time){
@@ -1343,8 +2004,8 @@ function xraySample(p,key){
   const mask=document.createElement('canvas');mask.width=880;mask.height=530;const saved=ctx;
   try{ctx=mask.getContext('2d');xrayFigure(p,true);}finally{ctx=saved;}
   const data=mask.getContext('2d').getImageData(0,0,880,530).data,rows=[];
-  for(let row=0;row<28;row++){
-    const y=130+row*10,samples=[];let optical=0;
+  for(let row=0;row<40;row++){
+    const y=130+row*7,samples=[];let optical=0;
     for(let x=137;x<=755;x+=2){const yy=231+(y-231)*(x-137)/(755-137),idx=(Math.round(yy)*880+x)*4,a=data[idx+3]/255;
       const luminance=(data[idx]+data[idx+1]+data[idx+2])/765;
       optical+=a>.7&&luminance>.55?.12:a>.02?.008:0;samples.push({x,y:yy,optical});
@@ -1356,14 +2017,14 @@ function xraySample(p,key){
 function drawXrayPackets(model,elapsed,exposing){
   for(let row=0;row<model.rows.length;row++){
     const r=model.rows[row];let arrivals=0;
-    for(let n=0;n<6;n++){
-      const launch=n*.21,age=elapsed-launch,progress=age/1.1;
+    for(let n=0;n<8;n++){
+      const launch=n*.16,age=elapsed-launch,progress=age/1.1;
       const threshold=-Math.log((((row*37+n*59)%97)+.5)/97);
       const hit=r.samples.find(s=>s.optical>=threshold),end=hit?hit.x:755;
       if(progress>=1&&!hit)arrivals++;
-      if(exposing&&progress>=0&&progress<1){const x=137+618*progress,y=231+(r.y-231)*progress;if(x<end)line([[x-5,y],[x,y]],'#c7d2fe',1.5);}
+      if(exposing&&progress>=0&&progress<1){const x=137+618*progress,y=231+(r.y-231)*progress;if(x<end)line([[x-9,y],[x,y]],'#dbe4ff',1.8);}
     }
-    const light=215-Math.round(arrivals/6*190);box(747,r.y-3,34,7,`rgb(${light},${light},${Math.min(255,light+25)})`,1);
+    const light=215-Math.round(arrivals/8*190);box(747,r.y-2.5,34,5.5,`rgb(${light},${light},${Math.min(255,light+25)})`,1);
   }
 }
 function newtonWriting(cycle){
@@ -1459,5 +2120,6 @@ applyMotionPref();
 buildUI();
 renderStage();
 </script>
+</main>
 </body>
 </html>

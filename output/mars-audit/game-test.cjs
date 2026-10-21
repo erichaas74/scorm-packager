@@ -1,0 +1,20 @@
+﻿const {chromium}=require('C:/Users/erich/AppData/Local/npm-cache/_npx/9833c18b2d85bc59/node_modules/playwright');
+const {pathToFileURL}=require('url');const path=require('path');const assert=require('assert');
+(async()=>{const browser=await chromium.launch({headless:true,channel:'chrome'});const page=await browser.newPage({viewport:{width:1100,height:1000}});let errors=[];page.on('pageerror',e=>errors.push(e.message));await page.addInitScript(()=>{window.completions=0;addEventListener('message',e=>{if(e.data?.type==='complete')window.completions++})});
+await page.goto(pathToFileURL(path.resolve(process.argv[2]||'problem-walkthoughs/unit 5/Unit 5 - Lesson 4 - 06 - Mars Rover - Delayed Images and Communications.html')).href);
+const shot=async name=>page.screenshot({path:'output/mars-audit/game-'+name+'.png',fullPage:true});
+const set=async v=>page.locator('[data-day]').evaluate((e,v)=>{e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}))},v);
+const run=async()=>{await page.locator('[data-run]').click();await page.waitForFunction(()=>!document.querySelector('[data-run]').disabled);await page.waitForTimeout(60)};
+await shot('desktop-setup');assert.equal(await page.evaluate(()=>window.completions),0);
+await page.locator('[data-run]').click();await page.waitForTimeout(3500);await shot('desktop-active');await page.waitForFunction(()=>!document.querySelector('[data-run]').disabled);await shot('desktop-failure');assert.equal(await page.locator('.earned').count(),1);
+await page.emulateMedia({reducedMotion:'reduce'});await run();assert.equal(await page.locator('.earned').count(),1);
+await set(0);await run();assert.equal(await page.locator('.earned').count(),2);assert.match(await page.locator('[data-result]').textContent(),/ROVER SAFE/);await shot('desktop-earth-safe');
+await page.locator('[data-plan]').selectOption('auto');await run();assert.equal(await page.locator('.earned').count(),2);
+await set(160);await run();assert.equal(await page.locator('.earned').count(),3);assert.equal(await page.evaluate(()=>window.completions),1);await shot('desktop-complete');
+await run();assert.equal(await page.evaluate(()=>window.completions),1);
+for(const width of [390,320]){await page.setViewportSize({width,height:1000});await shot('mobile-'+width);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth),width)}
+await page.locator('[data-reset]').click();assert.equal(await page.locator('.earned').count(),0);assert.equal(await page.locator('[data-time]').inputValue(),'0');assert.equal(await page.locator('[data-plan]').inputValue(),'earth');await shot('mobile-reset');
+await set(390);assert(await page.locator('[data-run]').isDisabled());await page.locator('[data-reset]').click();
+await page.emulateMedia({reducedMotion:'no-preference'});await page.locator('[data-run]').click();await page.waitForTimeout(200);await page.locator('[data-reset]').click();await page.waitForTimeout(300);assert.equal(await page.locator('[data-time]').inputValue(),'0');assert.equal(await page.locator('.earned').count(),0);
+await page.emulateMedia({reducedMotion:'reduce'});await run();await set(0);await run();await page.locator('[data-plan]').selectOption('auto');await set(160);await run();assert.equal(await page.evaluate(()=>window.completions),1);
+await page.locator('.signal-details summary').click();await shot('mobile-details');assert.deepEqual(errors,[]);console.log('PASS: three objectives, retries, reset during playback, reduced motion, blocked path, completion once, mobile reflow; no page errors');await browser.close()})();

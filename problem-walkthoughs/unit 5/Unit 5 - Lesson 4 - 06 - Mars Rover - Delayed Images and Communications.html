@@ -1,1611 +1,218 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Unit 5 - Lesson 4 - 06 - Mars Rover - Delayed Images and Communications</title><style>:root {
-  color-scheme: light dark;
-  background-color: var(
-    --background,
-    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
-  ) !important;
-
-  /* Agent-facing contract; keep in sync with SKILL.md. */
-  --background: var(
-    --color-background-primary,
-    light-dark(rgb(255 255 255), rgb(24 24 24))
-  );
-  --foreground: var(
-    --color-text-primary,
-    light-dark(rgb(26 28 31), rgb(255 255 255))
-  );
-  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
-  --card-foreground: var(
-    --color-text-primary,
-    light-dark(rgb(26 28 31), rgb(255 255 255))
-  );
-  --popover: var(
-    --color-background-secondary,
-    light-dark(rgb(255 255 255), rgb(45 45 45))
-  );
-  --popover-foreground: var(
-    --color-text-primary,
-    light-dark(rgb(26 28 31), rgb(255 255 255))
-  );
-  --primary: var(
-    --color-text-info,
-    light-dark(rgb(51 156 255), rgb(131 195 255))
-  );
-  --primary-foreground: var(
-    --color-text-inverse,
-    light-dark(rgb(255 255 255), rgb(13 13 13))
-  );
-  --secondary: var(
-    --color-background-secondary,
-    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
-  );
-  --secondary-foreground: var(
-    --color-text-primary,
-    light-dark(rgb(26 28 31), rgb(255 255 255))
-  );
-  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
-  --muted-foreground: var(
-    --color-text-secondary,
-    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
-  );
-  --accent: var(
-    --color-background-info,
-    light-dark(rgb(229 242 255), rgb(13 39 63))
-  );
-  --accent-foreground: var(
-    --color-text-info,
-    light-dark(rgb(51 156 255), rgb(131 195 255))
-  );
-  --destructive: var(
-    --color-text-warning,
-    light-dark(rgb(226 85 7), rgb(255 133 73))
-  );
-  --border: var(
-    --color-border-secondary,
-    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
-  );
-  --input: var(
-    --color-border-primary,
-    light-dark(
-      rgb(26 28 31 / 11.8%),
-      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
-    )
-  );
-  --ring: var(
-    --color-ring-primary,
-    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
-  );
-  --font-size-base: var(--font-text-md-size, 16px);
-  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
-  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
-  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
-  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
-  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
-  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
-  --viz-series-1: var(--primary);
-  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
-  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
-  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
-  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
-  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
-
-  /* Internal implementation variables; not part of the agent contract. */
-  --font-sans:
-    -apple-system-body, ui-sans-serif, -apple-system, system-ui, "Segoe UI",
-    Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji",
-    "Segoe UI Symbol";
-  --font-mono:
-    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
-    monospace;
-  --font-size-normal: max(11px, var(--font-size-base));
-  --font-size-tooltip: calc(var(--font-size-base) - 1px);
-  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
-  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
-  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
-  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
-  --font-weight-normal: 400;
-  --font-weight-medium: 500;
-  --icon-size: 16px;
-  --line-height-normal: calc(var(--font-size-normal) * 1.5);
-  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
-  --line-height-small: calc(var(--font-size-small) + 4px);
-  --corner-shape: round;
-  --radius: var(--border-radius-lg, 8px);
-  --radius-sm: calc(var(--radius) * 0.5);
-  --radius-md: calc(var(--radius) * 0.75);
-  --radius-lg: var(--radius);
-  --radius-2xl: calc(var(--radius) * 2);
-  --radius-full: 9999px;
-  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
-  --checkmark-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 17 17'%3E%3Cpath d='M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z'/%3E%3C/svg%3E");
-
-  /* Legacy aliases; not part of the current agent contract. */
-  --viz-bg: transparent;
-  --viz-panel: var(--card);
-  --viz-border: var(--border);
-  --viz-text: var(--foreground);
-  --viz-muted: var(--muted-foreground);
-  --viz-accent: var(--primary);
-  --viz-accent-text: var(--primary-foreground);
-  --viz-accent-bg: var(--accent);
-  --viz-font-size: var(--font-size-base);
-  --viz-warning: var(--destructive);
-}
-
-:root[data-theme="light"] {
-  color-scheme: light;
-}
-
-:root[data-theme="dark"] {
-  color-scheme: dark;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html > body {
-  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
-  --color-background-primary: var(
-    --background,
-    light-dark(rgb(255 255 255), rgb(24 24 24))
-  );
-  --color-text-primary: var(
-    --foreground,
-    light-dark(rgb(26 28 31), rgb(255 255 255))
-  );
-  --color-border-secondary: var(
-    --border,
-    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
-  );
-
-  margin: 0;
-  padding: var(--visualize-paint-gutter, 0px);
-  color: var(--foreground);
-  background: transparent !important;
-  font-family: var(--font-sans) !important;
-  -webkit-font-smoothing: antialiased;
-  font-size: var(--font-size-base);
-  line-height: calc(var(--font-size-base) * 1.625);
-  font-weight: var(--font-weight-normal);
-}
-
-.cursor-interaction {
-  cursor: var(--cursor-interaction, pointer);
-}
-
-a {
-  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
-  cursor: var(--cursor-interaction, pointer);
-  text-decoration: none;
-  text-underline-offset: 2px;
-  font-weight: inherit;
-}
-
-a:is(:hover, :focus-visible) {
-  text-decoration-line: underline;
-  text-decoration-style: dashed;
-  text-decoration-thickness: 0.5px;
-}
-
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-p {
-  margin-block: 0;
-}
-p,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-li,
-.table {
-  font-family: var(--font-sans);
-}
-
-h1 {
-  font-size: calc(var(--font-size-base) * 1.5);
-  line-height: 1.3333333333;
-}
-
-h2 {
-  font-size: calc(var(--font-size-base) * 1.25);
-  line-height: 1.4;
-}
-h3 {
-  font-size: calc(var(--font-size-base) * 1.125);
-  line-height: 1.5555555556;
-}
-h4 {
-  font-size: var(--font-size-base);
-  line-height: 1.5;
-}
-h5,
-h6 {
-  font-size: var(--font-size-base);
-  line-height: calc(var(--font-size-base) * 1.625);
-}
-
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-b,
-strong,
-th {
-  font-weight: 600;
-}
-
-code:not(pre code) {
-  display: inline;
-  padding: 1px 6px;
-  border-radius: var(--radius-sm);
-  corner-shape: var(--corner-shape);
-  background: var(--muted);
-  font-family: var(--font-mono);
-  font-size: 0.92em;
-  overflow-wrap: anywhere;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
-  word-break: break-word;
-}
-pre,
-pre code {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  line-height: 20px;
-}
-
-.table-responsive {
-  width: 100%;
-  overflow-x: auto;
-  scrollbar-width: thin;
-}
-
-.table {
-  width: 100%;
-  color: var(--foreground);
-  font: inherit;
-  text-align: start;
-  border-collapse: separate;
-  border-spacing: 0;
-  font-size: calc(var(--font-size-base) * 0.875);
-  line-height: calc(var(--font-size-base) * 1.625);
-  font-family: var(--font-sans);
-}
-
-.table :is(th, td) {
-  padding-block: 10px;
-  padding-inline: 0 24px;
-  overflow-wrap: anywhere;
-  border-bottom: 1px solid var(--border);
-  text-align: start;
-  vertical-align: top;
-  border-bottom-color: color-mix(in srgb, var(--foreground) 5%, transparent);
-}
-.table :is(th, td):not(:last-child) {
-  padding-inline-end: calc(var(--font-size-base) * 1.5);
-}
-
-.table-responsive > .table :is(th, td) {
-  overflow-wrap: break-word;
-}
-
-.table :is(th, td):last-child {
-  padding-inline-end: 0;
-}
-
-.table :is(caption, thead th) {
-  font-weight: 600;
-}
-
-.table thead :is(th, td) {
-  border-bottom-color: var(--border-strong, var(--input));
-  padding-block: calc(var(--font-size-base) / 2);
-  line-height: var(--font-size-base);
-}
-
-.table tbody tr:last-child :is(th, td) {
-  border-bottom: 0;
-}
-.table tbody :is(th, td) {
-  padding-block: calc(var(--font-size-base) * 0.625);
-}
-
-.table.table-sm :is(th, td) {
-  padding-block: 8px;
-}
-
-.table.table-sm :is(th, td):not(:last-child) {
-  padding-inline-end: 16px;
-}
-
-.table :is(.text-end, [align="right"]) {
-  text-align: end;
-  font-variant-numeric: tabular-nums;
-}
-
-.table :is(.text-center, [align="center"]) {
-  text-align: center;
-}
-
-.table .text-nowrap {
-  white-space: nowrap;
-}
-
-#widget {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: 100%;
-  padding: 0;
-  background: transparent !important;
-}
-
-.card {
-  min-width: 0;
-  padding: 12px;
-  overflow: hidden;
-  overflow-wrap: break-word;
-  border-radius: var(--radius-2xl);
-  corner-shape: var(--corner-shape);
-  color: var(--card-foreground);
-  background: var(--card);
-}
-
-.widget {
-  min-width: 0;
-  overflow: hidden;
-  border: 0;
-  border-radius: var(--radius-lg);
-  corner-shape: var(--corner-shape);
-  box-shadow: 0 0 0 0.5px var(--border-strong, var(--border));
-  color: var(--foreground);
-  background: var(--background);
-}
-
-#widget > :not(.card, .widget, .progress) {
-  width: 100% !important;
-  max-width: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-.tooltip {
-  position: fixed;
-  z-index: 50;
-  top: 0;
-  left: 0;
-  width: max-content;
-  max-width: min(
-    20rem,
-    var(--tooltip-available-width, calc(100vw - 10px)),
-    calc(100vw - 10px)
-  );
-  max-height: min(
-    var(--tooltip-available-height, calc(100vh - 10px)),
-    calc(100vh - 10px)
-  );
-  border: 1px solid var(--border);
-  corner-shape: var(--corner-shape);
-  overflow-wrap: break-word;
-  white-space: normal;
-  pointer-events: none;
-  user-select: none;
-  font-family: var(--font-sans);
-  padding: 5px 12px;
-  border-color: color-mix(
-    in oklab,
-    light-dark(var(--primary-foreground), var(--foreground)) 5%,
-    transparent
-  );
-  border-radius: var(--radius-2xl);
-  color: light-dark(var(--primary-foreground), var(--foreground));
-  background: light-dark(var(--foreground), var(--popover));
-  box-shadow: 0 8px 18px rgb(15 23 42 / 20%);
-  letter-spacing: -0.15px;
-  font-size: calc(var(--font-size-base) * 14 / 16);
-  font-size: round(nearest, calc(var(--font-size-base) * 14 / 16), 1px);
-  font-weight: 600;
-  line-height: 18px;
-  text-align: center;
-}
-
-.viz-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
-  gap: 10px;
-}
-
-.viz-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.viz-stat-value {
-  font-size: var(--font-size-h2);
-  font-weight: var(--font-weight-medium);
-  line-height: 1.25;
-}
-
-.viz-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
-
-hr {
-  width: 100%;
-  height: 1px;
-  margin-block: 6px;
-  border: 0;
-  background: var(--border);
-}
-
-.nav {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 4px;
-}
-
-.progress {
-  display: flex;
-  height: 8px;
-  margin-block: calc((var(--line-height-normal, 1.5em) - 8px) / 2);
-  overflow: hidden;
-  border: 0;
-  border-radius: var(--radius-full);
-  background: var(--muted);
-}
-
-.progress-bar:only-child {
-  border-radius: var(--radius-full);
-}
-
-.progress-bar {
-  height: 100%;
-  flex-shrink: 0;
-  border: 0;
-  background: var(--viz-series-1);
-}
-
-.viz-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
-  color: color-mix(in srgb, var(--foreground) 40%, var(--muted-foreground));
-  background: color-mix(in srgb, var(--foreground) 5%, transparent);
-  font-family: var(--font-sans);
-  font-size: calc(var(--font-size-base) * 14 / 16);
-  font-size: round(nearest, calc(var(--font-size-base) * 14 / 16), 1px);
-  font-weight: var(--font-weight-normal);
-  line-height: 1;
-}
-
-small,
-.text-small {
-  font-size: var(--font-size-small);
-  line-height: var(--line-height-small);
-}
-
-.text-muted {
-  color: var(--muted-foreground);
-}
-
-.tabular-nums {
-  font-variant-numeric: tabular-nums;
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.viz-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.viz-controls > .form-label {
-  display: grid;
-  min-width: min(100%, 260px);
-  flex: 1 1 280px;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
-  gap: 2px 12px;
-  margin-bottom: 0;
-}
-
-.viz-controls > .form-label > :is(.form-control, .form-range, .form-select) {
-  grid-column: 1 / -1;
-}
-
-.btn,
-.nav-link,
-.form-check-input,
-.form-control,
-.form-range,
-.form-select {
-  font: inherit;
-}
-
-/* Match inline alignment without overriding a containing flex or grid layout. */
-.btn,
-.nav-link,
-.form-control,
-.form-select,
-.form-range,
-.form-check {
-  vertical-align: middle;
-}
-
-.btn,
-.nav-link {
-  appearance: button;
-  display: inline-flex;
-  inline-size: fit-content;
-  max-inline-size: 100%;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  margin: 0;
-  padding: 0 8px;
-  -webkit-app-region: no-drag;
-  border: 1px solid var(--input);
-  corner-shape: var(--corner-shape);
-  cursor: var(--cursor-interaction, pointer);
-  text-align: center;
-  text-decoration: none;
-  white-space: nowrap;
-  user-select: none;
-  -webkit-font-smoothing: inherit;
-  font-family: var(--font-sans);
-  height: fit-content;
-  min-height: calc(12px + 2 * var(--control-spacing, 12px));
-  padding-inline: var(--control-spacing, 12px);
-  border-color: transparent;
-  border-radius: var(--radius-full);
-  color: var(--foreground);
-  background: color-mix(in srgb, var(--foreground) 5%, transparent);
-  font-size: calc(var(--font-size-base) * 14 / 16);
-  font-size: round(nearest, calc(var(--font-size-base) * 14 / 16), 1px);
-  font-weight: var(--font-weight-normal);
-  line-height: 18px;
-}
-
-.btn {
-  border-color: var(--border);
-  color: var(--secondary-foreground);
-  background: var(--secondary);
-}
-
-.btn:is(.btn-block, .viz-tile) {
-  inline-size: 100%;
-}
-
-.btn.viz-tile {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  white-space: normal;
-}
-
-a.btn {
-  cursor: var(--cursor-interaction, pointer);
-  text-decoration: none;
-}
-
-.btn:not(:disabled):hover {
-  background: light-dark(
-    color-mix(in srgb, var(--foreground) 5.5%, transparent),
-    color-mix(in srgb, var(--foreground) 8%, transparent)
-  );
-}
-
-.nav-link:not(:disabled):not([aria-disabled="true"]):hover {
-  background: color-mix(in srgb, var(--foreground) 10%, transparent);
-}
-
-.btn-primary {
-  border-color: var(--border);
-  color: var(--primary-foreground);
-  background: var(--foreground);
-  background-clip: border-box;
-}
-
-.btn-primary .text-muted {
-  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
-}
-
-.btn-primary:not(:disabled):hover {
-  background: color-mix(in srgb, var(--foreground) 80%, transparent);
-  background-clip: border-box;
-}
-
-.btn-ghost {
-  border-color: transparent;
-  color: var(--muted-foreground);
-  background: transparent;
-}
-
-.btn-ghost:not(:disabled):hover {
-  color: var(--muted-foreground);
-  background: light-dark(
-    color-mix(in srgb, var(--foreground) 5.5%, transparent),
-    color-mix(in srgb, var(--foreground) 8%, transparent)
-  );
-}
-
-.nav-pills .nav-link {
-  min-width: 0;
-  border-color: transparent;
-  color: var(--muted-foreground);
-  background: transparent;
-}
-
-.nav-justified .nav-link {
-  flex: 1 1 0;
-  overflow-wrap: anywhere;
-  white-space: normal;
-}
-
-.nav-pills .nav-link.active {
-  color: var(--foreground);
-  background: var(--muted);
-}
-
-/* Shared preview chrome; product styles stay inside each variant. */
-.viz-dotted-background {
-  background-image: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--foreground) 14%, transparent) 0.8px,
-    transparent 0.8px
-  );
-  background-position: center;
-  background-size: 16px 16px;
-}
-
-.viz-carousel {
-  position: relative;
-  min-width: 0;
-}
-
-.viz-carousel:has(> .viz-carousel-controls) {
-  min-height: calc(60px + var(--viz-carousel-picker-height, 0px));
-  padding-bottom: 60px;
-}
-
-.viz-carousel > [data-variant][hidden] {
-  display: none !important;
-}
-
-.viz-carousel > [data-variant] {
-  isolation: isolate;
-}
-
-.viz-carousel-controls {
-  --viz-carousel-hover: light-dark(
-    color-mix(in srgb, var(--foreground) 5.4%, transparent),
-    color-mix(in srgb, var(--foreground) 7.8%, transparent)
-  );
-  position: absolute;
-  z-index: 2;
-  bottom: 8px;
-  left: 50%;
-  display: flex;
-  width: max-content;
-  /* Leave room for the host's design-controls launcher at the trailing edge. */
-  max-width: calc(100% - 96px);
-  align-items: center;
-  gap: 0;
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  color: var(--foreground);
-  background: var(--background);
-  font-family: var(--font-sans);
-  /* Match the settings dropdown chrome independently of the content font size. */
-  font-size: 13px;
-  font-weight: var(--font-weight-normal);
-  line-height: 18px;
-  transform: translateX(-50%);
-  user-select: none;
-}
-
-/* Keep authored mockup button styles out of the shared carousel chrome. */
-.viz-carousel-controls button,
-.viz-carousel-picker > summary {
-  display: flex !important;
-  height: auto !important;
-  min-height: 30px;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 4px;
-  padding: 0 6px !important;
-  -webkit-app-region: no-drag;
-  border: 0 !important;
-  border-radius: 14px !important;
-  color: inherit !important;
-  background: transparent !important;
-  font: inherit !important;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.viz-carousel-controls > button,
-.viz-carousel-picker > summary {
-  position: relative;
-  isolation: isolate;
-}
-
-.viz-carousel-controls > button {
-  --icon-size: 16px;
-  width: 30px !important;
-  padding: 0 !important;
-}
-
-.viz-carousel-picker > summary {
-  padding-inline: 12px !important;
-}
-
-.viz-carousel-controls .viz-carousel-caret {
-  width: 14px;
-  height: 14px;
-  flex: none;
-  margin: 0;
-  color: inherit;
-  transform: rotate(180deg);
-}
-
-.viz-carousel-controls > button > svg,
-.viz-carousel-controls .viz-carousel-caret,
-.viz-carousel-count {
-  opacity: 0.5;
-}
-
-.viz-carousel-controls > button::before,
-.viz-carousel-picker > summary::before {
-  position: absolute;
-  z-index: -1;
-  inset: 3px;
-  border-radius: 12px;
-  content: "";
-  pointer-events: none;
-}
-
-.viz-carousel-controls > button:hover::before,
-.viz-carousel-picker > summary:hover::before {
-  background: var(--viz-carousel-hover);
-}
-
-.viz-carousel-controls > button,
-.viz-carousel-controls [data-lucide],
-.viz-carousel-controls .lucide {
-  flex-shrink: 0;
-}
-
-.viz-carousel-picker {
-  min-width: 0;
-}
-
-.viz-carousel-picker > summary {
-  min-width: 0;
-  list-style: none;
-}
-
-.viz-carousel-picker > summary::-webkit-details-marker {
-  display: none;
-}
-
-.viz-carousel-count {
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-.viz-carousel-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.viz-carousel-options {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 4px);
-  left: 0;
-  display: flex;
-  max-height: 240px;
-  flex-direction: column;
-  gap: 2px;
-  overflow: auto;
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--background);
-  box-shadow: 0 4px 12px light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 25%));
-}
-
-.viz-carousel-options > button {
-  border-radius: max(0px, calc(var(--radius-lg) - 5px)) !important;
-  width: 100% !important;
-  min-height: 28px;
-  justify-content: flex-start !important;
-  padding: 4px 8px !important;
-  font-size: var(--font-size-small) !important;
-  text-align: start;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-.viz-carousel-options > [aria-current="true"],
-.viz-carousel-options > button:hover {
-  background: var(--viz-carousel-hover) !important;
-}
-
-.btn:disabled,
-.nav-link:disabled,
-.nav-link[aria-disabled="true"] {
-  cursor: not-allowed;
-  opacity: 0.4;
-}
-
-[data-lucide] {
-  stroke-width: 1.6;
-}
-
-.form-label {
-  display: block;
-  margin-bottom: 6px;
-  color: var(--foreground);
-}
-
-.form-control {
-  display: block;
-  width: 100%;
-  padding: 0 8px;
-  outline: none;
-  border: 1px solid var(--input);
-  corner-shape: var(--corner-shape);
-  color: var(--foreground);
-  font-family: var(--font-sans);
-  height: calc(12px + 2 * var(--control-spacing, 12px));
-  min-height: calc(12px + 2 * var(--control-spacing, 12px));
-  padding-inline: calc(4px + var(--control-spacing, 12px) / 2);
-  border-color: var(--input);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--popover) 96%, transparent);
-  font-size: calc(var(--font-size-base) * 14 / 16);
-  font-size: round(nearest, calc(var(--font-size-base) * 14 / 16), 1px);
-  font-weight: var(--font-weight-normal);
-  line-height: 1.4285714286;
-}
-.form-control:is(
-  [type="file"],
-  [type="date"],
-  [type="datetime-local"],
-  [type="month"],
-  [type="week"],
-  [type="color"]
-) {
-  height: calc(12px + 2 * var(--control-spacing, 12px));
-  min-height: calc(12px + 2 * var(--control-spacing, 12px));
-  line-height: 18px;
-}
-.form-control:is(
-  [type="date"],
-  [type="datetime-local"],
-  [type="month"],
-  [type="week"]
-) {
-  padding-inline: var(--control-spacing, 12px);
-}
-
-.form-control::placeholder {
-  color: var(--muted-foreground);
-}
-
-.form-control[type="file"] {
-  overflow: hidden;
-  cursor: var(--cursor-interaction, pointer);
-  padding: 0;
-}
-
-.form-control[type="file"]::file-selector-button {
-  padding: 0 8px;
-  border: 0;
-  border-right: 1px solid var(--input);
-  color: var(--secondary-foreground);
-  background: var(--secondary);
-  cursor: inherit;
-  font: inherit;
-  min-height: calc(10px + 2 * var(--control-spacing, 12px));
-  padding-inline: var(--control-spacing, 12px);
-  margin-inline-end: var(--control-spacing, 12px);
-}
-
-.form-control[type="file"]:not(:disabled):hover::file-selector-button {
-  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
-}
-
-.form-control-color[type="color"] {
-  width: 40px;
-  height: calc(12px + 2 * var(--control-spacing, 12px));
-  padding: 3px;
-  cursor: var(--cursor-interaction, pointer);
-}
-
-.form-control-color[type="color"]::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-
-.form-control-color[type="color"]::-webkit-color-swatch {
-  border: 0;
-  border-radius: calc(var(--radius-lg) - 4px);
-  corner-shape: var(--corner-shape);
-}
-
-textarea.form-control {
-  height: auto;
-  resize: vertical;
-  min-height: 96px;
-  padding: 8px 10px;
-}
-
-.form-control:focus-visible {
-  border-color: var(--ring);
-  box-shadow: none;
-}
-.form-control:disabled {
-  color: var(--muted-foreground);
-  background: color-mix(in srgb, var(--foreground) 5%, transparent);
-  opacity: 1;
-}
-.form-control[aria-invalid="true"] {
-  border-color: var(--red);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--red) 20%, transparent);
-}
-
-.form-control:disabled,
-.form-select:disabled {
-  cursor: not-allowed;
-}
-
-.form-select {
-  appearance: none;
-  display: block;
-  width: 100%;
-  height: fit-content;
-  min-height: calc(12px + 2 * var(--control-spacing, 12px));
-  margin: 0;
-  /* The secondary icon role is 14px at compact density and 16px at web density. */
-  --icon-size: calc(10px + var(--control-spacing, 12px) / 2);
-  /* Settings dropdowns retain a 12px inset and a 4px text-to-chevron gap. */
-  padding: 0 calc(16px + var(--icon-size)) 0 12px;
-  outline: none;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  corner-shape: var(--corner-shape);
-  color: var(--foreground);
-  background-color: var(--secondary);
-  background-image:
-    linear-gradient(
-      45deg,
-      transparent calc(50% - 0.6px),
-      var(--muted-foreground) calc(50% - 0.6px) calc(50% + 0.6px),
-      transparent calc(50% + 0.6px)
-    ),
-    linear-gradient(
-      135deg,
-      transparent calc(50% - 0.6px),
-      var(--muted-foreground) calc(50% - 0.6px) calc(50% + 0.6px),
-      transparent calc(50% + 0.6px)
-    );
-  background-position:
-    calc(100% - 12px - var(--icon-size) / 2) 50%,
-    calc(100% - 12px - var(--icon-size) * 0.18) 50%;
-  background-repeat: no-repeat;
-  background-size: calc(var(--icon-size) * 0.32) calc(var(--icon-size) * 0.32);
-  cursor: var(--cursor-interaction, default);
-  font-size: calc(var(--font-size-base) * 14 / 16);
-  font-size: round(nearest, calc(var(--font-size-base) * 14 / 16), 1px);
-  font-weight: var(--font-weight-normal);
-  line-height: 18px;
-}
-
-.form-select option {
-  color: var(--popover-foreground);
-  background-color: var(--popover);
-}
-
-.form-select:not(:disabled):hover {
-  background-color: light-dark(
-    color-mix(in srgb, var(--foreground) 5.5%, transparent),
-    color-mix(in srgb, var(--foreground) 8%, transparent)
-  );
-}
-
-.form-select:focus-visible {
-  box-shadow: 0 0 0 2px var(--ring);
-}
-.form-select:disabled {
-  opacity: 0.4;
-}
-
-.form-check {
-  display: flex;
-  min-height: calc(12px + 2 * var(--control-spacing, 12px));
-  align-items: center;
-  gap: 6px;
-}
-
-.form-check-input {
-  appearance: none;
-  width: 14px;
-  height: 14px;
-  flex: 0 0 auto;
-  margin: 0;
-  border: 1px solid var(--input);
-  color: var(--primary-foreground);
-  background-color: transparent;
-  cursor: var(--cursor-interaction, default);
-  transition:
-    background-color 150ms,
-    border-color 150ms,
-    box-shadow 150ms;
-}
-
-.form-check:not(.form-switch) .form-check-input[type="checkbox"] {
-  corner-shape: round;
-  box-shadow: var(--shadow-sm);
-  position: relative;
-  width: calc(10px + var(--control-spacing, 12px) / 2);
-  height: calc(10px + var(--control-spacing, 12px) / 2);
-  border-color: var(--border-strong, var(--input));
-  border-radius: calc(var(--radius-sm) / 2);
-  background-color: transparent;
-  color: var(--foreground);
-}
-
-.form-check:not(.form-switch)
-  .form-check-input:not(:disabled):not(:checked):hover {
-  background-color: var(--card);
-}
-
-.form-check:not(.form-switch)
-  .form-check-input[type="checkbox"]:is(:checked, :indeterminate) {
-  border-color: var(--border-strong, var(--input));
-  background-color: color-mix(in srgb, var(--popover) 96%, transparent);
-}
-
-.form-check:not(.form-switch)
-  .form-check-input[type="checkbox"]:checked::before {
-  display: block;
-  width: 100%;
-  height: 100%;
-  background: var(--primary-foreground);
-  content: "";
-  mask: var(--checkmark-image) center / 12px 12px no-repeat;
-  background-color: var(--foreground);
-}
-.form-check:not(.form-switch)
-  .form-check-input[type="checkbox"]:indeterminate::before {
-  position: absolute;
-  inset: 0;
-  display: block;
-  width: 65%;
-  height: 6.65%;
-  margin: auto;
-  border-radius: var(--radius-full);
-  background: var(--foreground);
-  mask: none;
-  content: "";
-}
-
-.form-check-input[type="radio"] {
-  border-radius: var(--radius-full);
-  width: 16px;
-  height: 16px;
-  border: 0;
-  box-shadow: inset 0 0 0 1px var(--input);
-}
-
-.form-check-input[type="radio"]:checked {
-  border: 0;
-  background: radial-gradient(
-    circle,
-    var(--primary-foreground) 0 3px,
-    var(--foreground) 3px
-  );
-  box-shadow: none;
-}
-
-.form-check:not(.form-switch) .form-check-input:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-.form-check:not(.form-switch) .form-check-input[type="checkbox"]:focus-visible {
-  border-color: var(--ring);
-  outline: none;
-  box-shadow: 0 0 0 2px var(--ring);
-}
-
-.form-check:not(.form-switch) .form-check-input:disabled {
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
-  cursor: not-allowed;
-}
-.form-check:not(.form-switch) .form-check-input[type="radio"]:disabled,
-.form-check:not(.form-switch)
-  .form-check-input[type="radio"]:disabled
-  + .form-check-label {
-  opacity: 0.5;
-}
-
-.form-switch .form-check-input:disabled,
-.form-switch .form-check-input:disabled + .form-check-label {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.form-check-label {
-  color: var(--foreground);
-  cursor: var(--cursor-interaction, default);
-}
-
-.form-switch .form-check-input {
-  position: relative;
-  width: 32px;
-  height: 20px;
-  border: 0;
-  border-radius: var(--radius-full);
-  background: var(--muted);
-  box-shadow: none;
-  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
-}
-
-.form-switch .form-check-input::before {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  width: 16px;
-  height: 16px;
-  box-sizing: border-box;
-  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
-  border-radius: var(--radius-full);
-  box-shadow: var(--shadow-sm);
-  content: "";
-  transform: translate(2px, -50%);
-  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
-  border-color: #fff;
-  background: #fff;
-}
-
-.form-switch .form-check-input:checked {
-  background: var(--blue);
-}
-
-.form-switch .form-check-input:checked::before {
-  transform: translate(14px, -50%);
-}
-
-.form-switch .form-check-input:focus-visible {
-  box-shadow: 0 0 0 2px var(--ring);
-  outline: none;
-}
-
-.form-range {
-  appearance: none;
-  display: block;
-  width: 100%;
-  flex: 1;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  accent-color: var(--primary);
-  height: calc(12px + 2 * var(--control-spacing, 12px));
-  min-height: calc(12px + 2 * var(--control-spacing, 12px));
-  outline: none;
-  border-radius: var(--radius-full);
-  color: var(--foreground);
-  background: transparent;
-}
-
-.form-range::-webkit-slider-runnable-track {
-  background: var(--form-range-track, var(--border));
-  height: 2px;
-  border-radius: var(--radius-full);
-}
-
-.form-range::-webkit-slider-thumb {
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  margin-top: -9px;
-  border-color: transparent;
-  background: currentColor;
-  box-shadow: var(--shadow-sm);
-}
-
-/* Outline the native track and thumb, preserving the larger input hit area. */
-.form-range:focus-visible::-webkit-slider-runnable-track {
-  outline: 2px auto Highlight;
-  outline-color: -webkit-focus-ring-color;
-}
-
-.form-range::-moz-range-track {
-  background: var(--form-range-track, var(--border));
-  height: 2px;
-  border-radius: var(--radius-full);
-}
-
-.form-range::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  border-color: transparent;
-  background: currentColor;
-  box-shadow: var(--shadow-sm);
-}
-
-.form-range:focus-visible::-moz-range-thumb {
-  outline: 2px solid Highlight;
-  outline-offset: 2px;
-}
-
-.form-range:disabled {
-  opacity: 1;
-  cursor: default;
-}
-
-.btn:not(.btn-primary, .viz-tile):is(
-  [aria-pressed="true"],
-  [aria-selected="true"],
-  .is-selected
-) {
-  border-color: transparent;
-  color: var(--primary-foreground);
-  background: var(--blue);
-}
-
-.btn.viz-tile:is([aria-pressed="true"], [aria-selected="true"], .is-selected) {
-  border-color: var(--primary);
-  box-shadow: inset 0 0 0 1px var(--primary);
-}
-
-.btn:focus-visible,
-.nav-link:focus-visible {
-  outline-offset: 2px;
-  outline: none;
-  box-shadow: 0 0 0 2px var(--ring);
-}
-
-.viz-carousel-controls :is(button, summary):focus-visible {
-  outline: 2px solid var(--ring) !important;
-  outline-offset: 2px !important;
-}
-
-/* Web recipes are the default, including on renderers without inline style queries. */
-@supports (border-radius: if(style(--corner-shape: round): 1px; else: 2px)) {
-  /* Match the host's proportional text-sm scale at every text preference. */
-  .tooltip,
-  .viz-badge,
-  .btn,
-  .nav-link,
-  .form-control,
-  .form-select {
-    font-size: if(
-      style(--corner-shape: round): round(
-          nearest,
-          calc(var(--font-size-base) * 14 / 16),
-          1px
-        );
-        else: round(nearest, calc(var(--font-size-base) * 13 / 14), 1px)
-    );
-  }
-
-  .btn,
-  .nav-link,
-  .form-select {
-    border-radius: if(
-      style(--corner-shape: round): var(--radius-full); else: var(--radius-lg)
-    );
-  }
-
-  .form-check:not(.form-switch) .form-check-input[type="checkbox"] {
-    border-radius: if(
-      style(--corner-shape: round): calc(var(--radius-sm) / 2);
-        else: calc(var(--radius-lg) * 0.4)
-    );
-  }
-
-  .tooltip {
-    font-weight: if(
-      style(--corner-shape: round): 600; else: var(--font-weight-normal)
-    );
-  }
-}
-
-@media (pointer: coarse) {
-  .viz-carousel:has(> .viz-carousel-controls) {
-    min-height: calc(76px + var(--viz-carousel-picker-height, 0px));
-    padding-bottom: 76px;
-  }
-
-  .btn,
-  .nav-link,
-  .viz-carousel-controls button,
-  .viz-carousel-picker > summary,
-  .form-control,
-  .form-select {
-    min-width: 44px;
-    min-height: 44px;
-  }
-
-  /* Keep small-screen WebKit from zooming when a text field receives focus. */
-  .form-control,
-  .form-select {
-    font-size: max(16px, calc(var(--font-size-base) * 14 / 16));
-    font-size: max(
-      16px,
-      round(nearest, calc(var(--font-size-base) * 14 / 16), 1px)
-    );
-  }
-  .form-control:is(
-    [type="file"],
-    [type="date"],
-    [type="datetime-local"],
-    [type="month"],
-    [type="week"],
-    [type="time"],
-    [type="color"]
-  ) {
-    height: 44px;
-    min-height: 44px;
-    font-size: max(16px, calc(var(--font-size-base) * 14 / 16));
-    font-size: max(
-      16px,
-      round(nearest, calc(var(--font-size-base) * 14 / 16), 1px)
-    );
-  }
-
-  .form-control[type="file"]::file-selector-button {
-    min-width: 44px;
-    min-height: 44px;
-  }
-
-  .form-control-color[type="color"] {
-    width: 44px;
-    height: 44px;
-  }
-
-  .form-control:is(
-    [type="date"],
-    [type="datetime-local"],
-    [type="month"],
-    [type="time"],
-    [type="week"]
-  ) {
-    min-width: 0;
-    max-width: 100%;
-    padding-block: 8px;
-  }
-
-  .form-check {
-    min-height: 44px;
-    padding-inline: 15px;
-  }
-
-  .form-check-input {
-    position: relative;
-  }
-
-  .form-check-input::after {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 44px;
-    height: 44px;
-    content: "";
-    transform: translate(-50%, -50%);
-  }
-
-  .form-check-label {
-    display: inline-flex;
-    min-width: 44px;
-    min-height: 44px;
-    align-items: center;
-  }
-
-  .form-range {
-    height: 44px;
-    touch-action: pan-y;
-  }
-}
-
-svg {
-  display: block;
-  max-width: 100%;
-  height: auto;
-}
-
-#widget > svg {
-  width: 100%;
-}
-
-/* Model-authored chart rules can otherwise stretch icons after these styles load. */
-svg.lucide {
-  display: block;
-  width: var(--icon-size) !important;
-  height: var(--icon-size) !important;
-  flex: none;
-  margin: 0 !important;
-  stroke-width: 1.6;
-}
-
-.text-warning,
-.text-destructive {
-  color: var(--destructive);
-}
-
-html>body{padding:0}
-html,body{background:transparent!important;margin:0;padding:0}main.rise-activity{font-family:Arial,sans-serif;color:#17324f;background:#fff;max-width:1040px;margin:0 auto;padding:16px;box-sizing:border-box;border:5px solid #285f9f;border-radius:18px} h2{font-size:clamp(18px,2.4vw,25px)} svg{max-width:100%}</style><style>
-:root{color-scheme:light;--foreground:#17324f;--background:#fff;--muted:#e6edf2;--muted-foreground:#516779;--border:#a6b9c8;--viz-series-1:#1674a5;--viz-series-2:#b45d29}
-html,body{background:transparent!important}main.rise-activity{max-width:1200px!important;padding:14px!important;background:#fff!important;color:#17324f!important}
-main [hidden]{display:none!important}main .focus-root{display:block!important}main h2{font:600 clamp(20px,3vw,30px)/1.2 Arial;margin:0 0 12px!important}
-.focus-stage{min-width:0}.focus-stage>svg{display:block!important;width:100%!important;height:440px!important;background:#f5f8fa;border-radius:12px}
-.focus-caption{font:18px/1.4 Arial;margin:10px 0;color:#294b64;max-width:75ch}.focus-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:6px}.focus-controls>label{flex:1 1 220px}.focus-controls input[type=range]{width:100%}.focus-controls .viz-grid{display:flex;gap:16px}.focus-controls .card{padding:7px!important;box-shadow:none!important}
-.focus-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;border-top:1px solid #cfdae3;margin-top:12px;padding-top:10px}.focus-nav strong{font:600 16px Arial}.focus-root button,.focus-root select,.focus-root input{min-height:42px;font-size:16px}.focus-root button{border:1px solid #8ca4b7;border-radius:8px;padding:8px 14px;background:#fff;color:#17324f}.focus-root button:hover{background:#e7f1f7}.focus-root button:focus-visible,.focus-root input:focus-visible,.focus-root select:focus-visible,.focus-root summary:focus-visible{outline:3px solid #bf650c;outline-offset:3px}.focus-root button:disabled{opacity:.5}.focus-root details{margin-top:10px;font:14px/1.5 Arial}.focus-root summary{cursor:pointer;padding:6px}.focus-stage .mr-views{gap:14px!important}.focus-stage .mr-scene{height:330px!important}.focus-stage h3{font-size:18px!important}.focus-controls .fz-readout{display:grid;gap:5px}.focus-controls .fz-readout>.text-small{display:none}.focus-controls .viz-stat-value{font-size:22px!important}
-@media(max-width:600px){.focus-stage>svg{height:300px!important}.focus-stage .mr-views{grid-template-columns:1fr!important}.focus-stage .mr-scene{height:260px!important}.focus-caption{font-size:16px}.focus-nav strong{font-size:14px}.focus-controls{gap:6px}main.rise-activity{padding:8px!important}.focus-controls>label{flex-basis:100%}}
-</style></head><body><main class="rise-activity"><div id="mars-rover-delay">
- <h2>Unit 5 · Lesson 4 · Mars mission · The image is already old</h2>
- <div class="text-small text-muted">Compare the rover’s current state with Earth’s latest received image.</div>
- <label class="form-label">Orbital position · model day <span data-day-label></span><input class="form-range" data-day type="range" min="0" max="780" step="0.1"></label>
- <div class="mr-orbit-row"><svg data-orbit class="mr-orbit" role="img" aria-label="Earth and Mars orbits and the communication path. Separation sets the signal travel time."></svg><div class="mr-metrics"><div>Separation: <strong data-distance></strong></div><div>One-way delay: <strong data-delay></strong></div><div>Image + STOP journey: <strong data-round></strong></div><button class="btn" data-example type="button">225 million km example</button></div></div>
- <div class="viz-controls"><label class="form-label">Hazard response<select class="form-select" data-plan><option value="earth">Earth reviews image, then sends STOP</option><option value="auto">Onboard sensors trigger STOP</option></select></label><button class="btn btn-primary" data-run type="button">Run mission</button></div>
- <div class="mr-views"><section><h3>Mars · happening now</h3><svg data-now class="mr-scene" role="img" aria-label="Current rover position on Mars, moving toward a hazard boundary."></svg><div class="tabular-nums" data-now-label></div></section><section><h3>Earth · latest received image</h3><svg data-image class="mr-scene" role="img" aria-label="Delayed schematic snapshot showing the rover at the time the latest received image was captured."></svg><div class="tabular-nums" data-image-label></div></section></div>
- <div class="viz-row"><button class="btn" data-jump="image" type="button">Image reaches Earth</button><button class="btn" data-jump="stop" type="button">STOP reaches Mars</button></div>
- <label class="form-label">Mission elapsed time (min:sec): <span data-time-label></span><input class="form-range" data-time type="range" min="0" max="40" step="0.01" value="0"></label>
- <svg data-events class="mr-events" role="img" aria-label="Mission timeline marking image capture, image reception on Earth, and arrival of Earth’s stop command at Mars."></svg>
- <div data-status aria-live="polite">Ready for a mission run.</div>
- <div class="viz-controls"><label class="form-label">Predicted one-way delay (minutes)<input class="form-control" data-answer type="number" min="0" step="0.1" placeholder="Distance ÷ 300,000 ÷ 60"></label><button class="btn" data-check type="button">Check prediction</button></div>
- <div data-feedback aria-live="polite">Use the Earth–Mars separation, not either planet’s distance from the Sun.</div>
- <div class="text-small text-muted">Illustrative snapshots, not photographs. Scenario: 1 m/min; hazard 20 m ahead; images every 2 min; onboard stop after 6 s; immediate Earth decision and braking. Transmission duration and relays omitted. Playback: 4 mission minutes/s.</div>
- <div class="text-small text-muted">Circular orbit model; arbitrary starting positions; sizes exaggerated. Positions held during each exchange; c ≈ 300,000 km/s. Not a forecast or an actual rover operating procedure.</div>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Unit 5 - Lesson 4 - 06 - Mars Rover - Delayed Images and Communications</title><style>
+:root{color-scheme:light}
+*{box-sizing:border-box}
+html,body{background:transparent!important;margin:0;padding:0}
+body{color:#17324f;font-size:16px;line-height:26px}
+p{margin:0}
+svg{display:block;max-width:100%;height:auto}
+main.rise-activity{font-family:Arial,sans-serif;color:#17324f;background:#fff;max-width:1200px;margin:0 auto;padding:14px;border:5px solid #285f9f;border-radius:18px}
+main [hidden]{display:none!important}
+main h2{margin:0 0 12px!important}
+.form-select{font-family:ui-sans-serif,-apple-system,system-ui,"Segoe UI",Helvetica,Arial,sans-serif;appearance:none;display:block;width:100%;margin:0;padding:0 28px 0 12px;border:1px solid var(--border);border-radius:9999px;line-height:18px;cursor:default}
+.form-select:focus-visible{box-shadow:0 0 0 2px #339cff}
+.form-range{appearance:none;display:block;width:100%;height:36px;margin:0;padding:0;border:0;border-radius:9999px;color:var(--foreground);background:transparent;accent-color:#339cff}
+.form-range::-webkit-slider-runnable-track{background:var(--border);height:2px;border-radius:9999px}
+.form-range::-webkit-slider-thumb{appearance:none;width:20px;height:20px;margin-top:-9px;border:1px solid transparent;border-radius:9999px;background:currentColor;box-shadow:0 1px 2px -1px rgb(0 0 0 / 8%)}
+.form-range::-moz-range-track{background:var(--border);height:2px;border-radius:9999px}
+.form-range::-moz-range-thumb{width:20px;height:20px;border:1px solid transparent;border-radius:9999px;background:currentColor;box-shadow:0 1px 2px -1px rgb(0 0 0 / 8%)}
+.form-range:disabled{cursor:default}
+.focus-root button,.focus-root select,.focus-root input{min-height:42px;font-size:16px}
+.focus-root button{border:1px solid #8ca4b7;border-radius:8px;padding:8px 14px;background:#fff;color:#17324f;cursor:pointer}
+.focus-root button:hover{background:#e7f1f7}
+.focus-root button:focus-visible,.focus-root input:focus-visible,.focus-root select:focus-visible,.focus-root summary:focus-visible{outline:3px solid #bf650c;outline-offset:3px}
+.focus-root button:disabled{opacity:.5;cursor:not-allowed}
+.focus-root summary{cursor:pointer;padding:6px}
+.focus-root details{font:14px/1.5 Arial}
+@media (pointer:coarse){.focus-root button,.form-select{min-height:44px}.form-range{height:44px;touch-action:pan-y}}
+@media(max-width:600px){main.rise-activity{padding:8px}}
+</style></head><body><main class="rise-activity"><div id="mars-rover-delay" class="focus-root">
+<h2>Driving a Mars rover from Earth</h2>
+<section class="mission-scene" aria-label="Rover driving mission">
+<div class="mission-brief" data-goal aria-live="polite"></div>
+<div class="mr-views"><section><h3>Mars · happening now</h3><svg data-now class="mr-scene" role="img" aria-label="The rover on Mars right now, with soft sand at 12 metres and the target rock at 20 metres."></svg><div data-now-label></div></section><section><h3>Earth · latest picture</h3><svg data-image class="mr-scene" role="img" aria-label="The newest picture Earth has received, which shows the rover as it was one radio delay ago."></svg><div data-image-label></div></section></div>
+<svg data-lane class="mr-lane" role="img" aria-label="Radio signals between Mars and Earth at the speed of light"></svg>
+<div class="mission-result" data-result role="status"></div>
+</section>
+<div class="mission-controls" data-choices tabindex="-1" aria-label="Commands"></div>
+<label class="distance-control"><span>Earth–Mars distance: <strong data-distance></strong></span><input class="form-range" data-sep type="range" min="79" max="377" step="1" value="225"><span class="range-ends" aria-hidden="true"><span>79 million km · closest</span><span>377 million km · farthest</span></span></label>
+<details class="signal-details"><summary>Where are Earth and Mars?</summary><div class="mr-orbit-row"><svg data-orbit class="mr-orbit" role="img" aria-label="Earth and Mars orbits and the radio path between them"></svg><div><div>Round trip for a radio signal: <strong data-round></strong></div><button data-example type="button">Back to 225 million km</button></div></div></details>
+<details><summary>About this model</summary><p>Rover speed 1 m/min; soft sand from 12 m to 15 m; target rock at 20 m. Pictures stream back continuously; Earth decides instantly when a picture arrives. In soft sand the wheels keep turning but the rover moves only 4 cm per minute of driving and sinks. The slip check compares wheel turns with camera motion and stops after 30 s of slipping. Playback fast-forwards while signals travel and slows while the rover moves. Circular orbits; c ≈ 300,000 km/s. Schematic sizes; not an actual rover procedure. The 2005 Opportunity rover event (Purgatory Dune) is the real-world basis for step 2.</p></details>
 </div>
 <style>
-#mars-rover-delay{display:grid;gap:14px;}#mars-rover-delay .mr-orbit-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:center;}#mars-rover-delay .mr-orbit{width:100%;height:220px;}#mars-rover-delay .mr-metrics{display:grid;gap:12px;}#mars-rover-delay .mr-views{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;}#mars-rover-delay .mr-scene{width:100%;height:210px;}#mars-rover-delay .mr-events{width:100%;height:135px;}#mars-rover-delay svg text{font-size:12px;fill:var(--foreground);}@media(max-width:560px){#mars-rover-delay .mr-orbit-row,#mars-rover-delay .mr-views{grid-template-columns:minmax(0,1fr);gap:8px;}}
-
-#mars-rover-delay svg line, #mars-rover-delay svg path {stroke-linejoin:round;stroke-linecap:round;}
+#mars-rover-delay{display:block;color:#17324f;--foreground:#17324f;--background:#fff;--muted-foreground:#52697a;--border:#a5bacb;--muted:#e5ebef;--viz-series-1:#177ca5;--viz-series-2:#ac5826}
+#mars-rover-delay h2{font:700 clamp(20px,3vw,28px)/1.2 Arial;margin:0}
+#mars-rover-delay h3{font:600 16px/1.4 Arial;margin:0}
+#mars-rover-delay .mission-scene{background:#f5f8fa;border:1px solid #cfdae3;border-radius:12px;padding:12px}
+#mars-rover-delay .mission-brief{font-weight:600;font-size:17px;margin-bottom:8px}
+#mars-rover-delay .mr-views{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+#mars-rover-delay .mr-views section{min-width:0}
+#mars-rover-delay .mr-scene{display:block;width:100%;height:auto;aspect-ratio:420/210}
+#mars-rover-delay svg text{font:12px Arial;fill:#17324f}
+#mars-rover-delay .mr-views [data-now-label],#mars-rover-delay .mr-views [data-image-label]{font-size:14px;font-variant-numeric:tabular-nums;min-height:40px}
+#mars-rover-delay .mission-result{padding:8px 10px;border-radius:8px;background:#e4edf4;min-height:44px;font-weight:600}
+#mars-rover-delay .mission-result:empty{visibility:hidden}
+#mars-rover-delay .mission-result[data-outcome="safe"]{background:#dff3e8;color:#165638}
+#mars-rover-delay .mission-result[data-outcome="hazard"]{background:#fff0df;color:#793c0b}
+#mars-rover-delay .mission-controls{display:flex;align-items:stretch;gap:8px;flex-wrap:wrap;margin:6px 0 10px}
+#mars-rover-delay [data-choices]:focus{outline:none}
+#mars-rover-delay .choice{display:inline-flex;align-items:center;gap:8px;text-align:left}
+#mars-rover-delay .choice.primary{background:#285f9f;border-color:#285f9f;color:#fff;font-weight:600}
+#mars-rover-delay .choice.right{background:#e0f2e9;border-color:#24704e;color:#165638;font-weight:700;opacity:1}
+#mars-rover-delay .choice.wrong{background:#fff0df;border-color:#793c0b;color:#793c0b;font-weight:700;opacity:1}
+#mars-rover-delay .cmd-icon{width:34px;height:12px;flex:none}
+#mars-rover-delay .mission-result[data-outcome="slow"]{background:#fff6d8;color:#5f4300}
+#mars-rover-delay .distance-control{display:block;font-size:15px}
+#mars-rover-delay .range-ends{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#52697a}
+#mars-rover-delay .mr-lane{display:block;width:100%;height:auto;margin:6px 0 8px}
+#mars-rover-delay .mr-lane text{font:12px Arial}
+#mars-rover-delay input[type="range"]{width:100%}
+#mars-rover-delay .mr-orbit-row{display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:12px}
+#mars-rover-delay .mr-orbit{width:100%;height:220px}
+#mars-rover-delay details{margin:0;font-size:14px}
+@media(max-width:600px){#mars-rover-delay .mr-views{grid-template-columns:1fr;gap:8px}#mars-rover-delay .mr-scene{max-height:220px}#mars-rover-delay .mission-scene{padding:8px}#mars-rover-delay .mr-views [data-now-label],#mars-rover-delay .mr-views [data-image-label]{min-height:22px;font-size:12px}#mars-rover-delay .mission-brief{font-size:14px}#mars-rover-delay .mission-result{font-size:14px}#mars-rover-delay .mr-orbit-row{grid-template-columns:1fr}}
 </style>
 <script>
 (()=>{
-const root=document.getElementById('mars-rover-delay'),q=s=>root.querySelector(s),orbit=q('[data-orbit]'),events=q('[data-events]');
-const AU=149600000,R=1.524,C=300000,relative=2*Math.PI*(1/365.25-1/687),example=Math.acos((1+R*R-Math.pow(225e6/AU,2))/(2*R))/relative;
-let day=example,t=0,plan='earth',raf=0,lastSaved='';
+const root=document.getElementById('mars-rover-delay'),q=s=>root.querySelector(s),orbit=q('[data-orbit]');
+const AU=149600000,R=1.524,C=300000,relative=2*Math.PI*(1/365.25-1/687),dayFor=km=>Math.acos(Math.max(-1,Math.min(1,(1+R*R-Math.pow(km/AU,2))/(2*R))))/relative,example=dayFor(225e6);
+// Course: soft sand from 12 m to 15 m, target rock at 20 m. Playback in mission minutes per second.
+const SAND=12,SAND_END=15,ROCK=20,SLIP=.5,FAST=10,SLOW=2.5,RED='#b3261e';
+let day=example,t=0,plan='probe',raf=0,running=false,stage=0,phase='idle',answer=null,ran=false,done={long:false,short:false,smart:false},sent=false,hold=0,holdFn=null;
+// Rover artwork in local units: wheels at x = -23, 0, 23 (radius 7, ground contact y 19); front edge x 30; mast top y -51.
+const ROVER_SHADOW=`<ellipse cx="0" cy="19.6" rx="31" ry="2.2" fill="#000" opacity=".14"/>`;
+const ROVER_BODY=`<g transform="rotate(-32 -21 -15)"><rect x="-34" y="-19" width="14" height="7" rx="2" fill="#7b838b" stroke="#353c43" stroke-width=".8"/>${[-31,-28,-25].map(x=>`<line x1="${x}" y1="-21" x2="${x}" y2="-10" stroke="#353c43" stroke-width=".9"/>`).join('')}</g>`
++`<path d="M -2 -8 L 12 -2 L 23 12 M -2 -8 L -12 2 M -23 12 L -12 2 L 0 12" fill="none" stroke="#26313a" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="-2" cy="-8" r="2.1" fill="#6b7782" stroke="#26313a" stroke-width=".7"/><circle cx="-12" cy="2" r="1.8" fill="#6b7782" stroke="#26313a" stroke-width=".7"/>`
++`<path d="M -22 -21 L 17 -21 L 20 -17 L 20 -10 L -22 -10 Z" fill="var(--viz-series-1)" stroke="#0e4a66" stroke-width=".8"/><path d="M -10 -21 V -10 M 5 -21 V -10" stroke="#0e4a66" stroke-width=".6" opacity=".7"/><rect x="-19" y="-18.5" width="6" height="3" rx=".6" fill="#e4e9ee" opacity=".8"/><rect x="-23" y="-24" width="43" height="3.2" rx="1" fill="#e4e9ee" stroke="#8a97a3" stroke-width=".6"/>`
++`<line x1="-12" y1="-24" x2="-12" y2="-27.5" stroke="#5d6873" stroke-width="1.2"/><path d="M -18.5 -27 Q -12 -33.5 -5.5 -27 Z" fill="#eef1f4" stroke="#8a97a3" stroke-width=".7"/><line x1="-3" y1="-24" x2="-3" y2="-30" stroke="#5d6873" stroke-width=".8"/>`
++`<rect x="10" y="-44" width="3" height="20" fill="#a3adb6" stroke="#5d6873" stroke-width=".5"/><rect x="5" y="-51" width="15" height="7" rx="1.5" fill="#eef1f4" stroke="#353c43" stroke-width=".8"/><circle cx="17" cy="-47.5" r="1.9" fill="#1d2b36"/><circle cx="12.6" cy="-47.5" r="1.4" fill="#1d2b36"/><circle cx="17.5" cy="-48.1" r=".5" fill="#fff"/>`
++`<path d="M 19 -15 L 26 -7 L 23.5 -1.5" fill="none" stroke="#5d6873" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="26" cy="-7" r="1.2" fill="#353c43"/><rect x="20" y="-2" width="7.5" height="4" rx="1" fill="#a3adb6" stroke="#353c43" stroke-width=".6"/>`;
+// Wheel: rim and hub stay put; grousers and curved-spoke marks rotate with distance driven.
+const WHEEL_SPIN=dx=>Array.from({length:12},(_,i)=>{const t=i*Math.PI/6,c=Math.cos(t),s=Math.sin(t);return `<line x1="${(dx+5.5*c).toFixed(2)}" y1="${(12+5.5*s).toFixed(2)}" x2="${(dx+7*c).toFixed(2)}" y2="${(12+7*s).toFixed(2)}"/>`;}).join('')
++Array.from({length:6},(_,i)=>{const t=i*Math.PI/3;return `<path d="M ${(dx+2.2*Math.cos(t)).toFixed(2)} ${(12+2.2*Math.sin(t)).toFixed(2)} Q ${(dx+4.6*Math.cos(t+.5)).toFixed(2)} ${(12+4.6*Math.sin(t+.5)).toFixed(2)} ${(dx+5.3*Math.cos(t+.2)).toFixed(2)} ${(12+5.3*Math.sin(t+.2)).toFixed(2)}" fill="none"/>`;}).join('');
+const WHEEL_PARTS={};for(const dx of [-23,0,23])WHEEL_PARTS[dx]=WHEEL_SPIN(dx);
+const wheel=(dx,a)=>`<circle cx="${dx}" cy="12" r="7" fill="#d3d9de" stroke="#1f2a33" stroke-width="1.8"/><g transform="rotate(${a.toFixed(1)} ${dx} 12)" stroke="#3b4752" stroke-width=".9">${WHEEL_PARTS[dx]}</g><circle cx="${dx}" cy="12" r="2.1" fill="#8a97a3" stroke="#1f2a33" stroke-width=".7"/>`;
 const txt=(x,y,s,a='start')=>`<text x="${x}" y="${y}" text-anchor="${a}">${s}</text>`;
 const line=(x1,y1,x2,y2,c='var(--border)',sw=1)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="${sw}"/>`;
-function g(){const a=day*2*Math.PI/365.25,b=day*2*Math.PI/687,e={x:Math.cos(a),y:Math.sin(a)},m={x:R*Math.cos(b),y:R*Math.sin(b)},dx=m.x-e.x,dy=m.y-e.y,dist=Math.hypot(dx,dy),u=Math.max(0,Math.min(1,-(e.x*dx+e.y*dy)/(dist*dist))),blocked=Math.hypot(e.x+u*dx,e.y+u*dy)<.00465;return{e,m,distance:dist*AU,delay:dist*AU/C/60,blocked};}
-function endTime(){return Math.max(22,3*g().delay+2);}
-function clock(min){const sec=Math.round(Math.max(0,min)*60);return Math.floor(sec/60).toString().padStart(2,'0')+':'+(sec%60).toString().padStart(2,'0');}
-function state(at){const stop=plan==='auto'?.1:2*g().delay,pos=Math.min(Math.max(0,at),stop,20);return{pos,hazard:at>=20&&stop>=20,stopped:at>=stop,status:at>=20&&stop>=20?'Hazard reached':at>=stop?'Stopped safely':'Driving'};}
-function scene(svg,at,missing){const w=Math.max(260,(svg.clientWidth/1.65)),h=210,left=76,right=w-74,scale=(right-left)/24;svg.setAttribute('viewBox',`0 0 ${w} ${h}`);if(missing){svg.innerHTML=`<title>No image received yet</title><rect x="12" y="28" width="${w-24}" height="140" fill="var(--muted)"/>${txt(w/2,88,'Awaiting first image','middle')}${txt(w/2,115,'Captured on Mars at 00:00','middle')}`;return;}
-const s=state(at),x=left+s.pos*scale,hx=left+20*scale,y=124;
-let terrain=`<path d="M 0 125 L ${w*.2} 107 L ${w*.42} 126 L ${w*.7} 100 L ${w} 120 L ${w} 179 L 0 179 Z" fill="var(--muted)"/><rect x="${hx}" y="132" width="${w-hx}" height="47" fill="var(--viz-series-2)" opacity=".18"/>${line(12,163,w-12,163,'var(--muted-foreground)')}${line(hx,110,hx,178,'var(--viz-series-2)',2)}${txt(w-12,18,'Hazard boundary','end')}${txt(12,28,s.status)}${txt(12,196,'Travel: '+s.pos.toFixed(2)+' m')}${txt(w-12,196,'Hazard: 20 m','end')}`;
-const rover=`<g transform="translate(${x},${y}) scale(2)"><path d="M -20 -20 L 16 -20 L 22 -10 L -22 -10 Z" fill="var(--viz-series-1)"/><path d="M -17 -10 L -12 9 L 9 9 L 16 -10 M -12 9 L -23 12 M 9 9 L 23 12" fill="none" stroke="var(--foreground)" stroke-width="2"/><rect x="-3" y="-42" width="4" height="22" fill="var(--muted-foreground)"/><rect x="-5" y="-46" width="15" height="8" rx="2" fill="var(--foreground)"/>${[-23,0,23].map(dx=>`<circle cx="${dx}" cy="12" r="7" fill="var(--background)" stroke="var(--foreground)" stroke-width="2"/>`).join('')}<rect x="-15" y="-25" width="25" height="5" fill="var(--muted-foreground)"/></g>`;
-svg.innerHTML=`<title>${missing?'':s.status+' at '+clock(at)}</title>${terrain}${rover}`;
+function g(){const a=day*2*Math.PI/365.25,b=day*2*Math.PI/687,e={x:Math.cos(a),y:Math.sin(a)},m={x:R*Math.cos(b),y:R*Math.sin(b)},dist=Math.hypot(m.x-e.x,m.y-e.y);return{e,m,distance:dist*AU,delay:dist*AU/C/60};}
+function clock(min){const sec=Math.round(Math.max(0,min)*60),h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;return (h?h+':'+String(m).padStart(2,'0'):String(m).padStart(2,'0'))+':'+String(s).padStart(2,'0');}
+function dur(min){const sec=Math.round(Math.max(0,min)*60),h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;return [h&&h+' h',m&&m+' min',s&&s+' s'].filter(Boolean).join(' ')||'0 s';}
+// Each plan: when commands leave Earth, and what the rover is doing at mission time `at`.
+function commands(p){const D=g().delay;return p==='probe'?[[0,'DRIVE 5 m']]:p==='short'?[[0,'DRIVE 5 m'],[2*D+5,'DRIVE 5 m']]:p==='smart'?[[0,'DRIVE 20 m + slip check']]:[[0,'DRIVE 20 m']];}
+function runEnd(p){const D=g().delay;return p==='probe'?2*D+5:p==='short'?4*D+10:p==='smart'?2*D+SAND+SLIP:2*D+20;}
+function sim(p,at){const D=g().delay;let pos=0,wheels=0,sink=0,moving=false,spinning=false,status='Waiting for a command';
+if(p==='probe'){pos=wheels=Math.max(0,Math.min(5,at-D));moving=at>D&&at<D+5;if(at>=D+5)status='Parked after 5 m';else if(moving)status='Driving 5 m';}
+else if(p==='short'){for(const [s] of commands(p)){const a=s+D;pos+=Math.max(0,Math.min(5,at-a));if(at>a&&at<a+5)moving=true;}wheels=pos;if(moving)status='Driving 5 m';else if(pos>=10)status='Parked · soft sand just ahead';else if(pos>0)status='Parked · waiting for Earth';}
+else{const a=at-D;if(a>0&&a<SAND){pos=wheels=a;moving=true;status='Driving';}else if(a>=SAND){const limit=p==='smart'?SAND+SLIP:20,e=Math.min(a,limit)-SAND;wheels=SAND+e;pos=SAND+.04*e;spinning=a<limit;sink=p==='smart'?Math.min(.12,e/6):Math.min(1,e/6);status=p==='smart'?(spinning?'Wheels slipping…':'Stopped itself · slip detected'):(spinning?'Wheels spinning in soft sand':'Stuck · buried to the hubs');}}
+return{pos,wheels,sink,moving,spinning,status};}
+function scene(svg,at,view,ghostAt=null){const w=Math.max(300,Math.min(420,svg.clientWidth)),h=210,k=Math.max(.9,Math.min(1.2,w/350)),front=30*k,left=14+front,scale=(w-left-front-34)/20,ground=163;svg.style.aspectRatio=w+" / 210";svg.setAttribute('viewBox',`0 0 ${w} ${h}`);
+const s=sim(plan,at),fx=f=>left+front+f*scale,x=left+s.pos*scale,sink=s.sink*9*k,y=ground-19*k+sink,bar=5*scale,sx=fx(SAND),se=fx(SAND_END),rx=fx(ROCK)+10,ang=s.wheels*170;
+// Earth only recognises soft sand once a picture is taken close to it.
+const seen=view==='now'||s.pos>=9,slip=s.wheels-s.pos>.3;
+let out=`<path d="M 0 125 L ${w*.2} 107 L ${w*.42} 126 L ${w*.7} 100 L ${w} 120 L ${w} 186 L 0 186 Z" fill="var(--muted)"/>`+line(12,ground,w-12,ground,'var(--muted-foreground)')
++`<path d="M ${sx-6} ${ground} C ${sx+6} ${ground-9} ${se-6} ${ground-9} ${se+6} ${ground} L ${se+6} ${ground+9} L ${sx-6} ${ground+9} Z" fill="#e6c995" stroke="#b8925a"/>`
++[.2,.45,.7].map((u,i)=>`<circle cx="${sx+(se-sx)*u}" cy="${ground-3+i%2*4}" r="1.2" fill="#b8925a"/>`).join('')
++txt((sx+se)/2,ground+20,seen?'Soft sand':'Firm or soft?','middle')
++`<path d="M ${rx-12} ${ground} L ${rx-9} ${ground-12} L ${rx+1} ${ground-17} L ${rx+11} ${ground-9} L ${rx+13} ${ground} Z" fill="#8a6a55" stroke="#5d4535"/>`+txt(w-8,ground-26,'Target rock','end')
++txt(12,28,s.status)+txt(12,202,'Moved '+s.pos.toFixed(1)+' m'+(slip?' · wheels turned '+s.wheels.toFixed(1)+' m':''))
++(slip&&w<330?'':line(w-12-bar,198,w-12,198,'var(--foreground)',1.5)+line(w-12-bar,194,w-12-bar,202,'var(--foreground)')+line(w-12,194,w-12,202,'var(--foreground)')+txt(w-18-bar,202,'5 m','end'));
+const body=(cls,gx,gy,a,sunk=false)=>`<g class="${cls}"${cls==='ghost'?' opacity=".3"':''} transform="translate(${gx},${gy}) scale(${k})">${sunk?'':ROVER_SHADOW}${ROVER_BODY}${[-23,0,23].map(dx=>wheel(dx,a)).join('')}</g>`;
+// Ghost: where Earth's latest picture shows the rover, measured between front wheels.
+let ghost='';if(ghostAt!==null){const gs=sim(plan,Math.max(0,ghostAt)),gap=s.pos-gs.pos;if(gap>.3){const gx=left+gs.pos*scale,by=ground-19*k-51*k-8,a=gx+front,b=x+front,lx=Math.max(90,Math.min(w-110,(a+b)/2));ghost=body('ghost',gx,ground-19*k,gs.wheels*170)+line(a,by,b,by,'var(--foreground)',1.2)+line(a,by-4,a,by+4,'var(--foreground)')+`<path d="M ${b} ${by} l -6 -3.5 v 7 Z" fill="var(--foreground)"/>`+txt(lx,by-7,'Earth’s view: '+gap.toFixed(1)+' m behind','middle');}}
+// Foreground sand hides the sunken part of the wheels and heaps up around each one.
+let sand='';if(s.sink>0){const top=[-23,0,23].map(dx=>`Q ${x+dx*k} ${ground-s.sink*7*k} ${x+(dx+11.5)*k} ${ground}`).join(' ');sand+=`<rect x="${x-34.5*k}" y="${ground}" width="${69*k}" height="12" fill="color-mix(in srgb, var(--viz-series-2) 12%, var(--muted))"/>`+line(x-34.5*k,ground,x+34.5*k,ground,'var(--muted-foreground)')+`<path d="M ${x-34.5*k} ${ground} ${top} Z" fill="#e6c995" stroke="#b8925a" stroke-width=".8"/>`;}
+if(s.spinning)for(let i=0;i<6;i++)sand+=`<circle cx="${x-23*k-8-((at*40+i*7)%18)}" cy="${ground-3-((at*55+i*11)%14)}" r="1.7" fill="#c9a46a"/>`;
+svg.innerHTML=`<title>${s.status} at ${clock(at)}</title>${out}${ghost}${body('rover',x,y,ang,s.sink>0)}${sand}`;
 }
-function drawBase(){const z=g(),w=Math.max(260,(orbit.clientWidth/1.65)),cx=w/2,cy=102,scale=Math.min((w-65)/(2*R),77/R),ep={x:cx+z.e.x*scale,y:cy-z.e.y*scale},mp={x:cx+z.m.x*scale,y:cy-z.m.y*scale};orbit.setAttribute('viewBox',`0 0 ${w} 220`);let mark='';if(t>0&&!z.blocked){let f,from,to;if(t<=z.delay){f=t/z.delay;from=mp;to=ep;}else if(t<=2*z.delay&&plan==='earth'){f=(t-z.delay)/z.delay;from=ep;to=mp;}if(from)mark=`<circle cx="${from.x+(to.x-from.x)*f}" cy="${from.y+(to.y-from.y)*f}" r="5" fill="var(--foreground)"/>`;}
-orbit.innerHTML=`<title>Earth–Mars separation sets the delay</title><circle cx="${cx}" cy="${cy}" r="${scale}" fill="none" stroke="var(--border)"/><circle cx="${cx}" cy="${cy}" r="${scale*R}" fill="none" stroke="var(--border)"/>${line(ep.x,ep.y,mp.x,mp.y,'var(--muted-foreground)')}<circle cx="${cx}" cy="${cy}" r="7" fill="var(--muted-foreground)"/>${txt(cx,cy+24,'Sun','middle')}<circle cx="${ep.x}" cy="${ep.y}" r="7" fill="var(--viz-series-1)"/>${txt(ep.x,ep.y-15,'Earth','middle')}<circle cx="${mp.x}" cy="${mp.y}" r="7" fill="var(--viz-series-2)"/>${txt(mp.x,mp.y+23,'Mars','middle')}${mark}${txt(cx,214,z.blocked?'Direct path blocked by Sun':'Image → Earth; STOP → Mars','middle')}`;
-q('[data-day-label]').textContent=day.toFixed(1);q('[data-distance]').textContent=(z.distance/1e6).toFixed(1)+' million km';q('[data-delay]').textContent=z.delay.toFixed(2)+' min';q('[data-round]').textContent=(2*z.delay).toFixed(2)+' min';q('[data-time]').max=endTime();q('[data-time]').value=t;q('[data-time-label]').textContent=clock(t);q('[data-now-label]').textContent='Mission time '+clock(t);
-const received=t+1e-8>=z.delay&&!z.blocked,capture=received?Math.floor((t-z.delay+1e-8)/2)*2:null;scene(q('[data-now]'),t,false);scene(q('[data-image]'),capture,!received);q('[data-image-label]').textContent=received?'Captured '+clock(capture)+' · image age '+clock(t-capture):'No frame received';
-const ew=Math.max(260,(events.clientWidth/1.65)),l=18,r=ew-18,max=endTime(),x=v=>l+(r-l)*v/max;events.setAttribute('viewBox',`0 0 ${ew} 135`);let s=line(l,58,r,58);[[0,'Image taken',18],[z.delay,'Earth sees it',104],[2*z.delay,plan==='earth'?'STOP arrives':'Earth STOP (unused)',18]].forEach(([time,label,y],i)=>{s+=`<circle cx="${x(time)}" cy="58" r="5" fill="${t>=time?'var(--viz-series-1)':'var(--muted-foreground)'}"/>`+line(x(time),y<58?y+20:65,x(time),y<58?51:y-20)+txt(x(time),y,label,i===0?'start':'middle')+txt(x(time),y+17,clock(time),i===0?'start':'middle');});s+=`<circle cx="${x(t)}" cy="58" r="7" fill="var(--viz-series-2)"/>`;events.innerHTML=s;
-let status=z.blocked?'Direct signal path blocked. Select another orbital position.':plan==='auto'?(t<.1?'Onboard sensors evaluating hazard.':t<z.delay?'Rover stopped onboard; Earth has not received the first image.':'Rover stopped onboard. Earth sees the delayed image history.'):(t<z.delay?'Hazard image is traveling to Earth.':t<2*z.delay?'Earth has sent STOP; the command is traveling to Mars.':'STOP has reached Mars. '+(state(t).hazard?'The rover reached the hazard before it arrived.':'The rover stopped before the hazard.'));
-if(q('[data-status]').textContent!==status)q('[data-status]').textContent=status;
-}
-function stop(){cancelAnimationFrame(raf);q('[data-run]').disabled=g().blocked;q('[data-day]').disabled=false;q('[data-plan]').disabled=false;q('[data-example]').disabled=false;root.querySelectorAll('[data-jump]').forEach(b=>b.disabled=g().blocked);q('[data-time]').disabled=g().blocked;}
-function save(){const s={modelContent:{simulation:'Mars rover delayed images',modelDay:day,plan,missionTimeMinutes:t,oneWayMinutes:g().delay},privateContent:{answer:q('[data-answer]').value}};lastSaved=JSON.stringify(s);window.openai?.setWidgetState?.(s).catch(()=>{});}
-function setup(){stop();t=0;day=Number(q('[data-day]').value);plan=q('[data-plan]').value;stop();draw();}
-q('[data-day]').value=day;q('[data-day]').addEventListener('input',setup);q('[data-day]').addEventListener('change',save);q('[data-plan]').addEventListener('change',()=>{setup();save();});q('[data-example]').addEventListener('click',()=>{stop();day=example;t=0;q('[data-day]').value=day;stop();draw();save();});
-q('[data-time]').addEventListener('input',()=>{stop();t=Number(q('[data-time]').value);draw();});q('[data-time]').addEventListener('change',save);root.querySelectorAll('[data-jump]').forEach(b=>b.addEventListener('click',()=>{stop();t=g().delay*(b.dataset.jump==='image'?1:2);draw();save();}));
-q('[data-run]').addEventListener('click',()=>{stop();t=0;q('[data-run]').disabled=true;q('[data-day]').disabled=true;q('[data-plan]').disabled=true;q('[data-example]').disabled=true;const start=performance.now(),end=endTime(),dur=matchMedia('(prefers-reduced-motion: reduce)').matches?0:end/4*1000;function frame(now){t=dur?Math.min(end,(now-start)/1000*4):end;draw();if(t<end)raf=visualFrame(frame);else{stop();save();}}raf=visualFrame(frame);});
-q('[data-check]').addEventListener('click',()=>{const value=q('[data-answer]').value,v=Number(value);q('[data-feedback]').textContent=!value||!Number.isFinite(v)||v<=0?'Enter a positive time in minutes.':Math.abs(v-g().delay)<.15?'Correct within rounding. A prompt reply or command needs another one-way journey.':'Divide distance in km by 300,000 km/s, then divide seconds by 60.';save();});
-function restore(s){if(s?.modelContent?.simulation!=='Mars rover delayed images')return;stop();day=Number.isFinite(s.modelContent.modelDay)?Math.max(0,Math.min(780,s.modelContent.modelDay)):example;plan=s.modelContent.plan==='auto'?'auto':'earth';t=Math.max(0,Math.min(endTime(),Number(s.modelContent.missionTimeMinutes)||0));q('[data-day]').value=day;q('[data-plan]').value=plan;q('[data-answer]').value=s.privateContent?.answer||'';stop();draw();}
+// Signal lane: radio pulses at c between Mars (left) and Earth (right).
+function lane(z){const svg=q('[data-lane]'),w=Math.max(280,Math.min(1100,svg.clientWidth||600)),h=88,mx=26,ex=w-26,y=46,narrow=w<520,at=f=>mx+20+(ex-mx-40)*f;svg.setAttribute('viewBox',`0 0 ${w} ${h}`);svg.style.aspectRatio=w+' / '+h;
+const space=(ex-mx-40)*2/z.delay,L=Math.max(14,Math.min(30,space*.6));
+const wave=(cx,dir,color)=>{let d='';for(let i=0;i<=24;i++){const u=i/24;d+=(i?' L ':'M ')+(cx-L/2+L*u).toFixed(1)+' '+(y-6*Math.sin(u*(L<24?3:5)*Math.PI)).toFixed(1);}const tip=cx+dir*(L/2+4);return `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.4" stroke-linecap="round"/><path d="M ${tip} ${y} l ${-dir*7} -5 v 10 Z" fill="${color}"/>`;};
+const km=Math.round(z.distance/1e6);
+let s=`<title>Radio travel time between Mars and Earth</title><line x1="${mx}" y1="${y}" x2="${ex}" y2="${y}" stroke="var(--border)" stroke-width="1.5" stroke-dasharray="5 4"/>`
++`<circle cx="${mx}" cy="${y}" r="13" fill="var(--viz-series-2)"/><ellipse cx="${mx}" cy="${y-10}" rx="5" ry="2" fill="#fff" opacity=".85"/><circle cx="${mx+4}" cy="${y+3}" r="3" fill="#7a3a17" opacity=".5"/>${txt(mx,80,'Mars','middle')}`
++`<circle cx="${ex}" cy="${y}" r="13" fill="#2f6fae"/><path d="M ${ex-8} ${y-4} q 4 -5 9 -2 q 2 5 -4 7 q -4 1 -5 -5 Z M ${ex+3} ${y+3} q 4 0 5 4 q -4 3 -6 0 Z" fill="#5aa469"/>${txt(ex,80,'Earth','middle')}`
++txt(w/2,13,'Radio waves travel at the speed of light','middle')
++txt(w/2,80,narrow?km+' million km → '+dur(z.delay):(km*1e6).toLocaleString('en-US')+' km ÷ 300,000 km/s = '+Math.round(z.distance/C)+' s = '+dur(z.delay),'middle');
+if(t>0||phase==='ask'){for(let c=Math.max(0,Math.ceil((t-z.delay)/2-1e-9)*2);c<=t+1e-9;c+=2){const px=at((t-c)/z.delay);s+=wave(px,1,'var(--viz-series-1)');if(c===0||space>46)s+=txt(px,30,c===0?'picture 00:00':clock(c),'middle');}
+for(const [sentAt,label] of commands(plan))if(t>=sentAt&&t<=sentAt+z.delay+1e-9){const px=at(1-(t-sentAt)/z.delay);s+=wave(px,-1,RED)+`<text x="${Math.max(mx+60,Math.min(ex-60,px))}" y="66" text-anchor="middle" style="font-weight:700;fill:${RED}">${label}</text>`;}}
+svg.innerHTML=s;}
+function drawOrbit(z){const w=Math.max(260,(orbit.clientWidth/1.65)),cx=w/2,cy=102,scale=Math.min((w-65)/(2*R),77/R),ep={x:cx+z.e.x*scale,y:cy-z.e.y*scale},mp={x:cx+z.m.x*scale,y:cy-z.m.y*scale};orbit.setAttribute('viewBox',`0 0 ${w} 220`);
+orbit.innerHTML=`<title>Earth–Mars distance sets the delay</title><circle cx="${cx}" cy="${cy}" r="${scale}" fill="none" stroke="var(--border)"/><circle cx="${cx}" cy="${cy}" r="${scale*R}" fill="none" stroke="var(--border)"/>${line(ep.x,ep.y,mp.x,mp.y,'var(--muted-foreground)')}<circle cx="${cx}" cy="${cy}" r="7" fill="var(--muted-foreground)"/>${txt(cx,cy+24,'Sun','middle')}<circle cx="${ep.x}" cy="${ep.y}" r="7" fill="var(--viz-series-1)"/>${txt(ep.x,ep.y-15,'Earth','middle')}<circle cx="${mp.x}" cy="${mp.y}" r="7" fill="var(--viz-series-2)"/>${txt(mp.x,mp.y+23,'Mars','middle')}${txt(cx,214,'Radio path: '+Math.round(z.distance/1e6)+' million km','middle')}`;}
+function draw(){const z=g(),cap=t-z.delay,km=Math.round(z.distance/1e6);
+q('[data-distance]').textContent=km+' million km';q('[data-round]').textContent=dur(2*z.delay);q('[data-sep]').setAttribute('aria-valuetext',km+' million kilometres; one-way radio delay '+dur(z.delay));
+scene(q('[data-now]'),t,'now',cap);scene(q('[data-image]'),Math.max(0,cap),'image');lane(z);
+const s=sim(plan,t);q('[data-now-label]').textContent='Now '+clock(t)+(running&&!s.moving&&!s.spinning?' ⏩ fast-forward':'');
+q('[data-image-label]').textContent=(cap<0?'Older picture':'Picture from '+clock(cap))+' · '+dur(z.delay)+' old';
+if(q('.signal-details').open){drawOrbit(z);polishDiagram(orbit,'mars-orbit');}
+polishDiagram(q('[data-now]'),'terrain');polishDiagram(q('[data-image]'),'terrain');}
+const icon=kind=>`<svg class="cmd-icon" viewBox="0 0 34 12" aria-hidden="true">${kind==='short'?[1,13,25].map(x=>`<rect x="${x}" y="4" width="8" height="4" rx="2" fill="${RED}"/>`).join(''):kind==='one'?`<rect x="1" y="4" width="10" height="4" rx="2" fill="${RED}"/>`:`<rect x="1" y="4" width="${kind==='smart'?22:32}" height="4" rx="2" fill="${RED}"/>`+(kind==='smart'?`<circle cx="29" cy="6" r="4" fill="#24704e"/>`:'')}</svg>`;
+const planBtn=(p,label,primary)=>`<button type="button" class="choice${primary?' primary':''}" data-act="plan" data-plan="${p}"${running?' disabled':''}>${icon(p)}${done[p]?'✓ ':''}${label}</button>`;
+const focusKey=b=>(b.dataset.act||'')+'|'+(b.dataset.plan||b.dataset.v||'');
+function renderChoices(){const z=g();let h='';
+if(stage===0&&phase==='idle')h=`<button type="button" class="choice primary" data-act="send">${icon('one')}Send DRIVE 5 m</button>`;
+else if(stage===0)h=['Right away','In '+dur(z.delay),'In '+dur(2*z.delay)].map((o,i)=>{const mark=phase==='reveal'?(i===2?' right':i===answer?' wrong':''):'';return `<button type="button" class="choice${mark}" data-act="answer" data-v="${i}"${phase==='reveal'?' disabled':''}>${mark===' right'?'✓ ':mark===' wrong'?'✕ ':''}${o}</button>`;}).join('');
+else h=planBtn('long','DRIVE 20 m in one go')+planBtn('short','DRIVE 5 m, check, repeat')+(stage>=2?planBtn('smart','DRIVE 20 m + slip check',stage===2):'');
+h+=(ran&&phase!=='ask'?`<button type="button" data-act="replay"${running?' disabled':''}>Replay</button>`:'')+`<button type="button" data-act="reset">Reset</button>`;
+const box=q('[data-choices]'),had=box.contains(document.activeElement),key=had?focusKey(document.activeElement):'';box.innerHTML=h;
+if(had||document.activeElement===box){const all=[...box.querySelectorAll('button:not(:disabled)')];(all.find(b=>focusKey(b)===key)||all.find(b=>b.classList.contains('choice'))||box).focus({preventScroll:true});}
+q('[data-sep]').disabled=running||phase==='ask';q('[data-example]').disabled=running||phase==='ask';}
+function renderGoal(){const goal=stage===0?(phase==='idle'?'Send the rover a command.':phase==='ask'?'When will Earth see the rover move?':'Watch the signals.')
+:stage===1?(done.long||done.short?'Now try the other plan.':'Reach the rock. How will you send the drive?')
+:stage===2?'Engineers’ fix: let the rover check itself.':'Compare the plans, or change the distance.';
+if(q('[data-goal]').textContent!==goal)q('[data-goal]').textContent=goal;}
+function renderAll(){renderGoal();renderChoices();draw();}
+function result(text,outcome){const r=q('[data-result]');r.textContent=text;if(outcome)r.dataset.outcome=outcome;else delete r.dataset.outcome;}
+function finishRun(){const z=g(),D=z.delay;
+if(plan==='probe'){if(phase==='reveal'){hold=3000;holdFn=()=>{stage=1;phase='idle';t=0;result('Round trip: '+dur(2*D)+'.');renderAll();};}}
+else if(plan==='long')result('✕ STUCK: wheels turned 20 m, rover moved '+sim('long',t).pos.toFixed(1)+' m. Earth found out '+dur(D)+' later. (Real event: Opportunity rover, 2005: five weeks to dig out.)','hazard');
+else if(plan==='short')result('✓ SAFE BUT SLOW: 10 m took '+dur(4*D+10)+'. Each check waits '+dur(2*D)+'.','slow');
+else result('✓ SAFE AND QUICK: the rover felt its wheels slip and stopped itself. No '+dur(2*D)+' wait.','safe');
+if(plan!=='probe'){done[plan]=true;if(stage===1&&done.long&&done.short)stage=2;if(stage===2&&plan==='smart'){stage=3;if(!sent){sent=true;window.parent.postMessage({type:'complete'},'*');}}}
+renderAll();}
+let previous=0;
+const reduced=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+function loop(now){const delta=document.hidden?0:Math.min((now-previous)/1000,.1);previous=now;
+if(running){const s=sim(plan,t),end=runEnd(plan);t=reduced()?end:Math.min(end,t+delta*(s.moving||s.spinning?SLOW:FAST));if(t>=end){running=false;finishRun();}else draw();}
+else if(hold>0){hold-=delta*1000;if(hold<=0){hold=0;const f=holdFn;holdFn=null;if(f)f();}}
+if(running||hold>0)raf=visualFrame(loop);}
+function cancelAll(){running=false;hold=0;holdFn=null;cancelAnimationFrame(raf);}
+function run(p){cancelAll();plan=p;t=0;running=true;ran=true;if(p!=='probe')result('');renderAll();previous=performance.now();raf=visualFrame(loop);}
+q('[data-choices]').addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.disabled)return;const act=b.dataset.act;
+if(act==='send'){cancelAll();plan='probe';t=0;phase='ask';result('');renderAll();q('[data-choices] button')?.focus({preventScroll:true});}
+else if(act==='answer'){answer=Number(b.dataset.v);phase='reveal';const D=g().delay;result((answer===2?'✓ CORRECT: ':'✕ NOT QUITE: ')+dur(2*D)+' = '+dur(D)+' there + '+dur(D)+' back.',answer===2?'safe':'hazard');run('probe');}
+else if(act==='plan')run(b.dataset.plan);
+else if(act==='replay')run(plan);
+else if(act==='reset'){cancelAll();stage=0;phase='idle';answer=null;ran=false;done={long:false,short:false,smart:false};plan='probe';t=0;day=example;q('[data-sep]').value=225;result('');renderAll();}});
+function setDistance(km){cancelAll();if(phase==='reveal'){stage=1;phase='idle';}day=dayFor(km*1e6);t=0;q('[data-sep]').value=km;renderAll();}
+q('[data-sep]').addEventListener('input',()=>setDistance(Number(q('[data-sep]').value)));q('[data-example]').addEventListener('click',()=>setDistance(225));
 // Small SVG enhancements: no assets, filters, textures, or external libraries.
 function polishDiagram(svg, kind) {
  if (!svg) return;
  const ns='http://www.w3.org/2000/svg', vb=svg.viewBox.baseVal,w=vb.width,h=vb.height;
- const id=root.id+'-'+kind;
+ const id=root.id+'-'+kind+(svg.matches('[data-image]')?'-image':'');
  const node=(tag,attrs,parent=svg)=>{const n=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,v);parent.appendChild(n);return n;};
  const defs=document.createElementNS(ns,'defs');
- defs.innerHTML=`<linearGradient id="${id}-metal" x2="0" y2="1"><stop stop-color="var(--muted-foreground)"/><stop offset=".38" stop-color="var(--background)"/><stop offset=".56" stop-color="var(--muted)"/><stop offset="1" stop-color="var(--muted-foreground)"/></linearGradient><linearGradient id="${id}-glass" x2="1" y2="1"><stop stop-color="var(--viz-series-1)" stop-opacity=".15"/><stop offset=".48" stop-color="var(--background)" stop-opacity=".9"/><stop offset="1" stop-color="var(--viz-series-1)" stop-opacity=".5"/></linearGradient><linearGradient id="${id}-shade"><stop stop-color="var(--foreground)" stop-opacity="0"/><stop offset=".65" stop-color="var(--foreground)" stop-opacity=".08"/><stop offset="1" stop-color="var(--foreground)" stop-opacity=".55"/></linearGradient>`;
+ defs.innerHTML=`<linearGradient id="${id}-shade"><stop stop-color="var(--foreground)" stop-opacity="0"/><stop offset=".65" stop-color="var(--foreground)" stop-opacity=".08"/><stop offset="1" stop-color="var(--foreground)" stop-opacity=".55"/></linearGradient>`;
  svg.insertBefore(defs,svg.firstChild);
- const metal='url(#'+id+'-metal)',glass='url(#'+id+'-glass)';
  const g=node('g',{'aria-hidden':'true','pointer-events':'none'});
  const path=(d,fill,opacity=1,parent=g)=>node('path',{d,fill,opacity},parent);
- const line=(x1,y1,x2,y2,stroke='var(--muted-foreground)',width=1,parent=g)=>node('line',{x1,y1,x2,y2,stroke,'stroke-width':width,'stroke-linecap':'round'},parent);
  const circle=(cx,cy,r,fill,stroke='none',parent=g)=>node('circle',{cx,cy,r,fill,stroke},parent);
  if(kind==='terrain') {
-  const rover=svg.querySelector('g[transform]');
+  const rover=svg.querySelector('g.rover');
   if(!rover)return;
-  svg.insertBefore(g,rover);
+  svg.insertBefore(g,svg.querySelector('g.ghost')||rover);
   // A handful of fixed geological marks, shared by the live and delayed views.
   for(let i=0;i<7;i++){const x=18+(w-36)*((i*.173+.11)%1),y=164+(i%3)*4;path(`M ${x-4} ${y} l 3 -3 l 5 1 l 3 2 Z`,'var(--muted-foreground)',.35);}
   const terrain=svg.querySelector('path[fill="var(--muted)"]');if(terrain)terrain.setAttribute('fill','color-mix(in srgb, var(--viz-series-2) 12%, var(--muted))');
-  const tireNodes=[...rover.querySelectorAll('circle')];
-  for(const n of tireNodes){const x=Number(n.getAttribute('cx')),y=Number(n.getAttribute('cy'));circle(x,y,3,metal,'var(--muted-foreground)',rover);for(const sign of [-1,1])line(x-4,y+sign*4,x+4,y+sign*4,'var(--muted-foreground)',1,rover);}
-  node('path',{d:'M -17 -22 L -12 -31 L 14 -31 L 18 -22 Z',fill:glass,stroke:'var(--muted-foreground)'},rover);
-  for(let i=0;i<3;i++)line(-10+i*8,-30,-7+i*8,-23,'var(--muted-foreground)',.7,rover);
-  circle(5,-42,2,'var(--viz-series-1)','none',rover);
  }
  if(kind==='mars-orbit') {
-  const planets=[...svg.querySelectorAll('circle[r="7"]')];
+  const planets=[...svg.querySelectorAll('circle[r="7"]:not([fill="var(--muted-foreground)"])')];
   for(const n of planets){const x=n.getAttribute('cx'),y=n.getAttribute('cy');circle(x,y,7,'url(#'+id+'-shade)');}
  }
 }
 let visualFrameTime=0;
 function visualFrame(callback){return requestAnimationFrame(now=>{if(now-visualFrameTime<1000/30){raf=visualFrame(callback);return;}visualFrameTime=now;callback(now);});}
-
-function draw(){drawBase();polishDiagram(q('[data-orbit]'),'mars-orbit');polishDiagram(q('[data-now]'),'terrain');polishDiagram(q('[data-image]'),'terrain');}
-
-restore(window.openai?.widgetState);window.addEventListener('openai:set_globals',e=>{const s=e.detail?.globals?.widgetState;if(JSON.stringify(s)!==lastSaved)restore(s);});root._draw=draw;new ResizeObserver(draw).observe(root);draw();
+q('.signal-details').addEventListener('toggle',draw);new ResizeObserver(draw).observe(root);result('');renderAll();
 })();
 </script>
-
-<script>
-(()=>{
-const cfg=["Mars · The image is already old", [["Set the distance", "Move the planets. Their separation sets the signal’s travel time.", "[data-orbit]", "[data-day]", ".mr-metrics"], ["Watch both worlds", "Run the mission. Compare Mars now with the older image arriving on Earth.", ".mr-views", "[data-plan]", "[data-run]", "[data-time]", "[data-status]"], ["Follow the message", "The image travels to Earth. A STOP command must make another journey.", "[data-events]", "[data-jump]", "[data-time]", "[data-status]"], ["Try local sensing", "Switch to onboard sensors and rerun. The rover can react before Earth receives its image.", ".mr-views", "[data-plan]", "[data-run]", "[data-time]", "[data-answer]", "[data-check]", "[data-feedback]"]]],root=document.querySelector('main>div');root.classList.add('focus-root');
-root.querySelector('h2').textContent=cfg[0];
-const title=root.querySelector('h2'),stash=document.createElement('div');stash.hidden=true;
-const originals=[...root.children].filter(e=>e!==title); originals.forEach(e=>stash.append(e));root.append(stash);
-const stage=document.createElement('section');stage.className='focus-stage';
-const caption=document.createElement('p');caption.className='focus-caption';caption.setAttribute('aria-live','polite');
-const controls=document.createElement('div');controls.className='focus-controls';
-const nav=document.createElement('nav');nav.className='focus-nav';nav.setAttribute('aria-label','Investigation steps');
-nav.innerHTML='<button type="button" data-back>Back</button><strong></strong><button type="button" data-next>Next</button>';
-root.append(stage,caption,controls,nav);
-const notes=document.createElement('details');notes.innerHTML='<summary>About this model</summary>';
-[...stash.querySelectorAll(':scope>.text-small')].forEach(e=>notes.append(e));root.append(notes);
-const table=stash.querySelector('table');if(table){const trials=document.createElement('details');trials.innerHTML='<summary>My trials</summary>';trials.append(table);root.append(trials);}
-const selections=cfg[1].map(s=>s.slice(2).flatMap(sel=>[...root.querySelectorAll(sel)]).map(e=>e.matches('input,select')?e.closest('label'):e));
-let step=0,sent=false;
-function show(){
- [...stage.children,...controls.children].forEach(e=>stash.append(e));
- selections[step].forEach(e=>{if(e) (e.tagName==='svg'||e.matches('svg,.mr-views')?stage:controls).append(e)});
- const s=cfg[1][step];caption.textContent=s[1];nav.querySelector('strong').textContent=s[0];nav.querySelector('[data-back]').disabled=step===0;nav.querySelector('[data-next]').textContent=step===cfg[1].length-1?'Start again':'Next';
- root._draw?.();
- if(step===cfg[1].length-1&&!sent){sent=true;window.parent.postMessage({type:'complete'},'*')}
-}
-nav.querySelector('[data-back]').onclick=()=>{step=Math.max(0,step-1);show()};nav.querySelector('[data-next]').onclick=()=>{step=(step+1)%cfg[1].length;show()};
-// Running stays in the current view; students can revisit every explanation.
-show();window.addEventListener('resize',()=>root._draw?.());
-})();
-</script></main></body></html>
+</main></body></html>

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rømer · The late eclipse</title>
+<style>
+*{box-sizing:border-box}html,body{background:transparent;margin:0;font-family:Arial,sans-serif;color:#17324f}.rise-activity{max-width:1100px;margin:auto;padding:16px;border:5px solid #285f9f;border-radius:18px;background:#fff}h1{font-size:clamp(18px,3vw,27px);margin:0 0 12px;white-space:nowrap}.ro-scenes{display:grid;grid-template-columns:1.35fr 1fr;gap:12px}.ro-scene:first-child{grid-row:span 2;display:flex;align-items:center}.ro-scene{background:#f2f6fa;border-radius:12px;overflow:hidden}svg{display:block;width:100%;height:auto}svg text{font-family:Arial,sans-serif;fill:#17324f;font-size:14px}.ro-graph{margin-top:12px;background:#f2f6fa;border-radius:12px}.ro-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}button{background:white;color:#17324f;border:1px solid #7892a8;border-radius:7px;padding:9px 14px;font-size:15px;min-height:42px;cursor:pointer}button:first-child{background:#285f9f;color:white}button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #b65f08;outline-offset:3px}label{flex:1 1 230px;font-size:15px}input{width:100%;accent-color:#285f9f;min-height:28px}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}.ro-status{margin:10px 0 0;font-size:16px;line-height:1.4;min-height:2.8em}details{font-size:13px;line-height:1.5;color:#496075;margin-top:6px}summary{cursor:pointer;min-height:28px}.ro-mobile{display:none}@media(max-width:600px){.rise-activity{padding:9px}.ro-scenes{grid-template-columns:1fr;gap:8px}.ro-scene:first-child{grid-row:auto}.ro-graph{margin-top:8px}.ro-controls label{flex-basis:100%}.ro-status{font-size:15px}#space text{font-size:21px}#io text,#telescope text{font-size:16px}.ro-mobile{display:block}}
+</style></head><body><main class="rise-activity">
+<h1>Rømer · The late eclipse</h1>
+<div class="ro-scenes"><div class="ro-scene"><svg id="space" viewBox="0 0 530 310" role="img" aria-label="Earth orbits the Sun. Its changing distance from Jupiter changes the light travel time. Arrows point from Io toward Earth."></svg></div><div class="ro-scene"><svg id="io" viewBox="0 0 390 215" role="img" aria-label="Io orbits Jupiter, disappearing into its shadow and emerging once per orbit."></svg></div><div class="ro-scene"><svg id="telescope" viewBox="0 0 390 215" role="img" aria-label="Simulated telescope view from Earth: Io becomes visible only after its light arrives."></svg></div></div>
+<div class="ro-graph"><svg id="graph" role="img" aria-label="Eclipse arrival delay relative to the initial prediction, plotted against elapsed days."></svg></div>
+<p class="sr-only" id="status" role="status" aria-live="polite"></p>
+
+<script>let frame;window.requestAnimationFrame=f=>{frame=f;return 1};window.cancelAnimationFrame=()=>{};</script><script>
+(()=>{'use strict';
+const $=id=>document.getElementById(id),AU=149597870.7,C=299792.458,P=1.769,TAU=Math.PI*2;
+const YEAR=365.25,IO_PERIOD=P*1440,FIRST_EMERGENCE=YEAR/12*1440,FAR_OFFSET=YEAR/3;
+const LEAD=IO_PERIOD*Math.asin(23/65)/Math.PI+60;
+let cycle=0,stage=0,raf=0,last=0,sent=false,accumulator=0;
+let eventTime=FIRST_EMERGENCE-LEAD,day=eventTime/1440,fastRate=0,fastStart=0;
+let nearRecord=null,farRecord=null;
+const reduced=matchMedia('(prefers-reduced-motion: reduce)');
+const mod=(n,d)=>((n%d)+d)%d;
+const events=c=>({near:FIRST_EMERGENCE+Math.round(c*YEAR/P)*IO_PERIOD,far:FIRST_EMERGENCE+Math.round((c*YEAR+FAR_OFFSET)/P)*IO_PERIOD});
+const fast=()=>stage===1||stage===3;
+const activeEvent=()=>stage===0?events(cycle).near:events(cycle).far;
+const travel=()=>model(eventTime/1440).distance*AU/C/60;
+function arrival(emitted){let t=emitted;for(let i=0;i<5;i++)t=emitted+Math.hypot(5.2-Math.cos(t/1440/YEAR*TAU),Math.sin(t/1440/YEAR*TAU))*AU/C/60;return t;}
+const baseline=()=>arrival(events(cycle).near)-events(cycle).near;
+const stageName=()=>fast()?'Fast-forward':stage===0?'Near observation':'Far observation';
+const rate=()=>fast()?fastRate:eventTime<activeEvent()-20?60:8;
+const text=(x,y,t,anchor='start',extra='')=>`<text x="${x}" y="${y}" text-anchor="${anchor}" ${extra}>${t}</text>`;
+const line=(x,y,X,Y,color='#a6b9c8',dash='')=>`<line x1="${x}" y1="${y}" x2="${X}" y2="${Y}" stroke="${color}" stroke-width="1.5" stroke-dasharray="${dash}"/>`;
+function model(d){const a=d/365.25*TAU,distance=Math.hypot(5.2-Math.cos(a),Math.sin(a));return{a,distance,extra:(distance-4.2)*AU,delay:distance*AU/C/60-baseline()};}
+function planet(x,y,r,kind,id){return `<defs><radialGradient id="${id}" cx="30%" cy="30%" r="75%"><stop stop-color="${kind==='earth'?'#78c8e7':'#f5ddbc'}"/><stop offset=".6" stop-color="${kind==='earth'?'#277bab':'#c79b73'}"/><stop offset="1" stop-color="#24384c"/></radialGradient><clipPath id="${id}clip"><circle cx="${x}" cy="${y}" r="${r}"/></clipPath></defs><circle cx="${x}" cy="${y}" r="${r}" fill="url(#${id})"/><g clip-path="url(#${id}clip)">${kind==='earth'?`<path d="M${x-r*.6} ${y-r*.7}l${r*.7} ${r*.2} ${r*.2} ${r*.5} ${-r*.4} ${r*.8} ${-r*.3} ${-r*.6}Z" fill="#a2c6a5"/>`:[-.65,-.3,.08,.45].map((v,i)=>`<path d="M${x-r} ${y+r*v}q${r} ${r*.25} ${2*r} 0v${r*.16}q${-r} ${r*.2} ${-2*r} 0Z" fill="${i%2?'#8e5a40':'#fff2d7'}" opacity=".55"/>`).join('')+`<ellipse cx="${x+r*.35}" cy="${y+r*.34}" rx="${r*.23}" ry="${r*.11}" fill="#ac644b"/>`}</g>`;}
+function draw(){day=mod(eventTime/1440,YEAR);const m=model(eventTime/1440),ex=135+82*Math.cos(m.a),ey=158-82*Math.sin(m.a);
+const source={x:450,y:158};
+const arrow=(x,y,X,Y,color='#237c9c')=>{const a=Math.atan2(Y-y,X-x),mx=x+(X-x)*.57,my=y+(Y-y)*.57;return line(x,y,X,Y,color)+`<path d="M${mx} ${my}l${-11*Math.cos(a)+4*Math.sin(a)} ${-11*Math.sin(a)-4*Math.cos(a)}l${-8*Math.sin(a)} ${8*Math.cos(a)}Z" fill="${color}"/>`;};
+$('space').innerHTML=`<defs><marker id="orbit-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#678da5"/></marker></defs>`+text(18,27,stageName())+text(512,27,`Day ${day.toFixed(2)}`,'end')+`<circle cx="135" cy="158" r="82" fill="none" stroke="#829cb1" stroke-width="1.5"/><path d="M176 87 A82 82 0 0 0 111 80" fill="none" stroke="#678da5" stroke-width="2" marker-end="url(#orbit-arrow)"/><circle cx="450" cy="158" r="47" fill="none" stroke="#829cb1"/><path d="M474 117 A47 47 0 0 0 437 113" fill="none" stroke="#678da5" stroke-width="2" marker-end="url(#orbit-arrow)"/>`+arrow(source.x,source.y,ex,ey)+`<circle cx="135" cy="158" r="20" fill="#f2b64b"/><circle cx="130" cy="153" r="13" fill="#ffd77a" opacity=".6"/>`+text(135,199,'Sun','middle')+planet(ex,ey,12,'earth','earth')+text(ex,ey-20,'Earth','middle')+planet(450,158,27,'jupiter','jupiter')+text(450,91,'Jupiter','middle')+`<circle cx="${source.x}" cy="${source.y}" id="overview-io" r="6" fill="#d4a348" stroke="#7f6031"/><circle id="light-pulse" r="5" fill="#d49b24" stroke="white" stroke-width="2" visibility="hidden"/>`+text(509,source.y+5,'Io','middle','id="overview-label"')+text(280,218,'Light to Earth')+text(18,270,`Distance: ${(m.distance*AU/1e6).toFixed(1)} million km`)+text(18,294,`Extra time: ${(Math.abs(m.delay)<.05?0:m.delay).toFixed(1)} min`);
+drawEclipse();
+const narrow=innerWidth<600,w=narrow?370:1000,h=narrow?285:255,left=48,right=w-24,top=64,bottom=h-53,X=d=>left+(right-left)*d/YEAR,Y=v=>bottom-(v+2)/20*(bottom-top);
+$('graph').setAttribute('viewBox',`0 0 ${w} ${h}`);
+let g=text(16,25,'Extra eclipse arrival delay (min)')+text(16,46,'Near observation = 0 min','start','style="font-size:12px"');
+[0,5,10,15].forEach(v=>g+=line(left,Y(v),right,Y(v),v===0?'#677d8f':'#d3dee7',v===0?'5 5':'')+text(left-10,Y(v)+5,v,'end'));
+[0,90,180,270,365].forEach(d=>g+=line(X(d),bottom,X(d),bottom+5)+text(X(d),bottom+23,d,'middle'));
+g+=text((left+right)/2,h-8,'Date in Earth orbit (days)','middle');
+const points=[];for(let d=0;d<=YEAR;d+=2)points.push([X(d),Y(model(d).delay)]);
+g+=`<polyline points="${points.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#a8bdcd" stroke-width="1.5"/>`;
+for(const [record,label] of [[nearRecord,'Near'],[farRecord,'Far']])if(record){const d=mod(record.emitted/1440,YEAR),v=record.lag-baseline();g+=`<circle cx="${X(d)}" cy="${Y(v)}" r="5" fill="#285f9f" stroke="white" stroke-width="2"/>`+text(X(d)+8,Y(v)-10,`${label}: ${v.toFixed(1)} min`,'start','style="font-size:12px;font-weight:bold"');}
+g+=line(X(day),top,X(day),bottom,'#237c9c','3 4')+`<circle cx="${X(day)}" cy="${Y(m.delay)}" r="4" fill="#237c9c"/>`;
+$('graph').innerHTML=g;
+const status=stageName();if($('status').textContent!==status)$('status').textContent=status;
+}
+function ioState(time){const theta=-Math.asin(23/65)-TAU*(time-FIRST_EMERGENCE)/IO_PERIOD;return{theta,eclipsed:Math.cos(theta)>0&&Math.abs(Math.sin(theta))<23/65,since:mod(time-FIRST_EMERGENCE,IO_PERIOD)};}
+function clockText(time){const minutes=Math.floor(time),hours=Math.floor(minutes/60);return `${hours>=24?'D'+(Math.floor(hours/24)+1)+' ':''}${String(mod(hours,24)).padStart(2,'0')}:${String(mod(minutes,60)).padStart(2,'0')}`;}
+function drawEclipse(){
+const total=travel(),local=ioState(eventTime),received=ioState(eventTime-total),blocked=Math.abs(day-YEAR/2)<10,isFast=fast();
+const pulse=$('light-pulse'),m=model(day),fraction=local.since/total,sx=450,sy=158;
+if(pulse){pulse.setAttribute('cx',sx+(135+82*Math.cos(m.a)-sx)*Math.min(1,fraction));pulse.setAttribute('cy',sy+(158-82*Math.sin(m.a)-sy)*Math.min(1,fraction));pulse.setAttribute('visibility',!isFast&&fraction<=1?'visible':'hidden');const moon=$('overview-io');moon.setAttribute('cx',450+47*Math.cos(local.theta));moon.setAttribute('cy',158+47*Math.sin(local.theta));moon.setAttribute('fill',local.eclipsed?'#64748b':'#e4b44d');moon.setAttribute('visibility',isFast?'hidden':'visible');$('overview-label').setAttribute('visibility',isFast?'hidden':'visible');$('overview-label').setAttribute('x',450+60*Math.cos(local.theta));$('overview-label').setAttribute('y',158+60*Math.sin(local.theta));}
+const ix=140+65*Math.cos(local.theta),iy=112+65*Math.sin(local.theta),localHighlight=local.since<30;
+$('io').innerHTML=text(16,25,'At Jupiter')+text(374,25,`Now ${clockText(eventTime)}`,'end','style="font-weight:bold;font-variant-numeric:tabular-nums"')+text(374,46,isFast?`${(rate()/1440).toFixed(1)} days/s`:`${rate()} min/s`,'end','style="font-size:11px"')+`<path d="M140 86L350 94V130L140 138Z" fill="#c6d1df"/><circle cx="140" cy="112" r="65" fill="none" stroke="#829cb1"/>`+text(16,55,'Sunlight →')+planet(140,112,27,'jupiter','inset')+text(140,157,'Jupiter','middle')+text(273,150,'Shadow')+`<circle id="local-moon" visibility="${isFast?'hidden':'visible'}" cx="${ix}" cy="${iy}" r="7" fill="${local.eclipsed?'#64748b':'#e4b44d'}" stroke="#7f6031"/>`+(isFast?'':text(ix+12,iy-9,'Io'))+text(16,196,isFast?`${Math.floor((eventTime-fastStart)/IO_PERIOD)} Io orbits elapsed`:eventTime>=activeEvent()?`End ${clockText(activeEvent())}`:local.eclipsed?'In eclipse':'')+text(374,196,'Period: 42 h 27 min','end');
+// Project the orbit along the actual Earth-to-Jupiter sightline. Io's orbit
+// is coplanar in this model, so the telescope sees an edge-on track.
+const nx=(Math.cos(m.a)-5.2)/m.distance,ny=-Math.sin(m.a)/m.distance;
+const rx=Math.cos(received.theta),ry=Math.sin(received.theta),depth=rx*nx+ry*ny;
+const moonX=164+103*(rx*ny-ry*nx),moonY=111,behind=depth<0;
+const occulted=behind&&Math.abs(moonX-164)<=36.5-5,arrivalHighlight=received.since<30;
+const moon=`<circle id="received-moon" data-behind="${behind}" cx="${moonX}" cy="${moonY}" r="5" fill="#fff0b0" visibility="${isFast||received.eclipsed?'hidden':'visible'}"/>`;
+const visibleLabel=!isFast&&!received.eclipsed&&!occulted&&Math.abs(moonX-164)>43;
+$('telescope').innerHTML=text(16,25,'Earth telescope')+text(374,25,`Image ${clockText(eventTime-total)}`,'end','style="font-weight:bold;font-variant-numeric:tabular-nums"')+`<defs><radialGradient id="sky"><stop stop-color="#182c46"/><stop offset="1" stop-color="#07111f"/></radialGradient><clipPath id="eyepiece"><ellipse cx="195" cy="111" rx="156" ry="67"/></clipPath></defs><ellipse cx="195" cy="111" rx="161" ry="72" fill="#52687e"/><ellipse cx="195" cy="111" rx="156" ry="67" fill="url(#sky)"/><g clip-path="url(#eyepiece)"><line x1="61" y1="111" x2="267" y2="111" stroke="#728ba5" stroke-dasharray="3 4"/>`+(behind?moon:'')+planet(164,111,36.5,'jupiter','scope')+(!behind?moon:'')+(visibleLabel?text(moonX,moonY-13,'Io','middle','style="fill:#e3edf7;font-size:13px"'):'')+text(164,163,'Jupiter','middle','style="fill:#e3edf7;font-size:13px"')+`</g>`+text(16,196,`Image lag: ${total.toFixed(1)} min`)+text(374,196,isFast?'Fast-forward':occulted?'Behind Jupiter':received.eclipsed?'In eclipse':eventTime>=arrival(activeEvent())?`Seen ${clockText(arrival(activeEvent()))}`:'','end');
+$('telescope').innerHTML+=text(374,47,blocked?'Schematic · Sun blocks view':'Edge-on view','end','style="font-size:11px"');
+$('io').setAttribute('aria-label',`At Jupiter, clock ${clockText(eventTime)}. Io ${local.eclipsed?'is in eclipse':'is sunlit'}.`);
+$('telescope').setAttribute('aria-label',`Schematic telescope image from ${clockText(eventTime-total)}, ${total.toFixed(1)} minutes behind the Jupiter clock. Io ${occulted?'is hidden behind Jupiter':received.eclipsed?'is in eclipse':behind?'is on the far side of its orbit':'is on the near side of its orbit'}.${blocked?' The Sun blocks an actual observation at conjunction.':''}`);
+}
+function setStage(next){stage=next;if(fast()){fastStart=eventTime;const target=stage===1?events(cycle).far-LEAD:events(cycle+1).near-LEAD;fastRate=(target-eventTime)/6;}}
+function recordObservation(){if(fast())return;const emitted=activeEvent(),arrived=arrival(emitted);if(eventTime>=arrived){const record={emitted,lag:arrived-emitted};if(stage===0)nearRecord=record;else{farRecord=record;if(!sent){sent=true;window.parent.postMessage({type:'complete'},'*');}}}}
+function advance(dt){
+let remaining=dt;
+while(remaining>1e-8){
+const end=stage===0?arrival(events(cycle).near)+40:stage===1?events(cycle).far-LEAD:stage===2?arrival(events(cycle).far)+40:events(cycle+1).near-LEAD;
+const threshold=!fast()&&eventTime<activeEvent()-20?Math.min(end,activeEvent()-20):end;
+const speed=rate(),step=Math.min(remaining,(threshold-eventTime)/speed);
+eventTime+=step*speed;remaining-=step;recordObservation();
+if(eventTime>=end-1e-7){eventTime=end;if(stage===3){cycle++;setStage(0);}else setStage(stage+1);}
+else if(step<1e-9)break;
+}
+draw();
+}
+function frame(now){
+if(last&&!document.hidden){accumulator+=Math.min((now-last)/1000,.1);const interval=reduced.matches?1:1/30;if(accumulator>=interval){const dt=accumulator;accumulator=0;advance(dt);}}
+last=now;raf=requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange',()=>{last=0;accumulator=0;});
+reduced.addEventListener('change',()=>{last=0;accumulator=0;draw();});
+window.addEventListener('resize',draw);window.romerModel=model;window.romerIoState=ioState;window.romerState=()=>({time:eventTime,day:eventTime/1440,stage,cycle,rate:rate(),nearRecord,farRecord,events:events(cycle),receivedTime:eventTime-travel()});draw();raf=requestAnimationFrame(frame);
+})();
+</script><script>for(let ms=1;ms<20000;ms+=40){const f=frame;frame=null;if(f)f(ms);}</script></main></body></html>
+
+

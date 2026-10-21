@@ -4,29 +4,115 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>A Charged Balloon and a Wall</title>
-<link rel="stylesheet" href="simple-walkthrough.css">
+<style>
+html,body{background:transparent}*{box-sizing:border-box}body{margin:0;padding:8px;color:#172f46;font-family:system-ui,sans-serif}
+main{max-width:680px;margin:auto;border:5px solid #285f9f;border-radius:12px;background:#fff;overflow:hidden}
+h1{font-size:clamp(15px,3.7vw,25px);white-space:nowrap;text-align:center;margin:0;padding:14px 4px;background:#eef5fa}
+.scene{display:block}svg{display:block;width:100%;height:auto}svg text{fill:#172f46;font:17px system-ui,sans-serif}svg .small{font-size:15px}svg .strong{font-weight:700}
+.controls{padding:0 12px 10px;margin-top:4px}button{font:600 16px system-ui;padding:10px 18px;border:1.5px solid #285f9f;border-radius:6px;background:#f3f8fc;color:#173e5c;cursor:pointer}button:focus-visible{outline:3px solid #a94b24;outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%)}
+@media(max-width:650px){body{padding:3px}.scene{grid-template-columns:1fr}svg text{font-size:18px}svg .small{font-size:16px}}
+</style>
 </head>
 <body>
-<main class="lesson rise-walkthrough">
+<main>
 <h1>A Charged Balloon and a Wall</h1>
-<div class="content">
-<div class="stage">
-<svg id="scene" viewBox="0 0 800 410" role="img" aria-label="A Charged Balloon and a Wall"></svg>
-<div class="message" role="status" aria-live="polite"><p id="prompt">Watch the setup.</p><p id="explanation"></p></div>
+<div class="scene">
+<svg id="scene" viewBox="0 0 420 330" role="img" aria-label="Rubbing hair charges a balloon, which polarizes a neutral insulating wall and sticks to it. Force arrows on the balloon show stronger attraction toward the wall and weaker repulsion away."></svg>
 </div>
-<div class="buttons" role="group" aria-label="Prediction and playback">
-<button type="button" data-choice="0" hidden>Yes</button>
-<button type="button" data-choice="1" hidden>No</button>
-<button class="utility" type="button" id="pause">Pause</button>
-<button class="utility" type="button" id="replay">Replay</button>
-</div>
-</div>
+<div class="controls"><button id="replay" type="button">Replay</button></div>
+<p id="status" class="sr" role="status" aria-live="polite"></p>
+<script>
+(() => {
+  'use strict';
+  // Group 1 demo: qualitative dielectric model, not a trajectory solver.
+  const scene = document.getElementById('scene');
+  const status = document.getElementById('status');
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  const blue = '#23649a', rust = '#a94b24', teal = '#087443', repel = '#a12979';
+  const text = (x,y,s,kind='') => `<text x="${x}" y="${y}" text-anchor="middle" class="${kind}">${s}</text>`;
+  const line = (x,y,X,Y,color,width=2) => `<path d="M${x} ${y}L${X} ${Y}" fill="none" stroke="${color}" stroke-width="${width}"/>`;
+  const arrow = (x,y,X,color,width=3) => line(x,y,X,y,color,width)+line(X,y,X-Math.sign(X-x)*8,y-5,color,width)+line(X,y,X-Math.sign(X-x)*8,y+5,color,width);
+  const smooth = n => {n=Math.max(0,Math.min(1,n));return n*n*(3-2*n)};
+  const phases = [
+    ['Unpolarized reference', 'Balloon far away. Positive centers and negative cloud centers coincide. The wall has no net polarization.'],
+    ['Balloon approaches', 'Bound electron clouds shift slightly away from the negative balloon.'],
+    ['Sticks to wall', 'The already charged balloon sticks to the neutral polarized wall. The longer arrow shows attraction toward the wall; the shorter arrow shows repulsion away. At contact, the wall supports the balloon.'],
+    ['Pulled away', 'The balloon is pulled away externally; bound electron clouds return to their original centers.'],
+    ['Reference restored', 'The wall returns to the unpolarized reference.']
+  ];
+  phases[-1]=['Rub on hair', 'Rubbing transfers electrons from the hair to the balloon. The hair becomes positive and the balloon negative.'];
+  let elapsed=0,last=null,frameId=null,announced=null,completionSent=false;
+  function stateAt(ms) {
+    if(ms<3000)return {phase:-1,amount:0};
+    if(ms<3800)return {phase:0,amount:0};
+    if(ms<5000)return {phase:1,amount:smooth((ms-3800)/1200)};
+    if(ms<7500)return {phase:2,amount:1};
+    if(ms<8700)return {phase:3,amount:1-smooth((ms-7500)/1200)};
+    return {phase:4,amount:0};
+  }
+  function render() {
+    const state=stateAt(elapsed), p=state.phase;
+    // Reduced motion uses held diagrams, never translation.
+    const a=reduced.matches ? (p===1||p===2?1:0) : state.amount;
+    const rubbing=p===-1, rubTime=Math.min(1,elapsed/3000);
+    const release=reduced.matches?0:smooth((rubTime-.85)/.15);
+    const x=rubbing ? 164-24*release : 140+78*a, y=rubbing&&!reduced.matches ? (145+15*Math.sin(rubTime*6*Math.PI))*(1-release)+157*release : 157;
+    const shift=8*a; // Rightmost balloon surface reaches wall x=270.
+    scene.dataset.phase=String(p);scene.dataset.displacement=String(shift);
+    let hair='';
+    for(let i=0;i<18;i++){
+      const angle=-2.8+i*.14, hx=65+49*Math.cos(angle), hy=147+49*Math.sin(angle);
+      hair+=`<path d="M${hx} ${hy+16}Q${hx-9} ${hy-13} ${hx+10} ${hy-18}" fill="none" stroke="${i%3?'#533529':'#9a6948'}" stroke-width="3" stroke-linecap="round"/>`;
+    }
+    const person=`<g aria-label="Hair being rubbed" opacity="${1-release}"><path d="M20 281Q22 239 52 236L83 235Q110 243 120 281" fill="#387b88" stroke="#245364" stroke-width="2"/><path d="M53 218V241Q67 253 83 238V208" fill="url(#skin)" stroke="#9d6749"/><path d="M29 157Q22 107 70 106Q108 107 110 149L119 174L109 179Q113 213 81 224Q45 226 32 190Z" fill="url(#skin)" stroke="#9d6749" stroke-width="1.5"/><path d="M28 180Q11 160 23 124Q34 93 70 95Q104 94 116 128L108 151Q88 145 83 130Q72 155 48 153L43 183Z" fill="#533529"/>${hair}<path d="M95 160l8 1M104 195q-7 4-12 0" stroke="#654433" stroke-width="2" fill="none"/><ellipse cx="42" cy="182" rx="8" ry="12" fill="#dba37e" stroke="#9d6749"/>${rubTime>.35?'<text x="64" y="115" text-anchor="middle" class="small strong" style="fill:#fff1cb">+  +</text>':''}</g>`;
+    // Representative neutral atoms: four protons and four bound electrons.
+    // Electron positions are schematic samples of a cloud, not orbit paths.
+    const electron=(ex,ey,r=3.4)=>`<g class="electron"><circle cx="${ex}" cy="${ey}" r="${r}" fill="#195686" stroke="#f5fbff" stroke-width=".7"/>${line(ex-r*.5,ey,ex+r*.5,ey,'#fff',1)}</g>`;
+    let cells='';
+    for(let row=0;row<3;row++)for(let col=0;col<2;col++){
+      const cx=302+col*64,cy=108+row*63;
+      let nucleus='';
+      for(const [dx,dy] of [[0,-5],[-5,0],[5,0],[0,5]])
+        nucleus+=`<circle cx="${cx+dx}" cy="${cy+dy}" r="3.8" fill="url(#positive)" stroke="${rust}" stroke-width=".6"/>`+line(cx+dx-1.8,cy+dy,cx+dx+1.8,cy+dy,rust,.8)+line(cx+dx,cy+dy-1.8,cx+dx,cy+dy+1.8,rust,.8);
+      for(const [dx,dy] of [[-3,-3],[3,3],[0,0]])
+        nucleus+=`<circle cx="${cx+dx}" cy="${cy+dy}" r="2.6" fill="#a2adb7" stroke="#526677" stroke-width=".6"/>`;
+      let cloud='';
+      for(let i=0;i<18;i++){
+        const angle=i*2.39996, radius=10+((i*7)%10);
+        cloud+=`<circle cx="${cx+shift+radius*Math.cos(angle)}" cy="${cy+radius*Math.sin(angle)}" r=".8" fill="#4788b3" opacity=".35"/>`;
+      }
+      for(const [dx,dy] of [[-13,-12],[13,-12],[-13,12],[13,12]]) cloud+=electron(cx+shift+dx,cy+dy);
+      cells+=`<g class="wall-atom"><ellipse cx="${cx+shift}" cy="${cy}" rx="23" ry="23" fill="url(#cloud)" stroke="${blue}" stroke-width="1.2"/>${cloud}${nucleus}</g>`;
+    }
+    const sites=[[-18,-51],[3,-55],[23,-46],[-29,-31],[-6,-33],[30,-24],[-36,-10],[35,-5],[-29,16],[26,20],[-14,37],[11,40],[0,58]];
+    const excessCount=rubbing?Math.floor(Math.max(0,Math.min(1,(rubTime-.15)/.65))*sites.length):sites.length;
+    const balloonElectrons=sites.slice(0,excessCount).map(([ex,ey])=>electron(ex,ey,4)).join('');
+    scene.innerHTML=`<defs><linearGradient id="skin"><stop stop-color="#f2caab"/><stop offset="1" stop-color="#d99b73"/></linearGradient><radialGradient id="cloud"><stop stop-color="#f4fbff"/><stop offset=".8" stop-color="#c9e6f7"/><stop offset="1" stop-color="#a8d1e9"/></radialGradient><radialGradient id="positive"><stop stop-color="#fff6df"/><stop offset="1" stop-color="#f4b786"/></radialGradient><linearGradient id="wall"><stop stop-color="#e1e6e8"/><stop offset=".12" stop-color="#faf9f5"/><stop offset="1" stop-color="#eceae4"/></linearGradient><radialGradient id="balloon" cx="30%" cy="25%" r="75%"><stop stop-color="#f6fbff"/><stop offset=".55" stop-color="#86c9ed"/><stop offset="1" stop-color="#387bad"/></radialGradient><pattern id="plaster" width="18" height="18" patternUnits="userSpaceOnUse"><path d="M3 5h2m7 8h2" stroke="#ccd6dc"/></pattern></defs>`
+      +text(210,28,p===-1?'Rub on hair':p===0?'Charged':p===4?'Unpolarized':p===3?'Pulled away':p===2?'Sticks to wall':'Polarizing','strong')
+      +`<path d="M270 73H407V270H270Z" fill="url(#wall)" stroke="#718797" stroke-width="2"/><path d="M270 73H407V270H270Z" fill="url(#plaster)"/>`
+      +`<path d="M407 73l8 -7v197l-8 7M270 73l8 -7h137" fill="#c5cbcc" stroke="#718797"/>`+text(338,58,'Wall: net charge 0','small')+cells+(rubbing?person:'')
+      +`<g transform="translate(${x} ${y})"><path d="M0 -72C-35 -72 -54 -48 -54 -15C-54 30 -28 60 -5 76L-10 87Q0 82 10 87L5 76C28 60 52 30 52 -15C52 -48 35 -72 0 -72Z" fill="url(#balloon)" stroke="${blue}" stroke-width="2"/><path d="M-28 -48Q-44 -32 -43 -8" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/><path d="M0 86C-15 108 15 115 0 133" fill="none" stroke="#718797" stroke-width="1.5"/>${balloonElectrons}</g>`
+      +(rubbing&&rubTime>.15&&rubTime<.9 ? Array.from({length:3},(_,i)=>{const t=reduced.matches ? .7 : ((rubTime*3+i/3)%1);return `<g transform="translate(${102+32*t} ${127+i*15})"><circle r="6" fill="#23649a" stroke="#fff"/><path d="M-3 0h6" stroke="#fff" stroke-width="1.5"/></g>`;}).join('') : '')
+      +(a>0 ? `<g aria-label="Electric forces on balloon">${arrow(x,157,x+45*a,teal,4)}${arrow(x,157,x-24*a,repel,4)}<circle cx="${x}" cy="157" r="3" fill="#172f46"/></g>` : '')
+      +text(210,316,rubbing?'Electrons: hair → balloon':'No charge transfer to wall','small');
+    if(announced!==p){
+      announced=p;status.textContent=phases[p][1]+' No electrons cross the air gap or transfer at contact in this model. Total wall charge = 0.';
+      if(p===4&&!completionSent){completionSent=true;window.parent.postMessage({type:'complete'},'*');}
+    }
+  }
+  function frame(now){
+    if(last!==null&&!document.hidden)elapsed+=Math.min(100,now-last);
+    last=now;
+    if(elapsed>=10000)elapsed=0;
+    render();frameId=requestAnimationFrame(frame);
+  }
+  function restart(){cancelAnimationFrame(frameId);elapsed=0;last=null;announced=null;render();frameId=requestAnimationFrame(frame);}
+  document.getElementById('replay').addEventListener('click',restart);
+  reduced.addEventListener('change',restart);
+  restart();
+})();
+</script>
 </main>
-<script>window.walkthroughLesson = {"title":"A Charged Balloon and a Wall","type":"charges","variant":"polarization","question":"A negatively charged balloon approaches a neutral wall. Can the wall attract it?","choices":["Yes","No"],"correct":0,"explanation":"The wall polarizes: positive charge is displaced slightly toward the balloon and negative charge away. The closer attraction is stronger than the farther repulsion."};</script>
-<script src="textbook-diagrams.js"></script>
-<script src="textbook-electric.js"></script>
-<script src="textbook-circuits.js"></script>
-<script src="textbook-magnetic.js"></script>
-<script src="simple-walkthrough.js"></script>
 </body>
 </html>
